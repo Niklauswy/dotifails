@@ -1,4 +1,4 @@
- #!/usr/bin/env bash
+#!/usr/bin/env bash
 # Desenvolvido pelo William Santos
 # contato: thespation@gmail.com ou https://github.com/thespation
 # Traducido y modificado por: Alejandro Fermín https://github.com/lostalejandro
@@ -122,7 +122,6 @@ clear
 ##--------------------------------Funciones utilizadas en el script--------------------------------##
 #--Identificar Distribución--#
 #--Función: Instalar aplicaciones específicas de XFCE (si están disponibles)--#
-declare -f APPS_XFCE
 function APPS_XFCE()
 {
     log "INFO: Verificando e instalando componentes adicionales de XFCE..."
@@ -159,7 +158,6 @@ function APPS_XFCE()
     fi
 }
 
-declare -f VERIF_DISTRIB
 function VERIF_DISTRIB()
 {
     log "INFO: Iniciando proceso de instalación de BSPWM..."
@@ -210,7 +208,6 @@ function VERIF_DISTRIB()
 }
 
 #--Función: Actualizar sistema (base Debian)--#
-declare -f ACTUALIZAR
 function ACTUALIZAR(){
     log "INFO: #-----------------------------Actualizar sistema-------------------------------#"
     
@@ -242,7 +239,6 @@ function ACTUALIZAR(){
 
 			
 #--Función: Instalar base BSPWM--#
-declare -f BSPWM
 function BSPWM()
 {
     log "INFO: #----------------------------Instalando base BSPWM-----------------------------#"
@@ -278,7 +274,6 @@ function BSPWM()
 
 
 #--Función: Instalar ksuperkey--#
-declare -f KSUPERKEY
 function KSUPERKEY()
 {
     log "Instalando ksuperkey..."
@@ -291,7 +286,6 @@ function KSUPERKEY()
 }
 	
 #--Función: Instalar i3lock-color--#
-declare -f I3LOCK
 function I3LOCK()
 {
     log "Instalando i3lock-color..."
@@ -309,7 +303,6 @@ function I3LOCK()
 
 
 #--Función: Instalar y configurar ZSH--#
-declare -f ZSH
 function ZSH()
 {
     log "Configurando ZSH..."
@@ -329,7 +322,6 @@ function ZSH()
 
 
 #--Función: Instalar aplicaciones complementarias (base Debian)--#
-declare -f APPS
 function APPS()
 {
     log "INFO: #------------------------Instalar apps complementarias-------------------------#"
@@ -456,7 +448,6 @@ function APPS()
 
 	
 #--Función: Usar personalizaciones para: fonts, configs, iconos, temas, polybar, dunst y rofi--#
-declare -f PERSONA
 function PERSONA()
 {
     log "INFO: #---------Copiar personalizaciones (iconos, temas, fonts, fondos, etc)---------#"
@@ -564,7 +555,6 @@ function PERSONA()
 }
 
 #--Función: Instalar Picom compositor--#
-declare -f PICOM
 function PICOM()
 {
     log "Instalando Picom compositor..."
@@ -582,7 +572,6 @@ function PICOM()
 
 	
 #--Función: Generar reporte de instalación--#
-declare -f INSTALLATION_REPORT
 function INSTALLATION_REPORT()
 {
     log "INFO: #--------------------------Generando reporte de instalación--------------------------#"
@@ -627,7 +616,6 @@ function INSTALLATION_REPORT()
 }
 
 #--Función: Notificar operacion exitosa--#
-declare -f NOTF_SUCESS
 function NOTF_SUCESS()
 {
     local message
@@ -649,7 +637,6 @@ function NOTF_SUCESS()
 }
 
 #--Función: Notificar Fallo--#
-declare -f NOTF_FALLA
 function NOTF_FALLA()
 {
     clear
