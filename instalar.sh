@@ -14,6 +14,20 @@ log() {
     echo "[$(date '+%H:%M:%S')] $1" | tee -a "$LOG_FILE"
 }
 
+print_banner() {
+    cat <<'EOF'
+╔════════════════════════════════════════════╗
+║         DOTIFAILS BSPWM INSTALLER          ║
+╚════════════════════════════════════════════╝
+EOF
+}
+
+print_step_banner() {
+    local step_label="$1"
+    local title="$2"
+    printf '\n┌────────────────────────────────────────────┐\n│ %-42s │\n│ %-42s │\n└────────────────────────────────────────────┘\n' "Paso $step_label" "$title"
+}
+
 # Función para manejo seguro de comandos
 safe_execute() {
     local description="$1"
@@ -111,6 +125,7 @@ fi
 
 log "INFO: Iniciando instalación de BSPWM"
 log "INFO: Log guardado en: $LOG_FILE"
+print_banner
 
 # Verificar requisitos del sistema
 if ! check_system_requirements; then
@@ -118,7 +133,7 @@ if ! check_system_requirements; then
     exit 1
 fi
 
-clear
+printf '\n╭────────────────────────────────────────────╮\n│ Preparando entorno de instalación BSPWM... │\n╰────────────────────────────────────────────╯\n'
 ##--------------------------------Funciones utilizadas en el script--------------------------------##
 #--Identificar Distribución--#
 #--Función: Instalar aplicaciones específicas de XFCE (si están disponibles)--#
@@ -185,6 +200,7 @@ function VERIF_DISTRIB()
         local func_name="${func_desc%%:*}"
         local description="${func_desc##*:}"
         
+        print_step_banner "$step/${#functions[@]}" "$description"
         echo "📋 Paso $step/${#functions[@]}: $description"
         log "INFO: Ejecutando paso $step: $func_name - $description"
         
@@ -232,8 +248,7 @@ function ACTUALIZAR(){
     safe_execute "Limpieza automática" "sudo apt autoclean" || log "WARNING: autoclean falló"
     safe_execute "Eliminación de paquetes huérfanos" "sudo apt autoremove -y" || log "WARNING: autoremove falló"
     
-    clear
-    log "INFO: #-----------------------------Sistema actualizado------------------------------#"
+    printf '\n╭────────────── Sistema actualizado ───────────────╮\n╰───────────────────────────────────────────────────╯\n'
     sleep 2s
 }
 
@@ -267,8 +282,7 @@ function BSPWM()
         fi
     fi
     
-    clear
-    log "INFO: #----------------------------Base BSPWM instalada------------------------------#"
+    printf '\n╭────────────── Base BSPWM instalada ──────────────╮\n╰───────────────────────────────────────────────────╯\n'
     sleep 2s
 }
 
@@ -545,8 +559,7 @@ function PERSONA()
         fi
     done
     
-    clear
-    log "INFO: #---------------------Personalizaciones principales copiadas-------------------#"
+    printf '\n╭──────────── Personalizaciones copiadas ───────────╮\n╰────────────────────────────────────────────────────╯\n'
     sleep 2s
     clear
     
@@ -575,6 +588,7 @@ function PICOM()
 function INSTALLATION_REPORT()
 {
     log "INFO: #--------------------------Generando reporte de instalación--------------------------#"
+    print_banner
     
     echo ""
     echo "========================================="
@@ -610,9 +624,6 @@ function INSTALLATION_REPORT()
     echo "📝 Log detallado guardado en: $LOG_FILE"
     echo ""
     echo "========================================="
-    
-    # Mostrar notificación gráfica si zenity está disponible
-    NOTF_SUCESS
 }
 
 #--Función: Notificar operacion exitosa--#
@@ -650,7 +661,9 @@ function NOTF_FALLA()
 }
 		
 ##--------------------------------Funciones utilizadas en el script--------------------------------##
-	clear
-			echo "#------------------Este asistente instalará bspwm en su máquina----------------#"
-	VERIF_DISTRIB
+	print_banner
+echo "╭────────────────────────────────────────────────────────╮"
+echo "│ Este asistente instalará bspwm en su máquina            │"
+echo "╰────────────────────────────────────────────────────────╯"
+VERIF_DISTRIB
 
