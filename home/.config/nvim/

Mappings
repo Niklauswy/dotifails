@@ -1,0 +1,32 @@
+--- LSP settings ---------------------------------------------------
+let lspOptions = #{
+    \ aleSupport: v:true,
+    \ autoHighlight: v:true,
+    \ completionTextEdit: v:true,
+    \ noNewlineInCompletion: v:true,
+    \ outlineOnRight: v:true,
+    \ outlineWinSize: 70,
+    \ showDiagWithSign: v:false,
+    \ useQuickfixForLocations: v:true,
+    \ }
+autocmd VimEnter * call LspOptionsSet(lspOptions)
+
+let lspServers = [
+    \ #{ name: 'gopls', filetype: ['go', 'gomod'],  path: 'gopls', args: ['serve'] },
+    \ #{ name: 'pylsp', filetype: ['py', 'python'], path: 'pylsp', args: []        },
+\ ]
+autocmd VimEnter * call LspAddServer(lspServers)
+
+Enable auto selection of the fist autocomplete item
+augroup LspSetup
+    au!
+    au User LspAttached set completeopt-=noselect
+augroup END
+Disable newline on selecting completion option
+inoremap <expr> <CR> pumvisible() ? <C-Y for most-used functions
+nnoremap <leader>i :LspHover<CR>
+nnoremap <leader>d :LspGotoDefinition<CR>
+nnoremap <leader>p :LspPeekDefinition<CR>
+nnoremap <leader>R :LspRename<CR>
+nnoremap <leader>r :LspPeekReferences<CR>
+nnoremap <leader>o :LspDocumentSymbol<CR>

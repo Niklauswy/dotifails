@@ -1,0 +1,42 @@
+[color]
+bg = #BD93F9
+bg-alt = #BF1D1F28
+fg = #FDFDFD
+
+trans = #00000000
+white = #FFFFFF
+black = #000000
+
+red = #F37F97
+pink = #EC407A
+purple = #C574DD
+blue = #8897F4
+cyan = #79E6F3
+teal = #00B19F
+green = #47ffb6
+lime = #B9C244
+yellow = #fcff33
+amber = #FBC02D
+orange = #E57C46
+brown = #AC8476
+grey = #8C8C8C
+indigo = #6C77BB
+blue-gray = #6D8895
+FOREGROUND = #F8F8F2
+BACKGROUND = #282A36
+BLACK = #3C3E4A
+RED = #FF5555
+GREEN = #50FA7B
+YELLOW = #F1FA8C
+BLUE = #BD93F9
+MAGENTA = #FF79C6
+CYAN = #8BE9FD
+WHITE = #BFBFBF
+ALTBLACK = #4D4D4D
+ALTRED = #FF6E67
+ALTGREEN = #5AF78E
+ALTYELLOW = #F4F99D
+ALTBLUE = #CAA9FA
+ALTMAGENTA = #FF92D0
+ALTCYAN = #9AEDFE
+ALTWHITE = #E6E6E6

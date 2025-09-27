@@ -1,0 +1,12 @@
+{
+  "dependencies": {
+    "coc-tsserver": ">=2.1.4",
+    "coc-python": ">=1.2.13",
+    "coc-clangd": ">=0.30.1",
+    "coc-css": ">=2.1.0",
+    "coc-html": ">=1.8.0",
+    "coc-json": ">=1.9.2",
+    "coc-sh": ">=1.2.2",
+    "coc-texlab": ">=3.3.0"
+  }
+}

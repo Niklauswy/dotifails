@@ -1,0 +1,18 @@
+# Shadow
+shadow = true;
+no-dock-shadow = true;
+no-dnd-shadow = true;
+shadow-radius = 5;
+shadow-offset-x = -5;
+shadow-offset-y = -5;
+shadow-opacity = 0.5;
+
+# Opacity
+inactive-opacity = 0.6;
+active-opacity = 0.85;
+frame-opacity = 0.8;
+inactive-opacity-override = false;
+
+# Other
+backend = "glx";
+vsync = true;

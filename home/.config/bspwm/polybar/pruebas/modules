@@ -1,0 +1,486 @@
+## Copyright (C) 2020-2021 Aditya Shakya <adi1090x@gmail.com>
+## Everyone is permitted to copy and distribute copies of this file under GNU-GPL3
+
+;; _-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_
+
+
+
+[module/volume]
+type = internal/pulseaudio
+sink = alsa_output.pci-0000_12_00.3.analog-stereo
+use-ui-max = true
+interval = 5
+
+format-volume = <label-volume>
+format-volume-prefix = ""
+format-volume-prefix-padding = 3pt
+format-volume-foreground = ${colors.indigo}
+
+label-volume = "%percentage%"
+label-volume-foreground = ${colors.fg}
+
+format-muted = <label-muted>
+format-muted-prefix = ""
+format-muted-prefix-padding = 3pt
+format-muted-foreground = ${colors.indigo}
+label-muted = "Muted"
+label-muted-foreground = ${colors.red}
+
+click-right = OpenApps --soundcontrol
+
+
+;; _-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_
+
+[module/bna]
+type = custom/text
+
+content = " NA"
+content-prefix = 
+content-prefix-font = 2
+content-prefix-foreground = ${color.RED}
+content-padding = 0
+
+;; _-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_
+
+[module/backlight]
+type = internal/xbacklight
+
+card = intel_backlight
+
+format = <ramp> <label>
+
+label = %percentage%%
+
+ramp-0 = 
+ramp-1 = 
+ramp-2 = 
+ramp-3 = 
+ramp-4 = 
+ramp-5 = 
+ramp-6 = 
+ramp-7 = 
+ramp-8 = 
+ramp-9 = 
+ramp-font = 2
+ramp-foreground = ${color.MAGENTA}
+
+;; _-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_
+
+[module/brightness]
+type = internal/backlight
+
+card = ${system.graphics_card}
+
+enable-scroll = true
+
+format = <ramp> <label>
+
+label = %percentage%%
+
+ramp-0 = 
+ramp-1 = 
+ramp-2 = 
+ramp-3 = 
+ramp-4 = 
+ramp-5 = 
+ramp-6 = 
+ramp-7 = 
+ramp-8 = 
+ramp-9 = 
+ramp-font = 2
+ramp-foreground = ${color.MAGENTA}
+
+;; _-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_
+
+######################################################
+
+[module/battery]
+type = internal/battery
+full-at = 99
+battery = ${system.sys_battery}
+adapter = ${system.sys_adapter}
+poll-interval = 2
+time-format = %H:%M
+
+format-charging = <animation-charging><label-charging>
+;format-charging-background = ${color.bg-alt}
+format-charging-prefix = ""
+format-charging-prefix-padding = 3pt
+;format-charging-prefix-background = ${color.bg-alt}
+format-charging-prefix-font = 2
+;format-charging-prefix-foreground = ${color.red}
+label-charging = " %percentage%%"
+
+format-discharging = <ramp-capacity><label-discharging>
+;format-discharging-background = ${color.bg-alt}
+label-discharging = " %percentage%%"
+
+format-full = <label-full>
+
+format-full-prefix = ""
+format-full-prefix-padding = 3pt
+format-full-prefix-font = 2
+format-full-prefix-foreground = ${color.green}
+label-full = " %percentage%%"
+
+ramp-capacity-0 = 
+ramp-capacity-1 = 
+ramp-capacity-2 = 
+ramp-capacity-3 = 
+ramp-capacity-4 = 
+ramp-padding = 3pt
+ramp-capacity-foreground = ${color.yellow}
+ramp-capacity-font = 2
+
+animation-charging-0 = 
+animation-charging-1 = 
+animation-charging-2 = 
+animation-charging-3 = 
+animation-charging-4 = 
+animation-charging-padding = 3pt
+animation-charging-foreground = ${color.green}
+animation-charging-font = 2
+animation-charging-framerate = 700
+
+######################################################
+
+;; _-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_
+######################################################
+
+[module/bspwm]
+type = internal/bspwm
+pin-workspaces = true
+inline-mode = false
+
+enable-click = true
+enable-scroll = true
+reverse-scroll = true
+
+
+
+format = <label-state>
+format-font = 2
+
+label-focused =  󰮯
+label-focused-padding = 1
+label-focused-foreground = ${color.yellow}
+
+label-occupied = 󰊠 
+label-occupied-padding = 1
+label-occupied-foreground= ${color.blue}
+
+label-urgent = %icon%
+label-urgent-padding = 1
+
+label-empty = 󰑊
+label-empty-foreground = ${color.grey}
+label-empty-padding = 1
+
+label-separator = 
+label-separator-padding = 0
+label-separator-foreground = ${color.bg-alt}
+
+
+
+######################################################; _-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_
+
+
+[module/cpu]
+type = internal/cpu
+
+interval = 0.5
+
+format = <label>
+format-prefix = ""
+format-prefix-padding = 3pt
+format-prefix-foreground = ${color.pink}
+label = "%percentage%%"
+
+;; _-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_
+
+
+
+[module/temperature]
+type = internal/temperature
+
+; Seconds to sleep between updates
+; Default: 1
+interval = 0.5
+
+; Thermal zone to use
+; To list all the zone types, run 
+; $ for i in /sys/class/thermal/thermal_zone*; do echo "$i: $(<$i/type)"; done
+; Default: 0
+thermal-zone = 2
+
+; Full path of temperature sysfs path
+; Use `sensors` to find preferred temperature source, then run
+; $ for i in /sys/class/hwmon/hwmon*/temp*_input; do echo "$(<$(dirname $i)/name): $(cat ${i%_*}_label 2>/dev/null || echo $(basename ${i%_*})) $(readlink -f $i)"; done
+; to find path to desired file
+; Default reverts to thermal zone setting
+;;hwmon-path = /sys/devices/platform/coretemp.0/hwmon/hwmon2/temp1_input
+hwmon-path = /sys/devices/platform/coretemp.0/hwmon/hwmon3/temp1_input
+
+; Threshold temperature to display warning label (in degrees celsius)
+; Default: 80
+warn-temperature = 65
+
+; Whether or not to show units next to the temperature tokens (°C, °F)
+; Default: true
+units = true
+
+; Available tags:
+;   <label> (default)
+;   <ramp>
+format = <ramp> <label>
+
+; Available tags:
+;   <label-warn> (default)
+;   <ramp>
+format-warn = <ramp> <label-warn>
+
+; Available tokens:
+;   %temperature% (deprecated)
+;   %temperature-c%   (default, temperature in °C)
+;   %temperature-f%   (temperature in °F)
+label = %temperature-c%
+
+; Available tokens:
+;   %temperature% (deprecated)
+;   %temperature-c%   (default, temperature in °C)
+;   %temperature-f%   (temperature in °F)
+label-warn = "%temperature-c%"
+label-warn-foreground = ${color.red}
+
+; Requires the <ramp> tag
+; The icon selection will range from 0 to `warn-temperature`
+; with the current temperature as index.
+ramp-0 = 
+ramp-1 = 
+ramp-2 = 
+ramp-3 = 
+ramp-4 = 
+
+;; _-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_
+
+[module/mod]
+type = internal/bspwm
+
+format = <label-mode>
+format-background = ${color.YELLOW}
+format-foreground = ${color.BACKGROUND}
+format-padding = 1
+
+label-monocle = "Monocle"
+label-tiled = "Tiled"
+
+label-floating = ", Float"
+label-pseudotiled = ", Pseudo"
+label-fullscreen = ", Full"
+
+label-locked = " | Locked"
+label-sticky = " | Sticky"
+label-private = " | Private"
+
+;; _-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_
+
+[module/date]
+type = internal/date
+
+interval = 1.0
+
+time = %H:%M
+time-alt = %A, %d de %B %Y
+
+format = <label>
+format-prefix = " "
+format-prefix-font = 1
+format-prefix-foreground = ${color.RED}
+
+label = %time%
+label-font = 1
+
+;; _-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_
+
+[module/mpd]
+type = internal/mpd
+
+;;host = 127.0.0.1
+;;port = 6600
+;;password = mysecretpassword
+
+interval = 2
+
+format-online = <label-song> <icon-prev> <toggle> <icon-next>
+format-online-prefix = " "
+format-online-prefix-foreground = ${color.GREEN}
+
+format-playing = ${self.format-online}
+format-paused = <label-song> <toggle>
+
+format-offline = <label-offline>
+format-offline-prefix = " "
+format-offline-prefix-foreground = ${color.RED}
+label-offline = "Desconectado"
+
+label-song =  "%title% | %artist%"
+label-song-maxlen = 40
+label-song-ellipsis = true
+
+icon-play = 
+icon-play-font = 2
+icon-play-foreground = ${color.GREEN}
+icon-pause = 
+icon-pause-font = 2
+icon-pause-foreground = ${color.YELLOW}
+icon-stop = 
+icon-stop-foreground = ${color.RED}
+icon-prev = 玲
+icon-prev-font = 2
+icon-prev-foreground = ${color.CYAN}
+icon-next = 怜
+icon-next-font = 2
+icon-next-foreground = ${color.CYAN}
+
+;; _-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_
+
+; If you use both a wired and a wireless network, add both modules in config.
+[module/ethernet]
+type = internal/ethernet
+interface = ${system.network_interface}
+
+interval = 1.0
+accumulate-stats = true
+unknown-as-up = true
+
+format-connected = <label-connected>
+;format-connected-prefix = " "
+format-connected-prefix-font = 3
+format-connected-prefix-foreground = ${color.CYAN}
+
+format-disconnected = <label-disconnected>
+format-disconnected-prefix = " "
+format-disconnected-prefix-font = 3
+format-disconnected-prefix-foreground = ${color.RED}
+
+label-connected = "%{A1:networkmanager_dmenu &:}  %downspeed% 祝 %upspeed%%{A}"
+label-disconnected = "%{A1:networkmanager_dmenu &:}Desconectado%{A}"
+
+;; _-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_
+
+[module/network]
+type = internal/network
+interface = ${system.network_interface}
+
+interval = 1.0
+
+;;ping-interval = 3
+;;udspeed-minwidth = 5
+
+
+
+accumulate-stats = true
+unknown-as-up = true
+
+format-connected = <label-connected>
+format-connected-prefix = ""
+format-connected-prefix-padding = 3pt
+format-connected-foreground = ${colors.green}
+
+speed-unit = ""
+label-connected = "%netspeed%"
+label-connected-foreground = ${colors.amber}
+
+format-disconnected = <label-disconnected>
+format-disconnected-prefix = ""
+format-disconnected-prefix-padding = 3pt
+format-disconnected-foreground = ${colors.red}
+
+label-disconnected = "Offline"
+label-disconnected-foreground = ${colors.red}
+
+;; _-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_
+
+[module/sep]
+type = custom/text
+content=" "
+
+
+
+;; _-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_
+
+[module/title]
+type = internal/xwindow
+
+format = <label>
+format-prefix = " "
+format-prefix-foreground = ${color.BLUE}
+format-padding = 1
+format-foreground = ${color.BLUE}
+
+label = " %title%"
+label-maxlen = 30
+
+;; _-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_
+
+;; _-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_
+
+;; _-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_
+;;	    __________  ______
+;;	   / ____/ __ \/ ____/
+;;	  / __/ / / / / /_    
+;;	 / /___/ /_/ / __/    
+;;	/_____/\____/_/       
+;;
+;; _-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_
+[module/launcher]
+type = custom/text
+
+content="󰌽"
+label = "󰣇"
+label-foreground = ${color.blue}
+
+click-left = OpenApps --menu
+click-right = RiceSelector
+
+######################################################
+
+[module/filesystem]
+type = internal/fs
+
+mount-0 = /
+
+interval = 60
+fixed-values = false
+
+format-mounted = <label-mounted>
+format-mounted-prefix = ""
+format-mounted-prefix-padding = 3pt
+format-mounted-prefix-foreground = ${color.purple}
+label-mounted = "%used%"
+
+format-unmounted = <label-unmounted>
+format-unmounted-prefix = ""
+format-unmounted-prefix-padding = 3pt
+label-unmounted = %mountpoint%: not mounted
+
+######################################################
+
+[module/memory]
+type = internal/memory
+
+interval = 3
+
+format = <label>
+format-prefix = ""
+format-prefix-padding = 3pt
+format-prefix-foreground = ${color.amber}
+label = "%used%"
+
+######################################################
+[module/power]
+type = custom/text
+content=""
+label-foreground = ${colors.red}
+
+click-left = OpenApps --powermenu
