@@ -57,7 +57,7 @@ def restore_workspaces(backend):
                 if latest and not latest['windows'] and names:backend.runner(['bspc','desktop',row['id'],'-r'])
         except Exception as exc:print('Escritorios:',str(exc),file=sys.stderr)
 
-def restore():
+def restore(preserve_workspaces=False):
     backend=EnvironmentSettings()
     if not backend.data:return
     inventory=display_inventory()
@@ -65,7 +65,7 @@ def restore():
     if plan:
         try:run(display_command(plan,inventory))
         except Exception as exc:print('Pantallas:',str(exc),file=sys.stderr)
-    restore_workspaces(backend)
+    if not preserve_workspaces:restore_workspaces(backend)
     if backend.section('wallpaper').get('default'):
         try:render_wallpaper(backend.wallpaper_values(),display_inventory())
         except Exception as exc:print('Fondo:',str(exc),file=sys.stderr)
@@ -75,4 +75,4 @@ def restore():
 
 if __name__=='__main__':
     if len(sys.argv)>2 and sys.argv[1]=='guard':guard(sys.argv[2])
-    elif len(sys.argv)==2 and sys.argv[1]=='restore':restore()
+    elif len(sys.argv)>=2 and sys.argv[1]=='restore':restore('--preserve-workspaces' in sys.argv[2:])

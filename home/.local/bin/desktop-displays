@@ -3,8 +3,12 @@ import os,subprocess,sys
 from pathlib import Path
 sys.path.insert(0,str(Path(os.environ.get('XDG_DATA_HOME',str(Path.home()/'.local/share')))/'orbit/app'))
 from environment_settings import EnvironmentSettings,display_inventory,profile_key,display_command
+from display_workspaces import reconcile
+subprocess.run(['bspc','config','remove_disabled_monitors','true'],check=True)
+subprocess.run(['bspc','config','remove_unplugged_monitors','true'],check=True)
 env=EnvironmentSettings();inventory=display_inventory()
 connected=[m for m in inventory if m['connected']]
+if not connected:raise SystemExit('No hay pantallas conectadas; se conserva la sesión.')
 profile=env.section('displays').get('profiles',{}).get(profile_key(inventory))
 if profile:
     subprocess.run(display_command(profile,inventory),check=True)
@@ -14,9 +18,8 @@ else:
         args=['xrandr','--output',m['name'],'--auto']
         args+=['--right-of',previous] if previous else ['--primary','--pos','0x0']
         subprocess.run(args,check=True);previous=m['name']
+for m in inventory:
+    if not m['connected'] and m['enabled']:
+        subprocess.run(['xrandr','--output',m['name'],'--off'],check=True)
 active=[m for m in display_inventory() if m['connected'] and m['enabled']]
-next_desktop=1
-for i,m in enumerate(active):
-    count=max(1,10//len(active)+(i<10%len(active)))
-    subprocess.run(['bspc','monitor',m['name'],'-d']+[str(n) for n in range(next_desktop,next_desktop+count)],check=True)
-    next_desktop+=count
+reconcile(active,env.section('workspaces'))

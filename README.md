@@ -24,7 +24,7 @@ El perfil Samsung es opcional y específico del equipo con pantalla táctil defe
 
 ## Qué incluye
 
-- BSPWM y SXHKD, monitores detectados, diez escritorios distribuidos, sesiones con D-Bus y agente Polkit.
+- BSPWM y SXHKD, monitores detectados, diez escritorios distribuidos, sesiones con D-Bus y agente Polkit. Al desconectar pantallas se recuperan los escritorios completos en las disponibles; recargar no reinicia sus árboles de ventanas. Los duplicados vacíos heredados se limpian y los ocupados se distinguen como «recuperado».
 - Picom 12, transparencias y animaciones; Polybar flotante, módulos de recursos, conexiones, audio, calendario y notificaciones. La barra se oculta en el monitor que muestra una ventana a pantalla completa.
 - Órbita nativa en Qt: aplicaciones, ventanas, portapapeles, OCR local en español/inglés, archivos con vistas previas, reproductor multimedia, snippets, calculadora y emojis a color.
 - Conexiones Wi-Fi, Bluetooth, VPN y SSH; menú de sesión; ajustes visuales de BSPWM, pantallas, barra y atajos.

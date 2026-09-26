@@ -34,4 +34,9 @@ desktop-compositor
 [ ! -f "$config/dotifails/machine.sh" ] || . "$config/dotifails/machine.sh"
 orbit-bar
 orbit daemon
-/usr/bin/python3 "$data/orbit/app/settings_runtime.py" restore >>"$state/dotifails/settings.log" 2>&1 &
+# A WM reload must not rename or trim desktops recovered from unplugged screens.
+if [ "${1:-0}" -gt 0 ]; then
+    /usr/bin/python3 "$data/orbit/app/settings_runtime.py" restore --preserve-workspaces >>"$state/dotifails/settings.log" 2>&1 &
+else
+    /usr/bin/python3 "$data/orbit/app/settings_runtime.py" restore >>"$state/dotifails/settings.log" 2>&1 &
+fi
