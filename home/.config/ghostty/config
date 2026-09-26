@@ -75,13 +75,16 @@ keybind = ctrl+alt+h=new_split:down
 keybind = ctrl+shift+c=copy_to_clipboard
 keybind = ctrl+shift+v=paste_from_clipboard
 
-# REDIMENSIONAR SPLITS
-keybind = super+alt+shift+left=resize_split:left,10
-keybind = super+alt+shift+down=resize_split:down,10
-keybind = super+alt+shift+up=resize_split:up,10
-keybind = super+alt+shift+right=resize_split:right,10
+# Redimensionar splits con Ctrl + Alt + Shift + flechas (pasos de 4 px)
+keybind = ctrl+alt+shift+left=resize_split:left,4
+keybind = ctrl+alt+shift+down=resize_split:down,4
+keybind = ctrl+alt+shift+up=resize_split:up,4
+keybind = ctrl+alt+shift+right=resize_split:right,4
 
 
 confirm-close-surface = false
 command = /usr/bin/zsh
 #command = TERM=xterm-256color /usr/bin/bash
+
+# Evitar el indicador de dimensiones durante el ajuste de paneles.
+resize-overlay = never

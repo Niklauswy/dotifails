@@ -76,6 +76,8 @@ Para desarrollar los menús, editar `apps/orbit/` en este repositorio y ejecutar
 
 La configuración del escritorio y las fuentes viven en `~/.config` y `~/.local/share`; los comandos en `~/.local/bin`. Las herramientas conservan directorios por versión para permitir restaurar los enlaces activos. [Arquitectura y pruebas](docs/maintenance.md).
 
+Ghostty: **Ctrl + Alt + Shift + flechas** ajusta los splits internos en pasos de 4 píxeles. Se oculta el indicador de dimensiones durante el ajuste. Este cambio reduce el paso; no añade interpolación animada al redimensionado de Ghostty.
+
 ## Versiones por proyecto con mise
 
 Mise se instala con versión y SHA-256 fijados, y Zsh lo activa al abrir una terminal. Desde la raíz de un proyecto, `mise use node@24` o `mise use python@3.12` instala la versión elegida y la registra en `mise.toml`. Al entrar en esa carpeta se activa; al salir se recuperan las versiones del entorno anterior. `mise ls` muestra lo instalado y `mise use --global node@24` fija el valor predeterminado. Para scripts o tareas sin shell interactiva: `mise exec -- comando`.
