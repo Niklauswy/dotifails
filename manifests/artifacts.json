@@ -1,0 +1,50 @@
+{
+  "ghostty": {
+    "version": "1.2.3",
+    "url": "https://github.com/pkgforge-dev/ghostty-appimage/releases/download/v1.2.3/Ghostty-1.2.3-x86_64.AppImage",
+    "sha256": "cf239a0a9383aa9a148da2f6c6444993f871618cf4309d4db15d7be992d16725",
+    "kind": "appimage"
+  },
+  "nvim": {
+    "version": "0.11.5",
+    "url": "https://github.com/neovim/neovim/releases/download/v0.11.5/nvim-linux-x86_64.tar.gz",
+    "sha256": "b2f91117be5b5ea39edd7297156dc2a4a8df4add6c95a90809a8df19e7ab6f52",
+    "kind": "tar"
+  },
+  "starship": {
+    "version": "1.24.1",
+    "url": "https://github.com/starship/starship/releases/download/v1.24.1/starship-x86_64-unknown-linux-musl.tar.gz",
+    "sha256": "44a729c34aea5b0451fba49108cdc5ef6b1ae68db65e7623cc244a52efcd23d1",
+    "kind": "tar"
+  },
+  "node": {
+    "version": "24.19.0",
+    "url": "https://nodejs.org/dist/v24.19.0/node-v24.19.0-linux-x64.tar.xz",
+    "sha256": "14b342e71204f811bde6153be8e04b62aef63c236fef92b55f9c83154b409647",
+    "kind": "tar"
+  },
+  "ohmyzsh": {
+    "version": "fcf965912c4adf73ead540e7409bb42ec6e31b45",
+    "url": "https://codeload.github.com/ohmyzsh/ohmyzsh/tar.gz/fcf965912c4adf73ead540e7409bb42ec6e31b45",
+    "sha256": "635c0680cad9a9ec32d51c4a515a875d92a157affe808716aadf38043d66ffb0",
+    "kind": "tar"
+  },
+  "zsh-autosuggestions": {
+    "version": "85919cd1ffa7d2d5412f6d3fe437ebdbeeec4fc5",
+    "url": "https://codeload.github.com/zsh-users/zsh-autosuggestions/tar.gz/85919cd1ffa7d2d5412f6d3fe437ebdbeeec4fc5",
+    "sha256": "20665e469e720e674964a66854d5534b9af78cdfd438512746ecd1ade8e819ce",
+    "kind": "tar"
+  },
+  "zsh-syntax-highlighting": {
+    "version": "5eb677bb0fa9a3e60f0eff031dc13926e093df92",
+    "url": "https://codeload.github.com/zsh-users/zsh-syntax-highlighting/tar.gz/5eb677bb0fa9a3e60f0eff031dc13926e093df92",
+    "sha256": "c78570f573d6c87649da7e2921f4a2222e73f4b0951b3af7489c1897c5f1dac9",
+    "kind": "tar"
+  },
+  "nvm": {
+    "version": "bab86d5de571015b63fd8fc30b47bbe072a1290e",
+    "url": "https://codeload.github.com/nvm-sh/nvm/tar.gz/bab86d5de571015b63fd8fc30b47bbe072a1290e",
+    "sha256": "b5b7e7c676dece23440e09266e14774ef9c37a4fe4ec4f73fb1d0f1c7dd484bc",
+    "kind": "tar"
+  }
+}

@@ -1,0 +1,150 @@
+{
+  "LuaSnip": {
+    "url": "https://github.com/L3MON4D3/LuaSnip.git",
+    "commit": "3732756842a2f7e0e76a7b0487e9692072857277"
+  },
+  "NvChad": {
+    "url": "https://github.com/NvChad/NvChad.git",
+    "commit": "eb209a4a82aecabe609d8206b865e00a760fb644"
+  },
+  "base46": {
+    "url": "https://github.com/nvchad/base46.git",
+    "commit": "45b336ec52615dd1a3aa47848d894616dd6293a5"
+  },
+  "cmp-async-path": {
+    "url": "https://codeberg.org/FelipeLema/cmp-async-path.git",
+    "commit": "b8aade3a0626f2bc1d3cd79affcd7da9f47f7ab1"
+  },
+  "cmp-buffer": {
+    "url": "https://github.com/hrsh7th/cmp-buffer.git",
+    "commit": "b74fab3656eea9de20a9b8116afa3cfc4ec09657"
+  },
+  "cmp-nvim-lsp": {
+    "url": "https://github.com/hrsh7th/cmp-nvim-lsp.git",
+    "commit": "cbc7b02bb99fae35cb42f514762b89b5126651ef"
+  },
+  "cmp-nvim-lua": {
+    "url": "https://github.com/hrsh7th/cmp-nvim-lua.git",
+    "commit": "e3a22cb071eb9d6508a156306b102c45cd2d573d"
+  },
+  "cmp_luasnip": {
+    "url": "https://github.com/saadparwaiz1/cmp_luasnip.git",
+    "commit": "98d9cb5c2c38532bd9bdb481067b20fea8f32e90"
+  },
+  "conform.nvim": {
+    "url": "https://github.com/stevearc/conform.nvim.git",
+    "commit": "ffe26e8df8115c9665d24231f8a49fadb2d611ce"
+  },
+  "diffview.nvim": {
+    "url": "https://github.com/sindrets/diffview.nvim.git",
+    "commit": "4516612fe98ff56ae0415a259ff6361a89419b0a"
+  },
+  "friendly-snippets": {
+    "url": "https://github.com/rafamadriz/friendly-snippets.git",
+    "commit": "572f5660cf05f8cd8834e096d7b4c921ba18e175"
+  },
+  "gitsigns.nvim": {
+    "url": "https://github.com/lewis6991/gitsigns.nvim.git",
+    "commit": "5813e4878748805f1518cee7abb50fd7205a3a48"
+  },
+  "indent-blankline.nvim": {
+    "url": "https://github.com/lukas-reineke/indent-blankline.nvim.git",
+    "commit": "005b56001b2cb30bfa61b7986bc50657816ba4ba"
+  },
+  "lazy.nvim": {
+    "url": "https://github.com/folke/lazy.nvim.git",
+    "commit": "85c7ff3711b730b4030d03144f6db6375044ae82"
+  },
+  "mason.nvim": {
+    "url": "https://github.com/mason-org/mason.nvim.git",
+    "commit": "57e5a8addb8c71fb063ee4acda466c7cf6ad2800"
+  },
+  "menu": {
+    "url": "https://github.com/nvzone/menu.git",
+    "commit": "7a0a4a2896b715c066cfbe320bdc048091874cc6"
+  },
+  "mini.ai": {
+    "url": "https://github.com/nvim-mini/mini.ai.git",
+    "commit": "e139eb1101beb0250fea322f8c07a42f0f175688"
+  },
+  "mini.surround": {
+    "url": "https://github.com/nvim-mini/mini.surround.git",
+    "commit": "5aab42fcdcf31fa010f012771eda5631c077840a"
+  },
+  "minty": {
+    "url": "https://github.com/nvzone/minty.git",
+    "commit": "aafc9e8e0afe6bf57580858a2849578d8d8db9e0"
+  },
+  "nvim-autopairs": {
+    "url": "https://github.com/windwp/nvim-autopairs.git",
+    "commit": "7a2c97cccd60abc559344042fefb1d5a85b3e33b"
+  },
+  "nvim-cmp": {
+    "url": "https://github.com/hrsh7th/nvim-cmp.git",
+    "commit": "d97d85e01339f01b842e6ec1502f639b080cb0fc"
+  },
+  "nvim-dap": {
+    "url": "https://github.com/mfussenegger/nvim-dap.git",
+    "commit": "6a5bba0ddea5d419a783e170c20988046376090d"
+  },
+  "nvim-dap-ui": {
+    "url": "https://github.com/rcarriga/nvim-dap-ui.git",
+    "commit": "cc9dd33aade7f20bae414d0cba163bc60d4d4b43"
+  },
+  "nvim-lspconfig": {
+    "url": "https://github.com/neovim/nvim-lspconfig.git",
+    "commit": "a2bd1cf7b0446a7414aaf373cea5e4ca804c9c69"
+  },
+  "nvim-nio": {
+    "url": "https://github.com/nvim-neotest/nvim-nio.git",
+    "commit": "edcc181a875301dd21840189aa2f2f9ad69fc172"
+  },
+  "nvim-tree.lua": {
+    "url": "https://github.com/nvim-tree/nvim-tree.lua.git",
+    "commit": "59088b96a32ea47caf4976e164dbd88b86447fb7"
+  },
+  "nvim-treesitter": {
+    "url": "https://github.com/nvim-treesitter/nvim-treesitter.git",
+    "commit": "42fc28ba918343ebfd5565147a42a26580579482"
+  },
+  "nvim-web-devicons": {
+    "url": "https://github.com/nvim-tree/nvim-web-devicons.git",
+    "commit": "8dcb311b0c92d460fac00eac706abd43d94d68af"
+  },
+  "persistence.nvim": {
+    "url": "https://github.com/folke/persistence.nvim.git",
+    "commit": "b20b2a7887bd39c1a356980b45e03250f3dce49c"
+  },
+  "plenary.nvim": {
+    "url": "https://github.com/nvim-lua/plenary.nvim.git",
+    "commit": "b9fd5226c2f76c951fc8ed5923d85e4de065e509"
+  },
+  "telescope-fzf-native.nvim": {
+    "url": "https://github.com/nvim-telescope/telescope-fzf-native.nvim.git",
+    "commit": "b25b749b9db64d375d782094e2b9dce53ad53a40"
+  },
+  "telescope-ui-select.nvim": {
+    "url": "https://github.com/nvim-telescope/telescope-ui-select.nvim.git",
+    "commit": "6e51d7da30bd139a6950adf2a47fda6df9fa06d2"
+  },
+  "telescope.nvim": {
+    "url": "https://github.com/nvim-telescope/telescope.nvim.git",
+    "commit": "e69b434b968a33815e2f02a5c7bd7b8dd4c7d4b2"
+  },
+  "trouble.nvim": {
+    "url": "https://github.com/folke/trouble.nvim.git",
+    "commit": "bd67efe408d4816e25e8491cc5ad4088e708a69a"
+  },
+  "ui": {
+    "url": "https://github.com/nvchad/ui.git",
+    "commit": "bea2af0a76c1098fac0988ad296aa028cad2a333"
+  },
+  "volt": {
+    "url": "https://github.com/nvzone/volt.git",
+    "commit": "620de1321f275ec9d80028c68d1b88b409c0c8b1"
+  },
+  "which-key.nvim": {
+    "url": "https://github.com/folke/which-key.nvim.git",
+    "commit": "3aab2147e74890957785941f0c1ad87d0a44c15a"
+  }
+}

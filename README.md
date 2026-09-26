@@ -1,120 +1,81 @@
-<p align="center">
- 
- 
+# Órbita Desktop · dotifails
 
-# Instalación
+El escritorio BSPWM actual, preparado para instalarse en **Parrot 7 o Debian 13, x86_64**: Órbita, Picom, Polybar, Ghostty, Neovim y Zsh. Mantiene los atajos, transparencias, animaciones rápidas y el fondo abstracto morado `backgrounds/tokyo.png`.
 
-En su terminal, ejecute el comando de abajo para iniciar la instalación:
+## Instalar
 
-## Base Debian 
-```bash
-cd /tmp && git clone https://github.com/niklaustein/bspwm && chmod 755 bspwm/* -R && cd bspwm/ && ./instalar.sh
+Desde una cuenta normal con acceso a `sudo`, conexión a Internet y varios GB libres:
+
+```sh
+sudo apt-get update && sudo apt-get install --yes git python3 ca-certificates && git clone --depth 1 https://github.com/Niklauswy/dotifails.git && cd dotifails && ./instalar.sh
 ```
 
+Si ya tienes esta carpeta, basta con `./instalar.sh`. No lo ejecutes con `sudo`: el instalador lo solicita únicamente para paquetes y registro de sesión. Al terminar, cierra sesión y elige **Órbita / BSPWM** en el gestor de acceso. No cierra tu sesión ni reinicia el equipo.
 
-<hr>
+El instalador se valida en contenedores Debian y Parrot con una sesión X11 aislada. Consulta el alcance exacto en [Validación](docs/validation.md).
 
-# Sistemas soportados
-Para que el script se ejecute correctamente, es necesario tener sistema, versión y DE mostrados abajo:
+```sh
+./instalar.sh --dry-run
+./instalar.sh --extras brave,discord,obsidian
+./instalar.sh --profile samsung-touchscreen
+```
 
-<table align=center border="1">
-    <tr>
-        <th>Sistema</td>
-        <th>Versión</td>
-        <th>DE</td>
-    </tr>
-    <tr>
-        <td align="center"valign="center">Debian</td>
-        <td align="center"valign="center">Bullseye o Bookworm</td>
-        <td align="center"valign="center">XFCE o GNOME</td>
-    </tr>
-    <tr>
-        <td>Pop!_OS</td>
-        <td rowspan="3" align="center"valign="center">21.10</td>
-        <td align="center"valign="center">-</td>
-       </tr>
-     <tr>
-        <td align="center"valign="center">Ubuntu</td>
-        <td align="center"valign="center">GNOME</td>
-    </tr>
-     <tr>
-        <td align="center"valign="center">Xubuntu</td>
-        <td align="center"valign="center">XFCE</td>
-    </tr>
- 
-</table>
+El perfil Samsung es opcional y específico del equipo con pantalla táctil defectuosa. No se aplica a otras instalaciones. Las aplicaciones opcionales se instalan desde Flathub para el usuario; también puedes instalar solo una, por ejemplo `--extras obsidian`.
 
-# Temas y diseños disponibles
+## Qué incluye
 
-## Temas para BSPWM
-Utilize el atajo <kbd>Super</kbd> + <kbd>shitft</kbd> + <kbd>t</kbd> para seleccionar el tema deseado:<br>
+- BSPWM y SXHKD, monitores detectados, diez escritorios distribuidos, sesiones con D-Bus y agente Polkit.
+- Picom 12, transparencias y animaciones; Polybar flotante, módulos de recursos, conexiones, audio, calendario y notificaciones. La barra se oculta en el monitor que muestra una ventana a pantalla completa.
+- Órbita nativa en Qt: aplicaciones, ventanas, portapapeles, OCR local en español/inglés, archivos con vistas previas, reproductor multimedia, snippets, calculadora y emojis a color.
+- Conexiones Wi-Fi, Bluetooth, VPN y SSH; menú de sesión; ajustes visuales de BSPWM, pantallas, barra y atajos.
+- Notas Markdown, procesos y selector de color con lupa. No requiere Rofi.
+- Ghostty **1.2.3**, Neovim **0.11.5**, Node **24.19.0**, Starship **1.24.1**; versiones y SHA-256 en `manifests/artifacts.json`. Ghostty se extrae una vez, sin depender de FUSE al abrir terminales.
+- NvChad con plugins fijados por `lazy-lock.json`, LSP, formato, búsqueda difusa, tareas, depuración y herramientas de JS/TS, C/C++ y Python. Las versiones de Mason están en `manifests/mason.json`.
+- Zsh, autocompletado/sugerencias, resaltado, fzf y prompt Starship. NVM se carga al invocar `nvm`; Node está disponible directamente.
+- Arc-Darker, iconos Win11-Dark con herencia Papirus/Adwaita, cursor Fluent, Inter, FiraCode Nerd Font y Noto Color Emoji.
 
-![temas](https://user-images.githubusercontent.com/84329097/141335499-8e8b4683-a1d0-4727-9c66-58f3e452f491.gif)
+Los paquetes APT y las aplicaciones Flatpak reciben las versiones que publica cada distribución. Los binarios externos y plugins tienen versiones fijadas; los paquetes del sistema no forman una imagen inmutable.
 
-##
+## Atajos principales
 
-## Temas del menu rofi
- 
-Pudiendo cambiar el color de acuerdo con el tema seleccionado:
+| Teclas | Acción |
+| --- | --- |
+| Super + Enter | Terminal |
+| Super + Espacio / D | Órbita |
+| Super + V | Portapapeles |
+| Super + Alt + F | Archivos |
+| Super + C / L | Calculadora / emoji |
+| Super + N | Conexiones |
+| Super + X | Sesión y energía |
+| Super + Alt + coma | Ajustes del escritorio y atajos |
+| Super + Shift + N / K / C | Notas / procesos / colores |
+| Super + Shift + W | Fondo de pantalla |
+| Super + J / K | Ventana siguiente / anterior |
+| Super + W / Ctrl + W | Cerrar / forzar cierre |
+| Super + F | Pantalla completa |
 
-![rofi](https://user-images.githubusercontent.com/84329097/141335969-4cc5440c-342c-431b-bd89-693efd947a4a.gif)
+Ver todos en [sxhkdrc](home/.config/sxhkd/sxhkdrc). Los paneles tienen navegación por teclado y Escape para cerrar.
 
-<hr>
+## Actualizar y recuperar
 
-# Dependencias
+```sh
+dotifails doctor
+dotifails update
+dotifails update --source /ruta/dotifails
+dotifails restore
+dotifails restore ID_DEL_RESPALDO
+```
 
-Para que sea realizada una correcta instalación, es necesario tener instalado `inxi` en su sistema, así como también `git`. En caso de que la instalación sea realizada con el comando presentado arriba, todo será instalado automáticamente.
+Las configuraciones se instalan como **copias** editables. Antes de reemplazarlas se guardan en `~/.local/state/dotifails/backups/ID/before/`, junto con un diario de operaciones. Si has editado un archivo administrado, una actualización lo conserva y deja la propuesta en `incoming/`; devuelve código 2 para indicar conflictos. Los cambios locales incluyen archivos borrados deliberadamente.
 
-<hr>
+`restore` recupera el estado anterior y conserva ediciones posteriores en `changes-before-restore/`. Se deben restaurar los respaldos de más reciente a más antiguo. No desinstala paquetes APT/Flatpak ni borra datos personales de Órbita. Una instalación fallida muestra el ID recuperable y puede repetirse después de corregir la causa.
 
-# Lo que será instalado
+La configuración del escritorio y las fuentes viven en `~/.config` y `~/.local/share`; los comandos en `~/.local/bin`. Las herramientas conservan directorios por versión para permitir restaurar los enlaces activos. [Arquitectura y pruebas](docs/maintenance.md).
 
-   >  [ksuperkey](https://github.com/hanschen/ksuperkey), bspwm, sxhkd, rofi, compton, polybar, dunst, alacritty, neofetch, htop, feh, lxappearance, geany, dmenu, nm-tray, xfconf, xsettingsd, xfce4-power-manager, zenity, git, i3lock-color, chromium, mpd, ncmpcpp.
+## Privacidad y alcance
 
-<hr>
+No incluye historial del portapapeles, notas, conexiones Wi-Fi, claves SSH, tokens, cachés ni proyectos personales. Cada usuario empieza con datos nuevos. No cambia Git global, contraseñas, particiones ni el gestor de acceso existente. Instala LightDM si no encuentra uno.
 
-# Atajos de teclado </h2>
-Para utilizar *bspwm* notará que muchas veces el teclado es nuestro mejor amigo, por eso, debemos aprender algunos atajos interesantes para darle un mejor uso.
+Esta versión está orientada a Linux X11 y rutas XDG predeterminadas del usuario. No migra a Wayland ni convierte otras distribuciones automáticamente. El soporte de Wi-Fi, Bluetooth, aceleración gráfica y pantallas depende de los controladores del equipo.
 
-En caso de que quiera personalizar alguno, modifique o elimine las líneas que usted prefiera, puede ser realizado editando el archivo: `~/.config/sxhkd/sxhkdrc`.
-
-Atajos ya configurados:
-<br>(Nota: <kbd> Super</kbd> = Tecla Windows)
-
-## Menus
-<kbd>Super</kbd> / <kbd>Alt</kbd> + <kbd>F1</kbd> - Lanza el menu de aplicaciones <br>
-<kbd>Super</kbd> + <kbd>F1</kbd> - Lanza el menu de ejecutables <br>
-<kbd>Super</kbd> + <kbd>w</kbd> - Muestra los programas abiertos <br>
-<kbd>Super</kbd> + <kbd>x</kbd> - Lanza el menu de opciones de apagado <br>
-<kbd>Super</kbd> + <kbd>t</kbd> - Muestra el selector de temas <br>
-
-## Comandos internos
-<kbd>Super</kbd> + <kbd>esc</kbd> - Recarga los atajos de teclado (archivo sxhkdrc)<br>
-<kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>r</kbd>- Reinicia BSPWM<br>
-<kbd>Super</kbd> + <kbd>Alt</kbd> + <kbd>p</kbd>- Reinicia POLYBAR<br>
-
-
-## Aplicaciones
-<kbd>Super</kbd> + <kbd>Enter</kbd> - Terminal  <br>
-
-## Áreas de trabajo
-<kbd>Super</kbd> + <kbd>1-9</kbd> - Cambia el área de trabajo al número deseado <br>
-<kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>←/→</kbd> - Cambia el área de trabajo hacia un lado o el otro<br>
-
-## Administrar ventanas
-<kbd>Super</kbd> + <kbd>Shift</kbd> + <kbd>1-9</kbd> - Envia la ventana enfocada al área de trabajo deseado <br>
-<kbd>Super</kbd> + <kbd>F</kbd> - Coloca la ventana enfocada en Modo ventana completa <br>
-<kbd>Super</kbd> + <kbd>Alt</kbd> + <kbd>←/→/↑ /↓</kbd> - Expande/Disminuye la ventana enfocada <br>
-
-<hr>
-
-# Consejos
-
-* [Como configurar a resolução e rotação das telas no BSPWM](https://plus.diolinux.com.br/t/como-configurar-a-resolucao-e-rotacao-das-telas-no-bspwm/37957)
-* [Como configurar BSPWM e polybar para mais de um monitor](https://plus.diolinux.com.br/t/como-configurar-bspwm-e-polybar-para-mais-de-um-monitor/35201) 
-
-<hr>
-
-# Créditos
-Tanto los menus, polybar, temas y configuraciones para bspwm, así como también para sxhkd fueron elaborados por [Aditya Shakya](https://github.com/adi1090x) que disponibilizó en su Github ([polybar](https://github.com/adi1090x/polybar-themes) y [rofi](https://github.com/adi1090x/rofi)), a [William Santos](https://github.com/thespation/) quien creó este excelente script. Y a mi persona [Alejandro Fermín](https://github.com/lostalejandro/) por realizar configuraciones personalizadas, adaptar el script a más distros y por traducir al español.
-
+[Manual de Órbita](apps/orbit/README.md) · [Neovim](home/.config/nvim/README.md) · [Créditos](docs/credits.md) · [Validación](docs/validation.md)

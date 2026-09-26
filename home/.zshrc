@@ -1,79 +1,20 @@
-if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
-  source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
-fi
-export PATH="/opt/nvim/bin:$PATH"
-export PATH="$HOME/.local/share/JetBrains/Toolbox/apps:$PATH"
-export ZSH="$HOME/.oh-my-zsh"
-export FZF_DEFAULT_COMMAND='find . -type f'
-
-ZSH_THEME="powerlevel10k/powerlevel10k"
-ZSH_THEME_RANDOM_CANDIDATES=( "robbyrussell" "agnoster" )
-
-
-plugins=(
-	sudo copypath copybuffer zsh-autosuggestions 
-	zsh-syntax-highlighting aliases web-search dirhistory
-	fancy-ctrl-z
-) 
-
-source $ZSH/oh-my-zsh.sh
-source $HOME/.gh-completion.zsh
-
-
-alias zshconfig="nano ~/.zshrc"
-alias vimconfig="nano ~/.config/nvim/init.vim"
-alias cpath="copypath"
-alias cfile="clipcopy $1"
-alias ls='lsd'
-alias vim='nvim'
-
-alias ghs="gh copilot suggest"
-alias ghe="gh copilot explain"
-#---------------------------------------------------------------------------------
-[ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
-
-# To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
-[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
-
-
-source ~/.gh-completion.zsh
-
-fzf_cd() {
-    local dir
-    dir=$(find . -type d | fzf) && cd "$dir"
-    ls
-}
-zle -N fzf_cd
-bindkey '^q' fzf_cd
-
-fzf_file() {
-    local file
-    file=$(find . -type f | fzf)
-    if [[ -n $file ]]; then
-        vim "$file" < /dev/tty
-    fi
-}
-zle -N fzf_file
-bindkey '^w' fzf_file
-
-
-fzf_cp() {
-    local file
-    file=$(find . -type f | fzf)
-    if [[ -n $file ]]; then
-        cfile "$file" < /dev/tty
-    fi
-}
-zle -N fzf_cp
-bindkey '^a' fzf_cp
-
-alias gacp='gitAddCommitPush'
-
-function gitAddCommitPush() {
-    git add .
-    commitMessage=$1
-    git commit -m "$commitMessage"
-    git push
-}
-
-
+export PATH="$HOME/.local/bin:$PATH"
+export EDITOR=nvim VISUAL=nvim
+export ZSH="${XDG_DATA_HOME:-$HOME/.local/share}/dotifails/tools/ohmyzsh"
+export ZSH_CUSTOM="${XDG_DATA_HOME:-$HOME/.local/share}/dotifails/zsh-custom"
+ZSH_THEME=""
+plugins=(sudo copypath copybuffer zsh-autosuggestions zsh-syntax-highlighting aliases dirhistory fancy-ctrl-z git)
+[[ -f "$ZSH/oh-my-zsh.sh" ]] && source "$ZSH/oh-my-zsh.sh"
+alias vim=nvim cat=batcat
+alias ls='eza --color=always --icons=always'
+alias ll='eza -la --color=always --icons=always --git --header'
+alias lt='eza --tree --color=always --icons=always'
+alias la='eza -A --color=always --icons=always'
+alias tree='eza --tree --git --color=always --icons=always'
+[[ -f /usr/share/doc/fzf/examples/completion.zsh ]] && source /usr/share/doc/fzf/examples/completion.zsh
+[[ -f /usr/share/doc/fzf/examples/key-bindings.zsh ]] && source /usr/share/doc/fzf/examples/key-bindings.zsh
+[[ -f "${XDG_CONFIG_HOME:-$HOME/.config}/fzf/config.zsh" ]] && source "${XDG_CONFIG_HOME:-$HOME/.config}/fzf/config.zsh"
+export NVM_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/dotifails/tools/nvm"
+nvm() { unfunction nvm; source "$NVM_DIR/nvm.sh"; nvm "$@"; }
+command -v starship >/dev/null && eval "$(starship init zsh)"
+[[ -f "${XDG_CONFIG_HOME:-$HOME/.config}/dotifails/local.zsh" ]] && source "${XDG_CONFIG_HOME:-$HOME/.config}/dotifails/local.zsh"

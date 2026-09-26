@@ -1,0 +1,18 @@
+#!/usr/bin/env python3
+"""Restart only bars owned by this desktop and X display."""
+import os,subprocess,sys,hashlib
+from pathlib import Path
+from service_runtime import Services
+from environment_settings import configured_bar_monitors,parse_xrandr
+services=Services()
+for record in services.root.glob('bar-*.json'):
+    services.stop(record.stem)
+connected=parse_xrandr(subprocess.check_output(['xrandr','--query'],text=True))
+candidates=[m['name'] for m in connected if m['connected'] and m['enabled']]
+active=configured_bar_monitors(candidates,candidates)
+for index,monitor in enumerate(active):
+    env=dict(os.environ,MONITOR=monitor)
+    for bar in ['left','center','right' if index==0 else 'right-secondary']:
+        name='bar-'+hashlib.sha256((monitor+bar).encode()).hexdigest()[:12]
+        services.start(name,['polybar','-r',bar,'-c',str(Path.home()/'.config/bspwm/polybar/config')],env)
+services.start('visibility',[sys.executable,str(Path(__file__).with_name('bar_visibility.py'))])

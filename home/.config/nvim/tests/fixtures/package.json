@@ -1,0 +1,1 @@
+{"name":"nvim-workbench-check","version":"1.0.0","type":"commonjs","scripts":{"test":"node debug.js"}}

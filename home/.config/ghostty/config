@@ -1,0 +1,85 @@
+# Fuente (usa Nerd Font para iconos)
+font-family = "FiraCode Nerd Font"
+font-size = 20
+
+# === TRANSPARENCIA ===
+# Transparencia del fondo (0.0 = transparente, 1.0 = opaco)
+background-opacity = 0.6
+# Desenfocar el fondo
+background-blur-radius = 20
+
+# === VENTANA ===
+# Sin decoraciones de ventana (sin título)
+window-decoration = false
+# Padding interno
+window-padding-x = 10
+window-padding-y = 10
+# Tamaño inicial
+window-width = 120
+window-height = 30
+
+# === SCROLLBAR ===
+# Ocultar scrollbar
+scrollback-limit = 10000
+# Sin scrollbar visible
+mouse-hide-while-typing = true
+
+# === CURSOR ===
+# Estilo del cursor
+cursor-style = "bar"
+cursor-style-blink = true
+
+# === COLORES PERSONALIZADOS ===
+# Fondo semi-transparente
+background = 1a1b26
+# Texto principal
+foreground = c0caf5
+
+# Colores normales
+palette = 0=#15161e
+palette = 1=#f7768e
+palette = 2=#9ece6a
+palette = 3=#e0af68
+palette = 4=#7aa2f7
+palette = 5=#bb9af7
+palette = 6=#7dcfff
+palette = 7=#a9b1d6
+
+# Colores brillantes
+palette = 8=#414868
+palette = 9=#f7768e
+palette = 10=#9ece6a
+palette = 11=#e0af68
+palette = 12=#7aa2f7
+palette = 13=#bb9af7
+palette = 14=#7dcfff
+palette = 15=#c0caf5
+
+# Copiar al portapapeles automáticamente
+copy-on-select = true
+
+# Shell por defecto
+shell-integration = zsh
+
+# === ATAJOS DE TECLADO BÁSICOS (SOLO LOS QUE FUNCIONAN) ===
+# Nuevo tab
+keybind = ctrl+shift+t=new_tab
+keybind = ctrl+shift+w=close_surface
+# Splits básicos
+keybind = ctrl+shift+enter=new_split:right
+keybind = ctrl+shift+backslash=new_split:down
+
+# Copiar y pegar
+keybind = ctrl+shift+c=copy_to_clipboard
+keybind = ctrl+shift+v=paste_from_clipboard
+
+# REDIMENSIONAR SPLITS
+keybind = super+alt+shift+left=resize_split:left,10
+keybind = super+alt+shift+down=resize_split:down,10
+keybind = super+alt+shift+up=resize_split:up,10
+keybind = super+alt+shift+right=resize_split:right,10
+
+
+confirm-close-surface = false
+command = /usr/bin/zsh
+#command = TERM=xterm-256color /usr/bin/bash

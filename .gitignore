@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+.venv/
+.cache/
+test-results/
+*.log
+*.sqlite3*
+.DS_Store
+.idea/

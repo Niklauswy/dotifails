@@ -1,0 +1,11 @@
+#!/bin/sh
+case "${1:-}" in
+    --inc) pactl set-sink-volume @DEFAULT_SINK@ +5% ;;
+    --dec) pactl set-sink-volume @DEFAULT_SINK@ -5% ;;
+    --toggle) pactl set-sink-mute @DEFAULT_SINK@ toggle ;;
+    *) exit 2 ;;
+esac
+volume=$(pactl get-sink-volume @DEFAULT_SINK@ | awk 'NR==1 {print $5}')
+mute=$(pactl get-sink-mute @DEFAULT_SINK@)
+case "$mute" in *yes*) icon=audio-volume-muted-symbolic; text=Silenciado;; *) icon=audio-volume-high-symbolic; text="Volumen: $volume";; esac
+dunstify -a 'Órbita' -r 69 -i "$icon" -t 1500 "$text"

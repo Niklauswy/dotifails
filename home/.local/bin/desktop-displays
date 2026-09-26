@@ -1,0 +1,22 @@
+#!/usr/bin/env python3
+import os,subprocess,sys
+from pathlib import Path
+sys.path.insert(0,str(Path(os.environ.get('XDG_DATA_HOME',str(Path.home()/'.local/share')))/'orbit/app'))
+from environment_settings import EnvironmentSettings,display_inventory,profile_key,display_command
+env=EnvironmentSettings();inventory=display_inventory()
+connected=[m for m in inventory if m['connected']]
+profile=env.section('displays').get('profiles',{}).get(profile_key(inventory))
+if profile:
+    subprocess.run(display_command(profile,inventory),check=True)
+else:
+    previous=None
+    for m in sorted(connected,key=lambda x:(not x.get('primary',False),not x['name'].startswith('eDP'),x['name'])):
+        args=['xrandr','--output',m['name'],'--auto']
+        args+=['--right-of',previous] if previous else ['--primary','--pos','0x0']
+        subprocess.run(args,check=True);previous=m['name']
+active=[m for m in display_inventory() if m['connected'] and m['enabled']]
+next_desktop=1
+for i,m in enumerate(active):
+    count=max(1,10//len(active)+(i<10%len(active)))
+    subprocess.run(['bspc','monitor',m['name'],'-d']+[str(n) for n in range(next_desktop,next_desktop+count)],check=True)
+    next_desktop+=count

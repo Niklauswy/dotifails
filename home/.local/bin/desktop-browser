@@ -1,0 +1,3 @@
+#!/bin/sh
+if command -v brave-browser >/dev/null 2>&1; then exec brave-browser "$@"; fi
+exec xdg-open "${1:-https://www.debian.org}"

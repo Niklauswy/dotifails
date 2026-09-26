@@ -1,0 +1,23 @@
+#!/usr/bin/env python3
+import json,os,subprocess,sys,time
+from pathlib import Path
+mode=sys.argv[1] if len(sys.argv)>1 else 'resources'
+def cmd(args):
+ try:return subprocess.check_output(args,text=True,timeout=1,stderr=subprocess.DEVNULL).strip()
+ except (OSError,subprocess.SubprocessError):return ''
+if mode=='resources':
+ fields=list(map(int,Path('/proc/stat').read_text().splitlines()[0].split()[1:8]));total=sum(fields);idle=fields[3]+fields[4];cache=Path.home()/'.cache/orbit';cache.mkdir(parents=True,exist_ok=True);file=cache/('cpu-'+os.environ.get('MONITOR','default')+'.json');cpu=0
+ try:
+  old=json.loads(file.read_text());cpu=round(100*(1-(idle-old[1])/max(1,total-old[0])))
+ except (OSError,ValueError):pass
+ file.write_text(json.dumps([total,idle]));mem={x.split(':')[0]:int(x.split()[1]) for x in Path('/proc/meminfo').read_text().splitlines()};used=round(100*(1-mem['MemAvailable']/mem['MemTotal']))
+ print(f'%{{T2}}󰍛%{{T-}} {max(0,min(100,cpu))}%  %{{F#999AA8}}{used}% RAM%{{F-}}')
+elif mode=='network':
+ radio=cmd(['nmcli','radio','wifi']);state=cmd(['nmcli','-t','-f','STATE','general'])
+ print('%{T2}󰖩%{T-}' if state.startswith('connected') else '%{T2}󰖪%{T-}')
+elif mode=='battery':
+ batteries=[p for p in Path('/sys/class/power_supply').glob('*') if (p/'type').exists() and (p/'type').read_text().strip()=='Battery']
+ if batteries:
+  p=batteries[0];capacity=(p/'capacity').read_text().strip();charging=(p/'status').read_text().strip()=='Charging';print('%{T2}'+('󰂄' if charging else '󰁹')+'%{T-} '+capacity+'%')
+elif mode=='notifications':
+ paused=cmd(['dunstctl','is-paused'])=='true';count=cmd(['dunstctl','count','waiting']);print('%{T2}'+('󰂛' if paused else '󰂚')+'%{T-}'+(' '+count if count not in ('','0') else ''))

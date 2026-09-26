@@ -1,0 +1,2 @@
+#!/bin/sh
+exec "${XDG_DATA_HOME:-$HOME/.local/share}/orbit/app/orbit-client" "$@"

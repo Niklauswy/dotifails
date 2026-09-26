@@ -1,0 +1,14 @@
+#!/bin/sh
+export PATH="$HOME/.local/bin:$PATH"
+export XDG_CURRENT_DESKTOP=bspwm
+export XDG_SESSION_DESKTOP=orbit-bspwm
+export DESKTOP_SESSION=orbit-bspwm
+export XDG_SESSION_TYPE=x11
+export QT_QPA_PLATFORM=xcb
+export GDK_BACKEND=x11
+export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
+export XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
+export XDG_STATE_HOME="${XDG_STATE_HOME:-$HOME/.local/state}"
+mkdir -p "$XDG_STATE_HOME/dotifails"
+if [ -z "${DBUS_SESSION_BUS_ADDRESS:-}" ]; then exec dbus-run-session -- bspwm; fi
+exec bspwm
