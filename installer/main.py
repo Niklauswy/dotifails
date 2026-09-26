@@ -211,6 +211,8 @@ def install_tools(deployment):
         d.deploy(link,Path('.local/share/dotifails/tools')/name)
     for name,target in [('node','node/bin/node'),('npm','node/bin/npm'),('npx','node/bin/npx'),('nvim','nvim/bin/nvim'),('starship','starship/starship')]:
         d.generated('#!/bin/sh\nexport PATH="$HOME/.local/bin:$PATH"\nexec "$HOME/.local/share/dotifails/tools/'+target+'" "$@"\n',Path('.local/bin')/name,True)
+    # Mise shims dispatch by argv[0]; a shell wrapper would lose that name.
+    mise_link=d.backup/'links/mise-bin';mise_link.symlink_to('../share/dotifails/tools/mise/bin/mise');d.deploy(mise_link,Path('.local/bin/mise'))
     d.generated('#!/bin/sh\nexport PATH="$HOME/.local/bin:$PATH"\nexec "$HOME/.local/share/dotifails/tools/ghostty/AppRun" "$@"\n',Path('.local/bin/ghostty'),True)
     for command,system in [('fd','fdfind'),('bat','batcat')]:d.generated(f'#!/bin/sh\nexec /usr/bin/{system} "$@"\n',Path('.local/bin')/command,True)
     for name in ('zsh-autosuggestions','zsh-syntax-highlighting'):
@@ -272,7 +274,7 @@ def doctor(home):
     home=Path(home);env=dict(os.environ,HOME=str(home),PATH=str(home/'.local/bin')+':'+os.environ.get('PATH',''));failed=[]
     checks={'Python Qt':(['/usr/bin/python3','-c','from PySide6 import QtCore,QtGui,QtWidgets,QtSvg; import Xlib,dbus,gi'],None),
       'BSPWM':(['bspwm','-v'],None),'Picom':(['picom','--version'],'v12'), 'Neovim':([str(home/'.local/bin/nvim'),'--version'],'0.11.5'),
-      'Node':([str(home/'.local/bin/node'),'--version'],'v24.19.0'),'Ghostty':([str(home/'.local/bin/ghostty'),'--version'],'1.2.3'),
+      'Node':([str(home/'.local/bin/node'),'--version'],'v24.19.0'),'Mise':([str(home/'.local/bin/mise'),'--version'],'2026.9.14'),'Ghostty':([str(home/'.local/bin/ghostty'),'--version'],'1.2.3'),
       'OCR':(['tesseract','--list-langs'],'spa'),'FFmpeg':(['ffmpeg','-version'],None),'mpv':(['mpv','--version'],None)}
     for label,(argv,expected) in checks.items():
         try:

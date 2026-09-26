@@ -17,6 +17,7 @@ export BAT_THEME=tokyonight_night
 [[ -f /usr/share/doc/fzf/examples/key-bindings.zsh ]] && source /usr/share/doc/fzf/examples/key-bindings.zsh
 [[ -f "${XDG_CONFIG_HOME:-$HOME/.config}/fzf/config.zsh" ]] && source "${XDG_CONFIG_HOME:-$HOME/.config}/fzf/config.zsh"
 export NVM_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/dotifails/tools/nvm"
-nvm() { unfunction nvm; source "$NVM_DIR/nvm.sh"; nvm "$@"; }
+nvm() { unfunction nvm; source "$NVM_DIR/nvm.sh" --no-use; nvm "$@"; }
 command -v starship >/dev/null && eval "$(starship init zsh)"
 [[ -f "${XDG_CONFIG_HOME:-$HOME/.config}/dotifails/local.zsh" ]] && source "${XDG_CONFIG_HOME:-$HOME/.config}/dotifails/local.zsh"
+[[ -f "${XDG_CONFIG_HOME:-$HOME/.config}/dotifails/mise.zsh" ]] && source "${XDG_CONFIG_HOME:-$HOME/.config}/dotifails/mise.zsh"

@@ -31,7 +31,7 @@ El perfil Samsung es opcional y específico del equipo con pantalla táctil defe
 - Notas Markdown, procesos y selector de color con lupa. No requiere Rofi.
 - Ghostty **1.2.3**, Neovim **0.11.5**, Node **24.19.0**, Starship **1.24.1**; versiones y SHA-256 en `manifests/artifacts.json`. Ghostty se extrae una vez, sin depender de FUSE al abrir terminales.
 - NvChad con plugins fijados por `lazy-lock.json`, LSP, formato, búsqueda difusa, tareas, depuración y herramientas de JS/TS, C/C++ y Python. Las versiones de Mason están en `manifests/mason.json`.
-- Zsh, autocompletado/sugerencias, resaltado, fzf y prompt Starship. NVM se carga al invocar `nvm`; Node está disponible directamente.
+- Zsh, autocompletado/sugerencias, resaltado, fzf y prompt Starship. Mise **2026.9.14** cambia versiones por proyecto; Node está disponible directamente y NVM se conserva bajo demanda.
 - Perfil azul: ARK-Dark, Flat-Remix-Green-Dark, cursor Breeze y el prompt actual de Starship. Perfil morado: Arc-Darker, Win11-Dark, cursor Fluent y el prompt compacto.
 - Ambos mantienen la barra, notificaciones, paleta de Ghostty, Neovim, FiraCode Nerd Font, Inter, Noto Color Emoji, `eza`, `bat` y FZF. Los dos fondos quedan en la biblioteca de Órbita.
 
@@ -75,6 +75,12 @@ Para desarrollar los menús, editar `apps/orbit/` en este repositorio y ejecutar
 `restore` recupera el estado anterior y conserva ediciones posteriores en `changes-before-restore/`. Se deben restaurar los respaldos de más reciente a más antiguo. No desinstala paquetes APT/Flatpak ni borra datos personales de Órbita. Una instalación fallida muestra el ID recuperable y puede repetirse después de corregir la causa.
 
 La configuración del escritorio y las fuentes viven en `~/.config` y `~/.local/share`; los comandos en `~/.local/bin`. Las herramientas conservan directorios por versión para permitir restaurar los enlaces activos. [Arquitectura y pruebas](docs/maintenance.md).
+
+## Versiones por proyecto con mise
+
+Mise se instala con versión y SHA-256 fijados, y Zsh lo activa al abrir una terminal. Desde la raíz de un proyecto, `mise use node@24` o `mise use python@3.12` instala la versión elegida y la registra en `mise.toml`. Al entrar en esa carpeta se activa; al salir se recuperan las versiones del entorno anterior. `mise ls` muestra lo instalado y `mise use --global node@24` fija el valor predeterminado. Para scripts o tareas sin shell interactiva: `mise exec -- comando`.
+
+La instalación inicial conserva el Node fijado del escritorio como alternativa cuando el proyecto no selecciona otra versión. NVM sigue disponible manualmente; evita alternar ambos gestores dentro de la misma shell. No se cambia el Python del sistema. Las instalaciones personales de lenguajes y sus preferencias globales no se copian al repositorio; comparte el `mise.toml` de cada proyecto.
 
 ## Privacidad y alcance
 

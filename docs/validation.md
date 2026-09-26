@@ -36,3 +36,9 @@ Revisión de los perfiles: 13 pruebas del instalador/almacenamiento/selección y
 - Despliegue mediante `--orbit-only`, con respaldo y sin conflictos. Recarga del residente y apertura real mediante Super + Shift + K en X11; búsqueda, selección con flecha abajo, inspector y menú Alt K revisados visualmente. La lectura de unos 312 procesos tomó aproximadamente 0,10 segundos en este equipo, en un hilo de trabajo; no es una garantía de rendimiento para otros equipos.
 
 Esta revisión no repite la instalación completa en Debian/Parrot ni las pruebas de hardware. Las pruebas de pausa y cierre solo afectaron procesos temporales creados por las propias pruebas.
+
+## Mise · 26 de septiembre de 2026
+
+Mise 2026.9.14 instalado en el usuario tras verificar el SHA-256 del archivo oficial. Integración Zsh comprobada con Node 20.19.5 y 24.19.0 ya existentes: cambio por carpeta, restauración del valor global y ejecución de npm correctos. `mise doctor` informa activación y shims disponibles, sin problemas. La configuración activa de Zsh se respaldó y se conservaron sus personalizaciones.
+
+18 pruebas del instalador y datos correctas, incluida una regresión para conservar el nombre del comando al ejecutar los shims de mise. Manifiesto y sintaxis Zsh correctos. Se añadió mise al instalador portable; no se repitió la instalación completa en contenedores para esta revisión.

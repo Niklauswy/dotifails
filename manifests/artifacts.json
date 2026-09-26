@@ -41,6 +41,12 @@
     "sha256": "c78570f573d6c87649da7e2921f4a2222e73f4b0951b3af7489c1897c5f1dac9",
     "kind": "tar"
   },
+  "mise": {
+    "version": "2026.9.14",
+    "url": "https://github.com/jdx/mise/releases/download/v2026.9.14/mise-v2026.9.14-linux-x64.tar.gz",
+    "sha256": "343b133839d6a1d6c92daca90c4dbf7981dc28de8d308e5198a4ef24df8f5338",
+    "kind": "tar"
+  },
   "nvm": {
     "version": "bab86d5de571015b63fd8fc30b47bbe072a1290e",
     "url": "https://codeload.github.com/nvm-sh/nvm/tar.gz/bab86d5de571015b63fd8fc30b47bbe072a1290e",

@@ -3,6 +3,19 @@ from pathlib import Path
 from unittest.mock import patch
 spec=importlib.util.spec_from_file_location('installer',Path(__file__).parents[1]/'installer/main.py');m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
 class InstallerTests(unittest.TestCase):
+ def test_mise_shim_keeps_command_name(self):
+  import subprocess,tarfile
+  bundle=self.root/'bundle';(bundle/'mise/bin').mkdir(parents=True)
+  binary=bundle/'mise/bin/mise';binary.write_text('#!/bin/sh\nprintf "%s\\n" "${0##*/}"\n');binary.chmod(0o755)
+  archive=self.root/'mise.tar'
+  with tarfile.open(archive,'w') as tar:tar.add(bundle/'mise',arcname='mise')
+  (self.source/'manifests').mkdir();(self.source/'manifests/artifacts.json').write_text(json.dumps({'mise':{'version':'test','sha256':'a'*64,'kind':'tar'}}))
+  d=self.deploy()
+  try:
+   with patch.object(m,'fetch',return_value=archive):m.install_tools(d)
+   shim=self.home/'node';shim.symlink_to(self.home/'.local/bin/mise')
+   self.assertEqual(subprocess.check_output([str(shim)],text=True).strip(),'node')
+  finally:d.lock.close()
  def test_orbit_only_preserves_other_configs_and_private_data(self):
   source=Path(__file__).parents[1]
   with tempfile.TemporaryDirectory() as tmp:
