@@ -62,11 +62,14 @@ Ver todos en [sxhkdrc](home/.config/sxhkd/sxhkdrc). Los paneles tienen navegaci�
 dotifails doctor
 dotifails update
 dotifails update --source /ruta/dotifails
+dotifails update --orbit-only && orbit reload
 dotifails restore
 dotifails restore ID_DEL_RESPALDO
 ```
 
 Las configuraciones se instalan como **copias** editables. Antes de reemplazarlas se guardan en `~/.local/state/dotifails/backups/ID/before/`, junto con un diario de operaciones. Si has editado un archivo administrado, una actualización lo conserva y deja la propuesta en `incoming/`; devuelve código 2 para indicar conflictos. Los cambios locales incluyen archivos borrados deliberadamente.
+
+Para desarrollar los menús, editar `apps/orbit/` en este repositorio y ejecutar `./instalar.sh --orbit-only && orbit reload`. Así el escritorio usa el mismo código que recibirá una instalación nueva. Notas y Color son ventanas nativas independientes; sus datos privados se conservan aparte. [Flujo de desarrollo y actualización](docs/maintenance.md#cambiar-órbita-y-usar-la-misma-versión-en-tu-escritorio).
 
 `restore` recupera el estado anterior y conserva ediciones posteriores en `changes-before-restore/`. Se deben restaurar los respaldos de más reciente a más antiguo. No desinstala paquetes APT/Flatpak ni borra datos personales de Órbita. Una instalación fallida muestra el ID recuperable y puede repetirse después de corregir la causa.
 

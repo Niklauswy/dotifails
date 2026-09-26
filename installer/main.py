@@ -115,6 +115,13 @@ class Deployment:
         write(self.state/'installed.json',self.receipt)
     def generated(self,text,relative,executable=False):
         temp=self.backup/'generated'/relative;temp.parent.mkdir(parents=True,exist_ok=True);temp.write_text(text);temp.chmod(0o755 if executable else 0o644);self.deploy(temp,relative)
+    def configure_orbit(self):
+        self.stage('Actualizar solo Órbita (código y lanzador)')
+        self.deploy(self.source/'apps/orbit',Path('.local/share/orbit/app'))
+        if self.conflicts:return
+        self.deploy(self.source/'home/.local/bin/orbit',Path('.local/bin/orbit'))
+        self.deploy(self.source/'installer',Path('.local/share/dotifails/installer'))
+        self.generated('#!/bin/sh\nexec python3 "$HOME/.local/share/dotifails/installer/main.py" "$@"\n',Path('.local/bin/dotifails'),True)
     def configure(self,profile=None):
         self.stage('Configuraciones y aplicaciones')
         for base in ('.config','.local/bin'):
@@ -292,12 +299,17 @@ def main(argv=None):
     sub=parser.add_subparsers(dest='command',required=True)
     for command in ('install','update'):
         p=sub.add_parser(command);p.add_argument('--source',type=Path);p.add_argument('--target-home',type=Path,default=Path.home());p.add_argument('--config-only',action='store_true');p.add_argument('--dry-run',action='store_true');p.add_argument('--extras',nargs='?',const='brave,discord,obsidian',default='');p.add_argument('--profile',choices=['samsung-touchscreen']);p.add_argument('--skip-nvim-tools',action='store_true');p.add_argument('--ref',default='master')
+        p.add_argument('--orbit-only',action='store_true',help='Solo código y lanzador de Órbita; conserva el resto del escritorio y los datos privados')
     p=sub.add_parser('doctor');p.add_argument('--target-home',type=Path,default=Path.home())
     p=sub.add_parser('restore');p.add_argument('id',nargs='?');p.add_argument('--target-home',type=Path,default=Path.home())
     args=parser.parse_args(argv)
     if args.command=='doctor':return doctor(args.target_home)
     if args.command=='restore':return restore(args.target_home,args.id)
+    if args.orbit_only:
+        if args.extras or args.profile:raise ValueError('--orbit-only no admite extras ni perfiles del sistema.')
+        args.config_only=True
     if args.dry_run:
+        if args.orbit_only:print('Plan: respaldar y actualizar únicamente Órbita, su lanzador y el gestor dotifails. No cambia atajos, notas, historial ni colores.');return 0
         print('Plan: validar Parrot 7/Debian 13 x86_64; instalar dependencias; verificar SHA-256; respaldar y copiar configs; registrar sesión; preparar Neovim; doctor.\nConflictos: se conservan los archivos editados y se guardan nuevas versiones en incoming/.\nNo se ejecutarán cambios.');return 0
     home=args.target_home.expanduser().absolute()
     if not args.config_only:
@@ -313,6 +325,7 @@ def main(argv=None):
         if not (checkout/'installer/main.py').is_file():raise RuntimeError('La referencia remota aún no contiene el nuevo instalador; usa --source con el repositorio preparado.')
         command=[sys.executable,str(checkout/'installer/main.py'),'install','--source',str(checkout),'--target-home',str(home)]
         if args.config_only:command+=['--config-only']
+        if args.orbit_only:command+=['--orbit-only']
         if args.extras:command+=['--extras',args.extras]
         if args.skip_nvim_tools:command+=['--skip-nvim-tools']
         if args.profile:command+=['--profile',args.profile]
@@ -324,7 +337,8 @@ def main(argv=None):
     env=dict(os.environ,HOME=str(home),PATH=str(home/'.local/bin')+':'+os.environ.get('PATH',''),XDG_CONFIG_HOME=str(home/'.config'),XDG_DATA_HOME=str(home/'.local/share'),XDG_STATE_HOME=str(home/'.local/state'))
     try:
         if not args.config_only:d.stage('Paquetes del sistema');packages(source,names);install_tools(d)
-        d.configure(args.profile)
+        if args.orbit_only:d.configure_orbit()
+        else:d.configure(args.profile)
         if not args.config_only:
             d.stage('Registro de sesión');session(source)
             if not args.skip_nvim_tools:nvim_setup(d,env)

@@ -415,7 +415,16 @@ def main():
                         if data=='ping':client.sendall(b'pong\n')
                         elif data and data!='daemon':self.received.emit(data)
                     except OSError:pass
-    ipc=IPC();ipc.received.connect(win.show_mode);ipc.start()
+    def receive(mode):
+        if mode=='reload':
+            # Preserve pending notes, and refuse reload if an external edit conflicts.
+            for window in win.utilities.values():
+                if hasattr(window,'save') and window.save() is False:
+                    window.present();return
+            server.close();Path(SOCKET).unlink(missing_ok=True)
+            os.execv(sys.executable,[sys.executable,str(ROOT/'orbit.py'),'daemon','--daemon'])
+        else:win.show_mode(mode)
+    ipc=IPC();ipc.received.connect(receive);ipc.start()
     if not args.daemon:QTimer.singleShot(0,lambda:win.show_mode(args.mode))
     sys.exit(app.exec())
 if __name__=='__main__':main()

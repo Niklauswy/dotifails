@@ -20,4 +20,5 @@ try:
 except OSError:
     state=Path.home()/'.local/state';state.mkdir(parents=True,exist_ok=True)
     with (state/'orbit.log').open('a') as log:
-        subprocess.Popen(['/usr/bin/python3',str(Path(__file__).resolve().with_name('orbit.py')),mode]+(['--daemon'] if mode=='daemon' else []),stdout=log,stderr=log,start_new_session=True)
+        start_mode='daemon' if mode=='reload' else mode
+        subprocess.Popen(['/usr/bin/python3',str(Path(__file__).resolve().with_name('orbit.py')),start_mode]+(['--daemon'] if start_mode=='daemon' else []),stdout=log,stderr=log,start_new_session=True)

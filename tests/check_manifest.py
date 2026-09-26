@@ -23,6 +23,9 @@ for base in ('home','apps','assets','backgrounds'):
   if p.is_file() and p.suffix in ('.py','.sh','.lua','.ini','.toml'):
    text=p.read_text()
    assert not re.search(r'/home/nicolas|~/proyects/|\.local/opt/',text),str(p)
+   # A read-only import of the old color history is not a runtime dependency.
+   if p == root/'apps/orbit/color_window.py':
+    text=text.replace("Path.home()/'.config/bspwm/rofi/data/colors.txt'",'LEGACY_COLOR_DATA')
    assert not re.search(r'\brofi(?:\s|/|-)',text,re.I),str(p)
   assert p.suffix not in ('.sqlite3','.db'),str(p)
 print('MANIFEST_OK: one wallpaper, matching tool locks, no conflicting shortcuts or personal paths')

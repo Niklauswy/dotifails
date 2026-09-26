@@ -3,6 +3,15 @@ from pathlib import Path
 from unittest.mock import patch
 spec=importlib.util.spec_from_file_location('installer',Path(__file__).parents[1]/'installer/main.py');m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
 class InstallerTests(unittest.TestCase):
+ def test_orbit_only_preserves_other_configs_and_private_data(self):
+  source=Path(__file__).parents[1]
+  with tempfile.TemporaryDirectory() as tmp:
+   home=Path(tmp);nvim=home/'.config/nvim/init.lua';nvim.parent.mkdir(parents=True);nvim.write_text('my editor')
+   note=home/'.local/share/orbit/notes/private.md';note.parent.mkdir(parents=True);note.write_text('private')
+   self.assertEqual(m.main(['install','--source',str(source),'--target-home',tmp,'--orbit-only']),0)
+   self.assertEqual(nvim.read_text(),'my editor');self.assertEqual(note.read_text(),'private');self.assertTrue((home/'.local/share/orbit/app/notes_window.py').is_file());self.assertFalse((home/'.config/sxhkd').exists())
+   self.assertEqual(m.main(['install','--source',str(source),'--target-home',tmp,'--orbit-only']),0)
+   backup=json.loads((home/'.local/state/dotifails/installed.json').read_text())['last_backup'];journal=json.loads((home/'.local/state/dotifails/backups'/backup/'journal.json').read_text());self.assertEqual(journal['operations'],[])
  def setUp(self):
   self.temp=tempfile.TemporaryDirectory();self.root=Path(self.temp.name);self.home=self.root/'home';self.home.mkdir();self.source=self.root/'source';self.source.mkdir();self.input=self.source/'file';self.input.write_text('new')
  def tearDown(self):self.temp.cleanup()

@@ -8,6 +8,28 @@
 
 Los servicios de escritorio registran PID e inicio del proceso y se separan por display X. El arranque no termina todos los procesos Polybar del usuario. El historial usa almacenamiento local separado de la aplicación instalada.
 
+## Cambiar Órbita y usar la misma versión en tu escritorio
+
+La fuente de los menús es `apps/orbit/` en este repositorio. Notas vive en `notes_window.py`, Color en `color_window.py` y el almacenamiento local en `utility_data.py`. No editar la antigua copia `~/proyects/orbit-desktop` ni la copia instalada.
+
+Después de modificar y probar el código, desde la raíz del repositorio:
+
+```sh
+./instalar.sh --orbit-only && ~/.local/bin/orbit reload
+```
+
+Esto respalda y copia Órbita a `~/.local/share/orbit/app/`, actualiza el lanzador `~/.local/bin/orbit` y el gestor dotifails. No reinstala paquetes ni modifica Neovim, BSPWM, atajos o los datos privados. `reload` conserva las notas pendientes antes de reiniciar la aplicación; si hay un conflicto con una edición externa, muestra la nota y cancela la recarga. En una sesión anterior a esta versión, cerrar sesión una vez permite arrancar el ejecutable nuevo.
+
+Para traer una versión publicada en otro equipo ya configurado:
+
+```sh
+dotifails update --orbit-only && orbit reload
+```
+
+La instalación completa utiliza exactamente el mismo `apps/orbit/`. Los atajos versionados en `home/.config/sxhkd/sxhkdrc` abren `orbit notes` y `orbit color`. Los cambios de atajos se distribuyen mediante la actualización completa de configuración, respetando los conflictos locales; `--orbit-only` no los sobrescribe.
+
+Notas importa una vez el antiguo `~/Documents/QuickNotes/notes.md`, conservando el archivo original. Color importa el historial antiguo de colores únicamente cuando aún no existe su almacenamiento nuevo. Esos datos permanecen en el hogar del usuario y nunca se copian al repositorio.
+
 ## Pruebas locales
 
 ```sh

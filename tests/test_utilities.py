@@ -3,6 +3,9 @@ from pathlib import Path
 sys.path.insert(0,str(Path(__file__).parents[1]/'apps/orbit'))
 from utility_data import Notes,Colors,Processes,digest,process_record
 class UtilityDataTests(unittest.TestCase):
+ def test_legacy_notes_import_once_without_changing_original(self):
+  with tempfile.TemporaryDirectory() as tmp:
+   old=Path(tmp)/'old.md';old.write_text('## 2026-09-25\nOriginal');n=Notes(Path(tmp)/'notes');n.import_legacy(old);n.import_legacy(old);self.assertEqual(len(n.all()),1);self.assertEqual(old.read_text(),'## 2026-09-25\nOriginal');self.assertEqual(n.all()[0]['body'],old.read_text())
  def test_notes_conflict_trash_and_favorites(self):
   with tempfile.TemporaryDirectory() as tmp:
    n=Notes(tmp);key=n.create('# Title\nSearchable body');n.toggle_favorite(key);self.assertTrue(n.all('body')[0]['favorite']);n.save(key,'# Updated',digest('# Title\nSearchable body'))
