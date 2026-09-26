@@ -15,46 +15,7 @@ def shortcut(window,key,fn):QShortcut(QKeySequence(key),window).activated.connec
 from notes_window import NotesWindow
 
 
-class ProcessScan(QThread):
-    ready=Signal(list)
-    def __init__(self,model,parent):super().__init__(parent);self.model=model
-    def run(self):self.ready.emit(self.model.scan())
-
-
-class ProcessesWindow(Surface):
-    def __init__(self):
-        super().__init__('Procesos','CPU y memoria · selecciona un proceso para inspeccionarlo',820,560)
-        self.model=Processes();self.rows=[];self.worker=None
-        top=QHBoxLayout();self.search=QLineEdit();self.search.setPlaceholderText('Buscar nombre o PID…');top.addWidget(self.search,1);self.sort=QComboBox();self.sort.addItems(['Más CPU','Más memoria','Nombre']);top.addWidget(self.sort);self.outer.addLayout(top)
-        body=QHBoxLayout();self.list=QListWidget();body.addWidget(self.list,3);detail=QVBoxLayout();self.info=text_label('Selecciona un proceso');detail.addWidget(self.info);detail.addStretch();self.normal=button('Terminar',lambda:self.stop(False));self.force=button('Forzar cierre…',lambda:self.stop(True),'danger');detail.addWidget(self.normal);detail.addWidget(self.force);body.addLayout(detail,2);self.outer.addLayout(body,1)
-        self.status=text_label('Actualización cada 2 segundos · CPU por núcleo','subtitle');self.outer.addWidget(self.status)
-        self.timer=QTimer(self);self.timer.setInterval(2000);self.timer.timeout.connect(self.scan);self.search.textChanged.connect(self.render);self.sort.currentIndexChanged.connect(self.render);self.list.currentItemChanged.connect(self.inspect)
-        shortcut(self,'Ctrl+F',self.search.setFocus);shortcut(self,'F5',self.scan)
-    def scan(self):
-        if self.worker and self.worker.isRunning():return
-        self.worker=ProcessScan(self.model,self);self.worker.ready.connect(self.loaded);self.worker.start()
-    def loaded(self,rows):self.rows=rows;self.render()
-    def current(self):return self.list.currentItem().data(Qt.UserRole) if self.list.currentItem() else None
-    def render(self,*args):
-        selected=self.current();key=(selected['pid'],selected['start']) if selected else None;query=self.search.text().casefold();self.list.blockSignals(True);self.list.clear()
-        order=[lambda r:-r['cpu'],lambda r:-r['memory'],lambda r:r['name'].casefold()][self.sort.currentIndex()]
-        for r in sorted(self.rows,key=order):
-            if query not in (r['name']+' '+str(r['pid'])).casefold():continue
-            item=QListWidgetItem(f"{r['name']}   ·   {r['cpu']:.1f}%   ·   {r['memory']/1048576:.0f} MB");item.setData(Qt.UserRole,r);self.list.addItem(item)
-            if (r['pid'],r['start'])==key:self.list.setCurrentItem(item)
-        self.list.blockSignals(False);self.inspect()
-    def inspect(self,*args):
-        r=self.current();allowed=bool(r and r['uid']==os.getuid() and r['pid'] not in (1,os.getpid()));self.normal.setEnabled(allowed);self.force.setEnabled(allowed)
-        if not r:self.info.setText('Selecciona un proceso');return
-        self.info.setText(f"{r['name']}\n\nPID  {r['pid']}\nUsuario  {r['uid']}\nCPU  {r['cpu']:.1f}%\nMemoria  {r['memory']/1048576:.1f} MB\nEstado  {r['state']}")
-    def stop(self,force):
-        r=self.current()
-        if not r:return
-        if force and QMessageBox.question(self,'Forzar cierre',f"¿Forzar {r['name']} (PID {r['pid']})? Puede perder cambios sin guardar.",QMessageBox.Yes|QMessageBox.No,QMessageBox.No)!=QMessageBox.Yes:return
-        try:self.model.terminate(r,force);self.status.setText('Señal enviada');self.scan()
-        except (OSError,RuntimeError) as e:self.status.setText(str(e))
-    def present(self):super().present();self.timer.start();self.scan()
-    def hideEvent(self,event):self.timer.stop();super().hideEvent(event)
+from processes_window import ProcessesWindow
 
 
 class Picker(QWidget):

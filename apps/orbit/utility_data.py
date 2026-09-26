@@ -67,30 +67,4 @@ class Colors:
         data[key]=rows[:64 if favorite else 24];atomic(self.path,json.dumps(data));return data
 
 
-def process_record(pid):
-    root=Path('/proc')/str(int(pid));raw=(root/'stat').read_text();fields=raw.rsplit(') ',1)[1].split()
-    return dict(pid=int(pid),name=raw.split('(',1)[1].rsplit(')',1)[0],uid=root.stat().st_uid,
-                start=fields[19],ticks=int(fields[11])+int(fields[12]),memory=int(fields[21])*os.sysconf('SC_PAGE_SIZE'),state=fields[0])
-
-
-class Processes:
-    def __init__(self):self.previous={};self.stamp=time.monotonic()
-    def scan(self):
-        now=time.monotonic();elapsed=max(now-self.stamp,.01);rows=[];current={};ticks=os.sysconf('SC_CLK_TCK')
-        for path in Path('/proc').iterdir():
-            if not path.name.isdigit():continue
-            try:
-                row=process_record(path.name);key=(row['pid'],row['start']);old=self.previous.get(key,row['ticks'])
-                row['cpu']=max(0,(row['ticks']-old)/ticks/elapsed*100);current[key]=row['ticks'];rows.append(row)
-            except (OSError,ValueError,IndexError):continue
-        self.previous=current;self.stamp=now;return rows
-    def terminate(self,row,force=False):
-        current=process_record(row['pid'])
-        if current['start']!=row['start']:raise RuntimeError('El proceso cambió; actualiza la lista.')
-        if current['uid']!=os.getuid() or current['pid'] in (1,os.getpid()):raise PermissionError('Solo puedes detener tus propios procesos, salvo Órbita.')
-        # pidfd closes the check/signal PID-reuse race on Linux 5.3+.
-        fd=os.pidfd_open(current['pid'])
-        try:
-            if process_record(current['pid'])['start']!=row['start']:raise RuntimeError('El proceso cambió.')
-            signal.pidfd_send_signal(fd,signal.SIGKILL if force else signal.SIGTERM)
-        finally:os.close(fd)
+from process_data import Processes, process_record

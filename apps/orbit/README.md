@@ -182,7 +182,11 @@ Verificación: `QT_QPA_PLATFORM=offscreen python3 -m unittest test_settings_hub 
 ## Utilidades nativas
 
 - **Super + Shift + N**: notas Markdown con búsqueda, guardado automático, favoritos, papelera recuperable e importación explícita de archivos. Ctrl N crea; Ctrl S guarda; Ctrl E abre en Vim. Los conflictos externos conservan tu borrador y permiten guardar una copia.
-- **Super + Shift + K**: procesos, búsqueda por nombre/PID, consumo de CPU y memoria, inspector y señales de cierre. Solo se pueden terminar procesos propios y el cierre forzado pide confirmación.
+- **Super + Shift + K**: gestor de procesos con gráficas de CPU, memoria e intercambio, tabla ordenable y vista de árbol. Filtros por usuario, estado y consumo; inspector de comando, rutas, hilos, antigüedad y archivos abiertos. Selección múltiple para pausar, reanudar o terminar procesos propios; cierre forzado desde Acciones. Pausar y cerrar piden confirmación y comprueban la identidad del proceso antes de enviar señales. Los procesos de la sesión están protegidos.
 - **Super + Shift + C**: colores, captura con lupa, HEX/RGB/HSL, recientes y favoritos. Ctrl P captura; flechas ajustan el píxel; Enter confirma; Escape cancela.
 
 Estos paneles también aparecen al buscar en el lanzador. No importan datos personales de la máquina de origen.
+
+En Procesos, **Ctrl F** busca y **↓** pasa a los resultados. **Ctrl/Shift + clic** selecciona varias filas; **Alt K** abre acciones; **F5** actualiza; **Espacio** con foco en la tabla congela/reanuda la vista. Congelar no detiene procesos. Muestreo ajustable a 1, 2 o 5 segundos; se detiene al ocultar la ventana. La selección se mantiene al ordenar o actualizar, pero se descarta si el PID pertenece a un proceso nuevo.
+
+La CPU del equipo usa la capacidad total; la CPU por proceso cuenta núcleos y puede superar el 100%. Las gráficas conservan las últimas 48 muestras y ajustan su escala. Lectura/escritura son bytes de E/S física por segundo según `/proc`, no tráfico de red; «—» indica que falta una muestra previa o permiso de lectura. Los archivos abiertos muestran hasta 60 descriptores. Los comandos se muestran con patrones habituales de credenciales ocultos; no se leen variables de entorno ni se registran comandos.

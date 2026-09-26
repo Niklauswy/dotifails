@@ -24,5 +24,5 @@ class UtilityUITests(unittest.TestCase):
   with tempfile.TemporaryDirectory() as tmp:
    w=ColorWindow(Path(tmp)/'colors.json');w.present();w.entry.setText('#123456');w.formats.setCurrentIndex(1);w.copy();self.assertEqual(self.app.clipboard().text(),'rgb(18, 52, 86)');w.favorite();self.assertEqual(w.recent.count(),1);w.close()
  def test_process_scan(self):
-  w=ProcessesWindow();w.present();wait(500);self.assertTrue(w.rows);w.search.setText(str(os.getpid()));self.assertGreater(w.list.count(),0);w.close();self.assertFalse(w.timer.isActive());w.worker.wait(3000)
+  w=ProcessesWindow();w.present();wait(700);self.assertTrue(w.rows);w.search.setText(str(os.getpid()));self.assertGreater(w.tree.topLevelItemCount(),0);w.close();self.assertFalse(w.timer.isActive());w.worker.wait(3000)
 if __name__=='__main__':unittest.main()

@@ -26,3 +26,13 @@ La carpeta original y las configuraciones activas se respaldaron fuera del repos
 La actualización de perfiles añade azul y morado. Su validación específica se realiza con instalación aislada de configuraciones, selección de perfil, recursos, caché de Bat y manifiesto; las pruebas completas anteriores de Debian/Parrot no equivalen a repetir una instalación completa de esta revisión.
 
 Revisión de los perfiles: 13 pruebas del instalador/almacenamiento/selección y 21 pruebas de Ajustes correctas. Instalación aislada azul, cambio a morado y repetición sin reescrituras verificados; recursos del tema, ambos fondos y caché Tokyo de Bat comprobados. El archivo azul coincide byte a byte con el original seleccionado.
+
+## Gestor de procesos · 26 de septiembre de 2026
+
+- `python3 -m unittest discover -s tests -v`: 17 pruebas correctas, incluidas señales reales sobre procesos desechables y rechazo de un PID cuya identidad no coincide.
+- `QT_QPA_PLATFORM=offscreen python3 tests/utility_ui.py`: 5 pruebas correctas de utilidades.
+- `QT_QPA_PLATFORM=offscreen python3 tests/process_ui.py`: 6 pruebas correctas de ordenación numérica, selección múltiple estable, árbol y filtros, reemplazo de PID, congelación, confirmación/cancelación y navegación con teclado/acciones.
+- `python3 tests/check_manifest.py` y `git diff --check`: correctos.
+- Despliegue mediante `--orbit-only`, con respaldo y sin conflictos. Recarga del residente y apertura real mediante Super + Shift + K en X11; búsqueda, selección con flecha abajo, inspector y menú Alt K revisados visualmente. La lectura de unos 312 procesos tomó aproximadamente 0,10 segundos en este equipo, en un hilo de trabajo; no es una garantía de rendimiento para otros equipos.
+
+Esta revisión no repite la instalación completa en Debian/Parrot ni las pruebas de hardware. Las pruebas de pausa y cierre solo afectaron procesos temporales creados por las propias pruebas.
