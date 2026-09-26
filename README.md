@@ -76,7 +76,7 @@ Para desarrollar los menús, editar `apps/orbit/` en este repositorio y ejecutar
 
 La configuración del escritorio y las fuentes viven en `~/.config` y `~/.local/share`; los comandos en `~/.local/bin`. Las herramientas conservan directorios por versión para permitir restaurar los enlaces activos. [Arquitectura y pruebas](docs/maintenance.md).
 
-Ghostty: **Ctrl + Alt + Shift + flechas** ajusta los splits internos en pasos de 4 píxeles. Se oculta el indicador de dimensiones durante el ajuste. Este cambio reduce el paso; no añade interpolación animada al redimensionado de Ghostty.
+Ghostty: **Ctrl + Alt + Shift + flechas** ajusta los splits internos en pasos de 10 píxeles. Se oculta el indicador de dimensiones durante el ajuste. El redimensionado sigue siendo por pasos, sin interpolación animada.
 
 ## Versiones por proyecto con mise
 
