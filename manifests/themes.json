@@ -1,0 +1,19 @@
+{
+  "azul": {
+    "name": "Azul actual",
+    "wallpaper": "azul.jpg",
+    "gtk": "ARK-Dark",
+    "icons": "Flat-Remix-Green-Dark",
+    "cursor": "breeze_cursors",
+    "overlay": "themes/azul/home",
+    "archive": "assets/appearance/azul.tar.xz",
+    "sha256": "f6327eeff09bd8abc47d937d4c407818d2cb20fcd07a6fb5b63a23578c77d2c7"
+  },
+  "morado": {
+    "name": "Morado original",
+    "wallpaper": "tokyo.png",
+    "gtk": "Arc-Darker",
+    "icons": "Win11-Dark",
+    "cursor": "Fluent"
+  }
+}

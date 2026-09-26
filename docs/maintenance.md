@@ -1,6 +1,6 @@
 # Mantenimiento
 
-`home/` contiene únicamente configuración portable. `apps/orbit/` es una copia del código de la aplicación, no del estado del usuario. `assets/` guarda fuentes e iconos; `backgrounds/` contiene exclusivamente el fondo seleccionado.
+`home/` contiene únicamente configuración portable. `apps/orbit/` es una copia del código de la aplicación, no del estado del usuario. `assets/` guarda fuentes e iconos; `backgrounds/` contiene exclusivamente los fondos azul y morado conservados. `manifests/themes.json` define sus perfiles visuales y verifica el paquete local de recursos del azul.
 
 `installer/main.py` usa Python estándar. Valida la distribución, instala paquetes con APT, verifica los SHA-256 antes de extraer artefactos y despliega cada entrada con un diario escrito antes del cambio. No sigue enlaces en directorios padre del destino. Se serializa mediante `flock`. Las configuraciones nuevas no pisan ediciones locales registradas desde la instalación anterior.
 
@@ -49,3 +49,20 @@ QT_QPA_PLATFORM=offscreen python3 -m unittest test_orbit test_v2 test_v3 test_v4
 ```
 
 `tests/container-install.sh` prepara un usuario de prueba y ejecuta instalación, pruebas, repetición y verificaciones de Neovim en una imagen limpia. Se ejecuta dentro de un contenedor, nunca directamente en el equipo. No valida el arranque de un gestor gráfico, hardware Wi-Fi/Bluetooth ni GPU física; esas pruebas requieren una VM o equipo de prueba.
+
+## Perfiles visuales conservados
+
+- `azul`: el fondo original `macos2.jpg`, guardado como `backgrounds/azul.jpg`, GTK ARK-Dark, iconos Flat-Remix-Green-Dark, cursor Breeze, ajustes GTK 4 y el prompt actual de Starship. Sus recursos se conservan con sus licencias en `assets/appearance/azul.tar.xz`; el instalador comprueba SHA-256 y los extrae con el filtro seguro de Python.
+- `morado`: `backgrounds/tokyo.png`, GTK Arc-Darker, iconos Win11-Dark, cursor Fluent y el prompt compacto anterior del repositorio.
+- Ambos comparten el escritorio Órbita, la barra, notificaciones, transparencia, paleta Tokyo de Ghostty, configuración de Neovim y herramientas de terminal. Los iconos de archivos usan Eza; Bat dispone de un tema local `tokyonight_night` y el instalador construye su caché.
+
+Una instalación nueva selecciona azul. Una instalación administrada anterior sin perfil registrado conserva morado. Para seleccionar explícitamente:
+
+```sh
+./instalar.sh --theme azul
+./instalar.sh --theme morado
+```
+
+En un equipo con todas las dependencias instaladas, `--config-only --theme azul` permite aplicar solo archivos y recursos. Cierra sesión después para cargar el perfil completo. Las ediciones locales siguen protegidas: si hay conflictos, revisar `incoming/` antes de considerar aplicado todo el perfil. `--orbit-only` conserva el perfil.
+
+La instantánea azul conserva los ajustes visuales útiles, sin rutas del usuario ni cachés. La configuración antigua de Xsettings apuntaba a `Echo`, que no existía en el equipo: se usa el ARK-Dark indicado por GTK. Se omiten módulos GTK ausentes, opciones de ejemplo ignoradas y comandos de PowerShell rotos del prompt; se conservan sus módulos funcionales, símbolos y colores. El tema declarado de Bat no estaba instalado, por lo que se incluye uno local con la paleta de la terminal.

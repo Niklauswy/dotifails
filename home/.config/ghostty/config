@@ -68,6 +68,8 @@ keybind = ctrl+shift+w=close_surface
 # Splits básicos
 keybind = ctrl+shift+enter=new_split:right
 keybind = ctrl+shift+backslash=new_split:down
+keybind = ctrl+alt+v=new_split:right
+keybind = ctrl+alt+h=new_split:down
 
 # Copiar y pegar
 keybind = ctrl+shift+c=copy_to_clipboard

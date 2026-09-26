@@ -26,7 +26,9 @@ for agent in /usr/libexec/polkit-mate-authentication-agent-1 /usr/lib/polkit-gno
     if [ -x "$agent" ]; then orbit-service polkit "$agent"; break; fi
 done
 xsetroot -cursor_name left_ptr
-feh --no-fehbg --bg-fill "$data/backgrounds/tokyo.png"
+ORBIT_WALLPAPER="$data/backgrounds/tokyo.png"
+[ ! -f "$config/dotifails/appearance.sh" ] || . "$config/dotifails/appearance.sh"
+feh --no-fehbg --bg-fill "$ORBIT_WALLPAPER"
 desktop-compositor
 [ ! -f "$config/orbit/bspwm-settings.sh" ] || . "$config/orbit/bspwm-settings.sh"
 [ ! -f "$config/dotifails/machine.sh" ] || . "$config/dotifails/machine.sh"

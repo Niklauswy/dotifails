@@ -10,3 +10,7 @@
 - `backgrounds/tokyo.png` conserva el fondo suministrado en los dotfiles anteriores; no se atribuye su autoría al instalador.
 
 El diseño y la interacción de Órbita están inspirados en lanzadores como Raycast. No incluye código, extensiones ni servicios de Raycast.
+
+- `backgrounds/azul.jpg` conserva sin cambios el archivo `macos2.jpg` seleccionado por el usuario; no se atribuye su autoría al instalador.
+- Perfil azul: ARK-Dark procedente de `parrot-themes`, Flat Remix de `echo-themes` y Breeze de `breeze-cursor-theme`. El paquete comprimido incluye sus archivos de licencia y metadatos de copyright de Debian/Parrot. Los archivos y enlaces internos de los temas se conservan.
+- El tema local de Bat usa los mismos valores de color que la configuración de Ghostty; se incluye como configuración del proyecto.

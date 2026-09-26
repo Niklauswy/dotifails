@@ -122,15 +122,38 @@ class Deployment:
         self.deploy(self.source/'home/.local/bin/orbit',Path('.local/bin/orbit'))
         self.deploy(self.source/'installer',Path('.local/share/dotifails/installer'))
         self.generated('#!/bin/sh\nexec python3 "$HOME/.local/share/dotifails/installer/main.py" "$@"\n',Path('.local/bin/dotifails'),True)
-    def configure(self,profile=None):
+    def configure(self,profile=None,theme=None):
         self.stage('Configuraciones y aplicaciones')
+        requested_theme=theme
+        theme=theme or self.receipt.get('theme') or ('morado' if '.config/bspwm' in self.receipt['files'] else 'azul')
+        appearance=read(self.source/'manifests/themes.json')[theme]
+        home_source=self.source/'home'
+        if appearance.get('overlay'):
+            home_source=self.backup/'generated/theme-home'
+            shutil.copytree(self.source/'home',home_source)
+            shutil.copytree(self.source/appearance['overlay'],home_source,dirs_exist_ok=True)
         for base in ('.config','.local/bin'):
-            for item in sorted((self.source/'home'/base).iterdir()):self.deploy(item,Path(base)/item.name)
+            for item in sorted((home_source/base).iterdir()):self.deploy(item,Path(base)/item.name)
         self.deploy(self.source/'home/.zshrc',Path('.zshrc'))
         self.deploy(self.source/'apps/orbit',Path('.local/share/orbit/app'))
         for item in sorted((self.source/'assets/icons').iterdir()):self.deploy(item,Path('.local/share/icons')/item.name)
         self.deploy(self.source/'assets/fonts',Path('.local/share/fonts/dotifails'))
-        self.deploy(self.source/'backgrounds/tokyo.png',Path('.local/share/backgrounds/tokyo.png'))
+        for item in sorted((self.source/'backgrounds').iterdir()):self.deploy(item,Path('.local/share/backgrounds')/item.name)
+        if appearance.get('archive'):
+            archive=self.source/appearance['archive']
+            if hashlib.sha256(archive.read_bytes()).hexdigest()!=appearance['sha256']:raise RuntimeError('El paquete del tema no coincide con su SHA-256.')
+            with tempfile.TemporaryDirectory(prefix='dotifails-theme-') as temporary:
+                root=Path(temporary)
+                with tarfile.open(archive) as bundle:bundle.extractall(root,filter='data')
+                for group in ('icons','themes'):
+                    for item in sorted((root/group).iterdir()):self.deploy(item,Path('.local/share')/group/item.name)
+        self.generated('ORBIT_WALLPAPER="$HOME/.local/share/backgrounds/'+appearance['wallpaper']+'"\n',Path('.config/dotifails/appearance.sh'))
+        self.generated(json.dumps(dict(name=theme,wallpaper=appearance['wallpaper']),indent=2)+'\n',Path('.config/dotifails/theme.json'))
+        preferences=read(self.home/'.config/orbit/environment.json',{})
+        if requested_theme or not preferences.get('wallpaper',{}).get('default'):
+            preferences['wallpaper']=dict(default=str(self.home/'.local/share/backgrounds'/appearance['wallpaper']),mode='fill',monitors={},folders=preferences.get('wallpaper',{}).get('folders',[]))
+            self.generated(json.dumps(preferences,indent=2)+'\n',Path('.config/orbit/environment.json'))
+        if not self.conflicts:self.receipt['theme']=theme
         self.deploy(self.source/'installer',Path('.local/share/dotifails/installer'))
         self.deploy(self.source/'manifests',Path('.local/share/dotifails/manifests'))
         if profile:self.deploy(self.source/'profiles'/f'{profile}.sh',Path('.config/dotifails/machine.sh'))
@@ -300,13 +323,14 @@ def main(argv=None):
     for command in ('install','update'):
         p=sub.add_parser(command);p.add_argument('--source',type=Path);p.add_argument('--target-home',type=Path,default=Path.home());p.add_argument('--config-only',action='store_true');p.add_argument('--dry-run',action='store_true');p.add_argument('--extras',nargs='?',const='brave,discord,obsidian',default='');p.add_argument('--profile',choices=['samsung-touchscreen']);p.add_argument('--skip-nvim-tools',action='store_true');p.add_argument('--ref',default='master')
         p.add_argument('--orbit-only',action='store_true',help='Solo código y lanzador de Órbita; conserva el resto del escritorio y los datos privados')
+        p.add_argument('--theme',choices=['azul','morado'],help='Perfil visual; azul en instalaciones nuevas, conserva el elegido al actualizar')
     p=sub.add_parser('doctor');p.add_argument('--target-home',type=Path,default=Path.home())
     p=sub.add_parser('restore');p.add_argument('id',nargs='?');p.add_argument('--target-home',type=Path,default=Path.home())
     args=parser.parse_args(argv)
     if args.command=='doctor':return doctor(args.target_home)
     if args.command=='restore':return restore(args.target_home,args.id)
     if args.orbit_only:
-        if args.extras or args.profile:raise ValueError('--orbit-only no admite extras ni perfiles del sistema.')
+        if args.extras or args.profile or args.theme:raise ValueError('--orbit-only no admite extras ni perfiles del sistema o temas.')
         args.config_only=True
     if args.dry_run:
         if args.orbit_only:print('Plan: respaldar y actualizar únicamente Órbita, su lanzador y el gestor dotifails. No cambia atajos, notas, historial ni colores.');return 0
@@ -329,16 +353,19 @@ def main(argv=None):
         if args.extras:command+=['--extras',args.extras]
         if args.skip_nvim_tools:command+=['--skip-nvim-tools']
         if args.profile:command+=['--profile',args.profile]
+        if args.theme:command+=['--theme',args.theme]
         run(command);return 0
     previous_source=read(home/'.local/state/dotifails/installed.json',{}).get('source')
     source=(args.source or (Path(previous_source) if previous_source else Path(__file__).resolve().parent.parent)).resolve()
     if not (source/'home/.config/bspwm/bspwmrc').is_file():raise RuntimeError('Indica un repositorio completo: dotifails install --source /ruta/dotifails')
     home.mkdir(parents=True,exist_ok=True);d=Deployment(home,source);d.begin()
-    env=dict(os.environ,HOME=str(home),PATH=str(home/'.local/bin')+':'+os.environ.get('PATH',''),XDG_CONFIG_HOME=str(home/'.config'),XDG_DATA_HOME=str(home/'.local/share'),XDG_STATE_HOME=str(home/'.local/state'))
+    env=dict(os.environ,HOME=str(home),PATH=str(home/'.local/bin')+':'+os.environ.get('PATH',''),XDG_CONFIG_HOME=str(home/'.config'),XDG_DATA_HOME=str(home/'.local/share'),XDG_STATE_HOME=str(home/'.local/state'),XDG_CACHE_HOME=str(home/'.cache'))
     try:
         if not args.config_only:d.stage('Paquetes del sistema');packages(source,names);install_tools(d)
         if args.orbit_only:d.configure_orbit()
-        else:d.configure(args.profile)
+        else:d.configure(args.profile,args.theme)
+        if not args.orbit_only and '.config/bat' not in d.conflicts and shutil.which('batcat'):
+            run(['batcat','cache','--build'],env)
         if not args.config_only:
             d.stage('Registro de sesión');session(source)
             if not args.skip_nvim_tools:nvim_setup(d,env)

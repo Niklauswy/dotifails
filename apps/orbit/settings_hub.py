@@ -228,7 +228,7 @@ class SettingsHub(LegacySettingsWindow):
             self.load_gallery()
     def load_gallery(self):
         self.gallery_generation+=1;generation=self.gallery_generation;self.gallery.clear();self.gallery_info.setText('Cargando biblioteca…')
-        folders=[Path('/usr/share/backgrounds'),self.env.home/'Pictures/Wallpapers',self.env.home/'Pictures/wallpapers',self.env.home/'Wallpapers',*map(Path,self.wallpaper_values.get('folders',[]))]
+        folders=[self.env.home/'.local/share/backgrounds',Path('/usr/share/backgrounds'),self.env.home/'Pictures/Wallpapers',self.env.home/'Pictures/wallpapers',self.env.home/'Wallpapers',*map(Path,self.wallpaper_values.get('folders',[]))]
         def collect(emit):
             count=0;batch=[];seen=set()
             for folder in folders:

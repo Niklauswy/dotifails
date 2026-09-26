@@ -1,6 +1,6 @@
 # Órbita Desktop · dotifails
 
-El escritorio BSPWM actual, preparado para instalarse en **Parrot 7 o Debian 13, x86_64**: Órbita, Picom, Polybar, Ghostty, Neovim y Zsh. Mantiene los atajos, transparencias, animaciones rápidas y el fondo abstracto morado `backgrounds/tokyo.png`.
+El escritorio BSPWM actual, preparado para instalarse en **Parrot 7 o Debian 13, x86_64**: Órbita, Picom, Polybar, Ghostty, Neovim y Zsh. Mantiene los atajos, transparencias y animaciones rápidas. Conserva dos perfiles completos: **azul actual** (`backgrounds/azul.jpg`) y **morado original** (`backgrounds/tokyo.png`).
 
 ## Instalar
 
@@ -10,7 +10,7 @@ Desde una cuenta normal con acceso a `sudo`, conexión a Internet y varios GB li
 sudo apt-get update && sudo apt-get install --yes git python3 ca-certificates && git clone --depth 1 https://github.com/Niklauswy/dotifails.git && cd dotifails && ./instalar.sh
 ```
 
-Si ya tienes esta carpeta, basta con `./instalar.sh`. No lo ejecutes con `sudo`: el instalador lo solicita únicamente para paquetes y registro de sesión. Al terminar, cierra sesión y elige **Órbita / BSPWM** en el gestor de acceso. No cierra tu sesión ni reinicia el equipo.
+Si ya tienes esta carpeta, basta con `./instalar.sh`. Una instalación nueva utiliza el perfil azul; para el morado usa `./instalar.sh --theme morado`. Las actualizaciones conservan el perfil elegido. No lo ejecutes con `sudo`: el instalador lo solicita únicamente para paquetes y registro de sesión. Al terminar, cierra sesión y elige **Órbita / BSPWM** en el gestor de acceso. No cierra tu sesión ni reinicia el equipo.
 
 El instalador se valida en contenedores Debian y Parrot con una sesión X11 aislada. Consulta el alcance exacto en [Validación](docs/validation.md).
 
@@ -32,7 +32,8 @@ El perfil Samsung es opcional y específico del equipo con pantalla táctil defe
 - Ghostty **1.2.3**, Neovim **0.11.5**, Node **24.19.0**, Starship **1.24.1**; versiones y SHA-256 en `manifests/artifacts.json`. Ghostty se extrae una vez, sin depender de FUSE al abrir terminales.
 - NvChad con plugins fijados por `lazy-lock.json`, LSP, formato, búsqueda difusa, tareas, depuración y herramientas de JS/TS, C/C++ y Python. Las versiones de Mason están en `manifests/mason.json`.
 - Zsh, autocompletado/sugerencias, resaltado, fzf y prompt Starship. NVM se carga al invocar `nvm`; Node está disponible directamente.
-- Arc-Darker, iconos Win11-Dark con herencia Papirus/Adwaita, cursor Fluent, Inter, FiraCode Nerd Font y Noto Color Emoji.
+- Perfil azul: ARK-Dark, Flat-Remix-Green-Dark, cursor Breeze y el prompt actual de Starship. Perfil morado: Arc-Darker, Win11-Dark, cursor Fluent y el prompt compacto.
+- Ambos mantienen la barra, notificaciones, paleta de Ghostty, Neovim, FiraCode Nerd Font, Inter, Noto Color Emoji, `eza`, `bat` y FZF. Los dos fondos quedan en la biblioteca de Órbita.
 
 Los paquetes APT y las aplicaciones Flatpak reciben las versiones que publica cada distribución. Los binarios externos y plugins tienen versiones fijadas; los paquetes del sistema no forman una imagen inmutable.
 

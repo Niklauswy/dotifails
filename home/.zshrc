@@ -11,6 +11,8 @@ alias ll='eza -la --color=always --icons=always --git --header'
 alias lt='eza --tree --color=always --icons=always'
 alias la='eza -A --color=always --icons=always'
 alias tree='eza --tree --git --color=always --icons=always'
+alias recent='eza -la --sort=modified --color=always --icons=always'
+export BAT_THEME=tokyonight_night
 [[ -f /usr/share/doc/fzf/examples/completion.zsh ]] && source /usr/share/doc/fzf/examples/completion.zsh
 [[ -f /usr/share/doc/fzf/examples/key-bindings.zsh ]] && source /usr/share/doc/fzf/examples/key-bindings.zsh
 [[ -f "${XDG_CONFIG_HOME:-$HOME/.config}/fzf/config.zsh" ]] && source "${XDG_CONFIG_HOME:-$HOME/.config}/fzf/config.zsh"

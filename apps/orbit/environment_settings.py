@@ -299,7 +299,10 @@ class EnvironmentSettings:
             except (OSError,ValueError):
                 pass
         if not saved.get('default'):
-            bundled=self.home/'.local/share/backgrounds/tokyo.png'
+            theme=read_json(self.home/'.config/dotifails/theme.json',{})
+            filename=theme.get('wallpaper','tokyo.png')
+            if filename not in ('tokyo.png','azul.jpg'):filename='tokyo.png'
+            bundled=self.home/'.local/share/backgrounds'/filename
             if bundled.is_file():saved['default']=str(bundled)
         saved.setdefault('mode','fill')
         saved.setdefault('monitors',{})
