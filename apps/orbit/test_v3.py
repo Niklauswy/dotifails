@@ -2,7 +2,7 @@ import json,os,subprocess,tempfile,time,unittest
 from pathlib import Path
 from unittest.mock import patch
 from PySide6.QtCore import Qt,QEvent,QTimer
-from PySide6.QtGui import QImage,QColor,QIcon
+from PySide6.QtGui import QImage,QColor,QIcon,QKeyEvent
 from PySide6.QtWidgets import QApplication,QDialog,QMessageBox
 from settings_data import ShortcutFile,DesktopSettings,expand_sequence,canonical
 from connections_data import ssh_hosts,SSHProfiles,ssh_args,ConnectionScan
@@ -105,6 +105,15 @@ class UITests(unittest.TestCase):
         self.w.show_mode('power');power=self.w.utilities['power'];self.assertFalse(self.w.isVisible());self.assertLess(power.width(),500);self.assertLess(power.height(),380)
         QTimer.singleShot(20,lambda:QApplication.activeModalWidget().reject())
         with patch('enhanced.run') as execute:power.trigger({'action':'shutdown','title':'Apagar'});execute.assert_not_called()
+    def test_power_enter_confirmation_dispatch_and_cancel(self):
+        self.w.show_mode('power');power=self.w.utilities['power'];button=power.action_buttons[-1]
+        for answer in (QMessageBox.Cancel,QMessageBox.Yes):
+            button.setFocus()
+            QTimer.singleShot(20,lambda result=answer:QApplication.activeModalWidget().button(result).click())
+            with patch('enhanced.run') as execute:
+                self.app.sendEvent(button,QKeyEvent(QEvent.KeyPress,Qt.Key_Return,Qt.NoModifier))
+                if answer==QMessageBox.Yes:execute.assert_called_once_with(['systemctl','poweroff']);self.assertFalse(power.isVisible())
+                else:execute.assert_not_called();self.assertTrue(power.isVisible())
     def test_settings_reads_real_bindings_without_applying(self):
         before=(Path.home()/'.config/sxhkd/sxhkdrc').read_bytes();self.w.show_mode('settings');settings=self.w.utilities['settings'];self.assertGreater(len(settings.shortcuts.rows),40);settings.go('shortcuts');settings.shortcut_search.setText('super + n');self.assertGreater(settings.table.rowCount(),0);self.assertEqual(before,(Path.home()/'.config/sxhkd/sxhkdrc').read_bytes());self.assertFalse(self.w.isVisible())
     def test_connections_readonly_all_tabs(self):

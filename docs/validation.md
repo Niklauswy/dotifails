@@ -42,3 +42,7 @@ Esta revisión no repite la instalación completa en Debian/Parrot ni las prueba
 Mise 2026.9.14 instalado en el usuario tras verificar el SHA-256 del archivo oficial. Integración Zsh comprobada con Node 20.19.5 y 24.19.0 ya existentes: cambio por carpeta, restauración del valor global y ejecución de npm correctos. `mise doctor` informa activación y shims disponibles, sin problemas. La configuración activa de Zsh se respaldó y se conservaron sus personalizaciones.
 
 18 pruebas del instalador y datos correctas, incluida una regresión para conservar el nombre del comando al ejecutar los shims de mise. Manifiesto y sintaxis Zsh correctos. Se añadió mise al instalador portable; no se repitió la instalación completa en contenedores para esta revisión.
+
+## Teclado del menú de sesión · 26 de septiembre de 2026
+
+Se reprodujo que Enter no activaba los botones de Sesión antes de la corrección. `tests/power_ui.py`: 3 pruebas Qt correctas (Enter normal/numérico para las cinco acciones, foco y flechas, cancelación simulada y supresión de repetición automática). Dos pruebas de integración de `test_v3.UITests` verifican confirmación/cancelación y despacho del comando con ejecución sustituida por un mock. Las 18 pruebas del instalador/datos y el manifiesto siguen correctos. Tras desplegar y recargar Órbita, Super + X → flecha derecha → Enter abrió «Suspender» en la sesión X11 real; Esc canceló y devolvió al menú. No se ejecutaron suspensión, apagado ni cierre de sesión durante la verificación.

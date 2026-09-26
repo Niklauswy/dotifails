@@ -204,14 +204,28 @@ class ConnectionsWindow(Surface):
 
 class PowerWindow(Surface):
     def __init__(self,owner):
-        super().__init__('Sesión','',430,326);self.owner=owner
+        super().__init__('Sesión','',430,326);self.owner=owner;self.action_buttons=[]
         from system_panels import power_rows
         row=QHBoxLayout();row.setSpacing(10)
         for action in power_rows()[:2]:
-            b=button(action['title'],lambda r=action:self.trigger(r),symbol=action['action']);b.setMinimumHeight(64);row.addWidget(b)
+            b=button(action['title'],lambda r=action:self.trigger(r),symbol=action['action']);b.setMinimumHeight(64);row.addWidget(b);self.action_buttons.append(b)
         self.outer.addLayout(row)
         for action in power_rows()[2:]:
-            b=button(action['title'],lambda r=action:self.trigger(r),'danger' if action['action']=='shutdown' else '',symbol=action['action']);b.setStyleSheet('text-align:left; padding:10px 12px;');self.outer.addWidget(b)
+            b=button(action['title'],lambda r=action:self.trigger(r),'danger' if action['action']=='shutdown' else '',symbol=action['action']);b.setStyleSheet('text-align:left; padding:10px 12px;');self.outer.addWidget(b);self.action_buttons.append(b)
         self.outer.setSpacing(8)
+        for b in self.action_buttons:b.installEventFilter(self)
+    def present(self):
+        super().present();self.action_buttons[0].setFocus(Qt.OtherFocusReason)
+    def eventFilter(self,obj,event):
+        if obj in self.action_buttons and event.type()==QEvent.KeyPress:
+            key=event.key()
+            if key in (Qt.Key_Return,Qt.Key_Enter):
+                if not event.isAutoRepeat() and obj.isEnabled():obj.click()
+                return True
+            if key in (Qt.Key_Left,Qt.Key_Up,Qt.Key_Right,Qt.Key_Down):
+                step=-1 if key in (Qt.Key_Left,Qt.Key_Up) else 1
+                self.action_buttons[(self.action_buttons.index(obj)+step)%len(self.action_buttons)].setFocus(Qt.OtherFocusReason)
+                return True
+        return super().eventFilter(obj,event)
     def trigger(self,row):
         if self.owner.power_action(row):self.hide()
