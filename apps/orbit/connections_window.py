@@ -1,7 +1,7 @@
 """Independent connection center: NetworkManager, BlueZ and SSH."""
 import json,os,re,subprocess,time
 from pathlib import Path
-from PySide6.QtCore import Qt,QProcess,QProcessEnvironment,QTimer,QSize,QEvent
+from PySide6.QtCore import Qt,QProcess,QProcessEnvironment,QTimer,QSize,QEvent,QDateTime,QLocale
 from PySide6.QtWidgets import (QApplication,QDialog,QVBoxLayout,QHBoxLayout,QFormLayout,QLineEdit,QSpinBox,QListWidget,QListWidgetItem,QLabel,QMessageBox,QInputDialog,QWidget,QFrame,QScrollArea,QGridLayout,QCheckBox)
 from desktop_common import Surface,button,text_label,launch,open_vim
 from connections_data import ConnectionScan,SSHProfiles,ssh_args
@@ -204,16 +204,47 @@ class ConnectionsWindow(Surface):
 
 class PowerWindow(Surface):
     def __init__(self,owner):
-        super().__init__('Sesión','',430,326);self.owner=owner;self.action_buttons=[]
+        super().__init__('Sesión','',460,370);self.owner=owner;self.action_buttons=[]
+        self.setStyleSheet(self.styleSheet()+'''
+            QPushButton[sessionAction="true"] { background:rgba(170,185,215,9); border:1px solid rgba(170,185,215,16); border-radius:9px; }
+            QPushButton[sessionAction="true"]:hover { background:rgba(170,185,215,23); color:#F4F5F8; }
+            QPushButton[sessionAction="true"]:focus { background:rgba(155,185,240,25); border-color:#829AC5; color:#EDF2FF; }
+            QPushButton#danger { color:#ECA3AC; }
+        ''')
+        hero=QHBoxLayout();hero.setSpacing(18)
+        self.clock_label=text_label('');self.clock_label.setStyleSheet('font-size:42px;font-weight:500;letter-spacing:-1px;color:#EEF2FA;');self.clock_label.setWordWrap(False)
+        hero.addWidget(self.clock_label)
+        self.date_label=text_label('');self.date_label.setAlignment(Qt.AlignRight|Qt.AlignVCenter);self.date_label.setStyleSheet('color:#AEB7CA;font-size:13px;');hero.addWidget(self.date_label,1)
+        self.outer.addLayout(hero)
         from system_panels import power_rows
         row=QHBoxLayout();row.setSpacing(10)
         for action in power_rows()[:2]:
-            b=button(action['title'],lambda r=action:self.trigger(r),symbol=action['action']);b.setMinimumHeight(64);row.addWidget(b);self.action_buttons.append(b)
+            b=button(action['title'],lambda r=action:self.trigger(r),symbol=action['action']);b.setMinimumHeight(48);row.addWidget(b);self.action_buttons.append(b)
         self.outer.addLayout(row)
         for action in power_rows()[2:]:
-            b=button(action['title'],lambda r=action:self.trigger(r),'danger' if action['action']=='shutdown' else '',symbol=action['action']);b.setStyleSheet('text-align:left; padding:10px 12px;');self.outer.addWidget(b);self.action_buttons.append(b)
+            b=button(action['title'],lambda r=action:self.trigger(r),'danger' if action['action']=='shutdown' else '',symbol=action['action']);b.setStyleSheet('text-align:left; padding:7px 12px;');self.outer.addWidget(b);self.action_buttons.append(b)
+        self.uptime_label=text_label('','subtitle');self.uptime_label.setAlignment(Qt.AlignCenter);self.outer.addWidget(self.uptime_label)
         self.outer.setSpacing(8)
-        for b in self.action_buttons:b.installEventFilter(self)
+        for b in self.action_buttons:
+            b.setProperty('sessionAction',True);b.installEventFilter(self)
+        self.clock_timer=QTimer(self);self.clock_timer.setInterval(1000);self.clock_timer.timeout.connect(self.update_clock)
+    @staticmethod
+    def uptime_text(seconds):
+        minutes=max(0,int(seconds)//60);days,minutes=divmod(minutes,1440);hours,minutes=divmod(minutes,60)
+        parts=[]
+        if days:parts.append(f'{days} d')
+        if hours:parts.append(f'{hours} h')
+        if minutes or parts:parts.append(f'{minutes} min')
+        return 'Encendido hace '+(' '.join(parts) if parts else 'menos de 1 min')
+    def update_clock(self):
+        now=QDateTime.currentDateTime();locale=QLocale('es_ES')
+        self.clock_label.setText(now.toString('HH:mm'))
+        self.date_label.setText(locale.toString(now,'dddd').capitalize()+'\n'+locale.toString(now,"d 'de' MMMM 'de' yyyy"))
+        self.uptime_label.setText(self.uptime_text(time.clock_gettime(time.CLOCK_BOOTTIME)))
+    def showEvent(self,event):
+        self.update_clock();self.clock_timer.start();super().showEvent(event)
+    def hideEvent(self,event):
+        self.clock_timer.stop();super().hideEvent(event)
     def present(self):
         super().present();self.action_buttons[0].setFocus(Qt.OtherFocusReason)
     def eventFilter(self,obj,event):

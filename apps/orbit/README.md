@@ -65,7 +65,7 @@ Usa `dotifails restore` para listar respaldos y `dotifails restore ID` para recu
 - Acciones contextuales compactas: copiar, pegar, fijar, guardar imágenes, abrir con otra aplicación y eliminar. OCR se utiliza en la búsqueda; no ocupa el menú de imágenes. La administración general del historial tiene su propio menú.
 - Los snippets conservan formato enriquecido, icono, contador de usos y fecha de último uso. Variables adicionales: `{clipboard}`, `{date+4}` y `{week}`.
 - **Super + N**: panel nativo de Wi-Fi, interfaces y conexiones VPN. La contraseña, cuando se necesita, se solicita en un campo oculto y no se guarda en el historial de Órbita.
-- **Super + X**: panel nativo de sesión y energía. Flechas o Tab seleccionan; Enter (también numérico) o Espacio activan la opción enfocada. Reiniciar, apagar, suspender y cerrar sesión requieren confirmación en la interfaz. Esc cancela o cierra.
+- **Super + X**: panel compacto de sesión y energía, con hora local, fecha en español y tiempo encendido del equipo (días, horas y minutos). Se actualiza mientras está abierto. Flechas o Tab seleccionan; Enter (también numérico) o Espacio activan la opción enfocada. Reiniciar, apagar, suspender y cerrar sesión requieren confirmación en la interfaz. Esc cancela o cierra.
 - Alt + Tab usa el selector de ventanas de Órbita.
 - Barra flotante en tres secciones. Recursos abre información de sistema; red abre conexiones; clic derecho en volumen abre las salidas de audio; fecha abre calendario; campana abre notificaciones y clic derecho pausa los avisos.
 
