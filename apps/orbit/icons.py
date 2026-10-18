@@ -23,6 +23,8 @@ ACCENTS={'clipboard':'#E9AA75','files':'#84B9E9','file':'#84B9E9','snippets':'#B
 
 @lru_cache(maxsize=512)
 def glyph(name,size=24,color='#CDD0DA'):
+ from theme_tokens import theme_color
+ color=theme_color(color)
  path=ASSETS/(ALIASES.get(name,name)+'.svg')
  if not path.exists():path=ASSETS/'file-text.svg'
  data=path.read_text().replace('currentColor',color).replace('width="24"',f'width="{size*2}"').replace('height="24"',f'height="{size*2}"').replace('stroke-width="2"','stroke-width="1.8"')
@@ -33,7 +35,26 @@ def glyph(name,size=24,color='#CDD0DA'):
 def badge(name,size=30):
  color=ACCENTS.get(name,'#ABB8CB');pm=QPixmap(size*2,size*2);pm.fill(Qt.transparent);pm.setDevicePixelRatio(2);p=QPainter(pm);p.setRenderHint(QPainter.Antialiasing);c=QColor(color);c.setAlpha(27);p.setBrush(c);c.setAlpha(38);p.setPen(QPen(c,1));p.drawRoundedRect(QRectF(.5,.5,size-1,size-1),7,7);p.drawPixmap((size-18)//2,(size-18)//2,glyph(name,18,color));p.end();return pm
 
-def icon(name,size=20):return QIcon(glyph(name,size))
+_icon_specs={}
+def icon(name,size=20,color='#CDD0DA'):
+ result=QIcon(glyph(name,size,color));_icon_specs[result.cacheKey()]=(name,size,color);return result
+
+def refresh_icons():
+ from PySide6.QtWidgets import QApplication,QAbstractButton,QListWidget,QTreeWidget,QTableWidget,QMenu
+ def refreshed(current):
+  spec=_icon_specs.get(current.cacheKey())
+  return icon(*spec) if spec else current
+ for widget in QApplication.allWidgets():
+  if isinstance(widget,QAbstractButton):widget.setIcon(refreshed(widget.icon()))
+  elif isinstance(widget,QMenu):
+   for action in widget.actions():action.setIcon(refreshed(action.icon()))
+  elif isinstance(widget,QListWidget):
+   for i in range(widget.count()):item=widget.item(i);item.setIcon(refreshed(item.icon()))
+  elif isinstance(widget,QTableWidget):
+   for row in range(widget.rowCount()):
+    for col in range(widget.columnCount()):
+     item=widget.item(row,col)
+     if item:item.setIcon(refreshed(item.icon()))
 
 @lru_cache(maxsize=2000)
 def emoji_pixmap(emoji,size=42):

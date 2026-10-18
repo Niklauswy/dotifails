@@ -1,0 +1,10 @@
+#!/bin/sh
+set -eu
+base=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+for library in "$base/../share/orbit/tools" "$base/../.local/share/orbit/tools" "$base/../apps/tools"; do
+    if [ -f "$library/cli.py" ]; then
+        exec python3 "$library/cli.py" "$@"
+    fi
+done
+printf '%s\n' 'Faltan las herramientas de Wysun. Ejecuta instalar.sh --scripts-only.' >&2
+exit 2

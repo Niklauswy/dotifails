@@ -83,6 +83,18 @@ class UITests(unittest.TestCase):
         cls.app=QApplication.instance() or QApplication([]);cls.app.setStyle('Fusion');cls.app.setStyleSheet(STYLE);QIcon.setThemeSearchPaths([str(Path.home()/'.local/share/icons'),'/usr/share/icons']);QIcon.setThemeName('Win11-Dark');QIcon.setFallbackThemeName('Adwaita')
     def setUp(self):
         self.tmp=tempfile.TemporaryDirectory();self.store=StoreV2(self.tmp.name);self.w=OrbitV3(self.store,test=True);self.w.show();self.app.processEvents()
+    def test_window_selector_keeps_other_wysun_apps(self):
+        import json
+        from unittest.mock import patch
+        own=int(self.w.winId());music=own+1
+        tree={'monitors':[{'desktops':[{'root':{'firstChild':{'id':own,'client':{'className':'Orbit'}},'secondChild':{'id':music,'client':{'className':'Orbit'}}}}]}]}
+        def output(args,**kwargs):
+            if args[0]=='bspc':return json.dumps(tree).encode()
+            return '_NET_WM_NAME = "'+('Wysun' if args[2]==hex(own) else 'Wysun Music')+'"'
+        with patch('orbit.subprocess.check_output',side_effect=output):
+            self.w.set_mode('windows');self.w.render()
+        rows=[self.w.results.item(i).data(Qt.UserRole) for i in range(self.w.results.count())]
+        self.assertEqual([(row['title'],row['wid']) for row in rows],[('Wysun Music',hex(music))])
     def tearDown(self):
         self.w.status_timer.stop();self.w.debounce.stop();self.w.prune_timer.stop()
         for window in self.w.utilities.values():
@@ -101,8 +113,8 @@ class UITests(unittest.TestCase):
         self.store.clip('color','F54927');self.w.set_mode('clipboard');self.w.actions();self.w.popup.search.setText('RGB');self.w.popup.choose();wait(30);self.assertEqual(self.app.clipboard().text(),'rgb(245, 73, 39)')
         self.store.clip('text','print("hello")');self.w.show();self.w.set_mode('clipboard');self.w.search.setText('print');wait(90)
         with patch('desktop_v3.edit_text') as edit:self.w.edit_in_vim();edit.assert_called_once_with('print("hello")')
-    def test_power_independent_compact_cancel_safe(self):
-        self.w.show_mode('power');power=self.w.utilities['power'];self.assertFalse(self.w.isVisible());self.assertLess(power.width(),500);self.assertLess(power.height(),380)
+    def test_power_independent_fits_screen_cancel_safe(self):
+        self.w.show_mode('power');power=self.w.utilities['power'];self.assertFalse(self.w.isVisible());self.assertLessEqual(power.width(),power.screen().availableGeometry().width());self.assertLessEqual(power.height(),power.screen().availableGeometry().height());self.assertEqual(len(power.action_buttons),5)
         QTimer.singleShot(20,lambda:QApplication.activeModalWidget().reject())
         with patch('enhanced.run') as execute:power.trigger({'action':'shutdown','title':'Apagar'});execute.assert_not_called()
     def test_power_enter_confirmation_dispatch_and_cancel(self):

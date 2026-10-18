@@ -14,14 +14,9 @@ class OCRJob(QThread):
  def run(self):
   img=QImage.fromData(self.blob);meta={};text='';thumb=b''
   if not img.isNull():
-   meta={'width':img.width(),'height':img.height(),'bytes':len(self.blob)};thumb=png_bytes(img.scaled(80,80,Qt.KeepAspectRatio,Qt.SmoothTransformation))
-   binary='tesseract';env=dict(os.environ,OMP_THREAD_LIMIT='1')
-   image=img.scaled(2400,2400,Qt.KeepAspectRatio,Qt.SmoothTransformation) if max(img.width(),img.height())>2400 else img
-   try:
-    r=subprocess.run([str(binary),'stdin','stdout','-l','spa+eng','--psm','11'],input=png_bytes(image),capture_output=True,env=env,timeout=18)
-    if r.returncode==0:text=r.stdout.decode('utf-8',errors='replace').strip()[:30000]
-    meta['ocr_status']='listo' if r.returncode==0 else 'no disponible'
-   except (OSError,subprocess.SubprocessError):meta['ocr_status']='no disponible'
+   meta={'width':img.width(),'height':img.height(),'bytes':len(self.blob)};thumb=png_bytes(img.scaled(320,240,Qt.KeepAspectRatio,Qt.SmoothTransformation))
+   from ocr_engine import recognize
+   text,result=recognize(img);meta.update(result)
   self.done.emit(self.ident,'' if sensitive(text) else text,meta,thumb)
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):

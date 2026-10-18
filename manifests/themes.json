@@ -1,6 +1,6 @@
 {
-  "azul": {
-    "name": "Azul actual",
+  "severance": {
+    "name": "Severance",
     "wallpaper": "azul.jpg",
     "gtk": "ARK-Dark",
     "icons": "Flat-Remix-Green-Dark",
@@ -9,8 +9,16 @@
     "archive": "assets/appearance/azul.tar.xz",
     "sha256": "f6327eeff09bd8abc47d937d4c407818d2cb20fcd07a6fb5b63a23578c77d2c7"
   },
-  "morado": {
-    "name": "Morado original",
+  "space-black": {
+    "name": "Space Black",
+    "wallpaper": "space-black.png",
+    "gtk": "Arc-Darker",
+    "icons": "Win11-Dark",
+    "cursor": "Fluent",
+    "source": "https://www.idownloadblog.com/2023/10/31/download-m3-macbook-pro-wallpaper/"
+  },
+  "tokyo": {
+    "name": "Tokyo",
     "wallpaper": "tokyo.png",
     "gtk": "Arc-Darker",
     "icons": "Win11-Dark",

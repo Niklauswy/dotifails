@@ -1,6 +1,6 @@
 [Desktop Entry]
-Name=Órbita / BSPWM
-Comment=Escritorio X11 con Órbita, Picom y BSPWM
+Name=Wysun / BSPWM
+Comment=Escritorio X11 con Wysun, Picom y BSPWM
 Exec=/usr/local/bin/orbit-session
 TryExec=/usr/local/bin/orbit-session
 Type=Application

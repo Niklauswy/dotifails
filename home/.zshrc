@@ -1,11 +1,16 @@
 export PATH="$HOME/.local/bin:$PATH"
-export EDITOR=nvim VISUAL=nvim
+if command -v nvim >/dev/null; then
+    export EDITOR=nvim VISUAL=nvim
+else
+    export EDITOR=vim VISUAL=vim
+fi
 export ZSH="${XDG_DATA_HOME:-$HOME/.local/share}/dotifails/tools/ohmyzsh"
 export ZSH_CUSTOM="${XDG_DATA_HOME:-$HOME/.local/share}/dotifails/zsh-custom"
 ZSH_THEME=""
 plugins=(sudo copypath copybuffer zsh-autosuggestions zsh-syntax-highlighting aliases dirhistory fancy-ctrl-z git)
 [[ -f "$ZSH/oh-my-zsh.sh" ]] && source "$ZSH/oh-my-zsh.sh"
-alias vim=nvim cat=batcat
+command -v nvim >/dev/null && alias vim=nvim
+alias cat=batcat
 alias ls='eza --color=always --icons=always'
 alias ll='eza -la --color=always --icons=always --git --header'
 alias lt='eza --tree --color=always --icons=always'

@@ -1,4 +1,6 @@
-"""A focused Markdown library, using the same surfaces and actions as Órbita."""
+"""A focused Markdown library, using the same surfaces and actions as Wysun."""
+from theme_tokens import ThemeColor, apply_style
+
 from pathlib import Path
 from datetime import datetime
 from PySide6.QtCore import Qt, QTimer, QSize
@@ -13,13 +15,13 @@ from utility_data import Notes, digest
 
 class NotesWindow(Surface):
     def __init__(self, root=None):
-        super().__init__('Notas', 'ÓRBITA  /  Tu espacio para pensar', 940, 640)
+        super().__init__('Wysun Notes', 'WYSUN  /  Tu espacio para pensar', 940, 640)
         self.store = Notes(root)
         if root is None:
             self.store.import_legacy(Path.home() / 'Documents/QuickNotes/notes.md')
         self.key = self.expected = None
         self.dirty = self.loading = False
-        self.setStyleSheet(self.styleSheet() + '''
+        apply_style(self,self.styleSheet() + '''
             QPlainTextEdit, QTextBrowser { background:transparent; border:0; padding:12px; font-size:14px; }
             QListWidget::item { padding:0; margin:2px 0; }
             QWidget#notePane { border-left:1px solid #30333D; }
@@ -56,13 +58,18 @@ class NotesWindow(Surface):
     def is_trash(self): return self.folder.currentIndex() == 2
 
     def row_widget(self, row):
+        from desktop_common import ElidedLabel
         w = QWidget(); v = QVBoxLayout(w); v.setContentsMargins(12, 10, 12, 10); v.setSpacing(4)
-        title = text_label(('★  ' if row['favorite'] else '') + row['title'][:34]); title.setWordWrap(False); v.addWidget(title)
-        lines = [s.strip() for s in row['body'].splitlines()[1:] if s.strip()]
-        excerpt = text_label((' '.join(lines)[:38] or 'Sin contenido'), 'subtitle'); excerpt.setWordWrap(False); v.addWidget(excerpt)
-        v.addWidget(text_label(datetime.fromtimestamp(row['stamp']).strftime('%d %b · %H:%M'), 'subtitle'))
-        w.setAttribute(Qt.WA_TransparentForMouseEvents)
-        return w
+        w.title_label=ElidedLabel('');w.excerpt_label=ElidedLabel('');w.stamp_label=text_label('', 'subtitle')
+        w.excerpt_label.setObjectName('subtitle')
+        for label in (w.title_label,w.excerpt_label,w.stamp_label):v.addWidget(label)
+        w.setAttribute(Qt.WA_TransparentForMouseEvents);self.update_row_widget(w,row);return w
+
+    def update_row_widget(self,w,row):
+        w.title_label.setText(('★  ' if row['favorite'] else '')+row['title'])
+        lines=[s.strip() for s in row['body'].splitlines()[1:] if s.strip()]
+        w.excerpt_label.setText(' '.join(lines) or 'Sin contenido')
+        w.stamp_label.setText(datetime.fromtimestamp(row['stamp']).strftime('%d %b · %H:%M'))
 
     def refresh(self, *_):
         if not self.save(): return
@@ -102,7 +109,7 @@ class NotesWindow(Surface):
         for i in range(self.list.count()):
             item = self.list.item(i); row = item.data(Qt.UserRole)
             if row['key'] == self.key:
-                row.update(body=body, title=title, stamp=self.store.path(self.key).stat().st_mtime); item.setData(Qt.UserRole, row); self.list.setItemWidget(item, self.row_widget(row))
+                row.update(body=body, title=title, stamp=self.store.path(self.key).stat().st_mtime); item.setData(Qt.UserRole, row); self.update_row_widget(self.list.itemWidget(item),row)
         return True
 
     def new(self):
@@ -117,6 +124,8 @@ class NotesWindow(Surface):
     def set_preview(self, preview):
         self.preview.setVisible(preview); self.editor.setVisible(not preview); self.preview.setMarkdown(self.editor.toPlainText())
         self.edit_button.setChecked(not preview); self.preview_button.setChecked(preview)
+        from ui_motion import reveal_content
+        reveal_content(self.preview if preview else self.editor)
 
     def toggle_preview(self): self.set_preview(self.preview.isHidden())
 
@@ -158,7 +167,7 @@ class NotesWindow(Surface):
         self.popup = SearchMenu(self, entries); self.popup.present(self.more)
 
     def closeEvent(self, event):
-        if self.save(): event.accept()
+        if self.save(): super().closeEvent(event)
         else: event.ignore()
 
     def present(self): self.refresh(); super().present()

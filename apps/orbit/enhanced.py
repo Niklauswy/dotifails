@@ -1,4 +1,6 @@
-"""Órbita 2: visual media, searchable actions and native desktop controls."""
+"""Wysun 2: visual media, searchable actions and native desktop controls."""
+from theme_tokens import ThemeColor, apply_style
+
 import colorsys,html,json,os,re,subprocess,time,urllib.parse
 from pathlib import Path
 from PySide6.QtCore import Qt,QSize,QRectF,QPoint,QTimer,QEvent,QMimeData,QUrl,QProcess
@@ -8,21 +10,26 @@ from orbit import Orbit,MODES,ROOT,STYLE,run,label,divider
 from core import HOME,sensitive
 from data_v2 import StoreV2,color_value,color_formats,template
 from icons import glyph,icon,emoji_pixmap,badge
+from ui_motion import MotionButton as QPushButton, WindowMotion
+from ui_theme import paint_surface
 from media import OCRJob,FaviconJob,png_bytes
 from system_panels import NetworkScan,StatusScan,power_rows,split_nm
 
 MODES.update(system=('Sistema','Recursos, memoria y almacenamiento…'),audio=('Sonido','Seleccionar salida de audio…'),notifications=('Notificaciones','Buscar avisos recientes…'),calendar=('Calendario','Calendario local'),network=('Conexiones','Buscar redes, dispositivos o VPN…'),power=('Sesión y energía','Bloquear, suspender, reiniciar…'))
 
 class ModernDelegate(QStyledItemDelegate):
- def sizeHint(self,opt,index):return QSize(82,82) if (index.data(Qt.UserRole) or {}).get('kind')=='emoji' else QSize(200,49)
+ def sizeHint(self,opt,index):return QSize(82,82) if (index.data(Qt.UserRole) or {}).get('kind')=='emoji' else QSize(200,57)
  def paint(self,p,opt,index):
   d=index.data(Qt.UserRole) or {};r=opt.rect.adjusted(3,2,-3,-2);selected=bool(opt.state & QStyle.State_Selected);p.save();p.setRenderHint(QPainter.Antialiasing)
   if d.get('kind')=='emoji':
-   p.setPen(QPen(QColor('#b6b3c2'),1) if selected else Qt.NoPen);p.setBrush(QColor(255,255,255,26 if selected else 8));p.drawRoundedRect(r,9,9);pm=emoji_pixmap(d['text'],42);p.drawPixmap(r.center().x()-21,r.center().y()-21,pm)
+   p.setPen(QPen(ThemeColor('#b6b3c2'),1) if selected else Qt.NoPen);p.setBrush(ThemeColor(255,255,255,26 if selected else 8));p.drawRoundedRect(r,9,9);pm=emoji_pixmap(d['text'],42);p.drawPixmap(r.center().x()-21,r.center().y()-21,pm)
    if d.get('pinned'):p.drawPixmap(r.right()-17,r.y()+5,glyph('pin',12,'#c5c3cf'))
    p.restore();return
-  if selected:p.setPen(Qt.NoPen);p.setBrush(QColor(220,220,232,29));p.drawRoundedRect(r,7,7)
-  box=QRectF(r.x()+9,r.y()+7,32,32);pm=d.get('thumbnail')
+  if selected:
+   p.setPen(QPen(ThemeColor('#405B83'),1));p.setBrush(ThemeColor('#283B56'));p.drawRoundedRect(r,10,10)
+   p.setPen(Qt.NoPen);p.setBrush(ThemeColor('#ABC8F5'));p.drawRoundedRect(QRectF(r.x()+1,r.y()+12,3,r.height()-24),1.5,1.5)
+  elif opt.state & QStyle.State_MouseOver:p.setPen(Qt.NoPen);p.setBrush(ThemeColor(155,187,241,12));p.drawRoundedRect(r,10,10)
+  box=QRectF(r.x()+12,r.y()+11,32,32);pm=d.get('thumbnail')
   if isinstance(pm,QPixmap) and not pm.isNull():
    p.drawPixmap(box.toRect(),pm.scaled(32,32,Qt.KeepAspectRatioByExpanding,Qt.SmoothTransformation))
   elif d.get('clip_kind')=='color' or d.get('color_value'):
@@ -31,9 +38,9 @@ class ModernDelegate(QStyledItemDelegate):
    themed=QIcon(d.get('icon','')) if d.get('icon','').startswith('/') else QIcon.fromTheme(d.get('icon',''))
    if d.get('kind')=='app' and not themed.isNull():themed.paint(p,box.toRect())
    else:p.drawPixmap(box.x()+1,box.y()+1,badge(d.get('mode',d.get('clip_kind',d.get('key',d.get('icon',d.get('kind','file'))))),30))
-  tag=d.get('tag','') if r.width()>500 else '';p.setFont(QFont('Inter',10));p.setPen(QColor('#ededf2'));tw=p.fontMetrics().horizontalAdvance(tag)+20 if tag else 0
-  p.drawText(r.x()+51,r.y()+20,p.fontMetrics().elidedText(d.get('title',''),Qt.ElideRight,r.width()-66-tw))
-  p.setFont(QFont('Inter',8));p.setPen(QColor('#a5a5b1'));p.drawText(r.x()+51,r.y()+36,p.fontMetrics().elidedText(d.get('subtitle','').replace('\n',' '),Qt.ElideRight,r.width()-67))
+  tag=d.get('tag','') if r.width()>500 else '';p.setFont(QFont('Inter',10));p.setPen(ThemeColor('#ededf2'));tw=p.fontMetrics().horizontalAdvance(tag)+20 if tag else 0
+  p.drawText(r.x()+56,r.y()+24,p.fontMetrics().elidedText(d.get('title',''),Qt.ElideRight,r.width()-66-tw))
+  p.setFont(QFont('Inter',8));p.setPen(ThemeColor('#A3B4CE'));p.drawText(r.x()+56,r.y()+42,p.fontMetrics().elidedText(d.get('subtitle','').replace('\n',' '),Qt.ElideRight,r.width()-67))
   if tag:p.drawText(r.right()-tw,r.y()+25,tag)
   if d.get('pinned'):p.drawPixmap(r.right()-16,r.y()+5,glyph('pin',11))
   p.restore()
@@ -42,20 +49,19 @@ class ActionDelegate(QStyledItemDelegate):
  def sizeHint(self,opt,index):return QSize(300,23 if (index.data(Qt.UserRole) or {}).get('kind')=='section' else 36)
  def paint(self,p,opt,index):
   d=index.data(Qt.UserRole) or {};r=opt.rect.adjusted(2,1,-2,-1);p.save();p.setRenderHint(QPainter.Antialiasing)
-  if opt.state & QStyle.State_Selected:p.setPen(Qt.NoPen);p.setBrush(QColor(201,211,238,26));p.drawRoundedRect(r,6,6)
+  if opt.state & QStyle.State_Selected:p.setPen(Qt.NoPen);p.setBrush(ThemeColor(201,211,238,26));p.drawRoundedRect(r,6,6)
   if d.get('kind')=='section':
-   p.setFont(QFont('Inter',8));p.setPen(QColor('#9097A8'));p.drawText(r.x()+9,r.y()+17,d.get('title',''));p.restore();return
+   p.setFont(QFont('Inter',8));p.setPen(ThemeColor('#9097A8'));p.drawText(r.x()+9,r.y()+17,d.get('title',''));p.restore();return
   danger=d.get('icon')=='trash';color='#E39A9F' if danger else '#D1D4DF';p.drawPixmap(r.x()+9,r.y()+8,glyph(d.get('icon','arrow-right'),16,color));p.setFont(QFont('Inter',9));p.setPen(QColor(color));key=d.get('subtitle','').replace('Ctrl + ','Ctrl ').replace('Alt + ','Alt ');w=p.fontMetrics().horizontalAdvance(key)+14 if key else 0;p.drawText(r.x()+35,r.y()+22,p.fontMetrics().elidedText(d.get('title',''),Qt.ElideRight,r.width()-46-w))
   if key:
-   x=r.right()-w-7;p.setPen(QPen(QColor('#4B505D'),1));p.setBrush(QColor(255,255,255,5));p.drawRoundedRect(QRectF(x,r.y()+7,w,20),4,4);p.setPen(QColor('#A8AEBE'));p.setFont(QFont('Inter',8));p.drawText(QRectF(x,r.y()+7,w,20),Qt.AlignCenter,key)
+   x=r.right()-w-7;p.setPen(QPen(ThemeColor('#4B505D'),1));p.setBrush(ThemeColor(255,255,255,5));p.drawRoundedRect(QRectF(x,r.y()+7,w,20),4,4);p.setPen(ThemeColor('#A8AEBE'));p.setFont(QFont('Inter',8));p.drawText(QRectF(x,r.y()+7,w,20),Qt.AlignCenter,key)
   p.restore()
 
-class SearchMenu(QDialog):
+class SearchMenu(WindowMotion,QDialog):
  def __init__(self,parent,entries,title='Buscar acciones…'):
   super().__init__(parent,Qt.Popup|Qt.FramelessWindowHint);self.setAttribute(Qt.WA_TranslucentBackground);self.setFixedWidth(350);self.entries=entries
-  layout=QVBoxLayout(self);layout.setContentsMargins(7,7,7,7);layout.setSpacing(4);self.search=QLineEdit();self.search.setPlaceholderText(title);self.search.setFixedHeight(32);self.search.setStyleSheet('font-size:12px; background:transparent; border:none; padding:4px 8px;');layout.addWidget(self.search);self.search.setVisible(len(entries)>7 or title!='Buscar acciones…');self.list=QListWidget();self.list.setStyleSheet('QListWidget {padding:0; background:transparent;}');self.list.setItemDelegate(ActionDelegate());self.list.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff);layout.addWidget(self.list);self.search.textChanged.connect(self.render);self.search.returnPressed.connect(self.choose);self.list.itemClicked.connect(self.choose);self.list.itemActivated.connect(self.choose);self.render();self.search.installEventFilter(self)
- def paintEvent(self,event):
-  p=QPainter(self);p.setRenderHint(QPainter.Antialiasing);p.setPen(QPen(QColor(127,137,162,85),1));p.setBrush(QColor(28,30,38,249));p.drawRoundedRect(QRectF(.5,.5,self.width()-1,self.height()-1),10,10)
+  layout=QVBoxLayout(self);layout.setContentsMargins(7,7,7,7);layout.setSpacing(4);self.search=QLineEdit();self.search.setPlaceholderText(title);self.search.setFixedHeight(32);apply_style(self.search,'font-size:12px; background:transparent; border:none; padding:4px 8px;');layout.addWidget(self.search);self.search.setVisible(len(entries)>7 or title!='Buscar acciones…');self.list=QListWidget();apply_style(self.list,'QListWidget {padding:0; background:transparent;}');self.list.setItemDelegate(ActionDelegate());self.list.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff);layout.addWidget(self.list);self.search.textChanged.connect(self.render);self.search.returnPressed.connect(self.choose);self.list.itemClicked.connect(self.choose);self.list.itemActivated.connect(self.choose);self.render();self.search.installEventFilter(self)
+ def paintEvent(self,event):paint_surface(self,14)
  def render(self):
   q=self.search.text().casefold();self.list.clear()
   for title,key,fn in self.entries:
@@ -111,9 +117,10 @@ class OrbitV2(Orbit):
  def __init__(self,store=None,test=False):
   self.v2ready=False;self.ocr_job=None;self.favicon_jobs=[];self.icon_cache={};self.icon_requested=set();self.network_rows=[];self.network_scan=None;self.nm_process=None;self.process_output='';self.capture_source='';self.network_busy=False;self.status_scan=None;self.status_rows=[]
   super().__init__(store or StoreV2(),test)
+  self.ocr_retry_timer=QTimer(self);self.ocr_retry_timer.setSingleShot(True);self.ocr_retry_timer.timeout.connect(self.next_ocr)
   self.v2ready=True;self.clip_filter='Todos';self.emoji_category='Todos';self.emoji_pins=json.loads(self.store.get('emoji_pins','["❤️","👋","👍","🚀","🎉","🙏"]'))
-  self.results.setItemDelegate(ModernDelegate());self.results.setSpacing(1);self.filter.hide();self.filter_button=QPushButton('Todos  ⌄');self.filter_button.clicked.connect(self.filter_menu);self.layout().itemAt(0).layout().insertWidget(2,self.filter_button);self.filter_button.hide()
-  self.back.setText('');self.back.setIcon(icon('back'));self.action_button.setText('Acciones  ⌃ K');self.status.setStyleSheet('font-size:11px; color:#a4a4af;')
+  self.results.setItemDelegate(ModernDelegate());self.results.setSpacing(1);self.results.setMouseTracking(True);self.filter.hide();self.filter_button=QPushButton('Todos  ⌄');self.filter_button.clicked.connect(self.filter_menu);self.layout().itemAt(0).layout().insertWidget(2,self.filter_button);self.filter_button.hide()
+  self.back.setText('');self.back.setIcon(icon('back'));self.action_button.setText('Acciones  ⌃ K');apply_style(self.status,'font-size:11px; color:#a4a4af;')
   for k,b in self.tabs.items():b.setIcon(icon('search' if k=='home' else k,20));b.setText({'home':'Inicio','clipboard':'Historial','files':'Archivos','snippets':'Snippets','calculator':'Calcular'}[k])
   self.emoji_tab=QPushButton();self.emoji_tab.setIcon(icon('emoji',20));self.emoji_tab.setToolTip('Emoji');self.emoji_tab.clicked.connect(lambda:self.set_mode('emoji'));self.layout().itemAt(self.layout().count()-1).layout().insertWidget(5,self.emoji_tab)
   self.volume_slider=QSlider(Qt.Horizontal);self.volume_slider.setRange(0,100);self.volume_slider.sliderReleased.connect(self.set_volume);self.volume_slider.hide();self.inspector.layout().insertWidget(1,self.volume_slider)
@@ -205,7 +212,7 @@ class OrbitV2(Orbit):
    if kind=='image':
     self.preview_title.hide();img=QImage.fromData(self.store.blob(r['id']) or b'');self.show_image(img);info.insert(2,('Dimensiones',f'{meta.get("width",img.width())} × {meta.get("height",img.height())}'));info.insert(3,('Tamaño',f'{(r.get("bytes") or 0)/1024:,.1f} KB'));info.append(('Texto reconocido','Disponible' if r.get('ocr') else 'Procesando…' if not r.get('ocr_done') else 'Sin texto legible'))
    elif kind=='color':
-    self.preview_title.hide();c=color_value(r['text']);pm=QPixmap(230,230);pm.fill(Qt.transparent);p=QPainter(pm);p.setRenderHint(QPainter.Antialiasing);p.setPen(QPen(QColor('#eeeeee'),2));p.setBrush(QColor('#ffffff'));p.drawRoundedRect(QRectF(16,8,198,206),9,9);p.setPen(Qt.NoPen);p.setBrush(QColor(c[:7]));p.drawRoundedRect(QRectF(20,12,190,151),6,6);p.setFont(QFont('Inter',11));p.setPen(QColor('#292930'));p.drawText(29,195,c);p.end();self.picture.setPixmap(pm);self.picture.show();self.body.hide();info.append(('RGB',color_formats(r['text'])['RGB']))
+    self.preview_title.hide();c=color_value(r['text']);pm=QPixmap(230,230);pm.fill(Qt.transparent);p=QPainter(pm);p.setRenderHint(QPainter.Antialiasing);p.setPen(QPen(ThemeColor('#eeeeee'),2));p.setBrush(ThemeColor('#ffffff'));p.drawRoundedRect(QRectF(16,8,198,206),9,9);p.setPen(Qt.NoPen);p.setBrush(QColor(c[:7]));p.drawRoundedRect(QRectF(20,12,190,151),6,6);p.setFont(QFont('Inter',11));p.setPen(ThemeColor('#292930'));p.drawText(29,195,c);p.end();self.picture.setPixmap(pm);self.picture.show();self.body.hide();info.append(('RGB',color_formats(r['text'])['RGB']))
    elif kind=='files':self.body.setPlainText('\n'.join(meta.get('paths',[])));info.append(('Archivos',len(meta.get('paths',[]))))
    else:
     self.body.setPlainText(r['text']);info.append(('Caracteres',f'{len(r["text"]):,}'));info.append(('Palabras',f'{len(r["text"].split()):,}'))
@@ -229,7 +236,7 @@ class OrbitV2(Orbit):
   elif mime.hasImage():
    img=self.clipboard.image()
    if img.isNull() or img.width()*img.height()>25_000_000:return
-   blob=png_bytes(img);thumb=png_bytes(img.scaled(80,80,Qt.KeepAspectRatio,Qt.SmoothTransformation));self.store.clip('image',f'Imagen · {img.width()} × {img.height()}',blob,source,{'width':img.width(),'height':img.height(),'bytes':len(blob)},thumb);self.next_ocr()
+   blob=png_bytes(img);thumb=png_bytes(img.scaled(320,240,Qt.KeepAspectRatio,Qt.SmoothTransformation));self.store.clip('image',f'Imagen · {img.width()} × {img.height()}',blob,source,{'width':img.width(),'height':img.height(),'bytes':len(blob)},thumb);self.next_ocr()
   elif mime.hasText():
    text=mime.text()
    if not text.strip() or sensitive(text,mime.formats()):return
@@ -237,10 +244,30 @@ class OrbitV2(Orbit):
   if self.isVisible() and self.mode=='clipboard':self.render()
  def next_ocr(self):
   if self.test or self.ocr_job:return
-  row=self.store.db.execute("SELECT id,blob FROM clips WHERE kind='image' AND ocr_done=0 ORDER BY stamp DESC LIMIT 1").fetchone()
-  if not row:return
+  self.ocr_retry_timer.stop()
+  row=None
+  import time
+  for candidate in self.store.db.execute("SELECT id,blob,meta,ocr_done FROM clips WHERE kind='image' ORDER BY ocr_done ASC,stamp DESC LIMIT 250").fetchall():
+   try:meta=json.loads(candidate['meta'] or '{}')
+   except ValueError:meta={}
+   retry=meta.get('ocr_status')=='no disponible' and (meta.get('ocr_engine',0)<2 or (meta.get('ocr_attempts',0)<3 and meta.get('ocr_retry_after',0)<=time.time()))
+   if not candidate['ocr_done'] or retry:row=candidate;break
+  priority=getattr(self,'ocr_priority',None)
+  if priority is not None:
+   selected=self.store.db.execute("SELECT id,blob,meta,ocr_done FROM clips WHERE kind='image' AND id=?",(priority,)).fetchone()
+   if selected is not None and not selected['ocr_done']:row=selected
+   self.ocr_priority=None
+  if not row:
+   self.ocr_retry_timer.start(60000);return
+  self.store.db.execute('UPDATE clips SET ocr_done=0 WHERE id=?',(row['id'],));self.store.db.commit()
   job=OCRJob(row['id'],row['blob']);self.ocr_job=job;job.done.connect(self.ocr_finished);job.finished.connect(self.ocr_cleanup);job.start()
  def ocr_finished(self,ident,text,meta,thumb):
+  import time
+  previous=self.store.db.execute('SELECT meta FROM clips WHERE id=?',(ident,)).fetchone()
+  try:old=json.loads(previous[0] or '{}') if previous else {}
+  except ValueError:old={}
+  attempts=old.get('ocr_attempts',0) if old.get('ocr_engine')==meta.get('ocr_engine') else 0
+  meta=dict(old,**meta);meta['ocr_attempts']=attempts+1;meta['ocr_retry_after']=time.time()+300*meta['ocr_attempts']
   self.store.save_media(ident,text,meta,thumb)
   if self.isVisible() and self.mode=='clipboard':self.render()
  def ocr_cleanup(self):
@@ -299,7 +326,7 @@ class OrbitV2(Orbit):
   if r:
    copyable=r['kind'] in ('clip','snippet','calc','emoji')
    entries.append(('Copiar al portapapeles' if copyable else 'Abrir','Enter',self.activate))
-   if copyable:entries.extend([('Pegar en la ventana anterior','Ctrl + Enter',self.paste_selected),('Pegar y mantener Órbita abierta','Ctrl + Shift + Enter',lambda:self.paste_selected(True))])
+   if copyable:entries.extend([('Pegar en la ventana anterior','Ctrl + Enter',self.paste_selected),('Pegar y mantener Wysun abierta','Ctrl + Shift + Enter',lambda:self.paste_selected(True))])
    if r['kind'] in ('clip','emoji'):entries.append(('Desfijar elemento' if r.get('pinned') else 'Fijar elemento','Ctrl + P',self.pin_current))
    if r['kind']=='clip':
     if r['clip_kind']=='image':entries.extend([('Vista ampliada','',lambda:self.quicklook(r)),('Guardar imagen como…','',lambda:self.save_image(r)),('Abrir en el visor de imágenes','',lambda:self.open_image(r)),('Abrir imagen con…','',lambda:self.open_with(r))])
@@ -368,13 +395,9 @@ class OrbitV2(Orbit):
  def network_finished(self,code,*_):
   self.network_busy=False;self.status.setText('Conexión actualizada' if code==0 else 'No se pudo completar el cambio. Revisa la red y vuelve a intentar.');self.process_output='';self.scan_network()
  def power_action(self,r):
-  import shutil
   if r['action']=='lock':
-   if shutil.which('slock'):run(['slock'])
-   elif shutil.which('xflock4'):run(['xflock4'])
-   elif shutil.which('i3lock'):run(['i3lock','-c','101015'])
-   else:run(['loginctl','lock-session'])
-   self.hide();return True
+   from screen_lock import start_lock
+   return start_lock(self)
   dialog=QMessageBox(self);dialog.setWindowTitle(r['title']);dialog.setText(r['title']+' el equipo' if r['action'] in ('shutdown','reboot') else r['title']);dialog.setInformativeText('Guarda tu trabajo antes de continuar.' if r['action']!='suspend' else 'Las aplicaciones permanecerán abiertas.');dialog.setStandardButtons(QMessageBox.Yes|QMessageBox.Cancel);dialog.setDefaultButton(QMessageBox.Cancel);dialog.button(QMessageBox.Yes).setText('Confirmar');dialog.button(QMessageBox.Cancel).setText('Cancelar')
   if dialog.exec()==QMessageBox.Yes:
    command={'suspend':['systemctl','suspend'],'logout':['bspc','quit'],'reboot':['systemctl','reboot'],'shutdown':['systemctl','poweroff']}[r['action']];run(command);self.hide();return True

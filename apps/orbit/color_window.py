@@ -1,4 +1,6 @@
 """Color workbench: editable values, screen sampling and reusable palettes."""
+from theme_tokens import ThemeColor, apply_style
+
 import re
 from pathlib import Path
 from PySide6.QtCore import Qt, QSize
@@ -37,7 +39,7 @@ def contrast_text(color):
 
 class ColorWindow(Surface):
     def __init__(self, path=None):
-        super().__init__('Color', 'ÓRBITA  /  Del escritorio a tu próximo proyecto', 800, 620)
+        super().__init__('Wysun Colors', 'WYSUN  /  Del escritorio a tu próximo proyecto', 800, 620)
         self.store = Colors(path); self.picker = None; self.syncing = False
         self.color = QColor('#7AA2F7')
         if path is None: self.import_legacy()
@@ -75,7 +77,7 @@ class ColorWindow(Surface):
 
     def update_color(self, *_):
         c = parse_color(self.entry.text()); self.formats.clear(); valid = c.isValid(); self.star.setEnabled(valid)
-        self.entry.setStyleSheet('' if valid else 'border-color:#EC9BA2;')
+        apply_style(self.entry,'' if valid else 'border-color:#EC9BA2;')
         if not valid:
             for field in self.fields.values(): field.clear()
             self.status.setText('Introduce HEX, RGB o HSL válido (sin transparencia)'); return
@@ -84,7 +86,7 @@ class ColorWindow(Surface):
         self.formats.addItems(formats)
         for field, text in zip(self.fields.values(), formats): field.setText(text)
         ink, ratio = contrast_text(c)
-        self.swatch.setStyleSheet(f'background:{value};border:1px solid rgba(255,255,255,35);border-radius:14px;color:{ink};font-size:28px;font-weight:600;'); self.swatch.setText(value)
+        apply_style(self.swatch,f'background:{value};border:1px solid rgba(255,255,255,35);border-radius:14px;color:{ink};font-size:28px;font-weight:600;'); self.swatch.setText(value)
         self.contrast.setText(f'Texto recomendado: {"oscuro" if ink == "#111111" else "blanco"}  ·  Color opaco')
         self.syncing = True
         for slider, v in zip(self.sliders, (max(0,h)*360, s*100, l*100)): slider.setValue(min(slider.maximum(),round(v)))

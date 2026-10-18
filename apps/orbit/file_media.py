@@ -108,7 +108,8 @@ def index_image(path,cache):
             thumb=png_bytes(image.scaled(96,72,Qt.KeepAspectRatio,Qt.SmoothTransformation))
             if image.width()<160 or image.height()<60 or p.suffix.lower()=='.svg':status='sin texto: imagen pequeña o vectorial'
             else:
-                binary='tesseract';env=dict(os.environ,OMP_THREAD_LIMIT='1')
+                from ocr_engine import tesseract_binary
+                binary=tesseract_binary() or 'tesseract';env=dict(os.environ,OMP_THREAD_LIMIT='1')
                 try:
                     result=subprocess.run(['nice','-n','15',str(binary),'stdin','stdout','-l','spa+eng','--psm','11'],input=png_bytes(image),capture_output=True,env=env,timeout=18)
                     if result.returncode==0:text=result.stdout.decode(errors='replace').strip()[:30000]

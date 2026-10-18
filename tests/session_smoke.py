@@ -41,7 +41,7 @@ with tempfile.TemporaryDirectory(prefix='orbit-session-qa-') as tmp:
   term=wait_for(managed_terminal)
   command(['bspc','node',term,'-t','fullscreen']);wait_for(lambda:all(not mapped(w) for w in bars))
   command(['bspc','node',term,'-t','tiled']);wait_for(lambda:any(mapped(w) for w in bars))
-  for mode,title in [('home','Órbita'),('notes','Notas'),('color','Color'),('processes','Procesos')]:
+  for mode,title in [('home','Wysun'),('notes','Wysun Notes'),('color','Wysun Colors'),('processes','Wysun Processes')]:
    subprocess.run(['orbit',mode],check=True);windows=wait_for(lambda:title_windows(title));wait_for(lambda:any(mapped(w) for w in windows))
    subprocess.run(['xdotool','key','Escape'],check=True)
   subprocess.run(['orbit','home'],check=True);time.sleep(1)

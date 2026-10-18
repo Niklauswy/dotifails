@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Archivos · Wysun</title>
+<style>{{STYLE}}</style>
+</head>
+<body>
+<main class="shell">
+<header class="topbar">
+<a class="brand" href="/" aria-label="Wysun, archivos"><span class="orbit-mark" aria-hidden="true"><i></i></span>Wysun<span class="brand-divider">/</span><span class="brand-section">Archivos</span></a>
+<span class="access"><span class="status-dot"></span>{{ACCESS}}</span>
+</header>
+<section class="library" aria-labelledby="library-title">
+<div class="section-heading"><div class="heading-line">{{PARENT}}<h1 id="library-title">Descargar</h1><span id="count" class="count">{{COUNT}}</span></div>
+<label class="search">{{ICON_SEARCH}}<input id="search" type="search" placeholder="Buscar" aria-label="Buscar archivos" autocomplete="off"></label></div>
+<nav class="breadcrumbs" aria-label="Carpeta actual">{{BREADCRUMBS}}</nav>
+<div id="file-list" class="file-list">{{ROWS}}</div>
+<div id="empty" class="empty"{{EMPTY_HIDDEN}}>{{ICON_FILE}}<span>Sin archivos</span></div>
+<div id="no-results" class="empty" hidden>{{ICON_SEARCH}}<span>Sin resultados</span></div>
+</section>
+<section id="upload-section" class="upload-section" aria-labelledby="upload-title" data-max-bytes="{{MAX_BYTES}}"{{UPLOAD_HIDDEN}}>
+<div class="section-heading"><h2 id="upload-title">Enviar</h2><span class="limit">Hasta {{MAX_SIZE}}</span></div>
+<input id="files" class="file-input" type="file" multiple tabindex="-1" aria-label="Elegir archivos">
+<button id="dropzone" class="dropzone" type="button"><span class="upload-icon">{{ICON_UPLOAD}}</span><span class="drop-title">Arrastra tus archivos aquí</span><span class="drop-caption">o elige archivos</span></button>
+<noscript><p class="notice">Activa JavaScript para enviar archivos.</p></noscript>
+<ul id="queue" class="queue" aria-label="Archivos seleccionados"></ul>
+<div id="transfer-controls" class="transfer-controls" hidden>
+<p id="message" role="status" aria-live="polite"></p>
+<div class="buttons"><button id="clear" class="button quiet" type="button">Limpiar</button><button id="cancel" class="button quiet" type="button" hidden>Cancelar</button><button id="send" class="button primary" type="button">Enviar</button></div>
+</div>
+</section>
+<footer><span class="footer-mark" aria-hidden="true"></span>Wysun</footer>
+</main>
+<template id="queue-template"><li class="queue-row" data-state="queued"><span class="file-icon">{{ICON_FILE}}<span class="done-icon">{{ICON_CHECK}}</span></span><div class="queue-detail"><div class="queue-label"><span class="queue-name"></span><span class="queue-state">Listo</span></div><div class="queue-meta"><span class="queue-size"></span><span class="queue-percent"></span></div><progress class="file-progress" max="100" value="0"></progress></div><button class="remove" type="button" aria-label="Quitar archivo">{{ICON_X}}</button></li></template>
+<script nonce="{{NONCE}}">{{SCRIPT}}</script>
+</body>
+</html>

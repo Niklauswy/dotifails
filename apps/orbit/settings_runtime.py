@@ -44,28 +44,28 @@ def start_applications(backend):
         atomic_write(marker,'ok')
 
 def restore_workspaces(backend):
-    for monitor,names in backend.section('workspaces').items():
-        try:
-            rows=[r for r in backend.workspaces() if r['monitor']==monitor]
-            if not rows:continue
-            for i,name in enumerate(names):
-                backend.runner(['bspc','desktop',rows[i]['id'],'-n',name] if i<len(rows) else ['bspc','monitor',monitor,'-a',name])
-            # Startup defaults can contain more desktops than the saved layout.
-            # Never remove one holding windows after a WM restart.
-            for row in rows[len(names):]:
-                latest=next((r for r in backend.workspaces() if r['id']==row['id']),None)
-                if latest and not latest['windows'] and names:backend.runner(['bspc','desktop',row['id'],'-r'])
-        except Exception as exc:print('Escritorios:',str(exc),file=sys.stderr)
+    from display_workspaces import reconcile
+    try:
+        reconcile(display_inventory(backend.runner), backend.section('workspaces'), backend.runner)
+    except Exception as exc:
+        print('Escritorios:',str(exc),file=sys.stderr)
 
 def restore(preserve_workspaces=False):
     backend=EnvironmentSettings()
+    if (backend.home/'.config/orbit/theme.json').exists():
+        try:
+            from theme_runtime import restore_theme
+            restore_theme(backend.home)
+        except Exception as exc:print('Tema:',str(exc),file=sys.stderr)
     if not backend.data:return
     inventory=display_inventory()
     plan=backend.section('displays').get('profiles',{}).get(profile_key(inventory))
     if plan:
         try:run(display_command(plan,inventory))
         except Exception as exc:print('Pantallas:',str(exc),file=sys.stderr)
-    if not preserve_workspaces:restore_workspaces(backend)
+    # Run after the display profile: RandR may have reordered the monitors.
+    # Reconciliation preserves desktop identities on both login and restart.
+    restore_workspaces(backend)
     if backend.section('wallpaper').get('default'):
         try:render_wallpaper(backend.wallpaper_values(),display_inventory())
         except Exception as exc:print('Fondo:',str(exc),file=sys.stderr)

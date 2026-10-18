@@ -44,12 +44,43 @@ def safe_command(args):
 
 def matched(row,query):
     for term in query.casefold().split():
-        if term.startswith('pid:'):ok=str(row['pid'])==term[4:]
+        numeric=re.fullmatch(r'(cpu|mem)([<>]=?)([0-9]+(?:\.[0-9]+)?)([kmg]?)',term)
+        if numeric:
+            field,op,value,unit=numeric.groups();value=float(value)*(dict(k=1024,m=1024**2,g=1024**3).get(unit,1))
+            actual=row.get('cpu' if field=='cpu' else 'memory',0)
+            ok={'<':actual<value,'>':actual>value,'<=':actual<=value,'>=':actual>=value}[op]
+        elif term.startswith('pid:'):ok=str(row['pid'])==term[4:]
         elif term.startswith('ppid:'):ok=str(row.get('ppid'))==term[5:]
         elif term.startswith('user:'):ok=term[5:] in row.get('user','').casefold()
+        elif term.startswith('state:'):ok=term[6:] in (row.get('state','').casefold(),STATES.get(row.get('state'),'').casefold())
         else:ok=term in f"{row['name']} {row['pid']} {row.get('user','')}".casefold()
         if not ok:return False
     return True
+
+
+def pressure(root=Path('/proc/pressure')):
+    result={}
+    for resource in ('cpu','memory','io'):
+        try:
+            lines=(root/resource).read_text().splitlines();some=next(line for line in lines if line.startswith('some '))
+            fields=dict(word.split('=',1) for word in some.split()[1:]);result[resource]=float(fields['avg10'])
+        except (OSError,ValueError,KeyError,StopIteration):result[resource]=None
+    return result
+
+
+def thread_snapshot(pid,limit=256):
+    rows=[];root=Path('/proc')/str(pid)/'task'
+    try:paths=sorted(root.iterdir(),key=lambda p:int(p.name))
+    except OSError:return [],None
+    for path in paths[:limit]:
+        try:
+            raw=(path/'stat').read_text();fields=raw.rsplit(') ',1)[1].split()
+            try:wait=(path/'wchan').read_text().strip()
+            except OSError:wait=''
+            rows.append(dict(tid=int(path.name),name=raw.split('(',1)[1].rsplit(')',1)[0],state=fields[0],
+                             cpu_time=(int(fields[11])+int(fields[12]))/os.sysconf('SC_CLK_TCK'),wait=wait or '—'))
+        except (OSError,ValueError,IndexError):continue
+    return rows,len(paths)
 
 class Processes:
     def __init__(self):
@@ -71,7 +102,7 @@ class Processes:
                 old=self.previous.get(key);row['cpu']=max(0,(row['ticks']-old[0])/ticks/elapsed*100) if old else 0
                 row['read_rate']=max(0,(io[0]-old[1][0])/elapsed) if old and old[1] is not None and io is not None else None
                 row['write_rate']=max(0,(io[1]-old[1][1])/elapsed) if old and old[1] is not None and io is not None else None
-                row.update(user=username(row['uid']),age=max(0,uptime-int(row['start'])/ticks))
+                row.update(sampled=old is not None,user=username(row['uid']),age=max(0,uptime-int(row['start'])/ticks))
                 row['actionable']=self.action_reason(row) is None
                 current[key]=(row['ticks'],io);rows.append(row)
             except (OSError,ValueError,IndexError):continue
@@ -84,7 +115,7 @@ class Processes:
         self.last_cpu=(total,idle)
         mem={k:int(v.split()[0])*1024 for k,v in (line.split(':',1) for line in Path('/proc/meminfo').read_text().splitlines())}
         total_mem=mem['MemTotal'];available=mem.get('MemAvailable',mem['MemFree'])
-        return dict(cpu=cpu,memory=total_mem-available,total_memory=total_mem,swap=mem.get('SwapTotal',0)-mem.get('SwapFree',0),total_swap=mem.get('SwapTotal',0),count=len(rows),running=sum(r['state']=='R' for r in rows))
+        return dict(pressure=pressure(),load=os.getloadavg(),cores=os.cpu_count() or 1,cpu=cpu,memory=total_mem-available,total_memory=total_mem,swap=mem.get('SwapTotal',0)-mem.get('SwapFree',0),total_swap=mem.get('SwapTotal',0),count=len(rows),running=sum(r['state']=='R' for r in rows))
 
     def action_reason(self,row):
         if row['uid']!=os.getuid():return 'Pertenece a otro usuario'
@@ -111,6 +142,13 @@ class Processes:
                 try:result['files'].append((file.name,os.readlink(file)))
                 except OSError:pass
         except OSError:pass
+        result['threads'],result['thread_count']=thread_snapshot(row['pid'])
+        try:
+            status=dict(line.split(':',1) for line in (root/'status').read_text().splitlines() if ':' in line)
+            result['context_switches']={k:status.get(k,'').strip() for k in ('voluntary_ctxt_switches','nonvoluntary_ctxt_switches')}
+        except OSError:result['context_switches']={}
+        try:result['cgroup']=(root/'cgroup').read_text().strip()
+        except OSError:result['cgroup']=''
         self.checked(row);return result
 
     def act(self,row,action):

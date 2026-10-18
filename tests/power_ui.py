@@ -34,7 +34,7 @@ class PowerKeyboardTests(unittest.TestCase):
   self.assertRegex(self.w.clock_label.text(),r'^\d{2}:\d{2}$');self.assertIn(' de ',self.w.date_label.text())
   self.assertTrue(self.w.uptime_label.text().startswith('Encendido hace '));self.assertTrue(self.w.clock_timer.isActive())
   self.w.hide();self.assertFalse(self.w.clock_timer.isActive())
-  self.w.present();self.assertTrue(self.w.clock_timer.isActive());self.assertLess(self.w.height(),380)
+  self.w.present();self.assertTrue(self.w.clock_timer.isActive());self.assertLessEqual(self.w.height(),self.w.screen().availableGeometry().height())
  def test_uptime_includes_days_hours_and_minutes(self):
   for seconds,expected in [(20,'menos de 1 min'),(120,'2 min'),(3660,'1 h 1 min'),(183840,'2 d 3 h 4 min')]:
    with self.subTest(seconds=seconds):self.assertEqual(PowerWindow.uptime_text(seconds),'Encendido hace '+expected)

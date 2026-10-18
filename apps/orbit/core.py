@@ -1,4 +1,4 @@
-"""Local data and search for Órbita. No network services or shell evaluation."""
+"""Local data and search for Wysun. No network services or shell evaluation."""
 from pathlib import Path
 import ast, configparser, datetime as dt, hashlib, math, operator, os, re, sqlite3, time
 

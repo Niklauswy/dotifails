@@ -139,11 +139,12 @@ class DisplayTests(Fixture):
         restore_display(old,lambda args:(calls.append(args) or reduced) if args[1]=='--query' else calls.append(args));self.assertIn('--primary',calls[-1]);self.assertNotIn('--off',calls[-1])
 
 class ConfigTests(Fixture):
-    def test_workspace_restore_removes_only_empty_extras(self):
+    def test_workspace_restore_uses_identity_reconciliation(self):
         self.env.save_section('workspaces',{'eDP-1':['Trabajo']})
-        restore_workspaces(self.env)
-        self.assertIn(['bspc','desktop','0x00000001','-n','Trabajo'],self.calls)
-        self.assertNotIn(['bspc','desktop','0x00000002','-r'],self.calls)
+        with patch('display_workspaces.reconcile') as reconcile:
+            restore_workspaces(self.env)
+        reconcile.assert_called_once_with(parse_xrandr(XRANDR), {'eDP-1':['Trabajo']}, self.env.runner)
+        self.assertFalse(any(args[:2]==['bspc','desktop'] for args in self.calls))
     def test_autostart_runs_only_explicit_entries_once_per_session(self):
         self.env.add_autostart('Test app','true')
         with patch.dict(os.environ,{'XDG_RUNTIME_DIR':str(self.home),'XDG_SESSION_ID':'settings-test-session','XDG_CONFIG_DIRS':str(self.home/'no-system')}),patch('settings_runtime.subprocess.run') as launch:
@@ -211,12 +212,13 @@ class UITests(Fixture):
             with patch('settings_hub.DesktopSettings',lambda home:DesktopSettings(home,self.runner)):window=SettingsHub(test=True,home=self.home)
         window.show();self.app.processEvents()
         for job in list(window.jobs):job.wait(15000)
-        self.app.processEvents();self.assertEqual(window.pages.count(),14);self.assertEqual(window.table.rowCount(),4);self.assertEqual(len(window.inventory),3)
+        self.app.processEvents();self.assertEqual(window.pages.count(),10);self.assertEqual(window.table.rowCount(),4);self.assertEqual(len(window.inventory),3)
         for route in window.routes:window.go(route);self.app.processEvents()
         for job in list(window.jobs):job.wait(15000)
         self.app.processEvents();self.assertGreater(len(window.extra_shortcuts),20);window.shortcut_scope.setCurrentText('Global');self.assertEqual(window.table.rowCount(),4);window.shortcut_search.setText('super + n');self.assertEqual(window.table.rowCount(),1)
         self.assertFalse(self.env.path.exists());self.assertEqual((self.home/'.config/sxhkd/sxhkdrc').read_text(),SHORTCUTS)
-        for route in ('home','displays','bar','shortcuts','wallpaper'):
+        self.assertFalse({'bar','appearance','behavior','notifications'} & set(window.routes))
+        for route in ('home','displays','shortcuts','wallpaper'):
             window.go(route);self.app.processEvents();window.grab().save('/tmp/orbit-settings-'+route+'.png')
         for job in list(window.jobs):job.wait(15000)
         window.hide();window.deleteLater();self.app.sendPostedEvents(None,QEvent.DeferredDelete)

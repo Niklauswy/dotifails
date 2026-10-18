@@ -3,6 +3,16 @@ from pathlib import Path
 from unittest.mock import patch
 spec=importlib.util.spec_from_file_location('installer',Path(__file__).parents[1]/'installer/main.py');m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
 class InstallerTests(unittest.TestCase):
+ def test_update_keeps_theme_chosen_in_settings(self):
+  for name in ('home/.config','home/.local/bin','assets/icons','backgrounds','manifests'):(self.source/name).mkdir(parents=True)
+  (self.source/'home/.zshrc').write_text('preserved')
+  (self.source/'manifests/themes.json').write_text(json.dumps({'tokyo':{'name':'Tokyo','wallpaper':'tokyo.png'},'severance':{'name':'Severance','wallpaper':'azul.jpg'}}))
+  active=self.home/'.config/orbit/theme.json';active.parent.mkdir(parents=True);active.write_text(json.dumps({'id':'tokyo','name':'Tokyo'}))
+  d=self.deploy();d.receipt['theme']='severance'
+  try:
+   with patch.object(d,'deploy'),patch.object(d,'generated'),patch.object(d,'configure_locker'),patch.object(d,'configure_scripts'):d.configure()
+   self.assertEqual(d.receipt['theme'],'tokyo')
+  finally:d.lock.close()
  def test_mise_shim_keeps_command_name(self):
   import subprocess,tarfile
   bundle=self.root/'bundle';(bundle/'mise/bin').mkdir(parents=True)
@@ -22,7 +32,7 @@ class InstallerTests(unittest.TestCase):
    home=Path(tmp);nvim=home/'.config/nvim/init.lua';nvim.parent.mkdir(parents=True);nvim.write_text('my editor')
    note=home/'.local/share/orbit/notes/private.md';note.parent.mkdir(parents=True);note.write_text('private')
    self.assertEqual(m.main(['install','--source',str(source),'--target-home',tmp,'--orbit-only']),0)
-   self.assertEqual(nvim.read_text(),'my editor');self.assertEqual(note.read_text(),'private');self.assertTrue((home/'.local/share/orbit/app/notes_window.py').is_file());self.assertFalse((home/'.config/sxhkd').exists())
+   self.assertEqual(nvim.read_text(),'my editor');self.assertEqual(note.read_text(),'private');self.assertTrue((home/'.local/share/orbit/app/notes_window.py').is_file());self.assertFalse((home/'.config/sxhkd').exists());self.assertTrue((home/'.local/bin/musika').is_file());self.assertTrue((home/'.local/share/icons/hicolor/scalable/apps/musika.svg').is_file());self.assertIn('Name=Wysun Music',(home/'.local/share/applications/orbit-music.desktop').read_text())
    self.assertEqual(m.main(['install','--source',str(source),'--target-home',tmp,'--orbit-only']),0)
    backup=json.loads((home/'.local/state/dotifails/installed.json').read_text())['last_backup'];journal=json.loads((home/'.local/state/dotifails/backups'/backup/'journal.json').read_text());self.assertEqual(journal['operations'],[])
  def setUp(self):
@@ -56,6 +66,11 @@ class InstallerTests(unittest.TestCase):
    info=tarfile.TarInfo('../escape');info.size=1;t.addfile(info,io.BytesIO(b'x'))
   with self.assertRaises(tarfile.FilterError):m.extract(archive,self.root/'extract','tar')
   self.assertFalse((self.root/'escape').exists())
+ def test_binary_artifact_is_executable_and_rejects_paths(self):
+  archive=self.root/'payload';archive.write_text('#!/bin/sh\nexit 0\n')
+  m.extract(archive,self.root/'binary','binary','yt-dlp')
+  output=self.root/'binary/yt-dlp';self.assertEqual(output.read_bytes(),archive.read_bytes());self.assertEqual(output.stat().st_mode&0o777,0o755)
+  with self.assertRaises(ValueError):m.extract(archive,self.root/'bad-binary','binary','../outside')
  def test_appimage_internal_directory_symlink(self):
   archive=self.root/'image';archive.write_text('fixture')
   def unpack(*args,**kwargs):

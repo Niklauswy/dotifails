@@ -1,0 +1,51 @@
+@import url("resource:///org/gtk/libgtk/theme/Adwaita/gtk-contained-dark.css");
+@define-color theme_bg_color #080879;
+@define-color theme_fg_color #e2f3ff;
+@define-color theme_base_color #020249;
+@define-color theme_text_color #e2f3ff;
+@define-color theme_selected_bg_color #cee7ff;
+@define-color theme_selected_fg_color #07075a;
+window { background-color: #04047e; color: #e2f3ff; }
+entry, entry.lightdm {
+  font-family: "DejaVu Sans Mono";
+  color: #11111b;
+  background: #cecece;
+  border: 2px solid;
+  border-color: #55555b #eeeeea #eeeeea #55555b;
+  border-radius: 0;
+  padding: 9px 12px;
+  box-shadow: inset 2px 2px #87878d;
+  caret-color: #050590;
+  transition: border-color 160ms ease, background-color 160ms ease;
+}
+entry:focus, entry.lightdm:focus {
+  border-color: #33333b #ffffff #ffffff #33333b;
+  background: #d9d9d9;
+  outline-color: #d1eaff;
+  animation: crt-focus 2400ms ease-in-out infinite;
+}
+@keyframes crt-focus {
+  0% { box-shadow: inset 2px 2px #87878d, 0 0 2px rgba(139,205,255,0.25); }
+  50% { box-shadow: inset 2px 2px #87878d, 0 0 7px rgba(139,205,255,0.45); }
+  100% { box-shadow: inset 2px 2px #87878d, 0 0 2px rgba(139,205,255,0.25); }
+}
+button {
+  font-family: "DejaVu Sans Mono";
+  color: #0a0a59;
+  background: #bcbcbc;
+  border: 2px solid;
+  border-color: #f5f5f0 #55555b #55555b #f5f5f0;
+  border-radius: 0;
+  padding: 7px 12px;
+  box-shadow: none;
+  text-shadow: none;
+  transition: background-color 160ms ease, color 160ms ease;
+}
+button:hover { background: #d3d3d3; }
+button:active { background: #ababab; border-color: #526995 #f0faff #f0faff #526995; }
+button:disabled { color: #788cad; background: #adc2e2; }
+.option-button { border: none; background: transparent; min-width: 0; min-height: 0; padding: 4px; }
+menu, .menu, popover { background: #06065b; color: #e2f3ff; border-radius: 0; border: 1px solid #93c7ff; }
+menuitem:hover { background: #cee7ff; color: #07075a; }
+menubar, .menubar { background: #040457; color: #e2f3ff; box-shadow: none; }
+*:selected { background-color: #cee7ff; color: #07075a; }

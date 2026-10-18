@@ -1,0 +1,105 @@
+Window.SetBackgroundTopColor(0.0157, 0.0157, 0.4941);
+Window.SetBackgroundBottomColor(0.0157, 0.0157, 0.4941);
+background_image = Image("background.png").Scale(Window.GetWidth(), Window.GetHeight());
+background_sprite = Sprite(background_image);
+background_sprite.SetPosition(Window.GetX(), Window.GetY(), -10);
+scale = Window.GetWidth() / 1000;
+if (scale > 1.5) scale = 1.5;
+if (scale < 0.7) scale = 0.7;
+// Plymouth supplies boot, shutdown or reboot; never reuse the boot title at power-off.
+mode = "";
+closing = 0;
+frame_count = 72;
+fun select_mode(value) {
+    global.mode = value;
+    global.closing = (value == "shutdown" || value == "reboot");
+    prefix = "frame-";
+    global.frame_count = 72;
+    if (closing) { prefix = value + "-"; global.frame_count = 48; }
+    global.frames = null;
+    for (index = 0; index < frame_count; index++)
+        global.frames[index] = Image(prefix + index + ".png").Scale(640*scale, 300*scale);
+}
+select_mode(Plymouth.GetMode());
+logo = Sprite(frames[0]);
+logo.SetPosition(Window.GetX()+Window.GetWidth()/2-320*scale, Window.GetY()+Window.GetHeight()*0.53-150*scale, 1);
+tux_image = Image("tux.png").Scale(160*scale,160*scale);
+power_image = Image("computer.png").Scale(160*scale,160*scale);
+mascot = Sprite(tux_image);
+if (closing) mascot.SetImage(power_image);
+mascot.SetPosition(Window.GetX()+Window.GetWidth()/2-80*scale,Window.GetY()+Window.GetHeight()*0.53-287*scale,2);
+for (i=0;i<16;i++) noise[i]=Image("noise-"+i+".png").Scale(Window.GetWidth(),Window.GetHeight());
+static = Sprite(noise[0]); static.SetPosition(Window.GetX(),Window.GetY(),20); static.SetOpacity(0.35);
+band_image=Image("scan-band.png").Scale(Window.GetWidth(),Window.GetHeight()*0.16);
+band=Sprite(band_image); band.SetZ(21);
+curtain_image=Image("curtain.png").Scale(Window.GetWidth(),Window.GetHeight()/2);
+upper=Sprite(curtain_image);lower=Sprite(curtain_image);upper.SetZ(30);lower.SetZ(30);
+tick = 0;
+paused = 0;
+fun refresh() {
+    if (mode != Plymouth.GetMode()) {
+        select_mode(Plymouth.GetMode());
+        global.tick = 0;
+        if (closing) mascot.SetImage(power_image);
+        else mascot.SetImage(tux_image);
+    }
+    global.tick++;
+    if (!paused) logo.SetImage(frames[Math.Int(tick / 2) % frame_count]);
+    static.SetImage(noise[Math.Int(tick/4)%16]);
+    band.SetPosition(Window.GetX(),Window.GetY()+((tick%550)/550)*Window.GetHeight()*1.2-Window.GetHeight()*0.16,21);
+    reveal=tick/48; if (reveal>1 || closing) reveal=1;
+    reveal=1-(1-reveal)*(1-reveal)*(1-reveal);
+    upper.SetPosition(Window.GetX(),Window.GetY()-reveal*Window.GetHeight()/2,30);
+    lower.SetPosition(Window.GetX(),Window.GetY()+Window.GetHeight()/2+reveal*Window.GetHeight()/2,30);
+    if (tick%582>538 && tick%582<548) background_sprite.SetOpacity(0.91);
+    else background_sprite.SetOpacity(1);
+}
+Plymouth.SetRefreshFunction(refresh);
+
+// Keep encrypted disks, fsck messages and interactive questions usable.
+prompt_sprite = Sprite();
+entry_sprite = Sprite();
+message_sprite = Sprite();
+fun center_text(sprite, text, y) {
+    image = Image.Text(text, 0.90, 0.92, 0.95);
+    sprite.SetImage(image);
+    sprite.SetPosition(Window.GetX() + Window.GetWidth()/2 - image.GetWidth()/2,
+                       Window.GetY() + y, 10);
+    sprite.SetOpacity(1);
+}
+fun password(prompt, count) {
+    paused = 1;
+    center_text(prompt_sprite, prompt, Window.GetHeight()/2 + 142);
+    dots = "";
+    for (i = 0; i < count; i++) dots += "•";
+    center_text(entry_sprite, dots, Window.GetHeight()/2 + 178);
+}
+fun question(prompt, answer) {
+    paused = 1;
+    center_text(prompt_sprite, prompt, Window.GetHeight()/2 + 142);
+    center_text(entry_sprite, answer, Window.GetHeight()/2 + 178);
+}
+fun normal() {
+    paused = 0;
+    prompt_sprite.SetOpacity(0);
+    entry_sprite.SetOpacity(0);
+    message_sprite.SetOpacity(0);
+}
+fun message(text) {
+    center_text(message_sprite, text, Window.GetHeight() * 0.88);
+}
+fun hide_message(text) { message_sprite.SetOpacity(0); }
+fun quit() {
+    // Do not delay shutdown, and do not flash the startup frame on exit.
+    if (closing) {
+        upper.SetPosition(Window.GetX(),Window.GetY(),30);
+        lower.SetPosition(Window.GetX(),Window.GetY()+Window.GetHeight()/2,30);
+    }
+}
+Plymouth.SetDisplayPasswordFunction(password);
+Plymouth.SetDisplayQuestionFunction(question);
+Plymouth.SetDisplayNormalFunction(normal);
+Plymouth.SetDisplayMessageFunction(message);
+Plymouth.SetHideMessageFunction(hide_message);
+Plymouth.SetMessageFunction(message);
+Plymouth.SetQuitFunction(quit);

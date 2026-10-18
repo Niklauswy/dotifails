@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Wysun Files
+Comment=Explora y organiza tus archivos
+Exec=orbit-files %U
+Icon=system-file-manager
+Terminal=false
+Categories=System;FileTools;FileManager;
+MimeType=inode/directory;
+Keywords=archivos;carpetas;files;folders;explorador;
+StartupNotify=true

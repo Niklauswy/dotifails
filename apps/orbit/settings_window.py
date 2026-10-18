@@ -1,4 +1,6 @@
-"""Órbita Ajustes: a native BSPWM and sxhkd editor."""
+"""Wysun Ajustes: a native BSPWM and sxhkd editor."""
+
+from theme_tokens import ThemeColor, apply_style
 import ctypes, ctypes.util, json, subprocess
 from pathlib import Path
 from PySide6.QtCore import Qt, QTimer, QSize
@@ -20,11 +22,11 @@ class ShortcutEditor(QDialog):
     def save(self):
         try:
             self.model.save(self.key.text(),self.command.toPlainText(),self.index,self.title.text() or 'Atajo personalizado');subprocess.run(['pkill','-USR1','-u',str(__import__('os').getuid()),'-x','sxhkd'],capture_output=True);self.accept()
-        except (ValueError,OSError,subprocess.SubprocessError) as e:self.error.setText(str(e));self.error.setStyleSheet('color:#EDAAA7')
+        except (ValueError,OSError,subprocess.SubprocessError) as e:self.error.setText(str(e));apply_style(self.error,'color:#EDAAA7')
 
 class SettingsWindow(Surface):
     def __init__(self,test=False):
-        super().__init__('Ajustes del escritorio','BSPWM · ventanas, comportamiento y atajos',960,670);self.test=test;self.backend=DesktopSettings();self.shortcuts=ShortcutFile();self.widgets={};self.rules=json.loads(json.dumps(self.backend.saved.get('rules',[])))
+        super().__init__('Wysun Settings','BSPWM · ventanas, comportamiento y atajos',960,670);self.test=test;self.backend=DesktopSettings();self.shortcuts=ShortcutFile();self.widgets={};self.rules=json.loads(json.dumps(self.backend.saved.get('rules',[])))
         middle=QHBoxLayout();middle.setSpacing(24);self.nav=QListWidget();self.nav.setFixedWidth(190);self.nav.setIconSize(QSize(18,18));self.nav.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff);self.pages=QStackedWidget();middle.addWidget(self.nav);middle.addWidget(self.pages,1);self.outer.addLayout(middle,1)
         for title,symbol in [('Apariencia','palette'),('Comportamiento','mouse-pointer-2'),('Atajos','keyboard'),('Ventanas','panels-top-left'),('Archivos y copias','files')]:
             from PySide6.QtWidgets import QListWidgetItem
@@ -36,7 +38,7 @@ class SettingsWindow(Surface):
         w=QWidget();w.setObjectName('page');layout=QVBoxLayout(w);layout.setContentsMargins(0,0,0,0);layout.setSpacing(14);self.pages.addWidget(w);return layout
     def build_config(self,behavior):
         layout=self.page();layout.addWidget(text_label('Cómo se comportan tus ventanas' if behavior else 'Un espacio a tu medida','title'));layout.addWidget(text_label('Los ajustes se guardan para el próximo inicio.' if behavior else 'Ajusta los espacios, bordes y colores del escritorio.','subtitle'))
-        scroll=QScrollArea();scroll.setWidgetResizable(True);holder=QWidget();holder.setObjectName('page');holder.setStyleSheet('background:transparent;');form=QFormLayout(holder);form.setContentsMargins(0,8,12,8);form.setVerticalSpacing(11)
+        scroll=QScrollArea();scroll.setWidgetResizable(True);holder=QWidget();holder.setObjectName('page');apply_style(holder,'background:transparent;');form=QFormLayout(holder);form.setContentsMargins(0,8,12,8);form.setVerticalSpacing(11)
         for key,(title,kind,low,high) in SCHEMA.items():
             if (key not in list(SCHEMA)[:10])!=behavior:continue
             if kind=='int':control=QSpinBox();control.setRange(low,high);control.setSuffix(' px');control.setMaximumWidth(180)
@@ -81,7 +83,7 @@ class SettingsWindow(Surface):
             row=self.table.rowCount();self.table.insertRow(row)
             for col,value in enumerate([r['key'],r['title'],'Repetido' if i in ids else '']):
                 item=QTableWidgetItem(value);item.setData(Qt.UserRole,i);item.setToolTip(r['command']);self.table.setItem(row,col,item)
-                if i in ids and col==2:item.setForeground(QColor('#E0AE82'))
+                if i in ids and col==2:item.setForeground(ThemeColor('#E0AE82'))
             self.table.setRowHeight(row,40)
     def selected_shortcut(self):
         row=self.table.currentRow();return self.table.item(row,0).data(Qt.UserRole) if row>=0 else None

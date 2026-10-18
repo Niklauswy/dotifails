@@ -1,49 +1,27 @@
 #!/usr/bin/env python3
-"""Órbita: resident native command palette for BSPWM/X11."""
+"""Wysun: resident native command palette for BSPWM/X11."""
+from theme_tokens import ThemeColor, apply_style
+
 import argparse, ctypes, ctypes.util, datetime as dt, json, os, re, socket, subprocess, sys, time
 from pathlib import Path
 from urllib.parse import quote
 from PySide6.QtCore import Qt, QTimer, QSize, QRectF, QBuffer, QByteArray, QIODevice, QThread, Signal, QUrl, QEvent
 from PySide6.QtGui import QColor, QPainter, QPen, QFont, QIcon, QPixmap, QImage, QCursor, QDesktopServices, QKeySequence, QShortcut
-from PySide6.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, QListWidget, QListWidgetItem, QStyledItemDelegate, QStyle, QFrame, QPlainTextEdit, QComboBox, QMenu, QDialog, QDialogButtonBox, QFormLayout, QMessageBox)
+from PySide6.QtWidgets import (QApplication, QWidget, QStackedWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, QListWidget, QListWidgetItem, QStyledItemDelegate, QStyle, QFrame, QPlainTextEdit, QComboBox, QMenu, QDialog, QDialogButtonBox, QFormLayout, QMessageBox)
 
 from core import Store, STATE, HOME, calculate, applications, file_index, sensitive, expand_snippet
 
 ROOT=Path(__file__).resolve().parent
 SOCKET=str(Path(os.environ.get('XDG_RUNTIME_DIR','/tmp'))/f'orbit-{os.getuid()}.sock')
-MODES={'home':('Órbita','Buscar aplicaciones, comandos o calcular…'),'clipboard':('Portapapeles','Buscar en el historial…'),'files':('Archivos','Buscar por nombre o ruta…'),'snippets':('Snippets','Buscar fragmentos o abreviaturas…'),'calculator':('Calculadora','24 × 8 / 16 · 15% de 80 · 10 km a mi'),'windows':('Ventanas','Buscar ventanas abiertas…'),'emoji':('Emoji','Buscar emoji…')}
-STYLE='''
-QWidget { color: #eeeef2; font-family: "Inter", "Noto Sans"; font-size: 13px; }
-QLineEdit { background: transparent; border: none; padding: 8px 4px; font-size: 17px; selection-background-color: #68578e; }
-QListWidget { background: transparent; border: none; outline: none; padding: 3px; }
-QPushButton { background: transparent; border: 1px solid transparent; border-radius: 7px; padding: 7px 10px; color: #a4a4af; }
-QPushButton:hover { background: #34343e; color: #fff; }
-QPushButton:checked { background: #393441; color: #ece2ff; border-color: #51475f; }
-QPushButton#primary { background: #e7ddf5; color: #211b2b; font-weight: 600; }
-QPushButton#primary:hover { background: #f4edff; }
-QLabel#muted { color: #9d9da8; font-size: 12px; }
-QLabel#section { color: #a4a4af; font-size: 12px; font-weight: 600; }
-QLabel#previewTitle { font-size: 16px; font-weight: 600; }
-QPlainTextEdit { background: transparent; border: none; font-size: 13px; selection-background-color: #554767; }
-QComboBox { background: #202026; border: 1px solid #41414a; padding: 5px 10px; border-radius: 6px; min-width: 92px; }
-QComboBox QAbstractItemView { background: #24242b; selection-background-color: #46404e; }
-QScrollBar:vertical { background: transparent; width: 5px; margin: 4px 0; }
-QScrollBar::handle:vertical { background: #555560; border-radius: 2px; min-height: 24px; }
-QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
-QMenu { background: #25252d; border: 1px solid #484852; border-radius: 9px; padding: 6px; }
-QMenu::item { padding: 9px 30px 9px 12px; border-radius: 5px; }
-QMenu::item:selected { background: #41404b; }
-QMenu::separator { height: 1px; background: #40404a; margin: 5px; }
-QDialog { background: #202027; }
-QDialog QLineEdit, QDialog QPlainTextEdit { background: #17171d; border: 1px solid #42424c; border-radius: 6px; padding: 9px; }
-QToolTip { background: #2b2b34; color: #eee; border: 1px solid #50505d; padding: 5px; }
-'''
+MODES={'home':('Wysun','Buscar aplicaciones, comandos o calcular…'),'clipboard':('Portapapeles','Buscar en el historial…'),'files':('Archivos','Buscar por nombre o ruta…'),'snippets':('Snippets','Buscar fragmentos o abreviaturas…'),'calculator':('Calculadora','24 × 8 / 16 · 15% de 80 · 10 km a mi'),'windows':('Ventanas','Buscar ventanas abiertas…'),'emoji':('Emoji','Buscar emoji…')}
+from ui_theme import PALETTE_STYLE as STYLE, paint_surface
+from ui_motion import WindowMotion, MotionButton as QPushButton
 
 def run(args):
     subprocess.Popen([str(a) for a in args],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,start_new_session=True)
 
 def divider():
-    w=QFrame();w.setFixedHeight(1);w.setStyleSheet('background: rgba(190,190,210,22);');return w
+    w=QFrame();w.setFixedHeight(1);apply_style(w,'background: rgba(190,190,210,22);');return w
 
 def label(text='',name=''):
     x=QLabel(text);x.setTextFormat(Qt.PlainText)
@@ -85,16 +63,16 @@ class RowDelegate(QStyledItemDelegate):
         item=index.data(Qt.UserRole) or {};rect=option.rect.adjusted(3,2,-3,-2)
         p.save();p.setRenderHint(QPainter.Antialiasing)
         if option.state & QStyle.State_Selected:
-            p.setPen(Qt.NoPen);p.setBrush(QColor(230,220,255,26));p.drawRoundedRect(rect,7,7)
+            p.setPen(Qt.NoPen);p.setBrush(ThemeColor(230,220,255,26));p.drawRoundedRect(rect,7,7)
         icon=QIcon.fromTheme(item.get('icon',''))
         if not icon.isNull():icon.paint(p,rect.x()+12,rect.y()+13,25,25)
         else:
             p.setPen(Qt.NoPen);p.setBrush(QColor(item.get('color','#b4a0dc')));p.drawRoundedRect(QRectF(rect.x()+12,rect.y()+13,25,25),6,6)
-            p.setPen(QColor('#17131e'));p.setFont(QFont('Noto Sans',12,QFont.Bold));p.drawText(QRectF(rect.x()+12,rect.y()+12,25,26),Qt.AlignCenter,item.get('glyph','⌘'))
+            p.setPen(ThemeColor('#17131e'));p.setFont(QFont('Noto Sans',12,QFont.Bold));p.drawText(QRectF(rect.x()+12,rect.y()+12,25,26),Qt.AlignCenter,item.get('glyph','⌘'))
         width=rect.width()-65;tag=item.get('tag','') if rect.width()>470 else ''
         p.setFont(QFont('Inter',10));tw=p.fontMetrics().horizontalAdvance(tag)+22 if tag else 0
-        p.setPen(QColor('#efeff4'));p.drawText(rect.x()+49,rect.y()+23,p.fontMetrics().elidedText(item.get('title',''),Qt.ElideRight,width-tw))
-        p.setFont(QFont('Inter',9));p.setPen(QColor('#a4a4b0'));p.drawText(rect.x()+49,rect.y()+40,p.fontMetrics().elidedText(item.get('subtitle','').replace('\n',' '),Qt.ElideRight,width))
+        p.setPen(ThemeColor('#efeff4'));p.drawText(rect.x()+49,rect.y()+23,p.fontMetrics().elidedText(item.get('title',''),Qt.ElideRight,width-tw))
+        p.setFont(QFont('Inter',9));p.setPen(ThemeColor('#a4a4b0'));p.drawText(rect.x()+49,rect.y()+40,p.fontMetrics().elidedText(item.get('subtitle','').replace('\n',' '),Qt.ElideRight,width))
         if tag:p.drawText(rect.right()-tw,rect.y()+25,tag)
         p.restore()
 
@@ -103,16 +81,16 @@ class SnippetDialog(QDialog):
         super().__init__(parent);self.setWindowTitle('Editar snippet' if item else 'Nuevo snippet');self.resize(560,420)
         item=item or {};layout=QVBoxLayout(self);form=QFormLayout();self.title=QLineEdit(item.get('title',''));self.shortcut=QLineEdit(item.get('shortcut',''));self.body=QPlainTextEdit(item.get('body',''))
         form.addRow('Nombre',self.title);form.addRow('Abreviatura',self.shortcut);layout.addLayout(form);layout.addWidget(self.body)
-        layout.addWidget(label('Variables: {date}, {time}, {datetime}. Busca la abreviatura en Órbita.','muted'))
+        layout.addWidget(label('Variables: {date}, {time}, {datetime}. Busca la abreviatura en Wysun.','muted'))
         buttons=QDialogButtonBox(QDialogButtonBox.Save|QDialogButtonBox.Cancel);buttons.button(QDialogButtonBox.Save).setText('Guardar');buttons.button(QDialogButtonBox.Cancel).setText('Cancelar');buttons.accepted.connect(self.save);buttons.rejected.connect(self.reject);layout.addWidget(buttons)
     def save(self):
         if not self.title.text().strip() or not self.body.toPlainText().strip():self.title.setFocus();return
         self.accept()
 
-class Orbit(QWidget):
+class Orbit(WindowMotion, QWidget):
     def __init__(self,store=None,test=False):
         super().__init__(None,Qt.Window|Qt.FramelessWindowHint|Qt.WindowStaysOnTopHint)
-        self.setWindowTitle('Órbita');self.setAttribute(Qt.WA_TranslucentBackground);self.resize(860,550)
+        self.setWindowTitle('Wysun');self.setAttribute(Qt.WA_TranslucentBackground);self.resize(860,550)
         self.store=store or Store();self.test=test;self.mode='home';self.apps=applications();self.files=[];self.indexer=None;self.jobs=[];self.preview_path='';self.ignore_clip=False;self.source_window='';self.socket_buffers={}
         self.emojis=[]
         emoji_file=ROOT/'assets/emojis.txt'
@@ -127,12 +105,11 @@ class Orbit(QWidget):
             sc=QShortcut(QKeySequence(seq),self);sc.activated.connect(fn)
         self.debounce=QTimer(self);self.debounce.setSingleShot(True);self.debounce.setInterval(65);self.debounce.timeout.connect(self.render);self.search.textChanged.connect(lambda:self.debounce.start())
         if not test:QTimer.singleShot(2000,self.start_index)
-    def paintEvent(self,event):
-        p=QPainter(self);p.setRenderHint(QPainter.Antialiasing);p.setPen(QPen(QColor(170,164,185,70),1));p.setBrush(QColor(22,22,28,226));p.drawRoundedRect(QRectF(.5,.5,self.width()-1,self.height()-1),15,15)
+    def paintEvent(self,event):paint_surface(self)
     def build_ui(self):
-        outer=QVBoxLayout(self);outer.setContentsMargins(1,8,1,1);outer.setSpacing(0)
-        top=QHBoxLayout();top.setContentsMargins(17,7,17,12);top.setSpacing(10)
-        self.back=QPushButton('⌘');self.back.setFixedSize(31,31);self.back.clicked.connect(lambda:self.set_mode('home'));top.addWidget(self.back)
+        outer=QVBoxLayout(self);outer.setContentsMargins(7,12,7,6);outer.setSpacing(0)
+        top=QHBoxLayout();top.setContentsMargins(17,7,17,16);top.setSpacing(10)
+        self.back=QPushButton('⌘');self.back.setFixedSize(38,38);self.back.clicked.connect(lambda:self.set_mode('home'));top.addWidget(self.back)
         self.search=QLineEdit();self.search.setPlaceholderText(MODES['home'][1]);self.search.setClearButtonEnabled(True);top.addWidget(self.search,1)
         self.filter=QComboBox();self.filter.addItems(['Todos','Texto','Imagen','Color','Enlace']);self.filter.currentIndexChanged.connect(self.render);self.filter.hide();top.addWidget(self.filter)
         self.new=QPushButton('+ Nuevo');self.new.clicked.connect(self.new_snippet);self.new.hide();top.addWidget(self.new)
@@ -140,14 +117,14 @@ class Orbit(QWidget):
         content=QHBoxLayout();content.setContentsMargins(8,0,8,0);content.setSpacing(0)
         left=QWidget();self.left=left;ll=QVBoxLayout(left);ll.setContentsMargins(6,12,6,5);ll.setSpacing(6);self.heading=label('Sugerencias','section');ll.addWidget(self.heading)
         self.results=QListWidget();self.results.setItemDelegate(RowDelegate());self.results.setVerticalScrollMode(QListWidget.ScrollPerPixel);self.results.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff);self.results.currentRowChanged.connect(self.preview);self.results.itemActivated.connect(self.activate);self.results.itemClicked.connect(self.preview);ll.addWidget(self.results,1)
-        self.empty=label('');self.empty.setAlignment(Qt.AlignCenter);self.empty.setWordWrap(True);self.empty.setStyleSheet('color:#a4a4b0; padding:35px;');self.empty.hide();ll.addWidget(self.empty,1);content.addWidget(left,1)
-        self.inspector=QWidget();self.inspector.setMinimumWidth(440);self.inspector.setStyleSheet('QWidget#inspector { border-left: 1px solid rgba(190,190,210,22); }');self.inspector.setObjectName('inspector')
+        self.empty=label('');self.empty.setAlignment(Qt.AlignCenter);self.empty.setWordWrap(True);apply_style(self.empty,'color:#a4a4b0; padding:35px;');self.empty.hide();ll.addWidget(self.empty,1);content.addWidget(left,1)
+        self.inspector=QWidget();self.inspector.setMinimumWidth(440);apply_style(self.inspector,'QWidget#inspector { border-left: 1px solid rgba(190,190,210,22); }');self.inspector.setObjectName('inspector')
         pr=QVBoxLayout(self.inspector);pr.setContentsMargins(23,22,18,18);pr.setSpacing(12);self.preview_title=label('','previewTitle');self.preview_title.setWordWrap(True);pr.addWidget(self.preview_title)
         self.picture=QLabel();self.picture.setAlignment(Qt.AlignCenter);self.picture.setMinimumHeight(160);self.picture.hide();pr.addWidget(self.picture,1)
-        self.calc_result=label('');self.calc_result.setAlignment(Qt.AlignCenter);self.calc_result.setWordWrap(True);self.calc_result.setStyleSheet('font-size: 44px; font-weight: 600; color: #eeeaf4;');self.calc_result.hide();pr.addWidget(self.calc_result,1)
+        self.calc_result=label('');self.calc_result.setAlignment(Qt.AlignCenter);self.calc_result.setWordWrap(True);apply_style(self.calc_result,'font-size: 44px; font-weight: 600; color: #eeeaf4;');self.calc_result.hide();pr.addWidget(self.calc_result,1)
         self.body=QPlainTextEdit();self.body.setReadOnly(True);pr.addWidget(self.body,1)
-        self.metadata=label('','muted');self.metadata.setWordWrap(True);pr.addWidget(divider());pr.addWidget(self.metadata);content.addWidget(self.inspector,1);self.inspector.hide();outer.addLayout(content,1)
-        outer.addWidget(divider());footer=QHBoxLayout();footer.setContentsMargins(16,7,12,7);self.status=label('Órbita · Local','muted');footer.addWidget(self.status,1);self.go=QPushButton('Abrir  ↵');self.go.clicked.connect(self.activate);footer.addWidget(self.go);self.action_button=QPushButton('Acciones  ⌃ K');self.action_button.clicked.connect(self.actions);footer.addWidget(self.action_button);outer.addLayout(footer)
+        self.metadata=label('','muted');self.metadata.setWordWrap(True);pr.addWidget(divider());pr.addWidget(self.metadata);content.addWidget(self.inspector,1);self.inspector.hide();self.content_pages=QStackedWidget();self.content_home=QWidget();self.content_home.setLayout(content);self.content_pages.addWidget(self.content_home);outer.addWidget(self.content_pages,1)
+        outer.addWidget(divider());footer=QHBoxLayout();footer.setContentsMargins(16,7,12,7);self.status=label('Wysun · Local','muted');footer.addWidget(self.status,1);self.go=QPushButton('Abrir  ↵');self.go.clicked.connect(self.activate);footer.addWidget(self.go);self.action_button=QPushButton('Acciones  ⌃ K');self.action_button.clicked.connect(self.actions);footer.addWidget(self.action_button);outer.addLayout(footer)
         outer.addWidget(divider());dock=QHBoxLayout();dock.setContentsMargins(14,7,14,9);dock.setSpacing(4);self.tabs={}
         for i,(key,title) in enumerate([('home','⌘  Inicio'),('clipboard','▣  Historial'),('files','⌕  Archivos'),('snippets','{ }  Snippets'),('calculator','=  Calcular')]):
             b=QPushButton(title);b.setCheckable(True);b.setToolTip(f'Alt + {i+1}');b.clicked.connect(lambda checked=False,k=key:self.set_mode(k));dock.addWidget(b);self.tabs[key]=b
@@ -158,7 +135,7 @@ class Orbit(QWidget):
         scripts=HOME/'.local/bin'
         for key,title,subtitle,cmd,icon in [
             ('terminal','Nueva terminal','Ghostty · inicio rápido',[str(HOME/'.local/bin/desktop-terminal')],'utilities-terminal'),
-            ('screenshot','Capturar pantalla','Seleccionar una región',['flameshot','gui'],'camera-photo'),
+            ('screenshot','Wysun Screenshot','Capturar y editar imágenes',[str(HOME/'.local/bin/wysun'),'screenshot'],'camera-photo'),
             ('network','Conexiones de red','Wi-Fi, Ethernet y VPN',[str(scripts/'orbit'),'network'],'network-wireless'),
             ('notes','Notas rápidas','Abrir tus notas locales',[str(scripts/'orbit'),'notes'],'accessories-text-editor'),
             ('wallpaper','Cambiar fondo de pantalla','Personaliza tu escritorio',[str(scripts/'orbit'),'settings','wallpaper'],'preferences-desktop-wallpaper'),
@@ -167,7 +144,7 @@ class Orbit(QWidget):
             ('mute','Silenciar / activar sonido','Salida de audio actual',['pactl','set-sink-mute','@DEFAULT_SINK@','toggle'],'audio-volume-muted'),
             ('notifications','Pausar / reanudar notificaciones','Modo concentración',['dunstctl','set-paused','toggle'],'preferences-desktop-notification'),
             ('compositor','Alternar transparencia y animaciones','Picom',[str(scripts/'desktop-compositor'),'toggle'],'preferences-desktop'),
-            ('settings','Configuración de Órbita','Abrir configuración y guía',['xdg-open',str(ROOT/'README.md')],'preferences-system')]:
+            ('settings','Configuración de Wysun','Abrir configuración y guía',['xdg-open',str(ROOT/'README.md')],'preferences-system')]:
             if Path(cmd[0]).exists() or __import__('shutil').which(cmd[0]):rows.append(dict(kind='command',title=title,subtitle=subtitle,cmd=cmd,icon=icon,key=key,tag='Comando'))
         return rows
     def start_index(self):
@@ -181,7 +158,10 @@ class Orbit(QWidget):
         if mode=='files' and time.monotonic()-getattr(self,'indexed_at',0)>300:self.start_index()
         self.render();self.search.setFocus()
     def show_mode(self,mode='home'):
-        if mode=='toggle' and self.isVisible():self.hide();return
+        if mode=='toggle' and self.isVisible():
+            if getattr(self,'_motion_exiting',False):self.show();self.activateWindow()
+            else:self.dismiss()
+            return
         if not self.isVisible() and not self.test:
             try:self.source_window=subprocess.check_output(['bspc','query','-N','-n','focused'],text=True,timeout=.3).strip()
             except subprocess.SubprocessError:self.source_window=''
@@ -191,7 +171,7 @@ class Orbit(QWidget):
     def escape(self):
         if self.search.text():self.search.clear()
         elif self.mode!='home':self.set_mode('home')
-        else:self.hide()
+        else:self.dismiss()
     def eventFilter(self,obj,event):
         if obj==self and event.type()==QEvent.WindowDeactivate and not self.test:
             QTimer.singleShot(100,self.hide_if_inactive)
@@ -246,7 +226,7 @@ class Orbit(QWidget):
                         try:
                             title=subprocess.check_output(['xprop','-id',wid,'_NET_WM_NAME'],text=True,timeout=.2).split(' = ',1)[-1].strip().strip('"')
                         except subprocess.SubprocessError:pass
-                        if 'Órbita' not in title and fold in (title+' '+c.get('className','')).casefold():rows.append(dict(kind='window',title=title,subtitle=c.get('className',''),wid=wid,glyph='▤'))
+                        if n['id']!=int(self.winId()) and fold in (title+' '+c.get('className','')).casefold():rows.append(dict(kind='window',title=title,subtitle=c.get('className',''),wid=wid,glyph='▤'))
                     visit(n.get('firstChild'));visit(n.get('secondChild'))
                 for m in tree['monitors']:
                     for d in m['desktops']:visit(d.get('root'))
@@ -383,12 +363,14 @@ class Orbit(QWidget):
     def clear_history(self):
         if QMessageBox.question(self,'Borrar historial','¿Eliminar todo el historial local del portapapeles?',QMessageBox.Yes|QMessageBox.No)==QMessageBox.Yes:self.store.clear_clips();self.render()
     def refresh_sources(self):self.apps=applications();self.start_index();self.render()
-    def closeEvent(self,event):event.ignore();self.hide()
+    def closeEvent(self,event):event.ignore();self.dismiss()
 
 def main():
     parser=argparse.ArgumentParser();parser.add_argument('mode',nargs='?',default='toggle');parser.add_argument('--daemon',action='store_true');args=parser.parse_args()
     os.umask(0o077)
-    app=QApplication(['Orbit','--name','Orbit']);app.setApplicationName('Orbit');app.setDesktopFileName('orbit');app.setWindowIcon(QIcon(str(ROOT/'orbit.png')));app.setQuitOnLastWindowClosed(False);app.setStyle('Fusion');app.setStyleSheet(STYLE);QIcon.setThemeSearchPaths([str(HOME/'.local/share/icons'),str(HOME/'.icons'),'/usr/share/icons']);QIcon.setThemeName('Win11-Dark');QIcon.setFallbackThemeName('Adwaita')
+    app=QApplication(['Orbit','--name','Orbit']);app.setApplicationName('Orbit');app.setApplicationDisplayName('Wysun');app.setDesktopFileName('orbit');app.setWindowIcon(QIcon(str(ROOT/'orbit.png')));app.setQuitOnLastWindowClosed(False);app.setStyle('Fusion');apply_style(app,STYLE);QIcon.setThemeSearchPaths([str(HOME/'.local/share/icons'),str(HOME/'.icons'),'/usr/share/icons']);QIcon.setThemeName('Win11-Dark');QIcon.setFallbackThemeName('Adwaita')
+    from theme_tokens import watch_theme
+    watch_theme()
     server=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM)
     try:
         server.bind(SOCKET)
@@ -421,9 +403,12 @@ def main():
             for window in win.utilities.values():
                 if hasattr(window,'save') and window.save() is False:
                     window.present();return
+            for window in win.utilities.values():
+                if hasattr(window,'shutdown_jobs'):window.shutdown_jobs()
             server.close();Path(SOCKET).unlink(missing_ok=True)
             os.execv(sys.executable,[sys.executable,str(ROOT/'orbit.py'),'daemon','--daemon'])
         else:win.show_mode(mode)
+    app.aboutToQuit.connect(lambda:[w.shutdown_jobs() for w in win.utilities.values() if hasattr(w,'shutdown_jobs')])
     ipc=IPC();ipc.received.connect(receive);ipc.start()
     if not args.daemon:QTimer.singleShot(0,lambda:win.show_mode(args.mode))
     sys.exit(app.exec())

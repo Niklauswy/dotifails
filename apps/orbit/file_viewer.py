@@ -1,4 +1,6 @@
 """Native image/PDF quick look and an embedded, explicitly controlled mpv player."""
+from theme_tokens import ThemeColor, apply_style
+
 import json,os,socket,tempfile
 from pathlib import Path
 from PySide6.QtCore import Qt,QTimer,QProcess,QSize
@@ -11,7 +13,7 @@ from icons import icon,badge
 class VideoPlayer(QWidget):
     def __init__(self,path,parent=None):
         super().__init__(parent);self.path=str(path);self.process=None;self.sock=None;self.buffer=b'';self.props={};self.root=None;self.stopped=False
-        layout=QVBoxLayout(self);layout.setContentsMargins(0,0,0,0);self.surface=QWidget();self.surface.setAttribute(Qt.WA_NativeWindow);self.surface.setStyleSheet('background:#090A0E;');self.surface.setMinimumHeight(250);layout.addWidget(self.surface,1)
+        layout=QVBoxLayout(self);layout.setContentsMargins(0,0,0,0);self.surface=QWidget();self.surface.setAttribute(Qt.WA_NativeWindow);apply_style(self.surface,'background:#090A0E;');self.surface.setMinimumHeight(250);layout.addWidget(self.surface,1)
         controls=QHBoxLayout();self.play_button=button('Reproducir',self.toggle,symbol='circle-play');controls.addWidget(self.play_button);self.position=QSlider(Qt.Horizontal);self.position.setRange(0,1000);self.position.sliderReleased.connect(self.seek);controls.addWidget(self.position,1);self.time_label=text_label('0:00 / 0:00','subtitle');controls.addWidget(self.time_label);self.mute=button('',lambda:self.send(['cycle','mute']),symbol='volume-2');controls.addWidget(self.mute);layout.addLayout(controls);self.status=text_label('Preparando vídeo…','subtitle');layout.addWidget(self.status)
         self.poll=QTimer(self);self.poll.setInterval(120);self.poll.timeout.connect(self.read_ipc);QTimer.singleShot(0,self.start)
     def start(self):
@@ -62,10 +64,12 @@ class VideoPlayer(QWidget):
         if self.sock:self.sock.close();self.sock=None
         if self.root:self.root.cleanup();self.root=None
 
-class FileViewer(QDialog):
+from ui_motion import WindowMotion
+
+class FileViewer(WindowMotion,QDialog):
     def __init__(self,path,parent=None):
         super().__init__(parent);self.path=str(path);self.kind=file_kind(path);self.page=1;self.pages=1;self.job=None;self.image=None;self.zoom=1.;self.player=None;self.pending_page=1
-        self.setWindowTitle('Vista previa · '+Path(path).name);self.setWindowModality(Qt.WindowModal);self.setStyleSheet(PANEL_STYLE);self.resize(980,680)
+        self.setWindowFlags(Qt.Window|Qt.FramelessWindowHint);self.setAttribute(Qt.WA_TranslucentBackground);self.setWindowTitle('Vista previa · '+Path(path).name);self.setWindowModality(Qt.WindowModal);apply_style(self,PANEL_STYLE);self.resize(980,680)
         outer=QVBoxLayout(self);outer.setContentsMargins(20,18,20,16);outer.setSpacing(12);header=QHBoxLayout();names=QVBoxLayout();names.addWidget(text_label(Path(path).name,'title'));self.summary=text_label(str(Path(path).parent),'subtitle');names.addWidget(self.summary);header.addLayout(names,1);header.addWidget(button('Cerrar',self.reject,symbol='x'));outer.addLayout(header)
         if self.kind in ('video','audio'):
             self.player=VideoPlayer(path,self);outer.addWidget(self.player,1);QShortcut(QKeySequence('Space'),self).activated.connect(self.player.toggle)
@@ -75,6 +79,9 @@ class FileViewer(QDialog):
             for w in (self.previous,self.next,self.page_label):w.setVisible(Path(path).suffix.lower()=='.pdf')
             self.load()
         QShortcut(QKeySequence('Escape'),self).activated.connect(self.reject)
+    def paintEvent(self,event):
+        from ui_theme import paint_surface
+        paint_surface(self)
     def load(self):
         if self.job and self.job.isRunning():self.pending_page=self.page;return
         self.pending_page=self.page;self.job=FilePreviewJob(self.path,self.page);page=self.page;self.job.ready.connect(lambda path,data,p=page:self.loaded(p,data));self.job.finished.connect(lambda p=page:self.load() if self.page!=p else None);self.job.start()

@@ -179,7 +179,7 @@ class DesktopSettings:
                 baseline=backup_root/(datetime.datetime.now().strftime('%Y%m%d-%H%M%S-%f')+'-desktop.json')
                 atomic_write(baseline,json.dumps({'values':old,'rules':oldrules},indent=2)+'\n')
             backup_file(self.script)
-            lines=['#!/bin/sh','# Gestionado por Órbita Ajustes.\n']
+            lines=['#!/bin/sh','# Gestionado por Wysun Ajustes.\n']
             lines += [shlex.join(['bspc','config',key,value]) for key,value in values.items()]
             lines += [shlex.join(self.rule_args(rule)) for rule in rules]
             atomic_write(self.script,'\n'.join(lines)+'\n',0o600)

@@ -4,10 +4,10 @@ import hashlib,json,re,sys
 from pathlib import Path
 root=Path(__file__).resolve().parents[1];sys.path.insert(0,str(root/'apps/orbit'))
 from settings_data import ShortcutFile
-assert set(p.name for p in (root/'backgrounds').iterdir())=={'tokyo.png','azul.jpg'}
+assert set(p.name for p in (root/'backgrounds').iterdir())=={'tokyo.png','azul.jpg','space-black.png'}
 assert hashlib.sha256((root/'backgrounds/tokyo.png').read_bytes()).hexdigest()=='a017bb425a0c09dc598a3ce8b3f551cd9e64b91de61e1ecbd8b20a29db54cac2'
 themes=json.loads((root/'manifests/themes.json').read_text())
-assert set(themes)=={'azul','morado'}
+assert set(themes)=={'severance','tokyo','space-black'}
 for theme in themes.values():
  assert (root/'backgrounds'/theme['wallpaper']).is_file()
  if theme.get('archive'):assert hashlib.sha256((root/theme['archive']).read_bytes()).hexdigest()==theme['sha256']
@@ -19,7 +19,7 @@ assert not ShortcutFile(root/'home/.config/sxhkd/sxhkdrc').conflicts()
 for name,artifact in json.loads((root/'manifests/artifacts.json').read_text()).items():
  assert artifact['url'].startswith('https://'),name
  assert re.fullmatch('[a-f0-9]{64}',artifact['sha256']),name
-for base in ('home','apps','assets','backgrounds'):
+for base in ('home','apps','bin','assets','backgrounds'):
  for p in (root/base).rglob('*'):
   if '__pycache__' in p.parts:continue
   if p.is_symlink():
@@ -33,4 +33,10 @@ for base in ('home','apps','assets','backgrounds'):
     text=text.replace("Path.home()/'.config/bspwm/rofi/data/colors.txt'",'LEGACY_COLOR_DATA')
    assert not re.search(r'\brofi(?:\s|/|-)',text,re.I),str(p)
   assert p.suffix not in ('.sqlite3','.db'),str(p)
-print('MANIFEST_OK: two wallpapers and theme profiles, matching tool locks, no conflicting shortcuts or personal paths')
+print('MANIFEST_OK: three wallpapers and theme profiles, matching tool locks, no conflicting shortcuts or personal paths')
+
+assert (root/'bin/orbit-tools').is_file()
+assert not (root/'scripts').exists()
+for p in (root/'apps/tools').rglob('*'):
+ assert p.name not in ('accounts.json','.rezets','uploads'),str(p)
+print('TOOLS_OK: one launcher, shared backend, no private accounts or uploads')

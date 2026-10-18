@@ -1,0 +1,8 @@
+[Plymouth Theme]
+Name=Blue CRT
+Description=CRT azul con ventana clásica, Tux y carga animada
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/orbit
+ScriptFile=/usr/share/plymouth/themes/orbit/orbit.script

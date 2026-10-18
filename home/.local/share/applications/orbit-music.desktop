@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Wysun Music
+Comment=Reproductor local, biblioteca y descargas de audio
+Exec=wysun music
+Icon=musika
+Terminal=false
+Categories=AudioVideo;Audio;Player;
+Keywords=Wysun;musika;musica;music;audio;playlist;Spotify;YouTube;
+StartupWMClass=Orbit

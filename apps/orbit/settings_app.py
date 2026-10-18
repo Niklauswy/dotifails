@@ -69,11 +69,14 @@ def main():
     if endpoint.exists():
         if not endpoint.is_socket():raise RuntimeError('La ruta de comunicación está ocupada por otro archivo.')
         endpoint.unlink()
-    app=QApplication(['Orbit','-name','Orbit']);app.setStyle('Fusion');app.setApplicationName('Orbit');app.setDesktopFileName('orbit-settings');app.setQuitOnLastWindowClosed(False)
+    app=QApplication(['Orbit','-name','Orbit']);app.setStyle('Fusion');app.setApplicationName('Orbit');app.setApplicationDisplayName('Wysun Settings');app.setDesktopFileName('orbit-settings');app.setQuitOnLastWindowClosed(False)
+    from theme_tokens import watch_theme
+    watch_theme()
     server=LocalSettingsServer(endpoint,app)
     from settings_hub import SettingsHub
     window=SettingsHub()
     def present(route):
+        route='wallpaper' if route in ('theme','tema') else route
         window.go(route if route in window.routes else 'home');window.present()
     server.requested.connect(present);QTimer.singleShot(0,lambda:present(page))
     def finish():

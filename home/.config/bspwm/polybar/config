@@ -48,7 +48,7 @@ modules-right = resources network volume battery date notifications power
 
 [module/orbit]
 type = custom/text
-format = %{T2}󰀻%{T-}  Órbita
+format = %{T2}󰀻%{T-}  Wysun
 format-foreground = ${colors.accent}
 click-left = ~/.local/bin/orbit toggle
 click-right = ~/.local/bin/orbit clipboard

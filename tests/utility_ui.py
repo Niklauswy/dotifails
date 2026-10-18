@@ -11,6 +11,18 @@ from utilities import NotesWindow,ColorWindow,ProcessesWindow
 class UtilityUITests(unittest.TestCase):
  @classmethod
  def setUpClass(cls):cls.app=QApplication.instance() or QApplication([])
+ def test_theme_switch_refreshes_existing_widgets(self):
+  from unittest.mock import patch
+  from PySide6.QtWidgets import QLabel
+  from theme_tokens import apply_style,refresh_widgets
+  label=QLabel('Tema');original='color: #cdd0da; background: #131923;'
+  with patch.dict(os.environ,{'ORBIT_THEME':'severance'}):
+   refresh_widgets();apply_style(label,original);severance=label.styleSheet()
+   with patch.dict(os.environ,{'ORBIT_THEME':'tokyo'}):
+    refresh_widgets();self.assertNotEqual(label.styleSheet(),severance)
+    self.assertEqual(label.property('orbitOriginalStyle'),original)
+   refresh_widgets();self.assertEqual(label.styleSheet(),severance)
+  label.deleteLater();refresh_widgets()
  def test_notes_edit_preview_recover(self):
   with tempfile.TemporaryDirectory() as tmp:
    w=NotesWindow(tmp);w.present();w.new();w.editor.setPlainText('# Test\nBody');self.assertTrue(w.save());w.toggle_preview();self.assertIn('Body',w.preview.toPlainText());w.delete();self.assertEqual(w.list.count(),0);w.folder.setCurrentIndex(2);self.assertEqual(w.list.count(),1);w.delete();w.folder.setCurrentIndex(0);self.assertEqual(w.list.count(),1);w.close()

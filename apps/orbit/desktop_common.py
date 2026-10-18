@@ -1,15 +1,17 @@
 """Shared native surfaces and safe editor/terminal launchers."""
+from theme_tokens import ThemeColor, apply_style
+
 import os, shutil, subprocess, tempfile
 from pathlib import Path
 from PySide6.QtCore import Qt, QRectF, QSize
-from PySide6.QtGui import QPainter, QPen, QColor, QCursor, QKeySequence, QShortcut
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QApplication
-from icons import icon
+from PySide6.QtGui import QPainter, QPen, QColor, QCursor, QKeySequence, QShortcut, QIcon
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QApplication, QSizePolicy
+from icons import icon, glyph
 
 def launch(args):
     return subprocess.Popen([str(a) for a in args], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
 
-def terminal_args(command, title='Órbita · Terminal'):
+def terminal_args(command, title='Wysun · Terminal'):
     terminal=shutil.which('ghostty')
     if terminal:return [terminal, '--title='+title, '-e', *map(str,command)]
     terminal=shutil.which('x-terminal-emulator') or shutil.which('xterm')
@@ -39,35 +41,8 @@ def edit_text(text):
     with os.fdopen(fd,'w') as f:f.write(text)
     open_vim(name);return name
 
-PANEL_STYLE='''
-QWidget { background: transparent; color: #E8EAF0; font-family: Inter; font-size: 13px; }
-QWidget#page { background: transparent; }
-QLabel#title { font-size: 20px; font-weight: 600; }
-QLabel#subtitle { color: #9396A4; font-size: 12px; }
-QPushButton { padding: 8px 12px; border-radius: 7px; background: transparent; border: 1px solid transparent; color:#B7BBC8; }
-QPushButton:hover { background: #30323C; color:#F4F5F8; }
-QPushButton:focus { border-color:#788CB9; }
-QPushButton:checked { background: #343642; color: #EFF0F7; border:1px solid #454853; }
-QPushButton#primary { background:#BEC9E5; color:#181B24; font-weight:600; }
-QPushButton#danger { color:#EC9BA2; }
-QLineEdit, QPlainTextEdit, QTextEdit, QSpinBox, QDoubleSpinBox, QComboBox { background:#1C1E26; border:1px solid #3A3D48; border-radius:7px; padding:8px; selection-background-color:#444D68; }
-QComboBox QAbstractItemView { background:#242731; selection-background-color:#3B4258; }
-QListWidget, QTableWidget, QScrollArea { background:transparent; border:none; outline:0; }
-QListWidget::item { padding:10px; border-radius:7px; }
-QListWidget::item:selected { background:#343742; }
-QHeaderView::section { background:#20222B; color:#969BAA; border:0; padding:9px; text-align:left; }
-QTableWidget { gridline-color:#32353F; selection-background-color:#363B4C; }
-QCheckBox { spacing:10px; padding:7px 0; }
-QCheckBox::indicator { width:17px; height:17px; border:1px solid #5A6070; border-radius:5px; background:#20222B; }
-QCheckBox::indicator:checked { background:#AABADF; border-color:#C3CDEA; }
-QDialog { background:#20222B; }
-QSlider::groove:horizontal {height:4px; background:#343B4D; border-radius:2px;}
-QSlider::sub-page:horizontal {background:#B8C7E6; border-radius:2px;}
-QSlider::handle:horizontal {background:#D3DCF0; width:12px; margin:-4px 0; border-radius:6px;}
-QScrollBar:vertical { background:transparent; width:5px; }
-QScrollBar::handle:vertical { background:#4A4D59; border-radius:2px; min-height:25px; }
-QScrollBar::add-line:vertical,QScrollBar::sub-line:vertical { height:0; }
-'''
+from ui_theme import PANEL_STYLE, paint_surface
+from ui_motion import WindowMotion, MotionButton as QPushButton
 
 def text_label(text,style=''):
     w=QLabel(text);w.setTextFormat(Qt.PlainText);w.setWordWrap(True)
@@ -76,26 +51,41 @@ def text_label(text,style=''):
 
 def button(text,fn,name='',symbol=None):
     b=QPushButton(text);b.setObjectName(name);b.clicked.connect(lambda checked=False:fn())
-    if symbol:b.setIcon(icon(symbol));b.setIconSize(QSize(17,17))
+    if not symbol and text.strip().lower().startswith('copiar'):symbol='copy'
+    if symbol:b.setIcon(icon(symbol,17,'#162436') if name=='primary' else icon(symbol));b.setIconSize(QSize(17,17))
     return b
 
-class Surface(QWidget):
+class Surface(WindowMotion, QWidget):
     def __init__(self,title,subtitle='',width=760,height=530,parent=None):
         super().__init__(parent,Qt.Window|Qt.FramelessWindowHint)
-        self.setAttribute(Qt.WA_TranslucentBackground);self.setWindowTitle(title);self.setStyleSheet(PANEL_STYLE);self.resize(width,height)
-        self.outer=QVBoxLayout(self);self.outer.setContentsMargins(22,20,22,16);self.outer.setSpacing(18)
-        header=QHBoxLayout();titles=QVBoxLayout();titles.setSpacing(4);titles.addWidget(text_label(title,'title'))
+        self.setAttribute(Qt.WA_TranslucentBackground);self.setWindowTitle(title);apply_style(self,PANEL_STYLE);self.resize(width,height)
+        self.outer=QVBoxLayout(self);self.outer.setContentsMargins(26,24,26,20);self.outer.setSpacing(20)
+        header=QHBoxLayout();titles=QVBoxLayout();titles.setSpacing(5);titles.addWidget(text_label('Ó R B I T A', 'eyebrow'));titles.addWidget(text_label(title,'title'))
         if subtitle:titles.addWidget(text_label(subtitle,'subtitle'))
-        header.addLayout(titles,1);close=button('',self.close,symbol='x');close.setFixedSize(30,30);header.addWidget(close,0,Qt.AlignTop);self.outer.addLayout(header)
+        header.addLayout(titles,1);close=button('',self.close,symbol='x');close.setFixedSize(36,36);close.setToolTip('Cerrar · Esc');close.setAccessibleName('Cerrar panel');header.addWidget(close,0,Qt.AlignTop);self.outer.addLayout(header)
         QShortcut(QKeySequence('Escape'),self).activated.connect(self.close)
         self.drag_start=None
-    def paintEvent(self,event):
-        p=QPainter(self);p.setRenderHint(QPainter.Antialiasing);p.setPen(QPen(QColor(139,147,172,65),1));p.setBrush(QColor(22,24,31,242));p.drawRoundedRect(QRectF(.5,.5,self.width()-1,self.height()-1),15,15)
+    def paintEvent(self,event):paint_surface(self)
+    def closeEvent(self,event):event.ignore();self.dismiss()
     def present(self):
+        if getattr(self, '_motion_exiting', False):
+            self.show();self.raise_();self.activateWindow();return
         screen=QApplication.screenAt(QCursor.pos()) or QApplication.primaryScreen();r=screen.availableGeometry()
-        self.move(r.x()+(r.width()-self.width())//2,r.y()+max(24,(r.height()-self.height())//3));self.show();self.raise_();self.activateWindow()
+        self.resize(min(self.width(),r.width()-32),min(self.height(),r.height()-40))
+        if not self.isVisible():self.move(r.x()+(r.width()-self.width())//2,r.y()+max(20,(r.height()-self.height())//3))
+        self.show();self.raise_();self.activateWindow()
     def mousePressEvent(self,e):
         if e.button()==Qt.LeftButton and e.position().y()<75:self.drag_start=e.globalPosition().toPoint()-self.pos()
     def mouseMoveEvent(self,e):
         if self.drag_start is not None and e.buttons()&Qt.LeftButton:self.move(e.globalPosition().toPoint()-self.drag_start)
     def mouseReleaseEvent(self,e):self.drag_start=None
+
+
+class ElidedLabel(QLabel):
+    """Single-line native label that keeps its complete text accessible."""
+    def __init__(self,text='',parent=None):
+        super().__init__('',parent);self._full='';self.setMinimumWidth(0);self.setSizePolicy(QSizePolicy.Ignored,QSizePolicy.Preferred);self.setText(text)
+    def setText(self,text):
+        self._full=str(text);self.setToolTip(self._full);self.setAccessibleName(self._full);self._elide()
+    def _elide(self):QLabel.setText(self,self.fontMetrics().elidedText(self._full,Qt.ElideRight,max(0,self.width())))
+    def resizeEvent(self,event):super().resizeEvent(event);self._elide()

@@ -3,6 +3,21 @@ import os, socket, subprocess, sys
 from pathlib import Path
 endpoint=str(Path(os.environ.get('XDG_RUNTIME_DIR','/tmp'))/f'orbit-{os.getuid()}.sock')
 mode=sys.argv[1] if len(sys.argv)>1 else 'toggle'
+if mode in ('files', 'file-manager'):
+    state=Path.home()/'.local/state';state.mkdir(parents=True,exist_ok=True)
+    with (state/'orbit-files.log').open('a') as log:
+        subprocess.Popen(['/usr/bin/python3', str(Path(__file__).resolve().with_name('files_app.py'))] + sys.argv[2:], stdout=log, stderr=log, start_new_session=True)
+    sys.exit(0)
+if mode in ('music','music-mini'):
+    music_endpoint=str(Path(os.environ.get('XDG_RUNTIME_DIR',str(Path.home()/'.cache/orbit')))/f'orbit-music-app-{os.getuid()}.sock')
+    try:
+        with socket.socket(socket.AF_UNIX) as s:
+            s.settimeout(.3);s.connect(music_endpoint);s.sendall((('mini' if mode=='music-mini' else 'present')+'\n').encode())
+    except OSError:
+        state=Path.home()/'.local/state';state.mkdir(parents=True,exist_ok=True)
+        with (state/'orbit-music.log').open('a') as log:
+            subprocess.Popen(['/usr/bin/python3',str(Path(__file__).resolve().with_name('music_app.py'))]+(['--mini'] if mode=='music-mini' else []),stdout=log,stderr=log,start_new_session=True)
+    sys.exit(0)
 if mode=='settings' or mode.startswith('settings-'):
     page=mode.removeprefix('settings-') if mode.startswith('settings-') else (sys.argv[2] if len(sys.argv)>2 else 'home')
     settings_endpoint=str(Path(os.environ.get('XDG_RUNTIME_DIR',str(Path.home()/'.cache/orbit')))/f'orbit-settings-{os.getuid()}.sock')

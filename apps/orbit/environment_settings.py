@@ -1,4 +1,6 @@
 """Local desktop settings, display trials and lossless component configuration."""
+from theme_tokens import ThemeColor, apply_style
+
 import configparser
 import contextlib
 import copy
@@ -17,7 +19,7 @@ from settings_data import atomic_write, backup_file
 
 ROOT = Path(__file__).resolve().parent
 ROTATIONS = ('normal','left','right','inverted')
-BAR_MODULES = {'orbit':'Órbita','title':'Ventana activa','bspwm':'Escritorios','resources':'CPU y memoria','network':'Red','volume':'Volumen','battery':'Batería','date':'Fecha y hora','notifications':'Notificaciones','power':'Sesión','tray':'Bandeja'}
+BAR_MODULES = {'orbit':'Wysun','title':'Ventana activa','bspwm':'Escritorios','resources':'CPU y memoria','network':'Red','volume':'Volumen','battery':'Batería','date':'Fecha y hora','notifications':'Notificaciones','power':'Sesión','tray':'Bandeja'}
 
 def run(args):
     result = subprocess.run([str(a) for a in args],capture_output=True,text=True,timeout=12)
@@ -347,7 +349,7 @@ class EnvironmentSettings:
             def special_surface(match):
                 block=match[0]
                 condition=re.search(r'match\s*=\s*"([^"]+)"',block)
-                if not condition or 'fullscreen' in condition[1]:return block
+                if not condition or 'fullscreen' in condition[1] or 'Chatgpt' in condition[1] or 'Brave-browser' in condition[1]:return block
                 # Explicit appearance rules otherwise override the global toggle.
                 if 'blur-background' in block:block=re.sub(r'blur-background\s*=\s*(true|false)', 'blur-background = '+clean['blur-background'],block)
                 if 'dock' not in condition[1] and 'desktop' not in condition[1] and 'Polybar' not in condition[1]:
@@ -453,7 +455,7 @@ def render_wallpaper(values, outputs, home=None, runner=run):
     if not active:raise ValueError('No se encontraron pantallas activas.')
     width=max(o['x']+o['width'] for o in active);height=max(o['y']+o['height'] for o in active)
     if width*height>100_000_000:raise ValueError('La superficie combinada es demasiado grande.')
-    canvas=QImage(width,height,QImage.Format_RGB32);canvas.fill(QColor('#111218'))
+    canvas=QImage(width,height,QImage.Format_RGB32);canvas.fill(ThemeColor('#111218'))
     painter=QPainter(canvas);painter.setRenderHint(QPainter.SmoothPixmapTransform)
     try:
         for output in active:

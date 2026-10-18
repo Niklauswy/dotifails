@@ -1,0 +1,25 @@
+#!/usr/bin/env python3
+"""Public Wysun entry point; retain the existing storage and IPC identities."""
+import os
+from pathlib import Path
+import sys
+
+
+def main():
+    args = sys.argv[1:]
+    if args and args[0] in ('--help', '-h', 'help'):
+        print('Wysun · aplicaciones del escritorio\n'
+              'Uso: wysun [recorder|screenshot|music|music-mini|files|settings|tools|notes|processes|color|network|power] [opciones]\n'
+              'Sin argumentos abre el lanzador. Recorder y Screenshot abren su biblioteca;\n'
+              'wysun recorder --quick-record abre la barra de preparación sin grabar.')
+        return 0
+    command = args.pop(0) if args else 'toggle'
+    commands = {'recorder': 'wysun-recorder', 'screenshot': 'wysun-screenshot',
+                'files': 'orbit-files', 'tools-cli': 'orbit-tools'}
+    executable = Path(__file__).resolve().parent / commands.get(command, 'orbit')
+    forwarded = args if command in commands else [command, *args]
+    os.execv(str(executable), [str(executable), *forwarded])
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())

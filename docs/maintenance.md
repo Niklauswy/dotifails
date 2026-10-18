@@ -1,6 +1,8 @@
 # Mantenimiento
 
-`home/` contiene únicamente configuración portable. `apps/orbit/` es una copia del código de la aplicación, no del estado del usuario. `assets/` guarda fuentes e iconos; `backgrounds/` contiene exclusivamente los fondos azul y morado conservados. `manifests/themes.json` define sus perfiles visuales y verifica el paquete local de recursos del azul.
+`home/` contiene únicamente configuración portable. `apps/orbit/` es la fuente de la aplicación, separada del estado del usuario. `assets/` guarda fuentes e iconos; `backgrounds/` contiene los fondos de Severance, Tokyo y Space Black. `manifests/themes.json` define sus perfiles visuales y verifica el paquete local de recursos de Severance.
+
+`installer/` concentra la interfaz nativa y el motor de instalación. La selección, las dependencias y el plan se comparten entre interfaz y CLI; `manifests/packages.json` agrupa los paquetes por componente sin duplicar una lista monolítica de instalación completa. Consulta la [organización y el funcionamiento del instalador](installer.md). Usa `./instalar.sh --installer-only` para desplegar únicamente esta parte con respaldo.
 
 `installer/main.py` usa Python estándar. Valida la distribución, instala paquetes con APT, verifica los SHA-256 antes de extraer artefactos y despliega cada entrada con un diario escrito antes del cambio. No sigue enlaces en directorios padre del destino. Se serializa mediante `flock`. Las configuraciones nuevas no pisan ediciones locales registradas desde la instalación anterior.
 
@@ -8,7 +10,7 @@
 
 Los servicios de escritorio registran PID e inicio del proceso y se separan por display X. El arranque no termina todos los procesos Polybar del usuario. El historial usa almacenamiento local separado de la aplicación instalada.
 
-## Cambiar Órbita y usar la misma versión en tu escritorio
+## Cambiar Wysun y usar la misma versión en tu escritorio
 
 La fuente de los menús es `apps/orbit/` en este repositorio. Notas vive en `notes_window.py`, Color en `color_window.py` y el almacenamiento local en `utility_data.py`. No editar la antigua copia `~/proyects/orbit-desktop` ni la copia instalada.
 
@@ -18,7 +20,7 @@ Después de modificar y probar el código, desde la raíz del repositorio:
 ./instalar.sh --orbit-only && ~/.local/bin/orbit reload
 ```
 
-Esto respalda y copia Órbita a `~/.local/share/orbit/app/`, actualiza el lanzador `~/.local/bin/orbit` y el gestor dotifails. No reinstala paquetes ni modifica Neovim, BSPWM, atajos o los datos privados. `reload` conserva las notas pendientes antes de reiniciar la aplicación; si hay un conflicto con una edición externa, muestra la nota y cancela la recarga. En una sesión anterior a esta versión, cerrar sesión una vez permite arrancar el ejecutable nuevo.
+Esto respalda y copia Wysun a `~/.local/share/orbit/app/`, actualiza el lanzador `~/.local/bin/orbit` y el gestor dotifails. No reinstala paquetes ni modifica Neovim, BSPWM, atajos o los datos privados. `reload` conserva las notas pendientes antes de reiniciar la aplicación; si hay un conflicto con una edición externa, muestra la nota y cancela la recarga. En una sesión anterior a esta versión, cerrar sesión una vez permite arrancar el ejecutable nuevo.
 
 Para traer una versión publicada en otro equipo ya configurado:
 
@@ -50,19 +52,21 @@ QT_QPA_PLATFORM=offscreen python3 -m unittest test_orbit test_v2 test_v3 test_v4
 
 `tests/container-install.sh` prepara un usuario de prueba y ejecuta instalación, pruebas, repetición y verificaciones de Neovim en una imagen limpia. Se ejecuta dentro de un contenedor, nunca directamente en el equipo. No valida el arranque de un gestor gráfico, hardware Wi-Fi/Bluetooth ni GPU física; esas pruebas requieren una VM o equipo de prueba.
 
-## Perfiles visuales conservados
+## Perfiles visuales
 
-- `azul`: el fondo original `macos2.jpg`, guardado como `backgrounds/azul.jpg`, GTK ARK-Dark, iconos Flat-Remix-Green-Dark, cursor Breeze, ajustes GTK 4 y el prompt actual de Starship. Sus recursos se conservan con sus licencias en `assets/appearance/azul.tar.xz`; el instalador comprueba SHA-256 y los extrae con el filtro seguro de Python.
-- `morado`: `backgrounds/tokyo.png`, GTK Arc-Darker, iconos Win11-Dark, cursor Fluent y el prompt compacto anterior del repositorio.
-- Ambos comparten el escritorio Órbita, la barra, notificaciones, transparencia, paleta Tokyo de Ghostty, configuración de Neovim y herramientas de terminal. Los iconos de archivos usan Eza; Bat dispone de un tema local `tokyonight_night` y el instalador construye su caché.
+- `severance`: `backgrounds/azul.jpg`, GTK ARK-Dark, iconos Flat-Remix-Green-Dark y cursor Breeze. Los recursos se conservan con sus licencias en `assets/appearance/azul.tar.xz`; el instalador comprueba SHA-256 antes de extraerlos.
+- `tokyo`: `backgrounds/tokyo.png`, GTK Arc-Darker, iconos Win11-Dark y cursor Fluent.
+- `space-black`: `backgrounds/space-black.png`, GTK Arc-Darker, iconos Win11-Dark y cursor Fluent.
+- Los tres coordinan los paneles, bordes, terminal, prompt, Neovim, barra y notificaciones mediante el motor de temas. Eza aporta los iconos de archivos y Bat mantiene su tema local y su caché.
 
-Una instalación nueva selecciona azul. Una instalación administrada anterior sin perfil registrado conserva morado. Para seleccionar explícitamente:
+Una instalación nueva selecciona Severance. Las actualizaciones conservan el tema de Ajustes; una instalación antigua sin perfil registrado conserva Tokyo. `azul` y `morado` siguen siendo alias de compatibilidad. Para seleccionar explícitamente:
 
 ```sh
-./instalar.sh --theme azul
-./instalar.sh --theme morado
+./instalar.sh --theme severance
+./instalar.sh --theme tokyo
+./instalar.sh --theme space-black
 ```
 
-En un equipo con todas las dependencias instaladas, `--config-only --theme azul` permite aplicar solo archivos y recursos. Cierra sesión después para cargar el perfil completo. Las ediciones locales siguen protegidas: si hay conflictos, revisar `incoming/` antes de considerar aplicado todo el perfil. `--orbit-only` conserva el perfil.
+En un equipo con todas las dependencias instaladas, `--config-only --theme severance` permite aplicar solo archivos y recursos. Cierra sesión después para cargar el perfil completo. Las ediciones locales siguen protegidas: si hay conflictos, revisar `incoming/` antes de considerar aplicado todo el perfil. `--orbit-only` conserva el perfil.
 
 La instantánea azul conserva los ajustes visuales útiles, sin rutas del usuario ni cachés. La configuración antigua de Xsettings apuntaba a `Echo`, que no existía en el equipo: se usa el ARK-Dark indicado por GTK. Se omiten módulos GTK ausentes, opciones de ejemplo ignoradas y comandos de PowerShell rotos del prompt; se conservan sus módulos funcionales, símbolos y colores. El tema declarado de Bat no estaba instalado, por lo que se incluye uno local con la paleta de la terminal.

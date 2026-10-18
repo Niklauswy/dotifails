@@ -1,12 +1,31 @@
 # Validación · 25 de septiembre de 2026
 
+## Instalador visual · 12 de octubre de 2026
+
+Se añadió la interfaz nativa sobre el mismo motor de instalación, con componentes independientes y recuperación. Las comprobaciones de esta revisión son:
+
+- Suite general: 106 pruebas correctas. Las pruebas que abren sockets locales se ejecutaron fuera del sandbox tras confirmar que el bloqueo procedía del entorno.
+- Regresiones finales del instalador: 11 pruebas correctas, incluidas selección de paquetes, conservación del escritorio en una instalación de terminal, repetición sin reescrituras, conflictos, restauración, cancelación, actualización exclusiva del instalador y orden cronológico de respaldos.
+- Arranque: 14 pruebas de selección, conservación y recuperación; la selección de pantallas no requiere modificar las otras.
+- Interfaz del instalador: 5 pruebas correctas. Ejecutan procesos reales de instalación de configuraciones y restauración en un hogar temporal; verifican permisos de registros, teclado, errores, cancelación y tamaños 800 × 600 y 1100 × 780.
+- Utilidades existentes: 6 pruebas Qt correctas. Manifiesto, sintaxis de shell y `git diff --check` correctos.
+- Despliegue local mediante `--installer-only`, sin conflictos. Apertura del instalador instalado en X11, ventana visible de 1100 × 780 comprobada con `xwininfo` y captura de su propia superficie revisada. No se inició una instalación completa sobre el escritorio en uso.
+
+Revisión visual: jerarquía, selección, estados deshabilitados, foco, desplazamiento y progreso inspeccionados. Se corrigieron el ancho mínimo de las tarjetas y los textos truncados de navegación. No quedan hallazgos visuales que bloqueen el recorrido inspeccionado.
+
+Alcance pendiente: instalación completa de esta revisión en una máquina nueva, autenticación real de sudo desde el diálogo, suspensión y arranque físico. El flujo de GitHub Actions queda preparado en `.github/workflows/installer.yml`; no se ha ejecutado en GitHub ni se ha publicado esta revisión. Las pruebas de contenedores descritas más abajo corresponden a revisiones anteriores.
+
+Limpieza de esta tarea: cinco carpetas de caché de Python, 95 archivos (2.03 MiB); despliegue común del instalador centralizado y manifiesto de paquetes consolidado. Se conservaron fuentes, licencias, recursos de los tres temas y cambios de trabajo existentes.
+
+---
+
 Pruebas realizadas sobre la versión portable, sin reemplazar la sesión del equipo de origen.
 
 | Comprobación | Resultado |
 | --- | --- |
 | Instalador y datos de utilidades: 10 pruebas | Correcto |
 | Interfaz de notas, colores y procesos: 3 pruebas Qt | Correcto |
-| Órbita: 71 pruebas de cálculo, portapapeles, OCR real, medios, conexiones, ajustes y barra | Correcto en Debian y Parrot |
+| Wysun: 71 pruebas de cálculo, portapapeles, OCR real, medios, conexiones, ajustes y barra | Correcto en Debian y Parrot |
 | Manifiesto original: un único fondo, versiones coherentes, atajos sin colisiones, sin rutas personales ni enlaces rotos | Correcto |
 | Gitleaks sobre el árbol distribuido, salida redactada | Sin secretos detectados |
 | Instalación completa y repetición en Debian 13 x86_64 | Correcto |
@@ -45,7 +64,7 @@ Mise 2026.9.14 instalado en el usuario tras verificar el SHA-256 del archivo ofi
 
 ## Teclado del menú de sesión · 26 de septiembre de 2026
 
-Se reprodujo que Enter no activaba los botones de Sesión antes de la corrección. `tests/power_ui.py`: 3 pruebas Qt correctas (Enter normal/numérico para las cinco acciones, foco y flechas, cancelación simulada y supresión de repetición automática). Dos pruebas de integración de `test_v3.UITests` verifican confirmación/cancelación y despacho del comando con ejecución sustituida por un mock. Las 18 pruebas del instalador/datos y el manifiesto siguen correctos. Tras desplegar y recargar Órbita, Super + X → flecha derecha → Enter abrió «Suspender» en la sesión X11 real; Esc canceló y devolvió al menú. No se ejecutaron suspensión, apagado ni cierre de sesión durante la verificación.
+Se reprodujo que Enter no activaba los botones de Sesión antes de la corrección. `tests/power_ui.py`: 3 pruebas Qt correctas (Enter normal/numérico para las cinco acciones, foco y flechas, cancelación simulada y supresión de repetición automática). Dos pruebas de integración de `test_v3.UITests` verifican confirmación/cancelación y despacho del comando con ejecución sustituida por un mock. Las 18 pruebas del instalador/datos y el manifiesto siguen correctos. Tras desplegar y recargar Wysun, Super + X → flecha derecha → Enter abrió «Suspender» en la sesión X11 real; Esc canceló y devolvió al menú. No se ejecutaron suspensión, apagado ni cierre de sesión durante la verificación.
 
 El panel incorpora hora local, fecha en español y tiempo desde el arranque obtenido con `CLOCK_BOOTTIME` (incluye suspensión). Mantiene cinco acciones en 460 × 370 px, con fondos sutiles y foco visible. Cinco pruebas de `tests/power_ui.py` y las dos de integración anteriores pasan, incluida la representación del tiempo en días/horas/minutos y la detención del temporizador al ocultar el panel. Manifiesto correcto. Instalación `--orbit-only` sin conflictos, recarga y captura del menú real revisada en X11; apertura y cancelación de «Suspender» con el teclado verificadas de nuevo sin suspender el equipo.
 

@@ -1,6 +1,18 @@
-# Órbita Desktop · dotifails
+# Wysun Desktop · dotifails
 
-El escritorio BSPWM actual, preparado para instalarse en **Parrot 7 o Debian 13, x86_64**: Órbita, Picom, Polybar, Ghostty, Neovim y Zsh. Mantiene los atajos, transparencias y animaciones rápidas. Conserva dos perfiles completos: **azul actual** (`backgrounds/azul.jpg`) y **morado original** (`backgrounds/tokyo.png`).
+El escritorio BSPWM actual, preparado para instalarse en **Parrot 7 o Debian 13, x86_64**: Wysun, Picom, Polybar, Ghostty, Neovim y Zsh. Mantiene los atajos, transparencias y animaciones rápidas. Incluye tres perfiles: **Severance**, **Tokyo** y **Space Black**.
+
+## Familia Wysun
+
+Wysun es el nuevo nombre de Órbita. El lanzador, Music, Files, Recorder y Screenshot se desarrollan y distribuyen desde este repositorio. Recorder y Screenshot están en `apps/capture/`; el lanzador y los paneles siguen en `apps/orbit/`.
+
+- `wysun`: lanzador y búsqueda.
+- `wysun music`, `wysun files`, `wysun settings`: aplicaciones y ajustes.
+- `wysun recorder`: biblioteca y editor de vídeo; `wysun recorder --quick-record`: preparar una grabación.
+- `wysun screenshot`: captura y editor; `wysun screenshot --library`: biblioteca.
+- `./instalar.sh --wysun-only`: actualizar la familia completa. `--orbit-only` sigue siendo compatible.
+
+Las rutas privadas, los proyectos y los comandos antiguos se conservan. La actualización no migra datos ni sustituye las grabaciones activas. [Integración, nombres y compatibilidad](docs/wysun.md).
 
 ## Instalar
 
@@ -10,15 +22,24 @@ Desde una cuenta normal con acceso a `sudo`, conexión a Internet y varios GB li
 sudo apt-get update && sudo apt-get install --yes git python3 ca-certificates && git clone --depth 1 https://github.com/Niklauswy/dotifails.git && cd dotifails && ./instalar.sh
 ```
 
-Si ya tienes esta carpeta, basta con `./instalar.sh`. Una instalación nueva utiliza el perfil azul; para el morado usa `./instalar.sh --theme morado`. Las actualizaciones conservan el perfil elegido. No lo ejecutes con `sudo`: el instalador lo solicita únicamente para paquetes y registro de sesión. Al terminar, cierra sesión y elige **Órbita / BSPWM** en el gestor de acceso. No cierra tu sesión ni reinicia el equipo.
+Si ya tienes esta carpeta, ejecuta `./instalar.sh`. Desde una sesión gráfica abre el **instalador visual**: bienvenida, vista previa del tema, componentes, aplicaciones opcionales, revisión, progreso real y primeros pasos. Si falta Qt, ofrece preparar únicamente la interfaz desde la terminal. La instalación del escritorio empieza después de revisar el plan.
+
+Puedes seleccionar escritorio, terminal, Neovim, herramientas y Blue CRT; el escritorio y Neovim incluyen la terminal que necesitan. Desmarcar algo conserva su instalación actual. GRUB, carga y acceso también se eligen por separado. El instalador conserva los cambios personales, muestra conflictos, guarda el registro y permite recuperar respaldos del hogar o del arranque. [Guía del instalador visual](docs/installer.md).
+
+Una instalación nueva utiliza Severance y las actualizaciones conservan el tema elegido. No lo ejecutes con `sudo`: la interfaz pide autorización cuando corresponde. Al terminar, cierra sesión cuando quieras y elige **Wysun / BSPWM** en el gestor de acceso. El instalador mantiene abierta tu sesión.
 
 El instalador se valida en contenedores Debian y Parrot con una sesión X11 aislada. Consulta el alcance exacto en [Validación](docs/validation.md).
 
 ```sh
+./instalar.sh --gui
+./instalar.sh --cli
 ./instalar.sh --dry-run
+./instalar.sh --components terminal,editor --plan
 ./instalar.sh --extras brave,discord,obsidian
 ./instalar.sh --profile samsung-touchscreen
 ```
+
+Los argumentos de instalación mantienen el modo terminal, así como las ejecuciones sin sesión gráfica. `--cli` lo fuerza explícitamente y `--plan` muestra paquetes, versiones y comando sin aplicar cambios.
 
 El perfil Samsung es opcional y específico del equipo con pantalla táctil defectuosa. No se aplica a otras instalaciones. Las aplicaciones opcionales se instalan desde Flathub para el usuario; también puedes instalar solo una, por ejemplo `--extras obsidian`.
 
@@ -26,14 +47,14 @@ El perfil Samsung es opcional y específico del equipo con pantalla táctil defe
 
 - BSPWM y SXHKD, monitores detectados, diez escritorios distribuidos, sesiones con D-Bus y agente Polkit. Al desconectar pantallas se recuperan los escritorios completos en las disponibles; recargar no reinicia sus árboles de ventanas. Los duplicados vacíos heredados se limpian y los ocupados se distinguen como «recuperado».
 - Picom 12, transparencias y animaciones; Polybar flotante, módulos de recursos, conexiones, audio, calendario y notificaciones. La barra se oculta en el monitor que muestra una ventana a pantalla completa.
-- Órbita nativa en Qt: aplicaciones, ventanas, portapapeles, OCR local en español/inglés, archivos con vistas previas, reproductor multimedia, snippets, calculadora y emojis a color.
+- Wysun nativa en Qt: aplicaciones, ventanas, portapapeles, OCR local en español/inglés, archivos con vistas previas, reproductor multimedia, snippets, calculadora y emojis a color.
 - Conexiones Wi-Fi, Bluetooth, VPN y SSH; menú de sesión; ajustes visuales de BSPWM, pantallas, barra y atajos.
 - Notas Markdown, procesos y selector de color con lupa. No requiere Rofi.
 - Ghostty **1.2.3**, Neovim **0.11.5**, Node **24.19.0**, Starship **1.24.1**; versiones y SHA-256 en `manifests/artifacts.json`. Ghostty se extrae una vez, sin depender de FUSE al abrir terminales.
 - NvChad con plugins fijados por `lazy-lock.json`, LSP, formato, búsqueda difusa, tareas, depuración y herramientas de JS/TS, C/C++ y Python. Las versiones de Mason están en `manifests/mason.json`.
 - Zsh, autocompletado/sugerencias, resaltado, fzf y prompt Starship. Mise **2026.9.14** cambia versiones por proyecto; Node está disponible directamente y NVM se conserva bajo demanda.
-- Perfil azul: ARK-Dark, Flat-Remix-Green-Dark, cursor Breeze y el prompt actual de Starship. Perfil morado: Arc-Darker, Win11-Dark, cursor Fluent y el prompt compacto.
-- Ambos mantienen la barra, notificaciones, paleta de Ghostty, Neovim, FiraCode Nerd Font, Inter, Noto Color Emoji, `eza`, `bat` y FZF. Los dos fondos quedan en la biblioteca de Órbita.
+- Severance: ARK-Dark, Flat-Remix-Green-Dark, cursor Breeze y el prompt actual de Starship. Tokyo: Arc-Darker, Win11-Dark, cursor Fluent y el prompt compacto.
+- Ambos mantienen la barra, notificaciones, paleta de Ghostty, Neovim, FiraCode Nerd Font, Inter, Noto Color Emoji, `eza`, `bat` y FZF. Los dos fondos quedan en la biblioteca de Wysun.
 
 Los paquetes APT y las aplicaciones Flatpak reciben las versiones que publica cada distribución. Los binarios externos y plugins tienen versiones fijadas; los paquetes del sistema no forman una imagen inmutable.
 
@@ -42,7 +63,7 @@ Los paquetes APT y las aplicaciones Flatpak reciben las versiones que publica ca
 | Teclas | Acción |
 | --- | --- |
 | Super + Enter | Terminal |
-| Super + Espacio / D | Órbita |
+| Super + Espacio / D | Wysun |
 | Super + V | Portapapeles |
 | Super + Alt + F | Archivos |
 | Super + C / L | Calculadora / emoji |
@@ -60,6 +81,7 @@ Ver todos en [sxhkdrc](home/.config/sxhkd/sxhkdrc). Los paneles tienen navegaci�
 ## Actualizar y recuperar
 
 ```sh
+dotifails gui
 dotifails doctor
 dotifails update
 dotifails update --source /ruta/dotifails
@@ -68,11 +90,13 @@ dotifails restore
 dotifails restore ID_DEL_RESPALDO
 ```
 
+Para actualizar únicamente el instalador y su entrada en el menú de aplicaciones: `./instalar.sh --installer-only`. No reinstala Wysun, paquetes ni configuraciones del escritorio.
+
 Las configuraciones se instalan como **copias** editables. Antes de reemplazarlas se guardan en `~/.local/state/dotifails/backups/ID/before/`, junto con un diario de operaciones. Si has editado un archivo administrado, una actualización lo conserva y deja la propuesta en `incoming/`; devuelve código 2 para indicar conflictos. Los cambios locales incluyen archivos borrados deliberadamente.
 
 Para desarrollar los menús, editar `apps/orbit/` en este repositorio y ejecutar `./instalar.sh --orbit-only && orbit reload`. Así el escritorio usa el mismo código que recibirá una instalación nueva. Notas y Color son ventanas nativas independientes; sus datos privados se conservan aparte. [Flujo de desarrollo y actualización](docs/maintenance.md#cambiar-órbita-y-usar-la-misma-versión-en-tu-escritorio).
 
-`restore` recupera el estado anterior y conserva ediciones posteriores en `changes-before-restore/`. Se deben restaurar los respaldos de más reciente a más antiguo. No desinstala paquetes APT/Flatpak ni borra datos personales de Órbita. Una instalación fallida muestra el ID recuperable y puede repetirse después de corregir la causa.
+`restore` recupera el estado anterior y conserva ediciones posteriores en `changes-before-restore/`. Se deben restaurar los respaldos de más reciente a más antiguo. No desinstala paquetes APT/Flatpak ni borra datos personales de Wysun. Una instalación fallida muestra el ID recuperable y puede repetirse después de corregir la causa.
 
 La configuración del escritorio y las fuentes viven en `~/.config` y `~/.local/share`; los comandos en `~/.local/bin`. Las herramientas conservan directorios por versión para permitir restaurar los enlaces activos. [Arquitectura y pruebas](docs/maintenance.md).
 
@@ -90,4 +114,14 @@ No incluye historial del portapapeles, notas, conexiones Wi-Fi, claves SSH, toke
 
 Esta versión está orientada a Linux X11 y rutas XDG predeterminadas del usuario. No migra a Wayland ni convierte otras distribuciones automáticamente. El soporte de Wi-Fi, Bluetooth, aceleración gráfica y pantallas depende de los controladores del equipo.
 
-[Manual de Órbita](apps/orbit/README.md) · [Neovim](home/.config/nvim/README.md) · [Créditos](docs/credits.md) · [Validación](docs/validation.md)
+[Manual de Wysun](apps/orbit/README.md) · [Neovim](home/.config/nvim/README.md) · [Créditos](docs/credits.md) · [Validación](docs/validation.md)
+
+En Ajustes → Tema puedes cambiar entre Tokyo, Severance y Space Black sin reinstalar el escritorio. El cambio incluye Wysun, terminal, prompt, Neovim, barra, bordes, notificaciones y animaciones del bloqueo; las configuraciones anteriores se respaldan.
+
+### Herramientas personales
+
+Un solo comando: `orbit-tools`, con grupos `dev`, `audit`, `share`, `cloud`, `vpn` y `resets`. Abre el panel gráfico con `orbit tools` o `orbit-tools gui`. `~/scripts` contiene únicamente el lanzador y su guía; el motor compartido vive en `apps/tools`. Actualiza la CLI con `./instalar.sh --scripts-only` y el panel con `./instalar.sh --orbit-only`. La migración respalda y reorganiza los datos privados. [Guía de uso y recuperación](docs/tools.md).
+
+### Arranque y acceso
+
+La selección completa incluye Blue CRT: GRUB azul clásico, carga animada e inicio de LightDM con Tux y biseles retro. Se actualizan por separado con `./instalar.sh --boot-only`; `--boot-components grub,plymouth` limita las pantallas. El instalador visual permite elegirlas y recuperar sus respaldos. [Instalación, compatibilidad y recuperación](docs/boot.md).

@@ -1,5 +1,5 @@
 # ╔══════════════════════════════════════════════════════════════════════════╗
-# ║  SXHKD CONFIG - Órbita Desktop                          ║
+# ║  SXHKD CONFIG - Wysun Desktop                          ║
 # ╚══════════════════════════════════════════════════════════════════════════╝
 
 #
@@ -10,7 +10,7 @@
 super + Return
     ~/.local/bin/desktop-terminal
 
-# ─── ÓRBITA ─────────────────────────────────────────────────────
+# ─── WYSUN ─────────────────────────────────────────────────────
 
 # App Launcher (main)
 super + d
@@ -30,13 +30,13 @@ alt + Tab
 
 # Screenshot (Flameshot)
 super + shift + s
-	flameshot gui -s -p ~/Screenshots -c
+    "$HOME/.local/bin/wysun" screenshot --region --delay 0 --accept-on-select --clipboard --path "$HOME/Screenshots"
 
 super + shift + q
-	flameshot gui -s -p ~/Screenshots -c
+    "$HOME/.local/bin/wysun" screenshot --region --delay 0 --accept-on-select --clipboard --path "$HOME/Screenshots"
 
 super + shift + a
-    flameshot gui
+    "$HOME/.local/bin/wysun" screenshot --region --delay 0
 
 # Clipboard History
 
@@ -238,16 +238,28 @@ super + shift + d
 
 # Flameshot (direct screenshot - area)
 Print
-    flameshot gui
+    "$HOME/.local/bin/wysun" screenshot --region --delay 0
 
 
-# Órbita: archivos y fragmentos
+# Wysun: archivos y fragmentos
 super + alt + f
     ~/.local/bin/orbit files
 
 super + alt + s
     ~/.local/bin/orbit snippets
 
-# Órbita Ajustes · BSPWM y atajos
+# Wysun Ajustes · BSPWM y atajos
 super + alt + comma
     ~/.local/bin/orbit settings
+
+# Wysun Herramientas · proyectos, diagnósticos y archivos
+super + shift + o
+    ~/.local/bin/orbit tools
+
+# Wysun Music · reproductor rápido
+super + shift + m
+    ~/.local/bin/orbit music-mini
+
+# Wysun Recorder · preparar captura sin iniciar la grabación
+super + shift + l
+    "$HOME/.local/bin/wysun" recorder --quick-record

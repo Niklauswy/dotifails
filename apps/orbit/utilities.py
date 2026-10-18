@@ -1,4 +1,4 @@
-"""Three focused native desktop tools sharing Órbita's visual language."""
+"""Three focused native desktop tools sharing Wysun's visual language."""
 import os
 from pathlib import Path
 from PySide6.QtCore import Qt,QTimer,QRect,QPoint,Signal,QThread

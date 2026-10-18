@@ -11,7 +11,7 @@ from icons import icon
 
 class OrbitV3(OrbitV2):
     def __init__(self,store=None,test=False):
-        self.utilities={};super().__init__(store,test);self.setWindowTitle('Órbita');self.action_button.setText('Acciones  Alt K');self.back.setIcon(icon('search'));self.back.setToolTip('Inicio');self.private.setContextMenuPolicy(Qt.CustomContextMenu);self.private.customContextMenuRequested.connect(self.history_menu)
+        self.utilities={};self.clipboard_ui=None;self._launcher_results=None;super().__init__(store,test);self._launcher_results=self.results;self.setWindowTitle('Wysun');self.action_button.setText('Acciones  Alt K');self.back.setIcon(icon('search'));self.back.setToolTip('Inicio');self.private.setContextMenuPolicy(Qt.CustomContextMenu);self.private.customContextMenuRequested.connect(self.history_menu)
         QShortcut(QKeySequence('Alt+K'),self).activated.connect(self.actions);QShortcut(QKeySequence('Ctrl+E'),self).activated.connect(self.edit_in_vim)
         for b in self.tabs.values():b.setIconSize(QSize(16,16))
         self.emoji_tab.setIconSize(QSize(16,16));self.file_icons=QFileIconProvider()
@@ -19,22 +19,30 @@ class OrbitV3(OrbitV2):
         self.files_ui=FilesController(self);QShortcut(QKeySequence('Ctrl+Space'),self).activated.connect(self.files_ui.quicklook)
     def make_commands(self):
         rows=super().make_commands();rows=[r for r in rows if r.get('key')!='settings']
+        rows.append(dict(kind='command',title='Wysun Files',subtitle='Carpetas, pestañas y gestión de archivos',icon='files',key='file-manager',cmd=[str(Path(__file__).with_name('orbit-client')),'file-manager'],tag='Super + Alt + F'))
         for r in rows:
-            if r.get('key')=='network':r.update(title='Centro de conexiones',subtitle='Wi-Fi, Bluetooth, VPN y SSH',tag='Super + N')
-        rows.append(dict(kind='mode',mode='settings',title='Ajustes del escritorio',subtitle='Pantallas, fondos, barra, ventanas y todos tus atajos',icon='settings',key='settings',tag='Super + Alt + ,'))
+            if r.get('key')=='network':r.update(title='Wysun Connections',subtitle='Wi-Fi, Bluetooth, VPN y SSH',tag='Super + N')
+        rows.append(dict(kind='command',title='Wysun Recorder',subtitle='Grabar y editar videos localmente',icon='video',key='recorder',cmd=[str(Path.home()/'.local/bin/wysun'),'recorder'],tag='Super + Shift + L'))
+        rows.append(dict(kind='mode',mode='settings',title='Wysun Settings',subtitle='Pantallas, temas y atajos',icon='settings',key='settings',tag='Super + Alt + ,'))
         rows.append(dict(kind='command',title='Opciones del historial',subtitle='Pausar, limpiar y administrar el portapapeles',icon='clipboard',key='history-settings',cmd=[],tag='Ajustes'))
         rows=[r for r in rows if r.get('key') not in ('quicknote','color','processes')]
-        for mode,title,subtitle,symbol in [('notes','Notas','Markdown, favoritos y edición en Vim','file-text'),('processes','Procesos','Consumo y aplicaciones en ejecución','activity'),('color','Color','Capturar, convertir y guardar colores','palette')]:
-            rows.append(dict(kind='mode',mode=mode,title=title,subtitle=subtitle,icon=symbol,key=mode,tag='Herramienta'))
+        for mode,title,subtitle,symbol in [('music','Wysun Music','Biblioteca local, playlists y descargas','music'),('tools','Wysun Tools','Proyectos, diagnósticos y archivos','terminal'),('notes','Wysun Notes','Markdown, favoritos y edición en Vim','file-text'),('processes','Wysun Processes','CPU, memoria, hilos y presión de recursos','cpu'),('color','Wysun Colors','Capturar, convertir y guardar colores','palette')]:
+            rows.append(dict(kind='mode',mode=mode,title=title,subtitle=subtitle,icon=symbol,key=mode,tag='Super + Shift + O' if mode=='tools' else 'Herramienta'))
         return rows
     def show_utility(self,mode):
         self.hide()
-        if mode=='settings' and not self.test:
-            launch([str(Path(__file__).with_name('orbit-client')),'settings']);return
+        if mode in ('settings','music') and not self.test:
+            launch([str(Path(__file__).with_name('orbit-client')),mode]);return
         if mode not in self.utilities:
             if mode=='settings':
                 from settings_hub import SettingsHub
                 window=SettingsHub(test=self.test)
+            elif mode=='music':
+                from music_app_window import MusicAppWindow
+                window=MusicAppWindow(test=self.test)
+            elif mode=='tools':
+                from tools_window import ToolsWindow
+                window=ToolsWindow(test=self.test)
             elif mode in ('notes','processes','color'):
                 from utilities import NotesWindow,ProcessesWindow,ColorWindow
                 window={'notes':NotesWindow,'processes':ProcessesWindow,'color':ColorWindow}[mode]()
@@ -45,23 +53,38 @@ class OrbitV3(OrbitV2):
                 from connections_window import PowerWindow
                 window=PowerWindow(self)
             self.utilities[mode]=window
-        self.utilities[mode].present()
+        window=self.utilities[mode]
+        if window.isVisible() and not getattr(window,'_motion_exiting',False):window.close();return
+        window.present()
         if mode=='network':self.utilities[mode].load()
     def show_mode(self,mode='home'):
-        if mode in ('network','power','settings','notes','processes','color'):self.show_utility(mode);return
+        if mode in ('network','power','settings','notes','processes','color','tools','music'):self.show_utility(mode);return
         super().show_mode(mode)
+    def show_clipboard(self):self.show_mode('clipboard')
     def set_mode(self,mode):
-        if getattr(self,'v2ready',False) and mode in ('network','power','settings','notes','processes','color'):self.show_utility(mode);return
+        if getattr(self,'v2ready',False) and mode=='clipboard':
+            if self.clipboard_ui is None:
+                from clipboard_launcher import LauncherClipboard
+                self.clipboard_ui=LauncherClipboard(self);self.content_pages.addWidget(self.clipboard_ui);self.utilities['clipboard']=self.clipboard_ui
+            self.results=self.clipboard_ui.cards;self.content_pages.setCurrentWidget(self.clipboard_ui)
+        elif getattr(self,'content_pages',None):
+            if self._launcher_results is not None:self.results=self._launcher_results
+            self.content_pages.setCurrentWidget(self.content_home)
+        if getattr(self,'v2ready',False) and mode in ('network','power','settings','notes','processes','color','tools','music'):self.show_utility(mode);return
         if getattr(self,'files_ui',None):self.files_ui.leave()
         super().set_mode(mode)
         if mode=='files' and getattr(self,'files_ui',None):self.files_ui.enter()
         if hasattr(self,'back'):self.back.setIcon(icon('search' if mode=='home' else 'back'))
+        from ui_motion import reveal_content
+        reveal_content(self.left);reveal_content(self.inspector)
     def activate(self,*args):
+        if self.mode=='clipboard' and self.clipboard_ui:self.clipboard_ui.copy_selected(close=True);return
         r=self.current()
         if r and r.get('key')=='history-settings':self.history_menu();return
         if r and r['kind']=='file' and r.get('file_kind') not in ('image','video','audio') and is_text_file(r['path']):self.edit_in_vim();return
         super().activate(*args)
     def preview(self,*args):
+        if self.mode=='clipboard' and self.clipboard_ui:self.clipboard_ui.update_detail();return
         if getattr(self,'files_ui',None) and self.mode=='files':self.files_ui.preview();return
         super().preview(*args)
         if getattr(self,'files_ui',None):
@@ -69,6 +92,7 @@ class OrbitV3(OrbitV2):
         r=self.current()
         if r and r['kind']=='file' and is_text_file(r['path']):self.go.setText('Editar en Vim  ↵');self.body.setFont(QFont('DejaVu Sans Mono',10))
     def render(self):
+        if getattr(self,'mode','')=='clipboard' and self.clipboard_ui:self.clipboard_ui.refresh();return
         if getattr(self,'files_ui',None) and self.mode=='files':self.files_ui.render();return
         super().render()
         if getattr(self,'mode','')=='files':
@@ -80,6 +104,24 @@ class OrbitV3(OrbitV2):
                     if provider:r['thumbnail']=provider.icon(QFileInfo(r['path'])).pixmap(32,32);item.setData(Qt.UserRole,r)
             r=self.current()
             if r and is_text_file(r['path']):self.go.setText('Editar en Vim  ↵')
+    def current(self):
+        if getattr(self,'mode','')=='clipboard' and self.clipboard_ui:
+            row=self.clipboard_ui.current()
+            return dict(row,kind='clip',clip_kind=row['kind']) if row else None
+        return super().current()
+    def choose_filter(self,value):
+        if self.mode=='clipboard' and self.clipboard_ui:
+            self.clipboard_ui.choose_type({'Todos':'','Fijados':'favorite','Texto':'text','Imágenes':'image','Archivos':'files','Enlaces':'url','Colores':'color'}.get(value,''));return
+        super().choose_filter(value)
+    def paste_selected(self,keep=False):
+        if self.mode=='clipboard' and self.clipboard_ui:self.clipboard_ui.copy_selected(close=not keep,paste=True);return
+        super().paste_selected(keep)
+    def pin_current(self):
+        if self.mode=='clipboard' and self.clipboard_ui:self.clipboard_ui.toggle_favorite();return
+        super().pin_current()
+    def delete_current(self):
+        if self.mode=='clipboard' and self.clipboard_ui:self.clipboard_ui.delete_selected();return
+        super().delete_current()
     def edit_in_vim(self):
         r=self.current()
         if not r:return
@@ -105,10 +147,12 @@ class OrbitV3(OrbitV2):
         if self.mode=='files' and getattr(self,'files_ui',None):self.files_ui.start_preview(path)
         else:super().start_preview(path)
     def filter_menu(self):
+        if self.mode=='clipboard' and self.clipboard_ui:self.clipboard_ui.filter_menu();return
         if self.mode=='files' and getattr(self,'files_ui',None):
             entries=[(c,'',lambda value=c:self.files_ui.choose_filter(value)) for c in ['Todos','Imágenes','Vídeos','Audio','Documentos','Código','Otros']];self.popup=SearchMenu(self,entries,'Filtrar archivos…');self.popup.present(self.filter_button)
         else:super().filter_menu()
     def actions(self):
+        if self.mode=='clipboard' and self.clipboard_ui:self.clipboard_ui.detail_menu();return
         if self.mode=='files' and getattr(self,'files_ui',None) and self.current():self.menu(self.files_ui.actions());return
         if not getattr(self,'v2ready',False):return
         r=self.current();entries=[]

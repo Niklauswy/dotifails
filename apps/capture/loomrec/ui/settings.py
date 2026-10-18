@@ -1,0 +1,41 @@
+"""Real preferences page and readable configured shortcut rows."""
+import os,json
+from pathlib import Path
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QWidget,QVBoxLayout,QHBoxLayout,QFormLayout,QScrollArea,QFileDialog
+from .components import label,surface,SoftButton,ComboBox,CheckBox
+from ..videolibrary import preferences,save_preferences
+from ..schema import atomic_json
+from ..integration import shortcut_settings
+
+def key_rows(layout):
+    names={'record':'Grabar','pause':'Pausar / reanudar','stop':'Terminar','cancel':'Cancelar grabación','rewind':'Rebobinar 10 s','status':'Mostrar controles'}
+    for action,chord in shortcut_settings().items():
+        row=QHBoxLayout();row.addWidget(label(names[action]),1)
+        for key in chord.split('+'):
+            cap=label(key.capitalize());cap.setStyleSheet('background:#E7EEF8;color:#405B7A;border:1px solid #CFDCEB;border-radius:6px;padding:5px 8px;');row.addWidget(cap)
+        layout.addLayout(row)
+
+def build(w):
+    page=QWidget();w.settings_page=page;outer=QVBoxLayout(page);outer.setContentsMargins(28,24,28,24);outer.setSpacing(20)
+    nav=QHBoxLayout();back=SoftButton('Biblioteca','back',quiet=True);back.clicked.connect(w.back_library);nav.addWidget(back);nav.addStretch();record=SoftButton('Nueva grabación','record',primary=True);record.clicked.connect(lambda:w.activate_instance('quick'));nav.addWidget(record);outer.addLayout(nav)
+    outer.addWidget(label('Ajustes','title'));outer.addWidget(label('Tu espacio de trabajo y tus preferencias de grabación.','subtitle'))
+    scroll=QScrollArea();scroll.setWidgetResizable(True);outer.addWidget(scroll,1);host=QWidget();body=QVBoxLayout(host);body.setContentsMargins(8,8,8,16);body.setSpacing(22);scroll.setWidget(host)
+    from .cursor_settings import CursorPanel
+    cursor=surface();cursor_layout=QVBoxLayout(cursor);cursor_layout.setContentsMargins(20,18,20,18);cursor_layout.setSpacing(12);cursor_layout.addWidget(label('Cursor','section'))
+    w.cursor_panel=CursorPanel(w.cursor_options,demo=True);cursor_layout.addWidget(w.cursor_panel);body.addWidget(cursor)
+    folder=surface();fl=QVBoxLayout(folder);fl.setContentsMargins(20,18,20,18);fl.addWidget(label('Videos y archivos','section'));w.folder_label=label(str(getattr(w.library,'videos',w.library.root)),'subtitle');w.folder_label.setWordWrap(True);fl.addWidget(w.folder_label)
+    b=SoftButton('Cambiar carpeta…','folder');b.clicked.connect(w.change_video_folder);fl.addWidget(b,0,Qt.AlignLeft);hint=label('Los videos existentes se conservan en su ubicación. Las ediciones guardan una copia privada del original.','subtitle');hint.setWordWrap(True);fl.addWidget(hint);body.addWidget(folder)
+    panel=surface();form=QFormLayout(panel);form.setContentsMargins(20,18,20,18);form.setSpacing(14);form.addRow(label('Grabación','section'))
+    for title,source in [('Calidad',w.quality),('Fotogramas por segundo',w.fps)]:
+        combo=ComboBox();combo.setModel(source.model());combo.setCurrentIndex(source.currentIndex());combo.currentIndexChanged.connect(source.setCurrentIndex);source.currentIndexChanged.connect(combo.setCurrentIndex);form.addRow(title,combo)
+    from .components import SpinBox
+    count=SpinBox();count.setRange(0,30);count.setValue(w.countdown.value());count.valueChanged.connect(w.countdown.setValue);w.countdown.valueChanged.connect(count.setValue);form.addRow('Cuenta atrás (s)',count)
+    quiet=CheckBox('Pausar notificaciones durante la grabación');quiet.setChecked(w.quiet.isChecked());quiet.toggled.connect(w.quiet.setChecked);w.quiet.toggled.connect(quiet.setChecked);form.addRow(quiet)
+    motion=CheckBox('Reducir animaciones');appearance=Path(os.environ.get('XDG_CONFIG_HOME',str(Path.home()/'.config')))/'loomrec/appearance.json'
+    try:values=json.loads(appearance.read_text())
+    except (OSError,ValueError):values={}
+    motion.setChecked(bool(values.get('reduced_motion')));motion.toggled.connect(lambda value:w.guard(lambda:atomic_json(appearance,{**values,'reduced_motion':value})));motion.toggled.connect(lambda _:w.cursor_panel.demo.sync());form.addRow(motion);body.addWidget(panel)
+    keys=surface();kl=QVBoxLayout(keys);kl.setContentsMargins(20,18,20,18);kl.setSpacing(12);kl.addWidget(label('Atajos de teclado','section'));key_rows(kl)
+    info=label('Barra rápida: Super + Shift + L. Los atajos de grabación se configuran en shortcuts.json; reinicia la aplicación para aplicar cambios.','subtitle');info.setWordWrap(True);kl.addWidget(info)
+    edit=SoftButton('Abrir configuración de atajos','settings');edit.clicked.connect(w.open_shortcuts);kl.addWidget(edit,0,Qt.AlignLeft);body.addWidget(keys);body.addStretch();w.stack.addWidget(page)

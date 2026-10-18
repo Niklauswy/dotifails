@@ -84,7 +84,7 @@ def application_shortcuts(root=None, home=None):
             return label_action(node.func)
         if isinstance(node,ast.Attribute):return action_labels.get(node.attr,node.attr.replace('_',' '))
         return ast.unparse(node)
-    for filename,scope in [('orbit.py','Órbita'),('desktop_v3.py','Órbita'),('enhanced.py','Órbita'),('connections_window.py','Conexiones'),('files_controller.py','Archivos'),('settings_hub.py','Ajustes'),('desktop_common.py','Ajustes')]:
+    for filename,scope in [('orbit.py','Wysun'),('desktop_v3.py','Wysun'),('enhanced.py','Wysun'),('connections_window.py','Conexiones'),('files_controller.py','Archivos'),('settings_hub.py','Ajustes'),('desktop_common.py','Ajustes')]:
         path = root/filename
         if not path.exists():
             continue
