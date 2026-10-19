@@ -106,6 +106,9 @@ class ClipboardLibrary:
     def mime(self,ids,plain_only=False):
         parts=self.snapshot(ids);mime=QMimeData();mime.setText(self.plain(parts))
         if plain_only:return mime
+        if len(parts)==1 and unpack(parts[0].get('meta')).get('mime_envelope') and parts[0].get('blob'):
+            from clipboard_mime import restore
+            return restore(parts[0]['blob'])
         if len(parts)==1 and parts[0]['kind']=='image':mime.setImageData(QImage.fromData(parts[0].get('blob') or b''))
         urls=[];fragments=[]
         for row in parts:

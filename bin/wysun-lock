@@ -1,0 +1,12 @@
+#!/bin/sh
+# swaylock -f returns successfully only after acquiring the session lock.
+set -eu
+if [ "${XDG_SESSION_TYPE:-}" != wayland ] || [ -z "${WAYLAND_DISPLAY:-}" ]; then
+    printf '%s\n' 'Wysun Lock requiere una sesión Wayland.' >&2
+    exit 1
+fi
+case "${1:-}" in
+    '') exec swaylock --daemonize --color 121820 ;;
+    --suspend) swaylock --daemonize --color 121820 && exec systemctl suspend ;;
+    *) printf '%s\n' 'Uso: wysun-lock [--suspend]' >&2; exit 2 ;;
+esac

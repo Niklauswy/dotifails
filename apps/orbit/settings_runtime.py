@@ -31,6 +31,7 @@ def start_applications(backend):
     runtime=Path(os.environ.get('XDG_RUNTIME_DIR',str(backend.home/'.cache')))/'orbit-settings-startup'
     runtime.mkdir(parents=True,exist_ok=True,mode=0o700)
     session=os.environ.get('XDG_SESSION_ID')
+    if not session and __import__('desktop_backend').wayland():session=os.environ.get('HYPRLAND_INSTANCE_SIGNATURE') or os.environ.get('WAYLAND_DISPLAY')
     if not session:
         pid=run(['pgrep','-u',str(os.getuid()),'-x','bspwm']).splitlines()[0]
         session=pid+'-'+Path('/proc',pid,'stat').read_text().split()[21]
@@ -44,6 +45,18 @@ def start_applications(backend):
         atomic_write(marker,'ok')
 
 def restore_workspaces(backend):
+    from desktop_backend import wayland,Desktop
+    if wayland():
+        # The compositor owns hotplug migration; never rebuild occupied trees.
+        # Apply names/output placement only for workspaces that still exist.
+        desktop=Desktop(backend.runner)
+        for row in desktop.workspaces():
+            mapping=backend.section('workspaces')
+            target=next((output for output,names in mapping.items() if row['name'] in names),None)
+            if target and target!=row['monitor']:
+                try:desktop.workspace_action('move',row['id'],target)
+                except Exception as exc:print('Escritorios:',str(exc),file=sys.stderr)
+        return
     from display_workspaces import reconcile
     try:
         reconcile(display_inventory(backend.runner), backend.section('workspaces'), backend.runner)
@@ -69,7 +82,7 @@ def restore(preserve_workspaces=False):
     if backend.section('wallpaper').get('default'):
         try:render_wallpaper(backend.wallpaper_values(),display_inventory())
         except Exception as exc:print('Fondo:',str(exc),file=sys.stderr)
-    if plan or backend.section('bar'):
+    if not __import__('desktop_backend').wayland() and (plan or backend.section('bar')):
         run([str(Path(__file__).with_name('desktop-bar'))])
     start_applications(backend)
 

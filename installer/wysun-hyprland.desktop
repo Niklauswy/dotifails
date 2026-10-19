@@ -1,0 +1,7 @@
+[Desktop Entry]
+Name=Wysun / Hyprland
+Comment=Sesión adicional Wayland con Quickshell
+Exec=/usr/local/bin/wysun-session
+TryExec=/usr/local/bin/wysun-session
+Type=Application
+DesktopNames=Wysun;Hyprland;

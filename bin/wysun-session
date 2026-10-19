@@ -1,0 +1,72 @@
+#!/usr/bin/env python3
+"""Start only from a fresh login; --check is safe inside an existing desktop."""
+import os
+from pathlib import Path
+import re
+import shutil
+import subprocess
+import sys
+
+
+
+def portal_preflight(bus=None):
+    """Read existing owners/interfaces only; never activate or restart a portal."""
+    try:
+        if bus is None:
+            import dbus
+            address = os.environ.get('DBUS_SESSION_BUS_ADDRESS') or ('unix:path=' + os.environ.get('XDG_RUNTIME_DIR', '/run/user/' + str(os.getuid())) + '/bus')
+            if not address.startswith('unix:'):
+                raise RuntimeError('No existing local session bus')
+            bus = dbus.bus.BusConnection(address)
+        owner = bus.get_name_owner('org.freedesktop.portal.Desktop')
+        bus.get_name_owner('org.freedesktop.impl.portal.desktop.hyprland')
+        for interface in ('org.freedesktop.portal.ScreenCast', 'org.freedesktop.portal.Screenshot'):
+            version = bus.call_blocking(str(owner), '/org/freedesktop/portal/desktop',
+                'org.freedesktop.DBus.Properties', 'Get', 'ss', (interface, 'version'), timeout=3)
+            if int(version) < 1:
+                raise RuntimeError('Interfaz de portal no disponible')
+    except Exception:
+        print('Wysun: el portal activo no ofrece captura Wayland. Puede conservar la sesión X11 anterior. '
+              'Revisa el servicio xdg-desktop-portal y su backend Hyprland; '
+              'no se reinició ni activó ningún servicio.', file=sys.stderr)
+        return False
+    return True
+
+
+def main():
+    config = Path(os.environ.get('XDG_CONFIG_HOME', str(Path.home() / '.config'))) / 'wysun/hyprland.lua'
+    if not config.is_file():
+        config = Path.home() / '.config/wysun/hyprland.lua'
+    missing = [name for name in ('Hyprland', 'start-hyprland', 'hyprctl', 'quickshell', 'swaylock', 'swayidle',
+                                 'dbus-update-activation-environment', 'hyprpicker') if not shutil.which(name)]
+    if missing or not config.is_file():
+        print('Wysun: faltan ' + ', '.join(missing + ([] if config.is_file() else [str(config)])), file=sys.stderr)
+        return 1
+    version = subprocess.run(['Hyprland', '--version'], capture_output=True, text=True)
+    if version.returncode or not re.search(r'\b0\.55\.\d+', version.stdout):
+        print('Wysun: esta configuración requiere Hyprland 0.55.x.', file=sys.stderr)
+        return 1
+    shell = subprocess.run(['quickshell', '--version'], capture_output=True, text=True)
+    if shell.returncode or not re.search(r'\b0\.3\.\d+', shell.stdout + shell.stderr):
+        print('Wysun: esta interfaz requiere Quickshell 0.3.x; prueba el nuevo runtime antes de actualizar.', file=sys.stderr)
+        return 1
+    if sys.argv[1:] == ['--check']:
+        if os.environ.get('XDG_SESSION_TYPE') == 'wayland' and not portal_preflight():
+            return 1
+        print('WYSUN_SESSION_PREFLIGHT_OK (sin iniciar compositor ni comprobar hardware)')
+        return 0
+    if sys.argv[1:]:
+        print('Uso: wysun-session [--check]', file=sys.stderr)
+        return 2
+    if os.environ.get('DISPLAY') or os.environ.get('WAYLAND_DISPLAY') or os.environ.get('HYPRLAND_INSTANCE_SIGNATURE'):
+        print('Inicia Wysun desde el selector de sesiones tras cerrar tu sesión voluntariamente.', file=sys.stderr)
+        return 1
+    env = dict(os.environ, XDG_CURRENT_DESKTOP='Wysun:Hyprland', XDG_SESSION_DESKTOP='wysun',
+               XDG_SESSION_TYPE='wayland', GTK_USE_PORTAL='1',
+               PATH=str(Path.home() / '.local/bin') + ':' + os.environ.get('PATH', '/usr/local/bin:/usr/bin:/bin'))
+    # Do not export QT_QPA_PLATFORM globally: each application chooses its backend.
+    os.execvpe('start-hyprland', ['start-hyprland', '--', '--config', str(config)], env)
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())

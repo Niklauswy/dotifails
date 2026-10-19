@@ -11,17 +11,19 @@ import shutil
 
 COMPONENTS = {
     'desktop': ('Escritorio Wysun', 'Ventanas, barra, buscador, conexiones y paneles nativos.'),
+    'wayland': ('Wysun / Hyprland (adicional)', 'Sesión Wayland con Quickshell; conserva BSPWM y sus atajos.'),
     'terminal': ('Terminal y shell', 'Ghostty, Zsh, Starship y versiones por proyecto con mise.'),
     'editor': ('Neovim', 'Editor, lenguajes, autocompletado y depuración.'),
     'tools': ('Herramientas personales', 'Utilidades de desarrollo, red y transferencia de archivos.'),
     'boot': ('Arranque Blue CRT', 'GRUB, animaciones de carga y acceso con Tux.'),
 }
+DEFAULT_COMPONENTS = tuple(key for key in COMPONENTS if key != 'wayland')
 BOOT_COMPONENTS = {'grub': 'Menú GRUB', 'plymouth': 'Carga, apagado y reinicio', 'greeter': 'Inicio de sesión'}
 ARTIFACTS = {
     'desktop': {'yt-dlp'},
     'terminal': {'ghostty', 'starship', 'ohmyzsh', 'zsh-autosuggestions', 'zsh-syntax-highlighting', 'mise', 'nvm', 'node'},
     'editor': {'nvim', 'node'},
-    'tools': set(), 'boot': set(),
+    'tools': set(), 'boot': set(), 'wayland': set(),
 }
 THEMES = ('severance', 'tokyo', 'space-black')
 
@@ -34,7 +36,7 @@ def load_json(path, default=None):
 
 
 def normalize_components(values=None):
-    selected = set(COMPONENTS if values is None else values)
+    selected = set(DEFAULT_COMPONENTS if values is None else values)
     unknown = selected - COMPONENTS.keys()
     if unknown:
         raise ValueError('Componentes desconocidos: ' + ', '.join(sorted(unknown)))
@@ -59,6 +61,9 @@ def package_names(source, components, extras=(), boot_components=None):
         names.append('lightdm')
     if extras:
         names.append('flatpak')
+    if 'wayland' in components:
+        from wayland import package_specs
+        names.extend(package_specs(source, read_os_release()))
     return list(dict.fromkeys(names))
 
 
@@ -66,7 +71,7 @@ def package_names(source, components, extras=(), boot_components=None):
 class InstallOptions:
     source: Path
     home: Path = field(default_factory=Path.home)
-    components: tuple = field(default_factory=lambda: tuple(COMPONENTS))
+    components: tuple = field(default_factory=lambda: DEFAULT_COMPONENTS)
     theme: str | None = None
     extras: tuple = ()
     boot_components: tuple = field(default_factory=lambda: tuple(BOOT_COMPONENTS))
@@ -126,6 +131,8 @@ class InstallOptions:
             'packages': [] if self.config_only else package_names(self.source, self.components, self.extras, self.boot_components),
             'artifacts': {} if self.config_only else {k: v['version'] for k, v in artifacts.items() if k in included},
             'command': self.argv(),
+            'apt_backports_suite': (__import__('wayland').RELEASES.get(read_os_release().get('ID'))
+                                   if 'wayland' in self.components and not self.config_only else None),
         }
 
 
@@ -159,9 +166,19 @@ def preflight(options):
         required += ['apps/orbit/orbit.py', 'native/orbit-lock/meson.build']
     if 'tools' in options.components:
         required += ['apps/tools/cli.py', 'bin/orbit-tools']
+    if 'wayland' in options.components:
+        required += ['apps/quickshell/shell.qml', 'home/.config/wysun/hyprland.lua', 'bin/wysun-session', 'installer/session_registration.py']
     missing = [name for name in required if not (options.source / name).is_file()]
     add('source', 'error' if missing else 'ok', 'Archivos del instalador',
         'Faltan: ' + ', '.join(missing) if missing else 'Copia local completa para la selección.')
+    if 'wayland' in options.components and not options.config_only and supported:
+        from wayland import check_repository, simulate_packages
+        try:
+            specs = check_repository(options.source, fields)
+            simulate_packages(options.source, fields, package_names(options.source, options.components, options.extras, options.boot_components))
+            add('wayland-repository', 'ok', 'Paquetes Wayland', ', '.join(specs))
+        except RuntimeError as error:
+            add('wayland-repository', 'error', 'Revisa los repositorios nativos', str(error))
     if os.geteuid() == 0 and not options.config_only:
         add('user', 'error', 'Abre el instalador con tu usuario', 'La autorización de administrador se solicita solo cuando hace falta.')
     elif not options.config_only:

@@ -9,6 +9,7 @@ from PySide6.QtCore import Qt, QTimer, QSize, QRectF, QBuffer, QByteArray, QIODe
 from PySide6.QtGui import QColor, QPainter, QPen, QFont, QIcon, QPixmap, QImage, QCursor, QDesktopServices, QKeySequence, QShortcut
 from PySide6.QtWidgets import (QApplication, QWidget, QStackedWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, QListWidget, QListWidgetItem, QStyledItemDelegate, QStyle, QFrame, QPlainTextEdit, QComboBox, QMenu, QDialog, QDialogButtonBox, QFormLayout, QMessageBox)
 
+from desktop_backend import Desktop, previous_window, wayland
 from core import Store, STATE, HOME, calculate, applications, file_index, sensitive, expand_snippet
 
 ROOT=Path(__file__).resolve().parent
@@ -99,6 +100,10 @@ class Orbit(WindowMotion, QWidget):
         self.paused=self.store.get('paused')=='1';self.usage=self.store.usages();self.build_ui();self.commands=self.make_commands();self.render()
         self.clipboard=QApplication.clipboard()
         if not test:self.clipboard.dataChanged.connect(self.capture_clip)
+        self.wayland_clipboard=None
+        if not test and wayland():
+            from wayland_clipboard import ClipboardWatch
+            self.wayland_clipboard=ClipboardWatch(self)
         self.prune_timer=QTimer(self);self.prune_timer.timeout.connect(self.store.prune);self.prune_timer.start(3600000)
         self.installEventFilter(self);self.search.installEventFilter(self);self.results.installEventFilter(self)
         for seq,fn in [('Ctrl+Return',self.paste_selected),('Escape',self.escape),('Ctrl+K',self.actions),('Ctrl+N',self.new_snippet),('Alt+1',lambda:self.set_mode('home')),('Alt+2',lambda:self.set_mode('clipboard')),('Alt+3',lambda:self.set_mode('files')),('Alt+4',lambda:self.set_mode('snippets')),('Alt+5',lambda:self.set_mode('calculator')),('Ctrl+Backspace',lambda:self.set_mode('home'))]:
@@ -158,13 +163,13 @@ class Orbit(WindowMotion, QWidget):
         if mode=='files' and time.monotonic()-getattr(self,'indexed_at',0)>300:self.start_index()
         self.render();self.search.setFocus()
     def show_mode(self,mode='home'):
+        self._presentation_generation=getattr(self,'_presentation_generation',0)+1
         if mode=='toggle' and self.isVisible():
             if getattr(self,'_motion_exiting',False):self.show();self.activateWindow()
             else:self.dismiss()
             return
         if not self.isVisible() and not self.test:
-            try:self.source_window=subprocess.check_output(['bspc','query','-N','-n','focused'],text=True,timeout=.3).strip()
-            except subprocess.SubprocessError:self.source_window=''
+            self.source_window=previous_window()
         self.set_mode('home' if mode=='toggle' else mode)
         screen=QApplication.screenAt(QCursor.pos()) or QApplication.primaryScreen();r=screen.availableGeometry();w=min(860,r.width()-48);h=min(550,r.height()-60);self.resize(w,h);self.move(r.x()+(r.width()-w)//2,r.y()+max(25,int((r.height()-h)*.35)))
         self.show();self.raise_();self.activateWindow();self.search.setFocus()
@@ -174,13 +179,17 @@ class Orbit(WindowMotion, QWidget):
         else:self.dismiss()
     def eventFilter(self,obj,event):
         if obj==self and event.type()==QEvent.WindowDeactivate and not self.test:
-            QTimer.singleShot(100,self.hide_if_inactive)
+            generation=getattr(self,'_presentation_generation',0)
+            QTimer.singleShot(100,lambda:self.hide_if_inactive(generation))
         if event.type()==QEvent.KeyPress:
             if event.key() in (Qt.Key_Down,Qt.Key_Up) and obj==self.search:
                 self.results.setCurrentRow(max(0,min(self.results.count()-1,self.results.currentRow()+(1 if event.key()==Qt.Key_Down else -1))));return True
             if event.key() in (Qt.Key_Return,Qt.Key_Enter) and obj==self.search:self.activate();return True
         return super().eventFilter(obj,event)
-    def hide_if_inactive(self):
+    def hide_if_inactive(self,generation=None):
+        # A previous surface can lose focus just before an explicit IPC reopen.
+        # Its delayed dismissal must not hide the new presentation.
+        if generation is not None and generation!=getattr(self,'_presentation_generation',0):return
         if self.isVisible() and not self.isActiveWindow() and not QApplication.activePopupWidget() and not QApplication.activeModalWidget():self.hide()
     def render(self):
         q=self.search.text().strip();fold=q.casefold();rows=[];heading=MODES[self.mode][0]
@@ -218,19 +227,13 @@ class Orbit(WindowMotion, QWidget):
             heading='Resultado' if q else 'Historial de cálculos'
         elif self.mode=='windows':
             try:
-                tree=json.loads(subprocess.check_output(['bspc','wm','-d'],timeout=1))
-                def visit(n):
-                    if not n:return
-                    if n.get('client'):
-                        c=n['client'];title=c.get('className','Ventana');wid=hex(n['id'])
-                        try:
-                            title=subprocess.check_output(['xprop','-id',wid,'_NET_WM_NAME'],text=True,timeout=.2).split(' = ',1)[-1].strip().strip('"')
-                        except subprocess.SubprocessError:pass
-                        if n['id']!=int(self.winId()) and fold in (title+' '+c.get('className','')).casefold():rows.append(dict(kind='window',title=title,subtitle=c.get('className',''),wid=wid,glyph='▤'))
-                    visit(n.get('firstChild'));visit(n.get('secondChild'))
-                for m in tree['monitors']:
-                    for d in m['desktops']:visit(d.get('root'))
-            except (subprocess.SubprocessError,ValueError,KeyError):pass
+                desktop=Desktop()
+                for window in desktop.windows():
+                    if window.get('pid')==os.getpid() or (desktop.backend=='x11' and window['id']==hex(int(self.winId()))):continue
+                    if fold in (window['title']+' '+window['app']).casefold():
+                        rows.append(dict(kind='window',title=window['title'],subtitle=window['app'],wid=window['id'],glyph='▤'))
+            except (OSError,subprocess.SubprocessError,ValueError,RuntimeError) as exc:
+                self.status.setText(str(exc))
         elif self.mode=='emoji':
             defaults=[('😀','sonrisa feliz'),('😂','risa lágrimas'),('❤️','amor corazón'),('✨','brillos magia'),('👍','bien pulgar'),('🙏','gracias manos'),('🎉','fiesta celebración'),('🔥','fuego'),('🚀','cohete lanzar'),('💡','idea luz'),('✅','listo correcto'),('👀','ojos mirar'),('💻','computadora trabajo'),('☕','café'),('🌙','luna noche'),('🫶','corazón manos'),('🤔','pensar duda'),('😎','genial gafas'),('🥹','emoción'),('💜','corazón morado')]
             for emoji,name in defaults+self.emojis:
@@ -310,7 +313,7 @@ class Orbit(WindowMotion, QWidget):
         elif kind=='command':self.hide();run(r['cmd'])
         elif kind=='file':QDesktopServices.openUrl(QUrl.fromLocalFile(r['path']));self.hide()
         elif kind=='web':QDesktopServices.openUrl(QUrl('https://duckduckgo.com/?q='+quote(r['query'])));self.hide()
-        elif kind=='window':self.hide();run(['bspc','node',r['wid'],'-f'])
+        elif kind=='window':self.hide();Desktop().activate(r['wid'])
         elif kind=='clip':
             if r['clip_kind']=='image':self.copy(image=QImage.fromData(self.store.blob(r['id']) or b''))
             else:self.copy(r['text'])
@@ -323,6 +326,11 @@ class Orbit(WindowMotion, QWidget):
         target=self.source_window;self.activate()
         if not self.test and target:QTimer.singleShot(120,lambda:self.paste_to(target))
     def paste_to(self,target):
+        if wayland():
+            from wayland_clipboard import paste_to
+            ok,message=paste_to(target)
+            if not ok:self.status.setText(message)
+            return ok
         try:
             current=subprocess.check_output(['bspc','query','-N','-n','focused'],text=True,timeout=.3).strip()
             if current.lower()!=target.lower():return
@@ -340,9 +348,15 @@ class Orbit(WindowMotion, QWidget):
     def edit_snippet(self,r):
         dialog=SnippetDialog(self,r)
         if dialog.exec()==QDialog.DialogCode.Accepted:self.store.save_snippet(dialog.title.text().strip(),dialog.shortcut.text().strip(),dialog.body.toPlainText(),r.get('id') if r else None);self.set_mode('snippets')
-    def toggle_capture(self):self.paused=not self.paused;self.store.set('paused','1' if self.paused else '0');self.update_private()
+    def toggle_capture(self):
+        self.paused=not self.paused;self.store.set('paused','1' if self.paused else '0');self.update_private()
+        if self.wayland_clipboard:self.wayland_clipboard.set_paused(self.paused)
     def update_private(self):
-        if hasattr(self,'private'):self.private.setText('◌  Historial pausado' if self.paused else '●  Historial activo')
+        if hasattr(self,'private'):
+            watcher=getattr(self,'wayland_clipboard',None);state=getattr(watcher,'state','')
+            restricted=state in ('focus-only','data-control-requested')
+            self.private.setText('◌  Historial pausado' if self.paused else '◐  Historial con foco' if restricted else '●  Historial activo')
+            self.private.setToolTip('Wayland: lectura global pendiente o no disponible; se conserva lo copiado con foco en Wysun.' if restricted and not self.paused else 'Pausar o reanudar la captura del portapapeles')
     def actions(self):
         menu=QMenu(self);r=self.current()
         if r:

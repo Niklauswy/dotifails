@@ -9,7 +9,8 @@ _cache={}
 
 
 def preference_path(home=None):
-    root=Path(home)/'.config' if home is not None else Path(os.environ.get('XDG_CONFIG_HOME',str(Path.home()/'.config')))
+    from hypr_settings import config_dir
+    root=config_dir(home)
     return root/'orbit/appearance.json'
 
 

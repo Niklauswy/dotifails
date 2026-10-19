@@ -5,6 +5,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import time
+from ..portal import is_wayland
 from PySide6.QtCore import QTimer,Qt
 from PySide6.QtGui import QCursor
 from PySide6.QtWidgets import QApplication,QDialog,QVBoxLayout,QHBoxLayout,QLabel,QPushButton,QInputDialog,QMessageBox
@@ -12,7 +13,7 @@ from PySide6.QtWidgets import QApplication,QDialog,QVBoxLayout,QHBoxLayout,QLabe
 
 def focus_window(window_id):
     """Scope BSPWM changes to this window; focus also selects its desktop."""
-    if os.environ.get('QT_QPA_PLATFORM')=='offscreen':return False
+    if os.environ.get('QT_QPA_PLATFORM')=='offscreen' or is_wayland():return False
     if not shutil.which('bspc'):return False
     node=hex(int(window_id))
     try:
@@ -86,7 +87,7 @@ class RecordingController(QDialog):
         screen=QApplication.screenAt(QCursor.pos()) or QApplication.primaryScreen();geo=screen.availableGeometry()
         self.setFixedWidth(min(620,max(120,geo.width()-24)));self.adjustSize()
         self.move(max(geo.left(),geo.center().x()-self.width()//2),max(geo.top(),geo.bottom()-self.height()-28))
-        if os.environ.get('QT_QPA_PLATFORM')!='offscreen':
+        if not is_wayland() and os.environ.get('QT_QPA_PLATFORM')!='offscreen':
             try:
                 desktop=subprocess.check_output(['bspc','query','-D','-d','focused'],text=True,timeout=.5).strip()
                 subprocess.run(['bspc','node',hex(int(self.winId())),'-d',desktop],capture_output=True,timeout=.5)
@@ -130,6 +131,7 @@ class RecordingController(QDialog):
             if owner.get('controls_protocol')==1:
                 if not self.owner.request('hide_controls',timeout=.7).get('hidden'):raise RuntimeError('Los controles siguen visibles.')
             else:
+                if is_wayland():raise RuntimeError('Los controles antiguos no permiten comprobar ocultación en Wayland; usa los controles de la ventana actual.')
                 window=owner.get('window')
                 if not window:raise RuntimeError('No se pudo comprobar la ventana de grabación.')
                 info=subprocess.check_output(['xwininfo','-id',str(window)],text=True,timeout=.7)

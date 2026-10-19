@@ -60,7 +60,7 @@ class Surface(WindowMotion, QWidget):
         super().__init__(parent,Qt.Window|Qt.FramelessWindowHint)
         self.setAttribute(Qt.WA_TranslucentBackground);self.setWindowTitle(title);apply_style(self,PANEL_STYLE);self.resize(width,height)
         self.outer=QVBoxLayout(self);self.outer.setContentsMargins(26,24,26,20);self.outer.setSpacing(20)
-        header=QHBoxLayout();titles=QVBoxLayout();titles.setSpacing(5);titles.addWidget(text_label('Ó R B I T A', 'eyebrow'));titles.addWidget(text_label(title,'title'))
+        header=QHBoxLayout();titles=QVBoxLayout();titles.setSpacing(5);titles.addWidget(text_label('W Y S U N', 'eyebrow'));titles.addWidget(text_label(title,'title'))
         if subtitle:titles.addWidget(text_label(subtitle,'subtitle'))
         header.addLayout(titles,1);close=button('',self.close,symbol='x');close.setFixedSize(36,36);close.setToolTip('Cerrar · Esc');close.setAccessibleName('Cerrar panel');header.addWidget(close,0,Qt.AlignTop);self.outer.addLayout(header)
         QShortcut(QKeySequence('Escape'),self).activated.connect(self.close)

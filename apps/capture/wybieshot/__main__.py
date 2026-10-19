@@ -16,11 +16,11 @@ def main(argv=None):
     args=parser.parse_args(argv)
     direct=args.region or args.accept_on_select or args.clipboard or args.path is not None or args.delay is not None
     if args.library and direct:parser.error('--library no admite acciones de captura')
-    lease=None
+    lease=None;capture_busy=False
     if direct:
         from .instance import CaptureLease
         lease=CaptureLease()
-        if not lease.claim():return 0
+        capture_busy=not lease.claim()
     from PySide6.QtWidgets import QApplication
     from .ui.components import apply_theme
     from .ui.main import run
@@ -29,6 +29,14 @@ def main(argv=None):
     app.setDesktopFileName('wybie-screenshot');app.setOrganizationName('Wybie')
     apply_theme(app)
     if direct:
+        if capture_busy:
+            from PySide6.QtWidgets import QMessageBox
+            QMessageBox.warning(None,'Wysun Screenshot · Captura en curso',
+                'Ya hay una selección de Wysun Screenshot en curso. '
+                'Termina o cancela la selección anterior y vuelve a intentarlo. '
+                'Si no aparece ninguna ventana, informa de una instancia anterior sin interfaz. '
+                'No se ha iniciado otra captura.')
+            return 0
         from .actions import CaptureActions,run as run_actions
         try:return run_actions(app,CaptureActions(args.accept_on_select,args.clipboard,args.path,args.delay),lease=lease)
         finally:lease.release()

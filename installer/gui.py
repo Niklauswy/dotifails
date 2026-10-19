@@ -13,7 +13,7 @@ from PySide6.QtWidgets import (QApplication, QButtonGroup, QCheckBox, QDialog, Q
     QFrame, QHBoxLayout, QListWidget, QMainWindow, QMessageBox, QPlainTextEdit, QProgressBar,
     QScrollArea, QStackedWidget, QVBoxLayout, QWidget)
 
-from install_model import (BOOT_COMPONENTS, COMPONENTS, THEMES, InstallOptions, backups,
+from install_model import (BOOT_COMPONENTS, COMPONENTS, DEFAULT_COMPONENTS, THEMES, InstallOptions, backups,
                            load_json, normalize_components, preflight)
 from process_runner import InstallerProcess
 from visual_widgets import STYLE, Button, ChoiceCard, DesktopPreview, label, reveal
@@ -53,7 +53,7 @@ class InstallerWindow(QMainWindow):
         self.theme = {'azul':'severance', 'morado':'tokyo'}.get(current, current)
         if self.theme not in THEMES:
             self.theme = 'severance'
-        self.selected = set(self.receipt.get('last_selection', COMPONENTS)) & COMPONENTS.keys()
+        self.selected = set(self.receipt.get('last_selection', DEFAULT_COMPONENTS)) & COMPONENTS.keys()
         self.selected = set(normalize_components(self.selected or None))
         self.page_index = 0
         self.furthest = 0
@@ -340,7 +340,7 @@ class InstallerWindow(QMainWindow):
         self.welcome_preview.set_theme(key)
 
     def preset(self, key):
-        self.selected = set(COMPONENTS) if key == 'complete' else {'desktop', 'terminal', 'boot'}
+        self.selected = set(DEFAULT_COMPONENTS) if key == 'complete' else {'desktop', 'terminal', 'boot'}
         if self.config_only.isChecked():
             self.selected.discard('boot')
         self.sync_components()

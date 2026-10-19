@@ -67,6 +67,13 @@ def canonical(hotkey):
     return ';'.join(chords)
 
 class ShortcutFile:
+    def __new__(cls,path=None):
+        from desktop_backend import wayland
+        if wayland():
+            from hypr_settings import HyprShortcutFile
+            home=Path(path).parents[2] if path else HOME
+            return HyprShortcutFile(home)
+        return super().__new__(cls)
     def __init__(self,path=None):
         self.path=Path(path or HOME/'.config/sxhkd/sxhkdrc');self.reload()
     def reload(self):
@@ -131,6 +138,12 @@ class ShortcutFile:
         row=self.rows[index];lines=self.lines.copy();del lines[row['start']:row['end']];backup=backup_file(self.path);atomic_write(self.path,''.join(lines));self.reload();return backup
 
 class DesktopSettings:
+    def __new__(cls,home=None,runner=checked):
+        from desktop_backend import wayland
+        if wayland():
+            from hypr_settings import HyprDesktopSettings
+            return HyprDesktopSettings(home or HOME,runner)
+        return super().__new__(cls)
     def __init__(self,home=None,runner=checked):
         self.home=Path(home or HOME);self.runner=runner;self.path=self.home/'.config/orbit/desktop.json';self.script=self.home/'.config/orbit/bspwm-settings.sh';self.reload()
     def reload(self):
@@ -201,3 +214,8 @@ class DesktopSettings:
                 except OSError:pass
             raise
         self.reload()
+
+
+def reload_shortcuts():
+    from desktop_backend import wayland
+    if not wayland():subprocess.run(['pkill','-USR1','-u',str(os.getuid()),'-x','sxhkd'],capture_output=True)

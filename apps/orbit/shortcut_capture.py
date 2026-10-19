@@ -1,15 +1,17 @@
 """Bounded X11 keyboard capture, separate from Qt and sxhkd shortcuts."""
 import ctypes
 import ctypes.util
-from PySide6.QtCore import QEvent, QSocketNotifier, QTimer, Signal
+from PySide6.QtCore import Qt, QEvent, QSocketNotifier, QTimer, Signal
 from PySide6.QtWidgets import QLineEdit
 
-_x11 = ctypes.CDLL(ctypes.util.find_library('X11'))
-_x11.XKeysymToString.argtypes = [ctypes.c_ulong]
-_x11.XKeysymToString.restype = ctypes.c_char_p
+_x11 = None
 MODIFIERS = {'Shift_L','Shift_R','Control_L','Control_R','Alt_L','Alt_R','Meta_L','Meta_R','Super_L','Super_R','Hyper_L','Hyper_R','ISO_Level3_Shift','Mode_switch','Caps_Lock','Num_Lock'}
 
 def keysym_name(value):
+    global _x11
+    if _x11 is None:
+        _x11=ctypes.CDLL(ctypes.util.find_library('X11') or 'libX11.so.6')
+        _x11.XKeysymToString.argtypes=[ctypes.c_ulong];_x11.XKeysymToString.restype=ctypes.c_char_p
     name = _x11.XKeysymToString(value)
     return name.decode() if name else ''
 
@@ -40,6 +42,11 @@ class KeyField(QLineEdit):
         if self.recording:
             self.cancel()
             return
+        from desktop_backend import wayland
+        if wayland():
+            self.previous=self.text();self.pending='';self.recording=True
+            self.setReadOnly(True);self.setText('Pulsa la combinación en este campo · Esc cancela')
+            self.setFocus();self.timer.start(10000);self.recordingChanged.emit(True);return
         connection = None
         try:
             from Xlib import X, display
@@ -122,6 +129,26 @@ class KeyField(QLineEdit):
         self.pending = ''
         self.setReadOnly(False)
         self.recordingChanged.emit(False)
+
+    def keyPressEvent(self,event):
+        from desktop_backend import wayland
+        if not (self.recording and wayland()):return super().keyPressEvent(event)
+        event.accept()
+        if event.key()==Qt.Key_Escape:self.cancel();return
+        if event.key() in (Qt.Key_Shift,Qt.Key_Control,Qt.Key_Alt,Qt.Key_Meta):return
+        from PySide6.QtGui import QKeySequence
+        key=QKeySequence(event.key()).toString()
+        if not key:return
+        mods=[name for mask,name in ((Qt.MetaModifier,'super'),(Qt.ControlModifier,'ctrl'),(Qt.AltModifier,'alt'),(Qt.ShiftModifier,'shift')) if event.modifiers()&mask]
+        self.pending=' + '.join(mods+[key.lower() if len(key)==1 else key]);self.setText(self.pending+' · suelta las teclas')
+
+    def keyReleaseEvent(self,event):
+        from desktop_backend import wayland
+        if not (self.recording and wayland()):return super().keyReleaseEvent(event)
+        event.accept()
+        released={Qt.Key_Control:Qt.ControlModifier,Qt.Key_Alt:Qt.AltModifier,Qt.Key_Shift:Qt.ShiftModifier,Qt.Key_Meta:Qt.MetaModifier}.get(event.key(),Qt.NoModifier)
+        if self.pending and not (event.modifiers() & ~released):
+            value=self.pending;self.stop();self.setText(value);self.captured.emit(value)
 
     def event(self, event):
         if self.recording and event.type() == QEvent.ShortcutOverride:

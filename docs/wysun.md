@@ -36,4 +36,4 @@ Los accesos del menú conservan sus IDs existentes y cambian su nombre visible; 
 
 ## Alcance
 
-Esta integración cambia la distribución y los nombres públicos. Conserva las interfaces, motores, formatos y funciones existentes. Recorder y Screenshot siguen usando X11; integrar su código no implementa un backend Wayland. Hyprland, Quickshell y una posible optimización en Rust se evalúan por separado.
+Esta integración cambia la distribución y los nombres públicos. Conserva las interfaces, motores, formatos y funciones existentes. La sesión adicional Hyprland/Quickshell se prepara con el componente opcional `wayland`; consulta [instalación y recuperación](wayland.md). La compatibilidad de cada función y el nivel de prueba del backend Wayland deben comprobarse por separado de su ejecución X11.

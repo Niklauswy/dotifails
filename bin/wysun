@@ -9,15 +9,19 @@ def main():
     args = sys.argv[1:]
     if args and args[0] in ('--help', '-h', 'help'):
         print('Wysun · aplicaciones del escritorio\n'
-              'Uso: wysun [recorder|screenshot|music|music-mini|files|settings|tools|notes|processes|color|network|power] [opciones]\n'
+              'Uso: wysun [shell|lock|session-check|doctor|audio|calendar|recorder|screenshot|music|music-mini|files|settings|tools|notes|processes|colors|connections|power] [opciones]\n'
               'Sin argumentos abre el lanzador. Recorder y Screenshot abren su biblioteca;\n'
               'wysun recorder --quick-record abre la barra de preparación sin grabar.')
         return 0
     command = args.pop(0) if args else 'toggle'
-    commands = {'recorder': 'wysun-recorder', 'screenshot': 'wysun-screenshot',
+    command = {'launcher': 'toggle', 'colors': 'color', 'connections': 'network'}.get(command, command)
+    commands = {'doctor': 'dotifails', 'shell': 'wysun-shell', 'lock': 'wysun-lock', 'session-check': 'wysun-session', 'recorder': 'wysun-recorder', 'screenshot': 'wysun-screenshot',
                 'files': 'orbit-files', 'tools-cli': 'orbit-tools'}
     executable = Path(__file__).resolve().parent / commands.get(command, 'orbit')
-    forwarded = args if command in commands else [command, *args]
+    if command == 'session-check':forwarded = ['--check', *args]
+    elif command == 'doctor':forwarded = ['doctor', *args]
+    elif command in commands:forwarded = args
+    else:forwarded = [command, *args]
     os.execv(str(executable), [str(executable), *forwarded])
 
 

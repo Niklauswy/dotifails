@@ -41,7 +41,7 @@ of irreversible redaction.
 
 ## Current capture boundary
 
-Linux X11/xcb, display scaling 1×. Unsupported Wayland/high or mixed DPR fail
+The historical X11 backend requires xcb at1×. The native Wayland portal backend described in the capture README reads actual PipeWire frame pixels and maps selection coordinates independently; real compositor capture is still pending verification. Unsupported X11 high/mixed DPR fail
 explicitly, without returning misregistered pixels. Monitor and region coordinates
 are global root pixels. Negative origins are supported by the frozen-image crop
 contract. Physical multimonitor and mixed-DPI capture are not yet verified.
@@ -151,7 +151,7 @@ the later explicitly authorized migration is described below. Picom, BSPWM and
 Orbit source remain unchanged.
 
 Physical multimonitor capture, window-capture occlusion behavior, cursor inclusion,
-Wayland and high/mixed DPI have not been physically verified. Only X11/xcb at 1× is
+Wayland and high/mixed DPI have not been physically verified. The historical physical verification below only covers X11/xcb at1×; it is
 supported at runtime. AO native code review was not executed because it requires
 a published PR and this delivery is local-only. Visual review by the orchestrator
 is not an automatic code approval.

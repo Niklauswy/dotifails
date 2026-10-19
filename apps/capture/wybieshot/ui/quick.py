@@ -22,7 +22,7 @@ class QuickBar(QWidget):
 
     def sources(self):
         menu=QMenu(self)
-        for text,mode in [('Región ajustable','region'),('Monitor','monitor'),('Todo el escritorio','desktop'),('Ventana visible…','window')]:
+        for text,mode in [('Región ajustable','region'),('Monitor','monitor'),('Todo el escritorio','desktop'),('Ventana (portal en Wayland)…','window')]:
             action=menu.addAction(text);action.setCheckable(True);action.setChecked(self.owner.capture_mode==mode)
             action.triggered.connect(lambda checked=False,m=mode,t=text:self.choose(m,t))
         menu.exec(self.mode.mapToGlobal(self.mode.rect().topLeft()))

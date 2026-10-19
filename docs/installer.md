@@ -6,7 +6,7 @@ Ejecuta `./instalar.sh` desde el proyecto. Con una sesión gráfica se abre la a
 
 1. **Bienvenida:** confirma la carpeta del proyecto que se va a instalar. Puedes elegir otra copia local.
 2. **Apariencia:** Severance, Tokyo o Space Black, con el fondo real y una composición orientativa. Al actualizar está seleccionada la opción de conservar el tema y el fondo actuales.
-3. **Componentes:** escritorio, terminal, Neovim, herramientas y Blue CRT. «Esencial» prepara escritorio, terminal y arranque. «Completa» incluye los cinco. El escritorio y Neovim requieren la terminal; desmarcar un componente no lo desinstala.
+3. **Componentes:** escritorio, terminal, Neovim, herramientas y Blue CRT. «Esencial» prepara escritorio, terminal y arranque. «Completa» incluye esos cinco. Wysun / Hyprland es un componente adicional opcional y conserva la configuración de BSPWM; consulta [Wayland](wayland.md). El escritorio y Neovim requieren la terminal; desmarcar un componente no lo desinstala.
 4. **Opciones:** Brave, Discord y Obsidian mediante Flatpak para el usuario; selección independiente de GRUB, Plymouth y LightDM; preparación diferida de lenguajes de Neovim. El perfil Samsung defectuoso es opcional y nunca se aplica automáticamente.
 5. **Revisión:** sistema, arquitectura, archivos del proyecto, permisos, espacio disponible y otra operación activa. El plan detalla paquetes y versiones. La disponibilidad de Internet se comprueba durante la descarga, no se presenta como verificada en esta pantalla.
 6. **Instalación:** etapas comunicadas por el motor, tiempo transcurrido, operación actual, conflictos y registro. El progreso cuenta etapas completadas; no estima porcentajes de tiempo ni simula descargas.

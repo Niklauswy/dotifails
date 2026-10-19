@@ -14,6 +14,14 @@ Wysun es el nuevo nombre de Órbita. El lanzador, Music, Files, Recorder y Scree
 
 Las rutas privadas, los proyectos y los comandos antiguos se conservan. La actualización no migra datos ni sustituye las grabaciones activas. [Integración, nombres y compatibilidad](docs/wysun.md).
 
+## Sesión adicional Wayland
+
+El componente opcional `wayland` prepara **Wysun / Hyprland**, Quickshell y las aplicaciones Python/PySide6 conservadas. No cambia BSPWM, Picom ni SXHKD, ni la sesión predeterminada. Revisa paquetes, portales, selección y recuperación en la [guía Wayland](docs/wayland.md).
+
+```sh
+./instalar.sh --source "$PWD" --components wayland --plan
+```
+
 ## Instalar
 
 Desde una cuenta normal con acceso a `sudo`, conexión a Internet y varios GB libres:

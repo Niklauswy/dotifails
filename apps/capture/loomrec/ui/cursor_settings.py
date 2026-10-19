@@ -95,6 +95,8 @@ class CursorPanel(QWidget):
     def sync(self):
         m=self.model;widgets=[self.visible,self.live,self.preset,self.size,*self.effects.values()];blocks=[QSignalBlocker(w) for w in widgets]
         self.visible.setChecked(m.visible);self.visible.setEnabled(not m.locked)
+        from ..portal import is_wayland
+        native=is_wayland()
         self.live.setChecked(m.live);self.live.setVisible(m.preset!='simple');self.live.setEnabled(m.visible and not m.locked)
         self.preset.setCurrentIndex(self.preset.findData(m.preset));self.preset.setEnabled(m.visible and not m.locked)
         size=m.effects.get('size',32);index=self.size.findData(size)
@@ -105,6 +107,7 @@ class CursorPanel(QWidget):
         enabled=[self.tr(title) for key,title in [('halo','halo'),('clicks','clics'),('trail','estela')] if m.effects.get(key,m.preset=='trail' if key=='trail' else True)]
         text=self.tr('El puntero del sistema, sin efectos añadidos.') if m.preset=='simple' else self.tr('Puntero mejorado')+(' · '+' · '.join(enabled) if enabled else self.tr(', sin efectos adicionales.'))
         if m.preset!='simple':text+='\n'+(self.tr('Visibles al grabar; quedan incluidos en el video.') if m.live else self.tr('Los efectos se verán al reproducir o exportar.'))
+        if native and m.preset!='simple':text=self.tr('Halo, clics y estela en monitor o región: incluidos en el vídeo al grabar o aplicados al exportar según la opción. No son una capa visible sobre el escritorio. Clics requieren autorización temporal por grabación; nunca se observa el teclado. El puntero nativo mantiene su tamaño y forma del compositor. Efectos de ventana independiente aún no disponibles.')
         if m.locked:text=self.tr('Se conserva durante esta grabación. Cambia el estilo antes de la siguiente.')
         elif not m.visible:text=self.tr('Cursor oculto. Tu estilo se conserva para cuando lo actives.')
         self.description.setText(text)

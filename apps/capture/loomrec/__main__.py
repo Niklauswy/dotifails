@@ -4,13 +4,20 @@ def main():
     parser.add_argument('--version', action='version', version='Wysun Recorder 0.1.0')
     parser.add_argument('--quick-record', action='store_true', help='Open only the floating quick capture bar')
     parser.add_argument('--devices', action='store_true')
+    parser.add_argument('--pick-color',action='store_true',help='Pick a color using the desktop portal; prints RGB JSON')
     parser.add_argument('--record', action='store_true', help='Open recording setup without starting capture')
     parser.add_argument('--recover', metavar='PROJECT_DIRECTORY')
     actions=parser.add_mutually_exclusive_group()
     for action in ['status','pause','resume','stop']:
         actions.add_argument('--'+action, metavar='PROJECT_DIRECTORY')
     args = parser.parse_args()
-    if args.devices:
+    if args.pick_color:
+        import json
+        from .portal import Portal
+        portal=Portal()
+        try:print(json.dumps(portal.pick_color()))
+        finally:portal.close()
+    elif args.devices:
         import json
         from .devices import discover
         print(json.dumps(discover(), indent=2))

@@ -1,6 +1,7 @@
 """Pre-capture countdown and strictly out-of-crop recording feedback."""
 import json,os,subprocess,time
 from pathlib import Path
+from ..portal import is_wayland
 from PySide6.QtCore import Qt,QRect,QRectF,QTimer
 from PySide6.QtGui import QShortcut,QKeySequence,QPainter,QColor,QLinearGradient,QPainterPath,QRegion,QPen
 from PySide6.QtWidgets import QWidget,QLabel,QVBoxLayout,QHBoxLayout,QPushButton
@@ -186,11 +187,12 @@ class RecordingIndicator:
             self.badge=RecordingBadge(self.on_pause if controls else None,self.on_stop if controls else None)
             self._show(self.badge,badge,controls)
     def _show(self,widget,geometry,interactive):
-        flags=Qt.Tool|Qt.FramelessWindowHint|Qt.WindowStaysOnTopHint|Qt.X11BypassWindowManagerHint|Qt.WindowDoesNotAcceptFocus|Qt.NoDropShadowWindowHint
+        flags=Qt.Tool|Qt.FramelessWindowHint|Qt.WindowStaysOnTopHint|Qt.WindowDoesNotAcceptFocus|Qt.NoDropShadowWindowHint
+        if not is_wayland():flags|=Qt.X11BypassWindowManagerHint
         if not interactive:flags|=Qt.WindowTransparentForInput
         widget.setWindowFlags(flags);widget.setAttribute(Qt.WA_ShowWithoutActivating);widget.setFocusPolicy(Qt.NoFocus)
         widget.setGeometry(geometry);widget.setWindowTitle('Wysun Recorder · Indicador seguro')
-        if os.environ.get('QT_QPA_PLATFORM')!='offscreen':
+        if not is_wayland() and os.environ.get('QT_QPA_PLATFORM')!='offscreen':
             try:subprocess.run(['xprop','-id',str(int(widget.winId())),'-f','_COMPTON_SHADOW','32c','-set','_COMPTON_SHADOW','0'],capture_output=True,timeout=.5)
             except (OSError,subprocess.SubprocessError):pass
         widget.show();self.windows.append(widget)

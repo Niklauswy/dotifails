@@ -26,10 +26,21 @@ class CaptureConfig:
     auto_finalize: bool = True
     output_dir: str | None = None
     title: str | None = None
+    backend: str = "auto"
+    source_type: str = "monitor"
     mic_gain: float = 1.0
     system_gain: float = 1.0
 
+    def selected_backend(self):
+        from .portal import is_wayland
+        if self.backend=='auto':return 'portal' if is_wayland() else 'x11'
+        if self.backend=='x11' and is_wayland():raise ValueError('XWayland no es un origen de captura. Usa el portal Wayland.')
+        return self.backend
+
     def validate(self):
+        if self.backend not in {'auto','x11','portal'}:raise ValueError('Backend de captura inválido')
+        if self.source_type not in {'monitor','region','window'}:raise ValueError('Tipo de fuente inválido')
+        self.selected_backend()
         from .cursor import effect_settings
         if type(self.cursor) is not bool:raise ValueError('Cursor visibility must be boolean')
         if type(self.cursor_live) is not bool:raise ValueError('Cursor live mode must be boolean')
@@ -41,7 +52,7 @@ class CaptureConfig:
         if len(self.rect) != 4 or any(type(v) is not int for v in self.rect):
             raise ValueError('Capture rectangle requires integer pixels')
         x, y, w, h = self.rect
-        if x < 0 or y < 0 or w < 16 or h < 16 or w % 2 or h % 2:
+        if (self.selected_backend()=='x11' and (x < 0 or y < 0)) or w < 16 or h < 16 or w % 2 or h % 2:
             raise ValueError('Capture needs nonnegative position and even dimensions >=16')
         if self.quality not in {'compact', 'standard', 'high'}:
             raise ValueError('Unknown capture quality')
@@ -68,9 +79,9 @@ class CaptureSession:
             self.config.output_dir=str(videos_root().resolve())
         self.config.validate()
         from .cursor import effect_settings,check_available
-        if self.config.cursor and not self.config.cursor_live and effect_settings(self.config.cursor_effects):check_available()
+        if self.config.selected_backend()=='x11' and self.config.cursor and not self.config.cursor_live and effect_settings(self.config.cursor_effects):check_available()
         from .devices import clamp_rect, display_bounds
-        if clamp_rect(self.config.rect, display_bounds(self.config.display)) != self.config.rect:
+        if self.config.selected_backend()=='x11' and clamp_rect(self.config.rect, display_bounds(self.config.display)) != self.config.rect:
             raise ValueError('Display geometry changed; select an area inside the current display')
         self.root.mkdir(parents=True, exist_ok=True, mode=0o700)
         if (self.root/'capture.json').exists() or (self.root/'project.json').exists():

@@ -142,6 +142,25 @@ class ColorWindow(Surface):
         self.hide(); QTimer.singleShot(180, self.start_picker)
 
     def start_picker(self):
+        from desktop_backend import wayland
+        if wayland():
+            from PySide6.QtCore import QProcess
+            import json,shutil
+            executable=shutil.which('wysun')
+            if not executable:
+                self.present();self.status.setText('Falta el lanzador Wysun Recorder para acceder al selector de color del portal.');return
+            self.portal_picker=QProcess(self)
+            def finished(code,*_):
+                try:
+                    if code:raise ValueError('Selección cancelada o portal de color no disponible')
+                    values=json.loads(bytes(self.portal_picker.readAllStandardOutput()))
+                    if len(values)!=3 or not all(0<=v<=1 for v in values):raise ValueError('Color inválido')
+                    self.picked(QColor.fromRgbF(*values))
+                except (ValueError,TypeError):self.present();self.status.setText('Selección cancelada o portal de color no disponible')
+                self.portal_picker.deleteLater()
+            self.portal_picker.finished.connect(finished)
+            self.portal_picker.errorOccurred.connect(lambda *_:(self.present(),self.status.setText('No se pudo abrir el selector de color del portal.')))
+            self.portal_picker.start(executable,['recorder','--pick-color']);return
         from utilities import Picker
         self.picker = Picker(); self.picker.picked.connect(self.picked); self.picker.cancelled.connect(self.present); self.picker.show(); self.picker.raise_(); self.picker.activateWindow()
 

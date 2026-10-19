@@ -127,6 +127,12 @@ def add_shortcut(path, chord, command):
 
 
 class GlobalKeys:
+    def __new__(cls,callbacks):
+        from .portal import is_wayland
+        if is_wayland():
+            from .portal_shortcuts import PortalKeys
+            return PortalKeys(callbacks)
+        return super().__new__(cls)
     """Scoped X11 grabs; conflicts fail closed and all grabs disappear on exit."""
     def __init__(self, callbacks):
         import ctypes as C

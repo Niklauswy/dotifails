@@ -15,7 +15,7 @@ class Instance:
         if root.is_symlink():raise RuntimeError('Unsafe instance directory')
         root.mkdir(parents=True,exist_ok=True,mode=0o700)
         if root.stat().st_uid!=os.getuid() or root.stat().st_mode & 0o077:raise RuntimeError('Instance directory must be private')
-        tag=hashlib.sha256(os.environ.get('DISPLAY','default').encode()).hexdigest()[:12]
+        tag=hashlib.sha256((os.environ.get('WAYLAND_DISPLAY') or os.environ.get('DISPLAY','default')).encode()).hexdigest()[:12]
         self.path=root/f'{name}-{tag}.sock';self.lock_path=root/f'{name}-{tag}.lock'
         self.lock=None;self.server=None;self.clients=[]
 

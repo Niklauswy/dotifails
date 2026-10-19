@@ -9,7 +9,7 @@ from pathlib import Path
 from functools import lru_cache
 
 STATES={'R':'Ejecutando','S':'En espera','D':'Espera de E/S','T':'Pausado','t':'Depuración','Z':'Zombi','I':'Inactivo','X':'Finalizado'}
-SESSION_PROCESSES={'bspwm','sxhkd','Xorg','Xwayland','systemd','dbus-daemon','dbus-broker'}
+SESSION_PROCESSES={'bspwm','sxhkd','Xorg','Xwayland','systemd','dbus-daemon','dbus-broker','Hyprland','quickshell','sway','weston','swaylock','hyprlock','pipewire','pipewire-pulse','wireplumber','dunst','xdg-desktop-por'}
 
 @lru_cache(maxsize=256)
 def username(uid):

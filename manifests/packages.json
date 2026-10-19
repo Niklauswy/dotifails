@@ -92,7 +92,8 @@
       "libxcb-util-dev",
       "libxcb-xrm-dev",
       "libxkbcommon-dev",
-      "libxkbcommon-x11-dev"
+      "libxkbcommon-x11-dev",
+      "libmpv2"
     ],
     "terminal": [
       "zsh",
@@ -123,6 +124,54 @@
       "openssl",
       "openssh-client",
       "python3-venv"
+    ],
+    "wayland": [
+      "xwayland",
+      "qt6-wayland",
+      "qml6-module-qtquick",
+      "qml6-module-qtquick-controls",
+      "qml6-module-qtquick-layouts",
+      "swaylock",
+      "swayidle",
+      "wl-clipboard",
+      "pipewire-audio",
+      "wireplumber",
+      "pipewire-bin",
+      "xdg-desktop-portal",
+      "xdg-desktop-portal-gtk",
+      "dbus-user-session",
+      "mate-polkit",
+      "pkexec",
+      "dunst",
+      "playerctl",
+      "brightnessctl",
+      "network-manager-gnome",
+      "blueman",
+      "ffmpeg",
+      "mpv",
+      "tesseract-ocr",
+      "tesseract-ocr-eng",
+      "tesseract-ocr-spa",
+      "python3-pyside6.qtcore",
+      "python3-pyside6.qtgui",
+      "python3-pyside6.qtwidgets",
+      "python3-pyside6.qtsvg",
+      "python3-dbus",
+      "python3-gi",
+      "python3-xlib",
+      "poppler-utils",
+      "libglib2.0-bin",
+      "xdg-user-dirs",
+      "fonts-noto-core",
+      "fonts-noto-color-emoji",
+      "foot",
+      "gir1.2-gstreamer-1.0",
+      "gir1.2-gst-plugins-base-1.0",
+      "gstreamer1.0-pipewire",
+      "gstreamer1.0-plugins-base",
+      "libmpv2",
+      "grim",
+      "slurp"
     ]
   },
   "boot_components": {
@@ -141,5 +190,19 @@
       "gcc",
       "pkg-config"
     ]
-  }
+  },
+  "wayland_backports": [
+    "hyprland",
+    "quickshell",
+    "xdg-desktop-portal-hyprland",
+    "libxkbcommon0",
+    "libxkbcommon-x11-0",
+    "libxkbregistry0",
+    "hyprland-guiutils",
+    "hyprpicker"
+  ],
+  "wayland_installed_abi_companions": [
+    "libxkbcommon-dev",
+    "libxkbcommon-x11-dev"
+  ]
 }

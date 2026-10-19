@@ -18,7 +18,7 @@ class FileIntegrationInstallerTests(unittest.TestCase):
    self.assertEqual(parser['Default Applications']['inode/directory'],'orbit-files.desktop;')
    self.assertIn('orbit-files.desktop',parser['Added Associations']['inode/directory'])
    import os,subprocess
-   env=dict(os.environ,HOME=str(home),XDG_CONFIG_HOME=str(home/'.config'),XDG_DATA_HOME=str(home/'.local/share'),XDG_CURRENT_DESKTOP='bspwm')
+   env=dict(os.environ,HOME=str(home),XDG_CONFIG_HOME=str(home/'.config'),XDG_DATA_HOME=str(home/'.local/share'),XDG_CURRENT_DESKTOP='bspwm',PATH=str(home/'.local/bin')+':/usr/bin:/bin')
    self.assertEqual(subprocess.check_output(['xdg-mime','query','default','inode/directory'],env=env,text=True).strip(),'orbit-files.desktop')
    self.assertTrue((home/'.local/share/applications/orbit-files.desktop').is_file())
    portal=configparser.ConfigParser();portal.read(home/'.config/xdg-desktop-portal/portals.conf')

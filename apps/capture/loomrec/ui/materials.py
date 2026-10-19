@@ -9,6 +9,7 @@ import ctypes.util
 import json
 import os
 from pathlib import Path
+from ..portal import is_wayland
 from PySide6.QtCore import Qt,QEvent,QObject,QRectF,QTimer
 from PySide6.QtGui import QPainter,QColor,QPen,QLinearGradient,QPainterPath,QRegion
 from PySide6.QtWidgets import QWidget
@@ -17,7 +18,7 @@ PROPERTY='_WYBIE_ACRYLIC'
 
 
 def _x11_property(window=None,enabled=False,radius=None):
-    if os.environ.get('QT_QPA_PLATFORM')=='offscreen' or not os.environ.get('DISPLAY'):return False
+    if is_wayland() or os.environ.get('QT_QPA_PLATFORM')=='offscreen' or not os.environ.get('DISPLAY'):return False
     try:
         lib=ctypes.CDLL(ctypes.util.find_library('X11') or 'libX11.so.6')
         lib.XOpenDisplay.argtypes=[ctypes.c_char_p];lib.XOpenDisplay.restype=ctypes.c_void_p
@@ -81,14 +82,14 @@ class _MaterialBinding(QObject):
         enabled=backdrop_available();self.layer.acrylic=enabled;self.layer.update()
         self.window.setProperty('materialMode','acrylic' if enabled else 'matte')
         self.shape()
-        if self.window.isVisible():
+        if self.window.isVisible() and not is_wayland():
             _x11_property(self.window.winId(),enabled,self.radius)
-            if os.environ.get('QT_QPA_PLATFORM')!='offscreen':
+            if not is_wayland() and os.environ.get('QT_QPA_PLATFORM')!='offscreen':
                 import subprocess
                 try:subprocess.run(['bspc','config','-n',hex(int(self.window.winId())),'border_width','0'],capture_output=True,timeout=.3)
                 except (OSError,subprocess.SubprocessError):pass
     def shape(self):
-        if self.panel is self.window:
+        if self.panel is self.window and not is_wayland():
             path=QPainterPath();path.addRoundedRect(QRectF(self.window.rect()),self.radius,self.radius)
             self.window.setMask(QRegion(path.toFillPolygon().toPolygon()))
     def eventFilter(self,obj,event):

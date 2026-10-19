@@ -22,7 +22,20 @@ class SelectionOverlay(QWidget):
         self.setFocusPolicy(Qt.StrongFocus)
         self.setCursor(Qt.CrossCursor)
 
+    def source_rect(self,rect):
+        # Widget coordinates may be logical/scaled; originals always keep pixel resolution.
+        sx=self.image.width()/max(1,self.width());sy=self.image.height()/max(1,self.height())
+        left=round(rect.x()*sx);top=round(rect.y()*sy)
+        right=round((rect.x()+rect.width())*sx);bottom=round((rect.y()+rect.height())*sy)
+        return QRect(left,top,right-left,bottom-top).intersected(self.image.rect())
+
     def present(self):
+        from loomrec.portal import is_wayland
+        if is_wayland():
+            from PySide6.QtWidgets import QApplication
+            screen=QApplication.primaryScreen().availableGeometry()
+            size=self.image.size();size.scale(screen.size(),Qt.KeepAspectRatio)
+            self.resize(size);self.setWindowTitle('Recortar imagen autorizada · Wysun Screenshot')
         self.show(); self.raise_(); self.activateWindow(); self.setFocus()
 
     def paintEvent(self, event):
@@ -81,7 +94,7 @@ class SelectionOverlay(QWidget):
         if key==Qt.Key_Escape:self.hide();self.cancelled.emit();return
         if key in (Qt.Key_Return,Qt.Key_Enter):
             if self.selection.width()>1 and self.selection.height()>1:
-                self.hide();self.selected.emit(self.selection.normalized().intersected(self.rect()))
+                self.hide();self.selected.emit(self.source_rect(self.selection.normalized().intersected(self.rect())))
             else:
                 self.selection=QRect(self.width()//4,self.height()//4,max(2,self.width()//2),max(2,self.height()//2));self.update()
             return

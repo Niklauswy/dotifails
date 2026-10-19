@@ -12,9 +12,10 @@ def replace_block(text,block):
 
 
 def theme_files(home,key):
-    home=Path(home);theme=THEMES[key];config=home/'.config';files={}
+    from hypr_settings import config_dir
+    home=Path(home);theme=THEMES[key];config=config_dir(home);files={}
     def put(relative,transform):
-        path=home/relative
+        path=config/relative.removeprefix('.config/') if relative.startswith('.config/') else home/relative
         if path.is_file():files[path]=transform(path.read_text())
     def terminal(text):
         text=re.sub(r'^\s*(palette|cursor-color|cursor-text|selection-background|selection-foreground)\s*=.*\n?','',text,flags=re.M)
@@ -45,7 +46,7 @@ def theme_files(home,key):
         return text
     put('.config/bspwm/dunstrc',notices)
     for relative in ('.config/gtk-3.0/gtk.css','.config/gtk-4.0/gtk.css'):
-        path=home/relative;text=path.read_text() if path.exists() else ''
+        path=config/relative.removeprefix('.config/');text=path.read_text() if path.exists() else ''
         text=re.sub(r'/\* BEGIN ORBIT THEME \*/.*?/\* END ORBIT THEME \*/\n?','',text,flags=re.S)
         files[path]=text.rstrip()+'\n/* BEGIN ORBIT THEME */\n'+''.join(f'@define-color {name} {value};\n' for name,value in {'theme_bg_color':theme['background'],'theme_fg_color':theme['foreground'],'theme_selected_bg_color':theme['accent'],'theme_selected_fg_color':theme['background'],'accent_color':theme['accent'],'accent_bg_color':theme['accent'],'accent_fg_color':theme['background']}.items())+'/* END ORBIT THEME */\n'
     colours=''.join(f'*.{name}: {value}\n' for name,value in {'background':theme['background'],'foreground':theme['foreground'],'cursorColor':theme['accent'],**{f'color{i}':value for i,value in enumerate(theme['palette'])}}.items())
@@ -62,6 +63,15 @@ def theme_files(home,key):
     files[script]=text.rstrip()+'\n'
     files[config/'orbit/theme.json']=json.dumps({'id':key,'name':theme['name']},indent=2)+'\n'
     legacy=config/'dotifails/theme.json';previous=json.loads(legacy.read_text()) if legacy.exists() else {};previous.update(name=key,wallpaper=theme['wallpaper']);files[legacy]=json.dumps(previous,indent=2)+'\n'
+    from desktop_backend import wayland
+    if wayland():
+        from hypr_settings import lua
+        files={path:text for path,text in files.items() if not ('bspwm' in path.parts or '.Xresources.d' in path.parts or path.name in ('desktop.json','bspwm-settings.sh'))}
+        native_config=config/'orbit'
+        from environment_settings import EnvironmentSettings
+        bar=EnvironmentSettings(home).bar_values();bar.update(background=theme['background'],foreground=theme['foreground'],accent=theme['accent'])
+        files[native_config/'hypr-bar.json']=json.dumps(bar,ensure_ascii=False,indent=2)+'\n'
+        files[native_config/'hypr-theme.lua']='-- Wysun theme colors\nhl.config('+lua({'general':{'col':{'active_border':'rgb('+theme['accent'][1:]+')','inactive_border':'rgb('+theme['surface'][1:]+')'}}})+')\n'
     return files,borders
 
 
@@ -70,37 +80,63 @@ def apply_theme(home,key,runner=run):
     home=Path(home);theme=THEMES[key];wallpaper=home/'.local/share/backgrounds'/theme['wallpaper']
     if not wallpaper.is_file():raise ValueError('No se encontró el fondo de '+theme['name'])
     files,borders=theme_files(home,key)
-    envpath=home/'.config/orbit/environment.json';environment=json.loads(envpath.read_text()) if envpath.exists() else {}
+    from hypr_settings import config_dir
+    config=config_dir(home)
+    envpath=config/'orbit/environment.json';environment=json.loads(envpath.read_text()) if envpath.exists() else {}
     environment.setdefault('wallpaper',{}).update(default=str(wallpaper),mode='fill',monitors={})
     files[envpath]=json.dumps(environment,indent=2)+'\n'
     backup=home/'.local/state/orbit/theme-backups'/datetime.datetime.now().strftime('%Y%m%d-%H%M%S-%f');backup.mkdir(parents=True,mode=0o700)
     originals={path:path.read_bytes() if path.exists() else None for path in files}
+    def backup_relative(path):
+        if path.is_relative_to(home):return path.relative_to(home)
+        if path.is_relative_to(config):return Path('xdg-config')/path.relative_to(config)
+        raise ValueError('Ruta de tema fuera de HOME/XDG_CONFIG_HOME')
     for path,data in originals.items():
         if data is not None:
-            dest=backup/path.relative_to(home);dest.parent.mkdir(parents=True,exist_ok=True);dest.write_bytes(data)
-    atomic_write(backup/'changed.json',json.dumps({'theme':key,'paths':[str(path.relative_to(home)) for path in files]},indent=2)+'\n')
-    old_borders={key:runner(['bspc','config',key]).strip() for key in borders}
+            dest=backup/backup_relative(path);dest.parent.mkdir(parents=True,exist_ok=True);dest.write_bytes(data)
+    atomic_write(backup/'changed.json',json.dumps({'theme':key,'paths':[str(backup_relative(path)) for path in files]},indent=2)+'\n')
+    from desktop_backend import wayland
+    native=wayland()
+    native_script=next((path for path in files if path.name=='hypr-theme.lua'),None)
+    old_native=None
+    if native:
+        from hypr_settings import lua,option
+        previous={}
+        for name in ('active_border','inactive_border'):
+            value=option(runner,'general:col.'+name)
+            if not isinstance(value,str):raise RuntimeError('No se pudo respaldar el color de borde actual')
+            previous[name]=value
+        old_native='hl.config('+lua({'general':{'col':previous}})+')'
+    old_borders={} if native else {key:runner(['bspc','config',key]).strip() for key in borders}
     try:
         for path,text in files.items():atomic_write(path,text)
-        if (home/'.config/ghostty/config').exists():runner(['ghostty','+validate-config'])
-        for name,value in borders.items():runner(['bspc','config',name,value])
+        if (config/'ghostty/config').exists():runner(['ghostty','+validate-config'])
+        if native:
+            from hypr_settings import evaluate
+            evaluate(runner,files[native_script])
+        else:
+            for name,value in borders.items():runner(['bspc','config',name,value])
         render_wallpaper(environment['wallpaper'],display_inventory(runner),home,runner)
     except Exception:
         for path,data in originals.items():
             if data is None:path.unlink(missing_ok=True)
             else:atomic_write(path,data.decode())
+        if native and old_native:
+            try:evaluate(runner,old_native)
+            except Exception:pass
         for name,value in old_borders.items():
             try:runner(['bspc','config',name,value])
             except Exception:pass
         invalidate();raise
     invalidate();warnings=[]
     commands=[['xrdb','-merge',str(home/'.Xresources.d/colors')],['dunstctl','reload',str(home/'.config/bspwm/dunstrc')],[str(ROOT/'desktop-bar')],['gdbus','call','--session','--dest','com.mitchellh.ghostty','--object-path','/com/mitchellh/ghostty','--method','org.gtk.Actions.Activate','reload-config','[]','{}']]
+    if native:commands=[['wysun','shell','reload-preferences'],['dunstctl','reload'],commands[-1]]
     for command in commands:
         try:runner(command)
         except Exception:warnings.append(command[0])
     # Reuse the managed compositor wrapper; do not restart the desktop session.
     compositor=home/'.local/bin/desktop-compositor'
-    if compositor.exists():
+    if not native and compositor.exists():
         try:
             runner(['pkill','-TERM','-u',str(os.getuid()),'-x','picom'])
             import time;time.sleep(.15);runner([str(compositor)])
@@ -111,4 +147,9 @@ def apply_theme(home,key,runner=run):
 def restore_theme(home=None,runner=run):
     from theme_tokens import theme_id
     theme=THEMES[theme_id(home)]
+    from desktop_backend import wayland
+    if wayland():
+        from hypr_settings import lua
+        runner(['hyprctl','eval','hl.config('+lua({'general':{'col':{'active_border':'rgb('+theme['accent'][1:]+')','inactive_border':'rgb('+theme['surface'][1:]+')'}}})+')'])
+        return
     for key,value in {'focused_border_color':theme['accent'],'normal_border_color':theme['surface'],'active_border_color':theme['muted'],'presel_feedback_color':theme['accent']}.items():runner(['bspc','config',key,value])

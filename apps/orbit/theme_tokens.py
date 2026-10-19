@@ -19,7 +19,8 @@ def theme_id(home=None):
     override=os.environ.get('ORBIT_THEME')
     if override:return normalize(override)
     global _cache
-    root=Path(home)/'.config' if home else Path(os.environ.get('XDG_CONFIG_HOME',str(Path.home()/'.config')))
+    from hypr_settings import config_dir
+    root=config_dir(home)
     now=time.monotonic()
     if _cache[1]==root and now-_cache[0]<.25:return _cache[2]
     value='severance'
@@ -87,13 +88,30 @@ def refresh_widgets():
     refresh_icons()
 
 def watch_theme():
-    """Refresh each running Orbit process when another panel changes the theme."""
-    from PySide6.QtCore import QTimer
+    """Watch files and parent directories so atomic replace and late creation work."""
+    from PySide6.QtCore import QFileSystemWatcher,QTimer,QObject
     from PySide6.QtWidgets import QApplication
+    from hypr_settings import config_dir
     app=QApplication.instance()
     if not app or hasattr(app,'orbitThemeWatcher'):return
-    app.orbitThemeKey=theme_id();timer=QTimer(app);app.orbitThemeWatcher=timer
-    def poll():
-        key=theme_id()
-        if key!=app.orbitThemeKey:app.orbitThemeKey=key;refresh_widgets()
-    timer.timeout.connect(poll);timer.start(500)
+    class ThemeWatcher(QObject):
+        def __init__(self):
+            super().__init__(app);self.watcher=QFileSystemWatcher(self);self.timer=QTimer(self)
+            self.timer.setSingleShot(True);self.timer.setInterval(40)
+            self.key=theme_id();self.watcher.fileChanged.connect(self.changed);self.watcher.directoryChanged.connect(self.changed)
+            self.timer.timeout.connect(self.refresh);self.arm()
+        def arm(self):
+            targets=set()
+            for path in (config_dir()/'orbit/theme.json',config_dir()/'dotifails/theme.json'):
+                if path.exists():targets.add(str(path))
+                parent=path.parent
+                while not parent.exists() and parent!=parent.parent:parent=parent.parent
+                if parent.exists():targets.add(str(parent))
+            current=set(self.watcher.files()+self.watcher.directories())
+            if current-targets:self.watcher.removePaths(list(current-targets))
+            if targets-current:self.watcher.addPaths(list(targets-current))
+        def changed(self,*_):self.timer.start()
+        def refresh(self):
+            self.arm();invalidate();key=theme_id()
+            if key!=self.key:self.key=key;refresh_widgets()
+    app.orbitThemeWatcher=ThemeWatcher()

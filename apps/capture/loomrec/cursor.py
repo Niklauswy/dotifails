@@ -104,8 +104,9 @@ class PointerReader:
 
 class CursorRecorder:
     """One bounded sampler per active segment, with incremental local JSONL writes."""
-    def __init__(self,path,display,rect,settings):
-        self.reader=PointerReader(display);self.path=Path(path);self.rect=tuple(rect);self.settings=effect_settings(settings)
+    def __init__(self,path,display,rect,settings,reader=None,native_cursor=False):
+        self.native_cursor=native_cursor
+        self.reader=reader if reader is not None else PointerReader(display);self.path=Path(path);self.rect=tuple(rect);self.settings=effect_settings(settings)
         self.stop_event=threading.Event();self.thread=None;self.error=None;self.count=0
     def start(self,origin):
         self.reader.clicks() # Discard any events queued during encoder setup.
@@ -113,7 +114,7 @@ class CursorRecorder:
     def _run(self):
         try:
             with self.path.open('x',buffering=1) as out:
-                out.write(json.dumps(dict(version=1,width=self.rect[2],height=self.rect[3],settings=self.settings))+'\n')
+                out.write(json.dumps(dict(version=1,width=self.rect[2],height=self.rect[3],settings=self.settings,native_cursor_embedded=self.native_cursor,origin=self.origin))+'\n')
                 last=None;last_time=-1.;was_inside=False
                 while not self.stop_event.is_set():
                     if self.count>=1_000_000:raise RuntimeError('Límite de datos del cursor alcanzado; el vídeo sigue grabándose')
@@ -217,5 +218,5 @@ def write_ass(trace_path,output,clip_start,clip_end,settings,cancel=None):
                     # A translucent expanding disk gives a soft pulse without screen overlays.
                     disc(start,end,*click[1:3],(12+20*progress)*scale,round(130+125*progress))
             arrow='m '+' l '.join(f'{px*scale:.2f} {py*scale:.2f}' for px,py in CURSOR_ARROW)+' c'
-            draw(start,end,x,y,arrow,CURSOR_FILL,border=max(1,1.3*scale))
+            if not header.get('native_cursor_embedded',False):draw(start,end,x,y,arrow,CURSOR_FILL,border=max(1,1.3*scale))
     return True

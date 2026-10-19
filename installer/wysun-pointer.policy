@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN" "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
+<policyconfig>
+  <vendor>Wysun</vendor>
+  <action id="org.wysun.pointer.observe">
+    <description>Observe mouse clicks for this Wysun recording</description>
+    <message>Allow Wysun to read mouse buttons for this recording? Keyboard input is excluded.</message>
+    <defaults>
+      <allow_any>no</allow_any>
+      <allow_inactive>no</allow_inactive>
+      <allow_active>auth_self</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/libexec/wysun-pointer-helper</annotate>
+  </action>
+</policyconfig>

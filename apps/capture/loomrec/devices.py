@@ -1,5 +1,6 @@
 """Read-only device discovery. Errors remain visible to callers."""
 import json
+import os
 import re
 import subprocess
 import shutil
@@ -34,13 +35,26 @@ def run(args):
 
 
 def discover():
+    from .portal import is_wayland
     monitors = []
-    for line in run(['xrandr', '--listmonitors']).splitlines()[1:]:
+    if is_wayland():
+        if os.environ.get('HYPRLAND_INSTANCE_SIGNATURE'):
+            for m in json.loads(run(['hyprctl','-j','monitors'])):
+                scale=m.get('scale',1);w,h=m['width'],m['height']
+                if m.get('transform',0)%2:w,h=h,w
+                monitors.append(dict(name=m['name'],rect=[m['x'],m['y'],round(w/scale)//2*2,round(h/scale)//2*2]))
+        elif os.environ.get('SWAYSOCK'):
+            for m in json.loads(run(['swaymsg','-r','-t','get_outputs'])):
+                if m.get('active'):monitors.append(dict(name=m['name'],rect=[m['rect'][k] for k in ('x','y','width','height')]))
+        else:monitors.append(dict(name='Elegir en el portal',rect=[0,0,1920,1080]))
+    for line in ([] if is_wayland() else run(['xrandr', '--listmonitors']).splitlines()[1:]):
         m = re.search(r'(\d+)/\d+x(\d+)/\d+([+-]\d+)([+-]\d+)\s+(\S+)', line)
         if m:
             w, h, x, y, name = m.groups()
             monitors.append(dict(name=name, rect=[int(x), int(y), int(w), int(h)]))
-    audio = json.loads(run(['pactl', '-f', 'json', 'list', 'sources']))
+    warnings=[]
+    try:audio = json.loads(run(['pactl', '-f', 'json', 'list', 'sources']))
+    except (OSError,ValueError,subprocess.SubprocessError):audio=[];warnings.append('Audio no disponible; activa PulseAudio o pipewire-pulse para fuentes de audio.')
     choices = [dict(id=s['name'], name=s.get('description', s['name']),
                 kind='system' if s['name'].endswith('.monitor') else 'mic') for s in audio]
     try:
@@ -49,7 +63,7 @@ def discover():
     except (OSError, ValueError, subprocess.SubprocessError):
         description = 'Audio del equipo (salida actual no disponible)'
     choices.insert(0, dict(id=DEFAULT_SYSTEM_AUDIO, name=description, kind='system'))
-    return dict(monitors=monitors, audio=choices,
+    return dict(monitors=monitors, audio=choices,warnings=warnings,
                 cameras=[str(p) for p in sorted(Path('/dev').glob('video*'))])
 
 

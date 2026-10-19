@@ -22,6 +22,7 @@ def expanded_rows(model):
     return result
 
 def change_binding(model, index, part, key=None, command=None, title=None):
+    if getattr(model,'native',False):return model.delete(index) if key is None else model.save(key,command,index,title)
     if part is None:
         return model.delete(index) if key is None else model.save(key,command,index,title)
     rows = [r for r in expanded_rows(model) if r['source_index'] == index]

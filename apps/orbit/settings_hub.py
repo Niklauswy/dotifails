@@ -35,7 +35,8 @@ class DisplayCanvas(QWidget):
     def geometry_for(self,p):
         try:w,h=map(int,p['mode'].split('x'))
         except (ValueError,KeyError):w,h=1920,1080
-        return (h,w) if p['rotation'] in ('left','right') else (w,h)
+        w,h=(h,w) if p['rotation'] in ('left','right') else (w,h)
+        scale=p.get('scale',1);return (w/scale,h/scale)
     def paintEvent(self,event):
         painter=QPainter(self);painter.setRenderHint(QPainter.Antialiasing);painter.setPen(Qt.NoPen);painter.setBrush(ThemeColor('#191B24'));painter.drawRoundedRect(self.rect(),12,12)
         active=[p for p in self.plan if p['enabled']];self.rects={}
@@ -59,7 +60,8 @@ class DisplayCanvas(QWidget):
     def mouseReleaseEvent(self,e):
         if self.drag:
             self.drag=None;active=[p for p in self.plan if p['enabled']];x=min(p['x'] for p in active);y=min(p['y'] for p in active)
-            for p in active:p['x']-=min(0,x);p['y']-=min(0,y)
+            if not __import__('desktop_backend').wayland():
+                for p in active:p['x']-=min(0,x);p['y']-=min(0,y)
             self.changed.emit();self.update()
 
 class SettingsHub(LegacySettingsWindow):
@@ -119,11 +121,11 @@ class SettingsHub(LegacySettingsWindow):
         layout=self.page();row=QHBoxLayout();row.addWidget(text_label('Ordena tus pantallas','title'),1);row.addWidget(button('Detectar',lambda:self.start_job(lambda:display_inventory(self.env.runner),self.receive_displays),symbol='refresh-cw'));layout.addLayout(row);layout.addWidget(text_label('Arrastra las pantallas o elige una posición exacta. Los cambios se prueban antes de guardarse.','subtitle'))
         self.canvas=DisplayCanvas();self.canvas.selected.connect(self.select_display);self.canvas.changed.connect(self.display_dragged);layout.addWidget(self.canvas)
         self.output_combo=QComboBox();self.output_combo.currentIndexChanged.connect(lambda:self.load_display_controls());layout.addWidget(self.output_combo)
-        grid=QGridLayout();self.output_enabled=QCheckBox('Pantalla encendida');self.output_primary=QCheckBox('Principal');grid.addWidget(self.output_enabled,0,0);grid.addWidget(self.output_primary,0,1)
+        grid=QGridLayout();self.output_enabled=QCheckBox('Pantalla encendida');self.output_primary=QCheckBox('Preferida (foco)' if __import__('desktop_backend').wayland() else 'Principal');grid.addWidget(self.output_enabled,0,0);grid.addWidget(self.output_primary,0,1)
         self.output_mode=QComboBox();self.output_rate=QComboBox();self.output_rotation=QComboBox()
         for name,label in [('normal','Normal'),('left','90° izquierda'),('right','90° derecha'),('inverted','180°')]:self.output_rotation.addItem(label,name)
         self.output_x=QSpinBox();self.output_y=QSpinBox()
-        for spin in (self.output_x,self.output_y):spin.setRange(0,16384);spin.setSuffix(' px')
+        for spin in (self.output_x,self.output_y):spin.setRange(-32768 if __import__('desktop_backend').wayland() else 0,32768 if __import__('desktop_backend').wayland() else 16384);spin.setSuffix(' px')
         for i,(title,widget) in enumerate([('Resolución',self.output_mode),('Frecuencia',self.output_rate),('Rotación',self.output_rotation),('Posición X',self.output_x),('Posición Y',self.output_y)]):grid.addWidget(text_label(title,'subtitle'),1+(i//3)*2,i%3);grid.addWidget(widget,2+(i//3)*2,i%3)
         layout.addLayout(grid);position=QHBoxLayout();self.relative_to=QComboBox();position.addWidget(text_label('Respecto a','subtitle'));position.addWidget(self.relative_to,1)
         for label,direction in [('←','left'),('→','right'),('↑','above'),('↓','below'),('Duplicar','mirror')]:position.addWidget(button(label,lambda d=direction:self.place_display(d)))
@@ -233,7 +235,7 @@ class SettingsHub(LegacySettingsWindow):
             self.env.reload();self.backend.reload();self.wallpaper_values=self.env.wallpaper_values();refresh_widgets();self.refresh_theme_selection()
             self.load_values()
             self.success(THEMES[result['theme']]['name']+' aplicado.'+(' Algunos componentes necesitan recargarse: '+', '.join(result['warnings']) if result['warnings'] else ''))
-            if not self.test:launch([str(self.env.home/'.local/bin/orbit'),'reload'])
+            if not self.test and not __import__('desktop_backend').wayland():launch([str(self.env.home/'.local/bin/orbit'),'reload'])
         job=self.start_job(lambda:apply_theme(self.env.home,self.theme_selected,self.env.runner),complete);job.finished.connect(lambda:self.apply_button.setEnabled(True))
 
     def build_bar(self):
@@ -360,21 +362,25 @@ class SettingsHub(LegacySettingsWindow):
                 def save(branch,key,command,index,title):return change_binding(model,row['source_index'],row['part'],key,command,title)
             dialog=ShortcutEditor(self,Branch(),0)
         else:dialog=ShortcutEditor(self,self.shortcuts,row['source_index'] if row else None)
-        if dialog.exec()==QDialog.Accepted:self.render_shortcuts();self.success('Atajo guardado. sxhkd recargado y copia anterior conservada.')
+        if dialog.exec()==QDialog.Accepted:self.render_shortcuts();self.success('Atajo guardado y copia anterior conservada.')
     def delete_shortcut(self):
         row=self.selected_shortcut()
         if not row or not row.get('editable'):return
         if QMessageBox.question(self,'Eliminar atajo','¿Eliminar únicamente «'+row['key']+'»?',QMessageBox.Yes|QMessageBox.Cancel,QMessageBox.Cancel)!=QMessageBox.Yes:return
-        try:change_binding(self.shortcuts,row['source_index'],row['part']);subprocess.run(['pkill','-USR1','-u',str(os.getuid()),'-x','sxhkd'],capture_output=True);self.render_shortcuts();self.success('Atajo eliminado; los demás se conservan.')
+        try:change_binding(self.shortcuts,row['source_index'],row['part']);__import__('settings_data').reload_shortcuts();self.render_shortcuts();self.success('Atajo eliminado; los demás se conservan.')
         except Exception as exc:self.report_error(str(exc))
 
     def build_component(self,kind):
-        titles={'effects':('Efectos y animaciones','Ajusta el movimiento, las sombras y el cristal de Picom.'),'terminal':('Tu terminal, a tu medida','Fuente, colores y espacio de Ghostty. Los cambios se guardan en su configuración.'),'notifications':('Notificaciones','Ajusta la posición, el tamaño y el tiempo de los avisos de Dunst.')};layout=self.page();self.page_heading(layout,*titles[kind]);form=self.scroll_form(layout);values=self.env.component_values(kind);controls={};self.component_controls[kind]=controls
+        titles={'effects':('Efectos y animaciones','Ajusta el movimiento, las sombras y el cristal del compositor.'),'terminal':('Tu terminal, a tu medida','Fuente, colores y espacio de Ghostty. Los cambios se guardan en su configuración.'),'notifications':('Notificaciones','Ajusta la posición, el tamaño y el tiempo de los avisos de Dunst.')};layout=self.page();self.page_heading(layout,*titles[kind]);form=self.scroll_form(layout);controls={};self.component_controls[kind]=controls
+        try:values=self.env.component_values(kind)
+        except Exception as exc:
+            form.addRow(QLabel('No se pudo leer el estado actual: '+str(exc)))
+            return
         schemas={
             'effects':[('duration','Duración de animaciones','int',50,600,120,' ms'),('corner-radius','Esquinas','int',0,30,12,' px'),('shadow','Sombras','bool',0,0,True,''),('shadow-radius','Tamaño de sombra','int',0,40,18,' px'),('shadow-opacity','Opacidad de sombra','float',0,1,.25,''),('blur-background','Desenfoque de fondo','bool',0,0,True,''),('blur-strength','Intensidad de desenfoque','int',1,8,3,''),('fading','Fundido al aparecer','bool',0,0,True,''),('vsync','Sincronización vertical','bool',0,0,True,'')],
             'terminal':[('font-family','Fuente','text',0,0,'FiraCode Nerd Font',''),('font-size','Tamaño','float',8,36,20,' pt'),('background-opacity','Opacidad del fondo','float',.1,1,.6,''),('window-padding-x','Margen horizontal','int',0,60,10,' px'),('window-padding-y','Margen vertical','int',0,60,10,' px'),('scrollback-limit','Memoria del historial','int',1000,1000000,10000,' bytes'),('background','Color de fondo','color',0,0,'#1a1b26',''),('foreground','Color del texto','color',0,0,'#c0caf5','')],
             'notifications':[('origin','Posición','position',0,0,'top-right',''),('font','Fuente y tamaño','text',0,0,'Inter 10',''),('transparency','Transparencia','int',0,60,5,' %'),('corner_radius','Esquinas','int',0,30,12,' px'),('notification_limit','Avisos simultáneos','int',1,12,4,''),('padding','Margen interior','int',4,40,18,' px'),('gap_size','Separación','int',0,30,10,' px'),('timeout','Duración normal','int',1,60,6,' s')]}
-        if kind=='effects':
+        if kind=='effects' and not __import__('desktop_backend').wayland() and (self.env.home/'.config/bspwm/picom.conf').exists():
             match=re.search(r'duration\s*=\s*([\d.]+)',(self.env.home/'.config/bspwm/picom.conf').read_text())
             if match:values['duration']=round(float(match[1])*1000)
         for key,label,typ,lo,hi,default,suffix in schemas[kind]:
@@ -394,6 +400,9 @@ class SettingsHub(LegacySettingsWindow):
                 row=QHBoxLayout();row.addWidget(c,1);row.addWidget(button('Elegir',lambda control=c:self.choose_color(control),symbol='palette'));form.addRow(label,row)
             elif typ=='bool':form.addRow(c)
             else:form.addRow(label,c)
+        if kind=='effects' and __import__('desktop_backend').wayland():
+            controls['corner-radius'].setMaximum(20)
+            controls['vsync'].setEnabled(False);controls['vsync'].setToolTip('Wayland sincroniza la presentación mediante el compositor.')
         if kind=='terminal':form.addRow(text_label('Se verá en las terminales nuevas. En una terminal abierta, recarga Ghostty con Ctrl + Shift + , . Neovim conserva su propio tema.','subtitle'))
         if kind=='notifications':form.addRow(button('Probar notificación',lambda:launch(['notify-send','Wysun · Notificaciones','Así se ven tus avisos actuales.']),symbol='bell'))
         if kind=='effects':
@@ -414,7 +423,7 @@ class SettingsHub(LegacySettingsWindow):
     def refresh_startup(self):
         self.start_job(self.env.autostart_entries,self.receive_startup)
         def services():
-            names=['bspwm','sxhkd','picom','polybar','dunst'];return '  ·  '.join(name+(' activo' if subprocess.run(['pgrep','-u',str(os.getuid()),'-x',name],capture_output=True).returncode==0 else ' detenido') for name in names)
+            names=['Hyprland','quickshell','dunst','pipewire','wireplumber'] if __import__('desktop_backend').wayland() else ['bspwm','sxhkd','picom','polybar','dunst'];return '  ·  '.join(name+(' activo' if subprocess.run(['pgrep','-u',str(os.getuid()),'-x',name],capture_output=True).returncode==0 else ' detenido') for name in names)
         self.start_job(services,self.services_label.setText)
     def receive_startup(self,rows):
         self.startup_table.setRowCount(0)
@@ -436,6 +445,7 @@ class SettingsHub(LegacySettingsWindow):
     def build_files(self):
         layout=self.page();self.page_heading(layout,'Archivos y copias de seguridad','Abre la configuración en Neovim. Antes de cada cambio conservamos la versión anterior.');grid=QGridLayout()
         files=[('BSPWM','bspwm/bspwmrc'),('Atajos · sxhkd','sxhkd/sxhkdrc'),('Picom','bspwm/picom.conf'),('Polybar','bspwm/polybar/config'),('Ghostty','ghostty/config'),('Notificaciones','bspwm/dunstrc'),('Neovim','nvim/lua/mappings.lua'),('Fuentes y temas GTK','xsettingsd/xsettingsd.conf'),('Preferencias del entorno','orbit/environment.json')]
+        if __import__('desktop_backend').wayland():files=[('Hyprland','wysun/hyprland.lua'),('Atajos Wysun','orbit/hypr-shortcuts.lua'),('Reglas Wysun','orbit/hypr-settings.lua'),('Efectos','orbit/hypr-effects.lua'),('Ghostty','ghostty/config'),('Neovim','nvim/lua/mappings.lua'),('Preferencias del entorno','orbit/environment.json')]
         for i,(title,path) in enumerate(files):grid.addWidget(button(title,lambda p=path:open_vim(self.env.home/'.config'/p),symbol='file-code'),i//3,i%3)
         layout.addLayout(grid);layout.addWidget(text_label('Copias disponibles · selecciona para inspeccionar o restaurar','subtitle'));self.backups=QListWidget();layout.addWidget(self.backups,1);row=QHBoxLayout();row.addWidget(button('Ver en Vim',self.inspect_backup,symbol='terminal'));row.addWidget(button('Restaurar atajos / ventanas',self.restore_shortcuts,symbol='rotate-cw'));row.addWidget(button('Abrir carpeta',lambda:launch(['xdg-open',str(self.env.home/'.local/share/orbit/settings-backups')]),symbol='folder-open'));layout.addLayout(row);self.render_backups()
     def inspect_backup(self):
@@ -457,7 +467,7 @@ class SettingsHub(LegacySettingsWindow):
             for name in values[side]:self.add_bar_item(side,name)
         for kind,controls in self.component_controls.items():
             values=self.env.component_values(kind)
-            if kind=='effects':
+            if kind=='effects' and not __import__('desktop_backend').wayland() and (self.env.home/'.config/bspwm/picom.conf').exists():
                 match=re.search(r'duration\s*=\s*([\d.]+)',(self.env.home/'.config/bspwm/picom.conf').read_text())
                 if match:values['duration']=round(float(match[1])*1000)
             for key,c in controls.items():

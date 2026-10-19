@@ -1,0 +1,107 @@
+#!/usr/bin/env python3
+"""Finite native window actions; no daemon, input injection or X11 fallback."""
+import argparse
+import fcntl
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import subprocess
+import tempfile
+
+
+def address(window):
+    value=window.get('address','')
+    if not re.fullmatch(r'0x[0-9a-fA-F]+',value):raise ValueError('Identidad de ventana inválida')
+    return value
+
+
+def action_plan(action,active,clients,state=None):
+    """Return a dispatcher and optional navigation state, never execute here."""
+    target=address(active);selector='address:'+target
+    visible=[c for c in clients if not c.get('hidden') and c.get('mapped',True) and c.get('workspace',{}).get('id')==active.get('workspace',{}).get('id')]
+    if action=='biggest-swap':
+        others=[c for c in visible if address(c)!=target and not c.get('floating')]
+        if not others:return None,None
+        chosen=max(others,key=lambda c:max(0,c.get('size',[0,0])[0])*max(0,c.get('size',[0,0])[1]))
+        return 'hl.dsp.window.swap({target='+json.dumps('address:'+address(chosen))+'})',None
+    if action in ('history-older','history-newer'):
+        identities={address(c):int(c.get('pid',0)) for c in clients if not c.get('hidden') and c.get('mapped',True)}
+        state=dict(state or {});order=state.get('order',[])
+        valid=isinstance(order,list) and all(isinstance(c,dict) and identities.get(c.get('address'))==c.get('pid') for c in order)
+        if not valid or state.get('last')!=target:
+            order=[dict(address=address(c),pid=int(c.get('pid',0))) for c in sorted(clients,key=lambda c:c.get('focusHistoryID',999999)) if address(c) in identities]
+            order.sort(key=lambda c:c['address']!=target)
+        index=next((i for i,c in enumerate(order) if c['address']==target),0)
+        index=max(0,min(len(order)-1,index+(1 if action=='history-older' else -1)))
+        if not order:return None,None
+        selected=order[index]['address'];new=dict(order=order,last=selected)
+        return 'hl.dsp.focus({window='+json.dumps('address:'+selected)+'})',new
+    if action.startswith(('move-','resize-')):
+        verb,direction=action.split('-',1)
+        if direction not in ('left','right','up','down'):raise ValueError('Dirección inválida')
+        if verb=='move' and not active.get('floating'):raise ValueError('Mover por píxeles requiere ventana flotante; Super+S la hace flotante.')
+        step=20 if active.get('floating') or verb=='move' else 100
+        x,y={'left':(-step,0),'right':(step,0),'up':(0,-step),'down':(0,step)}[direction]
+        method='move' if verb=='move' else 'resize'
+        return 'hl.dsp.window.'+method+'({window='+json.dumps(selector)+',x='+str(x)+',y='+str(y)+',relative=true})',None
+    if action=='pin':
+        if not active.get('floating'):raise ValueError('Sticky nativo requiere ventana flotante: Super+S y después Super+Ctrl+Y.')
+        return 'hl.dsp.window.pin({window='+json.dumps(selector)+'})',None
+    raise ValueError('Acción desconocida')
+
+
+def query(name):
+    result=subprocess.run(['hyprctl','-j',name],capture_output=True,text=True,timeout=3,check=True)
+    if len(result.stdout)>8_000_000:raise ValueError('Respuesta de compositor demasiado grande')
+    return json.loads(result.stdout)
+
+
+def main():
+    p=argparse.ArgumentParser(description=__doc__);p.add_argument('action',choices=['biggest-swap','history-older','history-newer','pin',*[v+'-'+d for v in ('move','resize') for d in ('left','right','up','down')]])
+    p.add_argument('--dry-run',action='store_true');args=p.parse_args()
+    signature=os.environ.get('HYPRLAND_INSTANCE_SIGNATURE','')
+    if not signature:raise ValueError('Esta acción requiere la sesión Hyprland activa')
+    active=query('activewindow');clients=query('clients')
+    if not active:return 0
+    folder=Path(os.environ.get('XDG_STATE_HOME',str(Path.home()/'.local/state')))/'wysun'
+    if folder.is_symlink():raise ValueError('Estado de navegación inseguro')
+    # Dry-run reads only, without creating a lock/state file.
+    path=folder/('focus-'+hashlib.sha256(signature.encode()).hexdigest()[:20]+'.json')
+    def run(state):
+        dispatcher,new=action_plan(args.action,active,clients,state)
+        if args.dry_run:print(json.dumps(dict(dispatcher=dispatcher,mutated=False)));return
+        if dispatcher:
+            now=query('activewindow')
+            if now.get('address')!=active.get('address') or now.get('pid')!=active.get('pid'):
+                raise ValueError('El foco cambió; no se modificó la ventana anterior')
+            result=subprocess.run(['hyprctl','dispatch',dispatcher],capture_output=True,text=True,timeout=3,check=True)
+            if result.stdout.strip()!='ok':raise RuntimeError('El compositor rechazó la acción')
+        if new is not None:
+            fd,name=tempfile.mkstemp(prefix='.focus-',dir=folder)
+            try:
+                with os.fdopen(fd,'w') as f:json.dump(new,f);f.flush();os.fsync(f.fileno())
+                os.replace(name,path)
+            finally:
+                if os.path.exists(name):os.unlink(name)
+    if args.dry_run:
+        state=json.loads(path.read_text()) if path.is_file() and not path.is_symlink() else {}
+        run(state);return 0
+    folder.mkdir(parents=True,exist_ok=True,mode=0o700)
+    lock=folder/'focus.lock'
+    if lock.is_symlink() or path.is_symlink():raise ValueError('Estado de navegación inseguro')
+    with lock.open('a') as f:
+        fcntl.flock(f,fcntl.LOCK_EX)
+        try:state=json.loads(path.read_text()) if path.is_file() else {}
+        except (ValueError,OSError):state={}
+        run(state)
+    return 0
+
+if __name__=='__main__':
+    try:raise SystemExit(main())
+    except (ValueError,RuntimeError,OSError,subprocess.SubprocessError) as error:
+        text=str(error)
+        try:subprocess.run(['dunstify','-a','Wysun','-u','low','Wysun · Ventanas',text],capture_output=True,timeout=2)
+        except (OSError,subprocess.SubprocessError):pass
+        raise SystemExit(text)

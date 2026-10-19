@@ -62,7 +62,7 @@ def setup(w):
     selection=surface('well');sl=QVBoxLayout(selection);sl.setContentsMargins(16,12,16,12);sl.setSpacing(8);body.addWidget(selection)
     sr=QHBoxLayout();sl.addLayout(sr);sr.addWidget(label(w.tr('ENCUADRE'),'eyebrow'));sr.addStretch();w.region_summary=label('1920 × 1080','section');sr.addWidget(w.region_summary)
     w.monitor=ComboBox();w.monitor.setMinimumWidth(100);w.monitor.setSizePolicy(QSizePolicy.Expanding,QSizePolicy.Fixed);w.monitor.currentIndexChanged.connect(w.monitor_changed);sl.addWidget(w.monitor)
-    hint=label(w.tr('Se grabará lo que esté visible en esta área.'),'subtitle');hint.setWordWrap(True);hint.setToolTip(w.tr('La ventana es un recorte fijo de pantalla: cualquier ventana que la cubra también aparecerá.'));sl.addWidget(hint)
+    hint=label(w.tr('Wayland: el portal autoriza pantalla o ventana. La región debe pertenecer al monitor autorizado.' if __import__('loomrec.portal',fromlist=['is_wayland']).is_wayland() else 'Se grabará lo que esté visible en esta área.'),'subtitle');hint.setWordWrap(True);hint.setToolTip(w.tr('La ventana es un recorte fijo de pantalla: cualquier ventana que la cubra también aparecerá.'));sl.addWidget(hint)
     body.addWidget(rule())
     devices=QVBoxLayout();devices.setSpacing(14);body.addLayout(devices)
     w.mic=ComboBox();w.system=ComboBox();w.camera=ComboBox();w.device_toggles=[]
@@ -87,7 +87,7 @@ def setup(w):
     form=QFormLayout(advanced.body);form.setContentsMargins(0,4,0,0);form.setSpacing(12);form.setRowWrapPolicy(QFormLayout.WrapLongRows)
     coords=QGridLayout();coords.setSpacing(8);w.rect=[]
     for index,(title,value) in enumerate([('X',0),('Y',0),('Ancho',1920),('Alto',1080)]):
-        spin=SpinBox();spin.setRange(0 if index<2 else 16,32768);spin.setValue(value);w.rect.append(spin);coords.addWidget(label(w.tr(title)),index//2,index%2*2);coords.addWidget(spin,index//2,index%2*2+1)
+        spin=SpinBox();spin.setRange((-32768 if __import__('loomrec.portal',fromlist=['is_wayland']).is_wayland() else 0) if index<2 else 16,32768);spin.setValue(value);w.rect.append(spin);coords.addWidget(label(w.tr(title)),index//2,index%2*2);coords.addWidget(spin,index//2,index%2*2+1)
         spin.valueChanged.connect(lambda _:w.region_summary.setText(f'{w.rect[2].value()} × {w.rect[3].value()}' if len(w.rect)==4 else ''))
     form.addRow(w.tr('Área exacta'),coords)
     w.mic_gain=number(0,8,1);w.system_gain=number(0,8,1);form.addRow(w.tr('Ganancia del micrófono'),w.mic_gain);form.addRow(w.tr('Ganancia del equipo'),w.system_gain)

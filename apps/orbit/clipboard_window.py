@@ -122,7 +122,7 @@ class ClipboardWindow(WindowMotion,QWidget):
         if self.isVisible() and not getattr(self,'_motion_exiting',False):self.dismiss();return
         if not self.test:
             try:
-                self.source_window=self.owner.source_window if self.owner.isVisible() else subprocess.check_output(['bspc','query','-N','-n','focused'],text=True,timeout=.3).strip()
+                self.source_window=self.owner.source_window if self.owner.isVisible() else __import__('desktop_backend').previous_window()
             except (OSError,subprocess.SubprocessError):self.source_window=''
         self.owner.hide();self.refresh(True)
         screen=QApplication.screenAt(QCursor.pos()) or QApplication.primaryScreen();area=screen.availableGeometry()

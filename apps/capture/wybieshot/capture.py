@@ -1,8 +1,8 @@
-"""X11 visible-pixel capture using Qt, independent of Flameshot and Recorder.
+"""Wayland portal pixels and X11 visible pixels, with explicit coordinate spaces.
 
-Coordinates are physical root pixels. Mixed/high DPR is rejected explicitly until
-an independently verified mapping exists. Windows mean visible desktop crops,
-including occluding windows; hidden/minimized windows are never reconstructed.
+Wayland desktop uses Screenshot (no cursor control); monitor/window use genuine
+ScreenCast/PipeWire. Native selection coordinates belong to the authorized image.
+X11 uses physical root coordinates and visible window crops, including occlusion.
 """
 from dataclasses import dataclass
 import ctypes
@@ -17,6 +17,7 @@ class FrozenDesktop:
     geometry: Rect
     monitors: tuple[Rect,...]
     cursor_image: QImage | None = None
+    cursor_embedded: bool = False
 
 @dataclass(frozen=True)
 class CaptureResult:
@@ -50,7 +51,13 @@ class CaptureEngine:
             raise RuntimeError('Desktop returned an incomplete capture')
         return image
 
-    def freeze(self):
+    def freeze(self,include_cursor=False):
+        from loomrec.portal import is_wayland
+        if is_wayland():
+            from loomrec.portal_image import capture_frame
+            image=capture_frame('monitor',include_cursor)
+            bounds=Rect(0,0,image.width(),image.height())
+            return FrozenDesktop(image,bounds,(bounds,),image if include_cursor else None,include_cursor)
         bounds=self._geometry()
         monitors=tuple(Rect(s.geometry().x(),s.geometry().y(),s.geometry().width(),s.geometry().height()) for s in self._screens())
         image=self._grab(bounds)
@@ -84,7 +91,21 @@ class CaptureEngine:
             return result
         finally:connection.close()
 
-    def capture(self,request:CaptureRequest,frozen=None):
+    def capture(self,request:CaptureRequest,frozen=None,*,progress=None,on_wait=None):
+        if request.delay_ms:raise ValueError('Use a cancellable QTimer countdown in the UI before capture')
+        from loomrec.portal import is_wayland
+        if is_wayland() and frozen is None:
+            if request.mode=='region' and request.region is None:raise ValueError('Freeze the authorized monitor before selecting a region')
+            from loomrec.portal_image import capture_frame
+            if request.mode=='desktop' and request.include_cursor:
+                image=capture_frame('desktop',True,progress=progress,on_wait=on_wait)
+            else:image=capture_frame('window' if request.mode=='window' else 'desktop' if request.mode=='desktop' else 'monitor',request.include_cursor)
+            bounds=Rect(0,0,image.width(),image.height())
+            if request.mode=='region':
+                if not bounds.contains(request.region):raise ValueError('Capture outside authorized image')
+                r=request.region;image=image.copy(r.x,r.y,r.width,r.height);bounds=r
+            warning=('Escritorio con cursor: monitores autorizados por separado, capturados en secuencia; no es un instante simultáneo. Salidas de menor escala remuestreadas a la mayor escala.' if request.include_cursor else 'Escritorio completo del portal Screenshot sin cursor.') if request.mode=='desktop' else 'Fuente autorizada por el portal. Coordenadas en píxeles de imagen; ventana independiente solo si el portal ofrece WINDOW.'
+            return CaptureResult(image,bounds,request.mode,warning)
         if request.delay_ms:raise ValueError('Use a cancellable QTimer countdown in the UI before capture')
         bounds=frozen.geometry if frozen else self._geometry()
         warning=''
@@ -103,6 +124,7 @@ class CaptureEngine:
             region=chosen['geometry'];warning='Recorte de píxeles visibles; incluye otras ventanas que la cubran.'
         if not bounds.contains(region):raise ValueError('Capture outside frozen desktop')
         if frozen:
+            if frozen.cursor_embedded and not request.include_cursor:raise ValueError('El cursor ya está incrustado por el portal; vuelve a capturar sin cursor')
             source=frozen.cursor_image if request.include_cursor else frozen.image
             if source is None:raise RuntimeError('Cursor was unavailable when desktop was frozen')
             image=source.copy(region.x-bounds.x,region.y-bounds.y,region.width,region.height)

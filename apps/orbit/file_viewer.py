@@ -13,13 +13,23 @@ from icons import icon,badge
 class VideoPlayer(QWidget):
     def __init__(self,path,parent=None):
         super().__init__(parent);self.path=str(path);self.process=None;self.sock=None;self.buffer=b'';self.props={};self.root=None;self.stopped=False
-        layout=QVBoxLayout(self);layout.setContentsMargins(0,0,0,0);self.surface=QWidget();self.surface.setAttribute(Qt.WA_NativeWindow);apply_style(self.surface,'background:#090A0E;');self.surface.setMinimumHeight(250);layout.addWidget(self.surface,1)
+        from desktop_backend import wayland
+        from mpv_embed import MpvSurface
+        layout=QVBoxLayout(self);layout.setContentsMargins(0,0,0,0);self.surface=MpvSurface() if wayland() else QWidget();
+        if not wayland():self.surface.setAttribute(Qt.WA_NativeWindow)
+        apply_style(self.surface,'background:#090A0E;');self.surface.setMinimumHeight(250);layout.addWidget(self.surface,1)
         controls=QHBoxLayout();self.play_button=button('Reproducir',self.toggle,symbol='circle-play');controls.addWidget(self.play_button);self.position=QSlider(Qt.Horizontal);self.position.setRange(0,1000);self.position.sliderReleased.connect(self.seek);controls.addWidget(self.position,1);self.time_label=text_label('0:00 / 0:00','subtitle');controls.addWidget(self.time_label);self.mute=button('',lambda:self.send(['cycle','mute']),symbol='volume-2');controls.addWidget(self.mute);layout.addLayout(controls);self.status=text_label('Preparando vídeo…','subtitle');layout.addWidget(self.status)
         self.poll=QTimer(self);self.poll.setInterval(120);self.poll.timeout.connect(self.read_ipc);QTimer.singleShot(0,self.start)
     def start(self):
         if self.stopped:return
         if QApplication.platformName()=='offscreen':self.status.setText('Reproducción disponible en la sesión gráfica.');return
-        self.root=tempfile.TemporaryDirectory(prefix='orbit-video-',dir=os.environ.get('XDG_RUNTIME_DIR','/tmp'));self.socket_path=str(Path(self.root.name)/'mpv.sock');self.process=QProcess(self)
+        self.root=tempfile.TemporaryDirectory(prefix='orbit-video-',dir=os.environ.get('XDG_RUNTIME_DIR','/tmp'));self.socket_path=str(Path(self.root.name)/'mpv.sock')
+        from desktop_backend import wayland
+        if wayland():
+            try:self.surface.start(self.path,self.socket_path,{'volume':'65'})
+            except Exception as exc:self.status.setText(str(exc));return
+            self.surface.failed.connect(self.status.setText);self.poll.start();return
+        self.process=QProcess(self)
         self.process.setStandardOutputFile(os.devnull);self.process.setStandardErrorFile(os.devnull);self.process.errorOccurred.connect(lambda *_:self.status.setText('No se pudo iniciar el reproductor.'));self.process.finished.connect(self.player_finished)
         args=['--no-config','--no-terminal','--load-scripts=no','--ytdl=no','--access-references=no','--audio-file-auto=no','--sub-auto=no','--osc=no','--input-default-bindings=no','--input-vo-keyboard=no','--idle=yes','--keep-open=yes','--pause=yes','--volume=65','--force-window=yes','--vo=x11','--hwdec=no','--vd-lavc-threads=2','--wid='+str(int(self.surface.winId())),'--input-ipc-server='+self.socket_path,'--',self.path]
         self.process.start('mpv',args);self.poll.start()
@@ -59,6 +69,7 @@ class VideoPlayer(QWidget):
         if not self.stopped:self.status.setText('No se pudo reproducir el archivo.' if code else 'Reproducción finalizada.')
     def stop(self):
         self.stopped=True;self.poll.stop();self.send(['quit'])
+        if hasattr(self.surface,'stop'):self.surface.stop()
         if self.process and self.process.state()!=QProcess.NotRunning:
             if not self.process.waitForFinished(120):self.process.kill();self.process.waitForFinished(120)
         if self.sock:self.sock.close();self.sock=None

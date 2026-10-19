@@ -1,0 +1,10 @@
+#!/bin/sh
+set -eu
+config="${XDG_DATA_HOME:-$HOME/.local/share}/wysun/quickshell"
+[ -f "$config/shell.qml" ] || config="$HOME/.local/share/wysun/quickshell"
+case "${1:-}" in
+    reload-preferences) shift; exec quickshell ipc -p "$config" call wysunShell reloadPreferences "$@" ;;
+    menu|windows|session) kind="$1"; shift; exec quickshell ipc -p "$config" call wysunShell toggle "$kind" "$@" ;;
+    close|status) action="$1"; shift; exec quickshell ipc -p "$config" call wysunShell "$action" "$@" ;;
+    *) exec quickshell --no-duplicate -p "$config" "$@" ;;
+esac

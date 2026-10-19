@@ -45,9 +45,10 @@ class ActionWindow(Window):
     def accept_selection(self):
         overlay=self.overlay
         if overlay and overlay.isVisible() and overlay.selection.width()>1 and overlay.selection.height()>1:
-            overlay.hide();overlay.selected.emit(overlay.selection.normalized().intersected(overlay.rect()))
+            overlay.hide();overlay.selected.emit(overlay.source_rect(overlay.selection.normalized().intersected(overlay.rect())))
 
     def cancel_capture(self):
+        if self._capture_feedback:self._capture_feedback.cancel()
         self.release_capture()
         self.capture_timer.stop();self.busy=False;self.frozen=None
         if self.overlay:self.overlay.hide();self.overlay.deleteLater();self.overlay=None

@@ -97,12 +97,27 @@ class FloatingTests(unittest.TestCase):
         other=CaptureLease(Path(self.temp.name)/'runtime');self.assertFalse(other.claim());w.cancel_capture();self.assertTrue(other.claim());other.release()
 
 class LeaseTests(unittest.TestCase):
-    def test_repeat_direct_invocation_is_ignored_and_recovers_after_release(self):
+    def test_repeat_direct_invocation_shows_notice_and_recovers_after_release(self):
         with tempfile.TemporaryDirectory() as directory,patch.dict(os.environ,{'XDG_RUNTIME_DIR':directory}):
             first=CaptureLease();self.assertTrue(first.claim());second=CaptureLease();self.assertFalse(second.claim())
-            with patch('wybieshot.actions.run') as run:
-                self.assertEqual(main(['--region']),0);run.assert_not_called()
+            def occupied_notice(parent,title,message):
+                self.assertIn('Captura en curso',title)
+                self.assertIn('Termina o cancela',message)
+                self.assertEqual(app.desktopFileName(),'wybie-screenshot')
+                self.assertFalse(second.claim())  # Never steal/release another selection.
+            with patch('wybieshot.actions.run') as run,patch('PySide6.QtWidgets.QMessageBox.warning',side_effect=occupied_notice) as warning:
+                self.assertEqual(main(['--region']),0);run.assert_not_called();warning.assert_called_once()
             first.release();self.assertTrue(second.claim());second.release()
+    def test_busy_notice_exception_never_releases_existing_owner(self):
+        with tempfile.TemporaryDirectory() as directory,patch.dict(os.environ,{'XDG_RUNTIME_DIR':directory}):
+            first=CaptureLease();self.assertTrue(first.claim());second=CaptureLease()
+            try:
+                with patch('wybieshot.actions.run') as run,patch('PySide6.QtWidgets.QMessageBox.warning',side_effect=RuntimeError('own notice failure')):
+                    with self.assertRaisesRegex(RuntimeError,'own notice failure'):main(['--region'])
+                    run.assert_not_called()
+                self.assertFalse(second.claim())
+            finally:first.release()
+            self.assertTrue(second.claim());second.release()
     def test_process_death_releases_lock_and_displays_are_isolated(self):
         with tempfile.TemporaryDirectory() as directory:
             code='from wybieshot.instance import CaptureLease; import sys; x=CaptureLease(sys.argv[1]); assert x.claim(); print("ready",flush=True); sys.stdin.read()'

@@ -28,7 +28,7 @@ class FloatingSelection(SelectionOverlay):
     def __init__(self,image,geometry,parent=None):
         install_translations(QApplication.instance())
         super().__init__(image,geometry,parent)
-        self.setWindowFlag(Qt.X11BypassWindowManagerHint,True)
+        self.setWindowFlag(Qt.X11BypassWindowManagerHint,not __import__('loomrec.portal',fromlist=['is_wayland']).is_wayland())
         self.setWindowTitle('Seleccionar región · Wysun Screenshot')
         self.document=None;self.editing=False;self._popover=None;self._file_dialog=None
         QApplication.instance().installEventFilter(self)
@@ -85,7 +85,7 @@ class FloatingSelection(SelectionOverlay):
     def prepare_selection(self):
         r=self.selection.normalized().intersected(self.rect())
         if r.width()<2 or r.height()<2:return
-        self.selection=r;self.document=Document(self.image.copy(r),'Captura')
+        self.selection=r;self.document=Document(self.image.copy(self.source_rect(r)),'Captura')
         self.canvas.set_document(self.document);self.canvas.setGeometry(r)
         self.toolbar.setFixedWidth(min(720,max(1,self.width()-24)))
         self.toolbar.adjustSize();height=self.toolbar.sizeHint().height();self.toolbar.setFixedHeight(height)

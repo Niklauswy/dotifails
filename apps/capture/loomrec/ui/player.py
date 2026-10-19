@@ -15,7 +15,10 @@ class Player(QWidget):
     def __init__(self):
         super().__init__(); self.setMinimumSize(320,180)
         layout=QVBoxLayout(self); layout.setContentsMargins(0,0,0,0)
-        self.surface=QWidget(); self.surface.setStyleSheet('background:#18263A; border-radius:10px;'); layout.addWidget(self.surface)
+        from ..portal import is_wayland
+        from .mpv_embed import MpvSurface
+        self.surface=MpvSurface() if is_wayland() else QWidget(); self.surface.setStyleSheet('background:#18263A; border-radius:10px;'); layout.addWidget(self.surface)
+        if isinstance(self.surface,MpvSurface):self.surface.failed.connect(self.report_failure)
         self._closing=False;self._failure_reported=False
         self.process=QProcess(self); self.process.errorOccurred.connect(lambda _:self.report_failure(self.tr('No se pudo iniciar mpv. Comprueba su instalación.')))
         self.process.finished.connect(lambda code,_:self.report_failure(self.tr('mpv no pudo reproducir el video. Comprueba el archivo.')) if code else None)
@@ -67,9 +70,15 @@ class Player(QWidget):
         self._failure_reported=False
         if not Path(path).is_file():
             self.report_failure(self.tr('No se encuentra el archivo de video.'));return
-        self.process.start('mpv',['--no-config','--idle=no','--pause','--keep-open=yes',
-            '--hwdec=no','--vo=gpu,x11','--input-default-bindings=no','--input-vo-keyboard=no',
-            '--osc=no',f'--wid={int(self.surface.winId())}',f'--input-ipc-server={self.ipc}',str(path)])
+        from ..portal import is_wayland
+        args=['--no-config','--idle=no','--pause','--keep-open=yes','--hwdec=no',
+              '--input-default-bindings=no','--input-vo-keyboard=no','--osc=no',f'--input-ipc-server={self.ipc}']
+        if is_wayland():
+            try:self.surface.start(path,self.ipc,{'volume':self.volume})
+            except Exception as exc:self.report_failure(str(exc));return
+        else:
+            args+=['--vo=gpu,x11',f'--wid={int(self.surface.winId())}']
+            self.process.start('mpv',args+['--',str(path)])
         self.paused=True;self.duration=0.;self.position=0.;self.stateChanged.emit();self.timer.start()
     def report_failure(self,message):
         if self._closing or self._failure_reported:return
@@ -89,6 +98,7 @@ class Player(QWidget):
         if self.client:self.client.close();self.client=None
         self.buffer.clear()
         self._closing=True
+        if hasattr(self.surface,'stop'):self.surface.stop()
         if self.process.state()!=QProcess.NotRunning:
             self.command('quit'); self.process.terminate()
             if not self.process.waitForFinished(500): self.process.kill(); self.process.waitForFinished(500)

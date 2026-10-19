@@ -21,7 +21,7 @@ class ShortcutEditor(QDialog):
         row=QHBoxLayout();row.addStretch();row.addWidget(button('Cancelar',self.reject));row.addWidget(button('Guardar atajo',self.save,'primary'));layout.addLayout(row)
     def save(self):
         try:
-            self.model.save(self.key.text(),self.command.toPlainText(),self.index,self.title.text() or 'Atajo personalizado');subprocess.run(['pkill','-USR1','-u',str(__import__('os').getuid()),'-x','sxhkd'],capture_output=True);self.accept()
+            self.model.save(self.key.text(),self.command.toPlainText(),self.index,self.title.text() or 'Atajo personalizado');__import__('settings_data').reload_shortcuts();self.accept()
         except (ValueError,OSError,subprocess.SubprocessError) as e:self.error.setText(str(e));apply_style(self.error,'color:#EDAAA7')
 
 class SettingsWindow(Surface):
@@ -50,6 +50,11 @@ class SettingsWindow(Surface):
             else:
                 control=QLineEdit();control.setMaxLength(7);control.setMaximumWidth(145)
             self.widgets[key]=control
+            from desktop_backend import wayland
+            if wayland():
+                from hypr_settings import MAPPING,COLOR_MAPPING
+                if key not in MAPPING and key not in COLOR_MAPPING:
+                    control.setEnabled(False);control.setToolTip('Esta opción pertenece al árbol BSPWM y no tiene equivalente directo en Hyprland.')
             if kind=='color':
                 row=QHBoxLayout();row.addWidget(control);row.addWidget(button('Elegir',lambda c=control:self.choose_color(c),symbol='palette'));row.addStretch();form.addRow(title,row)
             elif kind=='bool':form.addRow(control)
@@ -98,7 +103,7 @@ class SettingsWindow(Surface):
         if index is None:return
         if QMessageBox.question(self,'Eliminar atajo','¿Eliminar '+self.shortcuts.rows[index]['key']+'?',QMessageBox.Yes|QMessageBox.Cancel,QMessageBox.Cancel)!=QMessageBox.Yes:return
         try:
-            self.shortcuts.delete(index);subprocess.run(['pkill','-USR1','-u',str(__import__('os').getuid()),'-x','sxhkd'],capture_output=True);self.render_shortcuts();self.render_backups()
+            self.shortcuts.delete(index);__import__('settings_data').reload_shortcuts();self.render_shortcuts();self.render_backups()
         except (ValueError,OSError) as e:self.status.setText(str(e))
     def build_rules(self):
         layout=self.page();layout.addWidget(text_label('Reglas de ventanas','title'));layout.addWidget(text_label('Define cómo se abren las aplicaciones. Las reglas se aplican a las ventanas nuevas.','subtitle'));self.rule_list=QListWidget();layout.addWidget(self.rule_list,1);row=QHBoxLayout();row.addWidget(button('Añadir regla',self.add_rule,symbol='plus'));row.addWidget(button('Editar',self.edit_rule,symbol='pencil'));row.addWidget(button('Quitar seleccionada',self.remove_rule,symbol='trash'));row.addStretch();layout.addLayout(row);self.render_rules()
@@ -145,7 +150,7 @@ class SettingsWindow(Surface):
         if QMessageBox.question(self,'Restaurar atajos','¿Restaurar esta copia? Se guardará la configuración actual.',QMessageBox.Yes|QMessageBox.Cancel,QMessageBox.Cancel)!=QMessageBox.Yes:return
         from settings_data import backup_file,atomic_write
         try:
-            backup_file(self.shortcuts.path);atomic_write(self.shortcuts.path,Path(item.data(Qt.UserRole)).read_text());self.shortcuts.reload();subprocess.run(['pkill','-USR1','-u',str(__import__('os').getuid()),'-x','sxhkd'],capture_output=True);self.render_shortcuts();self.render_backups();self.status.setText('Atajos restaurados y recargados.')
+            backup_file(self.shortcuts.path);atomic_write(self.shortcuts.path,Path(item.data(Qt.UserRole)).read_text());self.shortcuts.reload();__import__('settings_data').reload_shortcuts();self.render_shortcuts();self.render_backups();self.status.setText('Atajos restaurados y recargados.')
         except OSError as e:self.status.setText(str(e))
     def reload(self):
         self.backend.reload();self.shortcuts.reload();self.rules=json.loads(json.dumps(self.backend.saved.get('rules',[])));self.load_values();self.render_rules();self.render_shortcuts();self.render_backups();self.status.setText('Configuración actual recargada.')

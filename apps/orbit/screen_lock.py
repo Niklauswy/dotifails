@@ -38,6 +38,11 @@ def render_background(path, screens=None):
 
 
 def lock_command():
+    from desktop_backend import wayland
+    if wayland():
+        executable=Path.home()/'.local/bin/wysun-lock'
+        if not executable.is_file():raise RuntimeError('Falta wysun-lock para proteger la sesión Wayland.')
+        return [str(executable)]
     native=Path(__file__).resolve().parent.parent/'bin/orbit-lock'
     executable=str(native) if native.is_file() and os.access(native,os.X_OK) else shutil.which('i3lock')
     if not executable:raise RuntimeError('Falta i3lock. Instálalo con: sudo apt install i3lock')
@@ -54,7 +59,7 @@ def lock_command():
     return command
 
 
-def start_lock(owner):
+def start_lock(owner,suspend=False):
     """Do not close the menu until i3lock reports successful lock acquisition.
 
     i3lock's default mode forks only after acquiring the pointer and keyboard.
@@ -65,7 +70,12 @@ def start_lock(owner):
     buttons=getattr(window,'action_buttons',[])
     def failure(message):
         QMessageBox.warning(window,'No se pudo bloquear',message)
-    try:command=lock_command()
+    try:
+        command=lock_command()
+        if suspend:
+            from desktop_backend import wayland
+            if wayland():command.append('--suspend')
+            else:raise RuntimeError('Usa el flujo de suspensión X11 de la sesión')
     except (OSError,RuntimeError) as error:
         failure(str(error));return False
     process=QProcess(owner);owner.lock_process=process

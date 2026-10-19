@@ -25,7 +25,9 @@ def run(args):
     result = subprocess.run([str(a) for a in args],capture_output=True,text=True,timeout=12)
     if result.returncode:
         raise RuntimeError((result.stderr or result.stdout or 'No se pudo ejecutar '+str(args[0])).strip()[:500])
-    return result.stdout.strip()
+    output=result.stdout.strip()
+    if list(args[:2]) in (['hyprctl','eval'],['hyprctl','dispatch']) and output!='ok':raise RuntimeError(output[:500])
+    return output
 
 def read_json(path, default=None):
     try:
@@ -67,15 +69,23 @@ def parse_xrandr(text):
     return outputs
 
 def display_inventory(runner=run):
+    from desktop_backend import wayland
+    if wayland():
+        from hypr_settings import inventory
+        return inventory(runner)
     return parse_xrandr(runner(['xrandr','--query']))
 
 def profile_key(outputs):
     return '|'.join(sorted(o['name'] for o in outputs if o['connected']))
 
 def display_plan(outputs):
-    return [{k:o[k] for k in ('name','enabled','primary','mode','rate','rotation','x','y')} for o in outputs if o['connected']]
+    return [{k:o[k] for k in ('name','enabled','primary','mode','rate','rotation','x','y')} | ({'scale':o['scale']} if 'scale' in o else {}) for o in outputs if o['connected']]
 
 def display_command(plan, inventory):
+    from desktop_backend import wayland
+    if wayland():
+        from hypr_settings import display_command as native_display_command
+        return native_display_command(plan,inventory)
     known = {o['name']:o for o in inventory if o['connected']}
     if not plan or len({p['name'] for p in plan}) != len(plan) or set(p['name'] for p in plan) != set(known):
         raise ValueError('Las pantallas conectadas cambiaron. Pulsa Detectar y vuelve a preparar la distribución.')
@@ -216,7 +226,9 @@ class EnvironmentSettings:
     def __init__(self, home=None, runner=run):
         self.home = Path(home or Path.home())
         self.runner = runner
-        self.path = self.home/'.config/orbit/environment.json'
+        from hypr_settings import config_dir
+        self.config = config_dir(self.home)
+        self.path = self.config/'orbit/environment.json'
         self.reload()
 
     def reload(self):
@@ -256,13 +268,22 @@ class EnvironmentSettings:
             raise
 
     def bar_values(self):
-        text = (self.home/'.config/bspwm/polybar/config').read_text()
+        from desktop_backend import wayland
+        if wayland():
+            defaults=dict(height=36,offset=10,radius=12,opacity=65,background='#101118',foreground='#EBECF3',accent='#B8C8FA',left=['orbit','bspwm'],center=['title'],right=['resources','network','volume','battery','date','notifications','power','tray'],monitors={},tray_monitor='')
+            path=self.config/'orbit/hypr-bar.json'
+            if path.exists():return defaults | read_json(path)
+            # Legacy configuration is a read-only compatibility seed, never a target.
+            legacy=self.config/'bspwm/polybar/config'
+            if not legacy.exists():return defaults
+        else:legacy=self.home/'.config/bspwm/polybar/config'
+        text = legacy.read_text()
         get = lambda section,key,default='':ini_value(text,section,key,default)
         bg = get('colors','bg','#A6101118')
         return dict(height=int(get('bar/base','height','36')),offset=int(get('bar/base','offset-y','10')),radius=int(get('bar/base','radius','12')),opacity=round(int(bg[1:3],16)*100/255) if len(bg)==9 else 100,background='#'+bg[-6:],foreground=get('colors','fg','#EBECF3'),accent=get('colors','accent','#B8C8FA'),left=get('bar/left','modules-left').split(),center=get('bar/center','modules-center').split(),right=get('bar/right','modules-right').split(),monitors=self.section('bar').get('monitors',{}),tray_monitor=self.section('bar').get('tray_monitor',''))
 
     def apply_bar(self, values):
-        old = self.bar_values()
+        values=copy.deepcopy(values)
         for key,lo,hi in [('height',24,64),('offset',0,60),('radius',0,30),('opacity',10,100)]:
             values[key] = bounded(values[key],lo,hi,True)
         for key in ('background','foreground','accent'):
@@ -274,6 +295,19 @@ class EnvironmentSettings:
             raise ValueError('La bandeja debe ir en la sección derecha.')
         if not any(values[side] for side in ('left','center','right')):
             raise ValueError('Deja al menos un módulo en la barra.')
+        from desktop_backend import wayland
+        if wayland():
+            path=self.config/'orbit/hypr-bar.json';previous=path.read_text() if path.exists() else None
+            backup_file(path,self.home/'.local/share/orbit/settings-backups')
+            atomic_write(path,json.dumps(values,ensure_ascii=False,indent=2)+'\n')
+            try:self.runner(['wysun','shell','reload-preferences'])
+            except Exception:
+                if previous is None:path.unlink(missing_ok=True)
+                else:atomic_write(path,previous)
+                try:self.runner(['wysun','shell','reload-preferences'])
+                except Exception:pass
+                raise
+            return
         path = self.home/'.config/bspwm/polybar/config'
         text = path.read_text()
         text = set_ini(text,'bar/base',{'height':values['height'],'offset-y':values['offset'],'radius':values['radius']})
@@ -301,7 +335,7 @@ class EnvironmentSettings:
             except (OSError,ValueError):
                 pass
         if not saved.get('default'):
-            theme=read_json(self.home/'.config/dotifails/theme.json',{})
+            theme=read_json(self.config/'dotifails/theme.json',{})
             filename=theme.get('wallpaper','tokyo.png')
             if filename not in ('tokyo.png','azul.jpg'):filename='tokyo.png'
             bundled=self.home/'.local/share/backgrounds'/filename
@@ -320,9 +354,13 @@ class EnvironmentSettings:
             raise
 
     def component_values(self, component):
+        from desktop_backend import wayland
+        if wayland() and component=='effects':
+            from hypr_settings import effects_state
+            return effects_state(self.runner)[0]
         paths = {'effects':'bspwm/picom.conf','terminal':'ghostty/config','notifications':'bspwm/dunstrc'}
-        path = self.home/'.config'/paths[component]
-        text = path.read_text()
+        path = self.config/paths[component]
+        text = path.read_text() if path.exists() else ''
         if component == 'notifications':
             return {key:ini_value(text,'global',key,default).strip('"') for key,default in [('origin','top-right'),('font','Inter 10'),('transparency','5'),('corner_radius','12'),('notification_limit','4'),('padding','18'),('gap_size','10')]} | {'timeout':ini_value(text,'urgency_normal','timeout','6')}
         return kv_values(text)
@@ -336,9 +374,23 @@ class EnvironmentSettings:
             clean['font-family'] = '"'+font+'"'
             for k in ('background','foreground'):
                 clean[k] = color(values[k])[1:]
-            path = self.home/'.config/ghostty/config'
-            self.edit_file(path,set_values(path.read_text(),clean),lambda:self.runner(['ghostty','+validate-config']))
+            path = self.config/'ghostty/config'
+            self.edit_file(path,set_values(path.read_text() if path.exists() else '',clean),lambda:self.runner(['ghostty','+validate-config']))
         elif component == 'effects':
+            from desktop_backend import wayland
+            if wayland():
+                from hypr_settings import effects_script,config_dir,effects_state,apply_fragment
+                text=effects_script(values);path=config_dir(self.home)/'orbit/hypr-effects.lua'
+                rollback=effects_state(self.runner)[1]
+                self.path.parent.mkdir(parents=True,exist_ok=True,mode=0o700)
+                with (self.path.parent/'environment.lock').open('a') as handle:
+                    fcntl.flock(handle,fcntl.LOCK_EX)
+                    latest=read_json(self.path)
+                    if latest.get('hypr-effects',{})!=self.section('hypr-effects'):raise ValueError('Los efectos cambiaron. Recarga antes de guardar.')
+                    latest['hypr-effects']=values
+                    apply_fragment(self.runner,{path:text,self.path:json.dumps(latest,ensure_ascii=False,indent=2)+'\n'},text,rollback)
+                    self.data['hypr-effects']=copy.deepcopy(values)
+                return
             path = self.home/'.config/bspwm/picom.conf'
             clean = {k:bounded(values[k],lo,hi,integer) for k,lo,hi,integer in [('corner-radius',0,30,True),('blur-strength',1,8,True),('shadow-radius',0,40,True),('shadow-opacity',0,1,False)]}
             for key in ('blur-background','shadow','fading','vsync'):
@@ -385,6 +437,8 @@ class EnvironmentSettings:
             raise ValueError('Componente desconocido.')
 
     def workspaces(self):
+        from desktop_backend import wayland,Desktop
+        if wayland():return Desktop(self.runner).workspaces()
         tree = json.loads(self.runner(['bspc','wm','-d']))
         def count(node):
             return 0 if not node else int(bool(node.get('client'))) + count(node.get('firstChild')) + count(node.get('secondChild'))
@@ -399,7 +453,10 @@ class EnvironmentSettings:
                 raise ValueError('El nombre del escritorio debe tener entre 1 y 40 caracteres.')
             if any(r['name']==value and r['id']!=ident for r in rows):
                 raise ValueError('Ya existe un escritorio con ese nombre.')
-        if action=='rename':self.runner(['bspc','desktop',ident,'-n',value])
+        from desktop_backend import wayland,Desktop
+        if wayland():
+            Desktop(self.runner).workspace_action(action,ident,value)
+        elif action=='rename':self.runner(['bspc','desktop',ident,'-n',value])
         elif action=='add':self.runner(['bspc','monitor',ident,'-a',value])
         elif action=='move':
             current=next(r for r in rows if r['id']==ident)
@@ -451,6 +508,25 @@ def render_wallpaper(values, outputs, home=None, runner=run):
     from PySide6.QtCore import Qt,QRectF
     from PySide6.QtGui import QImage,QImageReader,QPainter,QColor
     home=Path(home or Path.home())
+    from desktop_backend import wayland
+    if wayland():
+        # Quickshell owns wallpaper surfaces; only validate and publish preferences.
+        active=[o for o in outputs if o['connected'] and o['enabled']]
+        if not active:raise ValueError('No se encontraron pantallas activas.')
+        for output in active:
+            selected=values.get('monitors',{}).get(output['name'],{})
+            path=Path(selected.get('path') or values.get('default','')).expanduser()
+            if not path.is_file():raise ValueError('Elige un fondo para '+output['name'])
+            if (selected.get('mode') or values.get('mode','fill')) not in ('fill','fit','stretch','center'):raise ValueError('Modo de fondo inválido')
+            reader=QImageReader(str(path));size=reader.size()
+            if not size.isValid() or size.width()*size.height()>70_000_000:raise ValueError('Imagen no disponible o demasiado grande')
+        # EnvironmentSettings saves the same section. Explicitly persist here for
+        # theme restore callers too, keeping every unrelated section intact.
+        from hypr_settings import config_dir
+        config=config_dir(home)/'orbit/environment.json';data=read_json(config);data['wallpaper']=copy.deepcopy(values)
+        atomic_write(config,json.dumps(data,ensure_ascii=False,indent=2)+'\n')
+        runner(['wysun','shell','reload-preferences'])
+        return Path(values.get('default') or next(iter(values.get('monitors',{}).values()))['path'])
     active=[o for o in outputs if o['connected'] and o['enabled']]
     if not active:raise ValueError('No se encontraron pantallas activas.')
     width=max(o['x']+o['width'] for o in active);height=max(o['y']+o['height'] for o in active)

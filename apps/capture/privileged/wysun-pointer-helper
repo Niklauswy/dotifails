@@ -1,0 +1,276 @@
+#!/usr/bin/python3 -I
+"""Per-recording mouse-button broker. Installed root-owned; never pass evdev FDs.
+
+Only stdout JSON {t,button,value}; keyboard devices/events are rejected. The user
+worker owns a private control socket; peer credentials and logind pin authority.
+This module can be loaded for pure tests. main refuses user-writable source paths.
+"""
+import collections
+import fcntl
+import json
+import os
+from pathlib import Path
+import re
+import selectors
+import select
+import socket
+import stat
+import struct
+import subprocess
+import sys
+import time
+
+ENTRY=Path('/usr/libexec/wysun-pointer-helper')
+Identity=collections.namedtuple('Identity','uid pid start')
+EVENT=struct.Struct('@llHHi')
+BUTTONS={272:1,273:3,274:2}
+MAX_LINE=128
+HEARTBEAT_TIMEOUT=3.0
+MAX_LIFETIME=4*3600
+
+
+def parse_arguments(args):
+    if len(args)!=2 or not re.fullmatch(r'[1-9][0-9]{0,9}',args[0]) or not re.fullmatch(r'[0-9a-f]{64}',args[1]):
+        raise PermissionError('Expected canonical worker PID and one 64-hex nonce')
+    pid=int(args[0])
+    if pid>2**31-1:raise PermissionError('PID outside range')
+    return pid,args[1]
+
+
+def read_identity(pid,proc_root=Path('/proc')):
+    folder=Path(proc_root)/str(pid);uid=folder.stat().st_uid
+    raw=(folder/'stat').read_text();tail=raw.rsplit(')',1)[1].split()
+    if len(tail)<20 or tail[0] in ('Z','X'):raise PermissionError('Worker is not live')
+    return Identity(uid,pid,int(tail[19]))
+
+
+def validate_peer(identity,peer,current_identity):
+    # SO_PEERCRED is kernel (pid,uid,gid), never a caller JSON claim.
+    if len(peer)!=3 or peer[0]!=identity.pid or peer[1]!=identity.uid or current_identity!=identity:
+        raise PermissionError('Peer identity or process start time changed')
+    return True
+
+
+def validate_session(identity,session):
+    if (session.get('Active') is not True or session.get('LockedHint') is not False or session.get('Remote') is not False
+        or session.get('State')!='active' or session.get('Type')!='wayland' or session.get('Class') not in ('user','user-early')):
+        raise PermissionError('Session must be local, unlocked and active Wayland')
+    user=session.get('User');seat=session.get('Seat')
+    if not isinstance(user,(list,tuple)) or not user or user[0]!=identity.uid:raise PermissionError('Session user mismatch')
+    if not isinstance(seat,(list,tuple)) or not seat or not re.fullmatch(r'seat[A-Za-z0-9_-]{1,32}',str(seat[0])):
+        raise PermissionError('No valid local seat')
+    return seat[0]
+
+
+def socket_path(uid,pid,nonce):
+    parse_arguments([str(pid),nonce])
+    if type(uid) is not int or uid<1:raise PermissionError('Invalid user')
+    return Path('/run/user')/str(uid)/'wysun-pointer'/f'{pid}.{nonce}.sock'
+
+
+def validate_socket(path,uid,runtime_root=None):
+    # runtime_root is a pure-test seam; privileged main never supplies it.
+    path=Path(path);base=Path(runtime_root) if runtime_root is not None else Path('/run/user')/str(uid)
+    if '..' in path.parts or path.parent!=base/'wysun-pointer' or not re.fullmatch(r'[1-9][0-9]*\.[0-9a-f]{64}\.sock',path.name):
+        raise PermissionError('Socket path is not internally derived')
+    for folder in (base,path.parent):
+        info=folder.lstat()
+        if not stat.S_ISDIR(info.st_mode) or info.st_uid!=uid or stat.S_IMODE(info.st_mode)!=0o700:
+            raise PermissionError('Runtime directories require owner and mode 0700')
+    info=path.lstat()
+    if not stat.S_ISSOCK(info.st_mode) or info.st_uid!=uid or stat.S_IMODE(info.st_mode)!=0o600:
+        raise PermissionError('Control socket requires owner and mode 0600')
+    return True
+
+
+def allowed_device(properties,seat):
+    return (properties.get('ID_SEAT','seat0')==seat and properties.get('ID_INPUT_KEYBOARD')!='1'
+        and (properties.get('ID_INPUT_MOUSE')=='1' or properties.get('ID_INPUT_TOUCHPAD')=='1'))
+
+
+def pointer_capabilities(text):
+    # Linux sysfs bitmap prints high words first; reject every keyboard key bit,
+    # including a composite device whose udev keyboard flag is absent or wrong.
+    bits=struct.calcsize('@L')*8;mask=0;words=text.split()
+    if not words or len(words)>32:return False
+    for word in words:
+        if not re.fullmatch(r'[0-9a-fA-F]{1,'+str(bits//4)+'}',word):return False
+        mask=(mask<<bits)|int(word,16)
+    return pointer_mask_allowed(mask)
+
+
+def pointer_mask_allowed(mask):
+    allowed=sum(1<<bit for bit in list(range(272,280))+list(range(320,336)))
+    return type(mask) is int and mask>=0 and bool(mask&(1<<272)) and not bool(mask&~allowed)
+
+
+def opened_pointer_capabilities(fd):
+    # EVIOCGBIT(EV_KEY,96): query capabilities of THIS opened descriptor, never
+    # events. This closes the inventory/hotplug replacement race before read.
+    data=bytearray(96);request=(2<<30)|(len(data)<<16)|(ord('E')<<8)|0x21
+    fcntl.ioctl(fd,request,data,True)
+    word=struct.calcsize('@L');mask=0
+    for offset in range(0,len(data),word):mask|=int.from_bytes(data[offset:offset+word],sys.byteorder)<<(offset*8)
+    if not pointer_mask_allowed(mask):raise PermissionError('Opened input device has keyboard or non-pointer capabilities')
+    return True
+
+
+def decode_events(data):
+    result=[];complete=len(data)//EVENT.size*EVENT.size
+    for offset in range(0,complete,EVENT.size):
+        sec,usec,kind,code,value=EVENT.unpack_from(data,offset)
+        if kind==1 and code in BUTTONS and value in (0,1) and sec>=0 and 0<=usec<1_000_000:
+            result.append(dict(t=sec+usec/1e6,button=BUTTONS[code],value=value))
+    return result,data[complete:]
+
+
+class Guard:
+    def __init__(self,identity,peer,identity_provider,session_provider,clock=time.monotonic,timeout=HEARTBEAT_TIMEOUT,alive_provider=lambda:True):
+        self.identity=identity;self.peer=peer;self.identity_provider=identity_provider;self.session_provider=session_provider;self.clock=clock
+        self.timeout=timeout;self.alive_provider=alive_provider;self.started=self.last=clock();self.closed=False;self.seat=None
+    def touch(self):
+        self.check();self.last=self.clock()
+    def close(self):self.closed=True
+    def check(self):
+        try:
+            now=self.clock()
+            if not self.alive_provider() or self.closed or now-self.last>self.timeout or now-self.started>MAX_LIFETIME:raise PermissionError('Peer closed or broker deadline expired')
+            validate_peer(self.identity,self.peer,self.identity_provider(self.identity.pid))
+            seat=validate_session(self.identity,self.session_provider(self.identity.pid))
+            if self.seat is not None and seat!=self.seat:raise PermissionError('Session seat changed')
+            self.seat=seat;return seat
+        except Exception:
+            self.closed=True;raise
+
+
+def _bus(*args):
+    command=['/usr/bin/busctl','--system','--json=short',*args]
+    output=subprocess.check_output(command,text=True,stderr=subprocess.DEVNULL,timeout=1,
+        env={'PATH':'/usr/bin:/usr/sbin','LANG':'C'})
+    if len(output)>65536:raise PermissionError('Oversized logind response')
+    return json.loads(output)
+
+
+def session_snapshot(pid):
+    result=_bus('call','org.freedesktop.login1','/org/freedesktop/login1','org.freedesktop.login1.Manager','GetSessionByPID','u',str(pid))
+    values=result.get('data',[]);path=values[0] if values else ''
+    if not isinstance(path,str) or not re.fullmatch(r'/org/freedesktop/login1/session/[A-Za-z0-9_]+',path):raise PermissionError('No logind session for worker')
+    result=_bus('call','org.freedesktop.login1',path,'org.freedesktop.DBus.Properties','GetAll','s','org.freedesktop.login1.Session')
+    data=result.get('data',[])
+    if len(data)!=1 or not isinstance(data[0],dict):raise PermissionError('Invalid logind session properties')
+    return {key:value['data'] for key,value in data[0].items() if isinstance(value,dict) and 'data' in value}
+
+
+def devices_for_seat(seat):
+    devices=[]
+    for node in sorted(Path('/sys/class/input').glob('event[0-9]*')):
+        if not re.fullmatch(r'event[0-9]+',node.name):continue
+        major,minor=map(int,(node/'dev').read_text().strip().split(':'))
+        database=Path('/run/udev/data')/f'c{major}:{minor}'
+        try:
+            info=database.lstat()
+            if not stat.S_ISREG(info.st_mode) or info.st_uid!=0 or info.st_mode&0o022:continue
+            data=database.read_text()
+        except OSError:continue
+        if len(data)>32768:continue
+        props=dict(line[2:].split('=',1) for line in data.splitlines() if line.startswith('E:') and '=' in line)
+        if allowed_device(props,seat) and pointer_capabilities((node/'device/capabilities/key').read_text()):devices.append((Path('/dev/input')/node.name,os.makedev(major,minor)))
+    return devices
+
+
+def open_device(path,device):
+    # Called only with paths generated from the kernel sysfs inventory above.
+    if path.parent!=Path('/dev/input') or not re.fullmatch(r'event[0-9]+',path.name):raise PermissionError('Invalid internal device name')
+    before=path.lstat()
+    if not stat.S_ISCHR(before.st_mode) or before.st_uid!=0 or before.st_rdev!=device:raise PermissionError('Device identity changed')
+    fd=os.open(path,os.O_RDONLY|os.O_NONBLOCK|os.O_CLOEXEC|os.O_NOFOLLOW)
+    try:
+        after=os.fstat(fd)
+        if not stat.S_ISCHR(after.st_mode) or after.st_rdev!=device or after.st_uid!=0 or (before.st_dev,before.st_ino)!=(after.st_dev,after.st_ino):
+            raise PermissionError('Opened device differs from verified device')
+        opened_pointer_capabilities(fd)
+        return fd
+    except BaseException:
+        os.close(fd);raise
+
+
+def verify_entry():
+    if os.geteuid()!=0 or not sys.flags.isolated or Path(__file__).absolute()!=ENTRY:raise PermissionError('Use the root-installed isolated helper through its policy')
+    for path in (ENTRY,*ENTRY.parents):
+        info=path.lstat()
+        if info.st_uid!=0 or info.st_mode&0o022 or stat.S_ISLNK(info.st_mode):raise PermissionError('Helper and parents must be root owned and immutable to users')
+
+
+def serve(control,guard,output,device_provider=devices_for_seat,opener=open_device):
+    pending=b'';fds={};running=False
+    try:output_fd=output.fileno();os.set_blocking(output_fd,False)
+    except (AttributeError,OSError,ValueError):output_fd=None
+    def close_devices():
+        for fd in list(fds):
+            try:selector.unregister(fd)
+            except Exception:pass
+            os.close(fd);del fds[fd]
+    with selectors.DefaultSelector() as selector:
+        selector.register(control,selectors.EVENT_READ)
+        try:
+            guard.check();control.sendall(b'READY\n')
+            while True:
+                seat=guard.check()
+                for key,_ in selector.select(.1):
+                    if key.fileobj is control:
+                        data=control.recv(MAX_LINE+1)
+                        if not data:guard.close();return
+                        pending+=data
+                        if len(pending)>MAX_LINE:raise PermissionError('Oversized control command')
+                        while b'\n' in pending:
+                            line,_,pending=pending.partition(b'\n')
+                            if line not in (b'RUN',b'PAUSE',b'PING',b'STOP'):raise PermissionError('Unknown control command')
+                            guard.touch();guard.check()
+                            if line==b'STOP':return
+                            if line==b'PAUSE':close_devices();running=False
+                            if line==b'RUN' and not running:
+                                for path,device in device_provider(seat):
+                                    fd=opener(path,device);fds[fd]=b'';selector.register(fd,selectors.EVENT_READ)
+                                if not fds:raise PermissionError('No mouse-only device on the active seat')
+                                running=True
+                    else:
+                        fd=key.fd
+                        if fd not in fds:continue
+                        data=os.read(fd,EVENT.size*128)
+                        if not data:selector.unregister(fd);os.close(fd);del fds[fd];continue
+                        events,fds[fd]=decode_events(fds[fd]+data)
+                        guard.check()
+                        for event in events:
+                            line=json.dumps(event,separators=(',',':'))+'\n'
+                            if output_fd is not None:
+                                encoded=line.encode();written=os.write(output_fd,encoded)
+                                if written!=len(encoded):raise PermissionError('Event output backpressure')
+                            else:output.write(line);output.flush()
+        finally:close_devices();guard.close()
+
+
+def main(args):
+    verify_entry();pid,nonce=parse_arguments(args)
+    if not stat.S_ISFIFO(os.fstat(sys.stdout.fileno()).st_mode):raise PermissionError('Events require the worker-owned anonymous pipe')
+    raw_uid=os.environ.get('PKEXEC_UID','')
+    if not re.fullmatch(r'[1-9][0-9]*',raw_uid):raise PermissionError('Missing policy caller identity')
+    uid=int(raw_uid);identity=read_identity(pid)
+    if identity.uid!=uid:raise PermissionError('Worker does not belong to policy caller')
+    if not hasattr(os,'pidfd_open'):raise PermissionError('Kernel process identity handle is required')
+    pidfd=os.pidfd_open(pid,0)
+    try:
+        validate_peer(identity,(pid,uid,0),read_identity(pid))
+        path=socket_path(uid,pid,nonce);validate_socket(path,uid)
+        with socket.socket(socket.AF_UNIX,socket.SOCK_STREAM) as control:
+            control.settimeout(2);control.connect(str(path))
+            peer=struct.unpack('3i',control.getsockopt(socket.SOL_SOCKET,socket.SO_PEERCRED,struct.calcsize('3i')))
+            guard=Guard(identity,peer,read_identity,session_snapshot,alive_provider=lambda:not select.select([pidfd],[],[],0)[0])
+            guard.check();control.setblocking(False)
+            serve(control,guard,sys.stdout)
+    finally:os.close(pidfd)
+
+
+if __name__=='__main__':
+    try:main(sys.argv[1:])
+    except (OSError,ValueError,RuntimeError,KeyError,subprocess.SubprocessError) as error:
+        print('Mouse effects unavailable: '+str(error),file=sys.stderr);raise SystemExit(1)

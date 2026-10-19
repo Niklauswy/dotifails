@@ -232,3 +232,39 @@ Descargas permite continuar, pausar la cola y reintentar errores, con detalles o
 Audio en `~/Music/Orbita`; biblioteca y cola en `~/.local/share/orbit/music/library.json`; favoritos, sesión, referencias y variantes en `player.sqlite3`; portadas, fotos y letras en `metadata/`. Estos datos privados están separados del código instalado. `reference-manifest.json` conserva las duraciones originales de Spotify para distinguirlas de las de un videoclip.
 
 La instalación completa incluye mpv/ffmpeg/PySide6 y yt-dlp con versión y SHA-256 fijadas. `--orbit-only` actualiza la app, los ejecutables de acceso y su icono sin reinstalar el sistema. El atajo de la configuración distribuida abre el mini reproductor.
+
+## Migración Wayland nativa (validación parcial)
+
+`wysun daemon` inicia el residente sin abrir ventana. El backend detecta la sesión
+Wayland antes de considerar DISPLAY, enumera ventanas mediante IPC Hyprland0.55
+Lua (Sway adicional) y conserva BSPWM para X11. El clipboard global utiliza
+wl-clipboard/data-control, con límites y timeouts; si el protocolo no existe, Qt
+solo puede leer con foco. No se promete lectura/inyección global genérica. Hyprland
+pega con foco y dirección de destino comprobados; otros compositores pueden
+requerir pegar manualmente. PNG, texto,HTML y URI se guardan acotados; las ofertas
+privadas/sensitive se excluyen. Un archivo de historial siempre se vuelve a copiar,
+nunca se reproduce un corte destructivo obsoleto. OCR/Tesseract y SQLite se conservan.
+
+Settings escribe fragmentos propios hypr-settings.lua/hypr-theme.lua/
+hypr-effects.lua/hypr-shortcuts.lua bajo el config de orbit y respeta hooks de
+sesión. No reescribe archivos Hyprland del usuario ni migra datos BSPWM. Displays
+usa hl.monitor y el watchdog de reversión, conserva escala/posiciones negativas;
+las semánticas BSPWM sin equivalente no se presentan como mapeos nativos.
+Quickshell es el dueño del wallpaper: Python guarda preferencias y solicita
+`wysun shell reload-preferences`. Color usa `wysun recorder --pick-color`.
+Lock y suspensión Wayland llaman wysun-lock, que espera adquisición del bloqueo.
+
+Files y Recorder conservan vídeo embebido con libmpv SW/QImage/QWidget y sockets
+IPC; Music conserva su motor mpv de audio y persistencia. No WId X11 en la ruta
+nativa. SW render puede consumir más CPU; pruebas unit/offscreen y vídeo sintético
+no constituyen validación física ni paridad de rendimiento X11/Wayland.
+
+La barra Wayland se configura mediante `${XDG_CONFIG_HOME:-$HOME/.config}/orbit/hypr-bar.json`;
+Quickshell la observa y Python solicita `wysun shell reload-preferences`. El tema
+actualiza los colores de ese archivo preservando geometría, módulos y monitores.
+El observador de tema Python usa eventos de archivo/directorio y contempla reemplazo
+atómico y creación tardía. Los controles que solo tienen semántica BSPWM aparecen
+deshabilitados y explicados en Wayland; guardar reglas no sobrescribe colores o gaps
+que el usuario no cambió. El FileChooser externo Wayland se enruta al portal GTK
+para importar su padre nativo; Files y el selector Wysun BSPWM mantienen sus datos
+independientes. El diálogo GTK tiene su propia apariencia, sin prometer UI idéntica.

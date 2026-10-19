@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (QApplication,QMainWindow,QWidget,QVBoxLayout,QHBo
     QPushButton,QLabel,QComboBox,QSpinBox,QDoubleSpinBox,QCheckBox,QLineEdit,QListWidget,QListWidgetItem,
     QStackedWidget,QSplitter,QTabWidget,QFileDialog,QMessageBox,QInputDialog,QProgressBar,QSlider,
     QDialog,QDialogButtonBox,QScrollArea,QSystemTrayIcon,QMenu,QGroupBox,QSizePolicy)
+from ..portal import is_wayland
 from ..capture import CaptureConfig,CaptureSession,recover_project
 from ..devices import discover,visible_window_rect
 from ..render import RenderJob
@@ -368,6 +369,7 @@ class Window(QMainWindow):
             else:self.devices_ready(data)
         self.task(work,done)
     def devices_ready(self,data):
+        if data.get('warnings'):self.preflight.setText(' · '.join(data['warnings']))
         monitor_name=self.monitor.currentText();self.monitor.blockSignals(True);self.monitor.clear()
         for monitor in data['monitors']:self.monitor.addItem(monitor['name'],monitor['rect'])
         index=self.monitor.findText(monitor_name);self.monitor.setCurrentIndex(max(0,index));self.monitor.blockSignals(False)
@@ -432,6 +434,10 @@ class Window(QMainWindow):
         else:self.show()
         self.selection_feedback()
     def pick_window(self):
+        if is_wayland():
+            self.window_target=None;self.capture_modes.buttons()[2].setChecked(True)
+            self.notice(self.tr('El portal elegirá una ventana independiente al iniciar. No se usa un recorte de pantalla.'))
+            return
         self.capture_modes.buttons()[2].setChecked(True)
         from .quick import WindowChooser
         self.recording_indicator.hide();self.quick.hide_all()
@@ -441,14 +447,14 @@ class Window(QMainWindow):
         if any(combo.currentData(Qt.UserRole+1) for combo in (self.mic,self.system)):raise ValueError(self.tr('Una fuente de audio guardada no está disponible. Selecciona otra o desactívala.'))
         self.stop_metadata()
         if self.session or self.job or self.analysis or self.capture_pending or self.import_cancel or self.finalization_active(): raise ValueError(self.tr('Termina la operación actual primero'))
-        if not os.environ.get('DISPLAY'): raise ValueError(self.tr('Se necesita una sesión X11 con DISPLAY'))
+        if not is_wayland() and not os.environ.get('DISPLAY'): raise ValueError(self.tr('Se necesita una sesión X11 con DISPLAY'))
         for executable in ('ffmpeg','ffprobe','mpv'):
             if not shutil.which(executable): raise ValueError(self.tr('Falta instalar: ')+executable)
         if self.window_target:
             rect=visible_window_rect(self.window_target)
             for widget,value in zip(self.rect,rect):widget.setValue(value)
         rect=[w.value() for w in self.rect]
-        check=CaptureConfig(str(self.library.root),os.environ['DISPLAY'],rect,self.fps.currentData(),self.mic.currentData(),self.system.currentData(),self.camera.currentData(),quality=self.quality.currentData(),auto_finalize=True,output_dir=str(getattr(self.library,'videos',Path.home()/'Videos')),title=self.tr('Grabación ')+datetime.now().strftime('%d-%m-%Y %H-%M-%S'),mic_gain=self.mic_gain.value(),system_gain=self.system_gain.value(),**self.cursor_options.capture_values()); check.validate()
+        check=CaptureConfig(str(self.library.root),os.environ.get('WAYLAND_DISPLAY') or os.environ.get('DISPLAY','portal'),rect,self.fps.currentData(),self.mic.currentData(),self.system.currentData(),self.camera.currentData(),quality=self.quality.currentData(),auto_finalize=True,output_dir=str(getattr(self.library,'videos',Path.home()/'Videos')),title=self.tr('Grabación ')+datetime.now().strftime('%d-%m-%Y %H-%M-%S'),source_type='window' if self.capture_modes.buttons()[2].isChecked() else 'region' if self.capture_modes.buttons()[1].isChecked() else 'monitor',mic_gain=self.mic_gain.value(),system_gain=self.system_gain.value(),**self.cursor_options.capture_values()); check.validate()
         if shutil.disk_usage(self.library.root).free<512*1024*1024: raise ValueError(self.tr('Libera al menos 512 MiB antes de grabar'))
         screen=QApplication.primaryScreen().virtualGeometry()
         if rect[0]<screen.x() or rect[1]<screen.y() or rect[0]+rect[2]>screen.right()+1 or rect[1]+rect[3]>screen.bottom()+1:
@@ -492,8 +498,9 @@ class Window(QMainWindow):
         try:
             if self.quiet.isChecked(): self.concentration.begin(self.pending_config.project_dir)
             self.session.start();self.concentration.watch()
+            if is_wayland():self.recording_indicator.hide();self.tray.show()
             self._indicator_rect=list(self.pending_config.rect)
-            self.recording_indicator.present(self._indicator_rect,[s.geometry().getRect() for s in QApplication.screens()],on_pause=self.pause_capture,on_stop=self.stop_capture)
+            if not is_wayland():self.recording_indicator.present(self._indicator_rect,[s.geometry().getRect() for s in QApplication.screens()],on_pause=self.pause_capture,on_stop=self.stop_capture)
         except Exception:
             self.session=None; self.recording_indicator.hide(); self.restore_concentration(); self.restore_capture_surface(); self.record.setEnabled(True); raise
         self.tray.setToolTip(self.tr('Wysun Recorder · grabando · menú para pausar o terminar'))
@@ -730,7 +737,9 @@ class Window(QMainWindow):
 
     def poll(self):
         self.cursor_options.set_locked(bool(self.session or self.capture_pending))
-        if self.keys: self.keys.poll()
+        if self.keys:
+            self.keys.poll()
+            if getattr(self.keys,'error','') and self.shortcut_label.text()!=self.keys.error:self.shortcut_label.setText(self.keys.error)
         if self.session:
             status=self.session.status(); state=status['state'];self.capture_presentation(state)
             warning=status.get('cursor_warning')

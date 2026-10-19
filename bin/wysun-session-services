@@ -1,0 +1,79 @@
+#!/usr/bin/env python3
+"""Own only children of this login. No global restarts, kills or service enables."""
+import os
+from pathlib import Path
+import shutil
+import signal
+import subprocess
+import time
+
+children = []
+
+
+def stop_children():
+    for child in reversed(children):
+        if child.poll() is None:
+            child.terminate()
+    for child in reversed(children):
+        try:
+            child.wait(timeout=2)
+        except subprocess.TimeoutExpired:
+            child.kill()
+            child.wait(timeout=2)
+    children.clear()
+
+
+def stop(*_):
+    stop_children()
+    raise SystemExit(0)
+
+
+def main():
+    if not os.environ.get('HYPRLAND_INSTANCE_SIGNATURE') or os.environ.get('XDG_SESSION_TYPE') != 'wayland':
+        raise SystemExit('Solo se ejecuta dentro de Wysun / Hyprland.')
+    for sig in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP):
+        signal.signal(sig, stop)
+    # Import before any Qt/GTK client can activate a portal. Fail before starting
+    # clients if the selected login cannot publish its compositor environment.
+    variables = ('WAYLAND_DISPLAY', 'DISPLAY', 'HYPRLAND_INSTANCE_SIGNATURE',
+                 'XDG_CURRENT_DESKTOP', 'XDG_SESSION_TYPE', 'XDG_SESSION_DESKTOP',
+                 'XDG_RUNTIME_DIR', 'XDG_CONFIG_HOME', 'XDG_DATA_HOME', 'XDG_DATA_DIRS')
+    subprocess.run(['dbus-update-activation-environment', '--systemd',
+                    *(name for name in variables if name in os.environ)], check=True)
+    commands = [['wysun-shell'], ['swayidle', '-w', 'timeout', '600', 'wysun-lock',
+                                'before-sleep', 'wysun-lock'], ['wysun', 'daemon']]
+    # Both notification/polkit agents are scoped to this newly selected login.
+    if shutil.which('dunst'):
+        config = Path.home() / '.config/bspwm/dunstrc'
+        commands.append(['dunst', '--config', str(config)] if config.is_file() else ['dunst'])
+    for agent in ('/usr/lib/policykit-1-mate/polkit-mate-authentication-agent-1',
+                  '/usr/libexec/polkit-mate-authentication-agent-1'):
+        if Path(agent).is_file():
+            commands.append([agent]); break
+    lock_requested = False
+    try:
+        for command in commands:
+            children.append(subprocess.Popen(command))
+        # The idle locker belongs to the login, independently of the UI. A
+        # crashed shell can be opened again with `wysun shell`; it must never
+        # disable the already running inactivity/sleep protection.
+        idle = children[1]
+        while idle.poll() is None:
+            time.sleep(1)
+        # Fail closed if the idle monitor itself dies. This invokes the same
+        # checked lock acquisition as the public command, without suspending.
+        lock_requested = True
+        subprocess.run(['wysun-lock'], check=True)
+        raise RuntimeError('El monitor de bloqueo terminó; la sesión se ha bloqueado.')
+    except Exception:
+        if not lock_requested:
+            # A partial startup must not remove the idle protection and leave
+            # an unlocked login merely because another client could not start.
+            subprocess.run(['wysun-lock'], check=True)
+        raise
+    finally:
+        stop_children()
+
+
+if __name__ == '__main__':
+    main()

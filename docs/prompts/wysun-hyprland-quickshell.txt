@@ -1,0 +1,57 @@
+Actúa como responsable técnico y agente orquestador de Wysun en /home/nicolas/dotifails. Lleva la evolución del escritorio hasta una implementación verificada, no solo una propuesta o maqueta.
+
+OBJETIVO
+Preparar una sesión Wysun sobre Hyprland/Wayland con barra y paneles en Quickshell, manteniendo nuestras aplicaciones y su lógica en Python/PySide6. Todas las funciones actuales deben funcionar correctamente. Conservar la sesión BSPWM/X11 como alternativa durante la transición e integrar la nueva sesión en el instalador de dotifails.
+
+DECISIONES YA TOMADAS
+- La familia se llama Wysun: Wysun, Wysun Recorder, Wysun Screenshot, Wysun Music, Wysun Files y sus demás aplicaciones y paneles.
+- Las aplicaciones siguen en Python. No reescribirlas en C, C++ ni Rust en esta fase. QML/Qt Quick se usa para la interfaz de Quickshell; no autoriza trasladar todas las aplicaciones a Quickshell.
+- Recorder y Screenshot forman parte de dotifails. Verifica el estado real de la integración, sus instaladores y su distribución antes de asumir que todo está resuelto.
+- Conservar Parrot/Debian. No instalar Omarchy, cambiar a Arch ni importar un escritorio ajeno completo.
+- Preservar aplicaciones, datos, proyectos, grabaciones, capturas editables, música, notas, portapapeles, OCR, favoritos, conexiones, temas y atajos.
+- El cambio de marca no requiere mover datos. Los nombres técnicos orbit, loomrec y wybieshot pueden conservarse para compatibilidad, con nombres visibles Wysun y comandos públicos wysun.
+
+INSPECCIÓN Y COORDINACIÓN
+Lee AGENTS.md y las instrucciones locales. Inspecciona código, manifiestos, servicios, comandos y estado de Git antes de editar. Puede haber cambios ajenos, archivos nuevos y otra ejecución trabajando en la integración; coordina la propiedad de los archivos y preserva esos cambios. No uses reset, limpieza destructiva ni stash indiscriminado.
+
+apps/orbit/ contiene lanzador, música, archivos y paneles; apps/capture/ contiene los paquetes loomrec y wybieshot integrados; apps/tools/ contiene utilidades compartidas. La fuente de desarrollo está en dotifails, no en las copias instaladas ni en el repositorio histórico loom. installer/main.py y sus módulos administran instalación, respaldos, integridad, conflictos y recuperación. Verifica qué distribuyen --wysun-only y su alias --orbit-only.
+
+Define una arquitectura clara: Hyprland administra ventanas, monitores, escritorios y atajos; Quickshell proporciona barra y superficies del escritorio; Python conserva las aplicaciones y su lógica. Reutiliza contratos y servicios existentes, usa eventos cuando proceda y evita duplicar índices, observadores o procesos residentes.
+
+Si utilizas subagentes, asigna responsabilidades y archivos concretos: sesión/instalador; shell e integración visual; compatibilidad de aplicaciones y pruebas. Un solo responsable debe editar cada archivo compartido. Revisa e integra sus cambios y verifica el flujo completo; sus informes no sustituyen las pruebas.
+
+MATRIZ OBLIGATORIA DE COMPATIBILIDAD
+Crea una matriz para TODAS las aplicaciones: función actual, dependencia X11/BSPWM, adaptación Wayland, prueba de comportamiento y estado verificado. Que una app abra su ventana no demuestra compatibilidad. Incluye como mínimo:
+
+1. Lanzador: apertura, cierre, foco, teclado, búsqueda, aplicaciones, acciones, calculadora, snippets y emojis.
+2. Portapapeles: texto, imágenes, archivos, historial, OCR, copiar y pegar en la aplicación de destino. Resuelve explícitamente las restricciones de Wayland sobre lectura global, foco e inyección de entrada.
+3. Ventanas y escritorios: enumerar, seleccionar y activar ventanas, reglas, pantalla completa, monitores, escalado y recuperación tras conectar o desconectar pantallas. Sustituye las llamadas a bspc, xprop y xrandr según corresponda.
+4. Recorder: pantalla, región, selección de ventana con semántica clara, micrófono, audio del sistema, cámara, cursor, pausa, reanudación, sincronización, controles, edición, reproducción, exportación y recuperación. El backend actual usa FFmpeg x11grab; necesita una ruta Wayland real, con las interfaces apropiadas de captura, PipeWire y portales, manteniendo Python. No presentar XWayland ni un recorte visible como captura independiente de ventanas ocultas.
+5. Screenshot: captura real, selección, coordenadas, escalado, varios monitores, cursor, edición, anotaciones, deshacer/rehacer, OCR, biblioteca, portapapeles y exportación. Adaptar el motor de captura, no solo abrir la interfaz Qt.
+6. Music: reproducción mpv, controles, biblioteca, cola, mini reproductor, favoritos, letras, descargas y persistencia. No interrumpir la reproducción ni perder datos para actualizar.
+7. Files: navegación, operaciones seguras, papelera, vistas previas, reproducción, abrir con, revelar archivos y selección de archivos mediante portales.
+8. Notes, Colors, Processes y Tools: todas sus funciones, incluido selector de píxel, terminal/editor, trabajos y transferencias.
+9. Connections, Settings y Power: Wi-Fi, Bluetooth, VPN, SSH, audio, batería, pantallas, atajos, temas, bloqueo, suspensión y recuperación. Una ventana decorativa no equivale a un bloqueo seguro.
+10. Notificaciones: avisos, acciones, historial, pausa/modo concentración y restauración tras grabar. Conservar el motor actual hasta comprobar un reemplazo con las funciones necesarias.
+11. Integración externa: terminal, navegador, diálogos de archivos, compartir pantalla y captura con OBS mediante los portales correspondientes.
+
+Distingue funciones nativas Wayland, aplicaciones sobre XWayland y funciones pendientes. Mantén el backend X11 para la sesión de respaldo. Cada función obligatoria necesita una prueba; no concentres la verificación solamente en Recorder y Screenshot.
+
+ETAPAS
+A. Auditar y cerrar la integración de toda la familia Wysun en dotifails y la coherencia de sus nombres, sin migraciones de datos innecesarias.
+B. Implementar una sesión adicional Wysun/Hyprland con versiones y dependencias coherentes para nuestra distribución. No sustituir el inicio de sesión existente ni retirar BSPWM/Picom/SXHKD de la sesión de respaldo.
+C. Construir la barra y paneles Quickshell con identidad Wysun, teclado accesible, foco correcto, varios monitores y pantalla completa. Conservar temas y preferencias; medir los efectos costosos.
+D. Adaptar todas las aplicaciones según la matriz. Mantener Python y reutilizar Qt, FFmpeg, mpv, Tesseract, SQLite y servicios del sistema cuando sigan siendo adecuados.
+E. Integrar instalación limpia, actualización, conflictos, respaldo, recuperación y elección de sesión. No editar copias instaladas a mano ni depender del repositorio histórico loom.
+F. Verificar la nueva sesión antes de proponerla como principal. Trabajar autónomamente en tareas reversibles autorizadas. No cerrar otras aplicaciones, reiniciar BSPWM ni interrumpir grabaciones o reproducción para facilitar las pruebas. Si un paso requiere terminar la sesión o una acción no autorizada, presentar primero el resultado preparado, impacto y recuperación, y solicitar únicamente la autorización necesaria.
+
+VALIDACIÓN Y ENTREGA
+- Ejecutar los checks pertinentes de AGENTS.md y las pruebas de captura con su ejecutor de HOME/XDG temporales. Ejecutar los trabajos de medios en serie.
+- Usar ventanas sintéticas propias y medios de prueba. No capturar pantallas privadas, micrófono o cámara como prueba automática ni descargar modelos silenciosamente.
+- Probar instalación limpia y actualización con datos existentes, preservación de cambios locales, recuperación e idempotencia.
+- Verificar comportamientos completos en escritorio real. Identificar como tales las pruebas offscreen, simulaciones y sesiones anidadas: no equivalen a una validación física completa.
+- Medir apertura en frío y en caliente, respuesta de búsqueda y navegación, CPU en reposo, memoria y consumo durante grabación y reproducción con escenarios comparables. No prometer mejoras por cambiar de compositor o framework sin medirlas.
+- No declarar terminada la migración mientras existan funciones obligatorias sin resolver. Informar con precisión qué está preparado, probado, activo, pendiente o bloqueado y cómo reproducir cada resultado.
+- Entregar código integrado, matriz final de compatibilidad, comandos de instalación y selección de sesión, recuperación y evidencia de validación.
+
+Empieza inspeccionando el estado actual y estableciendo el orden de implementación según las dependencias reales. Después ejecuta el trabajo hasta completar el alcance, manteniendo nuestras aplicaciones en Python.

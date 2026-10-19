@@ -20,7 +20,7 @@ def identity(pid):
 class Services:
     def __init__(self):
         base = Path(os.environ.get('XDG_RUNTIME_DIR', str(Path.home()/'.cache')))
-        display = hashlib.sha256(os.environ.get('DISPLAY', '').encode()).hexdigest()[:12]
+        display = hashlib.sha256((os.environ.get('WAYLAND_DISPLAY') or os.environ.get('DISPLAY', '')).encode()).hexdigest()[:12]
         self.root = base/f'dotifails-{os.getuid()}-{display}'
         self.root.mkdir(parents=True, exist_ok=True, mode=0o700)
 

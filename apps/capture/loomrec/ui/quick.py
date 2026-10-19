@@ -1,4 +1,5 @@
 """Compact capture surface using the full application's source-of-truth controls."""
+from ..portal import is_wayland
 from PySide6.QtCore import Qt,QTimer,QPoint,QSize
 from PySide6.QtGui import QCursor,QShortcut,QKeySequence
 from PySide6.QtWidgets import QApplication,QWidget,QHBoxLayout,QVBoxLayout,QFormLayout,QLabel,QDialog,QListWidget,QListWidgetItem,QScrollArea,QFrame,QSizePolicy
@@ -128,7 +129,7 @@ class QuickBar(QWidget):
         # Capture the destination before mapping. Never focus the old desktop.
         import os,subprocess
         desktop=None
-        if os.environ.get('QT_QPA_PLATFORM')!='offscreen':
+        if not is_wayland() and os.environ.get('QT_QPA_PLATFORM')!='offscreen':
             try:desktop=subprocess.check_output(['bspc','query','-D','-d','focused'],text=True,timeout=.5).strip()
             except (OSError,subprocess.SubprocessError):pass
         self.show();self.raise_()
@@ -199,7 +200,7 @@ class QuickBar(QWidget):
             if changed:
                 from .icons import icon
                 button.setIcon(icon(symbol,'#87682F' if unavailable else '#2165D5' if active else '#596A80'));button.style().unpolish(button);button.style().polish(button);button.update()
-        mode=self.tr('Ventana') if w.window_target else self.tr('Región') if w.capture_modes.buttons()[1].isChecked() else self.tr('Pantalla')
+        mode=self.tr('Ventana') if w.window_target or w.capture_modes.buttons()[2].isChecked() else self.tr('Región') if w.capture_modes.buttons()[1].isChecked() else self.tr('Pantalla')
         self.mode.setText((mode if self.width()>=660 else '')+' ⌄');self.mode.setAccessibleName(mode+' · '+self.tr('Elegir área'));self.mode.setToolTip(mode+' · '+self.tr('Elegir área'))
         self.start.setText(self.tr('Cancelar')+' · '+str(w.remaining+1) if w.capture_pending else self.tr('Grabar'))
         self.start.setEnabled(not (w.session or w.job or w.analysis))

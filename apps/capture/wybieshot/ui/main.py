@@ -53,7 +53,7 @@ class Window(QMainWindow):
         super().__init__();self.storage=storage or Storage();self.engine=engine or CaptureEngine()
         self._closing=False;self.thumbnail_cache=OrderedDict();self.thumbnail_pending=False;self.library_generation=0
         os.environ['LOOMREC_REDUCED_MOTION']='1' if self.storage.settings.get('reduced_motion',False) else '0'
-        self._capture_lease=None
+        self._capture_lease=None;self._capture_feedback=None
         self._clipboard_hidden=False
         self.capture_mode='region';self.monitor=0;self.document=None;self.overlay=None;self.frozen=None;self.jobs=[];self.busy=False;self.countdown=0
         self.setWindowTitle('Wysun Screenshot');self.resize(1120,760);self.setMinimumSize(520,430)
@@ -350,7 +350,9 @@ class Window(QMainWindow):
         monitors.setCurrentIndex(min(self.monitor,monitors.count()-1));form.addRow('Monitor',monitors)
         cursor=QCheckBox('Incluir cursor');cursor.setChecked(self.prefs().get('include_cursor',False));form.addRow(cursor)
         reduced=QCheckBox('Reducir movimiento');reduced.setChecked(self.prefs().get('reduced_motion',False));form.addRow(reduced)
-        hint=label('Captura local X11 a escala 1×. Ventana captura su área visible, incluidas las ventanas que la cubran.\nCtrl+N nueva · Ctrl+S guardar · Ctrl+Shift+C copiar\nSelección: flechas mueven · Shift ajusta · Ctrl acelera\nLos documentos se guardan automáticamente para reabrirlos.','subtitle');hint.setWordWrap(True);form.addRow(hint)
+        from loomrec.portal import is_wayland
+        contract='Wayland: selección y permiso en el portal. Escritorio con cursor pide un permiso por monitor y compone imágenes secuenciales; cancelar descarta el conjunto.' if is_wayland() else 'Captura local X11 a escala 1×. Ventana captura su área visible, incluidas las ventanas que la cubran.'
+        hint=label(contract+'\nCtrl+N nueva · Ctrl+S guardar · Ctrl+Shift+C copiar\nSelección: flechas mueven · Shift ajusta · Ctrl acelera\nLos documentos se guardan automáticamente para reabrirlos.','subtitle');hint.setWordWrap(True);form.addRow(hint)
         box=localize_buttons(QDialogButtonBox(QDialogButtonBox.Save|QDialogButtonBox.Cancel));box.accepted.connect(dialog.accept);box.rejected.connect(dialog.reject);form.addRow(box)
         if dialog.exec()==QDialog.Accepted:
             def save():
@@ -365,14 +367,14 @@ class Window(QMainWindow):
         if self.busy:return
         # Validate the physical coordinate contract before hiding the app.
         try:
-            if QApplication.platformName()!='xcb':raise RuntimeError('La captura requiere una sesión X11. Puedes editar imágenes y abrir la biblioteca aquí.')
-            if any(abs(s.devicePixelRatio()-1)>.001 for s in QApplication.screens()):raise RuntimeError('La captura requiere escala de pantalla 1×; esta escala todavía no es compatible.')
+            if QApplication.platformName()!='xcb' and not __import__('loomrec.portal',fromlist=['is_wayland']).is_wayland():raise RuntimeError('La captura requiere una sesión X11. Puedes editar imágenes y abrir la biblioteca aquí.')
+            if QApplication.platformName()=='xcb' and not __import__('loomrec.portal',fromlist=['is_wayland']).is_wayland() and any(abs(s.devicePixelRatio()-1)>.001 for s in QApplication.screens()):raise RuntimeError('La captura requiere escala de pantalla 1×; esta escala todavía no es compatible.')
         except Exception as exc:self.show_library();self.notice(str(exc),True);return
         if self._capture_lease is None:self._capture_lease=CaptureLease()
         if not self._capture_lease.claim():
             self.notice('Ya hay una captura en curso. Termina o cancela la selección actual.',True);return
         window_id=None
-        if self.capture_mode=='window':
+        if self.capture_mode=='window' and not __import__('loomrec.portal',fromlist=['is_wayland']).is_wayland():
             try:entries=self.engine.windows()
             except Exception as exc:self.release_capture();self.show_library();self.notice(str(exc),True);return
             owned={int(w.winId()) for w in QApplication.topLevelWidgets()}
@@ -398,6 +400,41 @@ class Window(QMainWindow):
                 QShortcut(QKeySequence('Escape'),self.countdown_window,activated=self.cancel_capture)
             self.count_label.setText(f'Captura en {self.countdown}…');self.countdown_window.show();self.countdown-=1;self.capture_timer.start(1000);return
         if hasattr(self,'countdown_window') and self.countdown_window.isVisible():self.countdown_window.hide();self.capture_timer.start(180);return
+        if __import__('loomrec.portal',fromlist=['is_wayland']).is_wayland():
+            request=self.pending_request
+            feedback=None
+            if request.mode=='desktop' and request.include_cursor:
+                from .capture_feedback import CaptureFeedback
+                feedback=CaptureFeedback(self);self._capture_feedback=feedback
+            def work():
+                if feedback:return self.engine.capture(request,progress=feedback.report,on_wait=feedback.check)
+                return self.engine.freeze(request.include_cursor) if request.mode=='region' else self.engine.capture(request)
+            job=Work(work,QApplication.instance());self.jobs.append(job)
+            def ready(result):
+                if not self.busy or (feedback and feedback.cancelled.is_set()):return
+                if request.mode=='region':
+                    self.frozen=result;self.overlay=self.create_selection(result);self.overlay.present()
+                else:self.finish_capture(result)
+            def failed(message):
+                if feedback and self._capture_feedback is not feedback:return
+                if message=='Selección cancelada en el portal' or (feedback and feedback.cancelled.is_set()):
+                    self.cancel_capture();return
+                # A failed capture is not the user's Cancel action. In direct
+                # mode that override closes the app while this job is active,
+                # suppressing the error and quitting as soon as it finishes.
+                Window.cancel_capture(self)
+                if ('No such interface' in message or 'org.freedesktop.DBus.Error.UnknownInterface' in message) and any(
+                        iface in message for iface in ('org.freedesktop.portal.ScreenCast','org.freedesktop.portal.Screenshot')):
+                    message='El portal de captura no está disponible en esta sesión. Revisa la configuración del portal y vuelve a intentarlo. Tus capturas guardadas se conservan.'
+                if not self._closing:self.show_library();self.notice(message,True)
+            def finished():
+                if feedback:
+                    feedback.close()
+                    if self._capture_feedback is feedback:self._capture_feedback=None
+                if job in self.jobs:self.jobs.remove(job)
+                job.deleteLater()
+                if self._closing and not self.jobs:QTimer.singleShot(0,self.close)
+            job.ready.connect(ready);job.failed.connect(failed);job.finished.connect(finished);job.start();return
         def capture():
             if self.pending_request.mode=='region':
                 self.frozen=self.engine.freeze();g=self.frozen.geometry
@@ -454,11 +491,12 @@ class Window(QMainWindow):
         self.notice(result.warning or 'Captura lista. Anota, copia o guarda.')
 
     def cancel_capture(self):
+        if self._capture_feedback:self._capture_feedback.cancel()
         self.release_capture()
         self.capture_timer.stop();self.busy=False;self.frozen=None
         if self.overlay:self.overlay.hide();self.overlay.deleteLater();self.overlay=None
         if hasattr(self,'countdown_window'):self.countdown_window.hide()
-        self.quick.present()
+        if not self._closing:self.quick.present()
 
     def escape(self):
         if self.busy:self.cancel_capture()
@@ -466,6 +504,7 @@ class Window(QMainWindow):
 
     def closeEvent(self,event):
         if self.jobs:
+            if self._capture_feedback:self._capture_feedback.cancel()
             self._closing=True;self.hide();self.quick.hide();event.ignore();return
         self.thumbnail_timer.stop()
         if self.document and not self.save_document():

@@ -161,6 +161,24 @@ class WysunDistributionTests(unittest.TestCase):
         update.configure_wysun_labels()
         self.assertFalse(update.journal['operations'])
 
+    def test_full_configuration_repeat_preserves_private_preferences(self):
+        import contextlib
+        import io
+        for iteration in range(2):
+            deployment = self.deploy()
+            with patch.object(deployment, 'configure_locker'), contextlib.redirect_stdout(io.StringIO()):
+                deployment.configure(theme='space-black', components=('desktop',))
+                deployment.finish()
+            self.assertFalse(deployment.conflicts)
+            self.assertEqual((self.home / '.local/share/applications/orbit.desktop').read_text(), installer.WYSUN_DESKTOP)
+            private = self.home / '.config/orbit/personal-layout.json'
+            if iteration:
+                self.assertFalse(deployment.journal['operations'])
+                self.assertEqual(private.read_text(), 'private fixture')
+            else:
+                private.write_text('private fixture')
+            deployment.lock.close()
+
 
 if __name__ == '__main__':
     unittest.main()

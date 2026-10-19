@@ -10,6 +10,90 @@ Los paquetes `loomrec` y `wybieshot` y sus directorios privados se conservan por
 
 Las notas siguientes describen la arquitectura y los formatos existentes; sus comandos técnicos antiguos siguen siendo compatibles.
 
+## Backend Wayland y límites de verificación
+
+Recorder y Screenshot incluyen ahora una ruta nativa de consentimiento XDG
+ScreenCast → PipeWire → GStreamer → FFmpeg/QImage. Se selecciona por la sesión
+Wayland aunque exista DISPLAY; no se utiliza el root de XWayland como sustituto.
+X11 conserva x11grab y sus recortes de píxeles visibles. El selector del portal
+es quien autoriza el monitor o una fuente WINDOW independiente. Que una ventana
+esté oculta o minimizada no garantiza que el compositor permita compartirla.
+
+La región de Recorder es un recorte del monitor autorizado. En Hyprland,
+mapping_id identifica la salida para obtener su geometría lógica: position0,0 y
+sizeSHM de XDPH no se confunden con esa geometría. El tamaño real del sample se
+valida antes de orientar y recortar. Si falta identidad/geometría, no se adivina
+el monitor. Screenshot selecciona una región sobre la
+imagen autorizada y conserva su resolución; widget lógico y píxeles fuente se
+mapean por separado. El escritorio completo sin cursor usa el portal Screenshot:
+en XDPH 1.4.1 el backend ejecuta grim sobre el escritorio virtual entero. La API
+Screenshot no ofrece control de cursor. Para escritorio con cursor en Hyprland
+se solicita una selección/permiso ScreenCast por monitor y se componen sus frames
+a la escala máxima, secuencialmente. El progreso explica esta diferencia; cancelar
+descarta el conjunto. Identidad desconocida, selección repetida, cambio de
+topología o cobertura incompleta abortan sin guardar un escritorio parcial.
+Alternativas: escritorio sin cursor o monitor con cursor. No se etiqueta un solo
+monitor como escritorio completo ni se inventa topología.
+
+Cursor: Embedded/Hidden solo si el portal anuncia el modo. Un cursor ya embebido
+no puede borrarse del frame congelado: se debe recapturar sin cursor. Los efectos
+de clic, halo y trazas X11 se conservan. Wayland puede incluir halo/traza en los
+frames o al exportar; los clics requieren consentimiento explícito por grabación
+para el helper mouse-only instalado por administrador. No se añaden funciones de
+teclado. La forma/tamaño del puntero Embedded y los efectos WINDOW siguen siendo
+límites funcionales. Al terminar el puente se libera también el socket remoto
+del padre, conservando la sesión de consentimiento. Cada conexión Hyprland
+negocia primero el estado GStreamer PAUSED y verifica que la negociación terminó
+(sin transición pendiente, con plazo de 5 s). Después espera una barrera de
+650 ms antes de pasar una sola vez a PLAYING. Esta compatibilidad con
+Hyprland 0.55.2/XDPH 1.4.1/GStreamer PipeWire 1.4.2 evita perder el primer frame
+estático durante el ciclo de negociación y cork del proveedor; no equivale a
+una confirmación del proveedor. La espera mínima restante desde el cierre del
+FD anterior también se conserva, pero por sí sola no garantizaba la reanudación.
+Las esperas atienden heartbeat/cancelación en pasos de hasta 50 ms; la llamada
+nativa de cambio de estado mantiene además el plazo externo del trabajador.
+No se retrasa stop/cancel para completar la barrera. No usa caché de frames ni
+genera movimiento/daño artificial. Si aun así
+no llega el primer frame en 10 s, se informa el error y se conservan los segmentos
+finalizados para recuperar o seleccionar de nuevo. No reconstrucción de ventanas ocultas.
+Pausar finaliza un segmento; reanudar conserva la sesión de
+consentimiento. Los FD y permisos viven en el trabajador independiente, nunca en
+capture.json. Cada nuevo puente recibe un OpenPipeWireRemote nuevo bajo la misma
+sesión de consentimiento; no reutiliza una conexión de protocolo consumida. El reloj compartido FFmpeg para vídeo/audio/cámara se conserva.
+
+La reproducción Wayland permanece embebida: libmpv render API software → QImage
+→ QWidget, con callbacks y un hilo de render; no foreign WId ni ventanas mpv
+externas. El render se omite cuando la superficie está oculta y se conserva el
+control IPC, pausa, seek, volumen, velocidad y cierre. El render software usa CPU;
+la prueba sintética 640×360@24 dio 35 frames/1.503s y 0.3062s de CPU del proceso de
+prueba, pausa estable 0 frames/0.605s, seek exacto a3s, resize800×450 y cierre0.275s.
+El pico RSS328620KiB incluye Qt/libmpv/harness y no es memoria incremental del player.
+No constituye benchmark comparable X11/Wayland ni una prueba física.
+
+Dependencias adicionales: python3-dbus, python3-gi, gir1.2-gstreamer-1.0,
+gir1.2-gst-plugins-base-1.0, gstreamer1.0-plugins-base, gstreamer1.0-pipewire,
+libmpv2, un servicio xdg-desktop-portal y backend ScreenCast apropiado, PipeWire.
+PulseAudio/pactl o pipewire-pulse y V4L2 mantienen sus contratos. Los atajos de
+Recorder usan GlobalShortcuts portal con consentimiento; los controles de bandeja
+y los comandos --pause/--resume/--stop del proyecto siguen disponibles si el
+compositor deniega una combinación. `wysun recorder --pick-color` usa PickColor
+del portal y devuelve RGB JSON para Wysun Colors.
+
+Verificado localmente: pruebas unitarias/offscreen, composición/crop de imágenes
+sintéticas, Gst videotestsrc→BGRA→FFmpeg H264→decode y libmpv SW con vídeo propio y
+audio desactivado. Portal/PipeWire con fuentes del compositor
+tienen evidencia nativa anidada de monitor estático, ventana visible y cubierta
+por otra ventana, región/audio sintéticos, varios monitores con escala/rotación,
+consentimientos secuenciales y cancelación total. La release v24 pasó cinco
+segmentos estáticos con tres reanudaciones, FD estables y decodificación completa;
+también audio/vídeo correlacionados y cancelación durante el arranque. PickColor
+por el comando público y el portal devolvió RGB correcto y canceló con
+hyprpicker 0.4.7; esta herramienta evita el fallback PPM defectuoso de XDPH 1.4.1.
+No acredita permisos humanos, login, dispositivos o desbloqueo físicos.
+No afirmar compatibilidad completa
+ni trasladar los resultados históricos X11 a Wayland. Datos, sockets, proyectos,
+formatos y fuentes originales mantienen sus namespaces loomrec/wybieshot.
+
 # Wysun Recorder — local Linux recorder
 
 Standalone Python/PySide6 application with FFmpeg capture and MP4 rendering. Projects and
@@ -51,7 +135,7 @@ independent hidden-window capture. X11 window enumeration additionally requires 
 
 Requires Python 3.11+, PySide6 6.8+, FFmpeg/ffprobe with libx264/AAC, X11, PulseAudio or
 PipeWire's Pulse server, `pactl`, `xrandr`, `xdpyinfo` and `xwininfo`. `mpv` is used for
-playback by the UI. A Wayland portal backend is not implemented.
+playback by the UI. Wayland uses the portal backend described above; the following X11-specific commands and historical evidence do not prove Wayland behavior.
 
 ```sh
 python -m venv --system-site-packages .venv
@@ -169,7 +253,7 @@ clip-based, not a frame-accurate ETA. Preview uses the same renderer.
 | Webcam | Implemented | V4L2 device discovered; physical camera capture deliberately untested |
 | UI/library | Separate module | Offscreen construction/open/trim/undo/redo/close passes. Real drag selector/countdown/global pause-resume-stop produces two clips with every decoded pixel matching fixture (±8); themed mpv preview/seek/play proven at940px. Installed full1920×1080 controller test also passed: countdown, global pause/resume/stop, two clips, every decoded frame matches opaque fixture with no controls |
 | Long recordings / low storage | Guards implemented | Failure handling not a physical power-loss or full-disk guarantee |
-| Wayland / hardware encoding | No | X11 + software libx264 only |
+| Wayland / hardware encoding | Partial / no | Portal backend implemented; real compositor consent/stream proof pending. Software libx264 only |
 
 The first attempted physical fixture used requested Qt coordinates under a tiling WM and
 was invalid. It was discarded and its media deleted immediately after pixel inspection.
@@ -214,7 +298,7 @@ SRT import supports existing transcripts. Transcription requires an explicitly s
 `whisper-cli` and model file: neither is installed on this machine, so actual ASR quality
 is unverified. No model downloads or cloud calls occur. Live rewind, static crop/zoom,
 quality presets and transcript/SRT data contracts are implemented. Animated zoom keyframes,
-Wayland portal capture, hardware encoding and long-session stress testing are outside
+Hardware encoding and long-session stress testing remain outside
 the present verified implementation.
 
 Manual physical reproduction (exclusive media slot; only the owned fixture is recorded):
@@ -286,7 +370,7 @@ managed block, checks expanded conflicts, and backs up the prior active SXHKD fi
 In-recording Super+Ctrl+Shift r/p/s/c/z/i shortcuts are unchanged.
 
 
-GUI launches are single-instance per user/X11 display. The private local Unix socket is
+GUI launches are single-instance per user/Wayland display or X11 display. The private local Unix socket is
 protected by a process lock; repeated desktop launches focus the existing window and
 `Super+Shift+L` requests its recording options without constructing another recorder or
 claiming duplicate global keys. Existing editor/undo state stays in memory. Activation
@@ -529,3 +613,63 @@ habitual. Error de destino, cancelación y reintento conservaron hashes de
 fuentes y MP4 anterior; no quedaron archivos temporales ni se sobrescribió el
 archivo de control existente. No se capturaron micrófono, cámara ni medios
 privados; la prueba gráfica se limitó a un monitor físico.
+
+### Efectos del ratón en Wayland
+
+En monitor o región, halo, clics y estela pueden incluirse en los fotogramas BGRA
+durante la grabación o aplicarse después al exportar. No dibujan una capa sobre el
+escritorio ni sustituyen la forma o tamaño del cursor Embedded del compositor.
+El mapeo para efectos de ventana independiente sigue pendiente. Clics necesitan
+autorización temporal del helper mouse-only; no se captura teclado. Halo y estela
+pueden usar solo la posición del compositor, sin privilegios.
+
+El render lee snapshots acotados sin esperar al lector de telemetría. Las trazas
+conservan formato JSONL v1 y añaden el origen temporal compartido. Cada segmento
+con efectos incluidos se marca para evitar duplicarlos al exportar; un fallo del
+lector finaliza ese segmento y continúa con efectos diferidos. Las fuentes de
+vídeo no se reescriben.
+
+Validación específica: `python3 run_tests.py -p test_wayland_live_effects.py -v`
+usa solo imágenes sintéticas QImage, archivos temporales y funciones inyectadas.
+La prueba multimedia serial `tests/manual_live_effects_proof.py` requiere el turno
+coordinado: compara dos clips GStreamer sintéticos, con/sin efectos, codifica y
+decodifica FFmpeg y mide CPU/RSS. No usa portal, entrada real ni permisos root;
+su existencia no equivale a haber validado una grabación nativa con efectos.
+
+`python3 run_tests.py -p test_wayland_portal_bus.py -v` crea un bus D-Bus
+privado con un servicio ScreenCast sintético: capabilities, cancelación/fallo,
+revocación, conexión viva y tres renovaciones de FD sin fuga. Ejercita metadata
+v5 sin serial y metadata v6 con serial; no es un servidor PipeWire ni captura
+real. Si el sandbox impide crear el socket del bus privado, la prueba lo indica
+como omitida; no usa el bus de sesión personal como fallback.
+
+### Escritorio Wayland completo con cursor
+
+En Hyprland, Screenshot solicita un permiso ScreenCast independiente por monitor.
+Antes de cada selección muestra progreso y los monitores pendientes; «Cancelar
+todo» o cancelar cualquiera de los portales descarta el conjunto. Las imágenes se
+adquieren en secuencia, no al mismo instante. Se combinan a la mayor escala; las
+salidas de menor escala se remuestrean. No se lee ni dibuja un cursor global.
+
+La identidad `mapping_id` debe coincidir con el inventario de salidas del
+compositor; no se infiere por nodo, tamaño o `position` (XDPH1.4.1 anuncia 0,0).
+Se comprueban identidad, tamaño de píxel, transformación y topología antes y
+después de cada frame. Cambio de monitor/escala/rotación, selección repetida,
+identidad ausente o cancelación abortan sin guardar un escritorio parcial. Las
+salidas solapadas/reflejadas/apagadas no se componen por adivinación. Límites:
+16 monitores y 100 megapíxeles. Alternativas: escritorio sin cursor por Screenshot
+portal, o un monitor con cursor. X11 conserva su ruta de captura existente.
+
+Fixtures QImage/Qt offscreen verifican la composición y cancelación; la prueba
+nativa de este flujo se coordina aparte con el integrador. No inferir paridad
+física o instantaneidad de esas pruebas.
+
+Las regiones Recorder y los efectos de ratón en monitor Hyprland resuelven también
+`mapping_id` antes de convertir coordenadas lógicas a píxeles: el tamaño SHM y la
+posición 0,0 de XDPH no son la geometría lógica. Se conserva la metadata original,
+se valida el tamaño real del sample y se aplica la transformación antes del crop.
+La geometría orientada del puente es la misma que usa el lector de posición.
+Antes de iniciar/reanudar se rechaza una topología distinta; no se cambia de
+monitor ni se amplía el permiso automáticamente. Los segmentos ya finalizados
+se conservan. Fixtures negativos/HiDPI/rotación pasan; validación nativa del fix
+coordinada aparte. No se extrapola a cambio de topología a mitad de un frame.

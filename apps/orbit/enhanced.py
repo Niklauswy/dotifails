@@ -224,23 +224,27 @@ class OrbitV2(Orbit):
  def capture_clip(self):
   if not self.v2ready:return super().capture_clip()
   if self.ignore_clip or self.paused:return
-  mime=self.clipboard.mimeData()
+  mime=getattr(self,'_external_clipboard',None) or self.clipboard.mimeData()
   if not mime or sensitive('',mime.formats()):return
   source=''
   if not self.test:
    try:
-    wid=subprocess.check_output(['bspc','query','-N','-n','focused'],text=True,timeout=.3).strip();raw=subprocess.check_output(['xprop','-id',wid,'WM_CLASS'],text=True,timeout=.3);matches=re.findall(r'"([^"]+)"',raw);source=matches[-1] if matches else '';source={'Brave-browser':'Brave','com.mitchellh.ghostty':'Ghostty','Code':'Visual Studio Code','firefox':'Firefox'}.get(source,source)
-   except subprocess.SubprocessError:pass
+    from desktop_backend import Desktop
+    source=Desktop().focused_app()
+   except (OSError,RuntimeError,ValueError,subprocess.SubprocessError):pass
+  from clipboard_mime import encode
+  try:rich=encode(mime) if not mime.hasImage() else None
+  except ValueError:return
   if mime.hasUrls() and all(u.isLocalFile() for u in mime.urls()):
-   paths=[u.toLocalFile() for u in mime.urls()];self.store.clip('files','\n'.join(paths),source=source,meta={'paths':paths})
+   paths=[u.toLocalFile() for u in mime.urls()];self.store.clip('files','\n'.join(paths),blob=rich,source=source,meta={'paths':paths,'mime_envelope':True})
   elif mime.hasImage():
-   img=self.clipboard.image()
+   img=mime.imageData() if getattr(self,'_external_clipboard',None) is not None else self.clipboard.image()
    if img.isNull() or img.width()*img.height()>25_000_000:return
    blob=png_bytes(img);thumb=png_bytes(img.scaled(320,240,Qt.KeepAspectRatio,Qt.SmoothTransformation));self.store.clip('image',f'Imagen · {img.width()} × {img.height()}',blob,source,{'width':img.width(),'height':img.height(),'bytes':len(blob)},thumb);self.next_ocr()
   elif mime.hasText():
    text=mime.text()
    if not text.strip() or sensitive(text,mime.formats()):return
-   kind='color' if color_value(text) else 'url' if re.fullmatch(r'https?://\S+',text.strip()) else 'text';self.store.clip(kind,text,source=source)
+   kind='color' if color_value(text) else 'url' if re.fullmatch(r'https?://\S+',text.strip()) else 'text';self.store.clip(kind,text,blob=rich,source=source,meta={'mime_envelope':True})
   if self.isVisible() and self.mode=='clipboard':self.render()
  def next_ocr(self):
   if self.test or self.ocr_job:return
@@ -395,12 +399,15 @@ class OrbitV2(Orbit):
  def network_finished(self,code,*_):
   self.network_busy=False;self.status.setText('Conexión actualizada' if code==0 else 'No se pudo completar el cambio. Revisa la red y vuelve a intentar.');self.process_output='';self.scan_network()
  def power_action(self,r):
+  if r['action']=='suspend' and __import__('desktop_backend').wayland():
+   from screen_lock import start_lock
+   return start_lock(self,suspend=True)
   if r['action']=='lock':
    from screen_lock import start_lock
    return start_lock(self)
   dialog=QMessageBox(self);dialog.setWindowTitle(r['title']);dialog.setText(r['title']+' el equipo' if r['action'] in ('shutdown','reboot') else r['title']);dialog.setInformativeText('Guarda tu trabajo antes de continuar.' if r['action']!='suspend' else 'Las aplicaciones permanecerán abiertas.');dialog.setStandardButtons(QMessageBox.Yes|QMessageBox.Cancel);dialog.setDefaultButton(QMessageBox.Cancel);dialog.button(QMessageBox.Yes).setText('Confirmar');dialog.button(QMessageBox.Cancel).setText('Cancelar')
   if dialog.exec()==QMessageBox.Yes:
-   command={'suspend':['systemctl','suspend'],'logout':['bspc','quit'],'reboot':['systemctl','reboot'],'shutdown':['systemctl','poweroff']}[r['action']];run(command);self.hide();return True
+   command={'suspend':['systemctl','suspend'],'logout':__import__('desktop_backend').Desktop().logout(),'reboot':['systemctl','reboot'],'shutdown':['systemctl','poweroff']}[r['action']];run(command);self.hide();return True
  def scan_status(self):
   if self.mode not in ('system','audio','notifications') or (self.status_scan and self.status_scan.isRunning()):return
   mode=self.mode;self.status_scan=StatusScan(mode);self.status_scan.done.connect(lambda rows,extra,m=mode:self.status_ready(m,rows,extra));self.status_scan.finished.connect(lambda m=mode:QTimer.singleShot(0,self.scan_status) if m!=self.mode else None);self.status_scan.start()

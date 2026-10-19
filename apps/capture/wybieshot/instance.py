@@ -18,7 +18,7 @@ class CaptureLease:
         root.mkdir(parents=True,exist_ok=True,mode=0o700)
         info=root.stat()
         if info.st_uid!=os.getuid() or info.st_mode&0o077:raise RuntimeError('Screenshot runtime directory must be private')
-        display=hashlib.sha256(os.environ.get('DISPLAY','default').encode()).hexdigest()[:16]
+        display=hashlib.sha256((os.environ.get('WAYLAND_DISPLAY') or os.environ.get('DISPLAY','default')).encode()).hexdigest()[:16]
         fd=os.open(root/f'capture-{display}.lock',os.O_CREAT|os.O_RDWR|os.O_NOFOLLOW|os.O_CLOEXEC,0o600)
         try:
             info=os.fstat(fd)
