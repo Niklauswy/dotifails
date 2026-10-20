@@ -1,5 +1,5 @@
 """Lossless Hyprland shortcut edits and bounded compositor settings."""
-import datetime, itertools, json, os, re, shutil, subprocess, tempfile
+import datetime, hashlib, itertools, json, os, re, shutil, subprocess, tempfile
 from pathlib import Path
 
 HOME=Path.home()
@@ -90,3 +90,196 @@ class DesktopSettings:
 
 def reload_shortcuts():
     """Hyprland applies managed binds through hyprctl eval; no daemon signal needed."""
+
+
+# Structure preferences belong only to shell.json. Appearance, wallpaper and
+# colour selection continue to use their existing files and producer.
+SHELL_DEFAULTS = dict(schema_version=1, anchor='left', rail_enabled=True,
+                      frame_enabled=True, monitors={}, primary_monitor='',
+                      tray_monitor='', low_power=False)
+
+
+def json_object(path):
+    """Strict reads: never silently replace malformed or future preferences."""
+    try:
+        value = json.loads(Path(path).read_text(encoding='utf-8'))
+    except FileNotFoundError:
+        return {}
+    except (ValueError, UnicodeError) as error:
+        raise ValueError(f'{Path(path).name}: JSON inválido; se conservó el archivo.') from error
+    if not isinstance(value, dict):
+        raise ValueError(f'{Path(path).name}: se esperaba un objeto JSON.')
+    return value
+
+
+def validate_shell(value):
+    if type(value.get('schema_version', 1)) is not int or value.get('schema_version', 1) != 1:
+        raise ValueError('Versión de shell.json desconocida; no se modificó.')
+    result = dict(SHELL_DEFAULTS, **value)
+    # The integrated compositor currently supports only the left rail. Do not
+    # offer placements which the compositor cannot yet honour.
+    if result['anchor'] != 'left':
+        raise ValueError('El riel de Wysun debe estar a la izquierda.')
+    for key in ('rail_enabled', 'frame_enabled', 'low_power'):
+        if type(result[key]) is not bool:
+            raise ValueError(key + ': se esperaba verdadero o falso.')
+    monitors = result['monitors']
+    if not isinstance(monitors, dict) or any(not isinstance(k, str) or type(v) is not bool for k, v in monitors.items()):
+        raise ValueError('Las salidas deben indicar un nombre y un estado.')
+    for key in ('primary_monitor', 'tray_monitor'):
+        if not isinstance(result[key], str) or any(ord(c) < 32 for c in result[key]):
+            raise ValueError('Nombre de salida inválido.')
+        if result[key] and monitors.get(result[key]) is False:
+            raise ValueError('La salida principal o de bandeja está desactivada.')
+    if monitors and not any(monitors.values()):
+        raise ValueError('Deja al menos una salida habilitada.')
+    return result
+
+
+def restore_bytes(path, content, mode=0o600):
+    """Restore exact bytes (including CRLF/UTF-8), atomically and privately."""
+    path = Path(path)
+    if content is None:
+        path.unlink(missing_ok=True)
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, name = tempfile.mkstemp(prefix='.' + path.name, dir=path.parent)
+    try:
+        with os.fdopen(fd, 'wb') as stream:
+            os.fchmod(stream.fileno(), mode)
+            stream.write(content)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(name, path)
+    finally:
+        Path(name).unlink(missing_ok=True)
+
+
+class PreferenceBackup:
+    """A durable, bounded undo for Settings writes, never for private app data.
+
+    The receipt names files by fixed keys instead of accepting arbitrary paths.
+    Restore refuses to discard another writer's intervening changes.
+    """
+    def __init__(self, home, paths, label='preferences'):
+        self.home = Path(home)
+        self.paths = {key: Path(path) for key, path in paths.items()}
+        self.before = {key: path.read_bytes() if path.exists() else None for key, path in self.paths.items()}
+        self.modes = {key: path.stat().st_mode & 0o777 if path.exists() else 0o600 for key, path in self.paths.items()}
+        root = self.home / '.local/share/orbit/settings-backups'
+        root.mkdir(parents=True, exist_ok=True, mode=0o700)
+        self.folder = Path(tempfile.mkdtemp(prefix=label + '-', dir=root))
+        for key, content in self.before.items():
+            if content is not None:
+                restore_bytes(self.folder / key, content)
+        atomic_write(self.folder / 'receipt.json', json.dumps({'version': 1, 'present': [k for k,v in self.before.items() if v is not None]}))
+        self.after = None
+
+    def seal(self):
+        self.after = {key: path.read_bytes() if path.exists() else None for key, path in self.paths.items()}
+        atomic_write(self.folder / 'receipt.json', json.dumps({
+            'version': 1, 'present': [k for k,v in self.before.items() if v is not None],
+            'modes': self.modes, 'after': {k: self.digest(v) for k,v in self.after.items()}}))
+
+    @staticmethod
+    def digest(content):
+        return hashlib.sha256(content).hexdigest() if content is not None else None
+
+    @classmethod
+    def open(cls, home, paths, folder):
+        root = (Path(home) / '.local/share/orbit/settings-backups').resolve()
+        folder = Path(folder).resolve()
+        if folder.parent != root:
+            raise ValueError('La copia no pertenece a Ajustes.')
+        receipt = json_object(folder / 'receipt.json')
+        keys = set(receipt.get('after', {}))
+        if receipt.get('version') != 1 or not keys or not keys.issubset(paths):
+            raise ValueError('Copia de preferencias incompatible.')
+        if not set(receipt.get('present', [])).issubset(keys):
+            raise ValueError('Copia de preferencias inválida.')
+        obj = cls.__new__(cls)
+        obj.home, obj.folder = Path(home), folder
+        obj.paths = {key: Path(paths[key]) for key in keys}
+        obj.before = {key: (folder / key).read_bytes() if key in receipt['present'] else None for key in keys}
+        obj.modes = {key: receipt.get('modes', {}).get(key, 0o600) & 0o777 for key in keys}
+        obj.after = None
+        obj.after_digests = receipt['after']
+        return obj
+
+    def restore(self, force=False):
+        if not force and (self.after is not None or hasattr(self, 'after_digests')):
+            for key, path in self.paths.items():
+                current = path.read_bytes() if path.exists() else None
+                expected = self.digest(self.after[key]) if self.after is not None else self.after_digests[key]
+                if self.digest(current) != expected:
+                    raise ValueError('Las preferencias cambiaron en otra ventana. Recarga antes de revertir.')
+        current = {key: path.read_bytes() if path.exists() else None for key,path in self.paths.items()}
+        restored = []
+        try:
+            for key, content in self.before.items():
+                restore_bytes(self.paths[key], content, self.modes[key])
+                restored.append(key)
+        except Exception:
+            for key in reversed(restored):
+                restore_bytes(self.paths[key], current[key], self.modes[key])
+            raise
+
+
+class ShellPreferences:
+    """Shared Python API for the shell's single structure configuration.
+
+    QML consumes this same JSON through FileView; it must not write a second
+    environment.bar or hypr-bar.json. Migration never deletes its input.
+    """
+    def __init__(self, home=None):
+        from hypr_settings import config_dir
+        self.home = Path(home or Path.home())
+        self.root = config_dir(self.home) / 'orbit'
+        self.path = self.root / 'shell.json'
+        self.legacy = self.root / 'hypr-bar.json'
+        self.migration_backup = None
+
+    def values(self):
+        self.migrate()
+        return validate_shell(json_object(self.path))
+
+    def migrate(self):
+        self.root.mkdir(parents=True, exist_ok=True, mode=0o700)
+        with (self.root / 'shell.lock').open('a') as handle:
+            import fcntl
+            fcntl.flock(handle, fcntl.LOCK_EX)
+            if self.path.exists():
+                validate_shell(json_object(self.path))
+                return False
+            if not self.legacy.exists():
+                return False
+            # Preserve unknown module/geometry keys for rollback and future use.
+            legacy = json_object(self.legacy)
+            values = validate_shell(dict(legacy, schema_version=1, anchor='left'))
+            backup = PreferenceBackup(self.home, {'shell.json': self.path, 'hypr-bar.json': self.legacy}, 'shell-migration')
+            atomic_write(self.path, json.dumps(values, ensure_ascii=False, indent=2) + '\n')
+            backup.seal()
+            self.migration_backup = backup
+            return True
+
+    def save(self, values, expected=None, activate=None):
+        self.migrate()
+        self.root.mkdir(parents=True, exist_ok=True, mode=0o700)
+        with (self.root / 'shell.lock').open('a') as handle:
+            import fcntl
+            fcntl.flock(handle, fcntl.LOCK_EX)
+            latest = json_object(self.path)
+            validate_shell(latest)
+            if expected is not None and validate_shell(latest) != expected:
+                raise ValueError('El shell cambió en otra ventana. Recarga antes de guardar.')
+            merged = validate_shell(dict(latest, **values))
+            backup = PreferenceBackup(self.home, {'shell.json': self.path}, 'shell')
+            try:
+                atomic_write(self.path, json.dumps(merged, ensure_ascii=False, indent=2) + '\n')
+                if activate:
+                    activate()
+            except Exception:
+                backup.restore(force=True)
+                raise
+            backup.seal()
+            return backup

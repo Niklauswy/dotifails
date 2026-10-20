@@ -189,6 +189,136 @@ class EnvironmentSettings:
     def section(self, name):
         return self.data.get(name,{})
 
+    def shell_values(self):
+        from settings_data import ShellPreferences
+        return ShellPreferences(self.home).values()
+
+    def apply_shell(self, values, expected=None):
+        from settings_data import ShellPreferences
+        return ShellPreferences(self.home).save(values, expected,
+            lambda: self.runner(['wysun', 'shell', 'reload-preferences']))
+
+    def preference_paths(self):
+        import theme_core
+        return {name: self.config / 'orbit' / name for name in (
+            'shell.json', 'hypr-bar.json', 'appearance.json', 'environment.json', 'theme.json')} | {
+            'scheme.json': theme_core.scheme_path(self.home)}
+
+    def apply_panels(self, shell, appearance, expected_shell=None, expected_appearance=None):
+        from settings_data import PreferenceBackup, json_object
+        paths = self.preference_paths()
+        # Validate both before the first write, then rollback as one operation.
+        json_object(paths['appearance.json'])
+        backup = PreferenceBackup(self.home, {k: paths[k] for k in ('shell.json', 'appearance.json')}, 'panels')
+        try:
+            from settings_data import ShellPreferences
+            ShellPreferences(self.home).save(shell, expected_shell)
+            self.apply_appearance(appearance, expected_appearance)
+        except Exception:
+            backup.restore(force=True)
+            try:self.runner(['wysun', 'shell', 'reload-preferences'])
+            except Exception:pass
+            raise
+        backup.seal()
+        return backup
+
+    def colour_values(self):
+        """Selection view only; all generation stays in wysun_scheme."""
+        import theme_core
+        from settings_data import json_object
+        selection = json_object(theme_core.selection_path(self.home))
+        scheme = theme_core.read_scheme(self.home)
+        explicit = any(k in selection for k in ('id', 'style', 'variant', 'name'))
+        return dict(dynamic=scheme.get('name') == 'dynamic' if scheme else not explicit,
+                    selection=theme_core.read_file(self.home),
+                    mode=scheme.get('mode', 'dark') if scheme else 'dark')
+
+    def apply_colour(self, values, wallpaper=None, expected=None):
+        """Publish through the existing colour authority, with exact undo.
+
+        No private wallpaper lists or unknown theme/environment fields are
+        reconstructed from the form. Only the explicitly edited path changes.
+        """
+        import theme_core
+        from types import SimpleNamespace
+        from wysun_scheme import set_scheme
+        from settings_data import PreferenceBackup, json_object
+        paths = {'environment.json': self.path,
+                 'theme.json': theme_core.selection_path(self.home),
+                 'scheme.json': theme_core.scheme_path(self.home)}
+        for key in ('environment.json', 'theme.json'):
+            json_object(paths[key])
+        if expected is not None and self.colour_values() != expected:
+            raise ValueError('El color cambió en otra ventana. Recarga antes de guardar.')
+        if values['mode'] not in ('light', 'dark'):
+            raise ValueError('Elige modo claro u oscuro.')
+        dynamic = values['dynamic']
+        selected = theme_core.parse(values['selection']) if isinstance(values['selection'], str) else tuple(values['selection'])
+        if not dynamic and (not selected or selected[0] not in theme_core.styles() or selected[1] not in theme_core.styles()[selected[0]]['variants']):
+            raise ValueError('Elige uno de los cinco esquemas fijos.')
+        backup = PreferenceBackup(self.home, paths, 'colour')
+        old_wallpaper = copy.deepcopy(self.wallpaper_values())
+        changed_wallpaper = wallpaper is not None and wallpaper != old_wallpaper.get('default', '')
+        try:
+            if changed_wallpaper:
+                path = Path(wallpaper).expanduser()
+                from PIL import Image
+                with Image.open(path) as image:
+                    image.verify()
+                draft = copy.deepcopy(old_wallpaper)
+                draft['default'] = str(path)
+                # Save and render once; set_scheme below handles generation.
+                self.save_section('wallpaper', draft)
+                render_wallpaper(draft, display_inventory(self.runner), self.home, self.runner)
+            result = set_scheme(SimpleNamespace(dynamic=dynamic,
+                theme=None if dynamic else ':'.join(selected),
+                mode=values['mode'] if dynamic else None, variant=None), self.home)
+            self.runner(['wysun', 'shell', 'reload-preferences'])
+        except Exception:
+            backup.restore(force=True)
+            self.reload()
+            theme_core.invalidate()
+            if changed_wallpaper:
+                try:render_wallpaper(old_wallpaper, display_inventory(self.runner), self.home, self.runner)
+                except Exception:pass
+            raise
+        backup.seal()
+        return dict(message=result, backup=backup)
+
+    def appearance_values(self):
+        from settings_data import json_object
+        value = json_object(self.config / 'orbit/appearance.json')
+        return dict(opacity=value.get('opacity', 80), reduced_motion=value.get('reduced_motion', False))
+
+    def apply_appearance(self, values, expected=None):
+        from settings_data import json_object, PreferenceBackup
+        path = self.config / 'orbit/appearance.json'
+        latest = json_object(path)
+        if expected is not None and self.appearance_values() != expected:
+            raise ValueError('La apariencia cambió en otra ventana. Recarga antes de guardar.')
+        if type(values['reduced_motion']) is not bool:
+            raise ValueError('Movimiento reducido inválido.')
+        latest.update(opacity=bounded(values['opacity'], 65, 100, True),
+                      reduced_motion=values['reduced_motion'])
+        backup = PreferenceBackup(self.home, {'appearance.json': path}, 'appearance')
+        try:
+            atomic_write(path, json.dumps(latest, ensure_ascii=False, indent=2) + '\n')
+            self.runner(['wysun', 'shell', 'reload-preferences'])
+        except Exception:
+            backup.restore(force=True)
+            raise
+        backup.seal()
+        return backup
+
+    def undo_preferences(self, backup):
+        backup.restore()
+        self.reload()
+        import theme_core
+        theme_core.invalidate()
+        self.runner(['wysun', 'shell', 'reload-preferences'])
+        if 'environment.json' in backup.paths:
+            render_wallpaper(self.wallpaper_values(), display_inventory(self.runner), self.home, self.runner)
+
     def save_section(self, name, values):
         self.path.parent.mkdir(parents=True,exist_ok=True,mode=0o700)
         with (self.path.parent/'environment.lock').open('a') as handle:
