@@ -16,7 +16,7 @@ PanelWindow {
     screen: modelData
     readonly property bool fullscreen: outputs.isFullscreen(modelData)
 
-    visible: Logic.monitorEnabled(preferences.environment, modelData.name, preferences.nativeBarData) && !fullscreen
+    visible: Logic.monitorEnabled(preferences.environment, modelData.name, preferences.nativeBarData) && preferences.shell.frameEnabled && !fullscreen
     anchors { top: true; bottom: true; left: true; right: true }
     color: "transparent"
     exclusionMode: ExclusionMode.Ignore

@@ -125,7 +125,10 @@ class SchemeGeneratorTests(unittest.TestCase):
         second = generated[1]['colours']['primary']
         rgb = lambda value: tuple(int(value[index:index + 2], 16) for index in (0, 2, 4))
         self.assertGreaterEqual(sum((a - b) ** 2 for a, b in zip(rgb(first), rgb(second))) ** .5, 80)
-        self.assertEqual(theme_file.read_text(encoding='utf-8'), legacy_selection)
+        # Dynamic intent is stored additively; the fixed choice and unknown keys remain.
+        stored = json.loads(theme_file.read_text(encoding='utf-8'))
+        self.assertEqual({k: stored[k] for k in ('style', 'variant', 'private')}, {'style': 'fluent', 'variant': 'dark', 'private': 'keep'})
+        self.assertEqual(stored['dynamic'], {'enabled': True, 'mode': 'dark', 'variant': 'tonalspot'})
         self.assertEqual(set(generated[0]), {'name', 'flavour', 'mode', 'variant', 'colours', 'wallpaper_hash'})
         for preset in ('space-black', 'tokyo', 'severance', 'fluent:light', 'fluent:dark'):
             result = subprocess.run([sys.executable, str(ROOT / 'bin/wysun'), 'scheme', 'set', preset],

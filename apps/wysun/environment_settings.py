@@ -189,6 +189,155 @@ class EnvironmentSettings:
     def section(self, name):
         return self.data.get(name,{})
 
+    def shell_values(self):
+        """Validated shell.json (migrating hypr-bar.json once). See ShellPreferences."""
+        from settings_data import ShellPreferences
+        return ShellPreferences(self.home).values()
+
+    def notify_shell(self):
+        """Ask a running shell to re-read now. It also watches the files, so a
+        missing shell is reported to the caller instead of failing the save."""
+        try:
+            self.runner(['wysun', 'shell', 'reload-preferences'])
+            return None
+        except Exception as error:
+            return str(error)[:200] or 'El shell no respondió.'
+
+    def apply_shell(self, values, expected=None):
+        from settings_data import ShellPreferences
+        return ShellPreferences(self.home).save(values, expected,
+            lambda: self.runner(['wysun', 'shell', 'reload-preferences']))
+
+    def preference_paths(self):
+        import theme_core
+        return {name: self.config / 'orbit' / name for name in (
+            'shell.json', 'hypr-bar.json', 'appearance.json', 'environment.json', 'theme.json')} | {
+            'scheme.json': theme_core.scheme_path(self.home)}
+
+    def apply_panels(self, shell, appearance, expected_shell=None, expected_appearance=None):
+        from settings_data import PreferenceBackup, json_object
+        paths = self.preference_paths()
+        # Validate both before the first write, then rollback as one operation.
+        json_object(paths['appearance.json'])
+        from settings_data import ShellPreferences
+        ShellPreferences(self.home).migrate()  # before the snapshot: undo never un-migrates
+        backup = PreferenceBackup(self.home, {k: paths[k] for k in ('shell.json', 'appearance.json')}, 'panels')
+        try:
+            ShellPreferences(self.home).save(shell, expected_shell, snapshot=False)
+            self.apply_appearance(appearance, expected_appearance, snapshot=False)
+        except Exception:
+            backup.restore(force=True)
+            self.notify_shell()
+            raise
+        backup.seal()
+        backup.warning = self.notify_shell()
+        return backup
+
+    def colour_values(self):
+        """Selection view only; all generation stays in wysun_scheme."""
+        import theme_core, theme_intent
+        intent = theme_intent.dynamic_intent(self.home)
+        scheme = theme_core.read_scheme(self.home)
+        return dict(dynamic=intent['enabled'],
+                    selection=theme_core.read_file(self.home),
+                    mode=intent.get('mode') or (scheme or {}).get('mode', 'dark'),
+                    variant=intent.get('variant', 'auto'),
+                    seed=intent.get('seed', ''))
+
+    def apply_colour(self, values, wallpaper=None, expected=None):
+        """Publish through the existing colour authority, with exact undo.
+
+        No private wallpaper lists or unknown theme/environment fields are
+        reconstructed from the form. Only the explicitly edited path changes.
+        """
+        import theme_core
+        from types import SimpleNamespace
+        from wysun_scheme import set_scheme, normalize_seed, VARIANTS
+        from settings_data import PreferenceBackup, json_object
+        paths = {'environment.json': self.path,
+                 'theme.json': theme_core.selection_path(self.home),
+                 'scheme.json': theme_core.scheme_path(self.home)}
+        for key in ('environment.json', 'theme.json'):
+            json_object(paths[key])
+        if expected is not None and self.colour_values() != expected:
+            raise ValueError('El color cambió en otra ventana. Recarga antes de guardar.')
+        if values['mode'] not in ('light', 'dark'):
+            raise ValueError('Elige modo claro u oscuro.')
+        dynamic = values['dynamic']
+        variant = values.get('variant') or 'auto'
+        if variant != 'auto' and variant not in VARIANTS:
+            raise ValueError('Variante Material desconocida.')
+        seed = str(values.get('seed') or '').strip()
+        seed = normalize_seed(seed) if seed else 'none'
+        selected = theme_core.parse(values['selection']) if isinstance(values['selection'], str) else tuple(values['selection'])
+        if not dynamic and (not selected or selected[0] not in theme_core.styles() or selected[1] not in theme_core.styles()[selected[0]]['variants']):
+            raise ValueError('Elige uno de los cinco esquemas fijos.')
+        backup = PreferenceBackup(self.home, paths, 'colour')
+        old_wallpaper = copy.deepcopy(self.wallpaper_values())
+        changed_wallpaper = wallpaper is not None and wallpaper != old_wallpaper.get('default', '')
+        try:
+            if changed_wallpaper:
+                path = Path(wallpaper).expanduser()
+                from PIL import Image
+                with Image.open(path) as image:
+                    image.verify()
+                draft = copy.deepcopy(old_wallpaper)
+                draft['default'] = str(path)
+                # Save and render once; set_scheme below handles generation.
+                self.save_section('wallpaper', draft)
+                render_wallpaper(draft, display_inventory(self.runner), self.home, self.runner)
+            result = set_scheme(SimpleNamespace(dynamic=dynamic,
+                theme=None if dynamic else ':'.join(selected),
+                mode=values['mode'] if dynamic else None, variant=variant if dynamic else None,
+                seed=seed if dynamic else None), self.home)
+            self.notify_shell()
+        except Exception:
+            backup.restore(force=True)
+            self.reload()
+            theme_core.invalidate()
+            self.notify_shell()  # the bytes are restored verbatim; never re-render over them
+            raise
+        backup.seal()
+        return dict(message=result, backup=backup)
+
+    def appearance_values(self):
+        from settings_data import json_object
+        value = json_object(self.config / 'orbit/appearance.json')
+        return dict(opacity=value.get('opacity', 80), reduced_motion=value.get('reduced_motion', False))
+
+    def apply_appearance(self, values, expected=None, snapshot=True):
+        from settings_data import json_object, PreferenceBackup
+        path = self.config / 'orbit/appearance.json'
+        latest = json_object(path)
+        if expected is not None and self.appearance_values() != expected:
+            raise ValueError('La apariencia cambió en otra ventana. Recarga antes de guardar.')
+        if type(values['reduced_motion']) is not bool:
+            raise ValueError('Movimiento reducido inválido.')
+        latest.update(opacity=bounded(values['opacity'], 65, 100, True),
+                      reduced_motion=values['reduced_motion'])
+        text = json.dumps(latest, ensure_ascii=False, indent=2) + '\n'
+        if not snapshot:
+            atomic_write(path, text)
+            return None
+        backup = PreferenceBackup(self.home, {'appearance.json': path}, 'appearance')
+        try:
+            atomic_write(path, text)
+        except Exception:
+            backup.restore(force=True)
+            raise
+        backup.seal()
+        backup.warning = self.notify_shell()
+        return backup
+
+    def undo_preferences(self, backup):
+        """Restore the exact bytes of a sealed Settings write (refuses foreign edits)."""
+        backup.restore()
+        self.reload()
+        import theme_core
+        theme_core.invalidate()
+        # Files are restored verbatim; the shell follows through its file watchers.
+        return self.notify_shell()
+
     def save_section(self, name, values):
         self.path.parent.mkdir(parents=True,exist_ok=True,mode=0o700)
         with (self.path.parent/'environment.lock').open('a') as handle:
@@ -486,5 +635,6 @@ def render_wallpaper(values, outputs, home=None, runner=run):
     from hypr_settings import config_dir
     config=config_dir(home)/'orbit/environment.json';data=read_json(config);data['wallpaper']=copy.deepcopy(values)
     atomic_write(config,json.dumps(data,ensure_ascii=False,indent=2)+'\n')
-    runner(['wysun','shell','reload-preferences'])
+    try:runner(['wysun','shell','reload-preferences'])
+    except Exception:pass  # the shell watches environment.json; a stopped shell is not a failed save
     return selected_paths[0]

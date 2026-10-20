@@ -33,7 +33,7 @@ PanelWindow {
     readonly property string activeTitle: Hyprland.activeToplevel?.monitor === monitor ? Hyprland.activeToplevel.title : "Escritorio"
     readonly property int volumePercent: sink?.audio ? Math.round(sink.audio.volume * 100) : -1
 
-    visible: Logic.monitorEnabled(preferences.environment, modelData.name, preferences.nativeBarData) && !fullscreen
+    visible: Logic.monitorEnabled(preferences.environment, modelData.name, preferences.nativeBarData) && preferences.shell.railEnabled && !fullscreen
     anchors { top: true; bottom: true; left: true }
     margins { left: 0 }
     implicitWidth: Wysun.Appearance.railWidth
