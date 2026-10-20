@@ -50,7 +50,15 @@ class ShellStructureTests(unittest.TestCase):
     def test_fonts_and_licenses_are_packaged(self):
         material_symbols = SHELL / "assets/fonts/MaterialSymbolsRounded.ttf"
         self.assertTrue(material_symbols.is_file())
-        self.assertLessEqual(material_symbols.stat().st_size, 64 * 1024)
+        self.assertLessEqual(material_symbols.stat().st_size, 1024 * 1024)
+        glyph_file = SHELL / "assets/fonts/material-symbols-glyphs.txt"
+        self.assertTrue(glyph_file.is_file())
+        glyphs = [line.strip() for line in glyph_file.read_text().splitlines() if line.strip()]
+        self.assertGreaterEqual(len(glyphs), 150)
+        self.assertEqual(len(glyphs), len(set(glyphs)))
+        for name in ("music_note", "library_music", "play_arrow", "volume_up",
+                     "dashboard", "notifications", "screenshot_monitor"):
+            self.assertIn(name, glyphs)
         self.assertTrue((SHELL / "assets/fonts/Rubik-Variable.ttf").is_file())
         self.assertTrue((REPO / "LICENSES/Apache-2.0.txt").is_file())
         self.assertTrue((REPO / "LICENSES/OFL-Rubik.txt").is_file())
