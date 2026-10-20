@@ -2,7 +2,7 @@
 // modificado para Wysun. Fuente: caelestia-dots/shell, commit
 // 507d66285e9d9fde9330adc64159cfdebb28c19a. Véanse LICENSES/GPL-3.0.txt y THIRD_PARTY.md.
 // Wysun adaptation: one explicit laptop backlight, observed through
-// /sys/class/backlight/<device>/brightness with FileView (no polling). Writes
+// /sys/class/backlight/<device>/{brightness,actual_brightness} with FileView (no polling). Writes
 // stay in brightnessctl so the desktop's existing udev permissions are used.
 import QtQuick
 import Quickshell
@@ -52,7 +52,10 @@ Scope {
     }
 
     function sync() {
-        var currentValue = parseInt(currentView.text(), 10);
+        // actual_brightness is the attribute the kernel notifies on hardware or
+        // firmware changes; brightness covers writes made through sysfs.
+        var actualValue = parseInt(actualView.text(), 10);
+        var currentValue = isFinite(actualValue) ? actualValue : parseInt(currentView.text(), 10);
         var maximumValue = parseInt(maxView.text(), 10);
         if (!isFinite(currentValue) || !isFinite(maximumValue) || maximumValue <= 0)
             return;
@@ -117,8 +120,18 @@ Scope {
         blockLoading: true
         printErrors: false
         onLoaded: root.sync()
-        onFileChanged: root.sync()
+        onFileChanged: reload()
         onLoadFailed: error => { if (root.device) root.error = "No se pudo leer el brillo del sistema"; }
+    }
+
+    FileView {
+        id: actualView
+        path: root.device ? root.sysfsRoot + "/" + root.device + "/actual_brightness" : ""
+        watchChanges: true
+        blockLoading: true
+        printErrors: false
+        onLoaded: root.sync()
+        onFileChanged: reload()
     }
 
     FileView {
@@ -128,7 +141,7 @@ Scope {
         blockLoading: true
         printErrors: false
         onLoaded: root.sync()
-        onFileChanged: root.sync()
+        onFileChanged: reload()
         onLoadFailed: error => { if (root.device) root.error = "No se pudo leer el brillo máximo"; }
     }
 }
