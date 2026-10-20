@@ -45,14 +45,18 @@ Scope {
         }
     }
 
-    onSinkChanged: {
-        root.settled = false;
-        settle.restart();
+    // A node's volume arrives after it is bound; wait until both default nodes
+    // are ready before accepting changes, so start-up and device switches stay silent.
+    readonly property bool nodesReady: (!sink || sink.ready) && (!source || source.ready)
+    function resettle() {
+        settled = false;
+        if (nodesReady) settle.restart();
+        else settle.stop();
     }
-    onSourceChanged: {
-        root.settled = false;
-        settle.restart();
-    }
+    onSinkChanged: resettle()
+    onSourceChanged: resettle()
+    onNodesReadyChanged: resettle()
+    Component.onCompleted: resettle()
     onVolumeChanged: {
         if (!settled) return;
         if (Math.abs(volume - lastVolume) < 0.0001) return;
