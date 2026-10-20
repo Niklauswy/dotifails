@@ -5,6 +5,7 @@ from ..portal import is_wayland
 from PySide6.QtCore import Qt,QRect,QRectF,QTimer
 from PySide6.QtGui import QShortcut,QKeySequence,QPainter,QColor,QLinearGradient,QPainterPath,QRegion,QPen
 from PySide6.QtWidgets import QWidget,QLabel,QVBoxLayout,QHBoxLayout,QPushButton
+from .tokens import apply_style,color
 
 
 def control_hints():
@@ -61,13 +62,13 @@ class Countdown(QWidget):
         self.fraction=1.;self.total=0
         box=QVBoxLayout(self);box.setContentsMargins(28,34,28,22);box.setSpacing(10)
         self.number=QLabel();self.number.setAlignment(Qt.AlignCenter);self.number.setFixedHeight(176)
-        self.number.setStyleSheet('font-size:88px;font-weight:700;color:#FFFFFF;background:transparent;');box.addWidget(self.number)
-        caption=QLabel('La grabación empieza en');caption.setAlignment(Qt.AlignCenter);caption.setStyleSheet('font-size:13px;color:#AEB8C8;background:transparent;')
+        apply_style(self.number,'font-size:88px;font-weight:700;color:@on_hud;background:transparent;');box.addWidget(self.number)
+        caption=QLabel('La grabación empieza en');caption.setAlignment(Qt.AlignCenter);apply_style(caption,'font-size:13px;color:@hud_muted;background:transparent;')
         box.insertWidget(0,caption)
         button=QPushButton('Cancelar  ·  Esc');button.setCursor(Qt.PointingHandCursor);button.clicked.connect(cancel)
-        button.setStyleSheet('QPushButton{background:rgba(255,255,255,18);color:#E6EBF3;border:1px solid rgba(255,255,255,30);border-radius:16px;padding:7px 18px;font-size:13px;} QPushButton:hover{background:rgba(255,255,255,34);}')
+        apply_style(button,'QPushButton{background:@hud_line;color:@on_hud;border:1px solid @hud_line;border-radius:16px;padding:7px 18px;font-size:13px;} QPushButton:hover{background:@hud_hover;} QPushButton:focus{border:@focus_width solid @on_hud;}')
         row=QHBoxLayout();row.addStretch();row.addWidget(button);row.addStretch();box.addLayout(row)
-        self.hints=QLabel(control_hints().replace('Abrir controles pausa la grabación: ','Controles ').replace(' · ','  ·  '));self.hints.setWordWrap(True);self.hints.setAlignment(Qt.AlignCenter);self.hints.setStyleSheet('font-size:11px;color:#8A95A8;background:transparent;');box.addWidget(self.hints)
+        self.hints=QLabel(control_hints().replace('Abrir controles pausa la grabación: ','Controles ').replace(' · ','  ·  '));self.hints.setWordWrap(True);self.hints.setAlignment(Qt.AlignCenter);apply_style(self.hints,'font-size:11px;color:@hud_muted;background:transparent;');box.addWidget(self.hints)
         self.tick=QTimer(self);self.tick.setInterval(30);self.tick.timeout.connect(self._advance);self._started=0.
         QShortcut(QKeySequence('Escape'),self,activated=cancel)
     def _advance(self):
@@ -83,12 +84,14 @@ class Countdown(QWidget):
     def paintEvent(self,event):
         p=QPainter(self);p.setRenderHint(QPainter.Antialiasing)
         card=QRectF(self.rect()).adjusted(1,1,-1,-1)
-        p.setPen(QPen(QColor(255,255,255,26),1));p.setBrush(QColor(14,18,27,236));p.drawRoundedRect(card,28,28)
+        p.setPen(QPen(color('hud_line'),1));p.setBrush(color('hud'));p.drawRoundedRect(card,28,28)
         ring=QRectF(0,0,148,148);ring.moveCenter(QRectF(self.number.geometry()).center())
-        p.setBrush(Qt.NoBrush);p.setPen(QPen(QColor(255,255,255,28),8,Qt.SolidLine,Qt.RoundCap));p.drawEllipse(ring)
-        p.setPen(QPen(QColor('#E5484D'),8,Qt.SolidLine,Qt.RoundCap));p.drawArc(ring,90*16,int(-360*16*self.fraction))
+        p.setBrush(Qt.NoBrush);p.setPen(QPen(color('hud_line'),8,Qt.SolidLine,Qt.RoundCap));p.drawEllipse(ring)
+        p.setPen(QPen(QColor('#E5484D'),8,Qt.SolidLine,Qt.RoundCap));p.drawArc(  # theme-exception: rojo semántico de grabación
+            ring,90*16,int(-360*16*self.fraction))
 
 
+# theme-exception-begin: colores semánticos de estado de la captura
 COLORS={
     'selected':('#2569CA','#B8DBFF'),
     'countdown':('#2569CA','#B8DBFF'),
@@ -97,6 +100,7 @@ COLORS={
     'paused':('#A96815','#FFDE9E'),
     'stopping':('#52647B','#CBD5E1'),
 }
+# theme-exception-end
 TERMINAL={'stopped','error','interrupted','cleared'}
 
 
@@ -128,7 +132,7 @@ class RecordingBadge(QWidget):
         self.dot=QLabel('●');self.dot.setFixedWidth(12);self.dot.setAlignment(Qt.AlignCenter)
         self.caption=QLabel();row=QHBoxLayout(self);row.setContentsMargins(12,0,10,0);row.setSpacing(7);row.addWidget(self.dot);row.addWidget(self.caption,1)
         self.pause_button=None;self.stop_button=None;self._pending=False
-        self.setStyleSheet('QLabel {background:transparent;color:#29435E;font-size:13px;font-weight:600;} QPushButton {background:transparent;color:#365776;border:0;border-radius:14px;padding:0 8px;min-width:44px;font-size:12px;font-weight:600;} QPushButton:hover {background:#DAE7F5;} QPushButton:pressed {background:#CBDDF0;} QPushButton:disabled {color:#8394A7;}')
+        apply_style(self,'QLabel {background:transparent;color:@text;font-size:13px;font-weight:600;} QPushButton {background:transparent;color:@accent_ink;border:0;border-radius:14px;padding:0 8px;min-width:44px;font-size:12px;font-weight:600;} QPushButton:hover {background:@pressed;} QPushButton:pressed {background:@text_selection;} QPushButton:disabled {color:@disabled;}')
         for name,callback,attribute in [('Pausar',on_pause,'pause_button'),('Terminar',on_stop,'stop_button')]:
             if callback is None:continue
             button=QPushButton(name);button.setFocusPolicy(Qt.NoFocus);button.setCursor(Qt.PointingHandCursor);button.setFixedHeight(44);button.setMinimumWidth(44)
@@ -137,8 +141,8 @@ class RecordingBadge(QWidget):
         path=QPainterPath();path.addRoundedRect(QRectF(self.rect()),18,18);self.setMask(QRegion(path.toFillPolygon().toPolygon()));super().resizeEvent(event)
     def paintEvent(self,event):
         painter=QPainter(self);painter.setRenderHint(QPainter.Antialiasing)
-        gradient=QLinearGradient(0,0,0,self.height());gradient.setColorAt(0,QColor('#F7FAFE'));gradient.setColorAt(1,QColor('#E8F0F9'))
-        painter.setBrush(gradient);painter.setPen(QPen(QColor('#B7CADE'),1));painter.drawRoundedRect(QRectF(self.rect()).adjusted(.5,.5,-.5,-.5),18,18)
+        gradient=QLinearGradient(0,0,0,self.height());gradient.setColorAt(0,color('surface'));gradient.setColorAt(1,color('hover'))
+        painter.setBrush(gradient);painter.setPen(QPen(color('line_strong'),1));painter.drawRoundedRect(QRectF(self.rect()).adjusted(.5,.5,-.5,-.5),18,18)
     def dispatch(self,callback):
         if self._pending:return
         self._pending=True
@@ -156,7 +160,7 @@ class RecordingBadge(QWidget):
         if self._rendered_state!=state:
             self.state=state;accent=COLORS.get(state,COLORS['starting'])[0]
             self.dot.setStyleSheet('color:'+accent+';background:transparent;font-size:13px;')
-            self.caption.setStyleSheet('color:'+('#35608D' if state in ('selected','countdown','starting') else '#29435E')+';background:transparent;');self._rendered_state=state;self.update()
+            apply_style(self.caption,'color:'+('@accent_ink' if state in ('selected','countdown','starting') else '@text')+';background:transparent;');self._rendered_state=state;self.update()
         if changed:self._pending=False
         self.setText(text)
         for button in (self.pause_button,self.stop_button):

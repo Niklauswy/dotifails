@@ -5,7 +5,7 @@ from PySide6.QtGui import QColor,QPainter,QPen,QShortcut,QKeySequence
 from PySide6.QtWidgets import QFrame,QVBoxLayout,QHBoxLayout,QSpinBox,QColorDialog,QPlainTextEdit,QWidget,QApplication,QFileDialog
 from .selection import SelectionOverlay
 from .canvas import Canvas
-from .components import button,label
+from .components import button,label,apply_style,color as token_color
 from .localization import install_translations,prepare_color_picker
 from wybieshot.document import Document
 
@@ -36,7 +36,7 @@ class FloatingSelection(SelectionOverlay):
         self.canvas=RegionCanvas(self);self.canvas.hide()
         self.canvas.changed.connect(self.changed);self.canvas.edit_requested.connect(self.edit_layer);self.canvas.selected.connect(self.selection_changed)
         self.toolbar=ControlSurface(self);self.toolbar.setObjectName('capturePalette')
-        self.toolbar.setStyleSheet('#capturePalette {background:#FCFDFF;border:1px solid #DDE5EF;border-radius:18px;}')
+        apply_style(self.toolbar,'#capturePalette {background:@surface;border:@border solid @line;border-radius:@radius_l;}')
         layout=QVBoxLayout(self.toolbar);layout.setContentsMargins(12,10,12,10);layout.setSpacing(8)
         tools=QHBoxLayout();tools.setSpacing(3)
         self.area=button('',self.adjust_area,'region',compact=True);self.area.setAccessibleName('Ajustar región');self.area.setToolTip('Ajusta el área antes de anotar. Deshaz los objetos para volver a ajustarla.');tools.addWidget(self.area)
@@ -62,16 +62,16 @@ class FloatingSelection(SelectionOverlay):
         self.changed()
 
     def paintEvent(self,event):
-        p=QPainter(self);p.drawImage(self.rect(),self.image);p.fillRect(self.rect(),QColor(12,24,40,115))
+        p=QPainter(self);p.drawImage(self.rect(),self.image);p.fillRect(self.rect(),token_color('region_scrim'))
         r=self.selection.normalized().intersected(self.rect())
         if r.width()>1 and r.height()>1:
             p.save();p.setClipRect(r);p.drawImage(self.rect(),self.image);p.restore()
-            p.setBrush(Qt.NoBrush);p.setPen(QPen(QColor('#FFFFFF'),1));p.drawRect(QRectF(r).adjusted(.5,.5,-.5,-.5))
+            p.setBrush(Qt.NoBrush);p.setPen(QPen(token_color('region_edge'),1));p.drawRect(QRectF(r).adjusted(.5,.5,-.5,-.5))
             if not self.editing:
-                for point in (r.topLeft(),r.topRight(),r.bottomLeft(),r.bottomRight()):p.fillRect(QRect(point-QPoint(3,3),point+QPoint(3,3)),QColor('#FFFFFF'))
+                for point in (r.topLeft(),r.topRight(),r.bottomLeft(),r.bottomRight()):p.fillRect(QRect(point-QPoint(3,3),point+QPoint(3,3)),token_color('region_edge'))
         if not self.toolbar.isVisible():
             hint='Arrastra o mantén Ctrl y mueve · Esc cancelar';box=QRect(16,max(8,self.height()-54),min(440,self.width()-32),38)
-            p.setPen(Qt.NoPen);p.setBrush(QColor('#FCFDFF'));p.drawRoundedRect(box,18,18);p.setPen(QColor('#1C2A3B'));p.drawText(box,Qt.AlignCenter,hint)
+            p.setPen(Qt.NoPen);p.setBrush(token_color('surface'));p.drawRoundedRect(box,18,18);p.setPen(token_color('text'));p.drawText(box,Qt.AlignCenter,hint)
         p.end()
 
     def mousePressEvent(self,event):
@@ -142,7 +142,7 @@ class FloatingSelection(SelectionOverlay):
         self.close_popover();self.canvas.cancel_gesture()
         if QWidget.mouseGrabber() is self.canvas:self.canvas.releaseMouse()
         popup=ControlSurface(self);popup.setObjectName('capturePopover')
-        popup.setStyleSheet('#capturePopover {background:#FCFDFF;border:1px solid #DDE5EF;border-radius:18px;}')
+        apply_style(popup,'#capturePopover {background:@surface;border:@border solid @line;border-radius:@radius_l;}')
         layout=QVBoxLayout(popup);layout.setContentsMargins(12,12,12,12);layout.addWidget(label(title,'section'));layout.addWidget(editor)
         row=QHBoxLayout();row.addStretch()
         def accept():
@@ -172,7 +172,7 @@ class FloatingSelection(SelectionOverlay):
     def changed(self):
         self.undo_button.setEnabled(bool(self.document and self.document.can_undo));self.redo_button.setEnabled(bool(self.document and self.document.can_redo))
         self.area.setEnabled(not self.document or not self.document.layers)
-        self.color.setStyleSheet('background:'+self.canvas.color+';border:3px solid #FCFDFF;border-radius:9px;')
+        apply_style(self.color,'background:'+self.canvas.color+';border:3px solid @surface;border-radius:9px;')
         self.canvas.update();self.toolbar.raise_()
         if self._popover:self._popover.raise_()
     def undo(self):

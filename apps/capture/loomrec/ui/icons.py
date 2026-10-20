@@ -66,12 +66,39 @@ def _pixmap(name,color,size,stroke=1.6):
     p.end();pix.setDevicePixelRatio(2);return pix
 
 
-def icon(name,color='#596A80',size=20):
-    """One geometry in all states, optical weight retained at 1x and 2x."""
-    result=QIcon()
-    result.addPixmap(_pixmap(name,color,size),QIcon.Normal,QIcon.Off)
-    result.addPixmap(_pixmap(name,'#A1ADBC',size),QIcon.Disabled,QIcon.Off)
-    active='#FFFFFF' if color.upper()=='#FFFFFF' else '#2165D5'
+_specs={}
+
+
+def remember(result,factory,args):
+    """Record how a themed icon was built so refresh_icons can rebuild it."""
+    _specs[result.cacheKey()]=(factory,tuple(args));return result
+
+
+def icon(name,color='muted',size=20):
+    """One geometry in all states, optical weight retained at 1x and 2x.
+    ``color`` is a theme token (on_accent/on_hud for filled buttons) or '#rrggbb'."""
+    from .tokens import tint
+    result=QIcon();ink=tint(color)
+    result.addPixmap(_pixmap(name,ink,size),QIcon.Normal,QIcon.Off)
+    result.addPixmap(_pixmap(name,tint('disabled'),size),QIcon.Disabled,QIcon.Off)
+    active=ink if color in ('on_accent','on_hud') or str(color).upper()=='#FFFFFF' else tint('accent')
     result.addPixmap(_pixmap(name,active,size,1.8),QIcon.Active,QIcon.Off)
     result.addPixmap(_pixmap(name,active,size,1.8),QIcon.Normal,QIcon.On)
-    return result
+    return remember(result,icon,(name,color,size))
+
+
+def refresh_icons():
+    """Rebuild remembered icons on buttons, actions and items after a theme change."""
+    from PySide6.QtWidgets import QApplication,QAbstractButton,QListWidget,QComboBox,QLabel
+    if not _specs:return
+    def refreshed(current):
+        spec=_specs.get(current.cacheKey())
+        return spec[0](*spec[1]) if spec else current
+    for widget in QApplication.allWidgets():
+        for action in widget.actions() or ():
+            if not action.icon().isNull():action.setIcon(refreshed(action.icon()))
+        if isinstance(widget,QAbstractButton):widget.setIcon(refreshed(widget.icon()))
+        elif isinstance(widget,QListWidget):
+            for i in range(widget.count()):item=widget.item(i);item.setIcon(refreshed(item.icon()))
+        elif isinstance(widget,QComboBox):
+            for i in range(widget.count()):widget.setItemIcon(i,refreshed(widget.itemIcon(i)))

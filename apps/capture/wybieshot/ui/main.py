@@ -11,7 +11,7 @@ from wybieshot.schema import Rect,Layer,CaptureRequest
 from wybieshot.document import Document
 from wybieshot.storage import Storage
 from wybieshot.capture import CaptureEngine
-from .components import button,tool_button,label,apply_theme,apply_material,SpinBox,localize_buttons
+from .components import button,tool_button,label,apply_theme,apply_material,apply_style,color as token_color,SpinBox,localize_buttons
 from .canvas import Canvas
 from .quick import QuickBar
 from .selection import SelectionOverlay,SelectionGroup
@@ -26,17 +26,17 @@ class CaptureDelegate(QStyledItemDelegate):
     def paint(self,p,option,index):
         p.save();p.setRenderHint(QPainter.Antialiasing)
         r=option.rect.adjusted(1,2,-1,-2);selected=bool(option.state&QStyle.State_Selected);hover=bool(option.state&QStyle.State_MouseOver)
-        p.setPen(Qt.NoPen);p.setBrush(QColor('#E3EDFD' if selected else '#EFF4FB' if hover else '#FCFDFF'));p.drawRoundedRect(r,12,12)
-        thumb=QRect(r.left()+12,r.top()+10,128,80);p.setBrush(QColor('#EDF3FA'));p.drawRoundedRect(thumb,6,6)
+        p.setPen(Qt.NoPen);p.setBrush(token_color('selection' if selected else 'tile_hover' if hover else 'tile'));p.drawRoundedRect(r,12,12)
+        thumb=QRect(r.left()+12,r.top()+10,128,80);p.setBrush(token_color('inset'));p.drawRoundedRect(thumb,6,6)
         preview=index.data(Qt.DecorationRole)
         if preview:preview.paint(p,thumb,Qt.AlignCenter)
         entry=index.data(Qt.UserRole+1) or {};left=thumb.right()+16;available=max(1,r.right()-left-16)
-        font=option.font;font.setPixelSize(15);font.setWeight(QFont.Medium);p.setFont(font);p.setPen(QColor('#1C2A3B'))
+        font=option.font;font.setPixelSize(15);font.setWeight(QFont.Medium);p.setFont(font);p.setPen(token_color('text'))
         p.drawText(QRect(left,r.top()+21,available,26),Qt.AlignVCenter,p.fontMetrics().elidedText(entry.get('title','Captura'),Qt.ElideRight,available))
-        font.setPixelSize(12);font.setWeight(QFont.Normal);p.setFont(font);p.setPen(QColor('#596A80'))
+        font.setPixelSize(12);font.setWeight(QFont.Normal);p.setFont(font);p.setPen(token_color('muted'))
         secondary=f"{entry.get('width',0)} × {entry.get('height',0)} px · "+datetime.fromtimestamp(entry.get('updated',0)).strftime('%d %b · %H:%M')
         p.drawText(QRect(left,r.top()+51,available,24),Qt.AlignVCenter,p.fontMetrics().elidedText(secondary,Qt.ElideRight,available))
-        if option.state&QStyle.State_HasFocus:p.setPen(QColor('#2165D5'));p.setBrush(Qt.NoBrush);p.drawRoundedRect(r.adjusted(1,1,-1,-1),11,11)
+        if option.state&QStyle.State_HasFocus:p.setPen(token_color('focus'));p.setBrush(Qt.NoBrush);p.drawRoundedRect(r.adjusted(1,1,-1,-1),11,11)
         p.restore()
 
 
@@ -104,7 +104,7 @@ class Window(QMainWindow):
         except Exception as exc:self.notice(str(exc),True)
 
     def notice(self,text,error=False):
-        self.statusBar().setStyleSheet('color:#AA3547;' if error else 'color:#596A80;')
+        apply_style(self.statusBar(),'color:@danger;' if error else 'color:@muted;')
         self.statusBar().showMessage(text)
         self.statusBar().setAccessibleName(text)
 
@@ -294,7 +294,7 @@ class Window(QMainWindow):
             while len(self.thumbnail_cache)>32:self.thumbnail_cache.popitem(last=False)
             if generation==self.library_generation:item.setData(Qt.DecorationRole,QIcon(QPixmap.fromImage(image)));self.items.viewport().update()
         def failed(message):
-            image=QPixmap(160,96);image.fill(QColor('#EDF3FA'));self.thumbnail_cache[key]=image.toImage()
+            image=QPixmap(160,96);image.fill(token_color('inset'));self.thumbnail_cache[key]=image.toImage()
             if generation==self.library_generation:item.setToolTip('Vista previa no disponible: '+message)
         def finished():
             self.thumbnail_pending=False
@@ -335,8 +335,8 @@ class Window(QMainWindow):
                     from PySide6.QtGui import QImage,QPainter,QFont
                     labelled=[]
                     for doc in docs:
-                        source=doc.render();image=QImage(source.width(),source.height()+48,QImage.Format_ARGB32);image.fill(QColor('#F3F6FB'))
-                        p=QPainter(image);p.setPen(QColor('#1C2A3B'));font=QFont();font.setPixelSize(18);p.setFont(font)
+                        source=doc.render();image=QImage(source.width(),source.height()+48,QImage.Format_ARGB32);image.fill(QColor('#F3F6FB'))  # theme-exception: exported composition is document content, not UI
+                        p=QPainter(image);p.setPen(QColor('#1C2A3B'))  # theme-exception: exported composition label;font=QFont();font.setPixelSize(18);p.setFont(font)
                         p.drawText(QRect(12,0,max(1,image.width()-24),48),Qt.AlignVCenter,p.fontMetrics().elidedText(doc.title,Qt.ElideRight,max(1,image.width()-24)));p.drawImage(0,48,source);p.end();labelled.append(Document(image,doc.title))
                     docs=labelled
                 self.set_document(Document.compose(docs,axis.currentData(),gap.value()));self.notice('Composición creada. Las capturas originales siguen en la biblioteca.')

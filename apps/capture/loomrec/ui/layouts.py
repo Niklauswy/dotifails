@@ -28,7 +28,7 @@ def library(w):
     tools.addWidget(action(w.tr('Ajustes'),w.show_settings,'settings',quiet=True))
     w.items=QListWidget();w.items.setItemDelegate(RecordingDelegate(w.items));w.items.setSpacing(6);w.items.setIconSize(QSize(144,81));w.items.itemDoubleClicked.connect(lambda _:w.open_selected());layout.addWidget(w.items,1)
     w.library_empty=surface(shadow=False);empty=QVBoxLayout(w.library_empty);empty.setAlignment(Qt.AlignCenter);empty.setSpacing(14)
-    emblem=QLabel();emblem.setPixmap(icon('library','#7C9BC5',56).pixmap(56,56));emblem.setAlignment(Qt.AlignCenter);empty.addWidget(emblem)
+    emblem=QLabel();emblem.setPixmap(icon('library','accent_muted',56).pixmap(56,56));emblem.setAlignment(Qt.AlignCenter);empty.addWidget(emblem)
     w.empty_title=label(w.tr('Tus videos aparecerán aquí'),'title');w.empty_title.setAlignment(Qt.AlignCenter);empty.addWidget(w.empty_title)
     w.empty_description=label(w.tr('Graba tu pantalla con tu cámara y tu voz.\nAl terminar tendrás un MP4 listo para enviar.'),'subtitle');w.empty_description.setAlignment(Qt.AlignCenter);empty.addWidget(w.empty_description)
     empty.addWidget(action(w.tr('Crear mi primera grabación'),lambda:w.activate_instance('quick'),'record',True),0,Qt.AlignCenter)
@@ -123,7 +123,7 @@ def editor(w):
     w.title=label('','section');w.title.setMinimumWidth(0);w.title.setSizePolicy(QSizePolicy.Ignored,QSizePolicy.Preferred);heading.addWidget(w.title,1)
     w.copy_media=action(w.tr('Copiar ruta'),w.copy_media_path,'copy',quiet=True);w.copy_media.setToolTip(w.tr('Copiar la ruta absoluta del MP4'));heading.addWidget(w.copy_media)
     w.reveal_media=action(w.tr('Mostrar en carpeta'),w.reveal_media_path,'folder',quiet=True);heading.addWidget(w.reveal_media)
-    stage=QWidget();stage.setObjectName('viewerStage');stage.setStyleSheet('#viewerStage{background:#0B0D12;border-radius:16px;}')
+    stage=QWidget();stage.setObjectName('viewerStage');stage.setStyleSheet('#viewerStage{background:#0B0D12;border-radius:16px;}')  # theme-exception: escenario negro del reproductor
     video=QVBoxLayout(stage);video.setContentsMargins(0,0,0,0);video.setSpacing(0)
     w.player=Player();w.player.failed.connect(w.playback_failed);w.player.setMinimumSize(320,180);video.addWidget(w.player,1)
     outer.addWidget(stage,1)

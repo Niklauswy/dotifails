@@ -4,6 +4,7 @@ from pathlib import Path
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QWidget,QVBoxLayout,QHBoxLayout,QFormLayout,QScrollArea,QFileDialog
 from .components import label,surface,SoftButton,ComboBox,CheckBox
+from .tokens import apply_style
 from ..videolibrary import preferences,save_preferences
 from ..schema import atomic_json
 from ..integration import shortcut_settings
@@ -13,7 +14,7 @@ def key_rows(layout):
     for action,chord in shortcut_settings().items():
         row=QHBoxLayout();row.addWidget(label(names[action]),1)
         for key in chord.split('+'):
-            cap=label(key.capitalize());cap.setStyleSheet('background:#E7EEF8;color:#405B7A;border:1px solid #CFDCEB;border-radius:6px;padding:5px 8px;');row.addWidget(cap)
+            cap=label(key.capitalize());apply_style(cap,'background:@hover;color:@ink;border:1px solid @line_strong;border-radius:6px;padding:5px 8px;');row.addWidget(cap)
         layout.addLayout(row)
 
 def build(w):

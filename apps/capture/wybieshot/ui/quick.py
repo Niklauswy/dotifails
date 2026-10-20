@@ -2,7 +2,7 @@
 from PySide6.QtCore import Qt, QSize
 from PySide6.QtGui import QCursor, QKeySequence, QShortcut
 from PySide6.QtWidgets import QWidget,QHBoxLayout,QApplication,QMenu
-from .components import button,apply_material
+from .components import button,apply_material,apply_style
 
 
 class QuickBar(QWidget):
@@ -16,7 +16,7 @@ class QuickBar(QWidget):
         self.start=button('Capturar',owner.begin_capture,'region',primary=True);self.start.setMinimumWidth(138)
         self.dismiss=button('',owner.close,'close',compact=True);self.dismiss.setAccessibleName('Cerrar barra');self.dismiss.setToolTip('Cerrar · Esc')
         for b in (self.mode,self.library,self.settings,self.start,self.dismiss):self.row.addWidget(b);b.setFixedHeight(52);b.setIconSize(QSize(24,24))
-        self.setStyleSheet('#shotQuick QPushButton {border-radius:24px;padding:8px 12px;background:transparent;border:1px solid transparent;} #shotQuick QPushButton:hover {background:rgba(255,255,255,110);} #shotQuick QPushButton:focus {border:2px solid #2165D5;} #shotQuick QPushButton[primary="true"] {background:#2165D5;color:white;} #shotQuick QPushButton[primary="true"]:hover {background:#1958BE;}')
+        apply_style(self,'#shotQuick QPushButton {border-radius:24px;padding:8px 12px;background:transparent;border:@border solid transparent;} #shotQuick QPushButton:hover {background:@hover;} #shotQuick QPushButton:focus {border:@focus_width solid @focus;} #shotQuick QPushButton[primary="true"] {background:@accent;color:@on_accent;} #shotQuick QPushButton[primary="true"]:hover {background:@accent_hover;}')
         apply_material(self,kind='quick',radius=44)
         QShortcut(QKeySequence('Escape'),self,activated=owner.close)
 

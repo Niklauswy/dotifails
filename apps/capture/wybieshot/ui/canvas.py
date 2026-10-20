@@ -4,6 +4,7 @@ from PySide6.QtCore import Qt, QPointF, QRectF, Signal
 from PySide6.QtGui import QColor, QPainter, QPen
 from PySide6.QtWidgets import QWidget
 from wybieshot.schema import Layer, Rect
+from loomrec.ui.tokens import color
 
 
 class Canvas(QWidget):
@@ -13,7 +14,7 @@ class Canvas(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.document=None; self.tool='select'; self.color='#2165d5'; self.stroke=3.; self.font_size=24
+        self.document=None; self.tool='select'; self.color='#2165d5'; self.stroke=3.; self.font_size=24  # theme-exception: default annotation ink saved in the user's document
         self.resizing=False; self.selected_id=None; self.points=[]; self.moving=None; self.start=None; self.preview=None
         self.setMinimumSize(240,180);self.setFocusPolicy(Qt.StrongFocus)
         self.setAccessibleName('Lienzo. V seleccionar, A flecha, R rectángulo, E elipse, P lápiz, H resaltar, T texto, N paso, M máscara, B desenfoque, C recortar. Suprimir elimina; flechas mueven.')
@@ -55,9 +56,9 @@ class Canvas(QWidget):
         return next((l for l in self.document.layers if l.id==self.selected_id),None) if self.document else None
 
     def paintEvent(self,event):
-        p=QPainter(self);p.fillRect(self.rect(),QColor('#E5ECF5'))
+        p=QPainter(self);p.fillRect(self.rect(),color('inset'))
         if not self.document:
-            p.setPen(QColor('#596A80'));p.drawText(self.rect(),Qt.AlignCenter,'Captura una imagen para empezar');return
+            p.setPen(color('muted'));p.drawText(self.rect(),Qt.AlignCenter,'Captura una imagen para empezar');return
         doc=self.document
         if self.preview:
             from wybieshot.document import Document
@@ -66,18 +67,18 @@ class Canvas(QWidget):
             if not any(l.id==self.preview.id for l in self.document.layers):doc.add_layer(self.preview)
             doc.set_crop(self.document.crop)
         r=self.image_rect();p.drawImage(r,doc.render())
-        p.setPen(QPen(QColor(0,0,0,25),1));p.setBrush(Qt.NoBrush);p.drawRect(r)
+        p.setPen(QPen(color('line'),1));p.setBrush(Qt.NoBrush);p.drawRect(r)
         if hasattr(self,'comparison_split'):
-            x=r.x()+r.width()*self.comparison_split;p.setPen(QPen(QColor('#2165D5'),2));p.drawLine(QPointF(x,r.top()),QPointF(x,r.bottom()))
+            x=r.x()+r.width()*self.comparison_split;p.setPen(QPen(color('accent'),2));p.drawLine(QPointF(x,r.top()),QPointF(x,r.bottom()))
         crop=self.document.crop;scale=r.width()/(crop.width if crop else self.document.size.width())
         p.save();p.setClipRect(r);p.translate(r.x(),r.y());p.scale(scale,scale);p.translate(-(crop.x if crop else 0),-(crop.y if crop else 0))
         layer=self.preview or self.current_layer()
         if layer:
-            p.setPen(QPen(QColor('#2165D5'),1/scale,Qt.DashLine));p.drawRect(self.bounds(layer))
+            p.setPen(QPen(color('accent'),1/scale,Qt.DashLine));p.drawRect(self.bounds(layer))
             if layer.tool not in ('text','number','pen'):
-                point=QPointF(*layer.points[-1]);p.setBrush(QColor('#FCFDFF'));p.setPen(QPen(QColor('#2165D5'),1/scale));p.drawRect(QRectF(point.x()-4/scale,point.y()-4/scale,8/scale,8/scale))
+                point=QPointF(*layer.points[-1]);p.setBrush(color('surface'));p.setPen(QPen(color('accent'),1/scale));p.drawRect(QRectF(point.x()-4/scale,point.y()-4/scale,8/scale,8/scale))
         if self.tool=='crop' and len(self.points)>1:
-            p.setPen(QPen(QColor('#2165D5'),2/scale));p.drawRect(QRectF(QPointF(*self.points[0]),QPointF(*self.points[-1])).normalized())
+            p.setPen(QPen(color('accent'),2/scale));p.drawRect(QRectF(QPointF(*self.points[0]),QPointF(*self.points[-1])).normalized())
         p.restore();p.end()
 
     def mousePressEvent(self,event):

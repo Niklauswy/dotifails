@@ -18,13 +18,14 @@ class _Canvas(QWidget):
     def paintEvent(self,event):
         painter=QPainter(self);painter.setRenderHint(QPainter.Antialiasing)
         path=QPainterPath();path.addRoundedRect(QRectF(self.rect()),10,10);painter.setClipPath(path)
-        painter.fillRect(self.rect(),QColor('#18263A'))
+        from .tokens import color
+        painter.fillRect(self.rect(),color('media'))
         if not self.image.isNull():
             size=self.image.size().scaled(self.size(),Qt.KeepAspectRatio)
             target=QRectF((self.width()-size.width())/2,(self.height()-size.height())/2,size.width(),size.height())
             painter.drawImage(target,self.image)
         else:
-            painter.setPen(QColor('#BAC9DD'));painter.drawText(self.rect(),Qt.AlignCenter,self.tr('Cámara'))
+            painter.setPen(color('hud_muted'));painter.drawText(self.rect(),Qt.AlignCenter,self.tr('Cámara'))
 
 
 class CameraPreview(QWidget):

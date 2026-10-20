@@ -5,6 +5,7 @@ import tempfile
 from pathlib import Path
 from PySide6.QtCore import QProcess, QTimer, Signal
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel
+from .tokens import apply_style
 
 
 class Player(QWidget):
@@ -17,7 +18,7 @@ class Player(QWidget):
         layout=QVBoxLayout(self); layout.setContentsMargins(0,0,0,0)
         from ..portal import is_wayland
         from .mpv_embed import MpvSurface
-        self.surface=MpvSurface() if is_wayland() else QWidget(); self.surface.setStyleSheet('background:#18263A; border-radius:10px;'); layout.addWidget(self.surface)
+        self.surface=MpvSurface() if is_wayland() else QWidget(); apply_style(self.surface,'background:@media; border-radius:10px;'); layout.addWidget(self.surface)
         if isinstance(self.surface,MpvSurface):self.surface.failed.connect(self.report_failure)
         self._closing=False;self._failure_reported=False
         self.process=QProcess(self); self.process.errorOccurred.connect(lambda _:self.report_failure(self.tr('No se pudo iniciar mpv. Comprueba su instalación.')))

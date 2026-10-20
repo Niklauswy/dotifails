@@ -12,6 +12,7 @@ from pathlib import Path
 from ..portal import is_wayland
 from PySide6.QtCore import Qt,QEvent,QObject,QRectF,QTimer
 from PySide6.QtGui import QPainter,QColor,QPen,QLinearGradient,QPainterPath,QRegion
+from .tokens import color,tokens
 from PySide6.QtWidgets import QWidget
 
 PROPERTY='_WYBIE_ACRYLIC'
@@ -64,11 +65,13 @@ class MaterialLayer(QWidget):
     def paintEvent(self,event):
         p=QPainter(self);p.setRenderHint(QPainter.Antialiasing)
         rect=QRectF(self.rect()).adjusted(.5,.5,-.5,-.5)
-        # Low-contrast tint/light, not an image of the desktop or Qt child blur.
-        tint=QLinearGradient(0,0,0,self.height())
-        tint.setColorAt(0,QColor(240,248,255,208 if self.acrylic else 255))
-        tint.setColorAt(1,QColor(226,239,252,222 if self.acrylic else 255))
-        p.setBrush(tint);p.setPen(QPen(QColor(255,255,255,220),1));p.drawRoundedRect(rect,self.radius,self.radius)
+        # Low-contrast tint/light from the active theme's material tokens, not an image of the desktop.
+        values=tokens();tint=QLinearGradient(0,0,0,self.height())
+        top,bottom=(208,222) if self.acrylic else (255,255)
+        tint.setColorAt(0,color('material_top',top,values));tint.setColorAt(1,color('material_bottom',bottom,values))
+        p.setBrush(tint);p.setPen(QPen(color('material_edge',values=values),1));p.drawRoundedRect(rect,self.radius,self.radius)
+        if color('material_highlight',values=values).alpha():
+            p.setPen(QPen(color('material_highlight',values=values),1));p.setBrush(Qt.NoBrush);p.drawRoundedRect(rect.adjusted(1,1,-1,-1),self.radius-1,self.radius-1)
         # A single lit edge; no second nested border or shadow.
 
 
@@ -102,6 +105,9 @@ def apply_material(window,panel=None,*,kind='popup',radius=18):
     window.setAttribute(Qt.WA_TranslucentBackground)
     panel.setAutoFillBackground(False)
     if not panel.objectName():panel.setObjectName('wybieMaterialSurface')
-    panel.setStyleSheet(panel.styleSheet()+f'\n#{panel.objectName()} {{background:transparent;border:0;}}')
+    rule=f'\n#{panel.objectName()} {{background:transparent;border:0;}}'
+    template=panel.property('wysunThemeStyle')
+    if template is not None:panel.setProperty('wysunThemeStyle',template+rule)
+    panel.setStyleSheet(panel.styleSheet()+rule)
     binding=_MaterialBinding(window,panel,radius);window._wybie_material=binding
     return binding

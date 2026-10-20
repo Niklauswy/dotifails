@@ -2,6 +2,7 @@
 from PySide6.QtCore import QPoint, QRect, QRectF, Qt, Signal
 from PySide6.QtGui import QColor, QCursor, QPainter, QPen
 from PySide6.QtWidgets import QWidget
+from loomrec.ui.tokens import color
 
 
 class SelectionOverlay(QWidget):
@@ -69,21 +70,21 @@ class SelectionOverlay(QWidget):
     def paintEvent(self, event):
         p = QPainter(self)
         p.drawImage(self.rect(), self.image)
-        p.fillRect(self.rect(), QColor(12, 24, 40, 115))
+        p.fillRect(self.rect(), color('region_scrim'))
         r = self.selection.normalized().intersected(self.rect())
         if not r.isEmpty():
             p.save(); p.setClipRect(r); p.drawImage(self.rect(), self.image); p.restore()
-            p.setPen(QPen(QColor('#FFFFFF'), 1)); p.setBrush(Qt.NoBrush)
+            p.setPen(QPen(color('region_edge'), 1)); p.setBrush(Qt.NoBrush)
             p.drawRect(QRectF(r).adjusted(.5, .5, -.5, -.5))
-            p.setPen(QPen(QColor('#2165D5'), 2))
+            p.setPen(QPen(color('accent'), 2))
             for point in (r.topLeft(), r.topRight(), r.bottomLeft(), r.bottomRight()):
-                p.fillRect(QRect(point-QPoint(4,4), point+QPoint(4,4)), QColor('#FFFFFF'))
+                p.fillRect(QRect(point-QPoint(4,4), point+QPoint(4,4)), color('region_edge'))
                 p.drawRect(QRect(point-QPoint(4,4), point+QPoint(4,4)))
         hint = f'{r.width()} × {r.height()} · Enter capturar · Esc cancelar' if not r.isEmpty() else 'Arrastra o mantén Ctrl y mueve · Enter inicia selección con teclado · Esc cancelar'
         width = min(self.width()-24, p.fontMetrics().horizontalAdvance(hint)+32)
         box = QRect(12, max(12, self.height()-54), width, 38)
-        p.setPen(Qt.NoPen); p.setBrush(QColor('#FCFDFF')); p.drawRoundedRect(box, 19, 19)
-        p.setPen(QColor('#1C2A3B')); p.drawText(box.adjusted(12,0,-12,0), Qt.AlignCenter, hint)
+        p.setPen(Qt.NoPen); p.setBrush(color('surface')); p.drawRoundedRect(box, 19, 19)
+        p.setPen(color('text')); p.drawText(box.adjusted(12,0,-12,0), Qt.AlignCenter, hint)
         p.end()
 
     def mousePressEvent(self, event):
