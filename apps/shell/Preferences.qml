@@ -13,11 +13,15 @@ Scope {
     property var themeSpec: ({})
     property var environment: ({})
     property var appearanceData: ({})
-    property var nativeBarData: ({})
+    property var shellData: ({})
+    property var legacyBarData: ({})
     // {style, variant}: environment override, then theme.json (new or legacy format).
     readonly property var themeSelection: Logic.selectTheme(themeSpec, themeData, Quickshell.env("WYSUN_THEME") || Quickshell.env("ORBIT_THEME"))
     readonly property string themeId: themeSelection.style + ":" + themeSelection.variant
-    readonly property var appearance: Logic.appearance(appearanceData)
+    readonly property var appearance: Logic.appearance(appearanceData, shellData)
+    // shell.json answers first; hypr-bar.json is only the fallback while it is absent or unknown.
+    readonly property var nativeBarData: Logic.shellLayout(shellData, legacyBarData)
+    readonly property var shell: Logic.shellSettings(shellData)
     readonly property var bar: Logic.barSettings(nativeBarData)
 
     function accept(text, field) {
@@ -32,7 +36,7 @@ Scope {
 
     function reload() {
         themeSpecFile.reload(); themeFile.reload(); appearanceFile.reload();
-        environmentFile.reload(); nativeBarFile.reload();
+        environmentFile.reload(); nativeBarFile.reload(); shellFile.reload();
     }
 
     FileView {
@@ -72,6 +76,14 @@ Scope {
         watchChanges: true
         printErrors: false
         onFileChanged: reload()
-        onLoaded: root.accept(text(), "nativeBarData")
+        onLoaded: root.accept(text(), "legacyBarData")
+    }
+    FileView {
+        id: shellFile
+        path: Paths.orbitFile(root.configHome, "shell.json")
+        watchChanges: true
+        printErrors: false
+        onFileChanged: reload()
+        onLoaded: root.accept(text(), "shellData")
     }
 }

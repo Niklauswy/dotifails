@@ -134,8 +134,34 @@ function bounded(value, low, high, fallback) {
     return typeof value === "number" && isFinite(value) ? Math.max(low, Math.min(high, value)) : fallback;
 }
 
-function appearance(data) {
-    return { opacity: Math.round(bounded(data.opacity, 65, 100, 80)) / 100, reducedMotion: data.reduced_motion === true };
+// Low power (shell.json) implies reduced motion, so the shell stops animating without a second switch.
+function appearance(data, shell) {
+    var lowPower = !!shell && typeof shell === "object" && shell.low_power === true;
+    return { opacity: Math.round(bounded(data.opacity, 65, 100, 80)) / 100, reducedMotion: data.reduced_motion === true || lowPower };
+}
+
+function shellValid(shell) {
+    return !!shell && typeof shell === "object" && !Array.isArray(shell) && shell.schema_version === 1;
+}
+
+// shell.json is the single structure file. Until it exists (or when its version is unknown) the
+// previous hypr-bar.json keeps answering for monitors and tray, so nothing is lost mid-migration.
+function shellLayout(shell, legacy) {
+    if (!shellValid(shell)) return legacy && typeof legacy === "object" && !Array.isArray(legacy) ? legacy : {};
+    return {
+        monitors: shell.monitors && typeof shell.monitors === "object" && !Array.isArray(shell.monitors) ? shell.monitors : {},
+        tray_monitor: typeof shell.tray_monitor === "string" ? shell.tray_monitor : ""
+    };
+}
+
+function shellSettings(shell) {
+    var valid = shellValid(shell);
+    return {
+        railEnabled: !valid || shell.rail_enabled !== false,
+        frameEnabled: !valid || shell.frame_enabled !== false,
+        lowPower: valid && shell.low_power === true,
+        primaryMonitor: valid && typeof shell.primary_monitor === "string" ? shell.primary_monitor : ""
+    };
 }
 
 var barModules = ["orbit", "title", "workspaces", "resources", "network", "volume", "battery", "date", "notifications", "power", "tray"];

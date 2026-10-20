@@ -175,6 +175,23 @@ class LogicTests(unittest.TestCase):
         self.assertEqual(self.evaluate("trayMonitor({bar:{tray_monitor:'A'}},[{name:'A'},{name:'B'}],{monitors:{A:false},tray_monitor:'missing'})"), "B")
         self.assertFalse(self.evaluate("monitorEnabled({bar:{monitors:{A:true}}},'A',{monitors:{A:false}})"))
 
+    def test_shell_json_answers_first_and_legacy_bar_is_only_a_fallback(self):
+        legacy = "{monitors:{A:true},tray_monitor:'A'}"
+        self.assertEqual(self.evaluate("shellLayout({schema_version:1,monitors:{A:false},tray_monitor:'B'}," + legacy + ")"),
+                         {"monitors": {"A": False}, "tray_monitor": "B"})
+        for unusable in ("null", "{}", "{schema_version:2,monitors:{A:false}}", "[]", "{schema_version:'1'}"):
+            self.assertEqual(self.evaluate("shellLayout(" + unusable + "," + legacy + ")"), {"monitors": {"A": True}, "tray_monitor": "A"}, unusable)
+        self.assertEqual(self.evaluate("shellLayout(null, null)"), {})
+
+    def test_shell_settings_default_on_and_low_power_reduces_motion(self):
+        self.assertEqual(self.evaluate("shellSettings({})"), {"railEnabled": True, "frameEnabled": True, "lowPower": False, "primaryMonitor": ""})
+        values = self.evaluate("shellSettings({schema_version:1,rail_enabled:false,frame_enabled:false,low_power:true,primary_monitor:'DP-1'})")
+        self.assertEqual(values, {"railEnabled": False, "frameEnabled": False, "lowPower": True, "primaryMonitor": "DP-1"})
+        self.assertFalse(self.evaluate("appearance({}, null)")["reducedMotion"])
+        self.assertTrue(self.evaluate("appearance({}, {low_power:true})")["reducedMotion"])
+        self.assertTrue(self.evaluate("appearance({reduced_motion:true}, {low_power:false})")["reducedMotion"])
+        self.assertFalse(self.evaluate("appearance({reduced_motion:'yes'}, {low_power:'yes'})")["reducedMotion"])
+
     def test_hotplug_tray_falls_back_to_first_enabled_monitor(self):
         self.assertEqual(self.evaluate("trayMonitor({bar:{tray_monitor:'HDMI-A-1',monitors:{'eDP-1':false}}},[{name:'eDP-1'},{name:'DP-2'}])"), "DP-2")
         self.assertEqual(self.evaluate("trayMonitor({bar:{monitors:{A:false}}},[{name:'A'}])"), "")
