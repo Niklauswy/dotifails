@@ -3,6 +3,8 @@
 #include <qjsonarray.h>
 #include <qjsonobject.h>
 
+#include <ranges>
+
 #include "util/i18n.hpp"
 
 namespace caelestia::settings {

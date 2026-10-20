@@ -4,6 +4,7 @@
 #include <qtimer.h>
 
 #include <algorithm>
+#include <ranges>
 
 namespace {
 

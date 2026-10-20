@@ -6,6 +6,7 @@
 #include <quuid.h>
 
 #include <algorithm>
+#include <ranges>
 
 namespace {
 

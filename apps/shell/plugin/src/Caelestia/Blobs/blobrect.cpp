@@ -4,6 +4,7 @@
 #include <cmath>
 
 #include "blobgroup.hpp"
+#include <ranges>
 
 namespace caelestia::blobs {
 

@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "service.hpp"
+#include <ranges>
 
 namespace {
 

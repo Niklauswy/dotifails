@@ -12,6 +12,7 @@
 #include "config/rootnodes.hpp"
 #include "config/serviceconfig.hpp"
 #include "config/userpaths.hpp"
+#include <ranges>
 
 namespace {
 

@@ -8,6 +8,7 @@
 #include "config/rootnodes.hpp"
 #include "core/toaster.hpp"
 #include "util/i18n.hpp"
+#include <ranges>
 
 namespace caelestia::services::hypr {
 

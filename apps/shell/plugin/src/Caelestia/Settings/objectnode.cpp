@@ -118,8 +118,9 @@ QSet<QString> ObjectNode::loadFromJson(const QJsonObject& json, QList<Diagnostic
     quarantineKey(key, v);                                                                                             \
     continue
 
-    for (const auto [k, v] : json.asKeyValueRange()) {
-        const auto key = k.toString();
+    for (auto it = json.begin(); it != json.end(); ++it) {
+        const auto key = it.key();
+        const auto v = it.value();
         const auto* desc = schema().get(key);
 
         if (!desc) {
@@ -129,7 +130,7 @@ QSet<QString> ObjectNode::loadFromJson(const QJsonObject& json, QList<Diagnostic
                 .type = DiagnosticType::UnknownOption,
                 .option = path,
                 // TRANSLATORS: %1 = a config key name
-                .message = util::i18n::mark(u"Unknown option %1"_s, { key }),
+                .message = util::i18n::mark(u"Unknown option %1"_s, QStringList{ key }),
             };
             SKIP;
         }

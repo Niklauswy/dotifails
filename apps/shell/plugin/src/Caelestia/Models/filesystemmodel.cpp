@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <optional>
 #include <utility>
+#include <ranges>
 
 namespace caelestia::models {
 

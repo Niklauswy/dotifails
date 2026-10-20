@@ -1,6 +1,7 @@
 #include "node.hpp"
 
 #include "util/i18n.hpp"
+#include <ranges>
 
 namespace caelestia::settings {
 

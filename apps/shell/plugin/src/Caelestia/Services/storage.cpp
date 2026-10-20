@@ -12,6 +12,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <ranges>
 
 namespace caelestia::services {
 

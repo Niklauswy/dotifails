@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cstring>
+#include <ranges>
 
 namespace caelestia::components {
 
