@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Bounded, one-shot Wysun providers. No daemon, notification server or toast.
+"""Bounded, one-shot providers for Wysun quick settings and session.
+
+Dunst remains the only notification server: this file only reads and edits its
+history with ``dunstctl`` and never starts a notification server or a toast.
+Audio and brightness are observed directly by QML (PipeWire and sysfs); they are
+not duplicated here.
 
 Presentation contracts adapted from caelestia-dots/shell services
 Audio.qml, Brightness.qml, Nmcli.qml, NotifData.qml and Notifs.qml.
@@ -8,12 +13,9 @@ Source commit: 507d66285e9d9fde9330adc64159cfdebb28c19a.
 See LICENSES/GPL-3.0.txt and THIRD_PARTY.md. Upstream has no per-file notices.
 """
 import argparse
-import contextlib
-import fcntl
 import html
 import importlib.util
 import json
-import math
 import os
 from pathlib import Path
 import re
@@ -26,16 +28,25 @@ spec = importlib.util.spec_from_file_location("wysun_key_controls", SHELL / "con
 keys = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(keys)
 Error = keys.ControlError
-DOMAINS = ("audio", "brightness", "network", "bluetooth", "battery", "notifications", "session")
+DOMAINS = ("network", "bluetooth", "battery", "notifications", "session")
+# Every action is validated against a fresh snapshot before it runs.
+ACTIONS = ("network-toggle", "network-connect",
+           "bluetooth-toggle", "bluetooth-connect", "bluetooth-disconnect",
+           "notifications-pause", "notifications-remove", "notifications-clear",
+           "session-lock", "session-suspend", "session-logout",
+           "session-reboot", "session-poweroff")
 
 
 def plain(value, limit=4096):
-    return html.unescape(re.sub(r"<[^>]*>", "", str(value)))[:limit]
+    text = html.unescape(re.sub(r"<[^>]*>", "", str(value)))
+    return text.replace("\x00", "")[:limit]
 
 
 def history(text):
     """Dunst typed values -> inert presentation. Never invent callable actions."""
     value = json.loads(text)
+    if not isinstance(value, dict):
+        raise Error("Historial de Dunst inválido")
     groups = value.get("data")
     if not isinstance(groups, list) or any(not isinstance(g, list) for g in groups):
         raise Error("Historial de Dunst inválido")
@@ -44,11 +55,13 @@ def history(text):
         for item in group:
             if not isinstance(item, dict):
                 continue
+
             def field(name, default=""):
-                v = item.get(name, default)
-                return v.get("data", default) if isinstance(v, dict) else v
+                value = item.get(name, default)
+                return value.get("data", default) if isinstance(value, dict) else value
+
             nid = str(field("id"))
-            if not re.fullmatch(r"[0-9]{1,10}", nid) or int(nid) == 0 or int(nid) > 2**32-1 or nid in seen:
+            if not re.fullmatch(r"[0-9]{1,10}", nid) or int(nid) == 0 or int(nid) > 2**32 - 1 or nid in seen:
                 continue
             seen.add(nid)
             rows.append(dict(id=nid, appName=plain(field("appname"), 128),
@@ -88,33 +101,23 @@ class Providers:
         self.env = keys.host_environment(os.environ if environ is None else environ)
         self.runner = runner or self.command
         self.available = available or (lambda name: shutil.which(name, path=self.env.get("PATH")))
-        self.keys = keys.Controller(self.runner, self.available, self.env)
         self.power_root = Path(power_root or "/sys/class/power_supply")
         self.fixture = fixture
 
     def command(self, argv):
         try:
-            p = subprocess.run(argv, env=self.env, capture_output=True, text=True, timeout=3)
+            result = subprocess.run(argv, env=self.env, capture_output=True, text=True, timeout=3)
         except subprocess.TimeoutExpired as exc:
             raise Error("El proveedor no respondió a tiempo") from exc
         except OSError as exc:
             raise Error("Proveedor no disponible: " + argv[0]) from exc
-        if p.returncode:
+        if result.returncode:
             raise Error("El proveedor rechazó la operación: " + argv[0])
-        return p.stdout.strip()
+        return result.stdout.strip()
 
     def require(self, name):
         if not self.available(name):
             raise Error("No disponible: " + name)
-
-    def audio(self):
-        backend = "wpctl" if self.available("wpctl") else "pactl"
-        self.require(backend)
-        return dict(available=True, backend=backend, **self.keys._volume(backend))
-
-    def brightness(self):
-        self.require("brightnessctl")
-        return dict(available=True, **self.keys._brightness())
 
     def network(self):
         self.require("nmcli")
@@ -122,7 +125,8 @@ class Providers:
         if enabled not in ("enabled", "disabled"):
             raise Error("Estado Wi-Fi inválido")
         devices = []
-        for line in self.runner(["nmcli", "-t", "-f", "DEVICE,TYPE,STATE,CONNECTION", "device", "status"]).splitlines():
+        for line in self.runner(["nmcli", "-t", "-f", "DEVICE,TYPE,STATE,CONNECTION",
+                                 "device", "status"]).splitlines():
             fields = nmfields(line)
             if len(fields) == 4:
                 devices.append(dict(zip(("device", "type", "state", "connection"), fields)))
@@ -130,7 +134,7 @@ class Providers:
         for line in self.runner(["nmcli", "-t", "-f", "UUID,NAME,TYPE", "connection", "show"]).splitlines():
             fields = nmfields(line)
             if len(fields) == 3 and re.fullmatch(r"[0-9a-fA-F-]{36}", fields[0]):
-                saved.append(dict(uuid=fields[0], name=fields[1], type=fields[2]))
+                saved.append(dict(uuid=fields[0], name=plain(fields[1], 128), type=fields[2]))
         return dict(available=True, enabled=enabled == "enabled", devices=devices, saved=saved[:30])
 
     def bluetooth(self):
@@ -167,20 +171,20 @@ class Providers:
 
     def notifications(self):
         self.require("dunstctl")
-        level = self.runner(["dunstctl", "get-pause-level"])
-        level = percent(level)
+        level = percent(self.runner(["dunstctl", "get-pause-level"]))
         return dict(available=True, pauseLevel=level, paused=level > 0,
                     items=history(self.runner(["dunstctl", "history"])))
 
     def session(self):
         self.require("gdbus")
         result = {}
-        for name in ("Suspend", "Reboot", "PowerOff"):
+        for name, key in (("Suspend", "canSuspend"), ("Reboot", "canReboot"), ("PowerOff", "canPowerOff")):
             text = self.runner(["gdbus", "call", "--system", "--dest", "org.freedesktop.login1",
                                 "--object-path", "/org/freedesktop/login1", "--method",
-                                "org.freedesktop.login1.Manager.Can" + name])
-            result[name.lower()] = text.strip() == "('yes',)"
-        return dict(available=True, **result)
+                                "org.freedesktop.login1.Manager.Can" + name]).strip()
+            # "yes" is immediate; "challenge" is allowed after graphical polkit auth.
+            result[key] = text in ("('yes',)", "('challenge',)")
+        return dict(available=True, canLock=True, canLogout=True, **result)
 
     def snapshot(self, domains):
         result = {}
@@ -190,55 +194,18 @@ class Providers:
             try:
                 result[domain] = getattr(self, domain)()
             except (Error, ValueError, TypeError, KeyError, OSError) as exc:
-                result[domain] = dict(available=False, error=str(exc) if isinstance(exc, Error) else "Respuesta del proveedor inválida")
+                result[domain] = dict(available=False, error=str(exc) if isinstance(exc, Error)
+                                      else "Respuesta del proveedor inválida")
         return result
-
-    @contextlib.contextmanager
-    def pause_guard(self):
-        # Serialize with Recorder, without inspecting its project paths or data.
-        if self.fixture:
-            yield
-            return
-        state = Path(self.env.get("XDG_STATE_HOME") or Path(self.env.get("HOME", "~")) / ".local/state") / "loomrec"
-        state.mkdir(mode=0o700, parents=True, exist_ok=True)
-        with (state / "concentration.lock").open("a") as lock:
-            try:
-                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-            except BlockingIOError as exc:
-                raise Error("Wysun Recorder administra la concentración; intenta más tarde") from exc
-            if (state / "concentration.json").exists():
-                raise Error("Wysun Recorder administra la concentración; usa sus controles")
-            yield
 
     def perform(self, action, value=""):
         """Validate from fresh state; one selected backend, no fallback after failure."""
-        domain, _, verb = action.partition("-")
-        if action == "notifications-pause":
-            with self.pause_guard():
-                before = self.notifications()
-                self.runner(["dunstctl", "set-pause-level", "0" if before["paused"] else "100"])
-        else:
-            plans = {
-                "audio-set": lambda s: [s["backend"], "set-volume" if s["backend"] == "wpctl" else "set-sink-volume",
-                                         keys.SINK if s["backend"] == "wpctl" else "@DEFAULT_SINK@",
-                                         str(percent(value)) + "%"],
-                "audio-mute": lambda s: [s["backend"], "set-mute" if s["backend"] == "wpctl" else "set-sink-mute",
-                                          keys.SINK if s["backend"] == "wpctl" else "@DEFAULT_SINK@", "toggle"],
-                "brightness-set": lambda s: ["brightnessctl", "-c", "backlight", "-d", s["device"], "set", str(percent(value, 5)) + "%"],
-                "network-toggle": lambda s: ["nmcli", "radio", "wifi", "off" if s["enabled"] else "on"],
-                "network-connect": lambda s: self.saved_connection(s, value),
-                "bluetooth-toggle": lambda s: ["bluetoothctl", "power", "off" if s["enabled"] else "on"],
-                "bluetooth-connect": lambda s: self.paired_device(s, value, "connect"),
-                "bluetooth-disconnect": lambda s: self.paired_device(s, value, "disconnect"),
-                "notifications-remove": lambda s: self.remove_notice(s, value),
-                "session-suspend": lambda s: self.session_command(s, "suspend"),
-                "session-reboot": lambda s: self.session_command(s, "reboot"),
-                "session-poweroff": lambda s: self.session_command(s, "poweroff"),
-            }
-            if action not in plans:
-                raise Error("Acción desconocida")
-            before = getattr(self, domain)()
-            self.runner(plans[action](before))
+        if action not in ACTIONS:
+            raise Error("Acción desconocida")
+        domain = action.partition("-")[0]
+        before = getattr(self, domain)()
+        command = self.plan(action, value, before)
+        self.runner(command)
         result = dict(ok=True, applied=not self.fixture, simulated=self.fixture, domain=domain)
         after = self.snapshot([domain])[domain]
         result["state"] = after
@@ -246,39 +213,67 @@ class Providers:
             result["warning"] = "Acción enviada; no se pudo comprobar el estado final"
         return result
 
-    @staticmethod
-    def saved_connection(state, value):
-        if value not in {row["uuid"] for row in state["saved"]}:
-            raise Error("La conexión ya no está disponible")
-        return ["nmcli", "--wait", "2", "connection", "up", "uuid", value]
-
-    @staticmethod
-    def paired_device(state, value, verb):
-        if value not in {row["address"] for row in state["devices"]}:
-            raise Error("El dispositivo no está emparejado")
-        return ["bluetoothctl", verb, value]
-
-    @staticmethod
-    def remove_notice(state, value):
-        if value not in {row["id"] for row in state["items"]}:
-            raise Error("El aviso ya no está en el historial")
-        return ["dunstctl", "history-rm", value]
-
-    def session_command(self, state, verb):
-        if not state.get(verb):
-            raise Error("La sesión no permite esta acción sin autorización adicional")
-        self.require("systemctl")
-        return ["systemctl", verb]
+    def plan(self, action, value, state):
+        if not state.get("available"):
+            raise Error(state.get("error") or "Proveedor no disponible")
+        if action == "network-toggle":
+            return ["nmcli", "radio", "wifi", "off" if state["enabled"] else "on"]
+        if action == "network-connect":
+            if value not in {row["uuid"] for row in state["saved"]}:
+                raise Error("La conexión ya no está disponible")
+            return ["nmcli", "--wait", "2", "connection", "up", "uuid", value]
+        if action == "bluetooth-toggle":
+            return ["bluetoothctl", "power", "off" if state["enabled"] else "on"]
+        if action in ("bluetooth-connect", "bluetooth-disconnect"):
+            if value not in {row["address"] for row in state["devices"]}:
+                raise Error("El dispositivo no está emparejado")
+            return ["bluetoothctl", "connect" if action.endswith("connect") else "disconnect", value]
+        if action == "notifications-pause":
+            return ["dunstctl", "set-pause-level", "0" if state["paused"] else "100"]
+        if action == "notifications-remove":
+            if value not in {row["id"] for row in state["items"]}:
+                raise Error("El aviso ya no está en el historial")
+            return ["dunstctl", "history-rm", value]
+        if action == "notifications-clear":
+            if not state["items"]:
+                raise Error("No hay avisos en el historial")
+            return ["dunstctl", "history-clear"]
+        if action == "session-lock":
+            self.require("wysun")
+            return ["wysun", "lock"]
+        if action == "session-suspend":
+            if not state["canSuspend"]:
+                raise Error("La sesión no permite suspender ahora")
+            self.require("wysun")
+            return ["wysun", "lock", "--suspend"]
+        if action == "session-logout":
+            if not state["canLogout"]:
+                raise Error("La sesión no permite cerrar la sesión")
+            self.require("hyprctl")
+            return ["hyprctl", "dispatch", "hl.dsp.exit()"]
+        if action == "session-reboot":
+            if not state["canReboot"]:
+                raise Error("La sesión no permite reiniciar ahora")
+            self.require("systemctl")
+            return ["systemctl", "reboot"]
+        if action == "session-poweroff":
+            if not state["canPowerOff"]:
+                raise Error("La sesión no permite apagar ahora")
+            self.require("systemctl")
+            return ["systemctl", "poweroff"]
+        raise Error("Acción desconocida")
 
 
 def fixture_provider(path):
     data = json.loads(Path(path).read_text())
     rows = {tuple(row["argv"]): row for row in data["responses"]}
+
     def query(argv):
         row = rows.get(tuple(argv))
         if row is None or row.get("returncode", 0):
             raise Error("Operación rechazada por la fixture")
         return row.get("stdout", "").strip()
+
     # No /sys, DBus, files in HOME, subprocesses or device actions in fixture mode.
     return Providers(query, lambda name: name in data["available"], environ={},
                      power_root=Path(path).parent / "fixture-power", fixture=True)
@@ -292,13 +287,18 @@ def main(argv=None):
     parser.add_argument("--fixture", type=Path)
     args = parser.parse_args(argv)
     try:
-        p = fixture_provider(args.fixture) if args.fixture else Providers()
-        result = dict(ok=True, states=p.snapshot(args.name.split(","))) if args.operation == "snapshot" else p.perform(args.name, args.value)
+        provider = fixture_provider(args.fixture) if args.fixture else Providers()
+        if args.operation == "snapshot":
+            result = dict(ok=True, states=provider.snapshot(args.name.split(",")))
+        else:
+            result = provider.perform(args.name, args.value)
         print(json.dumps(result, ensure_ascii=False))
         return 0
     except (Error, OSError, ValueError, TypeError, KeyError):
-        # No raw backend diagnostics or private metadata in logs/stderr.
-        print(json.dumps(dict(ok=False, error="No se pudo completar la operación. Actualiza el panel y vuelve a intentar."), ensure_ascii=False))
+        # No raw backend diagnostics, notification bodies or private metadata.
+        print(json.dumps(dict(ok=False,
+                              error="No se pudo completar la operación. Actualiza el panel y vuelve a intentar."),
+                         ensure_ascii=False))
         return 1
 
 
