@@ -1,3 +1,7 @@
+# Derivado de caelestia-dots/shell (GPL-3.0), modificado para Wysun.
+# Source: components/StateLayer.qml, StyledRect.qml, StyledText.qml at
+# 507d66285e9d9fde9330adc64159cfdebb28c19a. 2026-10-20: native state layer,
+# token typography, plain text and live geometry; see apps/capture/UPSTREAM.md.
 from PySide6.QtCore import Qt,QPointF,QSize,QVariantAnimation,QEasingCurve,QRectF
 from PySide6.QtGui import QPainter,QColor,QPen,QFont,QFontMetrics
 from PySide6.QtWidgets import (QPushButton,QFrame,QLabel,QVBoxLayout,QHBoxLayout,QGraphicsDropShadowEffect,QWidget,QCheckBox,QStyledItemDelegate,QStyle)
@@ -6,7 +10,7 @@ from .tokens import TOKENS, color
 from .motion import reduced_motion
 
 def label(text,role=None):
-    widget=QLabel(text)
+    widget=QLabel(text);widget.setTextFormat(Qt.PlainText)
     if role:widget.setProperty('role',role)
     return widget
 
@@ -23,9 +27,9 @@ class SoftButton(QPushButton):
         accessible_text=self.tr('Cerrar') if text=='×' else text.rstrip(' ⌄')
         if text=='×' and symbol is None:text='';symbol='close'
         super().__init__(text,parent);self._dropdown=False;self.setText(text);self.setProperty('primary',primary);self.setProperty('quiet',quiet)
-        self.setCursor(Qt.PointingHandCursor);self.setMinimumHeight(36);self.setFocusPolicy(Qt.StrongFocus)
+        self.setCursor(Qt.PointingHandCursor);self.setMinimumHeight(TOKENS['space_xl']+TOKENS['space_l']);self.setFocusPolicy(Qt.StrongFocus)
         self.setAccessibleName(accessible_text);self.setToolTip(accessible_text)
-        if symbol:self.setIcon(icon(symbol,'on_accent' if primary else 'muted'));self.setIconSize(QSize(20,20))
+        if symbol:self.setIcon(icon(symbol,'on_accent' if primary else 'muted'));self.setIconSize(QSize(TOKENS['icon_size'],TOKENS['icon_size']))
         self._hover=0.;self.anim=QVariantAnimation(self);self.anim.setDuration(TOKENS['motion_ms']);self.anim.setEasingCurve(QEasingCurve.OutCubic);self.anim.valueChanged.connect(self._frame)
     def setText(self,text):
         dropdown=text.rstrip().endswith('⌄')
@@ -42,11 +46,11 @@ class SoftButton(QPushButton):
         self.update()
     def enterEvent(self,event):
         if reduced_motion():self.anim.stop();self._hover=0.;self.update()
-        else:self.anim.stop();self.anim.setStartValue(self._hover);self.anim.setEndValue(1.);self.anim.start()
+        else:self.anim.stop();self.anim.setDuration(TOKENS['motion_fast']);self.anim.setStartValue(self._hover);self.anim.setEndValue(1.);self.anim.start()
         super().enterEvent(event)
     def leaveEvent(self,event):
         if reduced_motion():self.anim.stop();self._hover=0.;self.update()
-        else:self.anim.stop();self.anim.setStartValue(self._hover);self.anim.setEndValue(0.);self.anim.start()
+        else:self.anim.stop();self.anim.setDuration(TOKENS['motion_fast']);self.anim.setStartValue(self._hover);self.anim.setEndValue(0.);self.anim.start()
         super().leaveEvent(event)
     def paintEvent(self,event):
         super().paintEvent(event)
@@ -58,8 +62,8 @@ class SoftButton(QPushButton):
             painter=QPainter(self);painter.setRenderHint(QPainter.Antialiasing);painter.setPen(QPen(color('accent'),1.6,Qt.SolidLine,Qt.RoundCap,Qt.RoundJoin))
             x=self.width()-18;y=self.height()-12;painter.drawLine(QPointF(x-4,y),QPointF(x-1,y+3));painter.drawLine(QPointF(x-1,y+3),QPointF(x+4,y-3));painter.end()
         if self._hover and self.isEnabled():
-            radius=min(self.property('hoverRadius') or (12 if self.property('primary') else 10),(self.width()-2)/2,(self.height()-2)/2)
-            painter=QPainter(self);painter.setRenderHint(QPainter.Antialiasing);painter.setPen(Qt.NoPen);painter.setBrush(color('accent',round(8*self._hover)));painter.drawRoundedRect(QRectF(self.rect()).adjusted(1,1,-1,-1),radius,radius)
+            radius=min(self.property('hoverRadius') or TOKENS['radius_l'],(self.width()-2)/2,(self.height()-2)/2)
+            painter=QPainter(self);painter.setRenderHint(QPainter.Antialiasing);painter.setPen(Qt.NoPen);painter.setBrush(color('accent',round(255*.08*self._hover)));painter.drawRoundedRect(QRectF(self.rect()).adjusted(1,1,-1,-1),radius,radius)
 
 class Toggle(QCheckBox):
     def __init__(self,name):

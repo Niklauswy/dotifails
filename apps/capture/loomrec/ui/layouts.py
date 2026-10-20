@@ -1,9 +1,18 @@
-"""Native page composition; behavior stays in Window's existing callbacks."""
+"""Native page composition; behavior stays in Window's existing callbacks.
+
+Derivado de caelestia-dots/shell (GPL-3.0), modificado para Wysun.
+507d66285e9d9fde9330adc64159cfdebb28c19a: modules/dashboard/Media.qml,
+media/Details.qml, widgets/CoverArt.qml and modules/nexus/NavPane.qml.
+2026-10-20: navigation, selected-video artwork and lower playback controls.
+No upstream music application or MPRIS backend is included.
+"""
 from PySide6.QtCore import Qt,QSize
 from PySide6.QtWidgets import (QWidget,QVBoxLayout,QHBoxLayout,QGridLayout,QFormLayout,QLabel,QComboBox,QSpinBox,QDoubleSpinBox,QLineEdit,QListWidget,QCheckBox,QScrollArea,QMenu,QButtonGroup,QSizePolicy)
 from .components import SoftButton,Toggle,Disclosure,RecordingDelegate,label,surface,rule,ComboBox,CheckBox,SpinBox,DoubleSpinBox
 from .icons import icon
 from .meters import AudioMeter
+from .material import Navigation,Workspace,MediaPreview,layout_tokens,metric
+from .tokens import apply_style
 
 
 def action(text,callback,symbol=None,primary=False,quiet=False):
@@ -19,20 +28,28 @@ def header(w,title,subtitle=None):
     layout.addLayout(titles,1);return box,layout
 
 def library(w):
-    page=QWidget();w.library_page=page;layout=QVBoxLayout(page);layout.setContentsMargins(28,26,28,20);layout.setSpacing(20)
+    content=QWidget();layout=QVBoxLayout(content);layout_tokens(layout)
+    navigation=Navigation('Wysun Recorder',[
+        (w.tr('Biblioteca'),'library',lambda:w.back_library()),
+        (w.tr('Grabar'),'record',lambda:w.activate_instance('setup')),
+        (w.tr('Ajustes'),'settings',lambda:w.show_settings())])
+    page=Workspace(navigation,content);w.library_page=page;w.library_navigation=navigation
     top,row=header(w,w.tr('Tu biblioteca'),w.tr('Tus videos y grabaciones, en un solo lugar.'));layout.addWidget(top)
     row.addWidget(action(w.tr('Nueva grabación'),lambda:w.activate_instance('quick'),'plus',True))
     tools=QHBoxLayout();tools.setSpacing(12);layout.addLayout(tools)
     w.search=QLineEdit();w.search.setPlaceholderText(w.tr('Buscar grabaciones o colecciones'));w.search.addAction(icon('search'),QLineEdit.LeadingPosition);w.search.textChanged.connect(w.refresh_library);tools.addWidget(w.search,1)
     w.trash=SoftButton(w.tr('Papelera'),'trash',quiet=True);w.trash.setCheckable(True);w.trash.toggled.connect(w.refresh_library);tools.addWidget(w.trash)
-    tools.addWidget(action(w.tr('Ajustes'),w.show_settings,'settings',quiet=True))
-    w.items=QListWidget();w.items.setItemDelegate(RecordingDelegate(w.items));w.items.setSpacing(6);w.items.setIconSize(QSize(144,81));w.items.itemDoubleClicked.connect(lambda _:w.open_selected());layout.addWidget(w.items,1)
+
+    w.items=QListWidget();w.items.setItemDelegate(RecordingDelegate(w.items));w.items.setSpacing(6);w.items.setIconSize(QSize(144,81));w.items.itemDoubleClicked.connect(lambda _:w.open_selected());media=QHBoxLayout();media.setSpacing(metric('space_l'));layout.addLayout(media,1)
+    w.library_preview=MediaPreview();page.preview=w.library_preview;media.addWidget(w.library_preview,3);media.addWidget(w.items,4)
+    w.items.currentItemChanged.connect(w.library_preview.select)
+    w.items.itemChanged.connect(lambda item:w.library_preview.select(item) if item is w.items.currentItem() else None)
     w.library_empty=surface(shadow=False);empty=QVBoxLayout(w.library_empty);empty.setAlignment(Qt.AlignCenter);empty.setSpacing(14)
     emblem=QLabel();emblem.setPixmap(icon('library','accent_muted',56).pixmap(56,56));emblem.setAlignment(Qt.AlignCenter);empty.addWidget(emblem)
     w.empty_title=label(w.tr('Tus videos aparecerán aquí'),'title');w.empty_title.setAlignment(Qt.AlignCenter);empty.addWidget(w.empty_title)
     w.empty_description=label(w.tr('Graba tu pantalla con tu cámara y tu voz.\nAl terminar tendrás un MP4 listo para enviar.'),'subtitle');w.empty_description.setAlignment(Qt.AlignCenter);empty.addWidget(w.empty_description)
     empty.addWidget(action(w.tr('Crear mi primera grabación'),lambda:w.activate_instance('quick'),'record',True),0,Qt.AlignCenter)
-    layout.addWidget(w.library_empty,1)
+    media.addWidget(w.library_empty,4)
     bottom=QHBoxLayout();layout.addLayout(bottom)
     w.path_label=label(w.tr('Biblioteca local'),'subtitle');w.path_label.setToolTip(str(w.library.root));bottom.addWidget(w.path_label);bottom.addStretch()
     w.library_copy_path=action(w.tr('Copiar ruta absoluta'),w.copy_video_path);w.library_copy_path.setToolTip(w.tr('Copiar la ruta del video seleccionado · Ctrl+C en la lista. El MP4 estará disponible al terminar su preparación.'));w.library_copy_path.setEnabled(False);bottom.addWidget(w.library_copy_path)
@@ -48,29 +65,34 @@ def library(w):
 
 
 def setup(w):
-    page=QWidget();w.setup_page=page;root=QVBoxLayout(page);root.setContentsMargins(24,18,24,18);root.setSpacing(16)
+    page=QWidget();w.setup_page=page;root=QVBoxLayout(page);layout_tokens(root)
     nav=QHBoxLayout();nav.addWidget(action(w.tr('Biblioteca'),lambda:w.stack.setCurrentWidget(w.library_page),'back',quiet=True));nav.addStretch();nav.addWidget(label('Wysun Recorder','eyebrow'));root.addLayout(nav)
     scroll=QScrollArea();scroll.setWidgetResizable(True);scroll.setFrameShape(QScrollArea.NoFrame);root.addWidget(scroll,1)
     host=QWidget();hl=QVBoxLayout(host);hl.setContentsMargins(12,10,12,20);hl.setAlignment(Qt.AlignTop|Qt.AlignHCenter);scroll.setWidget(host)
-    panel=surface(shadow=True);panel.setMaximumWidth(740);panel.setSizePolicy(QSizePolicy.Expanding,QSizePolicy.Preferred);hl.addWidget(panel)
-    body=QVBoxLayout(panel);body.setContentsMargins(28,26,28,24);body.setSpacing(14)
+    panel=surface(shadow=True);panel.setMaximumWidth(metric('space_xl',48));panel.setSizePolicy(QSizePolicy.Expanding,QSizePolicy.Preferred);hl.addWidget(panel)
+    body=QVBoxLayout(panel);layout_tokens(body)
     w.setup_title=label(w.tr('¿Qué quieres grabar?'),'title');w.setup_subtitle=label(w.tr('Elige un área y las fuentes de audio.'),'subtitle');body.addWidget(w.setup_title);body.addWidget(w.setup_subtitle)
-    modes=QHBoxLayout();modes.setSpacing(6);body.addLayout(modes);w.capture_modes=QButtonGroup(w);w.capture_modes.setExclusive(True)
+    sources=QHBoxLayout();sources.setSpacing(metric('space_xl'));body.addLayout(sources)
+    frame_column=QVBoxLayout();frame_column.setSpacing(metric('space_m'));sources.addLayout(frame_column,1)
+    audio_column=QVBoxLayout();audio_column.setSpacing(metric('space_m'));sources.addLayout(audio_column,1)
+    frame_column.addWidget(label(w.tr('01 · Encuadre'),'section'))
+    audio_column.addWidget(label(w.tr('02 · Fuentes'),'section'))
+    modes=QHBoxLayout();modes.setSpacing(metric('space_xs'));frame_column.addLayout(modes);w.capture_modes=QButtonGroup(w);w.capture_modes.setExclusive(True)
     for text,symbol,callback in [(w.tr('Pantalla'),'screen',lambda:w.monitor_changed()),(w.tr('Región'),'region',w.pick_region),(w.tr('Ventana'),'window',w.pick_window)]:
         b=action(text,callback,symbol);b.setCheckable(True);w.capture_modes.addButton(b);modes.addWidget(b,1)
     w.capture_modes.buttons()[0].setChecked(True)
-    selection=surface('well');sl=QVBoxLayout(selection);sl.setContentsMargins(16,12,16,12);sl.setSpacing(8);body.addWidget(selection)
+    selection=surface('well');sl=QVBoxLayout(selection);sl.setContentsMargins(16,12,16,12);sl.setSpacing(metric('space_s'));frame_column.addWidget(selection)
     sr=QHBoxLayout();sl.addLayout(sr);sr.addWidget(label(w.tr('ENCUADRE'),'eyebrow'));sr.addStretch();w.region_summary=label('1920 × 1080','section');sr.addWidget(w.region_summary)
     w.monitor=ComboBox();w.monitor.setMinimumWidth(100);w.monitor.setSizePolicy(QSizePolicy.Expanding,QSizePolicy.Fixed);w.monitor.currentIndexChanged.connect(w.monitor_changed);sl.addWidget(w.monitor)
     hint=label(w.tr('Wayland: el portal autoriza pantalla o ventana. La región debe pertenecer al monitor autorizado.' if __import__('loomrec.portal',fromlist=['is_wayland']).is_wayland() else 'Se grabará lo que esté visible en esta área.'),'subtitle');hint.setWordWrap(True);hint.setToolTip(w.tr('La ventana es un recorte fijo de pantalla: cualquier ventana que la cubra también aparecerá.'));sl.addWidget(hint)
-    body.addWidget(rule())
-    devices=QVBoxLayout();devices.setSpacing(14);body.addLayout(devices)
+    frame_column.addStretch()
+    devices=QVBoxLayout();devices.setSpacing(metric('space_m'));audio_column.addLayout(devices)
     w.mic=ComboBox();w.system=ComboBox();w.camera=ComboBox();w.device_toggles=[]
     for title,symbol,combo in [(w.tr('Micrófono'),'mic',w.mic),(w.tr('Audio del equipo'),'sound',w.system),(w.tr('Cámara'),'camera',w.camera)]:
         combo.addItem(w.tr('Desactivado'),None);combo.setMinimumWidth(110);combo.setSizePolicy(QSizePolicy.Expanding,QSizePolicy.Fixed)
         row=QHBoxLayout();row.setSpacing(12);devices.addLayout(row)
         pict=QLabel();pict.setPixmap(icon(symbol).pixmap(20,20));row.addWidget(pict)
-        name=label(title);name.setMinimumWidth(135);row.addWidget(name);row.addWidget(combo,1)
+        name=label(title);name.setMinimumWidth(0);row.addWidget(name);row.addWidget(combo,1)
         toggle=Toggle(title);row.addWidget(toggle);w.device_toggles.append(toggle)
         def sync(index,c=combo,t=toggle):
             t.blockSignals(True);t.setChecked(index>0);t.blockSignals(False)
@@ -79,7 +101,7 @@ def setup(w):
             if on and c.count()>1:c.setCurrentIndex(min(c.count()-1,c.property('lastDeviceIndex') or 1))
             else:c.setCurrentIndex(0);t.setChecked(False)
         combo.currentIndexChanged.connect(sync);toggle.toggled.connect(enable)
-    w.camera_preview_layout=QVBoxLayout();body.addLayout(w.camera_preview_layout)
+    w.camera_preview_layout=QVBoxLayout();audio_column.addLayout(w.camera_preview_layout)
     from .capture_feedback import control_hints
     w.control_hint=label(control_hints(),'subtitle');w.control_hint.setWordWrap(True);w.control_hint.hide()
     w.indicator_hint=label(w.tr('Borde y distintivo solo fuera del área grabada. En pantalla completa se ocultan si no hay otra pantalla disponible.'),'subtitle');w.indicator_hint.setWordWrap(True);body.addWidget(w.indicator_hint)
@@ -117,13 +139,13 @@ def editor(w):
     from PySide6.QtWidgets import QSlider
     from .player import Player
     from .seekbar import SeekBar
-    page=QWidget();w.editor_page=page;outer=QVBoxLayout(page);outer.setContentsMargins(22,18,22,18);outer.setSpacing(14)
+    page=QWidget();w.editor_page=page;outer=QVBoxLayout(page);layout_tokens(outer)
     w.viewer_header=QWidget();heading=QHBoxLayout(w.viewer_header);heading.setContentsMargins(0,0,0,0);heading.setSpacing(10);outer.addWidget(w.viewer_header)
     back=action('',w.back_library,'back',quiet=True);back.setAccessibleName(w.tr('Volver a biblioteca'));back.setToolTip(w.tr('Volver a biblioteca'));back.setFixedWidth(38);heading.addWidget(back)
-    w.title=label('','section');w.title.setMinimumWidth(0);w.title.setSizePolicy(QSizePolicy.Ignored,QSizePolicy.Preferred);heading.addWidget(w.title,1)
+    w.title=label('','title');w.title.setMinimumWidth(0);w.title.setSizePolicy(QSizePolicy.Ignored,QSizePolicy.Preferred);heading.addWidget(w.title,1)
     w.copy_media=action(w.tr('Copiar ruta'),w.copy_media_path,'copy',quiet=True);w.copy_media.setToolTip(w.tr('Copiar la ruta absoluta del MP4'));heading.addWidget(w.copy_media)
     w.reveal_media=action(w.tr('Mostrar en carpeta'),w.reveal_media_path,'folder',quiet=True);heading.addWidget(w.reveal_media)
-    stage=QWidget();stage.setObjectName('viewerStage');stage.setStyleSheet('#viewerStage{background:#0B0D12;border-radius:16px;}')  # theme-exception: escenario negro del reproductor
+    stage=QWidget();stage.setObjectName('viewerStage');apply_style(stage,'#viewerStage{background:@inset;border-radius:@radius_l;}')
     video=QVBoxLayout(stage);video.setContentsMargins(0,0,0,0);video.setSpacing(0)
     w.player=Player();w.player.failed.connect(w.playback_failed);w.player.setMinimumSize(320,180);video.addWidget(w.player,1)
     outer.addWidget(stage,1)
