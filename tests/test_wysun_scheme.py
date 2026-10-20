@@ -8,6 +8,7 @@ import stat
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from unittest.mock import patch
 
@@ -210,9 +211,12 @@ class SchemeGeneratorTests(unittest.TestCase):
                        'XDG_STATE_HOME': str(state), 'ORBIT_THEME': '', 'WYSUN_THEME': ''}
 
         def settle():
-            loop = QEventLoop()
-            QTimer.singleShot(180, loop.quit)
-            loop.exec()
+            # Other UI tests can leave lastWindowClosed/quit queued. Pump
+            # events directly so their application quit cannot end this wait.
+            deadline = time.monotonic() + .3
+            while time.monotonic() < deadline:
+                APP.processEvents()
+                time.sleep(.005)
 
         with patch.dict(os.environ, environment), patch.object(theme_tokens, 'refresh_widgets') as refreshed:
             theme_tokens.invalidate()

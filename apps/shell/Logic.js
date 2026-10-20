@@ -207,7 +207,7 @@ function trayMonitor(environment, screens, native) {
 
 function wallpaper(environment, name, home, fallback) {
     var values = environment.wallpaper || {}, selected = (values.monitors || {})[name] || {};
-    var path = selected.path || values.default || (home + "/.local/share/backgrounds/" + fallback);
+    var path = selected.path || values.default || (fallback ? home + "/.local/share/backgrounds/" + fallback : "");
     if (typeof path !== "string") path = "";
     if (path.indexOf("~/") === 0) path = home + path.slice(1);
     // Only local files; preferences never become a remote request or a command.

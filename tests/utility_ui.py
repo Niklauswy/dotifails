@@ -13,10 +13,10 @@ class UtilityUITests(unittest.TestCase):
  def setUpClass(cls):cls.app=QApplication.instance() or QApplication([])
  def test_material_glyphs_and_data_survive_all_presets(self):
   from unittest.mock import patch
-  from utility_material import glyph_coverage,SYMBOLS,icon
+  from utility_material import glyph_coverage,SYMBOLS,material_icon
   from theme_tokens import refresh_widgets
   path,family,missing=glyph_coverage();self.assertEqual(missing,())
-  for symbol in SYMBOLS:self.assertFalse(icon(symbol).isNull(),symbol)
+  for symbol in SYMBOLS:self.assertFalse(material_icon(symbol).isNull(),symbol)
   with tempfile.TemporaryDirectory() as tmp:
    w=NotesWindow(tmp);w.new();w.editor.setPlainText('# Fixture\nTexto privado sintético');self.assertTrue(w.save());key=w.key
    try:
