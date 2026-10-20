@@ -39,10 +39,11 @@ def dynamic_intent(home=None):
 
     Every key but ``enabled`` is optional (absent mode/variant mean "derive
     them from the wallpaper"; absent seed means "use the wallpaper"). Without
-    the object, a profile with no explicit fixed selection - a new one - is
-    dynamic; a pre-existing dynamic scheme.json keeps counting as dynamic;
-    an explicit fixed selection stays fixed. An unreadable file is never
-    dynamic, so a bad theme.json is never rewritten by a refresh.
+    the object, a profile with no explicit fixed selection (and no published
+    fixed scheme) - a new one - is dynamic; a pre-existing dynamic scheme.json
+    keeps counting as dynamic; an explicit fixed selection stays fixed. An
+    unreadable file is never dynamic, so a bad theme.json is never rewritten
+    by a refresh.
     """
     try:
         value, _ = _selection_object(home)
@@ -59,9 +60,10 @@ def dynamic_intent(home=None):
             intent['seed'] = block['seed'].lower()
         return intent
     explicit = any(isinstance(value.get(key), str) for key in ('id', 'style', 'variant', 'name'))
-    if not explicit:
-        return dict(enabled=True)
     current = theme_core.read_scheme(home)
+    if not explicit:
+        # A new profile is dynamic, unless a fixed scheme was already published.
+        return dict(enabled=not current or current.get('name') == 'dynamic')
     return dict(enabled=bool(current and current.get('name') == 'dynamic'))
 
 
