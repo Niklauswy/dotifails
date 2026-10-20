@@ -1,11 +1,6 @@
 .pragma library
 
 // Pure data transformations shared by the shell and its contract tests.
-var themes = {
-    "severance": { background: "#0c171c", surface: "#15272e", foreground: "#d2e4e8", accent: "#79c9dc", muted: "#7c9aa4", radius: 16, wallpaper: "azul.jpg" },
-    "tokyo": { background: "#17131f", surface: "#211b2e", foreground: "#e5dcfa", accent: "#bb9af7", muted: "#9c8fb7", radius: 24, wallpaper: "tokyo.png" },
-    "space-black": { background: "#101012", surface: "#202023", foreground: "#e6e6e8", accent: "#ceced4", muted: "#919198", radius: 20, wallpaper: "space-black.png" }
-};
 
 var applications = [
     { command: "launcher", title: "Abrir lanzador", detail: "Aplicaciones, cálculo y búsqueda", icon: "search" },
@@ -24,11 +19,105 @@ var applications = [
     { command: "power", title: "Energía y sesión", detail: "Controles de sesión", icon: "power" }
 ];
 
-function themeKey(value) {
-    var aliases = { azul: "severance", morado: "tokyo", Tokyo: "tokyo", Severance: "severance" };
-    var key = aliases[value] || value;
-    return Object.prototype.hasOwnProperty.call(themes, key) ? key : "severance";
+// ---- Theme: the same selection rules as apps/wysun/theme_core.py -------------
+// `spec` is the parsed wysun_theme.json (the single token source).
+function themeStyles(spec) { return spec && spec.styles && typeof spec.styles === "object" ? spec.styles : {}; }
+
+function hasKey(map, key) { return typeof key === "string" && Object.prototype.hasOwnProperty.call(map, key); }
+
+function themeDefault(spec) {
+    var d = spec && spec.default || {}, styles = themeStyles(spec);
+    if (hasKey(styles, d.style) && hasKey(styles[d.style].variants, d.variant)) return { style: d.style, variant: d.variant };
+    var first = Object.keys(styles)[0];
+    return first ? { style: first, variant: styles[first].default_variant } : { style: "", variant: "" };
 }
+
+function variantOwner(spec, variant) {
+    var styles = themeStyles(spec), names = Object.keys(styles);
+    for (var i = 0; i < names.length; i++) if (hasKey(styles[names[i]].variants, variant)) return names[i];
+    return "";
+}
+
+function normalizeTheme(spec, style, variant) {
+    var styles = themeStyles(spec);
+    if (!hasKey(styles, style)) {
+        var owner = variantOwner(spec, variant);
+        if (!owner) return themeDefault(spec);
+        style = owner;
+    }
+    if (!hasKey(styles[style].variants, variant)) variant = styles[style].default_variant;
+    return { style: style, variant: variant };
+}
+
+function parseTheme(spec, value) {
+    if (typeof value !== "string" || !value.trim()) return null;
+    value = value.trim();
+    var aliases = spec && spec.aliases || {};
+    if (hasKey(aliases, value)) value = aliases[value];
+    var styles = themeStyles(spec);
+    var separators = [":", "/"];
+    for (var i = 0; i < separators.length; i++) {
+        var at = value.indexOf(separators[i]);
+        if (at >= 0) {
+            var style = value.slice(0, at);
+            return hasKey(styles, style) ? normalizeTheme(spec, style, value.slice(at + 1)) : null;
+        }
+    }
+    if (hasKey(styles, value)) return normalizeTheme(spec, value, "");
+    var owner = variantOwner(spec, value);
+    return owner ? { style: owner, variant: value } : null;
+}
+
+// Selection from the environment override (WYSUN_THEME, then ORBIT_THEME) or theme.json
+// ({"style","variant"}, or the legacy {"id"}).
+function selectTheme(spec, data, override) {
+    var chosen = parseTheme(spec, override);
+    if (chosen) return chosen;
+    data = data && typeof data === "object" && !Array.isArray(data) ? data : {};
+    var styles = themeStyles(spec);
+    if (hasKey(styles, data.style)) return normalizeTheme(spec, data.style, data.variant);
+    if (typeof data.style === "string" || typeof data.variant === "string")
+        return parseTheme(spec, data.variant) || themeDefault(spec);
+    return parseTheme(spec, data.id !== undefined ? data.id : data.name) || themeDefault(spec);
+}
+
+// Flat token map for one variant: style shape + variant colours, material and names.
+function resolveTheme(spec, style, variant) {
+    var chosen = normalizeTheme(spec, style, variant), styles = themeStyles(spec);
+    if (!hasKey(styles, chosen.style)) return {};
+    var entry = styles[chosen.style], found = entry.variants[chosen.variant] || {}, result = {};
+    var shape = entry.shape || {}, colors = found.colors || {};
+    Object.keys(shape).forEach(function(key) { result[key] = shape[key]; });
+    Object.keys(colors).forEach(function(key) { result[key] = colors[key]; });
+    if (found.material) result.material = found.material;
+    result.wallpaper = found.wallpaper || "";
+    result.style = chosen.style;
+    result.variant = chosen.variant;
+    result.name = found.name || chosen.variant;
+    result.style_name = entry.name || chosen.style;
+    return result;
+}
+
+// Token colours are CSS-ordered (#RRGGBB or #RRGGBBAA); QML wants #AARRGGBB.
+function qmlColor(value, fallback) {
+    var text = String(value === undefined ? "" : value);
+    if (/^#[0-9a-fA-F]{6}$/.test(text)) return text;
+    if (/^#[0-9a-fA-F]{8}$/.test(text)) return "#" + text.slice(7, 9) + text.slice(1, 7);
+    return fallback || "#00000000";
+}
+
+function tokenNumber(tokens, name, fallback) {
+    var value = tokens && tokens[name];
+    return typeof value === "number" && isFinite(value) ? value : fallback;
+}
+
+function tokenFont(tokens) {
+    var family = tokens && tokens.font_family;
+    return Array.isArray(family) && family.length ? String(family[0]) : "Inter";
+}
+
+// Window material opacity: the user's preference for glass, solid for Fluent.
+function surfaceOpacity(tokens, opacity) { return tokens && tokens.translucent === false ? 1 : opacity; }
 
 function object(text) {
     var data = JSON.parse(text);
@@ -57,15 +146,17 @@ function barModulesValid(list, fallback) {
 function barSettings(native) {
     var data = native && typeof native === "object" && !Array.isArray(native) ? native : {};
     function color(value, fallback) { return /^#[\da-fA-F]{6}$/.test(value || "") ? value : fallback; }
-    var background = color(data.background, "#101118");
+    // Colours are the user's own choice; an empty value follows the active theme.
+    var background = color(data.background, "");
     var alpha = Math.round(bounded(data.opacity, 10, 100, 65) * 255 / 100);
     return {
         height: bounded(data.height, 24, 64, 36),
         offset: bounded(data.offset, 0, 60, 10),
         radius: bounded(data.radius, 0, 30, 12),
-        background: "#" + ("0" + alpha.toString(16)).slice(-2) + background.slice(1),
-        foreground: color(data.foreground, "#EBECF3"),
-        accent: color(data.accent, "#B8C8FA"),
+        background: background ? "#" + ("0" + alpha.toString(16)).slice(-2) + background.slice(1) : "",
+        opacity: alpha / 255,
+        foreground: color(data.foreground, ""),
+        accent: color(data.accent, ""),
         left: barModulesValid(data.left, ["orbit", "workspaces"]),
         center: barModulesValid(data.center, ["title"]),
         right: barModulesValid(data.right, ["resources", "network", "volume", "battery", "date", "notifications", "power", "tray"])

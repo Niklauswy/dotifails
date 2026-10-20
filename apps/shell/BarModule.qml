@@ -35,9 +35,8 @@ Item {
     Component {
         id: actionComponent
         ShellButton {
-            preferences: root.preferences
-            foreground: root.preferences.bar.foreground || root.preferences.palette.foreground
-            accent: root.preferences.bar.accent || root.preferences.palette.accent
+            foreground: root.preferences.bar.foreground || Appearance.text
+            accent: root.preferences.bar.accent || Appearance.accent
             glyph: root.barWindow.presentation.iconControls ? ({ network: "wifi", volume: "music", notifications: "bell" })[root.kind] || "" : ""
             implicitWidth: root.kind === "title" ? (root.compact ? 64 : 200) : (root.kind === "resources" && root.compact ? 64 : Math.max(36, implicitContentWidth + leftPadding + rightPadding))
             text: {
@@ -84,9 +83,8 @@ Item {
                     ShellButton {
                         required property var modelData
                         height: root.implicitHeight
-                        preferences: root.preferences
-                        foreground: root.preferences.bar.foreground || root.preferences.palette.foreground
-                        accent: root.preferences.bar.accent || root.preferences.palette.accent
+                        foreground: root.preferences.bar.foreground || Appearance.text
+                        accent: root.preferences.bar.accent || Appearance.accent
                         text: Logic.workspaceLabel(modelData)
                         description: "Escritorio " + Logic.workspaceLabel(modelData) + (modelData.urgent ? ", requiere atención" : "")
                         selected: modelData.active
@@ -96,7 +94,7 @@ Item {
                             anchors.horizontalCenter: parent.horizontalCenter
                             width: 12; height: 2
                             visible: parent.modelData.urgent
-                            color: root.preferences.palette.accent
+                            color: Appearance.accent
                         }
                     }
                 }
@@ -113,7 +111,6 @@ Item {
                     id: trayButton
                     required property var modelData
                     height: root.implicitHeight
-                    preferences: root.preferences
                     text: ""
                     description: modelData.tooltipTitle || modelData.title || modelData.id
                     implicitWidth: 36

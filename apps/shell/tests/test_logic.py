@@ -18,10 +18,43 @@ class LogicTests(unittest.TestCase):
         )
         return json.loads(result.stdout)
 
-    def test_theme_identity_and_legacy_aliases(self):
-        self.assertEqual(self.evaluate("[themeKey('Tokyo'), themeKey('azul'), themeKey('space-black'), themeKey('__proto__')]"),
-                         ["tokyo", "severance", "space-black", "severance"])
-        self.assertEqual(self.evaluate("themes['space-black'].accent"), "#ceced4")
+    SPEC = json.loads((ROOT / "wysun_theme.json").read_text())
+
+    def selection(self, data, override=None):
+        return self.evaluate("selectTheme(%s,%s,%s)" % (json.dumps(self.SPEC), json.dumps(data), json.dumps(override)))
+
+    def test_theme_selection_new_format_and_invalid_variant_fallback(self):
+        self.assertEqual(self.selection({"style": "fluent", "variant": "dark"}), {"style": "fluent", "variant": "dark"})
+        self.assertEqual(self.selection({"style": "fluent", "variant": "tokyo"}), {"style": "fluent", "variant": "light"})
+        self.assertEqual(self.selection({"style": "space-black", "variant": "nope"}), {"style": "space-black", "variant": "space-black"})
+        self.assertEqual(self.selection({"style": "space-black", "variant": "tokyo"}), {"style": "space-black", "variant": "tokyo"})
+
+    def test_theme_selection_legacy_aliases_and_overrides(self):
+        for legacy, expected in (("Tokyo", ("space-black", "tokyo")), ("azul", ("space-black", "severance")), ("morado", ("space-black", "tokyo")),
+                                 ("space-black", ("space-black", "space-black")), ("__proto__", ("space-black", "severance"))):
+            self.assertEqual(self.selection({"id": legacy}), {"style": expected[0], "variant": expected[1]}, legacy)
+        self.assertEqual(self.selection({}), {"style": "space-black", "variant": "severance"})
+        self.assertEqual(self.selection({"style": "space-black", "variant": "tokyo"}, "fluent:dark"), {"style": "fluent", "variant": "dark"})
+        self.assertEqual(self.selection({"style": "fluent", "variant": "dark"}, "not-a-theme"), {"style": "fluent", "variant": "dark"})
+
+    def test_resolved_tokens_cover_everything_appearance_reads(self):
+        import re
+        names = set(re.findall(r'(?:colorOf|numberOf)\("([a-z_]+)"', (ROOT / "Appearance.qml").read_text()))
+        self.assertGreater(len(names), 40)
+        for style, entry in self.SPEC["styles"].items():
+            for variant in entry["variants"]:
+                tokens = self.evaluate("resolveTheme(%s,%s,%s)" % (json.dumps(self.SPEC), json.dumps(style), json.dumps(variant)))
+                self.assertEqual((tokens["style"], tokens["variant"]), (style, variant))
+                self.assertEqual([n for n in sorted(names) if n not in tokens], [], (style, variant))
+
+    def test_token_colours_convert_to_qml_order_and_material_opacity(self):
+        self.assertEqual(self.evaluate("[qmlColor('#112233'),qmlColor('#11223344'),qmlColor('red'),qmlColor(undefined)]"),
+                         ["#112233", "#44112233", "#00000000", "#00000000"])
+        self.assertEqual(self.evaluate("[surfaceOpacity({translucent:true},.7),surfaceOpacity({translucent:false},.7)]"), [.7, 1])
+
+    def test_shell_theme_file_is_the_wysun_copy(self):
+        source = ROOT.parents[1] / "apps/wysun/wysun_theme.json"
+        self.assertEqual((ROOT / "wysun_theme.json").read_bytes(), source.read_bytes())
 
     def test_appearance_bounds_match_python_preferences(self):
         self.assertEqual(self.evaluate("[appearance({}), appearance({opacity: 20, reduced_motion: true}), appearance({opacity: '70'})]"),
@@ -41,6 +74,9 @@ class LogicTests(unittest.TestCase):
         self.assertEqual(values["right"], ["notifications", "date"])
         self.assertEqual(values["left"], [])
         self.assertEqual(self.evaluate("barSettings({background:'#000000',opacity:100}).background"), "#ff000000")
+        # Without user colours the bar follows the theme.
+        unset = self.evaluate("barSettings({})")
+        self.assertEqual((unset["background"], unset["foreground"], unset["accent"]), ("", "", ""))
 
     def test_cpu_and_memory_metrics_handle_first_sample_and_counter_reset(self):
         self.assertIsNone(self.evaluate("cpuSample('cpu 10 0 10 80 0 0 0 0',null).percent"))
@@ -76,7 +112,7 @@ class LogicTests(unittest.TestCase):
         self.assertEqual(values["height"], 36)
         self.assertEqual(values["offset"], 60)
         self.assertEqual(values["radius"], 0)
-        self.assertEqual(values["accent"], "#B8C8FA")
+        self.assertEqual(values["accent"], "")  # empty: follow the active theme
         self.assertEqual(values["left"], [])
 
     def test_native_monitor_preferences_win_and_fall_back_on_hotplug(self):

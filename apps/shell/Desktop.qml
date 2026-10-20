@@ -9,14 +9,14 @@ PanelWindow {
     required property var modelData
     screen: modelData
     anchors { top: true; bottom: true; left: true; right: true }
-    color: preferences.palette.background
+    color: Appearance.canvas
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.layer: WlrLayer.Background
     WlrLayershell.namespace: "wysun-desktop"
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
     // A wallpaper never consumes desktop clicks or keyboard focus.
     mask: Region {}
-    readonly property var wallpaper: Logic.wallpaper(preferences.environment, modelData.name, preferences.home, preferences.palette.wallpaper)
+    readonly property var wallpaper: Logic.wallpaper(preferences.environment, modelData.name, preferences.home, Appearance.wallpaper)
     Image {
         anchors.fill: parent
         source: desktop.wallpaper.path ? "file://" + encodeURI(desktop.wallpaper.path).replace(/#/g, "%23").replace(/\?/g, "%3F") : ""

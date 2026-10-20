@@ -1,0 +1,9 @@
+singleton Appearance 1.0 Appearance.qml
+Bar 1.0 Bar.qml
+BarModule 1.0 BarModule.qml
+Desktop 1.0 Desktop.qml
+Preferences 1.0 Preferences.qml
+ResourceStats 1.0 ResourceStats.qml
+ShellButton 1.0 ShellButton.qml
+ShellController 1.0 ShellController.qml
+Surface 1.0 Surface.qml

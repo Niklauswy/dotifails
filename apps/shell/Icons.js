@@ -23,10 +23,13 @@ var glyphs = {
     "arrow-right": "<svg\n  xmlns=\"http://www.w3.org/2000/svg\"\n  width=\"24\"\n  height=\"24\"\n  viewBox=\"0 0 24 24\"\n  fill=\"none\"\n  stroke=\"currentColor\"\n  stroke-width=\"1.8\"\n  stroke-linecap=\"round\"\n  stroke-linejoin=\"round\"\n>\n  <path d=\"M5 12h14\" />\n  <path d=\"m12 5 7 7-7 7\" />\n</svg>\n"
 };
 
-var accents = { clipboard: "#E9AA75", files: "#84B9E9", connections: "#82BDDF", settings: "#B7ADDB", power: "#DD969B", processes: "#ABB8C6" };
+// Category tints are token names (cat_*), resolved by Appearance.colorOf.
+var accents = { clipboard: "cat_orange", files: "cat_blue", connections: "cat_cyan", settings: "cat_lavender", power: "cat_rose", processes: "cat_slate" };
 
 function source(name, color) {
-    var tint = /^#[0-9a-fA-F]{6}$/.test(String(color)) ? String(color) : "#CDD0DA";
+    var text = String(color);
+    // QML colour strings are #rrggbb, or #aarrggbb when translucent: the ink is the opaque part.
+    var tint = /^#[0-9a-fA-F]{6}$/.test(text) ? text : (/^#[0-9a-fA-F]{8}$/.test(text) ? "#" + text.slice(3) : "#808080"); // theme-exception: last-resort ink for an invalid colour
     var svg = glyphs[name] || glyphs["file-text"];
     return "data:image/svg+xml;utf8," + encodeURIComponent(svg.replace(/currentColor/g, tint));
 }

@@ -5,11 +5,10 @@ import "Icons.js" as Icons
 
 Button {
     id: control
-    required property var preferences
     property bool selected: false
     property string description: text
-    property color foreground: preferences.palette.foreground
-    property color accent: preferences.palette.accent
+    property color foreground: Appearance.text
+    property color accent: Appearance.accent
     property string glyph: ""
     property int textAlignment: Text.AlignHCenter
     property bool secondaryActionEnabled: false
@@ -42,8 +41,8 @@ Button {
             Layout.fillWidth: true
             text: control.text
             color: control.selected ? control.accent : control.foreground
-            font.family: "Inter"
-            font.pixelSize: 13
+            font.families: Appearance.fontFamilies
+            font.pixelSize: Appearance.fontBody
             elide: Text.ElideRight
             verticalAlignment: Text.AlignVCenter
             horizontalAlignment: control.textAlignment
@@ -51,9 +50,9 @@ Button {
         }
     }
     background: Rectangle {
-        radius: 10
-        color: control.down || control.selected ? Qt.alpha(control.accent, 0.16) : (control.hovered ? control.preferences.palette.surface : "transparent")
-        border.width: control.activeFocus || control.selected ? 1 : 0
+        radius: Appearance.radiusControl
+        color: control.down || control.selected ? Qt.alpha(control.accent, 0.16) : (control.hovered ? Appearance.hover : "transparent")
+        border.width: control.activeFocus ? Appearance.focusWidth : (control.selected ? Appearance.borderWidth : 0)
         border.color: control.activeFocus ? control.accent : Qt.alpha(control.accent, 0.35)
     }
     // A right-only exclusive mouse grab avoids competing passive TapHandler

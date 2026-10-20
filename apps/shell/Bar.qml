@@ -30,10 +30,10 @@ PanelWindow {
 
     Rectangle {
         anchors.fill: parent
-        color: bar.preferences.bar.background || Qt.alpha(bar.preferences.palette.background, bar.preferences.appearance.opacity)
+        color: bar.preferences.bar.background || Qt.alpha(Appearance.canvas, Appearance.materialAlpha(bar.preferences.bar.opacity))
         radius: bar.preferences.bar.radius
-        border.width: 1
-        border.color: Qt.alpha(bar.preferences.bar.accent || bar.preferences.palette.accent, 0.22)
+        border.width: Appearance.borderWidth
+        border.color: bar.preferences.bar.accent ? Qt.alpha(bar.preferences.bar.accent, 0.22) : Appearance.materialEdge
     }
     // Preserve module order and visibility. Overflow scrolls on small outputs.
     RowLayout {

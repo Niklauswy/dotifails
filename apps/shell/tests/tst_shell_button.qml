@@ -18,7 +18,6 @@ Window {
             x: 16; y: 16; width: 120; height: 40
             sourceComponent: ShellButton {
                 objectName: "primaryButton"
-                preferences: ({ palette: { foreground: "#d2e4e8", accent: "#79c9dc", surface: "#15272e" } })
                 text: "Wysun"
                 secondaryActionEnabled: true
                 onClicked: fixture.primaryCalls++

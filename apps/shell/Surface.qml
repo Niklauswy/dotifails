@@ -64,21 +64,22 @@ PanelWindow {
     }
     Rectangle {
         anchors.fill: parent
-        radius: popup.preferences.palette.radius
+        radius: Appearance.radiusL
+        readonly property real alpha: Appearance.materialAlpha(popup.preferences.appearance.opacity)
         gradient: Gradient {
-            GradientStop { position: 0; color: Qt.alpha(popup.preferences.palette.surface, popup.preferences.appearance.opacity) }
-            GradientStop { position: 0.52; color: Qt.alpha(popup.preferences.palette.background, popup.preferences.appearance.opacity) }
-            GradientStop { position: 1; color: Qt.alpha(Qt.darker(popup.preferences.palette.background, 1.12), Math.min(1, popup.preferences.appearance.opacity + 0.05)) }
+            GradientStop { position: 0; color: Qt.alpha(Appearance.materialTop, parent.alpha) }
+            GradientStop { position: 0.52; color: Qt.alpha(Appearance.materialMid, parent.alpha) }
+            GradientStop { position: 1; color: Qt.alpha(Appearance.materialBottom, Math.min(1, parent.alpha + 0.05)) }
         }
-        border.width: 1
-        border.color: Qt.alpha(popup.preferences.palette.foreground, 0.28)
+        border.width: Appearance.borderWidth
+        border.color: Appearance.materialEdge
         Rectangle {
             anchors.fill: parent
             anchors.margins: 1
             radius: Math.max(0, parent.radius - 1)
             color: "transparent"
             border.width: 1
-            border.color: "#0cffffff"
+            border.color: Appearance.materialHighlight
         }
     }
     FocusScope {
@@ -104,24 +105,23 @@ PanelWindow {
                     spacing: 4
                     Text {
                         text: "WYSUN  /  ESCRITORIO"
-                        color: popup.preferences.palette.muted
-                        font { family: "Inter"; pixelSize: 10; weight: Font.DemiBold; letterSpacing: 1.5 }
+                        color: Appearance.muted
+                        font { families: Appearance.fontFamilies; pixelSize: Appearance.fontCaption; weight: Font.DemiBold; letterSpacing: 1.5 }
                     }
                     Text {
                         text: popup.windowsMode ? "Ventanas" : (popup.sessionMode ? "Sesión" : "Centro de escritorio")
-                        color: popup.preferences.palette.foreground
-                        font { family: "Inter"; pixelSize: 23; weight: Font.DemiBold }
+                        color: Appearance.text
+                        font { families: Appearance.fontFamilies; pixelSize: Appearance.fontTitle; weight: Font.DemiBold }
                         Accessible.role: Accessible.Heading
                     }
                 }
                 Item { Layout.fillWidth: true }
                 Text {
                     text: popup.screen?.name || ""
-                    color: popup.preferences.palette.muted
-                    font { family: "Inter"; pixelSize: 12 }
+                    color: Appearance.muted
+                    font { families: Appearance.fontFamilies; pixelSize: 12 }
                 }
                 ShellButton {
-                    preferences: popup.preferences
                     text: ""
                     glyph: "x"
                     description: "Cerrar · Escape"
@@ -132,7 +132,6 @@ PanelWindow {
                 Layout.fillWidth: true
                 spacing: 4
                 ShellButton {
-                    preferences: popup.preferences
                     text: "Accesos"
                     description: "Accesos del escritorio · Control 1"
                     Layout.fillWidth: true
@@ -140,7 +139,6 @@ PanelWindow {
                     onClicked: popup.controller.show("menu", popup.screen.name)
                 }
                 ShellButton {
-                    preferences: popup.preferences
                     text: "Ventanas"
                     description: "Ventanas · Control 2"
                     Layout.fillWidth: true
@@ -148,7 +146,6 @@ PanelWindow {
                     onClicked: popup.controller.show("windows", popup.screen.name)
                 }
                 ShellButton {
-                    preferences: popup.preferences
                     text: "Sesión"
                     description: "Sesión · Control 3"
                     Layout.fillWidth: true
@@ -160,7 +157,6 @@ PanelWindow {
                 Layout.fillWidth: true
                 implicitHeight: 44
                 visible: !popup.windowsMode && !popup.sessionMode
-                preferences: popup.preferences
                 glyph: "search"
                 text: "Abrir lanzador Wysun"
                 textAlignment: Text.AlignLeft
@@ -174,17 +170,17 @@ PanelWindow {
                 focus: !popup.sessionMode
                 placeholderText: popup.windowsMode ? "Buscar ventanas de esta pantalla…" : "Filtrar accesos del escritorio…"
                 Accessible.name: placeholderText
-                color: popup.preferences.palette.foreground
-                placeholderTextColor: popup.preferences.palette.muted
-                selectionColor: popup.preferences.palette.accent
-                selectedTextColor: popup.preferences.palette.background
-                font { family: "Inter"; pixelSize: 13 }
+                color: Appearance.text
+                placeholderTextColor: Appearance.muted
+                selectionColor: Appearance.accent
+                selectedTextColor: Appearance.canvas
+                font { families: Appearance.fontFamilies; pixelSize: Appearance.fontBody }
                 padding: 10
                 background: Rectangle {
-                    radius: 10
-                    color: popup.preferences.palette.surface
+                    radius: Appearance.radiusControl
+                    color: Appearance.surface
                     border.width: 1
-                    border.color: Qt.alpha(popup.preferences.palette.accent, search.activeFocus ? 1 : 0.2)
+                    border.color: Qt.alpha(Appearance.accent, search.activeFocus ? 1 : 0.2)
                 }
                 onTextChanged: list.currentIndex = 0
                 onAccepted: list.activateCurrent()
@@ -193,8 +189,8 @@ PanelWindow {
             Text {
                 visible: !popup.sessionMode
                 text: popup.windowsMode ? "VENTANAS DE ESTA PANTALLA" : "ACCESOS A TUS HERRAMIENTAS"
-                color: popup.preferences.palette.muted
-                font { family: "Inter"; pixelSize: 11; weight: Font.DemiBold; letterSpacing: 1 }
+                color: Appearance.muted
+                font { families: Appearance.fontFamilies; pixelSize: Appearance.fontSmall; weight: Font.DemiBold; letterSpacing: 1 }
             }
             Flickable {
                 visible: popup.windowsMode
@@ -209,7 +205,6 @@ PanelWindow {
                         model: Logic.sortWorkspaces(Hyprland.workspaces.values.filter(w => w.monitor === popup.monitor))
                         ShellButton {
                             required property var modelData
-                            preferences: popup.preferences
                             text: Logic.workspaceLabel(modelData)
                             description: "Ir al escritorio " + Logic.workspaceLabel(modelData)
                             selected: modelData.active
@@ -247,7 +242,6 @@ PanelWindow {
                     required property int index
                     width: list.width
                     implicitHeight: 57
-                    preferences: popup.preferences
                     selected: ListView.isCurrentItem
                     description: popup.windowsMode ? (modelData?.title || "Ventana") + ", escritorio " + Logic.workspaceLabel(modelData?.workspace) : (modelData?.title || "") + ", " + (modelData?.detail || "")
                     onClicked: {
@@ -257,10 +251,10 @@ PanelWindow {
                     contentItem: RowLayout {
                         spacing: 12
                         Rectangle {
-                            readonly property string tint: Icons.accents[row.modelData?.command] || popup.preferences.palette.accent
+                            readonly property color tint: Icons.accents[row.modelData?.command] ? Appearance.colorOf(Icons.accents[row.modelData?.command]) : Appearance.accent
                             Layout.preferredWidth: 30
                             Layout.preferredHeight: 30
-                            radius: 7
+                            radius: Appearance.radiusS
                             color: Qt.alpha(tint, 0.105)
                             border.width: 1
                             border.color: Qt.alpha(tint, 0.15)
@@ -279,16 +273,16 @@ PanelWindow {
                                 text: row.modelData?.title || "Ventana sin título"
                                 textFormat: Text.PlainText
                                 elide: Text.ElideRight
-                                color: popup.preferences.palette.foreground
-                                font { family: "Inter"; pixelSize: 13; weight: Font.Medium }
+                                color: Appearance.text
+                                font { families: Appearance.fontFamilies; pixelSize: Appearance.fontBody; weight: Font.Medium }
                             }
                             Text {
                                 Layout.fillWidth: true
                                 text: popup.windowsMode ? "Escritorio " + (Logic.workspaceLabel(row.modelData?.workspace) || "—") + (row.modelData?.activated ? " · Activa" : "") : (row.modelData?.detail || "")
                                 textFormat: Text.PlainText
                                 elide: Text.ElideRight
-                                color: popup.preferences.palette.muted
-                                font { family: "Inter"; pixelSize: 11 }
+                                color: Appearance.muted
+                                font { families: Appearance.fontFamilies; pixelSize: Appearance.fontSmall }
                             }
                         }
                     }
@@ -298,14 +292,14 @@ PanelWindow {
                         width: 3; height: Math.max(0, parent.height - 24)
                         radius: 1.5
                         visible: row.selected
-                        color: popup.preferences.palette.accent
+                        color: Appearance.accent
                     }
                 }
                 Text {
                     anchors.centerIn: parent
                     visible: list.count === 0
                     text: popup.windowsMode ? "No hay ventanas coincidentes en esta pantalla." : "No hay resultados."
-                    color: popup.preferences.palette.muted
+                    color: Appearance.muted
                     width: parent.width
                     wrapMode: Text.WordWrap
                     horizontalAlignment: Text.AlignHCenter
@@ -318,18 +312,17 @@ PanelWindow {
                 spacing: 12
                 Text {
                     text: Qt.formatDateTime(popup.clock.date, "hh:mm")
-                    color: popup.preferences.palette.foreground
-                    font { family: "Inter"; pixelSize: 48; weight: Font.Light }
+                    color: Appearance.text
+                    font { families: Appearance.fontFamilies; pixelSize: 48; weight: Font.Light }
                 }
                 Text {
                     text: Qt.formatDateTime(popup.clock.date, "dddd d 'de' MMMM")
-                    color: popup.preferences.palette.muted
-                    font { family: "Inter"; pixelSize: 15 }
+                    color: Appearance.muted
+                    font { families: Appearance.fontFamilies; pixelSize: 15 }
                 }
                 ShellButton {
                     id: lockButton
                     Layout.fillWidth: true
-                    preferences: popup.preferences
                     text: "Bloquear sesión"
                     glyph: "lock"
                     textAlignment: Text.AlignLeft
@@ -338,7 +331,6 @@ PanelWindow {
                 }
                 ShellButton {
                     Layout.fillWidth: true
-                    preferences: popup.preferences
                     text: "Energía y sesión…"
                     glyph: "power"
                     textAlignment: Text.AlignLeft
@@ -346,7 +338,6 @@ PanelWindow {
                 }
                 ShellButton {
                     Layout.fillWidth: true
-                    preferences: popup.preferences
                     text: "Notificaciones y concentración…"
                     glyph: "bell"
                     textAlignment: Text.AlignLeft
@@ -354,7 +345,6 @@ PanelWindow {
                 }
                 ShellButton {
                     Layout.fillWidth: true
-                    preferences: popup.preferences
                     text: "Preferencias…"
                     glyph: "settings-2"
                     textAlignment: Text.AlignLeft
@@ -366,15 +356,15 @@ PanelWindow {
                 Layout.fillWidth: true
                 visible: popup.controller.errorMessage !== ""
                 text: popup.controller.errorMessage
-                color: popup.preferences.palette.foreground
+                color: Appearance.text
                 wrapMode: Text.WordWrap
                 textFormat: Text.PlainText
                 Accessible.role: Accessible.AlertMessage
             }
             Text {
                 text: "↑ ↓ navegar   ·   Enter abrir   ·   Esc cerrar"
-                color: popup.preferences.palette.muted
-                font { family: "Inter"; pixelSize: 11 }
+                color: Appearance.muted
+                font { families: Appearance.fontFamilies; pixelSize: Appearance.fontSmall }
             }
         }
     }
