@@ -24,10 +24,20 @@ Scope {
         if (kind === 'windows') state.dashboardTab = 3;
         return true;
     }
+    // Diagnostic: open a surface on a named output (e.g. when the focused one has a fullscreen app).
+    function showOn(name, kind) {
+        const field = surfaces[kind];
+        const screen = Quickshell.screens.find(s => s.name === name);
+        const state = screen ? ShellState.forScreen(screen) : null;
+        if (!state || !field) return false;
+        close(); state[field] = true;
+        return true;
+    }
     IpcHandler {
         target: 'wysunShell'
         function toggle(surface: string): bool { return root.show(surface, true); }
         function open(surface: string): bool { return root.show(surface, false); }
+        function openOn(output: string, surface: string): bool { return root.showOn(output, surface); }
         function close(): void { root.close(); }
         function reloadPreferences(): void { environment.reload(); }
         function openThemeSettings(): bool { Quickshell.execDetached(['wysun', 'settings', 'theme']); return true; }
@@ -35,7 +45,7 @@ Scope {
         function status(): string {
             const state = root.current();
             return JSON.stringify({ implementation: 'caelestia', revision: '6c70d5cb',
-                screens: Quickshell.screens.map(s => s.name),
+                screens: Quickshell.screens.map(s => s.name), focused: Hypr.focusedMonitor?.name ?? '',
                 open: state ? Object.keys(root.surfaces).filter(k => state[root.surfaces[k]]) : [],
                 scheme: Colours.scheme });
         }
