@@ -1,7 +1,8 @@
 #!/bin/sh
 # Run only this Caelestia adaptation with its coherent, parallel Qt runtime.
 set -eu
-runtime="${WYSUN_CAEL_RUNTIME:-$HOME/.local/opt/wysun-caelestia-runtime}"
+optdir="$HOME/.local/opt"
+runtime="${WYSUN_CAEL_RUNTIME:-$optdir/wysun-caelestia-runtime}"
 qs="$runtime/quickshell/bin/quickshell"
 if [ ! -x "$qs" ]; then
     echo 'Wysun: falta compilar el runtime Caelestia. Consulta apps/shell/WYSUN.md.' >&2
