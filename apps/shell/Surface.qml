@@ -63,13 +63,14 @@ PanelWindow {
         onActivated: popup.controller.close()
     }
     Rectangle {
+        id: material
         anchors.fill: parent
         radius: Appearance.radiusL
         readonly property real alpha: Appearance.materialAlpha(popup.preferences.appearance.opacity)
         gradient: Gradient {
-            GradientStop { position: 0; color: Qt.alpha(Appearance.materialTop, parent.alpha) }
-            GradientStop { position: 0.52; color: Qt.alpha(Appearance.materialMid, parent.alpha) }
-            GradientStop { position: 1; color: Qt.alpha(Appearance.materialBottom, Math.min(1, parent.alpha + 0.05)) }
+            GradientStop { position: 0; color: Qt.alpha(Appearance.materialTop, material.alpha) }
+            GradientStop { position: 0.52; color: Qt.alpha(Appearance.materialMid, material.alpha) }
+            GradientStop { position: 1; color: Qt.alpha(Appearance.materialBottom, Math.min(1, material.alpha + 0.05)) }
         }
         border.width: Appearance.borderWidth
         border.color: Appearance.materialEdge
