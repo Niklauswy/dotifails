@@ -30,7 +30,7 @@ SYMBOLS = {
     'export': 0xe2c6, 'undo': 0xe166, 'redo': 0xe15a, 'trash': 0xe872,
     'chevron': 0xe5cf, 'check': 0xe5ca, 'cut': 0xe14e, 'fullscreen': 0xe5d0,
     'select': 0xe925, 'text': 0xe264, 'arrow': 0xe5c8, 'rectangle': 0xeb36,
-    'ellipse': 0xef4a, 'pen': 0xe3c9, 'highlight': 0xe22b, 'number': 0xe198,
+    'ellipse': 0xef4a, 'pen': 0xe3c9, 'highlight': 0xe22b, 'number': 0xe400,
     'mask': 0xe897, 'blur': 0xe3a5, 'crop': 0xe3be, 'save': 0xe161,
     'compare': 0xe3b9, 'compose': 0xe9d3,
 }
