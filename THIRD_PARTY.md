@@ -106,3 +106,10 @@ screencopy are excluded. Swaylock supplies native status strings and font lookup
 Rubik is requested, using its fontconfig fallback if unavailable in that process.
 Material Symbols glyphs used by phase 5: none (labels are text); the font subset is
 not changed.
+## Wysun Music native presentation (phase 7)
+
+- Repository: [caelestia-dots/shell](https://github.com/caelestia-dots/shell), commit `507d66285e9d9fde9330adc64159cfdebb28c19a`.
+- License: GPL-3.0; full text in [`LICENSES/GPL-3.0.txt`](LICENSES/GPL-3.0.txt). The reviewed upstream QML files contain no individual copyright headers; no upstream notice was removed.
+- `apps/wysun/music_app_window.py` translates the cover/details separation in `modules/dashboard/Media.qml`, title/artist/seek/transport hierarchy in `modules/dashboard/media/Details.qml`, cover clipping/fallback in `components/widgets/CoverArt.qml`, and navigation grouping in `modules/nexus/NavPane.qml` to native PySide6 widgets. The local library, mpv, queue, downloads and persistence remain Wysun's existing implementation.
+- `apps/wysun/music_material.py` adapts the semantic surfaces, text roles and interaction-state layering of `components/StyledRect.qml`, `StyledText.qml` and `StateLayer.qml`. It uses the existing Wysun theme watcher and shared native motion/reduced-motion implementation. No QML, M3Shapes, visualiser, blur or C++ plugin is loaded by Music.
+- These are adaptations of upstream **shell widgets**, not a port of an upstream full-screen music application. Both derived files carry “Derivado de caelestia-dots/shell (GPL-3.0), modificado para Wysun”. Offline Rubik (OFL) and Material Symbols Rounded (Apache-2.0) resources are described above; the Music adapter resolves packaged resources and does not download fonts.
