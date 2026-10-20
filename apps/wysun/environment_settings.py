@@ -190,8 +190,18 @@ class EnvironmentSettings:
         return self.data.get(name,{})
 
     def shell_values(self):
+        """Validated shell.json (migrating hypr-bar.json once). See ShellPreferences."""
         from settings_data import ShellPreferences
         return ShellPreferences(self.home).values()
+
+    def notify_shell(self):
+        """Ask a running shell to re-read now. It also watches the files, so a
+        missing shell is reported to the caller instead of failing the save."""
+        try:
+            self.runner(['wysun', 'shell', 'reload-preferences'])
+            return None
+        except Exception as error:
+            return str(error)[:200] or 'El shell no respondió.'
 
     def apply_shell(self, values, expected=None):
         from settings_data import ShellPreferences
@@ -209,17 +219,18 @@ class EnvironmentSettings:
         paths = self.preference_paths()
         # Validate both before the first write, then rollback as one operation.
         json_object(paths['appearance.json'])
+        from settings_data import ShellPreferences
+        ShellPreferences(self.home).migrate()  # before the snapshot: undo never un-migrates
         backup = PreferenceBackup(self.home, {k: paths[k] for k in ('shell.json', 'appearance.json')}, 'panels')
         try:
-            from settings_data import ShellPreferences
-            ShellPreferences(self.home).save(shell, expected_shell)
-            self.apply_appearance(appearance, expected_appearance)
+            ShellPreferences(self.home).save(shell, expected_shell, snapshot=False)
+            self.apply_appearance(appearance, expected_appearance, snapshot=False)
         except Exception:
             backup.restore(force=True)
-            try:self.runner(['wysun', 'shell', 'reload-preferences'])
-            except Exception:pass
+            self.notify_shell()
             raise
         backup.seal()
+        backup.warning = self.notify_shell()
         return backup
 
     def colour_values(self):
@@ -279,7 +290,7 @@ class EnvironmentSettings:
                 theme=None if dynamic else ':'.join(selected),
                 mode=values['mode'] if dynamic else None, variant=variant if dynamic else None,
                 seed=seed if dynamic else None), self.home)
-            self.runner(['wysun', 'shell', 'reload-preferences'])
+            self.notify_shell()
         except Exception:
             backup.restore(force=True)
             self.reload()
@@ -296,7 +307,7 @@ class EnvironmentSettings:
         value = json_object(self.config / 'orbit/appearance.json')
         return dict(opacity=value.get('opacity', 80), reduced_motion=value.get('reduced_motion', False))
 
-    def apply_appearance(self, values, expected=None):
+    def apply_appearance(self, values, expected=None, snapshot=True):
         from settings_data import json_object, PreferenceBackup
         path = self.config / 'orbit/appearance.json'
         latest = json_object(path)
@@ -306,24 +317,28 @@ class EnvironmentSettings:
             raise ValueError('Movimiento reducido inválido.')
         latest.update(opacity=bounded(values['opacity'], 65, 100, True),
                       reduced_motion=values['reduced_motion'])
+        text = json.dumps(latest, ensure_ascii=False, indent=2) + '\n'
+        if not snapshot:
+            atomic_write(path, text)
+            return None
         backup = PreferenceBackup(self.home, {'appearance.json': path}, 'appearance')
         try:
-            atomic_write(path, json.dumps(latest, ensure_ascii=False, indent=2) + '\n')
-            self.runner(['wysun', 'shell', 'reload-preferences'])
+            atomic_write(path, text)
         except Exception:
             backup.restore(force=True)
             raise
         backup.seal()
+        backup.warning = self.notify_shell()
         return backup
 
     def undo_preferences(self, backup):
+        """Restore the exact bytes of a sealed Settings write (refuses foreign edits)."""
         backup.restore()
         self.reload()
         import theme_core
         theme_core.invalidate()
-        self.runner(['wysun', 'shell', 'reload-preferences'])
-        if 'environment.json' in backup.paths:
-            render_wallpaper(self.wallpaper_values(), display_inventory(self.runner), self.home, self.runner)
+        # Files are restored verbatim; the shell follows through its file watchers.
+        return self.notify_shell()
 
     def save_section(self, name, values):
         self.path.parent.mkdir(parents=True,exist_ok=True,mode=0o700)

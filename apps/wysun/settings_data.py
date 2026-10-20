@@ -133,6 +133,10 @@ def validate_shell(value):
             raise ValueError('La salida principal o de bandeja está desactivada.')
     if monitors and not any(monitors.values()):
         raise ValueError('Deja al menos una salida habilitada.')
+    modules = result.get('rail_modules', {})
+    if not isinstance(modules, dict) or any(side not in RAIL_SIDES or not isinstance(v, list)
+            or any(not isinstance(m, str) for m in v) for side, v in modules.items()):
+        raise ValueError('rail_modules: se esperaba izquierda, centro y derecha con identificadores.')
     return result
 
 
@@ -225,11 +229,45 @@ class PreferenceBackup:
             raise
 
 
+RAIL_SIDES = ('left', 'center', 'right')
+
+
+def translate_legacy_bar(legacy):
+    """hypr-bar.json -> shell.json values: output visibility, tray owner, module state.
+
+    Only structure moves. The old bar's geometry and colours have no rail
+    equivalent and stay in hypr-bar.json, which is never edited or deleted.
+    A tray owner that is disabled is dropped (the shell then picks the first
+    enabled output), and a file that disables every output enables all of them,
+    so a migrated desktop is never left without a rail.
+    """
+    values = dict(SHELL_DEFAULTS)
+    monitors = legacy.get('monitors')
+    if isinstance(monitors, dict):
+        values['monitors'] = {k: v for k, v in monitors.items() if isinstance(k, str) and type(v) is bool}
+        if values['monitors'] and not any(values['monitors'].values()):
+            values['monitors'] = {}
+    tray = legacy.get('tray_monitor')
+    if isinstance(tray, str) and not any(ord(c) < 32 for c in tray) and values['monitors'].get(tray) is not False:
+        values['tray_monitor'] = tray
+    modules = {side: [m for m in legacy[side] if isinstance(m, str)] for side in RAIL_SIDES
+               if isinstance(legacy.get(side), list)}
+    if modules:
+        values['rail_modules'] = modules
+    return values
+
+
 class ShellPreferences:
     """Shared Python API for the shell's single structure configuration.
 
     QML consumes this same JSON through FileView; it must not write a second
     environment.bar or hypr-bar.json. Migration never deletes its input.
+
+    Contract of ``shell.json`` (schema_version 1, private 0600, atomic writes):
+    anchor ("left"), rail_enabled, frame_enabled, low_power (bool), monitors
+    ({output: bool}, absent = enabled), primary_monitor / tray_monitor (output
+    name or ""), rail_modules ({left,center,right: [module ids]}, migrated from
+    the old bar). Unknown keys are preserved on every save.
     """
     def __init__(self, home=None):
         from hypr_settings import config_dir
@@ -239,11 +277,20 @@ class ShellPreferences:
         self.legacy = self.root / 'hypr-bar.json'
         self.migration_backup = None
 
+    def exists(self):
+        return self.path.exists()
+
     def values(self):
         self.migrate()
         return validate_shell(json_object(self.path))
 
     def migrate(self):
+        """Create shell.json from hypr-bar.json once. Returns True only when it wrote.
+
+        An existing shell.json always wins (and is only validated), a missing
+        or malformed legacy file never produces a guess, and the backup lets
+        undo remove the new file byte-for-byte.
+        """
         self.root.mkdir(parents=True, exist_ok=True, mode=0o700)
         with (self.root / 'shell.lock').open('a') as handle:
             import fcntl
@@ -253,33 +300,42 @@ class ShellPreferences:
                 return False
             if not self.legacy.exists():
                 return False
-            # Preserve unknown module/geometry keys for rollback and future use.
-            legacy = json_object(self.legacy)
-            values = validate_shell(dict(legacy, schema_version=1, anchor='left'))
+            values = validate_shell(translate_legacy_bar(json_object(self.legacy)))
             backup = PreferenceBackup(self.home, {'shell.json': self.path, 'hypr-bar.json': self.legacy}, 'shell-migration')
-            atomic_write(self.path, json.dumps(values, ensure_ascii=False, indent=2) + '\n')
+            try:
+                atomic_write(self.path, json.dumps(values, ensure_ascii=False, indent=2) + '\n')
+            except Exception:
+                backup.restore(force=True)
+                raise
             backup.seal()
             self.migration_backup = backup
             return True
 
-    def save(self, values, expected=None, activate=None):
+    def save(self, values, expected=None, activate=None, snapshot=True):
         self.migrate()
         self.root.mkdir(parents=True, exist_ok=True, mode=0o700)
         with (self.root / 'shell.lock').open('a') as handle:
             import fcntl
             fcntl.flock(handle, fcntl.LOCK_EX)
             latest = json_object(self.path)
-            validate_shell(latest)
-            if expected is not None and validate_shell(latest) != expected:
+            current = validate_shell(latest)
+            if expected is not None and current != expected:
                 raise ValueError('El shell cambió en otra ventana. Recarga antes de guardar.')
             merged = validate_shell(dict(latest, **values))
+            if not snapshot:  # the caller owns one combined backup
+                atomic_write(self.path, json.dumps(merged, ensure_ascii=False, indent=2) + '\n')
+                return None
             backup = PreferenceBackup(self.home, {'shell.json': self.path}, 'shell')
             try:
                 atomic_write(self.path, json.dumps(merged, ensure_ascii=False, indent=2) + '\n')
-                if activate:
-                    activate()
             except Exception:
                 backup.restore(force=True)
                 raise
             backup.seal()
+            if activate:
+                # The shell also watches the file, so a missing IPC target is not a failed save.
+                try:
+                    activate()
+                except Exception as error:
+                    backup.warning = str(error)[:200]
             return backup
