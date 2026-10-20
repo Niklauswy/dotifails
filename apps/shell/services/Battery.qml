@@ -13,5 +13,5 @@ QtObject {
     readonly property int percent: state.percent !== undefined ? state.percent : 0
     readonly property string status: state.status || "Estado no disponible"
     readonly property bool charging: status === "Cargando"
-    readonly property string glyph: percent < 15 ? "battery_alert" : "battery_full"
+    readonly property string glyph: charging ? "battery_charging_full" : (percent < 15 ? "battery_alert" : "battery_full")
 }

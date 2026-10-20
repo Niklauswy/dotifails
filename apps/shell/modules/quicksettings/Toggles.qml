@@ -26,7 +26,7 @@ GridLayout {
         motion: root.motion
         label: network.available ? (network.wifiEnabled ? "Wi-Fi activado" : "Activar Wi-Fi") : "Wi-Fi · No disponible"
         description: network.available ? "Radio inalámbrica de NetworkManager" : network.error
-        glyph: "wifi"
+        glyph: network.wifiEnabled ? "wifi" : "wifi_off"
         selected: network.wifiEnabled
         enabled: network.available && !root.preview && !root.hub.busy
         onClicked: network.toggleWifi()
@@ -37,6 +37,7 @@ GridLayout {
         motion: root.motion
         label: bluetooth.available ? (bluetooth.enabled ? "Bluetooth activado" : "Activar Bluetooth") : "Bluetooth · No disponible"
         description: bluetooth.available ? "Adaptador Bluetooth" : bluetooth.error
+        glyph: bluetooth.enabled ? "bluetooth" : "bluetooth_disabled"
         selected: bluetooth.enabled
         enabled: bluetooth.available && !root.preview && !root.hub.busy
         onClicked: bluetooth.toggle()

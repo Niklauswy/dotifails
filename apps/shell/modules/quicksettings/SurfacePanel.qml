@@ -19,6 +19,9 @@ Components.StyledRect {
     // True while the popout window is visible (including its closing animation).
     property bool hostActive: false
     property real contentOpacity: 1
+    // Gallery mode: fixed demo data, no provider process and no device access.
+    property bool preview: false
+    property var demoEntries: []
 
     readonly property var surfaces: ["quicksettings", "notifications", "session"]
     property string current: ""
@@ -63,14 +66,14 @@ Components.StyledRect {
 
     Component {
         id: quickSettings
-        QuickSettings { controller: root.controller; motion: root.motion }
+        QuickSettings { controller: root.controller; motion: root.motion; preview: root.preview }
     }
     Component {
         id: notifications
-        Notifications.NotificationCenter { controller: root.controller; motion: root.motion }
+        Notifications.NotificationCenter { controller: root.controller; motion: root.motion; preview: root.preview; demoEntries: root.demoEntries }
     }
     Component {
         id: session
-        Session.SessionMenu { controller: root.controller; motion: root.motion }
+        Session.SessionMenu { controller: root.controller; motion: root.motion; preview: root.preview }
     }
 }

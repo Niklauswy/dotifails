@@ -14,7 +14,7 @@ QtObject {
     readonly property string urgency: String(entry.urgency || "normal")
     readonly property bool critical: ["critical", "2"].indexOf(urgency) >= 0
     readonly property string urgencyLabel: critical ? "Crítico" : (["low", "0"].indexOf(urgency) >= 0 ? "Baja" : "Normal")
-    readonly property string glyph: critical ? "battery_alert" : "dashboard"
+    readonly property string glyph: critical ? "notifications_active" : "notifications"
     readonly property bool hasBody: body.length > 0
     readonly property var actions: []
 }

@@ -10,8 +10,10 @@ import Quickshell.Services.Pipewire
 Scope {
     id: root
 
-    readonly property var sink: Pipewire.defaultAudioSink
-    readonly property var source: Pipewire.defaultAudioSource
+    // Disabled instances (gallery, tests) never touch PipeWire.
+    property bool enabled: true
+    readonly property var sink: enabled ? Pipewire.defaultAudioSink : null
+    readonly property var source: enabled ? Pipewire.defaultAudioSource : null
     readonly property bool available: !!sink
     readonly property bool sourceAvailable: !!source
     readonly property real volume: sink?.audio?.volume ?? 0

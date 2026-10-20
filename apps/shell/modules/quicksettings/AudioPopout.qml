@@ -13,7 +13,6 @@ import "../../services" as Services
 SectionCard {
     id: root
 
-    required property var motion
     property var previewData: null
     readonly property bool demo: previewData !== null
     readonly property real level: demo ? (previewData.volume || 0) : audio.volume
@@ -27,8 +26,8 @@ SectionCard {
     title: "Sonido y pantalla"
     subtitle: demo ? "Vista previa" : (audio.sinkName.length > 0 ? audio.sinkName : "Salida predeterminada")
 
-    Services.Audio { id: audio }
-    Services.Brightness { id: brightness }
+    Services.Audio { id: audio; enabled: !root.demo }
+    Services.Brightness { id: brightness; enabled: !root.demo }
 
     RowLayout {
         Layout.fillWidth: true

@@ -11,6 +11,7 @@ import Quickshell
 import "../../" as Wysun
 import "../../components" as Components
 import "../../services" as Services
+import "../quicksettings" as Quick
 
 Item {
     id: root
@@ -97,21 +98,22 @@ Item {
                     motion: root.motion
                 }
             }
-            ControlButton {
+            Quick.ControlButton {
                 motion: root.motion
+                glyph: notifs.dnd ? "notifications_off" : "do_not_disturb_on"
                 label: notifs.dnd ? "Reactivar avisos" : "No molestar"
                 selected: notifs.dnd
                 description: "Pausa o reanuda los avisos de Dunst"
                 enabled: notifs.available && !root.preview && !provider.busy
                 onClicked: notifs.toggleDnd()
             }
-            ControlButton {
+            Quick.ControlButton {
                 motion: root.motion
                 label: "Actualizar"
                 enabled: !root.preview && !provider.busy
                 onClicked: provider.refresh()
             }
-            ControlButton {
+            Quick.ControlButton {
                 motion: root.motion
                 glyph: "close"
                 label: "Cerrar"
@@ -141,7 +143,7 @@ Item {
                     wrapMode: Text.WordWrap
                     motion: root.motion
                 }
-                ControlButton {
+                Quick.ControlButton {
                     motion: root.motion
                     label: "Reintentar"
                     enabled: !provider.busy
@@ -205,8 +207,9 @@ Item {
                 wrapMode: Text.WordWrap
                 motion: root.motion
             }
-            ControlButton {
+            Quick.ControlButton {
                 motion: root.motion
+                glyph: "delete_sweep"
                 label: root.clearArmed ? "Confirmar vaciado" : "Vaciar historial"
                 description: "Elimina el historial de Dunst; no cierra los toasts visibles"
                 enabled: !root.preview && notifs.available && root.rows.length > 0 && !provider.busy

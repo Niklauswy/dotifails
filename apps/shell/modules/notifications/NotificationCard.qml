@@ -9,6 +9,7 @@ import Quickshell
 import "../../" as Wysun
 import "../../components" as Components
 import "../../services" as Services
+import "../quicksettings" as Quick
 
 Components.StyledRect {
     id: root
@@ -40,7 +41,9 @@ Components.StyledRect {
         anchors.left: parent.left
         anchors.top: parent.top
         anchors.bottom: parent.bottom
-        anchors.margins: Wysun.Appearance.borderWidth
+        anchors.topMargin: Wysun.Appearance.spaceM
+        anchors.bottomMargin: Wysun.Appearance.spaceM
+        anchors.leftMargin: Wysun.Appearance.spaceXs
         width: Wysun.Appearance.spaceXs
         radius: width / 2
         color: notif.critical ? Wysun.Appearance.danger : Wysun.Appearance.accent
@@ -125,14 +128,16 @@ Components.StyledRect {
                 wrapMode: Text.WordWrap
                 motion: root.motion
             }
-            ControlButton {
+            Quick.ControlButton {
                 motion: root.motion
+                glyph: "content_copy"
                 label: "Copiar"
                 description: "Copia el cuerpo del aviso"
                 onClicked: root.copied()
             }
-            ControlButton {
+            Quick.ControlButton {
                 motion: root.motion
+                glyph: "delete"
                 label: "Quitar"
                 description: "Quita este aviso del historial de Dunst"
                 enabled: !root.preview
@@ -150,7 +155,7 @@ Components.StyledRect {
                 font.pixelSize: Wysun.Appearance.fontCaption
                 motion: root.motion
             }
-            ControlButton {
+            Quick.ControlButton {
                 objectName: "notifExpand"
                 motion: root.motion
                 label: root.expanded ? "Contraer" : "Expandir"

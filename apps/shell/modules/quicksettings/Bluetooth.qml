@@ -11,7 +11,6 @@ SectionCard {
     id: root
 
     required property var hub
-    required property var motion
     property bool preview: false
 
     title: "Bluetooth"

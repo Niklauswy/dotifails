@@ -24,6 +24,9 @@ Components.StyledRect {
     readonly property bool showVolume: mode === "volume" || mode === "mute"
     readonly property bool showSource: mode === "source-volume" || mode === "source-mute"
     readonly property bool showBrightness: mode === "brightness"
+    readonly property string headerGlyph: showVolume ? volumeGlyph
+        : showSource ? (sourceMuted ? "mic_off" : "mic")
+        : (brightness < 0.5 ? "brightness_low" : "brightness_high")
     readonly property string volumeGlyph: muted ? "volume_off" : (volume <= 0.001 ? "volume_mute" : "volume_up")
     readonly property string volumeLabel: !audioAvailable ? "Audio no disponible" : muted ? "Silencio" : "Volumen"
     readonly property string sourceLabel: !audioAvailable ? "Micrófono no disponible" : sourceMuted ? "Micrófono silenciado" : "Micrófono"
@@ -47,14 +50,13 @@ Components.StyledRect {
             spacing: Wysun.Appearance.spaceS
             Components.MaterialIcon {
                 anchors.verticalCenter: parent.verticalCenter
-                visible: root.showVolume
-                name: root.volumeGlyph
+                name: root.headerGlyph
                 size: Wysun.Appearance.fontTitle
                 color: Wysun.Appearance.accent
             }
             Components.StyledText {
                 anchors.verticalCenter: parent.verticalCenter
-                width: parent.width - (root.showVolume ? Wysun.Appearance.fontTitle + Wysun.Appearance.spaceS : 0)
+                width: parent.width - Wysun.Appearance.fontTitle - Wysun.Appearance.spaceS
                 text: root.showVolume ? root.volumeLabel : root.showSource ? root.sourceLabel : root.brightnessLabel
                 color: Wysun.Appearance.textStrong
                 font.pixelSize: Wysun.Appearance.fontHeading

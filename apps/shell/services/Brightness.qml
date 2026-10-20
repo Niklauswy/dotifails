@@ -12,6 +12,8 @@ Scope {
     id: root
 
     readonly property string sysfsRoot: Quickshell.env("WYSUN_BACKLIGHT_ROOT") || "/sys/class/backlight"
+    // Disabled instances (gallery, tests) never run brightnessctl.
+    property bool enabled: true
     property string device: ""
     property bool available: false
     property bool busy: false
@@ -23,7 +25,7 @@ Scope {
     property real lastValue: 0
     signal changed(real value)
 
-    Component.onCompleted: discover.running = true
+    Component.onCompleted: if (enabled) discover.running = true
 
     function acceptDevice(text) {
         var line = String(text || "").split("\n").find(part => part.trim().length > 0);
@@ -116,7 +118,7 @@ Scope {
         printErrors: false
         onLoaded: root.sync()
         onFileChanged: root.sync()
-        onLoadFailed: error => if (root.device) root.error = "No se pudo leer el brillo del sistema"
+        onLoadFailed: error => { if (root.device) root.error = "No se pudo leer el brillo del sistema"; }
     }
 
     FileView {
@@ -127,6 +129,6 @@ Scope {
         printErrors: false
         onLoaded: root.sync()
         onFileChanged: root.sync()
-        onLoadFailed: error => if (root.device) root.error = "No se pudo leer el brillo máximo"
+        onLoadFailed: error => { if (root.device) root.error = "No se pudo leer el brillo máximo"; }
     }
 }

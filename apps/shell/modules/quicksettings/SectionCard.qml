@@ -14,6 +14,7 @@ Components.StyledRect {
     property string subtitle: ""
     default property alias content: column.data
 
+    implicitHeight: column.implicitHeight + Wysun.Appearance.spaceL * 2
     radius: Wysun.Appearance.radiusL
     color: Wysun.Appearance.surfaceRaised
     border.width: Wysun.Appearance.borderWidth
@@ -21,7 +22,9 @@ Components.StyledRect {
 
     ColumnLayout {
         id: column
-        anchors.fill: parent
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: parent.top
         anchors.margins: Wysun.Appearance.spaceL
         spacing: Wysun.Appearance.spaceS
         Components.StyledText {
