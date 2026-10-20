@@ -5,6 +5,7 @@ import "services" as Services
 import "modules/rail" as RailModule
 import "modules/frame" as FrameModule
 import "modules/popouts" as PopoutModule
+import "modules/osd" as OsdModule
 
 ShellRoot {
     id: root
@@ -39,4 +40,5 @@ ShellRoot {
         model: Quickshell.screens
         PopoutModule.PopoutHost { controller: controller; motion: motion }
     }
+    OsdModule.Osd { motion: motion }
 }

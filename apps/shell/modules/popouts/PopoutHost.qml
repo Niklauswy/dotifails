@@ -8,6 +8,7 @@ import Quickshell.Wayland
 import "../../" as Wysun
 import "../../components" as Components
 import "../../utils/PopoutGeometry.js" as Geometry
+import "../quicksettings" as QuickSettingsModule
 
 PanelWindow {
     id: host
@@ -67,9 +68,30 @@ PanelWindow {
         onClicked: host.controller.close()
     }
 
+    // Quick settings, notification centre and session menu (fase 4).
+    QuickSettingsModule.SurfacePanel {
+        id: panel
+        z: 1
+        controller: host.controller
+        motion: host.motion
+        hostActive: host.active
+        contentOpacity: Math.max(0, Math.min(1, (host.progress - 0.35) / 0.65))
+        readonly property var geometry: Geometry.popoutGeometry(host.width, host.height,
+            host.controller.state.anchorX, host.controller.state.anchorY,
+            Math.min(targetWidth, host.width - Wysun.Appearance.spaceXl * 2),
+            Math.min(targetHeight, host.height - Wysun.Appearance.spaceXl * 2),
+            host.motion.reducedMotion ? 1 : host.progress)
+        width: geometry.width
+        height: geometry.height
+        x: geometry.x
+        y: geometry.y
+        opacity: host.progress
+    }
+
     PopoutCard {
         id: card
         z: 1
+        visible: !panel.owned
         motion: host.motion
         controller: host.controller
         monitorName: host.modelData.name

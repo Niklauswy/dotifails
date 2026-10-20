@@ -22,6 +22,7 @@ Scope {
     readonly property bool busy: request.running
     property bool refreshPending: false
     signal updated()
+    signal actionDone(string name)
 
     function refreshLater() {
         if (refreshPending) return;
@@ -81,6 +82,7 @@ Scope {
         }
         warning = result.warning || "";
         updated();
+        if (operation === "action") actionDone(actionName);
     }
 
     onActiveChanged: {

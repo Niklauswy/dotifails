@@ -97,9 +97,12 @@ def percent(value, minimum=0):
 
 
 class Providers:
-    def __init__(self, runner=None, available=None, environ=None, power_root=None, fixture=False):
+    def __init__(self, runner=None, available=None, environ=None, power_root=None, fixture=False,
+                 launcher=None):
         self.env = keys.host_environment(os.environ if environ is None else environ)
         self.runner = runner or self.command
+        # Session actions (lock, suspend, power) may outlive this process.
+        self.launcher = launcher or (self.launch if runner is None else runner)
         self.available = available or (lambda name: shutil.which(name, path=self.env.get("PATH")))
         self.power_root = Path(power_root or "/sys/class/power_supply")
         self.fixture = fixture
@@ -114,6 +117,27 @@ class Providers:
         if result.returncode:
             raise Error("El proveedor rechazó la operación: " + argv[0])
         return result.stdout.strip()
+
+    def launch(self, argv):
+        """Start a session action without waiting for it to finish.
+
+        A command that is still running after a short grace period (suspend
+        blocks until resume) counts as accepted; one that exits with an error
+        inside it is reported.
+        """
+        try:
+            process = subprocess.Popen(argv, env=self.env, stdin=subprocess.DEVNULL,
+                                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                                       start_new_session=True)
+        except OSError as exc:
+            raise Error("Proveedor no disponible: " + argv[0]) from exc
+        try:
+            code = process.wait(timeout=0.6)
+        except subprocess.TimeoutExpired:
+            return ""
+        if code:
+            raise Error("El proveedor rechazó la operación: " + argv[0])
+        return ""
 
     def require(self, name):
         if not self.available(name):
@@ -205,8 +229,12 @@ class Providers:
         domain = action.partition("-")[0]
         before = getattr(self, domain)()
         command = self.plan(action, value, before)
-        self.runner(command)
         result = dict(ok=True, applied=not self.fixture, simulated=self.fixture, domain=domain)
+        if domain == "session":
+            self.launcher(command)
+            result["state"] = before
+            return result
+        self.runner(command)
         after = self.snapshot([domain])[domain]
         result["state"] = after
         if not after["available"]:
