@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Wysun Ajustes
+GenericName=Configuración del escritorio
+Comment=Pantallas, fondos, barra, ventanas y atajos
+Exec=wysun settings
+Icon=preferences-system
+Terminal=false
+Categories=Settings;DesktopSettings;
+Keywords=Wysun;Hyprland;ajustes;settings;pantallas;fondos;barra;ventanas;atajos;
+StartupWMClass=Orbit

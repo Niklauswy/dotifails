@@ -2,27 +2,16 @@
 import os
 import json
 from pathlib import Path
-import shutil
 import subprocess
 import time
-from ..portal import is_wayland
 from PySide6.QtCore import QTimer,Qt
 from PySide6.QtGui import QCursor
 from PySide6.QtWidgets import QApplication,QDialog,QVBoxLayout,QHBoxLayout,QLabel,QPushButton,QInputDialog,QMessageBox
 
 
 def focus_window(window_id):
-    """Scope BSPWM changes to this window; focus also selects its desktop."""
-    if os.environ.get('QT_QPA_PLATFORM')=='offscreen' or is_wayland():return False
-    if not shutil.which('bspc'):return False
-    node=hex(int(window_id))
-    try:
-        found=subprocess.run(['bspc','query','-N','-n',node],capture_output=True,timeout=.5)
-        if found.returncode:return False
-        subprocess.run(['bspc','node',node,'-g','hidden=off'],capture_output=True,timeout=.5,check=True)
-        subprocess.run(['bspc','node',node,'-f'],capture_output=True,timeout=.5,check=True)
-        return True
-    except (OSError,subprocess.SubprocessError):return False
+    """Qt already requested focus; the compositor decides whether to grant it."""
+    return False
 
 
 def show_and_focus(widget):
@@ -87,11 +76,6 @@ class RecordingController(QDialog):
         screen=QApplication.screenAt(QCursor.pos()) or QApplication.primaryScreen();geo=screen.availableGeometry()
         self.setFixedWidth(min(620,max(120,geo.width()-24)));self.adjustSize()
         self.move(max(geo.left(),geo.center().x()-self.width()//2),max(geo.top(),geo.bottom()-self.height()-28))
-        if not is_wayland() and os.environ.get('QT_QPA_PLATFORM')!='offscreen':
-            try:
-                desktop=subprocess.check_output(['bspc','query','-D','-d','focused'],text=True,timeout=.5).strip()
-                subprocess.run(['bspc','node',hex(int(self.winId())),'-d',desktop],capture_output=True,timeout=.5)
-            except (OSError,subprocess.SubprocessError):pass
 
     def prepare_show(self):
         state=self.session.status()['state']
@@ -131,14 +115,7 @@ class RecordingController(QDialog):
             if owner.get('controls_protocol')==1:
                 if not self.owner.request('hide_controls',timeout=.7).get('hidden'):raise RuntimeError('Los controles siguen visibles.')
             else:
-                if is_wayland():raise RuntimeError('Los controles antiguos no permiten comprobar ocultación en Wayland; usa los controles de la ventana actual.')
-                window=owner.get('window')
-                if not window:raise RuntimeError('No se pudo comprobar la ventana de grabación.')
-                info=subprocess.check_output(['xwininfo','-id',str(window)],text=True,timeout=.7)
-                if 'Map State: IsUnMapped' not in info:
-                    subprocess.run(['bspc','node',hex(window),'-g','hidden=on'],check=True,capture_output=True,timeout=.7)
-                    info=subprocess.check_output(['xwininfo','-id',str(window)],text=True,timeout=.7)
-                    if 'Map State: IsUnMapped' not in info:raise RuntimeError('La ventana sigue visible.')
+                raise RuntimeError('Los controles antiguos no permiten comprobar la ocultación; usa los controles de la ventana actual.')
         except (OSError,ValueError,RuntimeError,subprocess.SubprocessError) as exc:
             self.warning.setText('No se reanudó: '+str(exc));return
         self.pending='recording';self.deadline=time.monotonic()+15;self.pause_button.setEnabled(False);self.stop_button.setEnabled(False);self.hide()
@@ -168,6 +145,9 @@ class RecordingController(QDialog):
                 if response.get('window'):focus_window(response['window'])
             except (OSError,ValueError,RuntimeError):return
             self.pending=None;self.close();return
+        if not self.pending and not self.isVisible() and state in ('stopped','error','interrupted','cleared'):
+            # The capture ended elsewhere (tray, shortcut or owner): nothing is left to control.
+            self.close();QApplication.quit();return
         if self.pending and (state in ('error','interrupted') or time.monotonic()>self.deadline):
             self.fail('No se confirmó la pausa o la operación. La barra permanece oculta; usa el atajo de pausa y vuelve a abrir los controles.')
 

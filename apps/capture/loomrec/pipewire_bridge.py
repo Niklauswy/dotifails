@@ -58,6 +58,17 @@ def configure_pipewire_source(source,fd,node,metadata):
     this remote FD, never a connection to the global PipeWire server.
     """
     source.set_property('fd',int(fd));source.set_property('do-timestamp',True)
+    # A screen stream must only ever link to the granted node. Without these,
+    # a not-yet-ready target lets the session manager fall back to a default
+    # one; with audio playing that is an audio stream ("unhandled format").
+    try:
+        import gi
+        gi.require_version('Gst','1.0')
+        from gi.repository import Gst
+        if not Gst.is_initialized():Gst.init(None)
+        source.set_property('stream-properties',Gst.Structure.new_from_string(
+            'props,media.type=Video,media.category=Capture,media.role=Screen,node.dont-fallback=true,node.dont-reconnect=true'))
+    except Exception:pass
     serial=metadata.get('pipewire-serial')
     if serial is None:source.set_property('path',str(node));return
     if not isinstance(serial,int) or isinstance(serial,bool) or not 0<=serial<2**64:raise ValueError('object.serial PipeWire inválido')
@@ -134,16 +145,18 @@ def stream(fd,node,metadata,fps,rect=None,synthetic=False,even=True,cursor_trace
     if src is None:raise RuntimeError('Falta el plugin GStreamer pipewiresrc (paquete gstreamer1.0-pipewire)')
     if synthetic:src.set_property('is-live',True);src.set_property('num-buffers',12)
     else:configure_pipewire_source(src,fd,node,metadata)
+    # Only raw video formats are offered to PipeWire, never audio or DMA-BUF.
+    video_only=Gst.ElementFactory.make('capsfilter','video-only');video_only.set_property('caps',Gst.Caps.from_string('video/x-raw'))
     convert=Gst.ElementFactory.make('videoconvert');rate=Gst.ElementFactory.make('videorate');caps=Gst.ElementFactory.make('capsfilter')
     # The compositor may emit one damage frame and remain silent (0/1 fps).
     # Do not retain it waiting for a second frame; this bridge owns repetition.
     rate.set_property('drop-only',True)
     caps.set_property('caps',Gst.Caps.from_string(f'video/x-raw,format=BGRA,framerate={int(fps)}/1'))
     sink=Gst.ElementFactory.make('appsink');sink.set_property('max-buffers',2);sink.set_property('drop',True);sink.set_property('sync',False)
-    for item in (src,convert,rate,caps,sink):
+    for item in (src,video_only,convert,rate,caps,sink):
         if item is None:raise RuntimeError('Faltan plugins básicos de vídeo GStreamer')
         pipeline.add(item)
-    for a,b in zip((src,convert,rate,caps),(convert,rate,caps,sink)):
+    for a,b in zip((src,video_only,convert,rate,caps),(video_only,convert,rate,caps,sink)):
         if not a.link(b):raise RuntimeError('No se pudo conectar el flujo PipeWire')
     geometry=None;last_frame=None;bus=pipeline.get_bus();effects=None;stopping=False
     def stop(*_):

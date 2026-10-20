@@ -36,14 +36,14 @@ class WindowDiscoveryTests(unittest.TestCase):
         geometry.assert_not_called()
 
     def test_activation_restores_focus_and_uses_fresh_geometry(self):
-        with patch('loomrec.devices.shutil.which',return_value='/usr/bin/bspc'),patch('loomrec.devices.run',return_value='_NET_ACTIVE_WINDOW(WINDOW): window id # 0x23') as run,patch('loomrec.devices.visible_window_rect',return_value=[40,60,200,100]) as geometry:
+        with patch('loomrec.devices.shutil.which',return_value='/bin/wmctrl'),patch('loomrec.devices.run',return_value='window id # 0x23') as run,patch('loomrec.devices.visible_window_rect',return_value=[40,60,200,100]) as geometry:
             self.assertEqual(activate_window('0x23'),[40,60,200,100])
-        self.assertEqual(run.call_args_list[1].args[0],['bspc','node','0x23','-g','hidden=off'])
-        self.assertEqual(run.call_args_list[2].args[0],['bspc','node','0x23','-f'])
+        self.assertEqual(run.call_args_list[0].args[0],['wmctrl','-ia','0x23'])
+        self.assertEqual(run.call_args_list[1].args[0][:2],['xprop','-root'])
         geometry.assert_called_once_with('0x23')
         self.assertFalse(any('-d' in call.args[0] for call in run.call_args_list))
 
-    def test_wmctrl_fallback_and_activation_refusal(self):
+    def test_wmctrl_activation_refusal(self):
         with patch('loomrec.devices.shutil.which',side_effect=lambda name:'/bin/wmctrl' if name=='wmctrl' else None),patch('loomrec.devices.run',return_value='window id # 0x99') as run,patch('loomrec.devices.time.monotonic',side_effect=[0,1,3]),patch('loomrec.devices.time.sleep'),patch('loomrec.devices.visible_window_rect') as geometry:
             with self.assertRaisesRegex(ValueError,'mostrar'):activate_window('0x23')
         self.assertEqual(run.call_args_list[0].args[0],['wmctrl','-ia','0x23'])

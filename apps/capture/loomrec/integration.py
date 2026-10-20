@@ -1,4 +1,4 @@
-"""Optional desktop integration; never writes Orbit files or changes panels."""
+"""Optional desktop integration; never writes Wysun files or changes panels."""
 from pathlib import Path
 import json
 import os
@@ -113,7 +113,7 @@ def shortcut_conflicts(text, chord):
 
 
 def add_shortcut(path, chord, command):
-    """Opt-in only. Back up user configuration and never reload sxhkd."""
+    """Opt-in only. Back up user configuration and never reload the session."""
     path = Path(path)
     old = path.read_text() if path.exists() else ''
     if shortcut_conflicts(old,chord): raise ValueError('El atajo ya está asignado; elige otro')

@@ -54,18 +54,39 @@ def indicator_geometry(rect,screens,badge_size=(224,40)):
 
 
 class Countdown(QWidget):
+    """Dark compact card: big number inside a ring that drains each second."""
     def __init__(self,cancel):
         super().__init__(None,Qt.Tool|Qt.FramelessWindowHint|Qt.WindowStaysOnTopHint)
-        self.setWindowTitle('Wysun Recorder · Cuenta atrás');self.resize(360,300)
-        self.setStyleSheet('background:#EDF3FA;color:#1C2A3B;border-radius:24px;')
-        box=QVBoxLayout(self);self.number=QLabel();self.number.setAlignment(Qt.AlignCenter);self.number.setStyleSheet('font-size:96px;font-weight:700;color:#2165D5;');box.addWidget(self.number)
-        button=QPushButton('Cancelar · Esc');button.clicked.connect(cancel);box.addWidget(button)
-        self.hints=QLabel(control_hints());self.hints.setWordWrap(True);self.hints.setAlignment(Qt.AlignCenter);box.addWidget(self.hints)
+        self.setWindowTitle('Wysun Recorder · Cuenta atrás');self.setAttribute(Qt.WA_TranslucentBackground);self.setFixedSize(300,372)
+        self.fraction=1.;self.total=0
+        box=QVBoxLayout(self);box.setContentsMargins(28,34,28,22);box.setSpacing(10)
+        self.number=QLabel();self.number.setAlignment(Qt.AlignCenter);self.number.setFixedHeight(176)
+        self.number.setStyleSheet('font-size:88px;font-weight:700;color:#FFFFFF;background:transparent;');box.addWidget(self.number)
+        caption=QLabel('La grabación empieza en');caption.setAlignment(Qt.AlignCenter);caption.setStyleSheet('font-size:13px;color:#AEB8C8;background:transparent;')
+        box.insertWidget(0,caption)
+        button=QPushButton('Cancelar  ·  Esc');button.setCursor(Qt.PointingHandCursor);button.clicked.connect(cancel)
+        button.setStyleSheet('QPushButton{background:rgba(255,255,255,18);color:#E6EBF3;border:1px solid rgba(255,255,255,30);border-radius:16px;padding:7px 18px;font-size:13px;} QPushButton:hover{background:rgba(255,255,255,34);}')
+        row=QHBoxLayout();row.addStretch();row.addWidget(button);row.addStretch();box.addLayout(row)
+        self.hints=QLabel(control_hints().replace('Abrir controles pausa la grabación: ','Controles ').replace(' · ','  ·  '));self.hints.setWordWrap(True);self.hints.setAlignment(Qt.AlignCenter);self.hints.setStyleSheet('font-size:11px;color:#8A95A8;background:transparent;');box.addWidget(self.hints)
+        self.tick=QTimer(self);self.tick.setInterval(30);self.tick.timeout.connect(self._advance);self._started=0.
         QShortcut(QKeySequence('Escape'),self,activated=cancel)
+    def _advance(self):
+        self.fraction=max(0.,1.-(time.monotonic()-self._started));self.update()
+        if self.fraction<=0:self.tick.stop()
     def present(self,seconds,rect):
-        self.number.setText(str(seconds));area=QRect(*rect);self.move(area.center().x()-self.width()//2,area.center().y()-self.height()//2)
+        self.number.setText(str(seconds));self.fraction=1.;self._started=time.monotonic();self.tick.start()
+        area=QRect(*rect);self.move(area.center().x()-self.width()//2,area.center().y()-self.height()//2)
         from .activation import show_and_focus
         show_and_focus(self)
+    def hideEvent(self,event):
+        self.tick.stop();super().hideEvent(event)
+    def paintEvent(self,event):
+        p=QPainter(self);p.setRenderHint(QPainter.Antialiasing)
+        card=QRectF(self.rect()).adjusted(1,1,-1,-1)
+        p.setPen(QPen(QColor(255,255,255,26),1));p.setBrush(QColor(14,18,27,236));p.drawRoundedRect(card,28,28)
+        ring=QRectF(0,0,148,148);ring.moveCenter(QRectF(self.number.geometry()).center())
+        p.setBrush(Qt.NoBrush);p.setPen(QPen(QColor(255,255,255,28),8,Qt.SolidLine,Qt.RoundCap));p.drawEllipse(ring)
+        p.setPen(QPen(QColor('#E5484D'),8,Qt.SolidLine,Qt.RoundCap));p.drawArc(ring,90*16,int(-360*16*self.fraction))
 
 
 COLORS={
@@ -177,6 +198,10 @@ class RecordingIndicator:
         self._build();self.update(self.state)
         return bool(self.windows)
     def _build(self):
+        # Wayland clients cannot place top-level windows: the compositor would
+        # tile these strips and the badge over the desktop. The countdown, the
+        # tray and the portal's own screen-share indicator remain.
+        if is_wayland():return
         controls=bool(self.on_pause or self.on_stop)
         borders,badge=indicator_geometry(self.rect,self.screens,(390,44) if controls else (224,40))
         if controls and badge is None:

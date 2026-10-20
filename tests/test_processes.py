@@ -5,7 +5,7 @@ import sys
 import time
 import unittest
 from pathlib import Path
-sys.path.insert(0,str(Path(__file__).parents[1]/'apps/orbit'))
+sys.path.insert(0,str(Path(__file__).parents[1]/'apps/wysun'))
 from process_data import Processes,process_record,safe_command,matched
 
 class ProcessTests(unittest.TestCase):

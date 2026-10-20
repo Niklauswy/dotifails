@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Probe a real portal on an already isolated, synthetic nested Hyprland.
 
-Run ONLY through apps/quickshell/tests/nested_runtime.py --probe. The picker is
+Run ONLY through apps/shell/tests/nested_runtime.py --probe. The picker is
 a declared fixture selecting the sole nested output; this does not test human
 consent. No host buses, audio devices, microphone, camera or physical output.
 """
@@ -29,7 +29,7 @@ def wait_for(function, description, timeout=20):
 
 
 def verify_gtk(run_dir, env, command, start):
-    sys.path.insert(0, str(ROOT / 'apps/orbit/tests'))
+    sys.path.insert(0, str(ROOT / 'apps/wysun/tests'))
     from manual_gtk_filechooser_probe import run_cases as gtk_cases
     from wayland_test_pointer import SyntheticPointer
     pointer = SyntheticPointer(env);pointer.keyboard()
@@ -107,6 +107,12 @@ def main(serial_diagnostic=False, stream_diagnostic=False, case_selector='all'):
         config = Path(env['XDG_CONFIG_HOME'])
         picker = run_dir / 'fixture-picker'
         picker.write_text('#!/usr/bin/python3\nprint(' + repr('[SELECTION]/screen:' + monitor) + ')\n')
+        if case_selector=='screenshot-route':
+            # The real picker has its own /tmp/hypr settings path. The route
+            # case requires a private tmpfs there before starting the process.
+            mounts=Path('/proc/self/mountinfo').read_text().splitlines()
+            assert any(' /tmp/hypr ' in line and ' - tmpfs ' in line for line in mounts)
+            picker.write_text('#!/bin/sh\nexec /usr/bin/hyprland-share-picker "$@"\n')
         picker.chmod(0o700)
         (config / 'hypr').mkdir(parents=True, exist_ok=True)
         (config / 'hypr/xdph.conf').write_text('screencopy {\n  custom_picker_binary = ' + str(picker) + '\n}\n')
@@ -214,7 +220,7 @@ def main(serial_diagnostic=False, stream_diagnostic=False, case_selector='all'):
             run_case(run_dir,env,command,start,wait_for)
             return
         if case_selector in ('externals','external-konsole','external-firefox','external-obs'):
-            sys.path.insert(0,str(ROOT/'apps/quickshell/tests'))
+            sys.path.insert(0,str(ROOT/'apps/shell/tests'))
             from native_external_apps_probe import run_cases
             from wayland_test_pointer import SyntheticPointer
             pointer=SyntheticPointer(env);pointer.keyboard()
@@ -232,6 +238,10 @@ def main(serial_diagnostic=False, stream_diagnostic=False, case_selector='all'):
             return
         if case_selector == 'color':
             from wayland_color_case import run_case
+            run_case(run_dir,env,command,start,wait_for)
+            return
+        if case_selector == 'screenshot-route':
+            from wayland_screenshot_route_case import run_case
             run_case(run_dir,env,command,start,wait_for)
             return
         if case_selector == 'screenshot-gui':

@@ -4,7 +4,7 @@ from datetime import datetime
 from pathlib import Path
 from collections import OrderedDict
 import os
-from PySide6.QtCore import Qt,QRect,QTimer,QSize,Signal,QThread
+from PySide6.QtCore import Qt,QRect,QPoint,QTimer,QSize,Signal,QThread
 from PySide6.QtGui import QKeySequence,QShortcut,QColor,QPixmap,QIcon,QPainter,QFont
 from PySide6.QtWidgets import (QApplication,QMainWindow,QWidget,QVBoxLayout,QHBoxLayout,QFormLayout,QStackedWidget,QScrollArea,QListWidget,QListWidgetItem,QAbstractItemView,QLineEdit,QComboBox,QSpinBox,QCheckBox,QDialog,QDialogButtonBox,QFileDialog,QInputDialog,QColorDialog,QSlider,QLabel,QStyledItemDelegate,QStyle)
 from wybieshot.schema import Rect,Layer,CaptureRequest
@@ -14,7 +14,7 @@ from wybieshot.capture import CaptureEngine
 from .components import button,tool_button,label,apply_theme,apply_material,SpinBox,localize_buttons
 from .canvas import Canvas
 from .quick import QuickBar
-from .selection import SelectionOverlay
+from .selection import SelectionOverlay,SelectionGroup
 from .floating import FloatingSelection
 from wybieshot.instance import CaptureLease
 
@@ -48,12 +48,39 @@ class Work(QThread):
         except Exception as exc:self.failed.emit(str(exc))
 
 
+def selection_parts(frozen):
+    """Native per-output crops; one overlay per monitor at its real scale."""
+    from loomrec.portal import is_wayland
+    g=frozen.geometry;fallback=QRect(g.x,g.y,g.width,g.height)
+    if not is_wayland():return [(frozen.image,None,QPoint(0,0),fallback)]
+    screens=[screen for screen in QApplication.screens() if not screen.geometry().isEmpty()]
+    if not screens:return [(frozen.image,None,QPoint(0,0),fallback)]
+    if len(screens)==1:return [(frozen.image,screens[0],QPoint(0,0),screens[0].geometry())]
+    bounds=QRect()
+    for screen in screens:bounds=bounds.united(screen.geometry())
+    if bounds.width()<=0 or bounds.height()<=0:return [(frozen.image,None,QPoint(0,0),fallback)]
+    sx=frozen.image.width()/bounds.width();sy=frozen.image.height()/bounds.height()
+    ratios={round(screen.devicePixelRatio(),3) for screen in screens}
+    if len(ratios)>1 or abs(sx-sy)/max(sx,sy)>0.02:
+        # Mixed scales or an image that does not map linearly: do not invent a crop.
+        return [(frozen.image,None,QPoint(0,0),fallback)]
+    parts=[]
+    for screen in screens:
+        geometry=screen.geometry()
+        crop=QRect(round((geometry.x()-bounds.x())*sx),round((geometry.y()-bounds.y())*sy),
+                   round(geometry.width()*sx),round(geometry.height()*sy)).intersected(frozen.image.rect())
+        if crop.isEmpty():continue
+        parts.append((frozen.image.copy(crop),screen,QPoint(crop.x(),crop.y()),geometry))
+    return parts or [(frozen.image,None,QPoint(0,0),fallback)]
+
+
 class Window(QMainWindow):
+    capture_settle_ms=180  # Let the compositor unmap our own windows first.
     def __init__(self,storage=None,engine=None):
         super().__init__();self.storage=storage or Storage();self.engine=engine or CaptureEngine()
         self._closing=False;self.thumbnail_cache=OrderedDict();self.thumbnail_pending=False;self.library_generation=0
         os.environ['LOOMREC_REDUCED_MOTION']='1' if self.storage.settings.get('reduced_motion',False) else '0'
-        self._capture_lease=None;self._capture_feedback=None
+        self._capture_lease=None;self._capture_feedback=None;self._capture_job=None
         self._clipboard_hidden=False
         self.capture_mode='region';self.monitor=0;self.document=None;self.overlay=None;self.frozen=None;self.jobs=[];self.busy=False;self.countdown=0
         self.setWindowTitle('Wysun Screenshot');self.resize(1120,760);self.setMinimumSize(520,430)
@@ -389,7 +416,7 @@ class Window(QMainWindow):
             if dialog.exec()!=QDialog.Accepted:self.release_capture();return
             window_id=items.currentItem().data(Qt.UserRole)
         self.pending_request=CaptureRequest(mode=self.capture_mode,monitor=self.monitor,window_id=window_id,include_cursor=self.prefs().get('include_cursor',False))
-        self.busy=True;self.countdown=int(self.prefs().get('delay',0));self.hide();self.quick.hide();self.capture_timer.start(180)
+        self.busy=True;self.countdown=int(self.prefs().get('delay',0));self.hide();self.quick.hide();self.capture_timer.start(self.capture_settle_ms)
 
     def capture_tick(self):
         if not self.busy:return
@@ -406,16 +433,29 @@ class Window(QMainWindow):
             if request.mode=='desktop' and request.include_cursor:
                 from .capture_feedback import CaptureFeedback
                 feedback=CaptureFeedback(self);self._capture_feedback=feedback
+            elif request.mode=='region':
+                from .capture_feedback import CaptureWaitFeedback
+                # The cursor branch talks to the ScreenCast picker and must show
+                # instructions immediately. The direct Screenshot branch is fast
+                # and non-interactive, so its dialog waits and never flashes.
+                delay=0 if request.include_cursor else 1200
+                feedback=CaptureWaitFeedback(self,delay_ms=delay,screen_cast=request.include_cursor);self._capture_feedback=feedback
+            pending=feedback is not None;outcome={}
             def work():
+                if pending and request.mode=='region':return self.engine.freeze(request.include_cursor,progress=feedback.report,on_wait=feedback.check)
                 if feedback:return self.engine.capture(request,progress=feedback.report,on_wait=feedback.check)
                 return self.engine.freeze(request.include_cursor) if request.mode=='region' else self.engine.capture(request)
-            job=Work(work,QApplication.instance());self.jobs.append(job)
+            job=Work(work,QApplication.instance());self.jobs.append(job);self._capture_job=job
             def ready(result):
+                if pending:
+                    outcome['result']=result;return
                 if not self.busy or (feedback and feedback.cancelled.is_set()):return
                 if request.mode=='region':
                     self.frozen=result;self.overlay=self.create_selection(result);self.overlay.present()
                 else:self.finish_capture(result)
             def failed(message):
+                if pending:
+                    outcome['error']=message;return
                 if feedback and self._capture_feedback is not feedback:return
                 if message=='Selección cancelada en el portal' or (feedback and feedback.cancelled.is_set()):
                     self.cancel_capture();return
@@ -428,11 +468,27 @@ class Window(QMainWindow):
                     message='El portal de captura no está disponible en esta sesión. Revisa la configuración del portal y vuelve a intentarlo. Tus capturas guardadas se conservan.'
                 if not self._closing:self.show_library();self.notice(message,True)
             def finished():
+                cancelled=bool(feedback and feedback.cancelled.is_set())
                 if feedback:
                     feedback.close()
                     if self._capture_feedback is feedback:self._capture_feedback=None
                 if job in self.jobs:self.jobs.remove(job)
+                if self._capture_job is job:self._capture_job=None
                 job.deleteLater()
+                if pending and not self._closing:
+                    message=outcome.get('error')
+                    if cancelled or message=='Selección cancelada en el portal':self.cancel_capture()
+                    elif message:
+                        # Complete teardown before releasing the lease or
+                        # offering a retry. An error is still not Cancel.
+                        Window.cancel_capture(self)
+                        if ('No such interface' in message or 'org.freedesktop.DBus.Error.UnknownInterface' in message) and any(iface in message for iface in ('org.freedesktop.portal.ScreenCast','org.freedesktop.portal.Screenshot')):
+                            message='El portal de captura no está disponible en esta sesión. Revisa la configuración del portal y vuelve a intentarlo. Tus capturas guardadas se conservan.'
+                        self.show_library();self.notice(message,True)
+                    elif 'result' in outcome:
+                        if request.mode=='region':
+                            self.frozen=outcome['result'];self.overlay=self.create_selection(self.frozen);self.overlay.present()
+                        else:self.finish_capture(outcome['result'])
                 if self._closing and not self.jobs:QTimer.singleShot(0,self.close)
             job.ready.connect(ready);job.failed.connect(failed);job.finished.connect(finished);job.start();return
         def capture():
@@ -448,22 +504,29 @@ class Window(QMainWindow):
         if self._capture_lease:self._capture_lease.release();self._capture_lease=None
 
     def create_selection(self,frozen):
-        g=frozen.geometry
-        overlay=FloatingSelection(frozen.image,QRect(g.x,g.y,g.width,g.height))
-        overlay.finished.connect(self.complete_floating);overlay.cancelled.connect(self.cancel_capture)
-        return overlay
+        overlays=[]
+        for image,screen,origin,geometry in selection_parts(frozen):
+            overlay=FloatingSelection(image,geometry,screen=screen,image_origin=origin)
+            overlay.finished.connect(lambda doc,action,o=overlay:self.complete_floating(doc,action,overlay=o))
+            overlay.cancelled.connect(self.cancel_capture)
+            overlays.append(overlay)
+        if not overlays:raise RuntimeError('No hay una pantalla disponible para la selección')
+        return overlays[0] if len(overlays)==1 else SelectionGroup(overlays)
 
-    def complete_floating(self,doc,action,path=None):
+    def complete_floating(self,doc,action,path=None,overlay=None):
+        overlay=overlay or (self.overlay.overlays[0] if getattr(self.overlay,'overlays',None) else self.overlay)
+        if overlay is None:return
         if action=='save' and path is None:
             name='Wysun-'+datetime.now().strftime('%Y%m%d-%H%M%S')+'.png'
-            self.overlay.request_save_path(self.storage.default_output/name,lambda chosen:self.complete_floating(doc,'save',chosen))
+            overlay.request_save_path(self.storage.default_output/name,
+                                      lambda chosen,o=overlay:self.complete_floating(doc,'save',chosen,overlay=o))
             return
         try:
             self.storage.save(doc)
             if action=='save':self.storage.export(doc,Path(path))
             else:self.storage.copy(doc)
         except Exception as exc:
-            self.overlay.show_error('No se pudo completar: '+str(exc));return
+            overlay.show_error('No se pudo completar: '+str(exc));return
         self.busy=False;self.frozen=None
         self.overlay.hide();self.overlay.deleteLater();self.overlay=None
         self.release_capture()
@@ -490,7 +553,16 @@ class Window(QMainWindow):
         self.set_document(Document(result.image,'Captura '+datetime.now().strftime('%d %b %H:%M')))
         self.notice(result.warning or 'Captura lista. Anota, copia o guarda.')
 
+    def defer_capture_cancel(self):
+        # Request.Close is performed by the worker's portal wait callback.
+        # Keep ownership until its session/FD teardown and QThread.finished.
+        feedback=self._capture_feedback
+        if self._capture_job is not None and feedback:
+            feedback.cancel();self.capture_timer.stop();return True
+        return False
+
     def cancel_capture(self):
+        if self.defer_capture_cancel():return
         if self._capture_feedback:self._capture_feedback.cancel()
         self.release_capture()
         self.capture_timer.stop();self.busy=False;self.frozen=None

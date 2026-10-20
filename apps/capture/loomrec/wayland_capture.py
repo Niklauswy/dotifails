@@ -5,7 +5,7 @@ import os
 import time
 import subprocess
 import sys
-from .portal import Portal
+from .portal import Portal, RestoredOtherOutput
 
 
 def wait_remote_quiescence(finished_at,on_wait=None,*,clock=time.monotonic,pause=time.sleep):
@@ -36,15 +36,44 @@ def diagnostic_tail(log):
     return ''.join(c for c in data.decode('utf8',errors='replace') if c in '\n\t' or ord(c)>=32).strip()
 
 
+def expected_output(config,topology):
+    """Hyprland output holding a monitor/region rectangle, or None."""
+    if config.source_type not in ('monitor','region') or not topology:return None
+    try:
+        x,y,w,h=[int(v) for v in config.rect];cx,cy=x+w/2,y+h/2
+        for output in topology:
+            (ox,oy),(ow,oh)=output.position,output.logical_size
+            if ox<=cx<ox+ow and oy<=cy<oy+oh:return output.name
+    except Exception:pass
+    return None
+
+
 class PipeWireCapture:
     def __init__(self,config,on_wait=None):
-        self.config=config;self._remote_used=False;self._remote_finished_at=None;self.portal=Portal();self.portal.on_wait=on_wait;self.process=None;self._coordinate_topology=None
+        self.config=config;self._remote_used=False;self._remote_finished_at=None
+        self.portal=Portal(strict_close=True) if getattr(config,'strict_close',False) else Portal()
+        self.portal.on_wait=on_wait;self.process=None;self._coordinate_topology=None
         try:
-            self.node,self.metadata=self.portal.screencast(config.source_type,config.cursor,multiple=config.source_type=='desktop')
+            remember=bool(getattr(config,'remember_source',False))
+            topology=None
+            if config.source_type in ('monitor','region') and hasattr(config,'rect') and os.environ.get('HYPRLAND_INSTANCE_SIGNATURE'):
+                # One inventory read names the chosen screen and, below, maps coordinates.
+                from .desktop_capture import read_topology
+                try:topology=read_topology()
+                except Exception:topology=None
+            output=expected_output(config,topology)
+            try:
+                self.node,self.metadata=self.portal.screencast(config.source_type,config.cursor,multiple=config.source_type=='desktop',remember=remember,output=output)
+            except RestoredOtherOutput:
+                # The stale consent is forgotten; ask once for the intended screen.
+                self.portal.close()
+                self.portal=Portal(strict_close=True) if getattr(config,'strict_close',False) else Portal()
+                self.portal.on_wait=on_wait
+                self.node,self.metadata=self.portal.screencast(config.source_type,config.cursor,multiple=False,remember=True,output=output)
             needs_coordinates=config.source_type=='region' or (config.source_type=='monitor' and config.cursor and bool(getattr(config,'cursor_effects',{})))
             if needs_coordinates and getattr(config,'normalize_coordinates',True) and os.environ.get('HYPRLAND_INSTANCE_SIGNATURE'):
                 from .desktop_capture import read_topology,coordinate_metadata
-                self._coordinate_topology=read_topology();self.metadata=coordinate_metadata(self.metadata,self._coordinate_topology)
+                self._coordinate_topology=topology if topology is not None else read_topology();self.metadata=coordinate_metadata(self.metadata,self._coordinate_topology)
         except BaseException:self.portal.close();raise
     def begin(self,log,even=True,live_effects=None):
         if self._remote_used and os.environ.get('HYPRLAND_INSTANCE_SIGNATURE'):
@@ -90,6 +119,8 @@ class PipeWireCapture:
     def check(self):
         self.portal.dispatch()
         if self.process and self.process.poll() is not None:raise RuntimeError('La fuente PipeWire se cerró; los segmentos finalizados se conservan')
+    def cancel(self):
+        if getattr(self.config,'strict_close',False):self.portal.cancel_requested=True
     def finish(self):
         process,self.process=self.process,None
         try:

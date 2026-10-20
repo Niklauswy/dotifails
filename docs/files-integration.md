@@ -2,7 +2,7 @@
 
 `./instalar.sh --orbit-only` registra por usuario el backend `orbit` de
 `org.freedesktop.impl.portal.FileChooser` y el servicio `org.freedesktop.FileManager1`.
-Configura además `inode/directory=orbit-files.desktop` en el hogar de destino, conservando las otras asociaciones MIME. La instalación completa incluye los paquetes del portal y `gio`. El código está en `apps/orbit/files_chooser.py` y `files_service.py`.
+Configura además `inode/directory=orbit-files.desktop` en el hogar de destino, conservando las otras asociaciones MIME. La instalación completa incluye los paquetes del portal y `gio`. El código está en `apps/wysun/files_chooser.py` y `files_service.py`.
 
 El selector usa las vistas de Wysun: abrir uno o varios archivos, elegir una
 carpeta, guardar, elegir filtros MIME/glob, opciones adicionales y cancelar.
@@ -22,9 +22,9 @@ Después de instalar, ejecutar `systemctl --user daemon-reload` y reiniciar
 `xdg-desktop-portal.service` cuando no haya un selector abierto. No reiniciar los
 portales durante una sesión activa de compartir pantalla. El navegador puede
 conservar el selector anterior hasta cerrar todas sus ventanas y abrirlo de nuevo.
-No es necesario reiniciar BSPWM. Algunas aplicaciones incorporan sus propios
+No es necesario reiniciar el compositor. Algunas aplicaciones incorporan sus propios
 diálogos y no utilizan el portal; no pueden sustituirse mediante esta asociación.
-`GTK_USE_PORTAL=1` se prepara para los próximos inicios de sesión X11 y servicios.
+`GTK_USE_PORTAL=1` se prepara en el entorno de la sesión Wysun / Hyprland y sus servicios.
 
 `ShowItems` abre la carpeta y selecciona los elementos; `ShowFolders` abre carpetas;
 `ShowItemProperties` presenta sus propiedades. Se aceptan rutas locales.

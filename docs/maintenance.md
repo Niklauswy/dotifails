@@ -1,18 +1,18 @@
 # Mantenimiento
 
-`home/` contiene únicamente configuración portable. `apps/orbit/` es la fuente de la aplicación, separada del estado del usuario. `assets/` guarda fuentes e iconos; `backgrounds/` contiene los fondos de Severance, Tokyo y Space Black. `manifests/themes.json` define sus perfiles visuales y verifica el paquete local de recursos de Severance.
+`home/` contiene únicamente configuración portable. `apps/wysun/` es la fuente de la aplicación, separada del estado del usuario. `assets/` guarda fuentes e iconos; `backgrounds/` contiene los fondos de Severance, Tokyo y Space Black. `manifests/themes.json` define sus perfiles visuales y verifica el paquete local de recursos de Severance.
 
 `installer/` concentra la interfaz nativa y el motor de instalación. La selección, las dependencias y el plan se comparten entre interfaz y CLI; `manifests/packages.json` agrupa los paquetes por componente sin duplicar una lista monolítica de instalación completa. Consulta la [organización y el funcionamiento del instalador](installer.md). Usa `./instalar.sh --installer-only` para desplegar únicamente esta parte con respaldo.
 
 `installer/main.py` usa Python estándar. Valida la distribución, instala paquetes con APT, verifica los SHA-256 antes de extraer artefactos y despliega cada entrada con un diario escrito antes del cambio. No sigue enlaces en directorios padre del destino. Se serializa mediante `flock`. Las configuraciones nuevas no pisan ediciones locales registradas desde la instalación anterior.
 
-`manifests/artifacts.json` fija binarios y fuentes de shell; `home/.config/nvim/lazy-lock.json` fija plugins; `manifests/mason.json` y la copia `home/.config/nvim/mason-lock.json` deben coincidir. Para cambiar versiones, verificar la fuente oficial, descargar y comprobar los artefactos antes de actualizar sus sumas. No usar sumas inventadas ni un canal `latest` para herramientas fijadas.
+`manifests/artifacts.json` fija binarios y fuentes de shell; `config/.config/nvim/lazy-lock.json` fija plugins; `manifests/mason.json` y la copia `config/.config/nvim/mason-lock.json` deben coincidir. Para cambiar versiones, verificar la fuente oficial, descargar y comprobar los artefactos antes de actualizar sus sumas. No usar sumas inventadas ni un canal `latest` para herramientas fijadas.
 
 Los servicios de escritorio registran PID e inicio del proceso y se separan por display X. El arranque no termina todos los procesos Polybar del usuario. El historial usa almacenamiento local separado de la aplicación instalada.
 
 ## Cambiar Wysun y usar la misma versión en tu escritorio
 
-La fuente de los menús es `apps/orbit/` en este repositorio. Notas vive en `notes_window.py`, Color en `color_window.py` y el almacenamiento local en `utility_data.py`. No editar la antigua copia `~/proyects/orbit-desktop` ni la copia instalada.
+La fuente de los menús es `apps/wysun/` en este repositorio. Notas vive en `notes_window.py`, Color en `color_window.py` y el almacenamiento local en `utility_data.py`. No editar la antigua copia `~/proyects/orbit-desktop` ni la copia instalada.
 
 Después de modificar y probar el código, desde la raíz del repositorio:
 
@@ -28,7 +28,7 @@ Para traer una versión publicada en otro equipo ya configurado:
 dotifails update --orbit-only && orbit reload
 ```
 
-La instalación completa utiliza exactamente el mismo `apps/orbit/`. Los atajos versionados en `home/.config/sxhkd/sxhkdrc` abren `orbit notes` y `orbit color`. Los cambios de atajos se distribuyen mediante la actualización completa de configuración, respetando los conflictos locales; `--orbit-only` no los sobrescribe.
+La instalación completa utiliza exactamente el mismo `apps/wysun/`. Los atajos versionados en `config/.config/wysun/hyprland.lua` abren `wysun notes` y `wysun color`. Los cambios de atajos se distribuyen mediante la actualización completa de configuración, respetando los conflictos locales; `--orbit-only` no los sobrescribe.
 
 Notas importa una vez el antiguo `~/Documents/QuickNotes/notes.md`, conservando el archivo original. Color importa el historial antiguo de colores únicamente cuando aún no existe su almacenamiento nuevo. Esos datos permanecen en el hogar del usuario y nunca se copian al repositorio.
 
@@ -46,7 +46,7 @@ QT_QPA_PLATFORM=offscreen python3 tests/utility_ui.py
 Las pruebas completas de la aplicación requieren `python3-pyside6.qttest`, además de las dependencias de escritorio:
 
 ```sh
-cd apps/orbit
+cd apps/wysun
 QT_QPA_PLATFORM=offscreen python3 -m unittest test_orbit test_v2 test_v3 test_v4 test_settings_hub test_bar_visibility
 ```
 

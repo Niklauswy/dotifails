@@ -32,11 +32,11 @@ class WaylandInstallTests(unittest.TestCase):
         self.source.mkdir()
         # Use a tiny shell fixture until/without a real compositor. All other
         # distribution code is the actual source under test.
-        for relative in ('installer', 'manifests', 'bin', 'home', 'backgrounds', 'apps/orbit', 'apps/tools', 'apps/capture'):
+        for relative in ('installer', 'manifests', 'bin', 'config', 'assets/backgrounds', 'apps/wysun', 'apps/tools', 'apps/capture'):
             shutil.copytree(ROOT / relative, self.source / relative,
                             ignore=shutil.ignore_patterns('__pycache__', '*.pyc'))
-        (self.source / 'apps/quickshell').mkdir()
-        (self.source / 'apps/quickshell/shell.qml').write_text('import Quickshell\nShellRoot {}\n')
+        (self.source / 'apps/shell').mkdir()
+        (self.source / 'apps/shell/shell.qml').write_text('import Quickshell\nShellRoot {}\n')
 
     def install(self):
         with contextlib.redirect_stdout(io.StringIO()):
@@ -66,7 +66,7 @@ class WaylandInstallTests(unittest.TestCase):
             self.assertFalse(module['portal_preflight'](bus))
 
     def test_optional_selection_and_native_repository_plan(self):
-        self.assertNotIn('wayland', install_model.normalize_components())
+        self.assertIn('wayland', install_model.normalize_components())
         self.assertEqual(install_model.normalize_components(('wayland',)), ('wayland',))
         with patch.object(install_model, 'read_os_release', return_value={'ID': 'parrot'}):
             packages = install_model.package_names(ROOT, ('wayland',))
@@ -77,8 +77,8 @@ class WaylandInstallTests(unittest.TestCase):
         self.assertNotIn('picom', packages)
 
     def test_clean_update_conflicts_private_data_and_recovery(self):
-        private = {'.config/bspwm/bspwmrc': 'custom bspwm', '.config/bspwm/picom.conf': 'custom picom',
-                   '.config/sxhkd/sxhkdrc': 'my bindings', '.config/hypr/hyprland.conf': 'other session',
+        private = {'.config/other-desktop/wmrc': 'custom window manager', '.config/other-desktop/compositor.conf': 'custom compositor',
+                   '.config/other-desktop/keysrc': 'my bindings', '.config/hypr/hyprland.conf': 'other session',
                    '.config/wysun/local.lua': '-- synthetic per-machine scale preference',
                    '.config/xdg-desktop-portal/portals.conf': '[preferred]\ndefault=custom;\n',
                    '.local/share/orbit/notes/private.md': 'private fixture',
@@ -96,7 +96,7 @@ class WaylandInstallTests(unittest.TestCase):
         self.assertEqual(journal['operations'], [])
         config = self.home / '.config/wysun/hyprland.lua'
         config.write_text('personal Lua configuration')
-        (self.source / 'home/.config/wysun/hyprland.lua').write_text('-- new proposed config\n')
+        (self.source / 'config/.config/wysun/hyprland.lua').write_text('-- new proposed config\n')
         app = self.home / '.local/share/orbit/app/orbit.py'
         app.write_text('# local app customization\n')
         before_launcher = (self.home / '.local/bin/wysun').read_text()
@@ -117,7 +117,7 @@ class WaylandInstallTests(unittest.TestCase):
         root = self.root / 'system'
         root.mkdir()
         login = root / 'etc/lightdm/lightdm.conf'
-        login.parent.mkdir(parents=True); login.write_text('user-session=bspwm\n')
+        login.parent.mkdir(parents=True); login.write_text('user-session=wysun\n')
         with contextlib.redirect_stdout(io.StringIO()):
             self.assertEqual(session_registration.register(ROOT / 'installer', root), 0)
             self.assertEqual(session_registration.register(ROOT / 'installer', root), 0)
@@ -130,16 +130,15 @@ class WaylandInstallTests(unittest.TestCase):
             self.assertEqual(session_registration.register(ROOT / 'installer', root, restore=True), 0)
         self.assertFalse(desktop.exists())
         self.assertFalse((root / 'usr/local/bin/wysun-session').exists())
-        self.assertEqual(login.read_text(), 'user-session=bspwm\n')
+        self.assertEqual(login.read_text(), 'user-session=wysun\n')
 
     def test_wysun_only_updates_managed_shell_without_session_config(self):
         self.assertEqual(self.install(), 0)
         config = self.home / '.config/wysun/hyprland.lua'
         config.write_text('-- personal bindings\n')
-        (self.source / 'apps/quickshell/shell.qml').write_text('// new shell code\n')
+        (self.source / 'apps/shell/shell.qml').write_text('// new shell code\n')
         with contextlib.redirect_stdout(io.StringIO()), \
-             patch.object(installer.Deployment, 'configure_locker', side_effect=AssertionError('X11 build requested')), \
-             patch.object(installer.Deployment, 'configure_files', side_effect=AssertionError('X11 portal requested')):
+             patch.object(installer.Deployment, 'configure_files', side_effect=AssertionError('portal rewrite requested')):
             self.assertEqual(installer.main(['install', '--source', str(self.source),
                 '--target-home', str(self.home), '--wysun-only']), 0)
         self.assertEqual(config.read_text(), '-- personal bindings\n')
@@ -185,7 +184,7 @@ class WaylandInstallTests(unittest.TestCase):
         qs.write_text('#!/usr/bin/python3\nimport json,sys\nprint(json.dumps(sys.argv[1:]))\n'); qs.chmod(0o755)
         env = dict(os.environ, HOME=str(self.home), XDG_DATA_HOME=str(self.root / 'separate-data'),
                    PATH=str(binary) + ':/usr/bin:/bin')
-        self.assertEqual(subprocess.check_output([ROOT / 'home/.local/bin/orbit'], env=env, text=True), 'managed-client')
+        self.assertEqual(subprocess.check_output([ROOT / 'config/.local/bin/orbit'], env=env, text=True), 'managed-client')
         args = json.loads(subprocess.check_output([ROOT / 'bin/wysun-shell', 'status'], env=env, text=True))
         self.assertEqual(args, ['ipc', '-p', str(shell), 'call', 'wysunShell', 'status'])
 

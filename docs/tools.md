@@ -11,7 +11,7 @@ orbit-tools --help
 | --- | --- |
 | `bin/orbit-tools` | Único lanzador de desarrollo |
 | `apps/tools/` | CLI y motor compartido |
-| `apps/orbit/tools_window.py` | Panel gráfico |
+| `apps/wysun/tools_window.py` | Panel gráfico |
 | `docs/tools.md` | Esta guía |
 | `~/scripts/` | Lanzador y guía instalados |
 | `~/.local/share/orbit/tools/` | Motor instalado |

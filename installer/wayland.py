@@ -1,4 +1,4 @@
-"""Optional Wayland deployment. Never changes the user's X11 configuration."""
+"""Wayland deployment for Wysun / Hyprland; owned paths are updated in place."""
 import json
 from pathlib import Path
 import re
@@ -57,24 +57,25 @@ def configure(deployment):
     d = deployment
     d.stage('Sesión adicional Wysun / Hyprland')
     # Shared applications retain their existing storage and command identities.
-    for source, target in (('apps/orbit', '.local/share/orbit/app'),
+    for source, target in (('apps/wysun', '.local/share/orbit/app'),
                            ('apps/tools', '.local/share/orbit/tools'),
-                           ('apps/quickshell', '.local/share/wysun/quickshell')):
+                           ('apps/shell', '.local/share/wysun/quickshell')):
         if not (d.source / source).is_dir():
             raise RuntimeError('Fuente incompleta: ' + source)
         _publish_asset(d, d.source / source, target)
     if any(p in d.conflicts for p in ('.local/share/orbit/app', '.local/share/wysun/quickshell')):
         return
-    d.deploy(d.source / 'home/.local/bin/orbit', Path('.local/bin/orbit'))
+    d.deploy(d.source / 'config/.local/bin/orbit', Path('.local/bin/orbit'))
     for name in ('orbit-files', 'orbit-tools', 'musica', 'musika', 'wysun-shell',
-                 'wysun-session', 'wysun-session-services', 'wysun-lock', 'wysun-wm', 'wysun-control'):
+                 'wysun-session', 'wysun-session-services', 'wysun-lock', 'wysun-wm', 'wysun-control', 'wysun-workspaces', 'wysun-share-picker'):
         _publish(d, (d.source / 'bin' / name).read_text(), '.local/bin/' + name, executable=True)
     # A terminal must remain reachable even without the optional terminal component.
     _publish(d, '#!/bin/sh\nif command -v ghostty >/dev/null 2>&1; then exec ghostty "$@"; fi\n'
              'exec foot "$@"\n', '.local/bin/wysun-terminal', executable=True)
     # File-level ownership preserves unrelated Wysun preferences.
     for name in ('hyprland.lua',):
-        _publish(d, (d.source / 'home/.config/wysun' / name).read_text(), '.config/wysun/' + name)
+        _publish(d, (d.source / 'config/.config/wysun' / name).read_text(), '.config/wysun/' + name)
+    _publish(d, xdph_config(d.home), '.config/hypr/xdph.conf')
     _publish(d, '[preferred]\ndefault=hyprland;gtk;\n'
              'org.freedesktop.impl.portal.ScreenCast=hyprland;\n'
              'org.freedesktop.impl.portal.Screenshot=hyprland;\n'
@@ -83,10 +84,20 @@ def configure(deployment):
     for relative in ('.local/share/applications/orbit-music.desktop',
                      '.local/share/icons/hicolor/scalable/apps/musika.svg',
                      '.local/share/applications/orbit-files.desktop'):
-        _publish(d, (d.source / 'home' / relative).read_text(), relative)
-    for path in sorted((d.source / 'backgrounds').glob('*')):
+        _publish(d, (d.source / 'config' / relative).read_text(), relative)
+    for path in sorted((d.source / 'assets/backgrounds').glob('*')):
         if path.is_file():_publish_asset(d, path, '.local/share/backgrounds/' + path.name)
-    d.configure_wysun(migrate_x11=False)
+    d.configure_wysun()
+
+
+def xdph_config(home):
+    """Restore tokens by default; Wysun answers its own one-shot picker requests."""
+    return ('# Wysun: xdg-desktop-portal-hyprland. Other clients keep hyprland-share-picker.\n'
+            'screencopy {\n    allow_token_by_default = true\n'
+            # Wysun Recorder reads system-memory frames; a mid-stream switch to
+            # DMA-BUF modifiers ends the stream with "unhandled format".
+            '    force_shm = true\n'
+            '    custom_picker_binary = ' + str(Path(home) / '.local/bin/wysun-share-picker') + '\n}\n')
 
 
 def _publish_asset(deployment, source, relative):
@@ -108,7 +119,7 @@ def update_runtime(deployment):
     if '.local/share/wysun/quickshell' not in d.receipt['files']:
         return
     from capture_distribution import _publish
-    d.deploy(d.source / 'apps/quickshell', Path('.local/share/wysun/quickshell'))
-    for name in ('wysun-shell', 'wysun-session', 'wysun-session-services', 'wysun-lock', 'wysun-wm', 'wysun-control'):
+    d.deploy(d.source / 'apps/shell', Path('.local/share/wysun/quickshell'))
+    for name in ('wysun-shell', 'wysun-session', 'wysun-session-services', 'wysun-lock', 'wysun-wm', 'wysun-control', 'wysun-workspaces', 'wysun-share-picker'):
         _publish(d, (d.source / 'bin' / name).read_text(), '.local/bin/' + name, executable=True)
 

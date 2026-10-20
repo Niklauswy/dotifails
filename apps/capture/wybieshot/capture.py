@@ -51,11 +51,14 @@ class CaptureEngine:
             raise RuntimeError('Desktop returned an incomplete capture')
         return image
 
-    def freeze(self,include_cursor=False):
+    def freeze(self,include_cursor=False,*,progress=None,on_wait=None):
         from loomrec.portal import is_wayland
         if is_wayland():
             from loomrec.portal_image import capture_frame
-            image=capture_frame('monitor',include_cursor)
+            # Still screenshots use the dedicated Screenshot portal: it returns
+            # the whole desktop without the ScreenCast source picker. Cursor
+            # embedding still needs a ScreenCast stream and its explicit picker.
+            image=capture_frame('monitor' if include_cursor else 'desktop',include_cursor,progress=progress,on_wait=on_wait)
             bounds=Rect(0,0,image.width(),image.height())
             return FrozenDesktop(image,bounds,(bounds,),image if include_cursor else None,include_cursor)
         bounds=self._geometry()

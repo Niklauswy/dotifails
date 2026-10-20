@@ -25,11 +25,11 @@ sizeSHM de XDPH no se confunden con esa geometría. El tamaño real del sample s
 valida antes de orientar y recortar. Si falta identidad/geometría, no se adivina
 el monitor. Screenshot selecciona una región sobre la
 imagen autorizada y conserva su resolución; widget lógico y píxeles fuente se
-mapean por separado. El escritorio completo sin cursor usa el portal Screenshot:
-en XDPH 1.4.1 el backend ejecuta grim sobre el escritorio virtual entero. La API
-Screenshot no ofrece control de cursor. Para escritorio con cursor en Hyprland
-se solicita una selección/permiso ScreenCast por monitor y se componen sus frames
-a la escala máxima, secuencialmente. El progreso explica esta diferencia; cancelar
+mapean por separado. La región sin cursor y el escritorio completo sin cursor usan
+el portal Screenshot: en XDPH 1.4.1 el backend ejecuta grim sobre el escritorio
+virtual entero y evita el selector ScreenCast. La API Screenshot no ofrece control
+de cursor. Para escritorio con cursor en Hyprland se solicita una selección/permiso
+ScreenCast por monitor y se componen sus frames a la escala máxima, secuencialmente. El progreso explica esta diferencia; cancelar
 descarta el conjunto. Identidad desconocida, selección repetida, cambio de
 topología o cobertura incompleta abortan sin guardar un escritorio parcial.
 Alternativas: escritorio sin cursor o monitor con cursor. No se etiqueta un solo
@@ -150,11 +150,11 @@ an explicit separate action after standalone validation, as requested for this p
 
 ## Install or remove locally
 
-After the standalone UI passes its smoke test and source lives at `/home/nicolas/repos/loom`:
+After the standalone UI passes its smoke test, from this checkout (`apps/capture/`):
 
 ```sh
 python scripts/install-local.py --check
-python scripts/install-local.py --source /home/nicolas/repos/loom
+python scripts/install-local.py
 # Later, remove only installer-owned unchanged application files:
 python scripts/install-local.py --uninstall
 ```
@@ -164,8 +164,8 @@ The installer copies source into `$XDG_DATA_HOME/loomrec/bundles/<content-hash>`
 `.desktop` entry and icon. It uses the invoking Python interpreter, checks dependencies
 without installing packages, records hashes and refuses to overwrite unrelated or modified
 files. Removal preserves recordings, settings and user-modified installed files. Test roots
-can be supplied with `--data-home` and `--bin-home`. No Orbit/dotifails source files are
-modified, and no window manager or desktop is restarted. The installed Orbit application catalog discovers “Wysun Recorder”; the closed-app
+can be supplied with `--data-home` and `--bin-home`. No Wysun/dotifails source files are
+modified, and no window manager or desktop is restarted. The installed Wysun application catalog discovers “Wysun Recorder”; the closed-app
 `Super+Shift+l` launcher was physically exercised and opened setup without recording.
 
 ## Recording semantics
@@ -240,7 +240,7 @@ clip-based, not a frame-accurate ETA. Preview uses the same renderer.
 | Schema/atomic edits | Yes | Deterministic round-trip, ranges, path escape, invalid rectangle/NaN tests |
 | X11 region capture | Yes | Real owned opaque region and full 1920×1080 fixture; mapped geometry and topmost stack checked before capture |
 | Live rewind | Yes | Real synthetic capture removed exactly 2.0 timeline seconds while preserving originals and continuing capture |
-| Installer | Installed and verified | Canonical source `/home/nicolas/repos/loom`; installed launcher `~/.local/bin/loomrec`, desktop entry and Orbit catalog verified. Closed-app launcher key opens setup. Temporary-root removal tests preserve recordings/settings/modified files |
+| Installer | Installed and verified | Canonical source: this checkout (`apps/capture/`); installed launcher `~/.local/bin/loomrec`, desktop entry and Wysun catalog verified. Temporary-root removal tests preserve recordings/settings/modified files |
 | Pause/resume | Yes | Latest full-monitor test: two real segments, 8.033s assembled duration; paused interval excluded |
 | Separate audio | Yes | Dual synthetic Pulse tracks and independent mic-only/system-only capture; physical mic sound not sampled |
 | A/V sync | Yes, tested condition | Latest full-monitor test: source1 +10…20ms, resumed source +37…57ms, export +10…57ms including splice, 1Hz flash/880Hz pulses; tolerance80ms. Prior167ms/83ms failures led to native-clock/common-in-point fixes |
@@ -277,18 +277,11 @@ for example `{"pause":"Super+Ctrl+Shift+x"}`. Actions are `record`, `pause`, `st
 `cancel`, `rewind`, `status`; Ctrl+Alt+Fn is rejected to protect virtual-terminal shortcuts. Real region
 capture verified that main window, selector and tray were hidden before capture.
 
-The separately installed launcher shortcut `Super+Shift+l` opens setup even when the
-application is closed. Install only its exact managed stanza with:
-
-```sh
-python scripts/desktop-shortcut.py --reload
-```
-
-It checks expanded existing bindings, backs up the active SXHKD file, appends one marked
-block, and signals only a verified current-user SXHKD process for config reload. It never
-changes dotifails source or restarts BSPWM. `--uninstall --reload` removes only that unchanged
-block, preserving subsequent edits; the application uninstaller also removes its managed
-block. The UI's running-only keys require no permanent SXHKD edits.
+The launcher opens setup even when the application is closed. The standalone installer
+does not assign shortcuts; the integrated desktop configures them in Hyprland and the
+running-only keys of the UI never need permanent bindings. Any historical stanza that
+an older installer had written to the previous X11 session is left untouched as user
+configuration and is not managed or removed by this installer.
 
 ## Backlog and optional capabilities
 
@@ -344,10 +337,10 @@ Final deployment: source and installed Python files match; SXHKD launch binding 
 
 ### Fluent Soft redesign validation
 
-The native UI uses a light pearl/blue palette independent of Orbit's current dark theme;
-no Orbit configuration is changed. Motion preferences are read from
+The native UI uses a light pearl/blue palette independent of Wysun's current dark theme;
+no Wysun configuration is changed. Motion preferences are read from
 `LOOMREC_REDUCED_MOTION`, `ORBIT_REDUCED_MOTION`, or `reduced_motion` in the local
-Loom/Orbit `appearance.json`, with the Qt animation-duration preference also respected.
+Wysun `appearance.json`, with the Qt animation-duration preference also respected.
 Hover transitions last170ms when enabled; there are no repeating recording animations.
 
 The redesign preserves the project schema and shared preview/export renderer. A43-test
@@ -364,10 +357,9 @@ Post-redesign bounded physical UI proof: an owned opaque synthetic region passed
 Versioned upgrades keep previously installed code, including the legacy `loomrec/app`
 directory, intact. Uninstall removes unchanged owned files but retains code directories
 used by live Loom processes; rerun uninstall after those processes exit to remove them.
-Media/settings remain separate and are never removed. The exact launcher shortcut is
-**Super+Shift+L**; rerunning `scripts/desktop-shortcut.py --reload` migrates only its unchanged
-managed block, checks expanded conflicts, and backs up the prior active SXHKD file.
-In-recording Super+Ctrl+Shift r/p/s/c/z/i shortcuts are unchanged.
+Media/settings remain separate and are never removed. No installer-managed launcher
+shortcut exists now; historical bindings in the previous desktop configuration belong
+to the user. In-recording Super+Ctrl+Shift r/p/s/c/z/i shortcuts are unchanged.
 
 
 GUI launches are single-instance per user/Wayland display or X11 display. The private local Unix socket is
@@ -451,9 +443,8 @@ Explicit finish opens processed playback; mpv play/pause/seek verified. This is 
 region test, not a new full-monitor or long-session sync benchmark.
 
 Selection regressions: `python -m unittest discover -s tests -p "test_selection.py" -v`.
-For an explicit native check, run `PYTHONPATH=. python tests/manual_selection_overlay.py`
-in an authorized X11/BSPWM session. It uses only synthetic windows, temporarily
-switches desktops and restores focus; it captures no screen, microphone or camera.
+Those tests use synthetic window inventories and never capture a screen, microphone
+or camera.
 
 
 ### Scoped acrylic deployment

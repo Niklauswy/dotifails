@@ -138,15 +138,6 @@ class Installer:
             helper=importlib.util.module_from_spec(spec);spec.loader.exec_module(helper)
             try:material_result=helper.restore()
             except (OSError,ValueError,KeyError) as exc:material_result={'restored':False,'preserved':str(exc)}
-        shortcut_result=None
-        shortcut_state=self.base/'shortcut.json'
-        if shortcut_state.exists():
-            spec=importlib.util.spec_from_file_location('loom_shortcut',Path(__file__).with_name('desktop-shortcut.py'))
-            helper=importlib.util.module_from_spec(spec);spec.loader.exec_module(helper)
-            record=json.loads(shortcut_state.read_text())
-            shortcut_result=helper.uninstall(shortcut_state)
-            try:shortcut_result.update(helper.reload_verified(record['config']))
-            except Exception as exc:shortcut_result['reload_notice']=str(exc)
         for key,sha in previous.items():
             path=self.path(key);self.safe_path(path)
             if not path.exists():continue
@@ -167,7 +158,7 @@ class Installer:
             except OSError:pass
         return {'removed':len(removed),'preserved_modified':[str(self.path(k)) for k in preserved],
                 'preserved_active_files':active_preserved,
-                'recordings_preserved':str(self.base/'recordings'),'shortcut':shortcut_result,'materials':material_result}
+                'recordings_preserved':str(self.base/'recordings'),'materials':material_result}
 
 
 def main():

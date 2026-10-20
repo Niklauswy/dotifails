@@ -1,26 +1,36 @@
 """Frozen-frame selection. Never captures a desktop or saves a frame itself."""
 from PySide6.QtCore import QPoint, QRect, QRectF, Qt, Signal
-from PySide6.QtGui import QColor, QPainter, QPen
+from PySide6.QtGui import QColor, QCursor, QPainter, QPen
 from PySide6.QtWidgets import QWidget
 
 
 class SelectionOverlay(QWidget):
     selected = Signal(QRect)
     cancelled = Signal()
+    control_drag_finished = Signal()
+    _control_drag_owner = None
 
-    def __init__(self, image, geometry, parent=None):
+    def __init__(self, image, geometry, parent=None, *, screen=None, image_origin=None):
         super().__init__(parent, Qt.Tool | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
         self.image = image
+        self.target_screen = screen
+        self.image_origin = QPoint(image_origin) if image_origin is not None else QPoint(0, 0)
         self.selection = QRect()
         self.anchor = None
         self.drag_origin = None
         self.initial_rect = QRect()
+        self.control_origin = None
+        self.control_dragging = False
         self.setWindowTitle('Seleccionar región · Wysun Screenshot')
         self.setAccessibleName('Seleccionar región. Flechas para mover; Shift y flechas para ajustar; Enter para confirmar; Escape para cancelar.')
         self.setGeometry(geometry)
         self.setMouseTracking(True)
         self.setFocusPolicy(Qt.StrongFocus)
         self.setCursor(Qt.CrossCursor)
+
+    @property
+    def overlays(self):
+        return [self]
 
     def source_rect(self,rect):
         # Widget coordinates may be logical/scaled; originals always keep pixel resolution.
@@ -31,12 +41,30 @@ class SelectionOverlay(QWidget):
 
     def present(self):
         from loomrec.portal import is_wayland
-        if is_wayland():
+        if self.target_screen is not None:
+            # One native, fullscreen overlay per output. The image is already the
+            # crop for this output, so selection is never made on a miniature
+            # copy of the whole desktop.
+            self.setScreen(self.target_screen)
+            self.setGeometry(self.target_screen.geometry())
+            self.showFullScreen()
+            handle=self.windowHandle()
+            if handle is not None and handle.screen() is not self.target_screen:
+                handle.setScreen(self.target_screen)
+        elif is_wayland():
             from PySide6.QtWidgets import QApplication
             screen=QApplication.primaryScreen().availableGeometry()
             size=self.image.size();size.scale(screen.size(),Qt.KeepAspectRatio)
             self.resize(size);self.setWindowTitle('Recortar imagen autorizada · Wysun Screenshot')
-        self.show(); self.raise_(); self.activateWindow(); self.setFocus()
+            self.show()
+        else:self.show()
+        self.raise_(); self.activateWindow(); self.setFocus()
+
+    def enterEvent(self,event):
+        # Each display has its own fullscreen overlay. Keep keyboard modifiers
+        # routed to the one currently under the pointer when crossing outputs.
+        self.activateWindow();self.setFocus()
+        super().enterEvent(event)
 
     def paintEvent(self, event):
         p = QPainter(self)
@@ -51,7 +79,7 @@ class SelectionOverlay(QWidget):
             for point in (r.topLeft(), r.topRight(), r.bottomLeft(), r.bottomRight()):
                 p.fillRect(QRect(point-QPoint(4,4), point+QPoint(4,4)), QColor('#FFFFFF'))
                 p.drawRect(QRect(point-QPoint(4,4), point+QPoint(4,4)))
-        hint = f'{r.width()} × {r.height()} · Enter capturar · Esc cancelar' if not r.isEmpty() else 'Arrastra para seleccionar · Enter inicia selección con teclado · Esc cancelar'
+        hint = f'{r.width()} × {r.height()} · Enter capturar · Esc cancelar' if not r.isEmpty() else 'Arrastra o mantén Ctrl y mueve · Enter inicia selección con teclado · Esc cancelar'
         width = min(self.width()-24, p.fontMetrics().horizontalAdvance(hint)+32)
         box = QRect(12, max(12, self.height()-54), width, 38)
         p.setPen(Qt.NoPen); p.setBrush(QColor('#FCFDFF')); p.drawRoundedRect(box, 19, 19)
@@ -60,7 +88,21 @@ class SelectionOverlay(QWidget):
 
     def mousePressEvent(self, event):
         if event.button()!=Qt.LeftButton:return
-        point=event.position().toPoint()
+        owner=SelectionOverlay._control_drag_owner
+        if owner is not None:
+            owner.control_origin=None;owner.control_dragging=False
+        SelectionOverlay._control_drag_owner=None
+        self.control_origin=None;self.control_dragging=False
+        self._begin_drag(event.position().toPoint())
+
+    def _bounded_point(self,point):
+        point=QPoint(point)
+        point.setX(max(0,min(self.width()-1,point.x())))
+        point.setY(max(0,min(self.height()-1,point.y())))
+        return point
+
+    def _begin_drag(self,point):
+        point=self._bounded_point(point)
         r=self.selection.normalized()
         self.initial_rect=QRect(r)
         corners=((r.topLeft(),r.bottomRight()),(r.topRight(),r.bottomLeft()),(r.bottomLeft(),r.topRight()),(r.bottomRight(),r.topLeft()))
@@ -73,10 +115,8 @@ class SelectionOverlay(QWidget):
             self.anchor=point;self.drag_origin=None;self.selection=QRect(point,point)
         self.update()
 
-    def mouseMoveEvent(self, event):
-        point=event.position().toPoint()
-        point.setX(max(0,min(self.width()-1,point.x())))
-        point.setY(max(0,min(self.height()-1,point.y())))
+    def _update_drag(self,point):
+        point=self._bounded_point(point)
         if self.anchor is not None:self.selection=QRect(self.anchor,point).normalized()
         elif self.drag_origin is not None:
             r=self.initial_rect.translated(point-self.drag_origin)
@@ -85,12 +125,31 @@ class SelectionOverlay(QWidget):
             self.selection=r
         self.update()
 
+    def _pointer_position(self):
+        return self._bounded_point(self.mapFromGlobal(QCursor.pos()))
+
+    def mouseMoveEvent(self, event):
+        point=event.position().toPoint()
+        if self.control_origin is not None and not self.control_dragging and point!=self.control_origin:
+            self.control_dragging=True
+            self._begin_drag(self.control_origin)
+        if self.control_dragging or self.anchor is not None or self.drag_origin is not None:
+            self._update_drag(point)
+
     def mouseReleaseEvent(self,event):
         if event.button()==Qt.LeftButton:
-            self.mouseMoveEvent(event);self.anchor=None;self.drag_origin=None
+            self._update_drag(event.position().toPoint());self.anchor=None;self.drag_origin=None
 
     def keyPressEvent(self,event):
         key=event.key()
+        if key==Qt.Key_Control:
+            owner=SelectionOverlay._control_drag_owner
+            if not event.isAutoRepeat() and (owner is None or not owner.isVisible()):
+                if owner is not None:
+                    owner.control_origin=None;owner.control_dragging=False
+                self.control_origin=self._pointer_position();self.control_dragging=False
+                SelectionOverlay._control_drag_owner=self
+            event.accept();return
         if key==Qt.Key_Escape:self.hide();self.cancelled.emit();return
         if key in (Qt.Key_Return,Qt.Key_Enter):
             if self.selection.width()>1 and self.selection.height()>1:
@@ -111,3 +170,45 @@ class SelectionOverlay(QWidget):
                 r.moveTop(max(0,min(self.height()-r.height(),r.y()+dy*step)))
             self.selection=r;self.update();return
         super().keyPressEvent(event)
+
+    def keyReleaseEvent(self,event):
+        if event.key()==Qt.Key_Control:
+            owner=SelectionOverlay._control_drag_owner
+            if not event.isAutoRepeat() and owner is not None:
+                if owner.control_origin is not None and owner.control_dragging:
+                    owner._update_drag(owner._pointer_position())
+                    owner.anchor=None;owner.drag_origin=None
+                    owner.control_origin=None;owner.control_dragging=False
+                    SelectionOverlay._control_drag_owner=None
+                    owner.control_drag_finished.emit()
+                else:
+                    owner.control_origin=None;owner.control_dragging=False
+                    SelectionOverlay._control_drag_owner=None
+            event.accept();return
+        super().keyReleaseEvent(event)
+
+    def hideEvent(self,event):
+        if SelectionOverlay._control_drag_owner is self:
+            SelectionOverlay._control_drag_owner=None
+            self.control_origin=None;self.control_dragging=False
+        super().hideEvent(event)
+
+
+class SelectionGroup:
+    """One native overlay per output; the group owns their shared lifecycle."""
+    def __init__(self,overlays):
+        self.overlays=list(overlays)
+    def present(self):
+        for overlay in self.overlays:overlay.present()
+        pointer=QCursor.pos()
+        target=next((overlay for overlay in self.overlays if overlay.geometry().contains(pointer)),None)
+        if target is not None:
+            target.raise_();target.activateWindow();target.setFocus()
+    def hide(self):
+        for overlay in self.overlays:overlay.hide()
+    def deleteLater(self):
+        for overlay in self.overlays:overlay.deleteLater()
+    def close(self):
+        for overlay in self.overlays:overlay.close()
+    def __bool__(self):
+        return bool(self.overlays)

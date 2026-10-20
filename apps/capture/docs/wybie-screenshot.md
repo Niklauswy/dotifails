@@ -74,14 +74,15 @@ Installation uses content-addressed releases beneath
 `wybie-screenshot.desktop`, and its own SVG icon. Shared theme code is a snapshot
 inside that release, so an installed Recorder is not required. A manifest detects
 modified/foreign files and refuses to overwrite them. Earlier release trees remain
-available; the launcher selects the current version. No auto-start, BSPWM restart,
-Picom edits or installed Orbit source edits. Orbit discovers normal desktop entries
-on refresh/reopen through its existing application scan.
+available; the launcher selects the current version. No auto-start, desktop restart,
+compositor edits or installed Wysun source edits. Wysun discovers normal desktop
+entries on refresh/reopen through its existing application scan.
 
-The screenshot installer does not assign shortcuts. On explicit user request,
-`scripts/migrate-screenshot-shortcuts.py` replaces the four existing Flameshot
-region commands in active/source sxhkd configuration, without adding any chord.
-See the authorized shortcut migration below. Recorder Super+Shift+L is preserved.
+The screenshot installer does not assign shortcuts. A previous migration rewrote
+the four Flameshot region commands into the desktop bindings of that time; both the
+X11 session and that tooling were retired. The current installer never assigns
+shortcuts: the user configures them in Hyprland if desired. Recorder Super+Shift+L
+is preserved.
 
 ```sh
 python3 scripts/install-screenshot.py --uninstall --dry-run
@@ -94,11 +95,10 @@ Previous release code remains on disk when not owned by the latest manifest.
 
 ## Flameshot comparison evidence
 
-Inspected installed Flameshot v12.1.0 (Debian build), config and active/source
-sxhkd bindings. Preserved the existing `~/.local/bin/flameshot-ctrl-click` helper,
-which uses XTEST only while a focused Flameshot override-redirect capture overlay
-is present and releases its injected button on overlay exit. It remains started
-by the existing bspwmrc; no Wybie behavior is added to it.
+Inspected installed Flameshot v12.1.0 (Debian build), its configuration and the
+bindings of the previous X11 session. The historical `~/.local/bin/flameshot-ctrl-click`
+helper used XTEST only while a focused Flameshot override-redirect capture overlay
+was present; it belonged to that session and is not part of Wysun.
 
 Official current docs already describe arrows, text, rectangle/ellipse, pen,
 highlight, blur/pixelation, incrementing counters, solid boxes, pin, clipboard,
@@ -147,8 +147,8 @@ real installed executable opened quick mode with focus and exited 0 on Escape;
 available after shutdown and focus no longer referenced closed application windows.
 SHA256 comparisons preserved 27 Recorder/Flameshot/desktop configuration files.
 No private media was read. The initial installation left shortcuts unchanged;
-the later explicitly authorized migration is described below. Picom, BSPWM and
-Orbit source remain unchanged.
+the later explicitly authorized migration is described below. Wysun, Hyprland and
+the installed Wysun source remain unchanged.
 
 Physical multimonitor capture, window-capture occlusion behavior, cursor inclusion,
 Wayland and high/mixed DPI have not been physically verified. The historical physical verification below only covers X11/xcb at1×; it is
@@ -170,8 +170,8 @@ captures; no monitor/window binding existed. Commands now invoke
 | Super+Shift+A | `flameshot gui` | Region selection and in-place floating annotation palette |
 | Print | `flameshot gui` | Region selection and in-place floating annotation palette |
 
-The source sxhkd configuration already used `~/Screenshots` for Super+Shift+Q;
-that source-specific destination is intentionally retained. No user output path
+The previous session configuration already used `~/Screenshots` for Super+Shift+Q;
+that source-specific destination was intentionally retained. No user output path
 is normalized. S/Q accept on mouse release, save a new PNG without overwrite and
 copy its bitmap. Their invocation-specific delay/output settings do not overwrite
 stored application preferences. A/Print show editing directly on the frozen selection, using a floating palette;
@@ -184,22 +184,13 @@ clipboard ownership has no input grabs, visible launcher or polling loop.
 Flameshot remains installed. Its Ctrl/XTEST helper is unchanged and still matches
 only the focused Flameshot overlay, so it does not synthesize clicks in Wybie.
 
-Migration creates byte-exact active/source backups with SHA256 before/after
-checks, rejects unknown actions/duplicate expanded target chords, validates the
-new shell commands, then reloads only SXHKD using SIGUSR1. Literal backslash-t
-prefixes on the old S/Q commands are repaired only on those replacement lines.
-Unrelated source dirt is preserved. Re-running against migrated files refuses to
-add duplicate bindings; recovery inspects the existing manifest rather than
-applying again.
+La migración de atajos del escritorio X11 anterior quedó completada y sus scripts
+se retiraron junto con esa sesión. El producto actual no modifica los atajos del
+usuario: los cambios de combinaciones se hacen desde los ajustes de Hyprland.
 
-```sh
-python3 scripts/migrate-screenshot-shortcuts.py              # prepare/dry-run before migration
-python3 scripts/migrate-screenshot-shortcuts.py --apply      # only with explicit authorization
-python3 scripts/migrate-screenshot-shortcuts.py --restore /path/to/backup
-```
-
-Restore first requires that both current configs still match the recorded
-post-migration hashes, preserving later user edits instead of blindly overwriting.
+Cualquier restauración histórica requería que las configuraciones actuales aún
+coincidieran con los hashes registrados, conservando ediciones posteriores en lugar
+de sobrescribirlas.
 
 Native shortcut proof: `python3 tests/manual_wybieshot_shortcuts.py --owned-fixture`.
 After reboot all four real XTEST key chords launched the installed direct region

@@ -84,10 +84,6 @@ class _MaterialBinding(QObject):
         self.shape()
         if self.window.isVisible() and not is_wayland():
             _x11_property(self.window.winId(),enabled,self.radius)
-            if not is_wayland() and os.environ.get('QT_QPA_PLATFORM')!='offscreen':
-                import subprocess
-                try:subprocess.run(['bspc','config','-n',hex(int(self.window.winId())),'border_width','0'],capture_output=True,timeout=.3)
-                except (OSError,subprocess.SubprocessError):pass
     def shape(self):
         if self.panel is self.window and not is_wayland():
             path=QPainterPath();path.addRoundedRect(QRectF(self.window.rect()),self.radius,self.radius)

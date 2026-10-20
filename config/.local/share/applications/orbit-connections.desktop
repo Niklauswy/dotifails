@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Wysun Conexiones
+Comment=Wi-Fi, Bluetooth, VPN y SSH
+Exec=wysun connections
+Icon=network-wireless
+Terminal=false
+Categories=Settings;Utility;
+Keywords=Wysun;Wi-Fi;Bluetooth;VPN;SSH;red;
+StartupWMClass=Orbit

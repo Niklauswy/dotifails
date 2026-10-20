@@ -32,6 +32,13 @@ def build(w):
     from .components import SpinBox
     count=SpinBox();count.setRange(0,30);count.setValue(w.countdown.value());count.valueChanged.connect(w.countdown.setValue);w.countdown.valueChanged.connect(count.setValue);form.addRow('Cuenta atrás (s)',count)
     quiet=CheckBox('Pausar notificaciones durante la grabación');quiet.setChecked(w.quiet.isChecked());quiet.toggled.connect(w.quiet.setChecked);w.quiet.toggled.connect(quiet.setChecked);form.addRow(quiet)
+    remember=CheckBox('Recordar el monitor del portal');remember.setToolTip('Evita el selector en las siguientes grabaciones de monitor o región de la misma pantalla. El portal pide el primer permiso una vez por pantalla.');remember.setChecked(bool(preferences().get('remember_source',True)));remember.toggled.connect(lambda value:w.guard(lambda:save_preferences(remember_source=value)));form.addRow(remember)
+    def forget_source():
+        from .. import consent
+        consent.clear()
+        w.notice('Se olvidó la fuente recordada. La próxima grabación de monitor volverá a pedir permiso.')
+    forget=SoftButton('Olvidar fuente recordada','settings');forget.clicked.connect(forget_source);form.addRow(forget)
+    source_hint=label('El portal pide permiso la primera vez. Después se reutiliza el monitor elegido hasta que lo olvides o desactives esta opción.','subtitle');source_hint.setWordWrap(True);form.addRow(source_hint)
     motion=CheckBox('Reducir animaciones');appearance=Path(os.environ.get('XDG_CONFIG_HOME',str(Path.home()/'.config')))/'loomrec/appearance.json'
     try:values=json.loads(appearance.read_text())
     except (OSError,ValueError):values={}

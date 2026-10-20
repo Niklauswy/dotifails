@@ -61,7 +61,7 @@ class NativeUiBackendTests(unittest.TestCase):
         with patch('subprocess.run') as run,patch('subprocess.check_output') as output:
             RecordingController.pause_requested(controller)
             run.assert_not_called();output.assert_not_called();session.resume.assert_not_called()
-            self.assertIn('Wayland',controller.warning.setText.call_args.args[0])
+            self.assertIn('controles antiguos',controller.warning.setText.call_args.args[0])
     def test_native_player_embeds_without_winid_or_mpv_subprocess(self):
         from loomrec.ui.player import Player
         class Surface(QWidget):

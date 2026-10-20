@@ -17,12 +17,10 @@ from PySide6.QtWidgets import (QApplication,QMainWindow,QWidget,QVBoxLayout,QHBo
 from ..portal import is_wayland
 from ..capture import CaptureConfig,CaptureSession,recover_project
 from ..devices import discover,visible_window_rect
-from ..render import RenderJob
-from ..editing import Editor
 from ..library import Library
 from ..videolibrary import VideoLibrary,preferences,save_preferences
 from ..integration import Concentration,theme_id,GlobalKeys,shortcut_settings
-from .widgets import RegionPicker,Waveform
+from .widgets import RegionPicker
 from .player import Player
 from .meters import AudioMeter
 from .components import ComboBox as QComboBox,CheckBox as QCheckBox,SpinBox as QSpinBox,DoubleSpinBox as QDoubleSpinBox
@@ -81,8 +79,6 @@ class Window(QMainWindow):
         QApplication.instance().screenAdded.connect(watch_screen)
         for screen in QApplication.screens():screen.geometryChanged.connect(lambda _:self.relayout_indicator())
         self.timer=QTimer(self); self.timer.timeout.connect(self.poll); self.timer.start(300)
-        self.shortcut('Ctrl+Z',self.undo); self.shortcut('Ctrl+Shift+Z',self.redo)
-        self.shortcut('Ctrl+S',lambda:self.notice(self.tr('Los cambios ya se guardan automáticamente')))
         self.shortcut('Ctrl+Shift+R',self.pause_capture); self.shortcut('Ctrl+Shift+S',self.stop_capture)
         play_key=QShortcut(QKeySequence('Space'),self.player.parentWidget());play_key.setContext(Qt.WidgetWithChildrenShortcut);play_key.activated.connect(self.toggle_playback)
         for key,callback in [('M',self.player.toggle_mute),('F',self.toggle_fullscreen)]:
@@ -91,7 +87,7 @@ class Window(QMainWindow):
         for key,delta in [('Left',-5),('Right',5)]:
             shortcut=QShortcut(QKeySequence(key),self.player);shortcut.setContext(Qt.WidgetWithChildrenShortcut);shortcut.activated.connect(lambda d=delta:self.player.seek(max(0,min(self.player.duration,self.position+d))))
         self.player.setFocusPolicy(Qt.StrongFocus);self.player.surface.setFocusPolicy(Qt.StrongFocus)
-        self.seek.setToolTip(self.tr('Arrastra para buscar. Con el video enfocado: ← / → saltan 5 segundos.'))
+        self.seek.setToolTip(self.tr('Haz clic o arrastra para buscar. ← / → saltan 5 segundos.'))
         prefs=preferences()
         from .cursor_settings import CursorOptions
         self.cursor_options=CursorOptions(self,prefs,lambda **values:self.guard(lambda:save_preferences(**values)))
@@ -261,27 +257,22 @@ class Window(QMainWindow):
         QDesktopServices.openUrl(QUrl.fromLocalFile(str(path)))
     def open_media(self,path):
         if self.operation_busy():return
-        self.media_path=Path(path);self.editor=None;self.preview_revision=-1;self.position=0
-        self.set_viewing(True);self.title.setText(self.media_path.stem);self.stack.setCurrentWidget(self.editor_page)
-        self.preview_label.setText(self.tr('Archivo original · la reproducción no modifica el video'))
+        self.media_path=Path(path);self.position=0
+        self.title.setText(self.media_path.stem);self.stack.setCurrentWidget(self.editor_page)
+        self.preview_label.setText('')
         self.stop_metadata();selected=self.media_path
         def load():
             if selected!=self.media_path or self.stack.currentWidget()!=self.editor_page:return
             if self.active_metadata:QTimer.singleShot(100,load);return
             self.player.load(selected)
         load()
-    def edit_selected(self):
-        if self.trash.isChecked():return
-        path=self.selected_path()
-        if path.name=='project.json':self.guard(lambda:self.open_project(path,edit=True))
-        else:self.open_media(path);self.enter_editor()
     def toggle_fullscreen(self):
         if self.stack.currentWidget()!=self.editor_page:return
         self._fullscreen=not self._fullscreen
         if self._fullscreen:
-            self._was_maximized=self.isMaximized();self.showFullScreen();self.inspector.hide();self.editor_toolbar.hide();self.editor_timeline.hide();self.editor_status.hide()
+            self._was_maximized=self.isMaximized();self.showFullScreen();self.viewer_header.hide()
         else:
-            self.showMaximized() if self._was_maximized else self.showNormal();self.set_viewing(self.viewing)
+            self.showMaximized() if self._was_maximized else self.showNormal();self.viewer_header.show()
     def player_state(self):
         from .icons import icon
         self.play_button.setIcon(icon('play' if self.player.paused else 'pause','#FFFFFF'))
@@ -370,7 +361,7 @@ class Window(QMainWindow):
         self.task(work,done)
     def devices_ready(self,data):
         if data.get('warnings'):self.preflight.setText(' · '.join(data['warnings']))
-        monitor_name=self.monitor.currentText();self.monitor.blockSignals(True);self.monitor.clear()
+        monitor_name=getattr(self,'_wanted_monitor',None) or self.monitor.currentText();self._wanted_monitor=None;self.monitor.blockSignals(True);self.monitor.clear()
         for monitor in data['monitors']:self.monitor.addItem(monitor['name'],monitor['rect'])
         index=self.monitor.findText(monitor_name);self.monitor.setCurrentIndex(max(0,index));self.monitor.blockSignals(False)
         if self.capture_modes.buttons()[0].isChecked():self.monitor_changed()
@@ -414,6 +405,20 @@ class Window(QMainWindow):
             if self.session or self.capture_pending:return
             self.mic_meter.start(self.mic.currentData(),self.mic_gain.value());self.system_meter.start(source,self.system_gain.value())
         self.task(work,ready)
+    def camera_style(self):
+        from ..schema import camera_style
+        try:return camera_style(preferences().get('camera_style',{}))
+        except ValueError:return camera_style({})
+    def select_focused_monitor(self):
+        """Default the screen source to the monitor where the bar opens."""
+        name=focused_monitor()
+        if not name or self.session or self.capture_pending:return
+        self._wanted_monitor=name
+        index=self.monitor.findText(name)
+        if index<0:return  # Devices still loading: devices_ready applies it.
+        self.monitor.setCurrentIndex(index)
+        if not self.capture_modes.buttons()[0].isChecked():self.capture_modes.buttons()[0].setChecked(True)
+        self.monitor_changed()
     def monitor_changed(self,*_):
         self.window_target=None
         rect=self.monitor.currentData()
@@ -454,7 +459,9 @@ class Window(QMainWindow):
             rect=visible_window_rect(self.window_target)
             for widget,value in zip(self.rect,rect):widget.setValue(value)
         rect=[w.value() for w in self.rect]
-        check=CaptureConfig(str(self.library.root),os.environ.get('WAYLAND_DISPLAY') or os.environ.get('DISPLAY','portal'),rect,self.fps.currentData(),self.mic.currentData(),self.system.currentData(),self.camera.currentData(),quality=self.quality.currentData(),auto_finalize=True,output_dir=str(getattr(self.library,'videos',Path.home()/'Videos')),title=self.tr('Grabación ')+datetime.now().strftime('%d-%m-%Y %H-%M-%S'),source_type='window' if self.capture_modes.buttons()[2].isChecked() else 'region' if self.capture_modes.buttons()[1].isChecked() else 'monitor',mic_gain=self.mic_gain.value(),system_gain=self.system_gain.value(),**self.cursor_options.capture_values()); check.validate()
+        source_type='window' if self.capture_modes.buttons()[2].isChecked() else 'region' if self.capture_modes.buttons()[1].isChecked() else 'monitor'
+        remember=bool(preferences().get('remember_source',True)) and source_type in ('monitor','region')
+        check=CaptureConfig(str(self.library.root),os.environ.get('WAYLAND_DISPLAY') or os.environ.get('DISPLAY','portal'),rect,self.fps.currentData(),self.mic.currentData(),self.system.currentData(),self.camera.currentData(),quality=self.quality.currentData(),auto_finalize=True,output_dir=str(getattr(self.library,'videos',Path.home()/'Videos')),title=self.tr('Grabación ')+datetime.now().strftime('%d-%m-%Y %H-%M-%S'),source_type=source_type,remember_source=remember,mic_gain=self.mic_gain.value(),system_gain=self.system_gain.value(),camera_style=self.camera_style(),**self.cursor_options.capture_values()); check.validate()
         if shutil.disk_usage(self.library.root).free<512*1024*1024: raise ValueError(self.tr('Libera al menos 512 MiB antes de grabar'))
         screen=QApplication.primaryScreen().virtualGeometry()
         if rect[0]<screen.x() or rect[1]<screen.y() or rect[0]+rect[2]>screen.right()+1 or rect[1]+rect[3]>screen.bottom()+1:
@@ -465,9 +472,27 @@ class Window(QMainWindow):
         screens=[s.geometry().getRect() for s in QApplication.screens()]
         borders,badge=indicator_geometry(rect,screens)
         self.indicator_hint.setText(self.tr('Indicador fuera del vídeo.') if badge else self.tr('Sin espacio seguro para el distintivo: se oculta para no aparecer en el vídeo. Usa los atajos para pausar o terminar.'))
-        self.camera_preview.stop()
+        self.open_presenter(rect)
+        self.camera_preview.stop(self.start_presenter_camera)
         self.recording_indicator.present(rect,screens,state='countdown')
         self.countdown_timer.start(1000); self.countdown_tick()
+    def open_presenter(self,rect):
+        """Live camera bubble, drawings and edge toolbar over the recorded monitor."""
+        self.close_presenter()
+        monitor=monitor_for_rect(rect)
+        if monitor is None:return
+        from .presenter import PresenterOverlay
+        device=self.pending_config.camera
+        # The bubble is recorded as seen; never also composite the camera later.
+        self.pending_config.camera=None
+        self.presenter=PresenterOverlay(monitor,camera_device=device,camera_style=self.camera_style())
+        self.presenter.pauseRequested.connect(self.pause_capture);self.presenter.stopRequested.connect(self.stop_capture)
+        self.presenter.present()
+    def start_presenter_camera(self):
+        if getattr(self,'presenter',None) is not None and (self.capture_pending or self.session):self.presenter.start_camera()
+    def close_presenter(self):
+        presenter,self.presenter=getattr(self,'presenter',None),None
+        if presenter is not None:presenter.shutdown()
     def countdown_tick(self):
         if self.remaining>0:
             self.preflight.setText(self.tr('Comienza en ')+str(self.remaining))
@@ -480,6 +505,7 @@ class Window(QMainWindow):
         # Allow X11/compositor to remove setup and selector before starting capture.
         self.camera_preview.stop(lambda:QTimer.singleShot(500,lambda:self.guard(self.start_capture) if self.capture_pending else None))
     def cancel_countdown(self):
+        self.close_presenter()
         self.capture_pending=False; self.cursor_options.set_locked(bool(self.session)); self.countdown_timer.stop(); self.record.setEnabled(True); self.cancel_count.setEnabled(False); self.preflight.setText(self.tr('Cuenta cancelada'));self.countdown_overlay.hide();self.restore_capture_surface();self.clear_idle_selection()
     def start_capture(self):
         if self.active_metadata:
@@ -502,7 +528,7 @@ class Window(QMainWindow):
             self._indicator_rect=list(self.pending_config.rect)
             if not is_wayland():self.recording_indicator.present(self._indicator_rect,[s.geometry().getRect() for s in QApplication.screens()],on_pause=self.pause_capture,on_stop=self.stop_capture)
         except Exception:
-            self.session=None; self.recording_indicator.hide(); self.restore_concentration(); self.restore_capture_surface(); self.record.setEnabled(True); raise
+            self.close_presenter();self.session=None; self.recording_indicator.hide(); self.restore_concentration(); self.restore_capture_surface(); self.record.setEnabled(True); raise
         self.tray.setToolTip(self.tr('Wysun Recorder · grabando · menú para pausar o terminar'))
     def pause_capture(self):
         if self.session:
@@ -550,7 +576,7 @@ class Window(QMainWindow):
     def back_library(self):
         if self._fullscreen:self.toggle_fullscreen()
         self.player.close_media();self.recording_indicator.hide();self.refresh_library(); self.stack.setCurrentWidget(self.library_page)
-    def open_project(self,path,*,edit=False):
+    def open_project(self,path):
         if self.operation_busy(): return
         path=Path(path)
         if (path.parent/'capture.json').exists():
@@ -573,152 +599,38 @@ class Window(QMainWindow):
                 try:self.ensure_keys()
                 except (RuntimeError,ValueError,OSError) as exc:self.notice(str(exc))
                 return
-        if not edit and (path.parent/'capture.json').exists():
-            from ..videolibrary import finalization_status,recording_video
-            publication=finalization_status(path)
-            if publication.get('state')!='none':
-                self.finalization_path=path;self._finalization_state=None
-                output,changed=recording_video(path)
-                if output:
-                    self._finalization_state='ready';self.open_media(output);self.finalization_panel.update_status(publication)
-                    if changed:self.notice(self.tr('Mostrando el MP4 guardado. Los cambios de edición aún no están exportados.'))
-                    return
-                if publication.get('state') in ('pending','running','error','cancelled'):
-                    self.stack.setCurrentWidget(self.library_page);self.poll_finalization();return
-        if edit and self.finalization_path==path:self._finalization_state='ready'
-        self.media_path=None;self.player.close_media(); self.editor=Editor(path); self.preview_revision=-1
-        self.refresh_editor(); self.stack.setCurrentWidget(self.editor_page)
-        self.set_viewing(not edit)
-        from .activation import show_and_focus
-        show_and_focus(self)
-        if not edit:self.prepare_playback()
-
-    def set_viewing(self,viewing):
-        self.viewing=viewing
-        for widget in [self.editor_toolbar,self.inspector,self.editor_timeline,self.editor_status,self.watch_video,*self.edit_actions]:widget.setVisible(not viewing)
-        self.edit_video.setVisible(viewing)
-        if not viewing:self.editor_split.setSizes([720,300])
-        if self.editor:self.title.setText(self.editor.project.title+('' if viewing else ' · '+self.tr('Guardado')))
-
-    def enter_editor(self):
-        if self.operation_busy():return
-        if self.media_path:
-            if self.finalization_path:
-                from ..videolibrary import recording_video
-                output,_=recording_video(self.finalization_path)
-                if output==self.media_path:self.open_project(self.finalization_path,edit=True);return
-            import threading
-            self.import_cancel=threading.Event();path=self.media_path;self.player.close_media()
-            dialog=QProgressBar();dialog.setRange(0,0)
-            self.import_dialog=QDialog(self);self.import_dialog.setWindowTitle(self.tr('Preparando edición'))
-            layout=QVBoxLayout(self.import_dialog);layout.addWidget(QLabel(self.tr('Guardando una copia privada del original…')));layout.addWidget(dialog)
-            cancel=QPushButton(self.tr('Cancelar'));cancel.clicked.connect(self.import_cancel.set);layout.addWidget(cancel);self.import_dialog.rejected.connect(self.import_cancel.set);self.import_dialog.show()
-            def work():
-                try:return self.library.create_edit(path,self.import_cancel),None
-                except Exception as exc:return None,str(exc)
-            def ready(result):
-                self.import_dialog.close();self.import_cancel=None
-                destination,error=result
-                if error:self.notice(error)
-                else:self.open_project(destination,edit=True)
-            self.task(work,ready);return
-        if self.editor:self.set_viewing(False)
-
-    def show_playback(self):
-        if not self.editor or self.operation_busy():return
-        self.set_viewing(True);self.prepare_playback()
-
-    def playback_path(self):
-        # Key the rendered video by the complete saved edit, including audio/overlays.
-        from ..render import PIPELINE_VERSION,render_profile_signature
-        profile=json.dumps([PIPELINE_VERSION,render_profile_signature('preview')],sort_keys=True,default=str).encode()
-        capture=self.editor.path.parent/'capture.json'
-        capture_profile=capture.read_bytes() if capture.is_file() else b''
-        key=hashlib.sha256(profile+b'\0'+capture_profile+b'\0'+self.editor.path.read_bytes()).hexdigest()
-        return self.editor.path.parent/'.preview'/('playback-'+key+'.mp4')
-
-    def prepare_playback(self):
-        if not self.editor.project.clips:
-            self.preview_label.setText(self.tr('Esta grabación no tiene clips para reproducir.'));return
-        if self.preview_revision==self.editor.revision:return
-        output=self.playback_path()
-        if output.is_file():
-            self.preview_revision=self.editor.revision
-            self.preview_label.setText(self.tr('Video listo · pulsa reproducir'));self.player.load(output);return
-        self.render(False)
+        from ..videolibrary import finalization_status,recording_video
+        output,_=recording_video(path)
+        if output:
+            self.finalization_path=path;self._finalization_state='ready';self.open_media(output)
+            status=finalization_status(path)
+            if status.get('state')!='none':self.finalization_panel.update_status(status)
+            return
+        if (path.parent/'capture.json').exists():
+            # No MP4 yet: prepare it (or show its progress) instead of an editor.
+            self.finalization_path=path;self._finalization_state=None
+            self.stack.setCurrentWidget(self.library_page)
+            if finalization_status(path).get('state') not in ('pending','running'):self.retry_finalization()
+            self.poll_finalization();return
+        raise ValueError(self.tr('Este proyecto no tiene un MP4 para reproducir.'))
 
     def toggle_playback(self):
-        if self.stack.currentWidget()!=self.editor_page or (not self.editor and not self.media_path) or self.job or self.analysis:return
-        if self.media_path:self.player.toggle();return
-        if self.preview_revision!=self.editor.revision:
-            self.guard(self.prepare_playback);return
+        if self.stack.currentWidget()!=self.editor_page or not self.media_path:return
         self.player.toggle()
+    def skip_playback(self,seconds):
+        if self.media_path:self.player.seek(max(0,min(self.player.duration or 0,self.position+seconds)))
+    def copy_media_path(self):
+        if self.media_path:QApplication.clipboard().setText(str(self.media_path.resolve()));self.notice(self.tr('Ruta copiada'))
+    def reveal_media_path(self):
+        if self.media_path:QDesktopServices.openUrl(QUrl.fromLocalFile(str(self.media_path.parent)))
     def playback_failed(self,message):
-        self.preview_revision=-1;self.preview_label.setText(message);self.error(message)
-    def refresh_editor(self):
-        if not self.editor: return
-        project=self.editor.project; selected=max(0,self.clips.currentRow())
-        self.title.setText(project.title+' · '+self.tr('Guardado'))
-        self.clips.clear()
-        for i,c in enumerate(project.clips): self.clips.addItem(self.tr('Clip ')+f'{i+1:02} · {c.out_s-c.in_s:.2f} s')
-        self.clips.setCurrentRow(min(selected,len(project.clips)-1))
-        self.waveform.clips=[c.out_s-c.in_s for c in project.clips]
-        self.seek.setRange(0,int(project.duration*1000)); self.audio_sources.clear()
-        for source in project.sources:
-            if source.kind in ('mic','system'): self.audio_sources.addItem(('Micrófono' if source.kind=='mic' else 'Sistema')+' · '+str(len([s for s in project.sources[:project.sources.index(source)] if s.kind==source.kind])+1),source.id)
-        self.preview_label.setText(self.tr('Edición guardada · genera vista previa para actualizar reproducción'))
-        self.preview_revision=-1; self.player.close_media();self.position_changed(0)
-    def edit(self,fn):
-        if self.operation_busy(): return
-        if not self.editor: return
-        fn(); self.refresh_editor()
-    def undo(self): self.guard(lambda:self.edit(self.editor.undo) if self.editor and not self.viewing and self.stack.currentWidget()==self.editor_page else None)
-    def redo(self): self.guard(lambda:self.edit(self.editor.redo) if self.editor and not self.viewing and self.stack.currentWidget()==self.editor_page else None)
-    def clip_index(self):
-        i=self.clips.currentRow()
-        if i<0: raise ValueError(self.tr('Selecciona un clip'))
-        return i
-    def clip_selected(self,index):
-        if self.editor and 0<=index<len(self.editor.project.clips):
-            c=self.editor.project.clips[index]; self.trim_start.setValue(c.in_s); self.trim_end.setValue(c.out_s)
-    def trim_clip(self): self.edit(lambda:self.editor.trim(self.clip_index(),self.trim_start.value(),self.trim_end.value()))
-    def split_clip(self):
-        i=self.clip_index(); c=self.editor.project.clips[i]
-        start=sum(c.out_s-c.in_s for c in self.editor.project.clips[:i])
-        self.edit(lambda:self.editor.split(i,c.in_s+self.position-start))
-    def delete_clip(self): self.edit(lambda:self.editor.delete(self.clip_index()))
-    def join_clip(self): self.edit(lambda:self.editor.join(self.clip_index()))
-    def move_clip(self,direction): self.guard(lambda:self.edit(lambda:self.editor.move(self.clip_index(),self.clip_index()+direction)))
-    def audio_selected(self,*_):
-        if self.editor:
-            source=next((s for s in self.editor.project.sources if s.id==self.audio_sources.currentData()),None)
-            if source: self.gain.setValue(source.gain)
-    def apply_gain(self):
-        if self.audio_sources.currentData(): self.edit(lambda:self.editor.gain(self.audio_sources.currentData(),self.gain.value()))
+        self.preview_label.setText(message);self.error(message)
     def position_changed(self,position):
-        self.position=position;duration=self.player.duration or (self.editor.project.duration if self.editor else 0);self.clock.setText(self.format_time(position)+' / '+self.format_time(duration))
-        if not self.seek.isSliderDown():self.seek.setValue(int(position*1000))
-        self.waveform.position=position;self.waveform.update()
-    def render(self,export):
-        self.stop_metadata()
-        if self.active_metadata:
-            editor=self.editor
-            QTimer.singleShot(100,lambda:self.guard(lambda:self.render(export)) if self.editor is editor else None);return
-        if not self.editor or not self.editor.project.clips: raise ValueError(self.tr('El proyecto no tiene clips'))
-        if self.operation_busy(): return
-        self.player.close_media()
-        if export:
-            path,_=QFileDialog.getSaveFileName(self,self.tr('Exportar sin sobrescribir'),str(getattr(self.library,'videos',self.library.root)/(self.editor.project.title.replace('/','-')+'.mp4')),'MP4 (*.mp4)')
-            if not path: return
-            output=Path(path)
-            if output.exists(): raise FileExistsError(self.tr('Elige un nombre nuevo: no se sobrescriben archivos'))
-        else:
-            cache=self.editor.path.parent/'.preview'; cache.mkdir(exist_ok=True)
-            output=self.playback_path() if self.viewing else cache/(uuid.uuid4().hex+'.mp4')
-        self.job_export=export; self.job_revision=self.editor.revision
-        self.job=RenderJob(self.editor.path,output,preset=self.preset.currentData() if export else 'preview').start()
-        self._job_cancel_pending=False;self.poll_job()
-        self.progress.setValue(0); self.preview_label.setText(self.tr('Exportando · ')+self.preset.currentText() if export else self.tr('Preparando vista previa a resolución original…'))
+        from .seekbar import clock
+        self.position=position;duration=self.player.duration or 0
+        self.elapsed.setText(clock(position));self.clock.setText(clock(duration))
+        if duration and self.seek.duration!=duration:self.seek.set_duration(duration)
+        self.seek.set_position(position)
     def capture_presentation(self,state):
         self.cursor_options.set_locked(bool(self.session or self.capture_pending or state in ('starting','recording','paused','stopping')))
         if getattr(self,'_capture_presentation_state',None)==state:return
@@ -738,7 +650,9 @@ class Window(QMainWindow):
     def poll(self):
         self.cursor_options.set_locked(bool(self.session or self.capture_pending))
         if self.keys:
-            self.keys.poll()
+            # A failing shortcut helper must never keep a finished capture alive.
+            try:self.keys.poll()
+            except Exception as exc:self.keys.error=str(exc)
             if getattr(self.keys,'error','') and self.shortcut_label.text()!=self.keys.error:self.shortcut_label.setText(self.keys.error)
         if self.session:
             status=self.session.status(); state=status['state'];self.capture_presentation(state)
@@ -749,30 +663,26 @@ class Window(QMainWindow):
             if state=='paused' and getattr(self,'show_paused',False):
                 self.show_paused=False; self.preflight.setText(self.control_hint.text()); self.stack.setCurrentWidget(self.setup_page); self.show()
             if state in ('stopped','error','interrupted'):
+                self.close_presenter()
                 self.quick_mode=False;self.quick.hide_all();self.recording_indicator.hide()
                 path=Path(status['project_path']); auto_finalize=bool(getattr(self.session.config,'auto_finalize',False)); self.session=None; self.restore_concentration(); self.record.setEnabled(True); self.tray.show()
                 if self.discard and path.exists(): self.guard(lambda:self.library.delete(path)); self.refresh_library(); self.stack.setCurrentWidget(self.library_page)
                 elif path.exists():
                     def open_final():
-                        editor=Editor(path)
-                        if not auto_finalize and editor.project.title==path.parent.name:
-                            editor.apply(lambda p:setattr(p,'title',self.tr('Grabación ')+datetime.now().strftime('%d/%m/%Y %H:%M')))
-                        if not auto_finalize and self.capture_gains:
-                            editor.apply(lambda p:[setattr(s,'gain',self.capture_gains.get(s.kind,s.gain)) for s in p.sources])
+                        # Recording only: wait for the automatic MP4, or open it in the viewer.
                         if auto_finalize and state=='stopped':
                             self.finalization_path=path;self._finalization_state=None;self.stack.setCurrentWidget(self.library_page);self.refresh_library();self.poll_finalization()
                         else:self.open_project(path)
                     self.guard(open_final)
-                self.show()
+                if not getattr(self,'_quiet_reap',False):self.show()
                 if warning:self.notice(warning)
                 if status.get('error'): self.error(status['error'])
         self.poll_job();self.poll_finalization()
 
     def set_job_controls(self,busy):
-        for widget in [self.preview_button,self.export_button,self.preset,self.inspector,self.edit_video,self.watch_video,self.play_button,self.seek,*getattr(self,'edit_actions',[])]:widget.setEnabled(not busy)
+        for widget in [self.play_button,self.seek]:widget.setEnabled(not busy)
         self.library_open.setEnabled(not busy and self.items.currentItem() is not None)
         self.library_more.setEnabled(not busy and self.items.currentItem() is not None)
-        self.cancel_export.setEnabled(busy and not self._job_cancel_pending)
 
     def cancel_current_job(self):
         job=self.job or self.analysis
@@ -820,8 +730,6 @@ class Window(QMainWindow):
     def operation_busy(self):
         if self.finalization_active():
             self.finalization_panel.show();self.notice(self.tr('El MP4 se está preparando. Puedes esperar o cancelar sin perder la grabación.'));return True
-        if self.import_cancel:
-            self.notice(self.tr('Espera o cancela la preparación de la edición.'));return True
         self.poll_job()
         if not (self.job or self.analysis):return False
         from .activation import show_and_focus
@@ -832,159 +740,10 @@ class Window(QMainWindow):
     def poll_job(self):
         job=self.job or self.analysis
         if not job:return
-        analysis=self.job is None
-        kind=self.analysis_kind if analysis else ('export' if self.job_export else 'preview')
-        status=job.poll();self.job_panel.update_job(kind,status,self._job_cancel_pending)
-        self.progress.setValue(round(100*status.get('progress',0)))
+        status=job.poll();self.job_panel.update_job('preview',status,self._job_cancel_pending)
         active=status['state'] not in ('done','error','cancelled');self.set_job_controls(active)
         if active:return
-        self._job_cancel_pending=False
-        if analysis:
-            self.analysis=None
-            if hasattr(self,'analysis_progress'):self.analysis_progress.close()
-            if status['state']=='done':self.review_analysis(kind,status['result'])
-            return
-        self.job=None
-        if status['state']=='done':
-            if self.job_export and isinstance(self.library,VideoLibrary):self.library._write_metadata(Path(status['output']),edit_project=str(self.editor.path))
-            if self.stack.currentWidget()==self.editor_page:
-                self.preview_revision=self.job_revision;self.player.load(status['output'])
-            self.preview_label.setText(self.tr('Exportación completada · MP4 guardado') if self.job_export else self.tr('Video listo · pulsa reproducir') if self.viewing else self.tr('Vista previa lista · edición aplicada'))
-            self.wave_bytes.clear();self.wave_process.start('ffmpeg',['-v','error','-i',status['output'],'-vn','-ac','1','-ar','8000','-f','f32le','pipe:1'])
-            self.thumbnail_source=status['output']
-        elif status['state']=='error':self.preview_label.setText(self.tr('La tarea falló. Revisa el detalle mostrado arriba.'))
-        else:self.preview_label.setText(self.tr('Tarea cancelada; proyecto conservado'))
-    def wave_ready(self,*_):
-        import array
-        samples=array.array('f'); data=bytes(self.wave_bytes); samples.frombytes(data[:len(data)//4*4])
-        self.waveform.set_data([min(1,max(abs(v) for v in samples[i:i+80])) for i in range(0,len(samples),80)],self.editor.project.duration if self.editor else 0)
-        if hasattr(self,'thumbnail_source'):self.make_thumbnail(self.thumbnail_source)
-    def make_thumbnail(self,path):
-        if not self.editor: return
-        self.thumbnail=QProcess(self); self.thumbnail.start('ffmpeg',['-v','error','-y','-i',str(path),'-frames:v','1','-vf','scale=288:-1',str(self.editor.path.parent/'thumbnail.jpg')])
-    def annotation_dialog(self):
-        if not self.editor: return
-        from .components import form_dialog
-        dialog,form=form_dialog(self,self.tr('Anotaciones y subtítulos'),self.tr('Define cuándo aparece cada elemento. Los cambios se guardan en el proyecto.'))
-        kind=QComboBox()
-        for label,key in [('Texto','text'),('Flecha →','arrow'),('Resaltado','highlight'),('Máscara','mask'),('Desenfoque','blur'),('Subtítulo','subtitle')]: kind.addItem(self.tr(label),key)
-        form.addRow(self.tr('Tipo'),kind)
-        start=number(0,self.editor.project.duration,self.position,3); end=number(0,self.editor.project.duration,min(self.position+2,self.editor.project.duration),3)
-        form.addRow(self.tr('Inicio (s)'),start); form.addRow(self.tr('Fin (s)'),end)
-        text=QLineEdit(); form.addRow(self.tr('Texto'),text)
-        coords=[];coordinates=QGridLayout();coordinates.setSpacing(8)
-        for index,(label,value) in enumerate([('X',.1),('Y',.1),('Ancho',.3),('Alto',.15)]):
-            spin=number(0,1,value,3);coords.append(spin);coordinates.addWidget(QLabel(self.tr(label)),index//2,index%2*2);coordinates.addWidget(spin,index//2,index%2*2+1)
-        form.addRow(self.tr('Posición y tamaño (0–1)'),coordinates)
-        colors=QComboBox()
-        for title,key in [('Amarillo','yellow'),('Blanco','white'),('Negro','black'),('Rojo','red'),('Verde','green'),('Azul','blue')]:colors.addItem(self.tr(title),key)
-        form.addRow(self.tr('Color'),colors)
-        existing=QListWidget();existing.setMinimumHeight(80);existing.setMaximumHeight(130)
-        names={'text':self.tr('Texto'),'arrow':self.tr('Flecha'),'highlight':self.tr('Resaltado'),'mask':self.tr('Máscara'),'blur':self.tr('Desenfoque')}
-        for a in self.editor.project.annotations:existing.addItem(f'{names[a.kind]} · {a.start:.2f}–{a.end:.2f} · {a.text}')
-        for s in self.editor.project.subtitles: existing.addItem(f'SRT {s.start:.2f}–{s.end:.2f} {s.text}')
-        form.addRow(self.tr('Existentes (selecciona para editar)'),existing)
-        def choose(index):
-            if index<0:return
-            count=len(self.editor.project.annotations); item=(self.editor.project.annotations+self.editor.project.subtitles)[index]
-            buttons.button(QDialogButtonBox.Save).setText(self.tr('Guardar cambios'))
-            kind.setCurrentIndex(kind.findData(item.kind if index<count else 'subtitle'));start.setValue(item.start);end.setValue(item.end);text.setText(item.text)
-            if index<count:
-                for spin,value in zip(coords,item.rect):spin.setValue(value)
-                colors.setCurrentIndex(colors.findData(item.color))
-        existing.currentRowChanged.connect(choose)
-        def remove():
-            index=existing.currentRow()
-            if index<0:return
-            count=len(self.editor.project.annotations)
-            self.guard(lambda:self.edit(lambda:self.editor.apply(lambda p:p.annotations.pop(index) if index<count else p.subtitles.pop(index-count))))
-            dialog.accept()
-        remove_button=QPushButton(self.tr('Eliminar seleccionada'));remove_button.setEnabled(False);existing.currentRowChanged.connect(lambda index:remove_button.setEnabled(index>=0));remove_button.clicked.connect(remove);form.addRow(remove_button)
-        buttons=QDialogButtonBox(QDialogButtonBox.Save|QDialogButtonBox.Cancel);buttons.button(QDialogButtonBox.Save).setText(self.tr('Añadir elemento'));buttons.button(QDialogButtonBox.Save).setProperty('primary',True);buttons.button(QDialogButtonBox.Cancel).setText(self.tr('Cancelar'));buttons.button(QDialogButtonBox.Save).setIcon(QIcon());buttons.button(QDialogButtonBox.Cancel).setIcon(QIcon());dialog.footer.addWidget(buttons);buttons.rejected.connect(dialog.reject)
-        def save():
-            def change():
-                selected=existing.currentRow()
-                if selected>=0:
-                    from ..schema import Annotation,Subtitle
-                    def replace_item(p):
-                        count=len(p.annotations)
-                        if selected<count:p.annotations.pop(selected)
-                        else:p.subtitles.pop(selected-count)
-                        if kind.currentData()=='subtitle':p.subtitles.append(Subtitle(start.value(),end.value(),text.text()))
-                        else:p.annotations.append(Annotation(kind.currentData(),start.value(),end.value(),[s.value() for s in coords],text.text(),colors.currentData()))
-                    self.editor.apply(replace_item);return
-                if kind.currentData()=='subtitle': self.editor.subtitle(start.value(),end.value(),text.text())
-                else: self.editor.add_annotation(kind.currentData(),start.value(),end.value(),[s.value() for s in coords],text.text(),colors.currentData())
-            try: self.edit(change); dialog.accept()
-            except Exception as exc:self.error(str(exc))
-        buttons.accepted.connect(save); dialog.exec()
-    def geometry_dialog(self):
-        if not self.editor:return
-        from .components import form_dialog
-        dialog,form=form_dialog(self,self.tr('Encuadre y cámara'),self.tr('Ajusta el área visible y la posición de la cámara.'))
-        crop=QCheckBox(self.tr('Recortar / ampliar imagen')); crop.setChecked(self.editor.project.crop is not None); form.addRow(crop)
-        camera=QCheckBox(self.tr('Mostrar cámara')); camera.setChecked(self.editor.project.camera.enabled); form.addRow(camera)
-        values=[]
-        for prefix,rect in [('Recorte',self.editor.project.crop or [0,0,1,1]),('Cámara',self.editor.project.camera.rect)]:
-            group=[]
-            for label,value in zip(['X','Y','Ancho','Alto'],rect):
-                spin=number(0,1,value,3); form.addRow(self.tr(prefix)+' '+label,spin); group.append(spin)
-            values.append(group)
-        buttons=QDialogButtonBox(QDialogButtonBox.Save|QDialogButtonBox.Cancel);buttons.button(QDialogButtonBox.Save).setText(self.tr('Guardar cambios'));buttons.button(QDialogButtonBox.Save).setProperty('primary',True);buttons.button(QDialogButtonBox.Cancel).setText(self.tr('Cancelar'));buttons.button(QDialogButtonBox.Save).setIcon(QIcon());buttons.button(QDialogButtonBox.Cancel).setIcon(QIcon());dialog.footer.addWidget(buttons);buttons.rejected.connect(dialog.reject)
-        def save():
-            def update(p):
-                p.crop=[s.value() for s in values[0]] if crop.isChecked() else None
-                p.camera.enabled=camera.isChecked(); p.camera.rect=[s.value() for s in values[1]]
-            try:self.edit(lambda:self.editor.apply(update)); dialog.accept()
-            except Exception as exc:self.error(str(exc))
-        buttons.accepted.connect(save); dialog.exec()
-    def export_srt(self):
-        if not self.editor:return
-        path,_=QFileDialog.getSaveFileName(self,self.tr('Exportar subtítulos'),str(self.editor.path.parent/'subtitles.srt'),'SRT (*.srt)')
-        if path:self.guard(lambda:self.editor.export_srt(path))
-    def import_srt(self):
-        if not self.editor:return
-        path,_=QFileDialog.getOpenFileName(self,self.tr('Importar SRT'),'', 'SRT (*.srt)')
-        if path:
-            from ..analysis import import_srt
-            self.guard(lambda:self.edit(lambda:self.editor.apply(lambda p:p.subtitles.extend(import_srt(path)))))
-    def analysis_dialog(self):
-        if not self.editor or self.operation_busy():return
-        kind,ok=QInputDialog.getItem(self,self.tr('Análisis local'),self.tr('Revisar propuestas antes de aplicar'),[self.tr('Detectar silencios'),self.tr('Transcribir con whisper.cpp local')],0,False)
-        if not ok:return
-        from ..analysis import AnalysisJob
-        key='silence' if kind==self.tr('Detectar silencios') else 'transcription'
-        options={}
-        if key=='transcription':
-            executable,_=QFileDialog.getOpenFileName(self,self.tr('Selecciona whisper-cli instalado'))
-            if not executable:return
-            model,_=QFileDialog.getOpenFileName(self,self.tr('Selecciona modelo local; no se descargará nada'))
-            if not model:return
-            options={'executable':executable,'model_path':model}
-        def start():
-            self.player.close_media(); self.analysis_kind=key
-            self.analysis=AnalysisJob(self.editor.path,kind=key,**options).start()
-            self._job_cancel_pending=False;self.poll_job()
-        self.guard(start)
-    def review_analysis(self,kind,result):
-        dialog=QDialog(self); dialog.setWindowTitle(self.tr('Revisar resultados')); layout=QVBoxLayout(dialog)
-        layout.addWidget(QLabel(self.tr('Marca únicamente los intervalos que quieras eliminar. Los originales se conservan.')))
-        items=QListWidget(); layout.addWidget(items)
-        for entry in result:
-            start=entry['start'] if isinstance(entry,dict) else entry.start
-            end=entry['end'] if isinstance(entry,dict) else entry.end
-            text='' if isinstance(entry,dict) else entry.text
-            item=QListWidgetItem(f'{start:.2f}–{end:.2f} {text}'); item.setFlags(item.flags()|Qt.ItemIsUserCheckable); item.setCheckState(Qt.Unchecked); item.setData(Qt.UserRole,(start,end));items.addItem(item)
-        def remove():
-            selected=[items.item(i).data(Qt.UserRole) for i in range(items.count()) if items.item(i).checkState()==Qt.Checked]
-            if selected:self.guard(lambda:self.edit(lambda:self.editor.remove_ranges(selected)))
-            dialog.accept()
-        button(self.tr('Eliminar intervalos marcados'),remove,layout)
-        if kind=='transcription':
-            def subtitles():
-                self.guard(lambda:self.edit(lambda:self.editor.apply(lambda p:p.subtitles.extend(result))));dialog.accept()
-            button(self.tr('Añadir transcripción como subtítulos'),subtitles,layout)
-        button(self.tr('Cerrar sin cambios'),dialog.reject,layout); dialog.resize(650,450);dialog.exec()
+        self._job_cancel_pending=False;self.job=None;self.analysis=None
 
     def hide_capture_controls(self):
         self.quick.hide_all();self.countdown_overlay.hide();self.camera_preview.stop();self.hide();self.tray.hide()
@@ -997,11 +756,19 @@ class Window(QMainWindow):
             self.hide_capture_controls();return {'hidden':True}
 
         if action=='quick':
+            try:finished=bool(self.session) and self.session.status().get('state') in ('stopped','error','interrupted','cleared')
+            except Exception:finished=False
+            if finished:
+                # Reap the finished capture before offering a new one, without
+                # bringing the library window up behind the bar.
+                self._quiet_reap=True
+                try:self.poll()
+                finally:self._quiet_reap=False
             if self.session or self.job or self.analysis or self.capture_pending or self.import_cancel or self.finalization_active():
                 return {'pid':os.getpid(),'state':'busy','result':'quick_unavailable'}
             if QApplication.activeModalWidget():
                 return {'pid':os.getpid(),'state':'busy','result':'modal_active'}
-            self.quick.present()
+            self.select_focused_monitor();self.quick.present()
             return {'pid':os.getpid(),'state':'idle','quick':True,'job':None}
         if action!='status':
             self.quick_mode=False;self.quick.hide_all();self.camera_preview_layout.addWidget(self.camera_preview)
@@ -1039,12 +806,34 @@ class Window(QMainWindow):
             self.error(self.tr('Cancela la operación y espera a que termine antes de cerrar')); event.ignore(); return
         if self.camera_preview.is_running:
             event.ignore();self.camera_preview.stop(self.close);return
-        self.capture_pending=False;self.countdown_timer.stop();self.countdown_overlay.hide();self.countdown_overlay.deleteLater();self.recording_indicator.hide()
-        self.selection_timer.stop();self.quick.timer.stop();self.quick.hide_all();self.quick.deleteLater();self.stop_meters(); self.player.shutdown(); self.wave_process.kill(); self.wave_process.waitForFinished(1000)
-        if hasattr(self,'thumbnail'):self.thumbnail.waitForFinished(1000)
+        self.capture_pending=False;self.countdown_timer.stop();self.countdown_overlay.hide();self.countdown_overlay.deleteLater();self.close_presenter();self.recording_indicator.hide()
+        self.selection_timer.stop();self.quick.timer.stop();self.quick.hide_all();self.quick.deleteLater();self.stop_meters(); self.player.shutdown()
         self.restore_concentration(); self.tray.hide();
         if self.keys:self.keys.close()
         event.accept(); QApplication.quit()
+
+
+def monitor_for_rect(rect):
+    """Logical [x,y,w,h] of the Hyprland monitor holding a capture rectangle."""
+    if not os.environ.get('HYPRLAND_INSTANCE_SIGNATURE'):return None
+    import json,subprocess
+    try:rows=json.loads(subprocess.run(['hyprctl','-j','monitors'],capture_output=True,text=True,timeout=2).stdout)
+    except (OSError,ValueError,subprocess.SubprocessError):return None
+    x,y,w,h=rect;cx,cy=x+w/2,y+h/2
+    for m in rows:
+        scale=float(m.get('scale',1) or 1);mw,mh=m.get('width',0),m.get('height',0)
+        if m.get('transform',0)%2:mw,mh=mh,mw
+        mw,mh=round(mw/scale),round(mh/scale)
+        if m['x']<=cx<m['x']+mw and m['y']<=cy<m['y']+mh:return [m['x'],m['y'],mw,mh]
+    return None
+
+def focused_monitor():
+    """Name of the Hyprland monitor holding keyboard focus, or None."""
+    if not os.environ.get('HYPRLAND_INSTANCE_SIGNATURE'):return None
+    import json,subprocess
+    try:rows=json.loads(subprocess.run(['hyprctl','-j','monitors'],capture_output=True,text=True,timeout=2).stdout)
+    except (OSError,ValueError,subprocess.SubprocessError):return None
+    return next((str(m.get('name')) for m in rows if isinstance(m,dict) and m.get('focused')),None)
 
 
 def apply_theme(app):
@@ -1052,7 +841,21 @@ def apply_theme(app):
     apply(app)
 
 
+def keep_error_log():
+    """Launchers discard stderr; keep a small private log of UI exceptions."""
+    try:
+        if not os.path.samestat(os.fstat(2),os.stat(os.devnull)):return None
+        root=Path(os.environ.get('XDG_STATE_HOME',str(Path.home()/'.local/state')))/'loomrec'
+        root.mkdir(parents=True,exist_ok=True,mode=0o700)
+        path=root/'recorder-errors.log'
+        mode='w' if path.exists() and path.stat().st_size>512*1024 else 'a'
+        stream=open(path,mode,buffering=1,encoding='utf-8',errors='replace');os.chmod(path,0o600)
+        sys.stderr=stream;return path
+    except OSError:return None
+
+
 def main():
+    keep_error_log()
     from .instance import Instance
     instance=Instance()
     quick=os.environ.get('LOOMREC_QUICK_RECORD')=='1'
@@ -1067,12 +870,12 @@ def main():
         return activate_response(response,instance)
     try:
         app=QApplication.instance() or QApplication(sys.argv)
-        app.setApplicationName('Wysun Recorder'); app.setOrganizationName('Loom')
+        app.setApplicationName('Wysun Recorder'); app.setOrganizationName('Wysun')
         apply_theme(app)
         app.setQuitOnLastWindowClosed(False)
         window=Window()
         from .activation import show_and_focus
-        if quick:window.quick.present()
+        if quick:window.select_focused_monitor();window.quick.present()
         else:show_and_focus(window)
         activation=QTimer(window);activation.timeout.connect(lambda:instance.poll(window.activate_instance));activation.start(50)
         return app.exec()

@@ -2,7 +2,7 @@
 import sys,unittest
 from pathlib import Path
 from unittest.mock import Mock
-sys.path.insert(0,str(Path(__file__).parents[1]/'apps/orbit'))
+sys.path.insert(0,str(Path(__file__).parents[1]/'apps/wysun'))
 from PySide6.QtCore import Qt,QEvent
 from PySide6.QtGui import QKeyEvent
 from PySide6.QtWidgets import QApplication,QPushButton

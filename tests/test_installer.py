@@ -4,13 +4,13 @@ from unittest.mock import patch
 spec=importlib.util.spec_from_file_location('installer',Path(__file__).parents[1]/'installer/main.py');m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
 class InstallerTests(unittest.TestCase):
  def test_update_keeps_theme_chosen_in_settings(self):
-  for name in ('home/.config','home/.local/bin','assets/icons','backgrounds','manifests'):(self.source/name).mkdir(parents=True)
-  (self.source/'home/.zshrc').write_text('preserved')
+  for name in ('config/.config','config/.local/bin','assets/icons','assets/backgrounds','manifests'):(self.source/name).mkdir(parents=True)
+  (self.source/'config/.zshrc').write_text('preserved')
   (self.source/'manifests/themes.json').write_text(json.dumps({'tokyo':{'name':'Tokyo','wallpaper':'tokyo.png'},'severance':{'name':'Severance','wallpaper':'azul.jpg'}}))
   active=self.home/'.config/orbit/theme.json';active.parent.mkdir(parents=True);active.write_text(json.dumps({'id':'tokyo','name':'Tokyo'}))
   d=self.deploy();d.receipt['theme']='severance'
   try:
-   with patch.object(d,'deploy'),patch.object(d,'generated'),patch.object(d,'configure_locker'),patch.object(d,'configure_scripts'):d.configure()
+   with patch.object(d,'deploy'),patch.object(d,'generated'),patch.object(d,'configure_scripts'):d.configure(components=('desktop',))
    self.assertEqual(d.receipt['theme'],'tokyo')
   finally:d.lock.close()
  def test_mise_shim_keeps_command_name(self):

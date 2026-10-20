@@ -44,7 +44,7 @@ def main():
                                 'before-sleep', 'wysun-lock'], ['wysun', 'daemon']]
     # Both notification/polkit agents are scoped to this newly selected login.
     if shutil.which('dunst'):
-        config = Path.home() / '.config/bspwm/dunstrc'
+        config = Path.home() / '.config/wysun/dunstrc'
         commands.append(['dunst', '--config', str(config)] if config.is_file() else ['dunst'])
     for agent in ('/usr/lib/policykit-1-mate/polkit-mate-authentication-agent-1',
                   '/usr/libexec/polkit-mate-authentication-agent-1'):

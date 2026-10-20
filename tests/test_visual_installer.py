@@ -83,7 +83,7 @@ class VisualInstallerBackendTests(unittest.TestCase):
         self.assertFalse((self.home/'.config').exists())
 
     def test_terminal_only_keeps_desktop_editor_private_data_and_profile(self):
-        originals = {'.config/nvim/init.lua':'my editor', '.config/bspwm/bspwmrc':'my desktop',
+        originals = {'.config/nvim/init.lua':'my editor', '.config/other-desktop/wmrc':'my desktop',
                      '.config/dotifails/theme.json':'{"name":"personal"}',
                      '.local/share/orbit/notes/private.md':'private note'}
         for relative, content in originals.items():

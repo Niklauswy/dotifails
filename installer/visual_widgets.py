@@ -178,7 +178,7 @@ class DesktopPreview(QWidget):
     def set_theme(self, theme):
         self.theme = theme
         filename = {'severance':'azul.jpg', 'tokyo':'tokyo.png', 'space-black':'space-black.png'}.get(theme, 'azul.jpg')
-        self.wallpaper = QPixmap(str(self.source / 'backgrounds' / filename))
+        self.wallpaper = QPixmap(str(self.source / 'assets/backgrounds' / filename))
         if self.wallpaper.isNull():
             self.wallpaper = QPixmap(str(Path(__file__).parent / 'previews' / (theme + '.jpg')))
         self.update()

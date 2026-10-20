@@ -35,6 +35,10 @@ def _pixmap(name,color,size,stroke=1.6):
     elif name=='close':line(6,6,18,18);line(18,6,6,18)
     elif name=='rewind':
         p.drawArc(QRectF(4,4,16,16),-40*16,285*16);line(3,3,3,9);line(3,9,9,9);line(12,8,12,13);line(12,13,15,15)
+    elif name=='forward':
+        p.drawArc(QRectF(4,4,16,16),-65*16,-285*16);line(21,3,21,9);line(21,9,15,9);line(12,8,12,13);line(12,13,9,15)
+    elif name=='copy':
+        p.drawRoundedRect(QRectF(8,8,12,12),2,2);line(4,16,4,6);p.drawArc(QRectF(4,4,4,4),90*16,90*16);line(6,4,16,4)
     elif name=='refresh':
         p.drawArc(QRectF(4,4,16,16),35*16,285*16);line(20,3,20,9);line(20,9,14,9)
     elif name=='eye':

@@ -31,6 +31,14 @@ from wybieshot.ui.selection import SelectionOverlay
 def image(w=640,h=360):
     result=QImage(w,h,QImage.Format_ARGB32);result.fill(QColor('#F3F6FB'));return result
 
+def control_drag(widget,start,end):
+    start_global=widget.mapToGlobal(start);end_global=widget.mapToGlobal(end)
+    with patch('wybieshot.ui.selection.QCursor.pos',return_value=start_global):
+        QApplication.sendEvent(widget,QKeyEvent(QEvent.KeyPress,Qt.Key_Control,Qt.NoModifier))
+    QApplication.sendEvent(widget,QMouseEvent(QEvent.MouseMove,QPointF(end),QPointF(end_global),Qt.NoButton,Qt.NoButton,Qt.ControlModifier))
+    with patch('wybieshot.ui.selection.QCursor.pos',return_value=end_global):
+        QApplication.sendEvent(widget,QKeyEvent(QEvent.KeyRelease,Qt.Key_Control,Qt.NoModifier))
+
 
 class ScreenshotUI(unittest.TestCase):
     @classmethod
@@ -166,6 +174,22 @@ class ScreenshotUI(unittest.TestCase):
         overlay=SelectionOverlay(image(),QRect(0,0,640,360));overlay.show();self.app.processEvents()
         QTest.mousePress(overlay,Qt.LeftButton,pos=QPoint(20,30));QTest.mouseMove(overlay,QPoint(180,140));QTest.mouseRelease(overlay,Qt.LeftButton,pos=QPoint(180,140));self.assertEqual(overlay.selection,QRect(QPoint(20,30),QPoint(180,140)))
         QTest.mousePress(overlay,Qt.LeftButton,pos=QPoint(180,140));QTest.mouseMove(overlay,QPoint(200,160));QTest.mouseRelease(overlay,Qt.LeftButton,pos=QPoint(200,160));self.assertEqual(overlay.selection.bottomRight(),QPoint(200,160));overlay.close()
+        overlay.show();self.app.processEvents();finished=[];overlay.control_drag_finished.connect(lambda:finished.append(True))
+        control_drag(overlay,QPoint(250,180),QPoint(340,260))
+        self.assertEqual(overlay.selection,QRect(QPoint(250,180),QPoint(340,260)));self.assertEqual(finished,[True]);overlay.close()
         self.window.busy=True;self.window.capture_timer.start(1000);self.window.cancel_capture();self.assertFalse(self.window.busy);self.assertFalse(self.window.capture_timer.isActive());self.window.quick.hide()
+
+    def test_control_drag_finishes_on_the_output_where_it_started(self):
+        left=SelectionOverlay(image(320,240),QRect(0,0,320,240));right=SelectionOverlay(image(320,240),QRect(320,0,320,240))
+        left.show();right.show();self.app.processEvents();finished=[];left.control_drag_finished.connect(lambda:finished.append(True))
+        start=QPoint(20,20);middle=QPoint(100,100);end=QPoint(340,100)
+        with patch('wybieshot.ui.selection.QCursor.pos',return_value=start):
+            QApplication.sendEvent(left,QKeyEvent(QEvent.KeyPress,Qt.Key_Control,Qt.NoModifier))
+        QApplication.sendEvent(left,QMouseEvent(QEvent.MouseMove,QPointF(middle),QPointF(left.mapToGlobal(middle)),Qt.NoButton,Qt.NoButton,Qt.ControlModifier))
+        QApplication.sendEvent(right,QMouseEvent(QEvent.MouseMove,QPointF(20,100),QPointF(end),Qt.NoButton,Qt.NoButton,Qt.ControlModifier))
+        with patch('wybieshot.ui.selection.QCursor.pos',return_value=end):
+            QApplication.sendEvent(right,QKeyEvent(QEvent.KeyRelease,Qt.Key_Control,Qt.NoModifier))
+        self.assertEqual(finished,[True]);self.assertEqual(left.selection,QRect(QPoint(20,20),QPoint(319,100)))
+        left.close();right.close()
 
 if __name__=='__main__':unittest.main()

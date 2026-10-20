@@ -1,0 +1,7 @@
+#!/usr/bin/env python3
+"""Login/hotplug restore of the fixed workspaces from the installed Wysun app."""
+import os
+from pathlib import Path
+import sys
+path=Path(__file__).resolve().parent.parent/'share/orbit/app/settings_runtime.py'
+os.execv('/usr/bin/python3',['/usr/bin/python3',str(path),'workspaces',*sys.argv[1:]])

@@ -134,6 +134,22 @@ class WaylandImageTests(unittest.TestCase):
                 result=capture_frame('desktop',False)
             self.assertEqual((result.width(),result.height()),(128,32));self.assertEqual(result.pixelColor(5,5),QColor('blue'))
             portal.screenshot.assert_called_once_with(interactive=False);portal.close.assert_called_once();stream.assert_not_called();self.assertTrue(path.exists())
+    def test_region_freeze_uses_screenshot_portal_not_screencast_picker(self):
+        from PySide6.QtGui import QImage,QColor
+        from wybieshot.capture import CaptureEngine
+        image=QImage(96,54,QImage.Format_ARGB32);image.fill(QColor('green'))
+        with patch.dict(os.environ,{'WAYLAND_DISPLAY':'owned'}),patch('loomrec.portal_image.capture_frame',return_value=image) as frame:
+            frozen=CaptureEngine().freeze()
+        frame.assert_called_once()
+        self.assertEqual(frame.call_args.args[0],'desktop')
+        self.assertFalse(frame.call_args.args[1])
+        self.assertEqual((frozen.geometry.width,frozen.geometry.height),(96,54))
+        self.assertFalse(frozen.cursor_embedded)
+    def test_mpv_numeric_locale_is_normalized_before_creating_handle(self):
+        from loomrec.ui import mpv_embed
+        with patch('loomrec.ui.mpv_embed.locale.setlocale') as normalize:
+            mpv_embed.normalize_numeric_locale()
+        normalize.assert_called_once_with(mpv_embed.locale.LC_NUMERIC,'C')
     def test_multimonitor_composition_uses_topology_and_max_scale(self):
         from PySide6.QtGui import QImage,QColor
         from loomrec.portal_image import compose_frames

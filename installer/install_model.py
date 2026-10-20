@@ -11,13 +11,13 @@ import shutil
 
 COMPONENTS = {
     'desktop': ('Escritorio Wysun', 'Ventanas, barra, buscador, conexiones y paneles nativos.'),
-    'wayland': ('Wysun / Hyprland (adicional)', 'Sesión Wayland con Quickshell; conserva BSPWM y sus atajos.'),
+    'wayland': ('Sesión Wysun / Hyprland', 'Compositor Hyprland, shell Quickshell y registro de la sesión Wayland.'),
     'terminal': ('Terminal y shell', 'Ghostty, Zsh, Starship y versiones por proyecto con mise.'),
     'editor': ('Neovim', 'Editor, lenguajes, autocompletado y depuración.'),
     'tools': ('Herramientas personales', 'Utilidades de desarrollo, red y transferencia de archivos.'),
     'boot': ('Arranque Blue CRT', 'GRUB, animaciones de carga y acceso con Tux.'),
 }
-DEFAULT_COMPONENTS = tuple(key for key in COMPONENTS if key != 'wayland')
+DEFAULT_COMPONENTS = tuple(COMPONENTS)
 BOOT_COMPONENTS = {'grub': 'Menú GRUB', 'plymouth': 'Carga, apagado y reinicio', 'greeter': 'Inicio de sesión'}
 ARTIFACTS = {
     'desktop': {'yt-dlp'},
@@ -57,8 +57,6 @@ def package_names(source, components, extras=(), boot_components=None):
                 names.extend(manifest['boot_components'][screen])
         else:
             names.extend(groups.get(key, manifest.get(key, [])))
-    if 'desktop' in components and not Path('/etc/X11/default-display-manager').exists():
-        names.append('lightdm')
     if extras:
         names.append('flatpak')
     if 'wayland' in components:
@@ -159,15 +157,15 @@ def preflight(options):
     add('system', 'ok' if supported else ('warning' if options.config_only else 'error'),
         fields.get('PRETTY_NAME', 'Sistema no identificado'),
         platform.machine() + (' · compatible' if supported else ' · requiere Debian 13 o Parrot 7, x86_64'))
-    required = ['installer/main.py', 'manifests/packages.json', 'manifests/artifacts.json', 'manifests/themes.json', 'home/.config/bspwm/bspwmrc']
+    required = ['installer/main.py', 'manifests/packages.json', 'manifests/artifacts.json', 'manifests/themes.json']
     if 'boot' in options.components:
         required += ['installer/boot.py', 'system/boot/grub/theme.txt', 'system/boot/plymouth/orbit.script', 'native/blue-crt/blue-crt.c']
     if 'desktop' in options.components:
-        required += ['apps/orbit/orbit.py', 'native/orbit-lock/meson.build']
+        required += ['apps/wysun/orbit.py']
     if 'tools' in options.components:
         required += ['apps/tools/cli.py', 'bin/orbit-tools']
     if 'wayland' in options.components:
-        required += ['apps/quickshell/shell.qml', 'home/.config/wysun/hyprland.lua', 'bin/wysun-session', 'installer/session_registration.py']
+        required += ['apps/shell/shell.qml', 'config/.config/wysun/hyprland.lua', 'bin/wysun-session', 'installer/session_registration.py']
     missing = [name for name in required if not (options.source / name).is_file()]
     add('source', 'error' if missing else 'ok', 'Archivos del instalador',
         'Faltan: ' + ', '.join(missing) if missing else 'Copia local completa para la selección.')

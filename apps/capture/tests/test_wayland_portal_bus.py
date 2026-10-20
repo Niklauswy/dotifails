@@ -98,9 +98,11 @@ class PortalBusTests(unittest.TestCase):
         from loomrec.pipewire_bridge import configure_pipewire_source
         source=Mock();configure_pipewire_source(source,13,47,{'pipewire-serial':987654321001})
         values=dict(call.args for call in source.set_property.call_args_list)
+        props=values.pop('stream-properties').to_string()
+        for key in ('media.type=(string)Video','node.dont-fallback=(boolean)true','node.dont-reconnect=(boolean)true'):self.assertIn(key,props)
         self.assertEqual(values,{'fd':13,'do-timestamp':True,'target-object':'987654321001'})
         source=Mock();configure_pipewire_source(source,13,47,{})
-        values=dict(call.args for call in source.set_property.call_args_list)
+        values=dict(call.args for call in source.set_property.call_args_list);values.pop('stream-properties')
         self.assertEqual(values,{'fd':13,'do-timestamp':True,'path':'47'});source.find_property.assert_not_called()
         source=Mock();source.find_property.return_value=None
         with self.assertRaisesRegex(RuntimeError,'object.serial'):configure_pipewire_source(source,13,47,{'pipewire-serial':12})

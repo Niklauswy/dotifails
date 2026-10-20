@@ -1,78 +1,64 @@
-# Validación · 25 de septiembre de 2026
+# Validación · 19 de octubre de 2026
 
-## Instalador visual · 12 de octubre de 2026
+## Migración a Wysun / Hyprland
 
-Se añadió la interfaz nativa sobre el mismo motor de instalación, con componentes independientes y recuperación. Las comprobaciones de esta revisión son:
+Esta revisión completa la migración del escritorio a **Wysun / Hyprland sobre Wayland**. El escritorio X11 anterior (BSPWM, SXHKD, Polybar y Picom) se retiró del repositorio, del instalador y de la configuración activa. Se conservan XWayland y las bibliotecas X11 necesarias para aplicaciones heredadas; no hay una sesión X11 propia.
 
-- Suite general: 106 pruebas correctas. Las pruebas que abren sockets locales se ejecutaron fuera del sandbox tras confirmar que el bloqueo procedía del entorno.
-- Regresiones finales del instalador: 11 pruebas correctas, incluidas selección de paquetes, conservación del escritorio en una instalación de terminal, repetición sin reescrituras, conflictos, restauración, cancelación, actualización exclusiva del instalador y orden cronológico de respaldos.
-- Arranque: 14 pruebas de selección, conservación y recuperación; la selección de pantallas no requiere modificar las otras.
-- Interfaz del instalador: 5 pruebas correctas. Ejecutan procesos reales de instalación de configuraciones y restauración en un hogar temporal; verifican permisos de registros, teclado, errores, cancelación y tamaños 800 × 600 y 1100 × 780.
-- Utilidades existentes: 6 pruebas Qt correctas. Manifiesto, sintaxis de shell y `git diff --check` correctos.
-- Despliegue local mediante `--installer-only`, sin conflictos. Apertura del instalador instalado en X11, ventana visible de 1100 × 780 comprobada con `xwininfo` y captura de su propia superficie revisada. No se inició una instalación completa sobre el escritorio en uso.
+Cambios estructurales verificados:
 
-Revisión visual: jerarquía, selección, estados deshabilitados, foco, desplazamiento y progreso inspeccionados. Se corrigieron el ancho mínimo de las tarjetas y los textos truncados de navegación. No quedan hallazgos visuales que bloqueen el recorrido inspeccionado.
+- `apps/wysun/` y `apps/shell/` son las fuentes activas; `config/` contiene las dotfiles y `assets/` los fondos y la apariencia.
+- El instalador distribuye la sesión `wayland` por defecto, registra solo sus dos archivos de sesión y no modifica el gestor de acceso.
+- Los ajustes del escritorio usan Hyprland (`hyprctl`, `hypr-settings.lua`, `hypr-shortcuts.lua`, `hypr-bar.json`) y el tema canónico es `~/.config/orbit/theme.json`.
+- Dunst usa `~/.config/wysun/dunstrc`. La barra y el escritorio de Quickshell se cargan desde `~/.local/share/wysun/quickshell`.
+- La captura usa los portales XDG en Wayland: Screenshot para imágenes sin cursor y ScreenCast/PipeWire para grabación, cursor y fuentes de ventana. Las herramientas de atajos basadas en el escritorio X11 se retiraron.
 
-Alcance pendiente: instalación completa de esta revisión en una máquina nueva, autenticación real de sudo desde el diálogo, suspensión y arranque físico. El flujo de GitHub Actions queda preparado en `.github/workflows/installer.yml`; no se ha ejecutado en GitHub ni se ha publicado esta revisión. Las pruebas de contenedores descritas más abajo corresponden a revisiones anteriores.
-
-Limpieza de esta tarea: cinco carpetas de caché de Python, 95 archivos (2.03 MiB); despliegue común del instalador centralizado y manifiesto de paquetes consolidado. Se conservaron fuentes, licencias, recursos de los tres temas y cambios de trabajo existentes.
-
----
-
-Pruebas realizadas sobre la versión portable, sin reemplazar la sesión del equipo de origen.
+## Suites
 
 | Comprobación | Resultado |
-| --- | --- |
-| Instalador y datos de utilidades: 10 pruebas | Correcto |
-| Interfaz de notas, colores y procesos: 3 pruebas Qt | Correcto |
-| Wysun: 71 pruebas de cálculo, portapapeles, OCR real, medios, conexiones, ajustes y barra | Correcto en Debian y Parrot |
-| Manifiesto original: un único fondo, versiones coherentes, atajos sin colisiones, sin rutas personales ni enlaces rotos | Correcto |
-| Gitleaks sobre el árbol distribuido, salida redactada | Sin secretos detectados |
-| Instalación completa y repetición en Debian 13 x86_64 | Correcto |
-| Instalación completa y repetición en Parrot 7.3 x86_64 | Correcto |
-| Doctor: Qt, BSPWM, Picom, Neovim, Node, Ghostty, OCR, FFmpeg y mpv | Correcto en ambas |
-| Neovim: 11 comprobaciones de LSP, diagnósticos, formato, fuzzy, tareas e interfaces | Correcto en ambas |
-| Depuración real: breakpoints, lectura de variables y avance en JS, Python y C++ | Correcto en ambas; CodeLLDB admite un arranque más lento |
-| X11 aislado en Debian: BSPWM, SXHKD, Picom, Polybar, Ghostty, utilidades y ocultación/restauración de barra en fullscreen | Correcto |
-| X11 aislado en Parrot: terminal, barra, fullscreen y utilidades | Correcto |
+|---|---|
+| Suite general (`python3 -m unittest discover -s tests`) | 169 pruebas correctas |
+| Aplicaciones Wysun (`test_orbit`, `test_refinement`, `test_v2`, `test_v3`, `test_v4`) | 52 pruebas correctas |
+| Lógica del shell (`apps/shell`: `tests.test_logic`) | 14 pruebas correctas |
+| Interfaz de utilidades (`tests/utility_ui.py`) | 6 pruebas correctas |
+| Captura (`apps/capture/run_tests.py`) | 354 pruebas correctas en 120,487 s |
+| Manifiesto (`tests/check_manifest.py`) | `MANIFEST_OK` y `TOOLS_OK` |
+| Humo de la instalación (`tests/wysun_installed_smoke.py`) | `WYSUN_INSTALLED_SMOKE_OK` |
 
-La prueba usa contenedores oficiales y Xvfb con D-Bus, no máquinas virtuales completas. Se revisó visualmente una captura del escritorio instalado. No prueba el arranque desde LightDM en una máquina física, GPU propietaria, conexiones reales Wi-Fi/Bluetooth, bloqueo/suspensión ni monitores físicos múltiples. Las aplicaciones opcionales Flatpak no se instalaron durante estas pruebas.
+Las suites de captura y compositor se ejecutaron en serie. Las pruebas de captura aíslan HOME/XDG y eliminan las variables de la sesión gráfica para no alcanzar el portal ni las preferencias reales.
 
-Fallos corregidos durante la validación: paquete Polkit retirado de Debian, extracción AppImage con un enlace a AppDir, preparación de plugins y tema de NvChad antes del primer arranque, búsqueda de iconos de usuario, PATH en las pruebas y espera a que BSPWM gestione la ventana antes de probar fullscreen.
+## Despliegue y sesión activa
 
-La carpeta original y las configuraciones activas se respaldaron fuera del repositorio antes de la limpieza. Los fondos descartados permanecen en el respaldo y el historial Git.
+- `./instalar.sh --orbit-only` terminó sin conflictos. Respaldo: `~/.local/state/dotifails/backups/20261019T171709Z-b34e4e`.
+- `~/.local/bin/orbit reload` completó correctamente y Quickshell mantiene la capa `wysun-desktop`.
+- Despliegue posterior de las correcciones de Screenshot y libmpv: respaldo `~/.local/state/dotifails/backups/20261019T194412Z-be2f10` y release `aceb815c873d1b5c38f8`; tras alinear los nombres visibles, respaldo `~/.local/state/dotifails/backups/20261019T195009Z-7a25ea` y release final `6075afe7c99700d9094b`. `orbit reload` correcto y `WYSUN_INSTALLED_SMOKE_OK`.
+- Comprobación real en la sesión Wayland activa: se abrió la ventana de Wysun, el menú de acciones, la lista de ventanas de Hyprland, el menú contextual del portapapeles y Ajustes con sus diez secciones.
+- Las herramientas instaladas (`wysun-terminal`, `wysun-session`, `wysun-session-services`) coinciden con el repositorio.
+- Se detuvo el proceso huérfano de la instalación X11 anterior y se migró Dunst a `~/.config/wysun/dunstrc`; `dunstctl` respondió y se mostró una notificación de prueba.
+- Las configuraciones X11 antiguas (`bspwm`, `dunst`, `picom`, `polybar`, `sxhkd`, `xsettingsd`) se conservaron en `~/.local/state/dotifails/backups/host-x11-cleanup-20261019T172249Z/` antes de retirarlas del hogar.
+- Tras el reinicio de la sesión se repitieron las comprobaciones reales: la barra de Quickshell mantiene la capa `wysun-desktop`, Dunst arrancó con `~/.config/wysun/dunstrc` y la ventana, los menús y las diez secciones de Ajustes siguen abriéndose.
 
-La actualización de perfiles añade azul y morado. Su validación específica se realiza con instalación aislada de configuraciones, selección de perfil, recursos, caché de Bat y manifiesto; las pruebas completas anteriores de Debian/Parrot no equivalen a repetir una instalación completa de esta revisión.
+La retirada de los paquetes del sistema requiere la contraseña del usuario y queda pendiente de ejecutar en una terminal:
 
-Revisión de los perfiles: 13 pruebas del instalador/almacenamiento/selección y 21 pruebas de Ajustes correctas. Instalación aislada azul, cambio a morado y repetición sin reescrituras verificados; recursos del tema, ambos fondos y caché Tokyo de Bat comprobados. El archivo azul coincide byte a byte con el original seleccionado.
+```sh
+sudo apt-get remove bspwm sxhkd polybar
+```
 
-## Gestor de procesos · 26 de septiembre de 2026
+## Prueba E2E de Screenshot
 
-- `python3 -m unittest discover -s tests -v`: 17 pruebas correctas, incluidas señales reales sobre procesos desechables y rechazo de un PID cuya identidad no coincide.
-- `QT_QPA_PLATFORM=offscreen python3 tests/utility_ui.py`: 5 pruebas correctas de utilidades.
-- `QT_QPA_PLATFORM=offscreen python3 tests/process_ui.py`: 6 pruebas correctas de ordenación numérica, selección múltiple estable, árbol y filtros, reemplazo de PID, congelación, confirmación/cancelación y navegación con teclado/acciones.
-- `python3 tests/check_manifest.py` y `git diff --check`: correctos.
-- Despliegue mediante `--orbit-only`, con respaldo y sin conflictos. Recarga del residente y apertura real mediante Super + Shift + K en X11; búsqueda, selección con flecha abajo, inspector y menú Alt K revisados visualmente. La lectura de unos 312 procesos tomó aproximadamente 0,10 segundos en este equipo, en un hilo de trabajo; no es una garantía de rendimiento para otros equipos.
+La sonda pública se ejecutó en un Hyprland anidado y aislado con salida sintética `WYSUN-TEST-1`, puntero/teclado virtuales y bus privado. Resultado: `PUBLIC_SCREENSHOT_ROUTE_PASS`.
 
-Esta revisión no repite la instalación completa en Debian/Parrot ni las pruebas de hardware. Las pruebas de pausa y cierre solo afectaron procesos temporales creados por las propias pruebas.
+- Consentimiento real del selector `hyprland-share-picker` y captura por portal.
+- Selección de región, editor y guardado directo con píxeles sintéticos uniformes verificados.
+- Barra rápida, exportación automática al portapapeles y reapertura mientras el propietario anterior del portapapeles sigue vivo.
+- Cancelación con Escape durante una solicitud pendiente: la interfaz permanece visible, el lease se libera y el proveedor se cierra.
+- Evidencia privada: `~/.local/state/dotifails/evidence/screenshot-route-20261019T173118Z/`.
 
-## Mise · 26 de septiembre de 2026
+## Correcciones posteriores
 
-Mise 2026.9.14 instalado en el usuario tras verificar el SHA-256 del archivo oficial. Integración Zsh comprobada con Node 20.19.5 y 24.19.0 ya existentes: cambio por carpeta, restauración del valor global y ejecución de npm correctos. `mise doctor` informa activación y shims disponibles, sin problemas. La configuración activa de Zsh se respaldó y se conservaron sus personalizaciones.
+- **Screenshot sin cursor.** La ruta regional por defecto congela el escritorio con el portal `Screenshot` (XDPH/grim) y muestra el marco propio de Wysun, sin el selector blanco de ScreenCast. La API se midió en la sesión real con respuestas de 0,3–0,5 s después de liberar portales bloqueados. También se abrió el marco real «Recortar imagen autorizada» en la sesión activa, sin selector ScreenCast, y se canceló sin guardar ni inspeccionar el contenido. La preferencia de cursor y las capturas de ventana/monitor conservan ScreenCast y su consentimiento. El caso E2E se actualizó para probar la ruta directa por defecto y mantener el selector para la rama con cursor; esta revisión concreta no se volvió a ejecutar en el compositor anidado.
+- **Reproducción de vídeo.** `libmpv` rechazaba `mpv_create()` con cualquier locale numérico distinto de `C` y el reproductor quedaba en duración 0 sin imagen. `MpvSurface.start` normaliza `LC_NUMERIC=C` antes de crear el handle. Verificado con un vídeo sintético de 3 s en la release instalada: duración 3,0 s, posición avanzando y fotograma no nulo.
+- **Nombres visibles.** El menú de aplicaciones muestra **Wysun Ajustes** y **Wysun Conexiones**; se retiraron las entradas «Órbita» y las palabras clave antiguas. Se conservan las rutas, los identificadores y el comando técnico `orbit` por compatibilidad.
 
-18 pruebas del instalador y datos correctas, incluida una regresión para conservar el nombre del comando al ejecutar los shims de mise. Manifiesto y sintaxis Zsh correctos. Se añadió mise al instalador portable; no se repitió la instalación completa en contenedores para esta revisión.
+## Límites
 
-## Teclado del menú de sesión · 26 de septiembre de 2026
-
-Se reprodujo que Enter no activaba los botones de Sesión antes de la corrección. `tests/power_ui.py`: 3 pruebas Qt correctas (Enter normal/numérico para las cinco acciones, foco y flechas, cancelación simulada y supresión de repetición automática). Dos pruebas de integración de `test_v3.UITests` verifican confirmación/cancelación y despacho del comando con ejecución sustituida por un mock. Las 18 pruebas del instalador/datos y el manifiesto siguen correctos. Tras desplegar y recargar Wysun, Super + X → flecha derecha → Enter abrió «Suspender» en la sesión X11 real; Esc canceló y devolvió al menú. No se ejecutaron suspensión, apagado ni cierre de sesión durante la verificación.
-
-El panel incorpora hora local, fecha en español y tiempo desde el arranque obtenido con `CLOCK_BOOTTIME` (incluye suspensión). Mantiene cinco acciones en 460 × 370 px, con fondos sutiles y foco visible. Cinco pruebas de `tests/power_ui.py` y las dos de integración anteriores pasan, incluida la representación del tiempo en días/horas/minutos y la detención del temporizador al ocultar el panel. Manifiesto correcto. Instalación `--orbit-only` sin conflictos, recarga y captura del menú real revisada en X11; apertura y cancelación de «Suspender» con el teclado verificadas de nuevo sin suspender el equipo.
-
-## Recuperación de monitores · 26 de septiembre de 2026
-
-Se sustituyó el reinicio posicional de escritorios (`bspc monitor -d`) por traslados mediante IDs que conservan árboles y ventanas. Las recargas de BSPWM omiten la restauración posicional de nombres guardados. Se activan `remove_disabled_monitors` y `remove_unplugged_monitors`; la transferencia nativa está documentada en el [código de BSPWM](https://github.com/baskerville/bspwm/blob/master/src/monitor.c). La reconciliación rescata también monitores obsoletos, conserva nombres personalizados, limpia duplicados numéricos vacíos y distingue los ocupados como «recuperado».
-
-- 23 pruebas del instalador/datos correctas, incluyendo cinco sobre distribución de escritorios y rechazo sin destino activo; manifiesto y sintaxis del arranque correctos.
-- 21 pruebas de Ajustes correctas fuera del sandbox (dentro, una prueba de socket estaba bloqueada por permisos).
-- `XVFB_BIN=/ruta/a/Xvfb python3 tests/monitor_x11.py`: BSPWM real en X11 aislado, monitores virtuales 3 → 1 → 2 → 3, recargas repetidas y duplicados heredados. Conservación de IDs de escritorios ocupados y ventanas reales comprobada; escritorios personalizados conservados. Esta prueba simula la lista de salidas disponibles, no la señal eléctrica de un cable físico.
-- Código desplegado con `--orbit-only`. Configuración activa de BSPWM migrada con respaldo, conservando ajustes de entrada y arranque. Activación sin reiniciar el WM y verificación de que los IDs de escritorios ocupados y todas las ventanas de la sesión real permanecen intactos.
+Las suites no capturaron una pantalla física, micrófono ni cámara, y no validan rendimiento de sesiones largas. La comprobación manual del marco de Screenshot abrió una captura del escritorio activo y la canceló sin guardar ni inspeccionar el contenido. El teclado y el puntero de la prueba E2E son sintéticos. Las revisiones anteriores del escritorio X11 quedan documentadas únicamente en el historial de Git.

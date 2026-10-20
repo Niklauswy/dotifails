@@ -28,9 +28,9 @@ import hashlib,json,os,subprocess,shutil
 from pathlib import Path
 source_path=Path(os.environ['WYSUN_CONTAINER_SOURCE'])
 home=Path.home();(home/'run').mkdir(mode=0o700)
-fixtures={'.config/bspwm/bspwmrc':'custom BSPWM fixture\n',
-          '.config/bspwm/picom.conf':'custom Picom fixture\n',
-          '.config/sxhkd/sxhkdrc':'custom SXHKD fixture\n',
+fixtures={'.config/other-desktop/wmrc':'custom window manager fixture\n',
+          '.config/other-desktop/compositor.conf':'custom compositor fixture\n',
+          '.config/other-desktop/keysrc':'custom keybindings fixture\n',
           '.config/orbit/personal.json':'{"fixture":true}\n',
           '.local/share/orbit/notes/private.md':'synthetic note fixture\n',
           '.local/share/loomrec/recordings/fixture/project.json':'synthetic project\n',

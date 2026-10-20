@@ -1,0 +1,3 @@
+#!/bin/sh
+if command -v ghostty >/dev/null 2>&1; then exec ghostty "$@"; fi
+exec foot "$@"

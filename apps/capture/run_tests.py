@@ -11,6 +11,10 @@ def main():
     with tempfile.TemporaryDirectory(prefix='wysun-capture-tests-') as temporary:
         home = Path(temporary)
         env = dict(os.environ, HOME=str(home), QT_QPA_PLATFORM='offscreen')
+        # Never inherit a live graphical session: mocked portal tests must not
+        # reach the user's Wayland/X11 desktop or their real preferences.
+        for variable in ('WAYLAND_DISPLAY', 'HYPRLAND_INSTANCE_SIGNATURE', 'XDG_SESSION_TYPE', 'DISPLAY'):
+            env.pop(variable, None)
         for variable, folder in (('XDG_CONFIG_HOME', 'config'), ('XDG_DATA_HOME', 'data'),
                                  ('XDG_STATE_HOME', 'state'), ('XDG_CACHE_HOME', 'cache'),
                                  ('XDG_RUNTIME_DIR', 'run')):

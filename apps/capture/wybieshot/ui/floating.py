@@ -25,9 +25,10 @@ class RegionCanvas(Canvas):
 
 class FloatingSelection(SelectionOverlay):
     finished=Signal(object,str)
-    def __init__(self,image,geometry,parent=None):
+    def __init__(self,image,geometry,parent=None,*,screen=None,image_origin=None):
         install_translations(QApplication.instance())
-        super().__init__(image,geometry,parent)
+        super().__init__(image,geometry,parent,screen=screen,image_origin=image_origin)
+        self.control_drag_finished.connect(self.prepare_selection)
         self.setWindowFlag(Qt.X11BypassWindowManagerHint,not __import__('loomrec.portal',fromlist=['is_wayland']).is_wayland())
         self.setWindowTitle('Seleccionar región · Wysun Screenshot')
         self.document=None;self.editing=False;self._popover=None;self._file_dialog=None
@@ -69,7 +70,7 @@ class FloatingSelection(SelectionOverlay):
             if not self.editing:
                 for point in (r.topLeft(),r.topRight(),r.bottomLeft(),r.bottomRight()):p.fillRect(QRect(point-QPoint(3,3),point+QPoint(3,3)),QColor('#FFFFFF'))
         if not self.toolbar.isVisible():
-            hint='Arrastra para seleccionar · Esc cancelar';box=QRect(16,max(8,self.height()-54),min(440,self.width()-32),38)
+            hint='Arrastra o mantén Ctrl y mueve · Esc cancelar';box=QRect(16,max(8,self.height()-54),min(440,self.width()-32),38)
             p.setPen(Qt.NoPen);p.setBrush(QColor('#FCFDFF'));p.drawRoundedRect(box,18,18);p.setPen(QColor('#1C2A3B'));p.drawText(box,Qt.AlignCenter,hint)
         p.end()
 

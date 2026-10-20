@@ -1,10 +1,10 @@
 # Wysun Desktop · dotifails
 
-El escritorio BSPWM actual, preparado para instalarse en **Parrot 7 o Debian 13, x86_64**: Wysun, Picom, Polybar, Ghostty, Neovim y Zsh. Mantiene los atajos, transparencias y animaciones rápidas. Incluye tres perfiles: **Severance**, **Tokyo** y **Space Black**.
+El escritorio Wysun sobre **Hyprland/Wayland**, preparado para instalarse en **Parrot 7 o Debian 13, x86_64**: Wysun, Quickshell, Ghostty, Neovim y Zsh. Mantiene los atajos, transparencias y animaciones rápidas. Incluye tres perfiles: **Severance**, **Tokyo** y **Space Black**.
 
 ## Familia Wysun
 
-Wysun es el nuevo nombre de Órbita. El lanzador, Music, Files, Recorder y Screenshot se desarrollan y distribuyen desde este repositorio. Recorder y Screenshot están en `apps/capture/`; el lanzador y los paneles siguen en `apps/orbit/`.
+Wysun es el nuevo nombre de Órbita. El lanzador, Music, Files, Recorder y Screenshot se desarrollan y distribuyen desde este repositorio. Recorder y Screenshot están en `apps/capture/`; el lanzador y los paneles siguen en `apps/wysun/`.
 
 - `wysun`: lanzador y búsqueda.
 - `wysun music`, `wysun files`, `wysun settings`: aplicaciones y ajustes.
@@ -14,12 +14,12 @@ Wysun es el nuevo nombre de Órbita. El lanzador, Music, Files, Recorder y Scree
 
 Las rutas privadas, los proyectos y los comandos antiguos se conservan. La actualización no migra datos ni sustituye las grabaciones activas. [Integración, nombres y compatibilidad](docs/wysun.md).
 
-## Sesión adicional Wayland
+## Sesión Wysun / Hyprland
 
-El componente opcional `wayland` prepara **Wysun / Hyprland**, Quickshell y las aplicaciones Python/PySide6 conservadas. No cambia BSPWM, Picom ni SXHKD, ni la sesión predeterminada. Revisa paquetes, portales, selección y recuperación en la [guía Wayland](docs/wayland.md).
+El componente `wayland` se instala por defecto y prepara **Wysun / Hyprland**, Quickshell y las aplicaciones Python/PySide6 conservadas. Revisa paquetes, portales, selección y recuperación en la [guía Wayland](docs/wayland.md).
 
 ```sh
-./instalar.sh --source "$PWD" --components wayland --plan
+./instalar.sh --source "$PWD" --components desktop,wayland --plan
 ```
 
 ## Instalar
@@ -32,11 +32,11 @@ sudo apt-get update && sudo apt-get install --yes git python3 ca-certificates &&
 
 Si ya tienes esta carpeta, ejecuta `./instalar.sh`. Desde una sesión gráfica abre el **instalador visual**: bienvenida, vista previa del tema, componentes, aplicaciones opcionales, revisión, progreso real y primeros pasos. Si falta Qt, ofrece preparar únicamente la interfaz desde la terminal. La instalación del escritorio empieza después de revisar el plan.
 
-Puedes seleccionar escritorio, terminal, Neovim, herramientas y Blue CRT; el escritorio y Neovim incluyen la terminal que necesitan. Desmarcar algo conserva su instalación actual. GRUB, carga y acceso también se eligen por separado. El instalador conserva los cambios personales, muestra conflictos, guarda el registro y permite recuperar respaldos del hogar o del arranque. [Guía del instalador visual](docs/installer.md).
+Puedes seleccionar escritorio, sesión Wysun / Hyprland, terminal, Neovim, herramientas y Blue CRT; el escritorio, la sesión y Neovim incluyen lo que necesitan. Desmarcar algo conserva su instalación actual. GRUB, carga y acceso también se eligen por separado. El instalador conserva los cambios personales, muestra conflictos, guarda el registro y permite recuperar respaldos del hogar o del arranque. [Guía del instalador visual](docs/installer.md).
 
-Una instalación nueva utiliza Severance y las actualizaciones conservan el tema elegido. No lo ejecutes con `sudo`: la interfaz pide autorización cuando corresponde. Al terminar, cierra sesión cuando quieras y elige **Wysun / BSPWM** en el gestor de acceso. El instalador mantiene abierta tu sesión.
+Una instalación nueva utiliza Severance y las actualizaciones conservan el tema elegido. No lo ejecutes con `sudo`: la interfaz pide autorización cuando corresponde. Al terminar, cierra sesión cuando quieras y elige **Wysun / Hyprland** en el gestor de acceso. El instalador mantiene abierta tu sesión.
 
-El instalador se valida en contenedores Debian y Parrot con una sesión X11 aislada. Consulta el alcance exacto en [Validación](docs/validation.md).
+El instalador se valida con HOME/XDG temporales y con una sesión Wayland anidada. Consulta el alcance exacto en [Validación](docs/validation.md).
 
 ```sh
 ./instalar.sh --gui
@@ -53,11 +53,11 @@ El perfil Samsung es opcional y específico del equipo con pantalla táctil defe
 
 ## Qué incluye
 
-- BSPWM y SXHKD, monitores detectados, diez escritorios distribuidos, sesiones con D-Bus y agente Polkit. Al desconectar pantallas se recuperan los escritorios completos en las disponibles; recargar no reinicia sus árboles de ventanas. Los duplicados vacíos heredados se limpian y los ocupados se distinguen como «recuperado».
-- Picom 12, transparencias y animaciones; Polybar flotante, módulos de recursos, conexiones, audio, calendario y notificaciones. La barra se oculta en el monitor que muestra una ventana a pantalla completa.
+- Hyprland y su configuración en Lua, monitores detectados, escritorios administrados por el compositor y agentes de D-Bus y Polkit. Al desconectar pantallas se recuperan los perfiles y las ventanas permanecen donde el compositor las coloque.
+- Quickshell: barra con módulos de recursos, conexiones, audio, calendario y notificaciones; paneles de escritorio integrados con Wysun. La apariencia se mantiene mediante transparencias y animaciones del compositor.
 - Wysun nativa en Qt: aplicaciones, ventanas, portapapeles, OCR local en español/inglés, archivos con vistas previas, reproductor multimedia, snippets, calculadora y emojis a color.
-- Conexiones Wi-Fi, Bluetooth, VPN y SSH; menú de sesión; ajustes visuales de BSPWM, pantallas, barra y atajos.
-- Notas Markdown, procesos y selector de color con lupa. No requiere Rofi.
+- Conexiones Wi-Fi, Bluetooth, VPN y SSH; menú de sesión; ajustes visuales de Hyprland, pantallas, barra y atajos.
+- Notas Markdown, procesos y selector de color con lupa, integrado con el portal de color.
 - Ghostty **1.2.3**, Neovim **0.11.5**, Node **24.19.0**, Starship **1.24.1**; versiones y SHA-256 en `manifests/artifacts.json`. Ghostty se extrae una vez, sin depender de FUSE al abrir terminales.
 - NvChad con plugins fijados por `lazy-lock.json`, LSP, formato, búsqueda difusa, tareas, depuración y herramientas de JS/TS, C/C++ y Python. Las versiones de Mason están en `manifests/mason.json`.
 - Zsh, autocompletado/sugerencias, resaltado, fzf y prompt Starship. Mise **2026.9.14** cambia versiones por proyecto; Node está disponible directamente y NVM se conserva bajo demanda.
@@ -84,7 +84,7 @@ Los paquetes APT y las aplicaciones Flatpak reciben las versiones que publica ca
 | Super + W / Ctrl + W | Cerrar / forzar cierre |
 | Super + F | Pantalla completa |
 
-Ver todos en [sxhkdrc](home/.config/sxhkd/sxhkdrc). Los paneles tienen navegación por teclado y Escape para cerrar.
+Ver todos en [hyprland.lua](config/.config/wysun/hyprland.lua). Los paneles tienen navegación por teclado y Escape para cerrar.
 
 ## Actualizar y recuperar
 
@@ -102,7 +102,7 @@ Para actualizar únicamente el instalador y su entrada en el menú de aplicacion
 
 Las configuraciones se instalan como **copias** editables. Antes de reemplazarlas se guardan en `~/.local/state/dotifails/backups/ID/before/`, junto con un diario de operaciones. Si has editado un archivo administrado, una actualización lo conserva y deja la propuesta en `incoming/`; devuelve código 2 para indicar conflictos. Los cambios locales incluyen archivos borrados deliberadamente.
 
-Para desarrollar los menús, editar `apps/orbit/` en este repositorio y ejecutar `./instalar.sh --orbit-only && orbit reload`. Así el escritorio usa el mismo código que recibirá una instalación nueva. Notas y Color son ventanas nativas independientes; sus datos privados se conservan aparte. [Flujo de desarrollo y actualización](docs/maintenance.md#cambiar-órbita-y-usar-la-misma-versión-en-tu-escritorio).
+Para desarrollar los menús, editar `apps/wysun/` en este repositorio y ejecutar `./instalar.sh --orbit-only && orbit reload`. Así el escritorio usa el mismo código que recibirá una instalación nueva. Notas y Color son ventanas nativas independientes; sus datos privados se conservan aparte. [Flujo de desarrollo y actualización](docs/maintenance.md#cambiar-órbita-y-usar-la-misma-versión-en-tu-escritorio).
 
 `restore` recupera el estado anterior y conserva ediciones posteriores en `changes-before-restore/`. Se deben restaurar los respaldos de más reciente a más antiguo. No desinstala paquetes APT/Flatpak ni borra datos personales de Wysun. Una instalación fallida muestra el ID recuperable y puede repetirse después de corregir la causa.
 
@@ -118,11 +118,11 @@ La instalación inicial conserva el Node fijado del escritorio como alternativa 
 
 ## Privacidad y alcance
 
-No incluye historial del portapapeles, notas, conexiones Wi-Fi, claves SSH, tokens, cachés ni proyectos personales. Cada usuario empieza con datos nuevos. No cambia Git global, contraseñas, particiones ni el gestor de acceso existente. Instala LightDM si no encuentra uno.
+No incluye historial del portapapeles, notas, conexiones Wi-Fi, claves SSH, tokens, cachés ni proyectos personales. Cada usuario empieza con datos nuevos. No cambia Git global, contraseñas, particiones ni el gestor de acceso existente.
 
-Esta versión está orientada a Linux X11 y rutas XDG predeterminadas del usuario. No migra a Wayland ni convierte otras distribuciones automáticamente. El soporte de Wi-Fi, Bluetooth, aceleración gráfica y pantallas depende de los controladores del equipo.
+Esta versión está orientada a Wysun / Hyprland sobre Wayland y a las rutas XDG predeterminadas del usuario. No convierte otras distribuciones automáticamente. El soporte de Wi-Fi, Bluetooth, aceleración gráfica y pantallas depende de los controladores del equipo.
 
-[Manual de Wysun](apps/orbit/README.md) · [Neovim](home/.config/nvim/README.md) · [Créditos](docs/credits.md) · [Validación](docs/validation.md)
+[Manual de Wysun](apps/wysun/README.md) · [Neovim](config/.config/nvim/README.md) · [Créditos](docs/credits.md) · [Validación](docs/validation.md)
 
 En Ajustes → Tema puedes cambiar entre Tokyo, Severance y Space Black sin reinstalar el escritorio. El cambio incluye Wysun, terminal, prompt, Neovim, barra, bordes, notificaciones y animaciones del bloqueo; las configuraciones anteriores se respaldan.
 

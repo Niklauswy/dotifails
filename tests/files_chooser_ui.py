@@ -2,8 +2,8 @@ import os,sys,tempfile,time,unittest
 from pathlib import Path
 from unittest.mock import patch
 root=Path(__file__).resolve().parents[1]
-if not (root/'apps/orbit').is_dir():root=Path(__file__).resolve().parent
-sys.path.insert(0,str(root/'apps/orbit'))
+if not (root/'apps/wysun').is_dir():root=Path(__file__).resolve().parent
+sys.path.insert(0,str(root/'apps/wysun'))
 from PySide6.QtCore import Qt,QItemSelectionModel,QEvent,QCoreApplication
 from PySide6.QtWidgets import QApplication,QMessageBox
 from files_chooser import FileChooser

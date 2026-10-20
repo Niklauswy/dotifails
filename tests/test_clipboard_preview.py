@@ -2,7 +2,7 @@
 import os,sys,time,unittest
 from pathlib import Path
 from unittest.mock import patch
-sys.path.append(str(Path(__file__).resolve().parents[1]/'apps/orbit'))
+sys.path.append(str(Path(__file__).resolve().parents[1]/'apps/wysun'))
 from PySide6.QtWidgets import QApplication
 from PySide6.QtGui import QImage,QPainter,QColor,QFont
 from PySide6.QtCore import QEventLoop,QTimer

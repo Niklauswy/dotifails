@@ -2,8 +2,8 @@
 import os,sys,tempfile,time,subprocess
 from pathlib import Path
 root=Path(__file__).resolve().parents[1]
-if not (root/'apps/orbit').is_dir():root=Path(__file__).resolve().parent
-sys.path.insert(0,str(root/'apps/orbit'))
+if not (root/'apps/wysun').is_dir():root=Path(__file__).resolve().parent
+sys.path.insert(0,str(root/'apps/wysun'))
 from dbus.mainloop.glib import DBusGMainLoop
 DBusGMainLoop(set_as_default=True)
 import dbus,dbus.service

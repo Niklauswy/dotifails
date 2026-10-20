@@ -78,7 +78,7 @@ class VisualContractTests(unittest.TestCase):
                 self.assertFalse(window.library_open.isEnabled());self.assertFalse(window.library_more.isEnabled())
             finally:window.timer.stop();window.close();window.deleteLater();self.app.processEvents()
 
-    def test_advanced_setup_and_inspector_fit_and_accept_keyboard(self):
+    def test_advanced_setup_fits_without_horizontal_scroll(self):
         from loomrec.ui.main import Window
         from loomrec.library import Library
         from PySide6.QtWidgets import QScrollArea
@@ -92,49 +92,7 @@ class VisualContractTests(unittest.TestCase):
                     self.assertTrue(window.setup_advanced.body.isVisible())
                     self.assertEqual((window.width(),window.height()),(width,height))
                     for scroll in window.setup_page.findChildren(QScrollArea):self.assertEqual(scroll.horizontalScrollBar().maximum(),0)
-                    window.stack.setCurrentWidget(window.editor_page);self.app.processEvents()
-                    tabs=window.inspector.tabBar();tabs.setCurrentIndex(0);tabs.setFocus()
-                    self.app.sendEvent(tabs,QKeyEvent(QEvent.KeyPress,Qt.Key_Right,Qt.NoModifier))
-                    self.assertEqual(window.inspector.currentIndex(),1)
-                    for i in range(window.inspector.count()):
-                        window.inspector.setCurrentIndex(i);self.app.processEvents()
-                        self.assertEqual(window.inspector.widget(i).horizontalScrollBar().maximum(),0,i)
                     self.assertEqual((window.width(),window.height()),(width,height))
-            finally:window.timer.stop();window.close();window.deleteLater();self.app.processEvents()
-
-    def test_localized_annotation_dialog_preserves_schema_values(self):
-        from loomrec.ui.main import Window
-        from loomrec.library import Library
-        from loomrec.schema import Project,Source,Clip,save_project
-        from PySide6.QtWidgets import QDialog,QComboBox,QDialogButtonBox,QLineEdit,QScrollArea
-        with tempfile.TemporaryDirectory() as d,patch.dict(os.environ,{'XDG_STATE_HOME':d}):
-            library=Library(d);path=library.new_directory()/'project.json'
-            save_project(Project(sources=[Source('s','synthetic.mkv',duration=5)],clips=[Clip('s',0,5)]),path)
-            window=Window(library,False);window.open_project(path,edit=True);window.resize(1280,800);window.show();self.app.processEvents()
-            expected_kinds=['text','arrow','highlight','mask','blur','subtitle'];expected_colors=['yellow','white','black','red','green','blue']
-            try:
-                for index,key in enumerate(expected_kinds):
-                    def interact(dialog):
-                        dialog.show();self.app.processEvents()
-                        combos=dialog.findChildren(QComboBox);kind=next(c for c in combos if c.findData('text')>=0);color=next(c for c in combos if c.findData('yellow')>=0)
-                        self.assertEqual([kind.itemData(i) for i in range(kind.count())],expected_kinds)
-                        self.assertEqual([color.itemData(i) for i in range(color.count())],expected_colors)
-                        self.assertEqual(color.itemText(0),'Amarillo');self.assertEqual(kind.itemText(0),'Texto')
-                        kind.setCurrentIndex(index);color.setCurrentIndex(index);dialog.findChild(QLineEdit).setText('Fixture')
-                        box=dialog.findChild(QDialogButtonBox);save=box.button(QDialogButtonBox.Save)
-                        self.assertTrue(save.isVisible());self.assertTrue(dialog.rect().contains(save.mapTo(dialog,save.rect().bottomRight())))
-                        self.assertFalse(any(scroll.isAncestorOf(box) for scroll in dialog.findChildren(QScrollArea)))
-                        save.click();dialog.hide();return QDialog.Accepted
-                    with patch.object(QDialog,'exec',interact):window.annotation_dialog()
-                    if key=='subtitle':self.assertEqual(window.editor.project.subtitles[-1].text,'Fixture')
-                    else:
-                        annotation=window.editor.project.annotations[-1]
-                        self.assertEqual((annotation.kind,annotation.color),(key,expected_colors[index]))
-                window.inspector.setCurrentIndex(0);self.app.processEvents()
-                from PySide6.QtWidgets import QPushButton
-                apply=next(b for b in window.inspector.findChildren(QPushButton) if b.text()=='Aplicar recorte')
-                viewport=window.inspector.widget(0).viewport()
-                self.assertTrue(viewport.rect().contains(apply.mapTo(viewport,apply.rect().bottomRight())))
             finally:window.timer.stop();window.close();window.deleteLater();self.app.processEvents()
 
     def test_paused_controls_hide_before_deferred_resume(self):

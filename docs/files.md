@@ -1,14 +1,14 @@
 # Integración de Wysun Archivos
 
-La fuente de la aplicación está en `apps/orbit/files_app.py`; el instalador administra su copia en `~/.local/share/orbit/app/`. No editar directamente la copia instalada.
+La fuente de la aplicación está en `apps/wysun/files_app.py`; el instalador administra su copia en `~/.local/share/orbit/app/`. No editar directamente la copia instalada.
 
 ## Instalación
 
 Desde la raíz de dotifails, ejecutar `./instalar.sh --orbit-only`. El perfil completo `desktop` despliega los mismos archivos. Ambos usan el registro de respaldos y conflictos del instalador para instalar:
 
 - `bin/orbit-files` → `~/.local/bin/orbit-files` (ejecutable).
-- `home/.local/share/applications/orbit-files.desktop` → `~/.local/share/applications/orbit-files.desktop`.
-- La aplicación, junto con el resto de `apps/orbit/`.
+- `config/.local/share/applications/orbit-files.desktop` → `~/.local/share/applications/orbit-files.desktop`.
+- La aplicación, junto con el resto de `apps/wysun/`.
 
 Si el código de Wysun presenta conflictos, resolverlos antes de activar el nuevo gestor. Tras una instalación sin conflictos, ejecutar `~/.local/bin/orbit reload` y comprobar la apertura real. El lanzador independiente acepta rutas y URL `file://`, por ejemplo `orbit-files "$HOME/Downloads"`.
 
@@ -50,4 +50,4 @@ Gestión de archivos locales con pestañas, lista/cuadrícula, favoritos, propie
 
 ## Verificación
 
-`python3 -m unittest discover -s tests -p test_files_ops.py -v` comprueba las operaciones con archivos temporales. `QT_QPA_PLATFORM=offscreen python3 tests/files_ui.py` comprueba modelos, navegación y operaciones desde la interfaz. Repetir sin offscreen en la sesión X11 para validar la apertura gráfica; no basta la asociación MIME.
+`python3 -m unittest discover -s tests -p test_files_ops.py -v` comprueba las operaciones con archivos temporales. `QT_QPA_PLATFORM=offscreen python3 tests/files_ui.py` comprueba modelos, navegación y operaciones desde la interfaz. Repetir sin offscreen en la sesión Wysun / Hyprland para validar la apertura gráfica; no basta la asociación MIME.

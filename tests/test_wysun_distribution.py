@@ -42,8 +42,11 @@ class WysunDistributionTests(unittest.TestCase):
         for old in ('loomrec', 'wybie-screenshot'):
             self.assertIn('Wysun', subprocess.check_output([str(launch.parent / old), '--version'], cwd='/', text=True))
         entries = self.home / '.local/share/applications'
-        self.assertEqual(len(list(entries.glob('*.desktop'))), 3)
+        self.assertEqual(len(list(entries.glob('*.desktop'))), 5)
         self.assertIn('Name=Wysun Recorder', (entries / 'loomrec.desktop').read_text())
+        self.assertIn('Name=Wysun Ajustes', (entries / 'orbit-settings.desktop').read_text())
+        self.assertIn('Name=Wysun Conexiones', (entries / 'orbit-connections.desktop').read_text())
+        self.assertNotIn('Órbita', (entries / 'orbit-settings.desktop').read_text())
         self.assertFalse((entries / 'wysun-recorder.desktop').exists())
         update = self.deploy()
         update.configure_wysun()
@@ -145,28 +148,12 @@ class WysunDistributionTests(unittest.TestCase):
             output = json.loads(subprocess.check_output([str(directory / 'wysun'), *args], cwd='/', text=True))
             self.assertEqual(output, [str(directory / executable), *forwarded])
 
-    def test_bar_brand_migration_preserves_layout_and_directory_ownership(self):
-        path = self.home / '.config/bspwm/polybar/config'
-        path.parent.mkdir(parents=True)
-        original = '[bar/custom]\nwidth = 37%\n[module/orbit]\nformat = icon Órbita\nclick-left = my-custom-action\n[module/title]\nlabel = Órbita in a user title\n'
-        path.write_text(original)
-        deployment = self.deploy()
-        deployment.receipt['files']['.config/bspwm'] = installer.fingerprint(self.home / '.config/bspwm')
-        deployment.configure_wysun_labels()
-        self.assertEqual(path.read_text(), original.replace('format = icon Órbita', 'format = icon Wysun'))
-        self.assertEqual(deployment.receipt['files']['.config/bspwm'], installer.fingerprint(self.home / '.config/bspwm'))
-        deployment.finish()
-        deployment.lock.close()
-        update = self.deploy()
-        update.configure_wysun_labels()
-        self.assertFalse(update.journal['operations'])
-
     def test_full_configuration_repeat_preserves_private_preferences(self):
         import contextlib
         import io
         for iteration in range(2):
             deployment = self.deploy()
-            with patch.object(deployment, 'configure_locker'), contextlib.redirect_stdout(io.StringIO()):
+            with contextlib.redirect_stdout(io.StringIO()):
                 deployment.configure(theme='space-black', components=('desktop',))
                 deployment.finish()
             self.assertFalse(deployment.conflicts)

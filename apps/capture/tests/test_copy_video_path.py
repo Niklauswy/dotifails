@@ -33,7 +33,7 @@ class CopyVideoPathTests(unittest.TestCase):
   project=self.root/'recording';project.mkdir();manifest=project/'project.json';manifest.write_text('{}');raw=project/'segment.mp4';raw.write_bytes(b'fixture')
   for path in (manifest,raw):
    self.select(path)
-   with patch('loomrec.ui.main.RenderJob') as render:self.w.copy_video_path();render.assert_not_called()
+   with patch('loomrec.render.RenderJob') as render:self.w.copy_video_path();render.assert_not_called()
    self.assertEqual(self.clipboard.text(),'untouched isolated clipboard');self.assertIn('MP4 aún no disponible' if path==manifest else 'Exporta el video para copiar su ruta',self.w.statusBar().currentMessage())
   for dirname in ('.preview','.wybie'):
    folder=self.root/dirname;folder.mkdir();video=folder/'cached.mp4';video.write_bytes(b'fixture')

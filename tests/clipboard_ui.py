@@ -2,7 +2,7 @@
 import os,sys,tempfile,time,unittest
 from pathlib import Path
 from unittest.mock import patch
-sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'apps/orbit'))
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'apps/wysun'))
 from PySide6.QtWidgets import QApplication,QMessageBox,QWidget
 from PySide6.QtCore import Qt,QItemSelectionModel,QEvent,QCoreApplication,QPoint
 from PySide6.QtGui import QImage,QColor,QKeyEvent

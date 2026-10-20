@@ -10,6 +10,7 @@ import os
 import subprocess
 from types import SimpleNamespace
 from .wayland_capture import PipeWireCapture
+from .portal import PortalCancelled
 
 
 @dataclass(frozen=True)
@@ -115,7 +116,7 @@ def desktop_cursor_image(progress=None,on_wait=None):
         check()
     for index in range(1,len(snapshot)+1):
         stable();notify('select',index,[o.name for o in snapshot if o.name not in seen])
-        config=SimpleNamespace(rect=[0,0,1,1],fps=15,source_type='monitor',cursor=True,normalize_coordinates=False)
+        config=SimpleNamespace(rect=[0,0,1,1],fps=15,source_type='monitor',cursor=True,normalize_coordinates=False,strict_close=True)
         capture=PipeWireCapture(config,on_wait=check)
         try:
             stable();selected=match_output(capture.metadata,snapshot,seen)
@@ -123,6 +124,8 @@ def desktop_cursor_image(progress=None,on_wait=None):
             image=read_frame(capture,check)
             if (image.width(),image.height())!=selected.pixels:raise RuntimeError('El frame autorizado cambió de tamaño; se descartó el conjunto')
             stable();frames.append((orient_frame(image,selected.transform),selected.composition_metadata()));seen.add(selected.name)
+        except PortalCancelled:
+            capture.cancel();raise
         finally:capture.close()
     stable()
     if seen!={o.name for o in snapshot}:raise RuntimeError('Faltan monitores autorizados; no se guardó una captura parcial')

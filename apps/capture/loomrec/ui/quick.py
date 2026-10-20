@@ -1,5 +1,4 @@
 """Compact capture surface using the full application's source-of-truth controls."""
-from ..portal import is_wayland
 from PySide6.QtCore import Qt,QTimer,QPoint,QSize
 from PySide6.QtGui import QCursor,QShortcut,QKeySequence
 from PySide6.QtWidgets import QApplication,QWidget,QHBoxLayout,QVBoxLayout,QFormLayout,QLabel,QDialog,QListWidget,QListWidgetItem,QScrollArea,QFrame,QSizePolicy
@@ -126,23 +125,9 @@ class QuickBar(QWidget):
         for b in self.source_buttons:b.setMinimumWidth(44 if compact else 58);b.setVisible(width>=580)
         self.setFixedSize(width,88)
         self.move(max(geo.left(),geo.center().x()-self.width()//2),max(geo.top(),geo.bottom()-self.height()-28))
-        # Capture the destination before mapping. Never focus the old desktop.
-        import os,subprocess
-        desktop=None
-        if not is_wayland() and os.environ.get('QT_QPA_PLATFORM')!='offscreen':
-            try:desktop=subprocess.check_output(['bspc','query','-D','-d','focused'],text=True,timeout=.5).strip()
-            except (OSError,subprocess.SubprocessError):pass
         self.show();self.raise_()
         def focus_here():
             if not self.isVisible():return
-            if desktop:
-                try:
-                    current=subprocess.check_output(['bspc','query','-D','-d','focused'],text=True,timeout=.5).strip()
-                    if current!=desktop:return
-                    node=hex(int(self.winId()))
-                    subprocess.run(['bspc','node',node,'-d',desktop],capture_output=True,timeout=.5,check=True)
-                    subprocess.run(['bspc','node',node,'-f'],capture_output=True,timeout=.5,check=True)
-                except (OSError,subprocess.SubprocessError):return
             self.activateWindow()
         focus_here();QTimer.singleShot(100,self,focus_here)
         self.owner.selection_feedback()
@@ -162,27 +147,62 @@ class QuickBar(QWidget):
         popup,layout=self.pop(anchor,title);symbol='camera' if source is self.owner.camera else 'mic' if source is self.owner.mic else 'sound';layout.addWidget(DeviceChoices(source,symbol))
         if source is self.owner.camera:
             layout.addWidget(self.owner.camera_preview);self.owner.camera_selected()
+            self.camera_style(layout)
         self.show_pop(popup,anchor)
     def sources(self,anchor):
         popup,layout=self.pop(anchor,self.tr('Área de captura'));layout.addWidget(label(self.tr('Pantalla'),'subtitle'));layout.addWidget(DeviceChoices(self.owner.monitor,'screen'))
         for title,symbol,fn in [(self.tr('Pantalla completa'),'screen',self.owner.monitor_changed),(self.tr('Seleccionar región…'),'region',self.owner.pick_region),(self.tr('Elegir ventana…'),'window',self.owner.pick_window)]:
             b=SoftButton(title,symbol,quiet=True);b.setMinimumHeight(46);b.setIconSize(QSize(22,22));b.clicked.connect(lambda _,fn=fn:(popup.close(),fn()));layout.addWidget(b)
         hint=label(self.tr('Ventana = recorte visible; no captura oculta.'),'subtitle');layout.addWidget(hint);self.show_pop(popup,anchor)
+    def segmented(self,options,current,changed):
+        """Pill segmented control: one tap, no drop-down."""
+        from PySide6.QtWidgets import QButtonGroup,QPushButton
+        box=QWidget();box.setObjectName('segmented');row=QHBoxLayout(box);row.setContentsMargins(3,3,3,3);row.setSpacing(2)
+        box.setStyleSheet('#segmented{background:#E4EBF4;border-radius:12px;} #segmented QPushButton{background:transparent;border:0;border-radius:9px;padding:6px 10px;color:#445E7A;font-size:13px;} #segmented QPushButton:checked{background:#FFFFFF;color:#1C2A3B;font-weight:600;} #segmented QPushButton:hover:!checked{background:rgba(255,255,255,120);}')
+        group=QButtonGroup(box);group.setExclusive(True)
+        for text,value in options:
+            b=QPushButton(text);b.setCheckable(True);b.setCursor(Qt.PointingHandCursor);b.setChecked(value==current)
+            b.clicked.connect(lambda _=False,v=value:changed(v));group.addButton(b);row.addWidget(b,1)
+        box._group=group;return box
+    def camera_style(self,layout):
+        """Shape, size and corner of the camera bubble in the final MP4."""
+        from ..schema import camera_style
+        from ..videolibrary import preferences,save_preferences
+        try:style=camera_style(preferences().get('camera_style',{}))
+        except ValueError:style=camera_style({})
+        def save(key,value):
+            style[key]=value;self.owner.guard(lambda:save_preferences(camera_style=dict(style)))
+        self.section(layout,self.tr('Burbuja en el vídeo'))
+        layout.addWidget(self.segmented([(self.tr('Círculo'),'circle'),(self.tr('Recuadro'),'rounded')],style['shape'],lambda v:save('shape',v)))
+        layout.addWidget(self.segmented([(self.tr('Pequeña'),'small'),(self.tr('Mediana'),'medium'),(self.tr('Grande'),'large')],style['size'],lambda v:save('size',v)))
+        layout.addWidget(self.segmented([('↖','top-left'),('↗','top-right'),('↙','bottom-left'),('↘','bottom-right')],style['corner'],lambda v:save('corner',v)))
+    def section(self,layout,title):
+        heading=label(title.upper(),'eyebrow');heading.setContentsMargins(0,6,0,0);layout.addWidget(heading)
     def settings(self):
-        popup,layout=self.pop(self.options,self.tr('Opciones rápidas'))
-        from .cursor_settings import CursorPanel
-        layout.addWidget(CursorPanel(self.owner.cursor_options,compact=True))
-        form=QFormLayout();layout.addLayout(form)
+        popup,layout=self.pop(self.options,self.tr('Opciones de grabación'));layout.setSpacing(10)
+        w=self.owner;cursor=w.cursor_options
+        from .cursor_settings import PRESETS
+        self.section(layout,self.tr('Cursor'))
+        shown=CheckBox(self.tr('Mostrar el cursor en el vídeo'));shown.setChecked(cursor.visible);shown.setEnabled(not cursor.locked);shown.toggled.connect(lambda value:cursor.update(visible=value));layout.addWidget(shown)
+        layout.addWidget(self.segmented([(self.tr(title),key) for title,key in PRESETS],cursor.preset,lambda key:cursor.update(preset=key)))
+        self.section(layout,self.tr('Vídeo'))
+        row=QHBoxLayout();row.setSpacing(10);quality=self.combo(w.quality);row.addWidget(quality,3)
+        row.addWidget(self.segmented([(str(v),v) for v in (24,30,60)],w.fps.currentData(),lambda v:w.fps.setCurrentIndex(w.fps.findData(v))),2);layout.addLayout(row)
+        self.section(layout,self.tr('Antes de grabar'))
+        layout.addWidget(self.segmented([(self.tr('Sin cuenta'),0),('3 s',3),('5 s',5),('10 s',10)],w.countdown.value(),w.countdown.setValue))
+        quiet=CheckBox(self.tr('Silenciar notificaciones mientras grabo'));quiet.setChecked(w.quiet.isChecked());quiet.toggled.connect(w.quiet.setChecked);layout.addWidget(quiet)
         if self.width()<580:
-            for title,source in [(self.tr('Cámara'),self.owner.camera),(self.tr('Micrófono'),self.owner.mic),(self.tr('Audio del equipo'),self.owner.system)]:
+            for title,source in [(self.tr('Cámara'),w.camera),(self.tr('Micrófono'),w.mic),(self.tr('Audio del equipo'),w.system)]:
                 b=SoftButton(title,quiet=True);b.clicked.connect(lambda _,c=source,t=title:self.device(self.options,c,t));layout.addWidget(b)
-        for title,source in [(self.tr('Calidad'),self.owner.quality),(self.tr('FPS'),self.owner.fps)]:form.addRow(title,self.combo(source))
-        for title,source in [(self.tr('Cuenta atrás'),self.owner.countdown),(self.tr('Ganancia micrófono'),self.owner.mic_gain),(self.tr('Ganancia equipo'),self.owner.system_gain)]:
-            spin=DoubleSpinBox() if isinstance(source,DoubleSpinBox) else SpinBox();spin.setRange(source.minimum(),source.maximum());spin.setValue(source.value());spin.valueChanged.connect(source.setValue);form.addRow(title,spin)
-        quiet=CheckBox(self.tr('Pausar notificaciones'));quiet.setChecked(self.owner.quiet.isChecked());quiet.toggled.connect(self.owner.quiet.setChecked);layout.addWidget(quiet)
-        refresh=SoftButton(self.tr('Actualizar dispositivos'),'settings');refresh.clicked.connect(self.owner.refresh_devices);layout.addWidget(refresh)
-        full=SoftButton(self.tr('Todos los ajustes'),'settings');full.clicked.connect(lambda:(self.escape(),self.owner.show_settings()));layout.addWidget(full)
-        full=SoftButton(self.tr('Abrir biblioteca'),'library');full.clicked.connect(lambda:(self.escape(),self.owner.activate_instance('focus')));layout.addWidget(full)
+        self.section(layout,self.tr('Volumen al grabar'))
+        gains=QHBoxLayout();gains.setSpacing(10)
+        for title,source in [(self.tr('Micrófono'),w.mic_gain),(self.tr('Equipo'),w.system_gain)]:
+            spin=DoubleSpinBox();spin.setRange(source.minimum(),source.maximum());spin.setSingleStep(.1);spin.setValue(source.value());spin.setSuffix('×');spin.valueChanged.connect(source.setValue)
+            column=QVBoxLayout();column.setSpacing(4);column.addWidget(label(title,'subtitle'));column.addWidget(spin);gains.addLayout(column,1)
+        layout.addLayout(gains)
+        footer=QHBoxLayout();footer.setSpacing(6);layout.addSpacing(4);layout.addLayout(footer)
+        for title,symbol,fn in [(self.tr('Dispositivos'),'refresh',w.refresh_devices),(self.tr('Ajustes'),'settings',lambda:(self.escape(),w.show_settings())),(self.tr('Biblioteca'),'library',lambda:(self.escape(),w.activate_instance('focus')))]:
+            b=SoftButton(title,symbol,quiet=True);b.clicked.connect(fn);footer.addWidget(b,1)
         self.show_pop(popup,self.options)
     def begin(self):
         if self.owner.capture_pending:self.owner.cancel_countdown();return

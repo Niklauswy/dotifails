@@ -26,6 +26,32 @@ def native_canvas(sizes,crop=None,cap=None):
     return max(2,int(width*factor)//2*2),max(2,int(height*factor)//2*2)
 
 
+
+def camera_overlay(camera,width,height):
+    """Filter chain and position for the camera bubble: centre crop, never stretched.
+
+    Circle: a square crop with a circular alpha mask. Rounded: a 4:3 crop with
+    rounded corners. Size is relative to the video height; a margin keeps the
+    bubble off the edges in the chosen corner.
+    """
+    from .schema import CAMERA_SIZES
+    tall=max(2,int(height*CAMERA_SIZES.get(getattr(camera,'size','medium'),.28))//2*2)
+    circle=getattr(camera,'shape','circle')=='circle'
+    w,h=(tall,tall) if circle else (max(2,int(tall*4/3)//2*2),tall)
+    if circle:
+        crop="crop='min(iw,ih)':'min(iw,ih)'"
+        alpha="if(lte(hypot(X-W/2,Y-H/2),W/2-1),255,0)"
+    else:
+        crop="crop='min(iw,ih*4/3)':'min(ih,iw*3/4)'"
+        r=max(4,h//8)
+        alpha=f"if(lte(pow(max(max({r}-X,X-(W-1-{r})),0),2)+pow(max(max({r}-Y,Y-(H-1-{r})),0),2),{r*r}),255,0)"
+    chain=f"{crop},scale={w}:{h},format=yuva420p,geq=lum='p(X,Y)':cb='p(X,Y)':cr='p(X,Y)':a='{alpha}'"
+    margin=max(8,int(height*.035))
+    corner=getattr(camera,'corner','bottom-right')
+    x=width-w-margin if corner.endswith('right') else margin
+    y=height-h-margin if corner.startswith('bottom') else margin
+    return chain,max(0,x),max(0,y)
+
 class RenderJob:
     def __init__(self, project_path, output, preset="standard", *, snapshot=None):
         self._snapshot=deepcopy(snapshot)
@@ -181,10 +207,10 @@ class RenderJob:
                 filters.append(f'[{i}:a:{s.stream}]atrim=start={clip.in_s}:end={clip.out_s},asetpts=PTS-{clip.in_s}/TB,aresample=48000,volume={s.gain},apad,atrim=duration={duration}[{label}]')
                 audio.append(label)
             elif s.kind == 'camera':
-                x,y,w,h = project.camera.rect
-                filters.append(f'[{i}:v:{s.stream}]trim=start={clip.in_s}:end={clip.out_s},setpts=PTS-{clip.in_s}/TB,scale={max(2,int(w*self.width)//2*2)}:{max(2,int(h*self.height)//2*2)}[cam{i}]')
+                chain,x,y = camera_overlay(project.camera,self.width,self.height)
+                filters.append(f'[{i}:v:{s.stream}]trim=start={clip.in_s}:end={clip.out_s},setpts=PTS-{clip.in_s}/TB,{chain}[cam{i}]')
                 counter += 1
-                filters.append(f'[{current}][cam{i}]overlay=x={int(x*self.width)}:y={int(y*self.height)}:eof_action=pass[v{counter}]')
+                filters.append(f'[{current}][cam{i}]overlay=x={x}:y={y}:eof_action=pass[v{counter}]')
                 current = f'v{counter}'
         # Redaction is composited after cursor, camera, and other annotations.
         for j, a in enumerate(sorted(project.annotations,key=lambda a:a.kind in {'mask','blur'})):

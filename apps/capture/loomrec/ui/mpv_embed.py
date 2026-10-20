@@ -6,6 +6,7 @@ The identical distribution copy in loomrec/ui keeps both apps self-contained.
 """
 import ctypes as C
 import ctypes.util
+import locale
 import os
 import threading
 from PySide6.QtCore import Qt,Signal
@@ -15,6 +16,12 @@ from PySide6.QtWidgets import QWidget
 
 class Param(C.Structure):
     _fields_=[('type',C.c_int),('data',C.c_void_p)]
+
+
+def normalize_numeric_locale():
+    """libmpv refuses mpv_create unless LC_NUMERIC is C."""
+    try:locale.setlocale(locale.LC_NUMERIC,'C')
+    except locale.Error:pass
 
 
 def library():
@@ -49,7 +56,10 @@ def sw_frame(lib,context,width,height):
     rc=lib.mpv_render_context_render(context,params)
     if rc<0:raise RuntimeError('libmpv no pudo dibujar el fotograma ('+str(rc)+')')
     view=(C.c_ubyte*(stride*height)).from_address(address)
-    return QImage(memoryview(view),width,height,stride,QImage.Format_RGBX8888).copy()
+    # libmpv leaves the padding byte of rgb0 at 0. Qt may blit RGBX bytes
+    # verbatim, and the compositor then blends a "transparent" video with the
+    # desktop behind the window. Normalise every frame to opaque RGB32.
+    return QImage(memoryview(view),width,height,stride,QImage.Format_RGBX8888).convertToFormat(QImage.Format_RGB32)
 
 
 class MpvSurface(QWidget):
@@ -71,6 +81,7 @@ class MpvSurface(QWidget):
         painter=QPainter(self);painter.fillRect(self.rect(),QColor('#090A0E'))
         if not self.image.isNull():painter.drawImage(self.rect(),self.image)
     def start(self,path,ipc,options=None):
+        normalize_numeric_locale()
         self.stop();self.lib=library();self.handle=self.lib.mpv_create()
         if not self.handle:raise RuntimeError('No se pudo crear libmpv')
         self._stop.clear();self._update.clear();self._ready.clear();self.start_error=''

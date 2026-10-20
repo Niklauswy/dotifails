@@ -7,7 +7,7 @@ import tempfile
 import time
 
 root = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(root/'apps/orbit'))
+sys.path.insert(0, str(root/'apps/wysun'))
 from PySide6.QtCore import QProcess
 from PySide6.QtWidgets import QApplication
 import music_data as music
@@ -129,13 +129,13 @@ with tempfile.TemporaryDirectory(prefix='orbit-music-qa-') as folder:
     runtime=temp/'runtime';runtime.mkdir()
     environment=dict(os.environ,ORBIT_MUSIC_HOME=str(music.DATA),ORBIT_MUSIC_LIBRARY=str(music.LIBRARY),XDG_RUNTIME_DIR=str(runtime))
     log=(temp/'app.log').open('w')
-    dedicated=subprocess.Popen([sys.executable,str(root/'apps/orbit/music_app.py')],env=environment,stdout=log,stderr=log)
+    dedicated=subprocess.Popen([sys.executable,str(root/'apps/wysun/music_app.py')],env=environment,stdout=log,stderr=log)
     endpoint=runtime/f'orbit-music-app-{os.getuid()}.sock'
     started=time.monotonic()
     try:
         wait_until(lambda:endpoint.exists(),5)
         assert time.monotonic()-started<2,'Dedicated startup should take less than two seconds'
-        duplicate=subprocess.run([sys.executable,str(root/'apps/orbit/music_app.py')],env=environment,timeout=3,stdout=log,stderr=log)
+        duplicate=subprocess.run([sys.executable,str(root/'apps/wysun/music_app.py')],env=environment,timeout=3,stdout=log,stderr=log)
         assert duplicate.returncode==0 and dedicated.poll() is None
         with socket.socket(socket.AF_UNIX) as client:
             client.connect(str(endpoint));client.sendall(b'present\n')

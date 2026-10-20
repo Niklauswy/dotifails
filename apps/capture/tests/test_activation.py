@@ -9,10 +9,10 @@ from loomrec.ui.activation import RecordingController,owned_capture,focus_window
 class ActivationFocusTests(unittest.TestCase):
  @classmethod
  def setUpClass(cls):cls.app=QApplication.instance() or QApplication([])
- def test_bspwm_focus_targets_only_requested_node(self):
-  with patch.dict(os.environ,{'QT_QPA_PLATFORM':'xcb'}),patch('loomrec.ui.activation.shutil.which',return_value='/usr/bin/bspc'),patch('loomrec.ui.activation.subprocess.run',return_value=Mock(returncode=0)) as run:
-   self.assertTrue(focus_window(123))
-   self.assertEqual([c.args[0] for c in run.call_args_list],[['bspc','query','-N','-n','0x7b'],['bspc','node','0x7b','-g','hidden=off'],['bspc','node','0x7b','-f']])
+ def test_focus_window_defers_to_the_compositor(self):
+  with patch.dict(os.environ,{'QT_QPA_PLATFORM':'xcb'}),patch('loomrec.ui.activation.subprocess.run',return_value=Mock(returncode=0)) as run:
+   self.assertFalse(focus_window(123))
+   run.assert_not_called()
  def test_paused_controls_dock_in_negative_origin_workarea(self):
   from PySide6.QtCore import QRect
   session=Mock();session.status.return_value={'state':'paused','duration':62}
@@ -77,16 +77,16 @@ class ActivationFocusTests(unittest.TestCase):
    status.write_text(json.dumps({'pid':99,'state':'recording','heartbeat':time.time()}));self.assertEqual(live_recordings(proc),[])
    status.write_text(json.dumps({'pid':21,'state':'recording','heartbeat':time.time()-30}));self.assertEqual(live_recordings(proc),[])
 
- def test_paused_controller_never_resumes_on_open_and_hides_before_explicit_resume(self):
+ def test_legacy_controls_cannot_verify_hiding_and_never_resume(self):
   from PySide6.QtCore import QEventLoop,QTimer
   with tempfile.TemporaryDirectory() as d:
    root=Path(d);(root/'capture.json').write_text('{}');session=Mock(root=root);session.status.return_value={'state':'paused'};owner=Mock();owner.request.return_value={'window':123,'project_path':str(root/'project.json')}
    controller=RecordingController(session,owner);controller.timer.stop()
    try:
     self.assertEqual(controller.pause_button.text(),'Reanudar');session.resume.assert_not_called();session.stop.assert_not_called()
-    with patch('loomrec.ui.activation.subprocess.check_output',return_value='Map State: IsUnMapped'):
-     controller.pause_button.click();session.resume.assert_not_called();self.assertFalse(controller.isVisible())
-     loop=QEventLoop();QTimer.singleShot(550,loop.quit);loop.exec();session.resume.assert_called_once()
+    controller.pause_button.click()
+    session.resume.assert_not_called();self.assertIn('No se reanudó',controller.warning.text());self.assertIn('controles antiguos',controller.warning.text())
+    loop=QEventLoop();QTimer.singleShot(300,loop.quit);loop.exec();session.resume.assert_not_called()
     session.stop.assert_not_called()
    finally:controller.close();controller.deleteLater();self.app.processEvents()
 

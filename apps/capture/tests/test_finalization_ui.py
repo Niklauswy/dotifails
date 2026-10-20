@@ -30,12 +30,12 @@ class FinalizationUITests(unittest.TestCase):
  def tearDown(self):
   self.w.session=None;self.w.finalization_path=None;self.w.job=None;self.w.close();self.w.deleteLater();self.app.processEvents()
   self.status_patch.stop();self.env.stop();self.tmp.cleanup()
- def test_ready_copies_video_and_plays_without_render_then_edits_original(self):
+ def test_ready_copies_video_and_plays_without_render(self):
   self.w.copy_video_path();self.assertEqual(self.app.clipboard().text(),str(self.output))
-  with patch('loomrec.ui.main.CaptureSession.attach',return_value=SimpleNamespace(status=lambda:{'state':'stopped'})),patch('loomrec.ui.main.RenderJob') as render:
+  with patch('loomrec.ui.main.CaptureSession.attach',return_value=SimpleNamespace(status=lambda:{'state':'stopped'})),patch('loomrec.render.RenderJob') as render:
    self.w.open_project(self.path);render.assert_not_called()
   self.w.player.load.assert_called_once_with(self.output)
-  with patch.object(self.w,'open_project') as opened:self.w.enter_editor();opened.assert_called_once_with(self.path,edit=True)
+  self.assertFalse(hasattr(self.w,'enter_editor'))
  def test_changed_edit_keeps_mp4_and_warns_copy(self):
   self.path.write_text(self.path.read_text()+'\n')
   self.w.copy_video_path();self.assertEqual(self.app.clipboard().text(),str(self.output))
@@ -43,7 +43,7 @@ class FinalizationUITests(unittest.TestCase):
   self.assertEqual(recording_video(self.path),(self.output,True))
  def test_pending_then_ready_only_loads_once_without_preview(self):
   self.state['state']='running';self.w.finalization_path=self.path
-  with patch('loomrec.ui.main.RenderJob') as render:
+  with patch('loomrec.render.RenderJob') as render:
    self.w.poll_finalization();self.assertFalse(self.w.library_copy_path.isEnabled());self.w.player.load.assert_not_called()
    self.state['state']='ready';self.w.poll_finalization();self.w.poll_finalization();render.assert_not_called()
   self.w.player.load.assert_called_once_with(self.output)
@@ -86,7 +86,7 @@ class FinalizationUITests(unittest.TestCase):
   try:
    fresh=Window(Library(self.w.library.root),False);fresh.timer.stop();fresh.player.load=Mock();fresh.active_metadata=0
    try:
-    with patch('loomrec.ui.main.CaptureSession.attach',return_value=SimpleNamespace(status=lambda:{'state':'stopped'})),patch('loomrec.ui.main.RenderJob') as render:
+    with patch('loomrec.ui.main.CaptureSession.attach',return_value=SimpleNamespace(status=lambda:{'state':'stopped'})),patch('loomrec.render.RenderJob') as render:
      fresh.open_project(self.path);render.assert_not_called()
     fresh.player.load.assert_called_once_with(self.output)
     fresh.stack.setCurrentWidget(fresh.library_page);fresh.items.setCurrentRow(0);fresh.copy_video_path()
@@ -97,7 +97,7 @@ class FinalizationUITests(unittest.TestCase):
   before=self.path.read_bytes();self.state['state']='running'
   self.w.capture_gains={'mic':.2,'system':.3}
   self.w.session=SimpleNamespace(config=SimpleNamespace(auto_finalize=True),status=lambda:{'state':'stopped','project_path':str(self.path)})
-  with patch.object(self.w,'open_project') as opened,patch('loomrec.ui.main.RenderJob') as render,patch.object(self.w,'restore_concentration'):
+  with patch.object(self.w,'open_project') as opened,patch('loomrec.render.RenderJob') as render,patch.object(self.w,'restore_concentration'):
    self.w.poll();opened.assert_not_called();render.assert_not_called()
   self.assertIsNone(self.w.session);self.assertEqual(self.w.finalization_path,self.path)
   self.assertEqual(self.path.read_bytes(),before);self.w.player.load.assert_not_called()

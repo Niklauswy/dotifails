@@ -4,9 +4,9 @@ from datetime import datetime
 from pathlib import Path
 import uuid
 from PySide6.QtCore import QEvent, QTimer, Qt, QRect
-from .ui.selection import SelectionOverlay
+from .ui.selection import SelectionOverlay,SelectionGroup
 from PySide6.QtWidgets import QApplication
-from .ui.main import Window
+from .ui.main import Window,selection_parts
 
 @dataclass(frozen=True)
 class CaptureActions:
@@ -16,6 +16,7 @@ class CaptureActions:
     delay: int | None = None
 
 class ActionWindow(Window):
+    capture_settle_ms=16  # Direct capture never maps a window before the grab.
     def __init__(self,actions,storage=None,engine=None):
         self.actions=actions
         self._clipboard_pending=False
@@ -28,26 +29,38 @@ class ActionWindow(Window):
 
     def create_selection(self,frozen):
         if not self.actions.accept_on_select:return super().create_selection(frozen)
-        g=frozen.geometry;overlay=SelectionOverlay(frozen.image,QRect(g.x,g.y,g.width,g.height))
-        overlay.selected.connect(self.selected_region);overlay.cancelled.connect(self.cancel_capture)
-        return overlay
-
-    def capture_tick(self):
-        super().capture_tick()
-        if self.overlay and self.actions.accept_on_select:self.overlay.installEventFilter(self)
+        overlays=[]
+        for image,screen,origin,geometry in selection_parts(frozen):
+            overlay=SelectionOverlay(image,geometry,screen=screen,image_origin=origin)
+            overlay.selected.connect(self.selected_region);overlay.cancelled.connect(self.cancel_capture)
+            overlay.control_drag_finished.connect(lambda o=overlay:QTimer.singleShot(0,lambda:self.accept_selection(o)))
+            overlay.installEventFilter(self)
+            overlays.append(overlay)
+        if not overlays:raise RuntimeError('No hay una pantalla disponible para la selección')
+        return overlays[0] if len(overlays)==1 else SelectionGroup(overlays)
 
     def eventFilter(self,obj,event):
-        if obj is self.overlay and event.type()==QEvent.MouseButtonRelease and event.button()==Qt.LeftButton:
-            # Run after the overlay has committed its adjusted rectangle.
-            QTimer.singleShot(0,self.accept_selection)
+        if event.type()==QEvent.MouseButtonRelease and event.button()==Qt.LeftButton:
+            candidates=getattr(self.overlay,'overlays',[])
+            if obj in candidates:
+                # Run after the overlay has committed its adjusted rectangle.
+                QTimer.singleShot(0,lambda overlay=obj:self.accept_selection(overlay))
         return super().eventFilter(obj,event)
 
-    def accept_selection(self):
-        overlay=self.overlay
+    def accept_selection(self,overlay=None):
+        overlay=overlay or self.overlay
+        if overlay is None:return
+        candidates=getattr(overlay,'overlays',None)
+        if candidates and overlay is self.overlay:
+            overlay=next((item for item in candidates if item.isVisible() and item.selection.width()>1 and item.selection.height()>1),candidates[0])
         if overlay and overlay.isVisible() and overlay.selection.width()>1 and overlay.selection.height()>1:
-            overlay.hide();overlay.selected.emit(overlay.source_rect(overlay.selection.normalized().intersected(overlay.rect())))
+            rect=overlay.source_rect(overlay.selection.normalized().intersected(overlay.rect()))
+            rect.translate(overlay.image_origin)
+            if self.overlay:self.overlay.hide()
+            overlay.selected.emit(rect)
 
     def cancel_capture(self):
+        if self.defer_capture_cancel():return
         if self._capture_feedback:self._capture_feedback.cancel()
         self.release_capture()
         self.capture_timer.stop();self.busy=False;self.frozen=None

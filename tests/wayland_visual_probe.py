@@ -12,7 +12,7 @@ import sys
 import time
 
 ROOT=Path(os.environ.get('WYSUN_TEST_SOURCE',Path(__file__).resolve().parents[1]))
-sys.path.insert(0,str(ROOT/'apps/quickshell/tests'))
+sys.path.insert(0,str(ROOT/'apps/shell/tests'))
 from installed_apps_probe import private_environment,peer_pid,wait_for
 from wayland_test_pointer import SyntheticPointer
 

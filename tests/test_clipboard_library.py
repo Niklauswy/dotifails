@@ -1,8 +1,8 @@
 import os,sys,tempfile,unittest
 from pathlib import Path
 root=Path(__file__).resolve().parents[1]
-if not (root/'apps/orbit').is_dir():root=Path(__file__).resolve().parent
-sys.path.append(str(root/'apps/orbit'))
+if not (root/'apps/wysun').is_dir():root=Path(__file__).resolve().parent
+sys.path.append(str(root/'apps/wysun'))
 from PySide6.QtWidgets import QApplication
 from PySide6.QtGui import QImage,QColor,QPainter,QFont
 from data_v2 import StoreV2

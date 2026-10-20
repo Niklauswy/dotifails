@@ -17,13 +17,13 @@ from wybieshot.storage import Storage
 
 class Failure:
     def __init__(self,message,gate=None):self.message=message;self.gate=gate
-    def freeze(self,*_):
+    def freeze(self,*_,**__):
         if self.gate:self.gate.wait(1)
         raise RuntimeError(self.message)
 
 
 class OwnedImage:
-    def freeze(self,*_):
+    def freeze(self,*_,**__):
         image=QImage(64,48,QImage.Format_ARGB32);image.fill(QColor('#315787'))
         return FrozenDesktop(image,Rect(0,0,64,48),(Rect(0,0,64,48),))
 

@@ -8,7 +8,7 @@ from install_events import InstallationCancelled, checkpoint, emit
 
 VERSION='1.1.0'
 REPOSITORY='https://github.com/Niklauswy/dotifails.git'
-WYSUN_DESKTOP='[Desktop Entry]\nType=Application\nName=Wysun\nComment=Aplicaciones y herramientas del escritorio\nExec=wysun\nIcon=system-search\nCategories=Utility;\nKeywords=Wysun;Orbit;Orbita;\nStartupWMClass=Orbit\n'
+WYSUN_DESKTOP='[Desktop Entry]\nType=Application\nName=Wysun\nComment=Aplicaciones y herramientas del escritorio\nExec=wysun\nIcon=system-search\nCategories=Utility;\nKeywords=Wysun;lanzador;launcher;aplicaciones;\nStartupWMClass=Orbit\n'
 EXTRAS={'brave':'com.brave.Browser','discord':'com.discordapp.Discord','obsidian':'md.obsidian.Obsidian'}
 
 
@@ -142,18 +142,10 @@ class Deployment:
         write(self.state/'installed.json',self.receipt)
     def generated(self,text,relative,executable=False):
         temp=self.backup/'generated'/relative;temp.parent.mkdir(parents=True,exist_ok=True);temp.write_text(text);temp.chmod(0o755 if executable else 0o644);self.deploy(temp,relative)
-    def configure_locker(self):
-        source=self.source/'native/orbit-lock'
-        if not source.is_dir():return
-        self.stage('Compilar el bloqueador animado de Wysun')
-        build=self.backup/'generated/orbit-lock-build'
-        run(['meson','setup',build,source,'--buildtype=release','--prefix=/usr','--sysconfdir=/etc'])
-        run(['meson','compile','-C',build])
-        self.deploy(build/'orbit-lock',Path('.local/share/orbit/bin/orbit-lock'))
     def configure_files(self):
         # The desktop profile owns folder opening, portal selection and reveal actions.
         self.deploy(self.source/'bin/orbit-files',Path('.local/bin/orbit-files'))
-        self.deploy(self.source/'home/.local/share/applications/orbit-files.desktop',Path('.local/share/applications/orbit-files.desktop'))
+        self.deploy(self.source/'config/.local/share/applications/orbit-files.desktop',Path('.local/share/applications/orbit-files.desktop'))
         # Per-user activation is supported by xdg-desktop-portal >= 1.20.
         import configparser
         # Generate the association for target-home rather than running xdg-mime
@@ -178,7 +170,7 @@ class Deployment:
         self.generated('[Unit]\nDescription=Wysun file chooser and file manager integration\nAfter=graphical-session-pre.target\n\n[Service]\nType=dbus\nBusName=org.freedesktop.impl.portal.desktop.orbit\nExecStart='+command+'\nRestart=on-failure\nTimeoutStopSec=5\n',Path('.config/systemd/user')/service)
         for name in ('org.freedesktop.impl.portal.desktop.orbit','org.freedesktop.FileManager1'):
             self.generated('[D-BUS Service]\nName='+name+'\nExec='+command+'\nSystemdService='+service+'\n',Path('.local/share/dbus-1/services')/(name+'.service'))
-        self.generated('[portal]\nDBusName=org.freedesktop.impl.portal.desktop.orbit\nInterfaces=org.freedesktop.impl.portal.FileChooser;\nUseIn=bspwm\n',Path('.local/share/xdg-desktop-portal/portals/orbit.portal'))
+        self.generated('[portal]\nDBusName=org.freedesktop.impl.portal.desktop.orbit\nInterfaces=org.freedesktop.impl.portal.FileChooser;\nUseIn=Wysun;Hyprland;\n',Path('.local/share/xdg-desktop-portal/portals/orbit.portal'))
         relative=Path('.config/xdg-desktop-portal/portals.conf')
         parser=configparser.ConfigParser(interpolation=None);parser.optionxform=str
         existing=self.destination(relative)
@@ -189,36 +181,25 @@ class Deployment:
         import io
         output=io.StringIO();parser.write(output);self.generated(output.getvalue(),relative)
         self.generated('GTK_USE_PORTAL=1\n',Path('.config/environment.d/60-orbit-files.conf'))
-        # X11 applications inherit this setting at the next graphical login.
-        relative=Path('.xsessionrc');existing=self.destination(relative)
-        session=existing.read_text() if existing.is_file() else ''
-        setting='export GTK_USE_PORTAL=1'
-        if setting not in session.splitlines():session=session.rstrip()+'\n\n# Use the configured desktop file chooser.\n'+setting+'\n'
-        self.generated(session,relative)
 
     def configure_orbit(self):
         self.stage('Actualizar solo Wysun (código y lanzador)')
-        self.deploy(self.source/'apps/orbit',Path('.local/share/orbit/app'))
+        self.deploy(self.source/'apps/wysun',Path('.local/share/orbit/app'))
         if (self.source/'apps/tools').is_dir():self.deploy(self.source/'apps/tools',Path('.local/share/orbit/tools'))
         if self.conflicts:return
-        x11_managed=('desktop' in self.receipt.get('components',[]) or
-                     '.config/bspwm' in self.receipt['files'] or
-                     '.local/share/orbit/bin/orbit-lock' in self.receipt['files'])
-        wayland_only='wayland' in self.receipt.get('components',[]) and not x11_managed
-        if not wayland_only:self.configure_locker()
         for theme in read(self.source/'manifests/themes.json',{}).values():
-            wallpaper=self.source/'backgrounds'/theme['wallpaper']
+            wallpaper=self.source/'assets/backgrounds'/theme['wallpaper']
             if wallpaper.is_file():self.deploy(wallpaper,Path('.local/share/backgrounds')/wallpaper.name)
-        self.deploy(self.source/'home/.local/bin/orbit',Path('.local/bin/orbit'))
-        if not wayland_only:self.configure_files()
+        self.deploy(self.source/'config/.local/bin/orbit',Path('.local/bin/orbit'))
+        if 'wayland' not in self.receipt.get('components',[]):self.configure_files()
         if (self.source/'bin/musica').is_file():self.deploy(self.source/'bin/musica',Path('.local/bin/musica'))
         if (self.source/'bin/musika').is_file():self.deploy(self.source/'bin/musika',Path('.local/bin/musika'))
-        if (self.source/'home/.local/share/icons/hicolor/scalable/apps/musika.svg').is_file():self.deploy(self.source/'home/.local/share/icons/hicolor/scalable/apps/musika.svg',Path('.local/share/icons/hicolor/scalable/apps/musika.svg'))
-        if (self.source/'home/.local/share/applications/orbit-music.desktop').is_file():self.deploy(self.source/'home/.local/share/applications/orbit-music.desktop',Path('.local/share/applications/orbit-music.desktop'))
-        self.configure_wysun(migrate_x11=not wayland_only)
+        if (self.source/'config/.local/share/icons/hicolor/scalable/apps/musika.svg').is_file():self.deploy(self.source/'config/.local/share/icons/hicolor/scalable/apps/musika.svg',Path('.local/share/icons/hicolor/scalable/apps/musika.svg'))
+        if (self.source/'config/.local/share/applications/orbit-music.desktop').is_file():self.deploy(self.source/'config/.local/share/applications/orbit-music.desktop',Path('.local/share/applications/orbit-music.desktop'))
+        self.configure_wysun()
         from wayland import update_runtime
         update_runtime(self)
-    def configure_wysun(self,migrate_x11=True):
+    def configure_wysun(self):
         # Keep established paths and desktop IDs so pinned launchers and data survive.
         launcher=self.source/'bin/wysun'
         if not launcher.is_file():return
@@ -227,29 +208,10 @@ class Deployment:
         for name,mode in (('wysun-music','music'),('wysun-files','files'),('wysun-tools','tools')):
             _publish(self,'#!/bin/sh\nexec "$HOME/.local/bin/wysun" '+mode+' "$@"\n','.local/bin/'+name,executable=True)
         self.generated(WYSUN_DESKTOP,Path('.local/share/applications/orbit.desktop'))
-        if migrate_x11:self.configure_wysun_labels()
+        for name in ('orbit-settings.desktop','orbit-connections.desktop'):
+            source=self.source/'config/.local/share/applications'/name
+            if source.is_file():self.deploy(source,Path('.local/share/applications')/name)
         configure(self)
-    def configure_wysun_labels(self):
-        # Migrate only the old product label, preserving module layout and commands.
-        relative=Path('.config/bspwm/polybar/config');path=self.destination(relative)
-        if path.is_file():
-            import re
-            text=path.read_text()
-            def rename(match):
-                return match[0].replace('Órbita','Wysun').replace('ÓRBITA','WYSUN')
-            updated=re.sub(r'(?ms)^\[module/orbit\]\s*\n.*?(?=^\[|\Z)',rename,text)
-            if updated!=text:
-                parent='.config/bspwm'
-                parent_owned=self.receipt['files'].get(parent)==fingerprint(self.home/parent)
-                self.generated(updated,relative)
-                if parent_owned and str(relative) not in self.conflicts:
-                    self.receipt['files'][parent]=fingerprint(self.home/parent)
-                    write(self.state/'installed.json',self.receipt)
-        for relative,source in (('.local/bin/desktop-volume','home/.local/bin/desktop-volume'),
-                                ('.local/bin/orbit-tools','bin/orbit-tools')):
-            source=self.source/source
-            if source.is_file() and (relative in self.receipt['files'] or not exists(self.home/relative)):
-                self.deploy(source,Path(relative))
     def configure_scripts(self):
         self.stage('Herramientas de Wysun y migración de lanzadores')
         self.deploy(self.source/'apps/tools',Path('.local/share/orbit/tools'))
@@ -299,21 +261,21 @@ class Deployment:
         if 'tools' in selected:self.configure_scripts()
         self.stage('Configuraciones y aplicaciones')
         requested_theme=theme
-        theme=theme or read(self.home/'.config/orbit/theme.json',{}).get('id') or self.receipt.get('theme') or ('tokyo' if '.config/bspwm' in self.receipt['files'] else 'severance')
+        theme=theme or read(self.home/'.config/orbit/theme.json',{}).get('id') or self.receipt.get('theme') or 'severance'
         theme={'azul':'severance','morado':'tokyo'}.get(theme,theme)
         appearance=read(self.source/'manifests/themes.json')[theme]
         home_source=self.backup/'generated/theme-home'
-        shutil.copytree(self.source/'home',home_source)
+        shutil.copytree(self.source/'config',home_source)
         if appearance.get('overlay'):
             shutil.copytree(self.source/appearance['overlay'],home_source,dirs_exist_ok=True)
-        if (self.source/'apps/orbit/theme_runtime.py').exists():
-            sys.path.insert(0,str(self.source/'apps/orbit'))
+        if (self.source/'apps/wysun/theme_runtime.py').exists():
+            sys.path.insert(0,str(self.source/'apps/wysun'))
             from theme_runtime import theme_files
             themed,_=theme_files(home_source,theme)
             for path,text in themed.items():
                 path.parent.mkdir(parents=True,exist_ok=True)
                 path.write_text(text)
-        owners={'nvim':'editor','ghostty':'terminal','fzf':'terminal','bat':'terminal','starship.toml':'terminal','dotifails':'terminal','desktop-terminal':'terminal'}
+        owners={'nvim':'editor','ghostty':'terminal','fzf':'terminal','bat':'terminal','starship.toml':'terminal','dotifails':'terminal'}
         for base in ('.config','.local/bin'):
             for item in sorted((home_source/base).iterdir()):
                 if base=='.config' and item.name=='wysun':continue
@@ -338,22 +300,19 @@ class Deployment:
                         self.deploy(child,relative)
                     continue
                 if owners.get(item.name,'desktop') in selected:self.deploy(item,Path(base)/item.name)
-        if 'desktop' in selected and (home_source/'.Xresources.d/colors').is_file():
-            self.deploy(home_source/'.Xresources.d/colors',Path('.Xresources.d/colors'))
-        if 'terminal' in selected:self.deploy(self.source/'home/.zshrc',Path('.zshrc'))
+        if 'terminal' in selected:self.deploy(self.source/'config/.zshrc',Path('.zshrc'))
         if 'desktop' in selected:
-            self.deploy(self.source/'apps/orbit',Path('.local/share/orbit/app'))
+            self.deploy(self.source/'apps/wysun',Path('.local/share/orbit/app'))
             if '.local/share/orbit/app' not in self.conflicts:
-                self.configure_locker()
                 self.configure_files()
                 self.configure_wysun()
             for item in sorted((self.source/'assets/icons').iterdir()):self.deploy(item,Path('.local/share/icons')/item.name)
-            for item in sorted((self.source/'backgrounds').iterdir()):self.deploy(item,Path('.local/share/backgrounds')/item.name)
+            for item in sorted((self.source/'assets/backgrounds').iterdir()):self.deploy(item,Path('.local/share/backgrounds')/item.name)
             # Ship the same music entry points as an orbit-only update.
             for name in ('musica','musika'):
                 if (self.source/'bin'/name).is_file():self.deploy(self.source/'bin'/name,Path('.local/bin')/name)
             for rel in ('.local/share/applications/orbit-music.desktop','.local/share/icons/hicolor/scalable/apps/musika.svg'):
-                if (self.source/'home'/rel).is_file():self.deploy(self.source/'home'/rel,Path(rel))
+                if (self.source/'config'/rel).is_file():self.deploy(self.source/'config'/rel,Path(rel))
         if selected & {'desktop','terminal'}:self.deploy(self.source/'assets/fonts',Path('.local/share/fonts/dotifails'))
         if 'desktop' in selected and appearance.get('archive'):
             archive=self.source/appearance['archive']
@@ -364,8 +323,6 @@ class Deployment:
                 for group in ('icons','themes'):
                     for item in sorted((root/group).iterdir()):self.deploy(item,Path('.local/share')/group/item.name)
         if 'desktop' in selected:
-            self.generated('ORBIT_WALLPAPER="$HOME/.local/share/backgrounds/'+appearance['wallpaper']+'"\n',Path('.config/dotifails/appearance.sh'))
-            self.generated(json.dumps(dict(name=theme,wallpaper=appearance['wallpaper']),indent=2)+'\n',Path('.config/dotifails/theme.json'))
             self.generated(json.dumps(dict(id=theme,name=appearance['name']),indent=2)+'\n',Path('.config/orbit/theme.json'))
             preferences=read(self.home/'.config/orbit/environment.json',{})
             if requested_theme or not preferences.get('wallpaper',{}).get('default'):
@@ -378,7 +335,7 @@ class Deployment:
             self.generated(WYSUN_DESKTOP,Path('.local/share/applications/orbit.desktop'))
             (self.home/'Screenshots').mkdir(exist_ok=True)
         if 'terminal' in selected:self.generated('[Desktop Entry]\nType=Application\nName=Ghostty\nExec=ghostty\nIcon=utilities-terminal\nCategories=System;TerminalEmulator;\n',Path('.local/share/applications/ghostty.desktop'))
-        if 'editor' in selected:self.generated('[Desktop Entry]\nType=Application\nName=Neovim\nExec=desktop-terminal -e nvim -- %F\nIcon=nvim\nCategories=Development;TextEditor;\nMimeType=text/plain;text/x-python;application/javascript;text/x-c;text/x-c++;\n',Path('.local/share/applications/nvim.desktop'))
+        if 'editor' in selected:self.generated('[Desktop Entry]\nType=Application\nName=Neovim\nExec=wysun-terminal -e nvim -- %F\nIcon=nvim\nCategories=Development;TextEditor;\nMimeType=text/plain;text/x-python;application/javascript;text/x-c;text/x-c++;\n',Path('.local/share/applications/nvim.desktop'))
     def finish(self):
         self.receipt.update(version=VERSION,source=str(self.source),last_backup=self.journal['id'])
         write(self.state/'installed.json',self.receipt);self.journal['status']='conflicts' if self.conflicts else 'complete';self.journal['conflicts']=self.conflicts;self.flush()
@@ -455,15 +412,6 @@ def packages(source,extras,components=None,boot_components=None):
     run(prefix+['env','DEBIAN_FRONTEND=noninteractive','apt-get','-o','Dpkg::Options::=--force-confold','install','--yes','--no-remove','--no-install-recommends']+wanted)
 
 
-def session(source):
-    prefix=[] if os.geteuid()==0 else ['sudo']
-    run(prefix+['install','-m','755',source/'installer/orbit-session-system','/usr/local/bin/orbit-session'])
-    run(prefix+['install','-m','644',source/'installer/orbit-bspwm.desktop','/usr/share/xsessions/orbit-bspwm.desktop'])
-    # These are desktop dependencies, not a request to replace the current login session.
-    if Path('/run/systemd/system').exists():
-        run(prefix+['systemctl','enable','--now','NetworkManager.service','bluetooth.service'])
-
-
 def wayland_session(source):
     prefix=[] if os.geteuid()==0 else ['sudo']
     run(prefix+[sys.executable,source/'installer/session_registration.py','install','--source',source/'installer'])
@@ -515,8 +463,8 @@ def install_extras(names,d,env):
 def doctor(home,components=None):
     home=Path(home);env=dict(os.environ,HOME=str(home),PATH=str(home/'.local/bin')+':'+os.environ.get('PATH',''));failed=[]
     selected=set(normalize_components(components or read(home/'.local/state/dotifails/installed.json',{}).get('components')))
-    checks={'Python Qt':(['/usr/bin/python3','-c','from PySide6 import QtCore,QtGui,QtWidgets,QtSvg; import Xlib,dbus,gi'],None),
-      'BSPWM':(['bspwm','-v'],None),'Picom':(['picom','--version'],'v12'), 'Neovim':([str(home/'.local/bin/nvim'),'--version'],'0.11.5'),
+    checks={'Python Qt':(['/usr/bin/python3','-c','from PySide6 import QtCore,QtGui,QtWidgets,QtSvg; import dbus,gi'],None),
+      'Neovim':([str(home/'.local/bin/nvim'),'--version'],'0.11.5'),
       'Node':([str(home/'.local/bin/node'),'--version'],'v24.19.0'),'Mise':([str(home/'.local/bin/mise'),'--version'],'2026.9.14'),'Ghostty':([str(home/'.local/bin/ghostty'),'--version'],'1.2.3'),
       'OCR':(['tesseract','--list-langs'],'spa'),'FFmpeg':(['ffmpeg','-version'],None),'mpv':(['mpv','--version'],None)}
     owners={'Neovim':'editor','Node':'terminal','Mise':'terminal','Ghostty':'terminal'}
@@ -528,7 +476,9 @@ def doctor(home,components=None):
         except (OSError,subprocess.TimeoutExpired):ok=False
         print(('OK  ' if ok else 'FAIL ')+label)
         if not ok:failed.append(label)
-    for rel in (('.config/bspwm/bspwmrc','.config/sxhkd/sxhkdrc','.local/share/orbit/app/orbit.py','.local/share/backgrounds/tokyo.png') if 'desktop' in selected else ()):
+    required=[]
+    if 'desktop' in selected:required += ['.config/wysun/hyprland.lua','.local/share/orbit/app/orbit.py','.local/share/wysun/quickshell/shell.qml','.local/share/backgrounds/tokyo.png']
+    for rel in required:
         ok=(home/rel).is_file();print(('OK  ' if ok else 'FAIL ')+rel)
         if not ok:failed.append(rel)
     if 'terminal' in selected:
@@ -544,7 +494,7 @@ def doctor(home,components=None):
             result=subprocess.run([str(home/'.local/bin/wysun-session'),'--check'],env=env,timeout=25)
             if result.returncode:failed.append('Wysun / Hyprland')
         except (OSError,subprocess.TimeoutExpired):failed.append('Wysun / Hyprland')
-    print('Comprobación de archivos y ejecutables. La sesión gráfica se verifica al iniciar Wysun/BSPWM.')
+    print('Comprobación de archivos y ejecutables. La sesión gráfica se verifica al iniciar Wysun / Hyprland.')
     return 1 if failed else 0
 
 
@@ -596,7 +546,7 @@ def main(argv=None):
         p.add_argument('--boot-only',action='store_true',help='Solo GRUB, Plymouth e inicio de sesión; conserva la sesión abierta y respalda /etc y /boot')
         p.add_argument('--installer-only',action='store_true',help='Actualizar solo el instalador visual, la CLI y sus manifiestos')
         p.add_argument('--theme',choices=['severance','tokyo','space-black','azul','morado'],help='Perfil visual; Severance en instalaciones nuevas, conserva el elegido al actualizar')
-        p.add_argument('--components',help='Componentes separados por comas: desktop,wayland,terminal,editor,tools,boot (wayland es opcional)')
+        p.add_argument('--components',help='Componentes separados por comas: desktop,wayland,terminal,editor,tools,boot')
         p.add_argument('--boot-components',default='grub,plymouth,greeter',help='Pantallas de arranque: grub,plymouth,greeter')
         p.add_argument('--plan',action='store_true',help='Mostrar el plan exacto en JSON, sin aplicar cambios')
     p=sub.add_parser('doctor');p.add_argument('--target-home',type=Path,default=Path.home())
@@ -680,7 +630,7 @@ def main(argv=None):
         run(command);return 0
     previous_source=read(home/'.local/state/dotifails/installed.json',{}).get('source')
     source=(args.source or (Path(previous_source) if previous_source else Path(__file__).resolve().parent.parent)).resolve()
-    if not (source/'home/.config/bspwm/bspwmrc').is_file():raise RuntimeError('Indica un repositorio completo: dotifails install --source /ruta/dotifails')
+    if not (source/'config/.config/wysun/hyprland.lua').is_file():raise RuntimeError('Indica un repositorio completo: dotifails install --source /ruta/dotifails')
     if not (args.orbit_only or args.scripts_only or args.installer_only):
         InstallOptions(source,home,selected,args.theme,tuple(names),tuple(args.boot_components.split(',')),args.config_only,args.skip_nvim_tools,args.profile).validate()
     if not args.config_only and 'wayland' in selected:
@@ -700,8 +650,7 @@ def main(argv=None):
         else:steps.append(('Configuraciones y respaldos',lambda:d.configure(args.profile,args.theme,selected)))
         if args.scripts_only or args.orbit_only:steps.append(('Instalador y recuperación',d.configure_manager))
         if not args.config_only:
-            if 'desktop' in selected:steps.append(('Sesión Wysun / BSPWM',lambda:session(source)))
-            if 'wayland' in selected:steps.append(('Registrar sesión adicional Wysun / Hyprland',lambda:wayland_session(source) if not d.conflicts else None))
+            if 'wayland' in selected:steps.append(('Registrar sesión Wysun / Hyprland',lambda:wayland_session(source) if not d.conflicts else None))
             if 'boot' in selected:steps.append(('Arranque y acceso',lambda:boot_appearance(source,components=args.boot_components.split(','))))
             if 'editor' in selected and not args.skip_nvim_tools:steps.append(('Lenguajes y plugins de Neovim',lambda:nvim_setup(d,env)))
             if names:steps.append(('Aplicaciones opcionales',lambda:install_extras(names,d,env)))
@@ -720,7 +669,7 @@ def main(argv=None):
             d.receipt['last_selection']=list(selected)
         d.finish()
         emit('result',status='conflicts' if d.conflicts else 'complete',backup=d.journal['id'],conflicts=d.conflicts,components=list(selected),config_only=args.config_only)
-        if not args.config_only:print('Sesiones preparadas: '+', '.join(name for key,name in (('desktop','Wysun / BSPWM'),('wayland','Wysun / Hyprland')) if key in selected)+'. Puedes seleccionarlas cuando cierres sesión voluntariamente.')
+        if not args.config_only:print('Sesión Wysun / Hyprland preparada. Puedes seleccionarla cuando cierres sesión voluntariamente.')
         else:print('Modo config-only: no instala paquetes, herramientas ni registra la sesión gráfica.')
         return 2 if d.conflicts else 0
     except BaseException as error:

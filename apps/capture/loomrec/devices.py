@@ -132,18 +132,9 @@ def activate_window(window_id):
     geometry; a WM refusing activation is an error, not a successful selection.
     """
     window_id=hex(int(window_id,0))
-    activated=False
-    if shutil.which('bspc'):
-        try:
-            run(['bspc','query','-N','-n',window_id])
-            run(['bspc','node',window_id,'-g','hidden=off'])
-            run(['bspc','node',window_id,'-f'])
-            activated=True
-        except (OSError,subprocess.SubprocessError):pass
-    if not activated:
-        if not shutil.which('wmctrl'):
-            raise ValueError('No se pudo activar la ventana. Usa bspwm o instala wmctrl para cambiar a su escritorio.')
-        run(['wmctrl','-ia',window_id])
+    if not shutil.which('wmctrl'):
+        raise ValueError('No se pudo activar la ventana. Instala wmctrl para cambiar a su escritorio.')
+    run(['wmctrl','-ia',window_id])
     deadline=time.monotonic()+2
     while time.monotonic()<deadline:
         active=run(['xprop','-root','_NET_ACTIVE_WINDOW'])

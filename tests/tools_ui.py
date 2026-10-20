@@ -12,7 +12,7 @@ import time
 import unittest
 from unittest.mock import patch
 os.environ.setdefault('QT_QPA_PLATFORM','offscreen')
-ROOT=Path(__file__).resolve().parents[1];sys.path.insert(0,str(ROOT/'apps/orbit'))
+ROOT=Path(__file__).resolve().parents[1];sys.path.insert(0,str(ROOT/'apps/wysun'))
 from PySide6.QtCore import QProcess
 from PySide6.QtWidgets import QApplication
 from tools_window import ToolsWindow,load_projects,cli_argv

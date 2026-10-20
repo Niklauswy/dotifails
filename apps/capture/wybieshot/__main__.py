@@ -4,6 +4,15 @@ import sys
 from pathlib import Path
 
 
+def prepare_event_loop():
+    # Portal workers own GLib's default context. Qt must not acquire it for
+    # the GUI's blocking exec() loop (Qt 6.8.2); keep native Wayland/Qt Unix.
+    from loomrec.portal import is_wayland
+    if is_wayland():
+        import os
+        os.environ['QT_NO_GLIB']='1'
+
+
 def main(argv=None):
     parser=argparse.ArgumentParser(prog='wysun screenshot',description='Capturas locales independientes · Wysun Screenshot')
     parser.add_argument('--version',action='version',version='Wysun Screenshot 0.1.0')
@@ -21,6 +30,7 @@ def main(argv=None):
         from .instance import CaptureLease
         lease=CaptureLease()
         capture_busy=not lease.claim()
+    prepare_event_loop()
     from PySide6.QtWidgets import QApplication
     from .ui.components import apply_theme
     from .ui.main import run

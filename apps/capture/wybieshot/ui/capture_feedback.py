@@ -1,9 +1,70 @@
 """GUI-thread consent instructions; no progress window is present in captured pixels."""
 import threading
 import time
-from PySide6.QtCore import QObject,Signal,QTimer
+from PySide6.QtCore import QObject,Signal,Slot,QTimer,Qt
 from PySide6.QtWidgets import QDialog,QVBoxLayout,QHBoxLayout,QLabel,QPushButton
 from loomrec.portal import PortalCancelled
+
+
+class CaptureWaitDialog(QDialog):
+    def reject(self):
+        # Escape/WM close requests cancellation, not successful teardown. Keep
+        # progress visible until the worker acknowledges portal/session close.
+        self.rejected.emit()
+
+
+class CaptureWaitFeedback(QObject):
+    """Cancellable portal wait. Its owner retains the lease until Work finishes."""
+    frame_requested=Signal(object)
+    defer_release=True
+    def __init__(self,parent,*,delay_ms=0,screen_cast=False):
+        super().__init__(parent);self.cancelled=threading.Event()
+        self.frame_requested.connect(self.before_frame,Qt.QueuedConnection)
+        self._frame_ack=None;self.hide_timer=QTimer(self);self.hide_timer.setSingleShot(True)
+        self.hide_timer.timeout.connect(self.acknowledge_frame)
+        self.show_timer=QTimer(self);self.show_timer.setSingleShot(True);self.show_timer.timeout.connect(self.show_dialog)
+        self.dialog=CaptureWaitDialog(None);self.dialog.setWindowTitle('Wysun Screenshot · Preparando selección')
+        layout=QVBoxLayout(self.dialog)
+        hint=('Esperando la selección del monitor en el portal…\nDespués podrás marcar una región de la imagen autorizada.' if screen_cast
+              else 'Preparando la captura del escritorio…\nLa selección de región aparecerá en cuanto el portal entregue la imagen.')
+        self.text=QLabel(hint)
+        self.text.setWordWrap(True);layout.addWidget(self.text)
+        self.cancel_button=QPushButton('Cancelar');layout.addWidget(self.cancel_button)
+        self.cancel_button.clicked.connect(parent.cancel_capture);self.dialog.rejected.connect(parent.cancel_capture)
+        self.dialog.resize(420,160)
+        if delay_ms>0:self.show_timer.start(delay_ms)
+        else:self.show_dialog()
+    def show_dialog(self):
+        if self.dialog and not self.dialog.isVisible() and not self.cancelled.is_set():
+            self.dialog.show();self.cancel_button.setFocus()
+    def check(self):
+        if self.cancelled.is_set():raise PortalCancelled('Selección cancelada en el portal')
+    def report(self,state):
+        self.check()
+        if state['stage']!='frame':return
+        ack=threading.Event();self.frame_requested.emit(ack)
+        while not ack.wait(.05):self.check()
+        self.check()
+    @Slot(object)
+    def before_frame(self,ack):
+        # No progress dialog may appear in the authorized monitor frame. Hide
+        # and commit before connecting the PipeWire consumer, not afterwards.
+        self.show_timer.stop()
+        if self.dialog:self.dialog.hide()
+        self._frame_ack=ack;self.hide_timer.start(180)
+    @Slot()
+    def acknowledge_frame(self):
+        ack,self._frame_ack=self._frame_ack,None
+        if ack:ack.set()
+    def cancel(self):
+        self.cancelled.set()
+        if self.dialog:
+            self.text.setText('Cancelando la petición del portal…\nSi el selector del portal sigue abierto, ciérralo también para terminar. La aplicación sigue esperando la respuesta del portal.')
+            self.cancel_button.setEnabled(False)
+    def close(self):
+        self.hide_timer.stop();self.show_timer.stop()
+        if self.dialog:self.dialog.hide();self.dialog.deleteLater();self.dialog=None
+        self.deleteLater()
 
 
 class CaptureFeedback(QObject):

@@ -1,0 +1,64 @@
+#!/usr/bin/env python3
+"""ScreenCast picker for xdg-desktop-portal-hyprland.
+
+Wysun Recorder writes a short-lived, one-shot request naming the output the
+user already chose in its own bar (monitor or region). That request is
+answered without a second picker; every other client, or a stale/invalid
+request, gets the normal hyprland-share-picker.
+"""
+import json
+import os
+from pathlib import Path
+import re
+import sys
+import time
+
+MAX_AGE = 10
+OUTPUT = re.compile(r'[A-Za-z0-9._-]{1,64}')
+
+
+def request_path():
+    return Path(os.environ.get('XDG_RUNTIME_DIR') or '/run/user/%d' % os.getuid()) / 'loomrec-share-request.json'
+
+
+def claim(path=None, now=None):
+    """Atomically take the pending request; return its output name or None."""
+    path = path or request_path()
+    claimed = path.with_name(path.name + '.%d' % os.getpid())
+    try:
+        os.rename(path, claimed)
+    except OSError:
+        return None
+    try:
+        info = os.lstat(claimed)
+        if info.st_uid != os.getuid() or not os.path.isfile(claimed) or os.path.islink(claimed) or info.st_size > 4096:
+            return None
+        data = json.loads(claimed.read_text())
+    except (OSError, ValueError):
+        return None
+    finally:
+        try:
+            claimed.unlink()
+        except OSError:
+            pass
+    if not isinstance(data, dict):
+        return None
+    age = (time.time() if now is None else now) - float(data.get('time', 0) or 0)
+    output = str(data.get('output', ''))
+    if not 0 <= age <= MAX_AGE or not OUTPUT.fullmatch(output):
+        return None
+    return output
+
+
+def main():
+    output = claim()
+    if output:
+        # 'r' lets the portal issue a restore token for the next recording.
+        sys.stdout.write('[SELECTION]r/screen:' + output + '\n')
+        sys.stdout.flush()
+        return 0
+    os.execvp('hyprland-share-picker', ['hyprland-share-picker', *sys.argv[1:]])
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())

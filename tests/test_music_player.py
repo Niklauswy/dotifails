@@ -4,7 +4,7 @@ import random
 import sys
 import tempfile
 import unittest
-sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'apps/orbit'))
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'apps/wysun'))
 from music_library import PlaybackOrder,MusicStore,normalize,artists,parse_lrc
 
 class PlayerTests(unittest.TestCase):

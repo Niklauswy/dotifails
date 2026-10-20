@@ -12,19 +12,19 @@ from loomrec.schema import Project,Source,Clip,save_project
 class UISmokeTests(unittest.TestCase):
  @classmethod
  def setUpClass(cls):cls.app=QApplication.instance() or QApplication([])
- def test_construct_open_edit_undo_and_close(self):
+ def test_construct_open_viewer_and_close(self):
   with tempfile.TemporaryDirectory() as d, patch.dict(os.environ,{"XDG_STATE_HOME": d}):
    library=Library(d);directory=library.new_directory();path=directory/'project.json'
    save_project(Project(title='Synthetic smoke',sources=[Source('s','synthetic.mkv',duration=3)],clips=[Clip('s',0,3)]),path)
    window=Window(library,probe_devices=False)
    try:
     self.assertEqual(window.items.count(),1)
-    window.open_project(path,edit=True)
-    self.assertEqual(window.clips.count(),1)
-    window.editor.trim(0,.5,2.5);window.refresh_editor()
-    self.assertEqual(window.editor.project.duration,2)
-    window.undo();self.assertEqual(window.editor.project.duration,3)
-    window.redo();self.assertEqual(window.editor.project.duration,2)
+    video=Path(d)/'synthetic.mp4';video.write_bytes(b'owned fixture')
+    with patch.object(window.player,'load') as load:window.open_media(video)
+    load.assert_called_once_with(video);self.assertIs(window.stack.currentWidget(),window.editor_page)
+    window.back_library();self.assertIs(window.stack.currentWidget(),window.library_page)
     self.assertEqual(window.player.process.state(),window.player.process.ProcessState.NotRunning)
    finally:
     window.timer.stop();window.close();window.deleteLater();self.app.processEvents()
+
+if __name__=='__main__':unittest.main()

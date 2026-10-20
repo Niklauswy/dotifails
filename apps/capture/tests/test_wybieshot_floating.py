@@ -7,8 +7,8 @@ import sys
 import tempfile
 import unittest
 from unittest.mock import patch
-from PySide6.QtCore import Qt,QRect,QEvent,QPointF
-from PySide6.QtGui import QImage,QColor,QMouseEvent
+from PySide6.QtCore import Qt,QRect,QEvent,QPoint,QPointF
+from PySide6.QtGui import QImage,QColor,QKeyEvent,QMouseEvent
 from PySide6.QtWidgets import QApplication,QPlainTextEdit,QColorDialog,QPushButton,QLabel
 from wybieshot.ui.floating import FloatingSelection
 from wybieshot.actions import ActionWindow,CaptureActions
@@ -20,6 +20,15 @@ app=QApplication.instance() or QApplication([])
 def drag(widget,a,b):
     for kind,p,button,buttons in ((QEvent.MouseButtonPress,a,Qt.LeftButton,Qt.LeftButton),(QEvent.MouseMove,b,Qt.NoButton,Qt.LeftButton),(QEvent.MouseButtonRelease,b,Qt.LeftButton,Qt.NoButton)):
         app.sendEvent(widget,QMouseEvent(kind,QPointF(*p),QPointF(*p),button,buttons,Qt.NoModifier))
+
+def control_drag(widget,start,end):
+    start=QPoint(*start);end=QPoint(*end)
+    with patch('wybieshot.ui.selection.QCursor.pos',return_value=widget.mapToGlobal(start)):
+        app.sendEvent(widget,QKeyEvent(QEvent.KeyPress,Qt.Key_Control,Qt.NoModifier))
+    app.sendEvent(widget,QMouseEvent(QEvent.MouseMove,QPointF(end),QPointF(widget.mapToGlobal(end)),Qt.NoButton,Qt.NoButton,Qt.ControlModifier))
+    with patch('wybieshot.ui.selection.QCursor.pos',return_value=widget.mapToGlobal(end)):
+        app.sendEvent(widget,QKeyEvent(QEvent.KeyRelease,Qt.Key_Control,Qt.NoModifier))
+    app.processEvents()
 
 def frozen():
     image=QImage(1280,720,QImage.Format_ARGB32);image.fill(QColor('#23a6bf'));return image
@@ -34,6 +43,10 @@ class FloatingTests(unittest.TestCase):
     def select(self):
         drag(self.overlay,(100,100),(599,399));app.processEvents()
         self.assertTrue(self.overlay.toolbar.isVisible());self.assertEqual(self.overlay.document.size.width(),500)
+    def test_control_drag_selects_region_and_opens_annotation_palette(self):
+        control_drag(self.overlay,(100,100),(599,399))
+        self.assertTrue(self.overlay.toolbar.isVisible());self.assertEqual(self.overlay.document.size.width(),500)
+        self.assertEqual(self.overlay.document.size.height(),300)
     def test_in_place_tools_pixels_history_and_editable_text(self):
         self.select();o=self.overlay;o.choose('arrow');drag(o.canvas,(30,40),(240,40))
         self.assertEqual(o.document.render().pixelColor(100,40).name(),'#2165d5')

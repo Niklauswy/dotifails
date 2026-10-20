@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
-"""Restore the exact saved pre-Wybie compositor/material settings, if unchanged."""
+"""Restore saved material settings from a legacy install, if unchanged."""
 import hashlib
 import json
 import os
 from pathlib import Path
-import signal
 
 
 def restore(state=None):
@@ -23,21 +22,7 @@ def restore(state=None):
     if data['original_materials'] is None:prefs.unlink()
     else:module.atomic_write(prefs,data['original_materials'].encode())
     state.unlink()
-    # Never disturb a live recorder. The restored config takes effect at the next
-    # compositor reinitialization if reloading now is unsafe or identity changed.
-    capture=False
-    for proc in Path('/proc').glob('[0-9]*'):
-        try:
-            args=(proc/'cmdline').read_bytes().split(b'\0')
-            capture |= b'loomrec.worker' in args or b'x11grab' in args
-        except OSError:continue
-    reloaded=False
-    try:
-        pid=int(data['picom_pid']);args=(Path('/proc')/str(pid)/'cmdline').read_bytes().split(b'\0')
-        if not capture and Path(os.fsdecode(args[0])).name=='picom' and os.fsencode(str(config)) in args:
-            os.kill(pid,signal.SIGUSR1);reloaded=True
-    except (OSError,ValueError,IndexError):pass
-    return {'restored':True,'compositor_reloaded':reloaded}
+    return {'restored':True,'compositor_reloaded':False}
 
 
 if __name__=='__main__':

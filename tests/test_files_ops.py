@@ -8,7 +8,7 @@ from unittest.mock import patch
 repository = Path(__file__).resolve().parent
 if repository.name == 'tests':
     repository = repository.parent
-spec = importlib.util.spec_from_file_location('files_ops', repository / 'apps/orbit/files_ops.py')
+spec = importlib.util.spec_from_file_location('files_ops', repository / 'apps/wysun/files_ops.py')
 ops = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(ops)
 

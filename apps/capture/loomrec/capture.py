@@ -28,8 +28,10 @@ class CaptureConfig:
     title: str | None = None
     backend: str = "auto"
     source_type: str = "monitor"
+    remember_source: bool = False
     mic_gain: float = 1.0
     system_gain: float = 1.0
+    camera_style: dict = field(default_factory=dict)
 
     def selected_backend(self):
         from .portal import is_wayland
@@ -44,7 +46,10 @@ class CaptureConfig:
         from .cursor import effect_settings
         if type(self.cursor) is not bool:raise ValueError('Cursor visibility must be boolean')
         if type(self.cursor_live) is not bool:raise ValueError('Cursor live mode must be boolean')
+        if type(self.remember_source) is not bool:raise ValueError('Remember source must be boolean')
         effect_settings(self.cursor_effects)
+        from .schema import camera_style
+        camera_style(self.camera_style)
         if type(self.auto_finalize) is not bool:raise ValueError('Automatic MP4 must be boolean')
         if self.output_dir is not None and (not isinstance(self.output_dir,str) or not Path(self.output_dir).is_absolute()):raise ValueError('Output directory must be absolute')
         if self.title is not None and not isinstance(self.title,str):raise ValueError('Invalid recording title')
@@ -168,6 +173,8 @@ def append_segment(project, root, stem, config):
     if config.camera and camera.exists():
         cam_info = probe(camera)
         project.sources.append(Source(stem+'-camera', camera.name, 'camera', duration=float(cam_info['format']['duration']), group=stem))
+        from .schema import camera_style
+        for key,value in camera_style(getattr(config,'camera_style',{})).items():setattr(project.camera,key,value)
         starts.extend(float(s.get('start_time',0)) for s in cam_info['streams'])
     common_start = max([0.0, *starts])
     if common_start >= duration: raise ValueError('Selected sources have no common recorded interval')

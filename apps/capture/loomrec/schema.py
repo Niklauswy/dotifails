@@ -49,6 +49,23 @@ class Subtitle:
 class Camera:
     enabled: bool = True
     rect: list[float] = field(default_factory=lambda: [0.75, 0.7, 0.22, 0.27])
+    shape: str = "circle"      # circle, rounded
+    size: str = "medium"       # small, medium, large
+    corner: str = "bottom-right"
+
+CAMERA_SHAPES = ('circle', 'rounded')
+CAMERA_SIZES = {'small': .20, 'medium': .28, 'large': .38}
+CAMERA_CORNERS = ('bottom-right', 'bottom-left', 'top-right', 'top-left')
+
+
+def camera_style(value):
+    """Validated camera bubble style from preferences or a capture config."""
+    value = value if isinstance(value, dict) else {}
+    style = {'shape': value.get('shape', 'circle'), 'size': value.get('size', 'medium'),
+             'corner': value.get('corner', 'bottom-right')}
+    if style['shape'] not in CAMERA_SHAPES or style['size'] not in CAMERA_SIZES or style['corner'] not in CAMERA_CORNERS:
+        raise ValueError('Estilo de cámara inválido')
+    return style
 
 @dataclass
 class Project:
@@ -124,6 +141,7 @@ def validate(project):
     if project.crop is not None:
         validate_rect(project.crop)
     validate_rect(project.camera.rect)
+    camera_style({'shape': project.camera.shape, 'size': project.camera.size, 'corner': project.camera.corner})
 
 
 def project_from_dict(data):

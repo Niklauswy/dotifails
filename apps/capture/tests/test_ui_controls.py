@@ -54,7 +54,7 @@ class ControlsTests(unittest.TestCase):
   session=Mock(root=path.parent);session.status.return_value={'state':'paused'}
   w=self.window;w.session=session;w.capture_gains={'mic':.5};w.hide()
   try:
-   with patch('loomrec.ui.main.CaptureSession.attach',return_value=session),patch.object(w,'ensure_keys'),patch('loomrec.ui.main.RenderJob') as render:
+   with patch('loomrec.ui.main.CaptureSession.attach',return_value=session),patch.object(w,'ensure_keys'),patch('loomrec.render.RenderJob') as render:
     w.open_project(path)
     self.assertIs(w.session,session);self.assertTrue(w.isVisible());self.assertEqual(w.capture_gains,{'mic':.5})
     self.assertIs(w.stack.currentWidget(),w.setup_page);self.assertEqual(w.record.text(),'Reanudar')

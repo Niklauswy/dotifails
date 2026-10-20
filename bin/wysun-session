@@ -26,7 +26,7 @@ def portal_preflight(bus=None):
             if int(version) < 1:
                 raise RuntimeError('Interfaz de portal no disponible')
     except Exception:
-        print('Wysun: el portal activo no ofrece captura Wayland. Puede conservar la sesión X11 anterior. '
+        print('Wysun: el portal activo no ofrece captura Wayland. '
               'Revisa el servicio xdg-desktop-portal y su backend Hyprland; '
               'no se reinició ni activó ningún servicio.', file=sys.stderr)
         return False
