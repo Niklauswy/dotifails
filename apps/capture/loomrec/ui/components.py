@@ -68,7 +68,7 @@ class Toggle(QCheckBox):
         p=QPainter(self);p.setRenderHint(QPainter.Antialiasing)
         if not self.isEnabled():p.setOpacity(.45)
         p.setPen(QPen(color('accent' if self.isChecked() else 'line_strong'),1));p.setBrush(color('accent' if self.isChecked() else 'track'));p.drawRoundedRect(QRectF(1,3,40,20),10,10)
-        p.setPen(Qt.NoPen);p.setBrush(Qt.white);p.drawEllipse(QRectF(23 if self.isChecked() else 5,7,12,12))
+        p.setPen(Qt.NoPen);p.setBrush(color('on_accent' if self.isChecked() else 'knob_off'));p.drawEllipse(QRectF(23 if self.isChecked() else 5,7,12,12))
         if self.hasFocus():p.setBrush(Qt.NoBrush);p.setPen(QPen(color('accent_pressed' if self.isChecked() else 'focus'),2));p.drawRoundedRect(QRectF(0,1,41,24),11,11)
     def hitButton(self,pos):return self.rect().contains(pos)
 

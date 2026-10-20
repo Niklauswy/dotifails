@@ -77,8 +77,8 @@ QtObject {
     readonly property real focusWidth: numberOf("focus_width", 1)
 
     // Typography
-    readonly property var fontFamilies: Array.isArray(tokens.font_family) && tokens.font_family.length ? tokens.font_family : ["Inter"]
-    readonly property string fontFamily: Logic.tokenFont(tokens)
+    readonly property var installedFamilies: Qt.fontFamilies()
+    readonly property string fontFamily: Logic.tokenFont(tokens, installedFamilies)
     readonly property int fontCaption: numberOf("font_caption", 10)
     readonly property int fontSmall: numberOf("font_small", 11)
     readonly property int fontBody: numberOf("font_body", 13)

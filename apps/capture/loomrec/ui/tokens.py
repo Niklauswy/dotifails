@@ -61,7 +61,7 @@ def css(name, alpha=None, values=None):
     value = color(name, alpha, values)
     if value.alpha() == 255:
         return value.name()
-    return f'rgba({value.red()},{value.green()},{value.blue()},{value.alpha()})'
+    return f'rgba({value.red()},{value.green()},{value.blue()},{value.alpha()})'  # theme-exception: conversion a sintaxis CSS
 
 
 def tint(value):

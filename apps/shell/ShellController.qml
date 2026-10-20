@@ -64,6 +64,15 @@ Scope {
         return true;
     }
 
+    // The theme selector lives in Wysun Ajustes; the shell only asks for it.
+    function openThemeSettings() {
+        if (themeSettings.running) return false;
+        themeSettings.command = ["wysun", "settings", "theme"];
+        themeSettings.running = true;
+        close();
+        return true;
+    }
+
     function activateWindow(window) {
         if (!window || !window.wayland) return false;
         close();
@@ -71,6 +80,11 @@ Scope {
         return true;
     }
 
+    Process {
+        id: themeSettings
+        stdout: SplitParser { onRead: function(data) {} }
+        stderr: SplitParser { onRead: function(data) {} }
+    }
     Process {
         id: application
         stdout: SplitParser { onRead: function(data) {} }
@@ -106,6 +120,8 @@ Scope {
         function open(surface: string): bool { return root.show(surface, ""); }
         function close(): void { root.close(); }
         function reloadPreferences(): void { root.preferences.reload(); }
+        function theme(): string { return JSON.stringify({ style: Appearance.style, variant: Appearance.variant, name: Appearance.name }); }
+        function openThemeSettings(): bool { return root.openThemeSettings(); }
         function status(): string {
             // Do not expose private window titles, notification bodies or files.
             return JSON.stringify({ version: 1, surface: root.surface, monitor: root.screenName,

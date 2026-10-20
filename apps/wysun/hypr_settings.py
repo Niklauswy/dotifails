@@ -125,7 +125,7 @@ def config(values):
             elif key=='split_ratio':value=float(value)*2
             else:value=int(value)
             result.setdefault(section,{})[name]=value
-        elif key in COLOR_MAPPING:result.setdefault('general',{}).setdefault('col',{})[COLOR_MAPPING[key]]='rgb('+str(value).lstrip('#')+')'
+        elif key in COLOR_MAPPING:result.setdefault('general',{}).setdefault('col',{})[COLOR_MAPPING[key]]='rgb('+str(value).lstrip('#')+')'  # theme-exception: sintaxis de color de Hyprland
     return result
 
 

@@ -5,6 +5,8 @@ config="${XDG_DATA_HOME:-$HOME/.local/share}/wysun/quickshell"
 case "${1:-}" in
     reload-preferences) shift; exec quickshell ipc -p "$config" call wysunShell reloadPreferences "$@" ;;
     menu|windows|session) kind="$1"; shift; exec quickshell ipc -p "$config" call wysunShell toggle "$kind" "$@" ;;
+    theme) shift; exec quickshell ipc -p "$config" call wysunShell theme "$@" ;;
+    theme-settings) shift; exec quickshell ipc -p "$config" call wysunShell openThemeSettings "$@" ;;
     close|status) action="$1"; shift; exec quickshell ipc -p "$config" call wysunShell "$action" "$@" ;;
     *) exec quickshell --no-duplicate -p "$config" "$@" ;;
 esac

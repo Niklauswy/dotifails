@@ -6,6 +6,9 @@ from pathlib import Path
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import QApplication, QDialog, QDialogButtonBox, QLabel, QLineEdit, QVBoxLayout
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'apps/wysun'))  # same token file as the desktop
+from theme_tokens import apply_style  # noqa: E402
+
 
 def main():
     app = QApplication(['dotifails-authorization'])
@@ -34,7 +37,7 @@ def main():
     buttons.rejected.connect(dialog.reject)
     password.returnPressed.connect(dialog.accept)
     layout.addWidget(buttons)
-    dialog.setStyleSheet('QDialog{background:#111923;color:#edf3fc} QLabel{color:#edf3fc} QLineEdit{background:#1d2938;color:white;border:1px solid #536980;border-radius:8px;padding:12px} QPushButton{padding:10px 20px}')
+    apply_style(dialog, 'QDialog{background:@canvas;color:@text} QLabel{color:@text} QLineEdit{background:@well;color:@text;border:@border solid @line_strong;border-radius:@radius_control;padding:12px} QLineEdit:focus{border-color:@focus_input} QPushButton{padding:10px 20px;background:@fill;color:@control_text;border-radius:@radius_control} QPushButton:hover{background:@hover} QPushButton:focus{border:@focus_width solid @focus}')
     password.setFocus(Qt.OtherFocusReason)
     cancel_path=os.environ.get('DOTIFAILS_CANCEL_FILE')
     cancel_timer=QTimer(dialog)

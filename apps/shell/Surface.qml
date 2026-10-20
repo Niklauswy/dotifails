@@ -106,12 +106,12 @@ PanelWindow {
                     Text {
                         text: "WYSUN  /  ESCRITORIO"
                         color: Appearance.muted
-                        font { families: Appearance.fontFamilies; pixelSize: Appearance.fontCaption; weight: Font.DemiBold; letterSpacing: 1.5 }
+                        font { family: Appearance.fontFamily; pixelSize: Appearance.fontCaption; weight: Font.DemiBold; letterSpacing: 1.5 }
                     }
                     Text {
                         text: popup.windowsMode ? "Ventanas" : (popup.sessionMode ? "Sesión" : "Centro de escritorio")
                         color: Appearance.text
-                        font { families: Appearance.fontFamilies; pixelSize: Appearance.fontTitle; weight: Font.DemiBold }
+                        font { family: Appearance.fontFamily; pixelSize: Appearance.fontTitle; weight: Font.DemiBold }
                         Accessible.role: Accessible.Heading
                     }
                 }
@@ -119,7 +119,7 @@ PanelWindow {
                 Text {
                     text: popup.screen?.name || ""
                     color: Appearance.muted
-                    font { families: Appearance.fontFamilies; pixelSize: 12 }
+                    font { family: Appearance.fontFamily; pixelSize: 12 }
                 }
                 ShellButton {
                     text: ""
@@ -174,7 +174,7 @@ PanelWindow {
                 placeholderTextColor: Appearance.muted
                 selectionColor: Appearance.accent
                 selectedTextColor: Appearance.canvas
-                font { families: Appearance.fontFamilies; pixelSize: Appearance.fontBody }
+                font { family: Appearance.fontFamily; pixelSize: Appearance.fontBody }
                 padding: 10
                 background: Rectangle {
                     radius: Appearance.radiusControl
@@ -190,7 +190,7 @@ PanelWindow {
                 visible: !popup.sessionMode
                 text: popup.windowsMode ? "VENTANAS DE ESTA PANTALLA" : "ACCESOS A TUS HERRAMIENTAS"
                 color: Appearance.muted
-                font { families: Appearance.fontFamilies; pixelSize: Appearance.fontSmall; weight: Font.DemiBold; letterSpacing: 1 }
+                font { family: Appearance.fontFamily; pixelSize: Appearance.fontSmall; weight: Font.DemiBold; letterSpacing: 1 }
             }
             Flickable {
                 visible: popup.windowsMode
@@ -274,7 +274,7 @@ PanelWindow {
                                 textFormat: Text.PlainText
                                 elide: Text.ElideRight
                                 color: Appearance.text
-                                font { families: Appearance.fontFamilies; pixelSize: Appearance.fontBody; weight: Font.Medium }
+                                font { family: Appearance.fontFamily; pixelSize: Appearance.fontBody; weight: Font.Medium }
                             }
                             Text {
                                 Layout.fillWidth: true
@@ -282,7 +282,7 @@ PanelWindow {
                                 textFormat: Text.PlainText
                                 elide: Text.ElideRight
                                 color: Appearance.muted
-                                font { families: Appearance.fontFamilies; pixelSize: Appearance.fontSmall }
+                                font { family: Appearance.fontFamily; pixelSize: Appearance.fontSmall }
                             }
                         }
                     }
@@ -313,12 +313,12 @@ PanelWindow {
                 Text {
                     text: Qt.formatDateTime(popup.clock.date, "hh:mm")
                     color: Appearance.text
-                    font { families: Appearance.fontFamilies; pixelSize: 48; weight: Font.Light }
+                    font { family: Appearance.fontFamily; pixelSize: 48; weight: Font.Light }
                 }
                 Text {
                     text: Qt.formatDateTime(popup.clock.date, "dddd d 'de' MMMM")
                     color: Appearance.muted
-                    font { families: Appearance.fontFamilies; pixelSize: 15 }
+                    font { family: Appearance.fontFamily; pixelSize: 15 }
                 }
                 ShellButton {
                     id: lockButton
@@ -364,7 +364,7 @@ PanelWindow {
             Text {
                 text: "↑ ↓ navegar   ·   Enter abrir   ·   Esc cerrar"
                 color: Appearance.muted
-                font { families: Appearance.fontFamilies; pixelSize: Appearance.fontSmall }
+                font { family: Appearance.fontFamily; pixelSize: Appearance.fontSmall }
             }
         }
     }

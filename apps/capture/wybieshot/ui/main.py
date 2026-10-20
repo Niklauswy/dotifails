@@ -336,7 +336,7 @@ class Window(QMainWindow):
                     labelled=[]
                     for doc in docs:
                         source=doc.render();image=QImage(source.width(),source.height()+48,QImage.Format_ARGB32);image.fill(QColor('#F3F6FB'))  # theme-exception: exported composition is document content, not UI
-                        p=QPainter(image);p.setPen(QColor('#1C2A3B'))  # theme-exception: exported composition label;font=QFont();font.setPixelSize(18);p.setFont(font)
+                        p=QPainter(image);p.setPen(QColor('#1C2A3B'));font=QFont();font.setPixelSize(18);p.setFont(font)  # theme-exception: exported composition label
                         p.drawText(QRect(12,0,max(1,image.width()-24),48),Qt.AlignVCenter,p.fontMetrics().elidedText(doc.title,Qt.ElideRight,max(1,image.width()-24)));p.drawImage(0,48,source);p.end();labelled.append(Document(image,doc.title))
                     docs=labelled
                 self.set_document(Document.compose(docs,axis.currentData(),gap.value()));self.notice('Composición creada. Las capturas originales siguen en la biblioteca.')

@@ -13,13 +13,14 @@ from PySide6.QtWidgets import (QApplication, QButtonGroup, QCheckBox, QDialog, Q
     QFrame, QHBoxLayout, QListWidget, QMainWindow, QMessageBox, QPlainTextEdit, QProgressBar,
     QScrollArea, QStackedWidget, QVBoxLayout, QWidget)
 
-from install_model import (BOOT_COMPONENTS, COMPONENTS, DEFAULT_COMPONENTS, THEMES, InstallOptions, backups,
+from install_model import (BOOT_COMPONENTS, COMPONENTS, DEFAULT_COMPONENTS, THEMES, InstallOptions, backups, installer_theme,
                            load_json, normalize_components, preflight)
 from process_runner import InstallerProcess
-from visual_widgets import STYLE, Button, ChoiceCard, DesktopPreview, label, reveal
+from visual_widgets import STYLE, apply_style, Button, ChoiceCard, DesktopPreview, label, reveal
 
-THEME_NAMES = {'severance':'Severance', 'tokyo':'Tokyo', 'space-black':'Space Black'}
-THEME_COPY = {'severance':'Azules tranquilos y acentos suaves.', 'tokyo':'Contraste nocturno, violeta y neón.', 'space-black':'Negros profundos y luz contenida.'}
+THEME_NAMES = {'severance':'Severance', 'tokyo':'Tokyo', 'space-black':'Space Black', 'fluent-light':'Fluent claro', 'fluent-dark':'Fluent oscuro'}
+THEME_COPY = {'severance':'Azules tranquilos y acentos suaves.', 'tokyo':'Contraste nocturno, violeta y neón.', 'space-black':'Negros profundos y luz contenida.',
+              'fluent-light':'Estilo Windows 11: perlado, claro y con acento azul.', 'fluent-dark':'Estilo Windows 11: mica oscura con contraste alto.'}
 STEPS = ('Bienvenida', 'Apariencia', 'Componentes', 'Opciones', 'Revisión', 'Instalación', 'Primeros pasos')
 
 
@@ -49,10 +50,7 @@ class InstallerWindow(QMainWindow):
         self.home = Path(home or Path.home()).absolute()
         self.receipt = load_json(self.home / '.local/state/dotifails/installed.json', {})
         self.updating = bool(self.receipt)
-        current = load_json(self.home / '.config/orbit/theme.json', {}).get('id') or self.receipt.get('theme', 'severance')
-        self.theme = {'azul':'severance', 'morado':'tokyo'}.get(current, current)
-        if self.theme not in THEMES:
-            self.theme = 'severance'
+        self.theme = installer_theme(load_json(self.home / '.config/orbit/theme.json', {}), self.receipt.get('theme', 'severance'))
         self.selected = set(self.receipt.get('last_selection', DEFAULT_COMPONENTS)) & COMPONENTS.keys()
         self.selected = set(normalize_components(self.selected or None))
         self.page_index = 0
@@ -71,7 +69,7 @@ class InstallerWindow(QMainWindow):
         self.setWindowIcon(QIcon(str(self.source / 'apps/wysun/orbit.png')))
         self.setMinimumSize(780, 580)
         self.resize(1100, 780)
-        self.setStyleSheet(STYLE)
+        apply_style(self, STYLE)
         self.build_shell()
         self.build_welcome()
         self.build_themes()
@@ -186,6 +184,8 @@ class InstallerWindow(QMainWindow):
         layout.addWidget(label('Vista orientativa. El arranque Blue CRT se elige por separado.', 'small'))
         choices = QHBoxLayout()
         choices.setSpacing(12)
+        rows = [choices, QHBoxLayout()]  # Space Black variants, then Fluent variants
+        rows[1].setSpacing(12)
         self.theme_cards = {}
         self.theme_group = QButtonGroup(self)
         self.theme_group.setExclusive(True)
@@ -196,9 +196,11 @@ class InstallerWindow(QMainWindow):
             self.theme_group.addButton(card)
             card.setChecked(key == self.theme)
             card.clicked.connect(lambda checked=False, k=key: self.select_theme(k))
-            choices.addWidget(card, 1)
+            rows[key.startswith('fluent')].addWidget(card, 1)
             self.theme_cards[key] = card
+        rows[1].addStretch(1)
         layout.addLayout(choices)
+        layout.addLayout(rows[1])
         self.preserve_theme = QCheckBox('Conservar el tema y el fondo que uso actualmente')
         self.preserve_theme.setChecked(self.updating)
         self.preserve_theme.setVisible(self.updating)

@@ -81,7 +81,7 @@ def icon(name,color='muted',size=20):
     result=QIcon();ink=tint(color)
     result.addPixmap(_pixmap(name,ink,size),QIcon.Normal,QIcon.Off)
     result.addPixmap(_pixmap(name,tint('disabled'),size),QIcon.Disabled,QIcon.Off)
-    active=ink if color in ('on_accent','on_hud') or str(color).upper()=='#FFFFFF' else tint('accent')
+    active=ink if color in ('on_accent','on_hud') else tint('accent')
     result.addPixmap(_pixmap(name,active,size,1.8),QIcon.Active,QIcon.Off)
     result.addPixmap(_pixmap(name,active,size,1.8),QIcon.Normal,QIcon.On)
     return remember(result,icon,(name,color,size))

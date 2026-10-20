@@ -1,67 +1,80 @@
 """Native, keyboard-accessible installer surfaces and desktop previews."""
 from pathlib import Path
 import os
+import sys
+
+# The installer runs from the repository: colours come from the same token file as the desktop.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'apps/wysun'))
+import theme_core  # noqa: E402
+from theme_tokens import color, font, apply_style  # noqa: E402
 
 from PySide6.QtCore import Qt, QRectF, QSize, Property, QPropertyAnimation, QEasingCurve, QPointF
-from PySide6.QtGui import QColor, QFont, QPainter, QPainterPath, QPen, QPixmap, QLinearGradient
+from PySide6.QtGui import QFont, QPainter, QPainterPath, QPen, QPixmap, QLinearGradient
 from PySide6.QtWidgets import (QAbstractButton, QFrame, QGraphicsOpacityEffect, QLabel,
                                QPushButton, QSizePolicy, QStyle, QStyleOptionButton, QVBoxLayout, QWidget)
 
 
+# Template: @token markers resolve against the active Wysun theme (apps/wysun/wysun_theme.json).
 STYLE = '''
-QWidget {font-family:Inter,"DejaVu Sans";font-size:13px;color:#E9EEF5;}
-QMainWindow,QDialog {background:#10151D;}
-QWidget#sidebar {background:#151D27;border-right:1px solid #253141;}
+QWidget {font-family:@font_family;font-size:@font_body;color:@text;}
+QMainWindow,QDialog {background:@canvas;}
+QWidget#sidebar {background:@surface;border-right:@border solid @line;}
 QLabel {background:transparent;}
-QLabel#eyebrow {color:#8CAAC4;font-size:10px;font-weight:600;letter-spacing:2px;}
-QLabel#heading {font-size:30px;font-weight:600;color:#F4F6FA;}
-QLabel#hero {font-size:38px;font-weight:600;color:#F4F6FA;}
-QLabel#body {color:#A9B7C9;font-size:13px;line-height:1.5;}
-QLabel#small {color:#99ACC1;font-size:11px;}
+QLabel#eyebrow {color:@subtle;font-size:@font_caption;font-weight:600;letter-spacing:2px;}
+QLabel#heading {font-size:30px;font-weight:600;color:@text_strong;}
+QLabel#hero {font-size:38px;font-weight:600;color:@text_strong;}
+QLabel#body {color:@muted;font-size:@font_body;line-height:1.5;}
+QLabel#small {color:@muted;font-size:@font_small;}
 QLabel#cardTitle {font-size:15px;font-weight:600;}
 QLabel#section {font-size:16px;font-weight:600;}
-QLabel#success {color:#A5DAC2;}
-QLabel#warning {color:#F2CB94;}
-QLabel#error {color:#F4ADB4;}
-QFrame#surface {background:#19232F;border:1px solid #2B3B4D;border-radius:16px;}
-QFrame#subtle {background:#131D28;border:1px solid #243445;border-radius:12px;}
-QFrame#footer {background:#131B25;border-top:1px solid #293747;}
-QPushButton {background:#202E3E;color:#D5E1F0;border:1px solid transparent;border-radius:10px;padding:11px 17px;min-height:18px;}
-QPushButton:hover {background:#2B3D51;}
-QPushButton:pressed {background:#344B63;}
-QPushButton:focus {border-color:#B7D4F5;}
-QPushButton:checked {background:#30465C;color:#F1F6FC;border-color:#7E9FC0;}
-QPushButton:disabled {background:#18212C;color:#697C92;}
-QPushButton#primary {background:#B7D2EF;color:#122034;font-weight:600;padding:12px 23px;}
-QPushButton#primary:hover {background:#D2E5F8;}
-QPushButton#primary:disabled {background:#2B3A4A;color:#7F93A9;}
-QPushButton#quiet {background:transparent;color:#A8BACF;text-align:left;padding:10px 12px;}
-QPushButton#quiet:hover {background:#263546;color:#E9F2FF;}
-QPushButton#nav {text-align:left;background:transparent;color:#8396AE;border-radius:10px;padding:13px 12px;}
-QPushButton#nav:checked {background:#25374B;color:#E2EEFC;border-color:transparent;}
-QPushButton#nav:disabled {color:#55677D;}
-QPushButton#danger {color:#EDB5B9;background:#33262F;}
-QLineEdit,QComboBox {background:#131E2B;color:#E7EEF7;border:1px solid #38506A;border-radius:9px;padding:10px;}
-QLineEdit:focus,QComboBox:focus {border-color:#B7D2EF;}
-QCheckBox {spacing:10px;padding:8px 0;color:#C5D3E4;}
-QCheckBox::indicator {width:18px;height:18px;border:1px solid #607993;border-radius:5px;background:#101923;}
-QCheckBox::indicator:checked {background:#BCD7F2;image:url(__CHECK__);}
-QCheckBox:focus {color:white;}
-QCheckBox:disabled {color:#6D7C90;}
-QPlainTextEdit {background:#0C121B;color:#B2C4D8;border:1px solid #2B3F54;border-radius:10px;padding:10px;font-family:"DejaVu Sans Mono";font-size:11px;selection-background-color:#365774;}
+QLabel#success {color:@success;}
+QLabel#warning {color:@warning;}
+QLabel#error {color:@danger;}
+QFrame#surface {background:@surface;border:@border solid @line;border-radius:@radius_l;}
+QFrame#subtle {background:@well;border:@border solid @line;border-radius:@radius_m;}
+QFrame#footer {background:@well;border-top:@border solid @line;}
+QPushButton {background:@fill;color:@control_text;border:@border solid transparent;border-radius:@radius_control;padding:11px 17px;min-height:18px;}
+QPushButton:hover {background:@hover;}
+QPushButton:pressed {background:@pressed;}
+QPushButton:focus {border-color:@focus;}
+QPushButton:checked {background:@selection;color:@selection_text;border-color:@selection_line;}
+QPushButton:disabled {background:@disabled_surface;color:@disabled;}
+QPushButton#primary {background:@accent;color:@on_accent;font-weight:600;padding:12px 23px;}
+QPushButton#primary:hover {background:@accent_hover;}
+QPushButton#primary:pressed {background:@accent_pressed;}
+QPushButton#primary:disabled {background:@disabled_surface;color:@disabled;}
+QPushButton#quiet {background:transparent;color:@muted;text-align:left;padding:10px 12px;}
+QPushButton#quiet:hover {background:@hover;color:@text_strong;}
+QPushButton#nav {text-align:left;background:transparent;color:@muted;border-radius:@radius_control;padding:13px 12px;}
+QPushButton#nav:checked {background:@nav_selected;color:@selection_text;border-color:transparent;}
+QPushButton#nav:disabled {color:@disabled;}
+QPushButton#danger {color:@danger;background:@danger_soft;}
+QLineEdit,QComboBox {background:@well;color:@text;border:@border solid @line_strong;border-radius:@radius_control;padding:10px;}
+QLineEdit:focus,QComboBox:focus {border-color:@focus_input;}
+QCheckBox {spacing:10px;padding:8px 0;color:@control_text;}
+QCheckBox::indicator {width:18px;height:18px;border:@border solid @check_line;border-radius:5px;background:@check;}
+QCheckBox::indicator:checked {background:@check_on;border-color:@check_on_line;image:url(@svg(check-dark,check_mark));}
+QCheckBox:focus {color:@text_strong;}
+QCheckBox:disabled {color:@disabled;}
+QPlainTextEdit {background:@inset;color:@ink;border:@border solid @line;border-radius:@radius_control;padding:10px;font-family:@font_mono;font-size:@font_small;selection-background-color:@text_selection;}
 QScrollArea {background:transparent;border:0;}
 QWidget#scrollBody {background:transparent;}
 QScrollBar:vertical {background:transparent;width:7px;margin:5px 0;}
-QScrollBar::handle:vertical {background:#41536A;min-height:28px;border-radius:3px;}
+QScrollBar::handle:vertical {background:@scrollbar;min-height:28px;border-radius:3px;}
 QScrollBar::add-line:vertical,QScrollBar::sub-line:vertical {height:0;}
 QScrollBar::add-page:vertical,QScrollBar::sub-page:vertical {background:none;}
-QProgressBar {background:#233346;border:0;border-radius:4px;height:8px;text-align:center;color:transparent;}
-QProgressBar::chunk {background:#B1D1F1;border-radius:4px;}
-QListWidget {background:#131E2A;border:1px solid #304257;border-radius:10px;padding:5px;outline:0;}
-QListWidget::item {padding:12px;border-radius:7px;}
-QListWidget::item:selected {background:#30465F;}
-QToolTip {background:#28394D;color:#EDF4FC;border:1px solid #617B98;padding:8px;}
-'''.replace('__CHECK__', str(Path(__file__).parent / 'check.svg'))
+QProgressBar {background:@track;border:0;border-radius:4px;height:8px;text-align:center;color:transparent;}
+QProgressBar::chunk {background:@accent;border-radius:4px;}
+QListWidget {background:@well;border:@border solid @line;border-radius:@radius_control;padding:5px;outline:0;}
+QListWidget::item {padding:12px;border-radius:@radius_s;}
+QListWidget::item:selected {background:@selection;color:@selection_text;}
+QToolTip {background:@tooltip;color:@on_tooltip;border:@border solid @tooltip_line;padding:8px;}
+'''
+
+
+def theme_tokens_radius():
+    from theme_tokens import tokens
+    return tokens()['radius_m']
 
 
 def label(text, role='body', wrap=True):
@@ -153,15 +166,16 @@ class ChoiceCard(QAbstractButton):
         p.setRenderHint(QPainter.Antialiasing)
         selected = self.isChecked()
         hovered = self.underMouse() and self.isEnabled()
-        p.setBrush(QColor('#23374B' if selected else ('#1D2B3B' if hovered else '#18222F')))
-        p.setPen(QPen(QColor('#BCD7F2' if self.hasFocus() else ('#7096BC' if selected else '#304052')), 1))
-        p.drawRoundedRect(QRectF(1, 1, self.width()-2, self.height()-2), 14, 14)
-        p.setPen(QPen(QColor('#BAD5F1' if selected else '#61778F'), 1.3))
-        p.setBrush(QColor('#BAD5F1') if selected else Qt.NoBrush)
+        p.setBrush(color('selection' if selected else ('hover' if hovered else 'card')))
+        p.setPen(QPen(color('focus' if self.hasFocus() else ('selection_line' if selected else 'card_line')), 1))
+        radius = theme_tokens_radius()
+        p.drawRoundedRect(QRectF(1, 1, self.width()-2, self.height()-2), radius, radius)
+        p.setPen(QPen(color('accent' if selected else 'line_strong'), 1.3))
+        p.setBrush(color('accent') if selected else Qt.NoBrush)
         box = QRectF(self.width()-37, 23, 17, 17)
         p.drawRoundedRect(box, 5, 5)
         if selected:
-            p.setPen(QPen(QColor('#172A3E'), 1.8))
+            p.setPen(QPen(color('on_accent'), 1.8))
             p.drawLine(QPointF(box.x()+4, box.y()+8), QPointF(box.x()+7, box.y()+11))
             p.drawLine(QPointF(box.x()+7, box.y()+11), QPointF(box.x()+13, box.y()+5))
 
@@ -177,52 +191,58 @@ class DesktopPreview(QWidget):
 
     def set_theme(self, theme):
         self.theme = theme
-        filename = {'severance':'azul.jpg', 'tokyo':'tokyo.png', 'space-black':'space-black.png'}.get(theme, 'azul.jpg')
+        self.values = theme_core.resolve(*(theme_core.parse(theme) or theme_core.default()))
+        filename = self.values['wallpaper']
         self.wallpaper = QPixmap(str(self.source / 'assets/backgrounds' / filename))
         if self.wallpaper.isNull():
             self.wallpaper = QPixmap(str(Path(__file__).parent / 'previews' / (theme + '.jpg')))
         self.update()
 
     def paintEvent(self, event):
+        # The schematic is drawn in the previewed theme's own material, accent and radii.
+        v = self.values
+        c = lambda name, alpha=None: color(name, alpha, v)
         p = QPainter(self)
         p.setRenderHint(QPainter.Antialiasing)
         area = QRectF(1, 1, self.width()-2, self.height()-2)
-        clip = QPainterPath(); clip.addRoundedRect(area, 16, 16)
+        clip = QPainterPath(); clip.addRoundedRect(area, v['radius_l'], v['radius_l'])
         p.setClipPath(clip)
-        p.fillRect(area, QColor('#111E2A'))
+        p.fillRect(area, c('canvas'))
         if not self.wallpaper.isNull():
             scaled = self.wallpaper.scaled(self.size(), Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
             p.drawPixmap((self.width()-scaled.width())//2, (self.height()-scaled.height())//2, scaled)
         shade = QLinearGradient(0, 0, 0, self.height())
-        shade.setColorAt(0, QColor(4, 10, 20, 10)); shade.setColorAt(1, QColor(4, 10, 20, 155))
+        shade.setColorAt(0, c('region_scrim', 10)); shade.setColorAt(1, c('region_scrim', 155))
         p.fillRect(area, shade)
         # This schematic uses the actual wallpaper; it is never presented as a screenshot.
         p.setPen(Qt.NoPen)
-        p.setBrush(QColor(13, 22, 33, 225))
-        p.drawRoundedRect(QRectF(18, 15, self.width()-36, 25), 9, 9)
-        p.setFont(QFont('Inter', 9)); p.setPen(QColor('#DFEAF7'))
+        p.setBrush(c('material_mid', 235))
+        p.drawRoundedRect(QRectF(18, 15, self.width()-36, 25), v['radius_m'], v['radius_m'])
+        p.setFont(font(9, values=v)); p.setPen(c('text'))
         p.drawText(QRectF(30, 15, self.width()-60, 25), Qt.AlignVCenter, 'Ó   01  ·  02  ·  03')
         p.drawText(QRectF(30, 15, self.width()-60, 25), Qt.AlignRight|Qt.AlignVCenter, 'Wi-Fi    85%')
         w, h = self.width(), self.height()
         terminal = QRectF(w*.08, h*.27, w*.54, h*.57)
-        p.setBrush(QColor(12, 20, 32, 235)); p.setPen(QPen(QColor(255,255,255,32), 1))
-        p.drawRoundedRect(terminal, 11, 11)
-        p.setPen(QColor('#A8BBD3')); p.setFont(QFont('Inter', 9))
+        p.setBrush(c('material_bottom', 240)); p.setPen(QPen(c('material_edge'), 1))
+        p.drawRoundedRect(terminal, v['radius_m'], v['radius_m'])
+        p.setPen(c('muted')); p.setFont(font(9, values=v))
         p.drawText(terminal.adjusted(16, 10, -16, -10), Qt.AlignTop, 'ghostty  /  ~')
-        p.setFont(QFont('DejaVu Sans Mono', 10)); p.setPen(QColor('#A7D8C1'))
+        p.setFont(QFont(v['font_mono'][0], 10)); p.setPen(c('success'))
         p.drawText(terminal.adjusted(16, 42, -16, -10), Qt.AlignTop, '❯  Tu próximo espacio de trabajo' if w > 650 else '❯  Bienvenido a Wysun')
-        p.setPen(QColor('#9BAFC7')); p.setFont(QFont('DejaVu Sans Mono', 9))
+        p.setPen(c('muted')); p.setFont(QFont(v['font_mono'][0], 9))
         p.drawText(terminal.adjusted(16, 68, -16, -10), Qt.AlignTop, 'Listo para crear.')
         panel = QRectF(w*.58, h*.38, w*.34, h*.46)
-        p.setBrush(QColor(23, 35, 52, 245)); p.setPen(QPen(QColor(255,255,255,45), 1))
-        p.drawRoundedRect(panel, 12, 12)
-        p.setPen(QColor('#E3ECF7')); p.setFont(QFont('Inter', 10))
+        p.setBrush(c('material_top', 245)); p.setPen(QPen(c('material_edge'), 1))
+        p.drawRoundedRect(panel, v['radius_m'], v['radius_m'])
+        p.setPen(c('text')); p.setFont(font(10, values=v))
         p.drawText(panel.adjusted(17, 13, -12, -8), Qt.AlignTop, 'Buscar en Wysun')
-        p.setPen(QColor('#ACBED4')); p.setFont(QFont('Inter', 9))
+        p.setPen(c('muted')); p.setFont(font(9, values=v))
         p.drawText(panel.adjusted(17, 40, -12, -8), Qt.AlignTop, 'Aplicaciones   ·   Archivos')
+        p.setBrush(c('accent')); p.setPen(Qt.NoPen)
+        p.drawRoundedRect(QRectF(panel.right()-52, panel.bottom()-26, 38, 14), v['radius_s']*.6, v['radius_s']*.6)
         p.setClipping(False)
-        p.setBrush(Qt.NoBrush); p.setPen(QPen(QColor(255,255,255,34), 1))
-        p.drawRoundedRect(area, 16, 16)
+        p.setBrush(Qt.NoBrush); p.setPen(QPen(c('material_edge'), 1))
+        p.drawRoundedRect(area, v['radius_l'], v['radius_l'])
 
 
 def reveal(widget):

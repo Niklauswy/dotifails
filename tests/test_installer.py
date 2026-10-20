@@ -13,6 +13,23 @@ class InstallerTests(unittest.TestCase):
    with patch.object(d,'deploy'),patch.object(d,'generated'),patch.object(d,'configure_scripts'):d.configure(components=('desktop',))
    self.assertEqual(d.receipt['theme'],'tokyo')
   finally:d.lock.close()
+ def test_fluent_theme_is_installed_in_the_new_format_and_kept_on_update(self):
+  for name in ('config/.config','config/.local/bin','assets/icons','assets/backgrounds','manifests'):(self.source/name).mkdir(parents=True)
+  (self.source/'config/.zshrc').write_text('preserved')
+  (self.source/'manifests/themes.json').write_text(json.dumps({'fluent-dark':{'name':'Fluent oscuro','wallpaper':'azul.jpg'},'severance':{'name':'Severance','wallpaper':'azul.jpg'}}))
+  d=self.deploy()
+  try:
+   with patch.object(d,'deploy'),patch.object(d,'configure_scripts'),patch.object(d,'generated') as generated:d.configure(theme='fluent-dark',components=('desktop',))
+   written={str(call.args[1]):call.args[0] for call in generated.call_args_list}
+   self.assertEqual(json.loads(written['.config/orbit/theme.json']),{'style':'fluent','variant':'dark'})
+   self.assertEqual(d.receipt['theme'],'fluent-dark')
+  finally:d.lock.close()
+  active=self.home/'.config/orbit/theme.json';active.parent.mkdir(parents=True);active.write_text(json.dumps({'style':'fluent','variant':'dark'}))
+  d=self.deploy()
+  try:
+   with patch.object(d,'deploy'),patch.object(d,'generated'),patch.object(d,'configure_scripts'):d.configure(components=('desktop',))
+   self.assertEqual(d.receipt['theme'],'fluent-dark')
+  finally:d.lock.close()
  def test_mise_shim_keeps_command_name(self):
   import subprocess,tarfile
   bundle=self.root/'bundle';(bundle/'mise/bin').mkdir(parents=True)

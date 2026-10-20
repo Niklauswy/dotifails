@@ -7,3 +7,4 @@ ResourceStats 1.0 ResourceStats.qml
 ShellButton 1.0 ShellButton.qml
 ShellController 1.0 ShellController.qml
 Surface 1.0 Surface.qml
+ThemeDemo 1.0 ThemeDemo.qml

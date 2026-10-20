@@ -40,7 +40,7 @@ def editor_tint(value,tint):
 def theme_colors():
     """Every theme-generated bar colour, to tell them apart from user choices.
     Includes the fixed defaults that older Settings versions always saved."""
-    return {'#101118','#EBECF3','#B8C8FA'}|{style['variants'][v]['external'][k].upper() for style in theme_core.styles().values() for v in style['variants'] for k in ('background','foreground','accent')}
+    return {'#101118','#EBECF3','#B8C8FA'}|{style['variants'][v]['external'][k].upper() for style in theme_core.styles().values() for v in style['variants'] for k in ('background','foreground','accent')}  # theme-exception: valores antiguos que Ajustes guardaba siempre; sirven para reconocer colores generados
 
 
 def theme_files(home,key):
@@ -97,7 +97,7 @@ def theme_files(home,key):
             generated=theme_colors()
             cleaned={k:v for k,v in bar.items() if not (k in ('background','foreground','accent') and str(v).upper() in generated)}
             if cleaned!=bar:files[bar_path]=json.dumps(cleaned,ensure_ascii=False,indent=2)+'\n'
-    files[native/'hypr-theme.lua']='-- Wysun theme colors\nhl.config('+lua({'general':{'col':{'active_border':'rgb('+theme['accent'][1:]+')','inactive_border':'rgb('+theme['surface'][1:]+')'}}})+')\n'
+    files[native/'hypr-theme.lua']='-- Wysun theme colors\nhl.config('+lua({'general':{'col':{'active_border':'rgb('+theme['accent'][1:]+')','inactive_border':'rgb('+theme['surface'][1:]+')'}}})+')\n'  # theme-exception: sintaxis de color de Hyprland
     borders={'focused_border_color':theme['accent'],'normal_border_color':theme['surface']}
     return files,borders
 
@@ -152,4 +152,4 @@ def apply_theme(home,key,runner=run):
 def restore_theme(home=None,runner=run):
     theme=theme_core.resolve(*theme_core.selection(home))['external']
     from hypr_settings import lua
-    runner(['hyprctl','eval','hl.config('+lua({'general':{'col':{'active_border':'rgb('+theme['accent'][1:]+')','inactive_border':'rgb('+theme['surface'][1:]+')'}}})+')'])
+    runner(['hyprctl','eval','hl.config('+lua({'general':{'col':{'active_border':'rgb('+theme['accent'][1:]+')','inactive_border':'rgb('+theme['surface'][1:]+')'}}})+')'])  # theme-exception: sintaxis de color de Hyprland

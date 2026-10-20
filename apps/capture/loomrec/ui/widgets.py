@@ -27,7 +27,7 @@ class RegionPicker(QWidget):
         shade=QPainterPath();shade.addRect(self.rect())
         if not self.selection.isEmpty():shade.addRect(self.selection)
         p.fillPath(shade,QColor(0,0,0,100))  # theme-exception: velo sobre el contenido de la pantalla
-        p.setPen(Qt.white); p.drawText(24,40,self.tr('Arrastra el área · Escape cancela'))
+        p.setPen(color('region_edge')); p.drawText(24,40,self.tr('Arrastra el área · Escape cancela'))
         if not self.selection.isEmpty():
             p.setPen(QPen(color('region'),2));p.drawRect(self.selection.adjusted(0,0,-1,-1))
             caption=f'{self.selection.width()//2*2} × {self.selection.height()//2*2}'

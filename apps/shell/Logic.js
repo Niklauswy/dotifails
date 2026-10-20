@@ -103,7 +103,7 @@ function qmlColor(value, fallback) {
     var text = String(value === undefined ? "" : value);
     if (/^#[0-9a-fA-F]{6}$/.test(text)) return text;
     if (/^#[0-9a-fA-F]{8}$/.test(text)) return "#" + text.slice(7, 9) + text.slice(1, 7);
-    return fallback || "#00000000";
+    return fallback || "#00000000";  // theme-exception: transparent when a token is missing
 }
 
 function tokenNumber(tokens, name, fallback) {
@@ -111,9 +111,13 @@ function tokenNumber(tokens, name, fallback) {
     return typeof value === "number" && isFinite(value) ? value : fallback;
 }
 
-function tokenFont(tokens) {
+// First family of the token list that is installed (Qt takes one family per font).
+function tokenFont(tokens, installed) {
     var family = tokens && tokens.font_family;
-    return Array.isArray(family) && family.length ? String(family[0]) : "Inter";
+    if (!Array.isArray(family) || !family.length) return "Inter";
+    var available = Array.isArray(installed) ? installed : [];
+    for (var i = 0; i < family.length; i++) if (available.indexOf(family[i]) >= 0) return String(family[i]);
+    return String(family[family.length - 1]);
 }
 
 // Window material opacity: the user's preference for glass, solid for Fluent.

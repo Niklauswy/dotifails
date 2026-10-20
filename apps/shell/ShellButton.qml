@@ -41,7 +41,7 @@ Button {
             Layout.fillWidth: true
             text: control.text
             color: control.selected ? control.accent : control.foreground
-            font.families: Appearance.fontFamilies
+            font.family: Appearance.fontFamily
             font.pixelSize: Appearance.fontBody
             elide: Text.ElideRight
             verticalAlignment: Text.AlignVCenter

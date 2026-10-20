@@ -14,7 +14,7 @@ from utility_data import Colors
 def parse_color(text):
     text = text.strip()
     if re.fullmatch(r'[\da-fA-F]{6}', text): text = '#' + text
-    if text.lower().startswith(('rgb(', 'hsl(')):
+    if text.lower().startswith(('rgb(', 'hsl(')):  # theme-exception: sintaxis de color escrita por el usuario
         match = re.fullmatch(r'(rgb|hsl)\(\s*([\d.]+)\s*,\s*([\d.]+)(%?)\s*,\s*([\d.]+)(%?)\s*\)', text.lower())
         if not match: return QColor()
         kind, a, b, bp, c, cp = match.groups()
@@ -42,7 +42,7 @@ class ColorWindow(Surface):
         super().__init__('Wysun Colors', 'WYSUN  /  Del escritorio a tu próximo proyecto', 800, 620)
         self.store = Colors(path); self.picker = None; self.syncing = False
         self.color = QColor('#7AA2F7')  # theme-exception: color inicial de muestra
-        top = QHBoxLayout(); self.entry = QLineEdit(self.color.name().upper()); self.entry.setPlaceholderText('HEX, rgb(122, 162, 247), hsl(221, 89%, 72%)…'); top.addWidget(self.entry, 1)
+        top = QHBoxLayout(); self.entry = QLineEdit(self.color.name().upper()); self.entry.setPlaceholderText('HEX, rgb(122, 162, 247), hsl(221, 89%, 72%)…'); top.addWidget(self.entry, 1)  # theme-exception: ejemplo de formatos en el texto de ayuda
         top.addWidget(button('Capturar  Ctrl P', self.capture, 'primary', 'palette')); self.outer.addLayout(top)
         body = QHBoxLayout(); body.setSpacing(24)
         visual = QVBoxLayout(); self.swatch = QLabel(); self.swatch.setAlignment(Qt.AlignCenter); self.swatch.setMinimumSize(280, 210); visual.addWidget(self.swatch, 1)
@@ -73,12 +73,12 @@ class ColorWindow(Surface):
             for field in self.fields.values(): field.clear()
             self.status.setText('Introduce HEX, RGB o HSL válido (sin transparencia)'); return
         self.color = c; value = c.name().upper(); h, s, l, _ = c.getHslF()
-        formats = [value, f'rgb({c.red()}, {c.green()}, {c.blue()})', f'hsl({max(0,h)*360:.0f}, {s*100:.0f}%, {l*100:.0f}%)']
+        formats = [value, f'rgb({c.red()}, {c.green()}, {c.blue()})', f'hsl({max(0,h)*360:.0f}, {s*100:.0f}%, {l*100:.0f}%)']  # theme-exception: formatos de color para copiar
         self.formats.addItems(formats)
         for field, text in zip(self.fields.values(), formats): field.setText(text)
         ink, ratio = contrast_text(c)
         apply_style(self.swatch,f'background:{value};border:@border solid @line;border-radius:14px;color:{ink};font-size:28px;font-weight:600;'); self.swatch.setText(value)
-        self.contrast.setText(f'Texto recomendado: {"oscuro" if ink == "#111111" else "blanco"}  ·  Color opaco')
+        self.contrast.setText(f'Texto recomendado: {"oscuro" if ink == "#111111" else "blanco"}  ·  Color opaco')  # theme-exception: tinta de texto sobre el color elegido por el usuario
         self.syncing = True
         for slider, v in zip(self.sliders, (max(0,h)*360, s*100, l*100)): slider.setValue(min(slider.maximum(),round(v)))
         self.syncing = False; self.update_star(); self.status.setText('Copia un formato · Los colores copiados se guardan en recientes')

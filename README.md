@@ -34,7 +34,7 @@ Si ya tienes esta carpeta, ejecuta `./instalar.sh`. Desde una sesión gráfica a
 
 Puedes seleccionar escritorio, sesión Wysun / Hyprland, terminal, Neovim, herramientas y Blue CRT; el escritorio, la sesión y Neovim incluyen lo que necesitan. Desmarcar algo conserva su instalación actual. GRUB, carga y acceso también se eligen por separado. El instalador conserva los cambios personales, muestra conflictos, guarda el registro y permite recuperar respaldos del hogar o del arranque. [Guía del instalador visual](docs/installer.md).
 
-Una instalación nueva utiliza Severance y las actualizaciones conservan el tema elegido. No lo ejecutes con `sudo`: la interfaz pide autorización cuando corresponde. Al terminar, cierra sesión cuando quieras y elige **Wysun / Hyprland** en el gestor de acceso. El instalador mantiene abierta tu sesión.
+Una instalación nueva utiliza Severance (estilo Space Black) y las actualizaciones conservan el tema elegido (también `--theme fluent-light` o `--theme fluent-dark`). No lo ejecutes con `sudo`: la interfaz pide autorización cuando corresponde. Al terminar, cierra sesión cuando quieras y elige **Wysun / Hyprland** en el gestor de acceso. El instalador mantiene abierta tu sesión.
 
 El instalador se valida con HOME/XDG temporales y con una sesión Wayland anidada. Consulta el alcance exacto en [Validación](docs/validation.md).
 
@@ -124,7 +124,7 @@ Esta versión está orientada a Wysun / Hyprland sobre Wayland y a las rutas XDG
 
 [Manual de Wysun](apps/wysun/README.md) · [Neovim](config/.config/nvim/README.md) · [Créditos](docs/credits.md) · [Validación](docs/validation.md)
 
-En Ajustes → Tema puedes cambiar entre Tokyo, Severance y Space Black sin reinstalar el escritorio. El cambio incluye Wysun, terminal, prompt, Neovim, barra, bordes, notificaciones y animaciones del bloqueo; las configuraciones anteriores se respaldan.
+En Ajustes → Tema (`wysun settings theme`) eliges un estilo —**Space Black** (variantes Space Black, Tokyo y Severance) o **Fluent** (claro y oscuro, tipo Windows 11)— y lo ves al instante en todas las aplicaciones, sin reinstalar el escritorio ([guía de temas](docs/themes.md)). El cambio incluye Wysun, terminal, prompt, Neovim, barra, bordes, notificaciones y animaciones del bloqueo; las configuraciones anteriores se respaldan.
 
 ### Herramientas personales
 

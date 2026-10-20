@@ -75,7 +75,7 @@ def css(name, alpha=None, values=None):
     if alpha == 255:
         return rgb.lower()
     value = QColor(rgb)
-    return f'rgba({value.red()},{value.green()},{value.blue()},{alpha})'
+    return f'rgba({value.red()},{value.green()},{value.blue()},{alpha})'  # theme-exception: conversion a sintaxis CSS
 
 
 def family(values=None):
