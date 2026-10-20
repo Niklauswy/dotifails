@@ -1,5 +1,5 @@
 """Native image/PDF quick look and an embedded, explicitly controlled mpv player."""
-from theme_tokens import ThemeColor, apply_style
+from theme_tokens import apply_style
 
 import json,os,socket,tempfile
 from pathlib import Path
@@ -17,7 +17,7 @@ class VideoPlayer(QWidget):
         from mpv_embed import MpvSurface
         layout=QVBoxLayout(self);layout.setContentsMargins(0,0,0,0);self.surface=MpvSurface() if wayland() else QWidget();
         if not wayland():self.surface.setAttribute(Qt.WA_NativeWindow)
-        apply_style(self.surface,'background:#090A0E;');self.surface.setMinimumHeight(250);layout.addWidget(self.surface,1)
+        apply_style(self.surface,'background:#090A0E;')  # theme-exception: lienzo negro de vídeo;self.surface.setMinimumHeight(250);layout.addWidget(self.surface,1)
         controls=QHBoxLayout();self.play_button=button('Reproducir',self.toggle,symbol='circle-play');controls.addWidget(self.play_button);self.position=QSlider(Qt.Horizontal);self.position.setRange(0,1000);self.position.sliderReleased.connect(self.seek);controls.addWidget(self.position,1);self.time_label=text_label('0:00 / 0:00','subtitle');controls.addWidget(self.time_label);self.mute=button('',lambda:self.send(['cycle','mute']),symbol='volume-2');controls.addWidget(self.mute);layout.addLayout(controls);self.status=text_label('Preparando vídeo…','subtitle');layout.addWidget(self.status)
         self.poll=QTimer(self);self.poll.setInterval(120);self.poll.timeout.connect(self.read_ipc);QTimer.singleShot(0,self.start)
     def start(self):

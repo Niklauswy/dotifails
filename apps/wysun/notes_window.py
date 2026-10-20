@@ -1,5 +1,5 @@
 """A focused Markdown library, using the same surfaces and actions as Wysun."""
-from theme_tokens import ThemeColor, apply_style
+from theme_tokens import apply_style, extend_style, css, on_theme_changed
 
 from pathlib import Path
 from datetime import datetime
@@ -21,10 +21,10 @@ class NotesWindow(Surface):
             self.store.import_legacy(Path.home() / 'Documents/QuickNotes/notes.md')
         self.key = self.expected = None
         self.dirty = self.loading = False
-        apply_style(self,self.styleSheet() + '''
+        extend_style(self,'''
             QPlainTextEdit, QTextBrowser { background:transparent; border:0; padding:12px; font-size:14px; }
             QListWidget::item { padding:0; margin:2px 0; }
-            QWidget#notePane { border-left:1px solid #30333D; }
+            QWidget#notePane { border-left:1px solid @grid; }
             QLabel#noteTitle {font-size:17px; font-weight:600;}
             QSplitter::handle { background:transparent; width:1px; }
         ''')
@@ -44,7 +44,7 @@ class NotesWindow(Surface):
         self.more = button('', self.actions, symbol='ellipsis'); self.more.setToolTip('Acciones · Alt K'); toolbar.addWidget(self.more); layout.addLayout(toolbar)
         self.heading = text_label('Una idea empieza aquí', 'noteTitle'); layout.addWidget(self.heading)
         self.editor = QPlainTextEdit(); self.editor.setPlaceholderText('Crea una nota o importa tus archivos Markdown.'); layout.addWidget(self.editor, 1)
-        self.preview = QTextBrowser(); self.preview.setOpenExternalLinks(False); self.preview.document().setDefaultStyleSheet('body {line-height:1.6;} h1,h2 {color:#E8EAF0;} code {color:#BEC9E5;}'); layout.addWidget(self.preview, 1)
+        self.preview = QTextBrowser(); self.preview.setOpenExternalLinks(False); self.theme_changed(); on_theme_changed(self.theme_changed); layout.addWidget(self.preview, 1)
         self.meta = text_label('', 'subtitle'); layout.addWidget(self.meta); split.addWidget(right); split.setSizes([270, 620]); self.outer.addWidget(split, 1)
         footer = QHBoxLayout(); self.status = text_label('Guardado local', 'subtitle'); footer.addWidget(self.status, 1)
         footer.addWidget(button('Abrir en Vim', self.vim, symbol='terminal')); footer.addWidget(button('Acciones  Alt K', self.actions)); self.outer.addLayout(footer)
@@ -55,6 +55,9 @@ class NotesWindow(Surface):
             QShortcut(QKeySequence(key), self).activated.connect(fn)
         self.set_preview(False); self.refresh()
 
+    def theme_changed(self):
+        self.preview.document().setDefaultStyleSheet('body {line-height:1.6;} h1,h2 {color:'+css('text')+';} code {color:'+css('accent')+';}')
+        self.preview.setMarkdown(self.editor.toPlainText()) if hasattr(self,'editor') else None
     def is_trash(self): return self.folder.currentIndex() == 2
 
     def row_widget(self, row):

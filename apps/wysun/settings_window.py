@@ -1,6 +1,6 @@
 """Wysun Ajustes: Hyprland window behaviour and global bindings."""
 
-from theme_tokens import ThemeColor, apply_style
+from theme_tokens import apply_style, color
 import json, subprocess
 from pathlib import Path
 from PySide6.QtCore import Qt, QTimer, QSize
@@ -22,7 +22,7 @@ class ShortcutEditor(QDialog):
     def save(self):
         try:
             self.model.save(self.key.text(),self.command.toPlainText(),self.index,self.title.text() or 'Atajo personalizado');__import__('settings_data').reload_shortcuts();self.accept()
-        except (ValueError,OSError,subprocess.SubprocessError) as e:self.error.setText(str(e));apply_style(self.error,'color:#EDAAA7')
+        except (ValueError,OSError,subprocess.SubprocessError) as e:self.error.setText(str(e));apply_style(self.error,'color:@danger')
 
 class SettingsWindow(Surface):
     def __init__(self,test=False):
@@ -80,7 +80,7 @@ class SettingsWindow(Surface):
             row=self.table.rowCount();self.table.insertRow(row)
             for col,value in enumerate([r['key'],r['title'],'Repetido' if i in ids else '']):
                 item=QTableWidgetItem(value);item.setData(Qt.UserRole,i);item.setToolTip(r['command']);self.table.setItem(row,col,item)
-                if i in ids and col==2:item.setForeground(ThemeColor('#E0AE82'))
+                if i in ids and col==2:item.setForeground(color('warning'))
             self.table.setRowHeight(row,40)
     def selected_shortcut(self):
         row=self.table.currentRow();return self.table.item(row,0).data(Qt.UserRole) if row>=0 else None

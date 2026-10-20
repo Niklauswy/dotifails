@@ -15,12 +15,15 @@ class UtilityUITests(unittest.TestCase):
   from unittest.mock import patch
   from PySide6.QtWidgets import QLabel
   from theme_tokens import apply_style,refresh_widgets
-  label=QLabel('Tema');original='color: #cdd0da; background: #131923;'
+  label=QLabel('Tema');original='color: @text; background: @canvas; border-radius: @radius_l;'
   with patch.dict(os.environ,{'ORBIT_THEME':'severance'}):
    refresh_widgets();apply_style(label,original);severance=label.styleSheet()
    with patch.dict(os.environ,{'ORBIT_THEME':'tokyo'}):
     refresh_widgets();self.assertNotEqual(label.styleSheet(),severance)
     self.assertEqual(label.property('orbitOriginalStyle'),original)
+    for key in ('fluent:light','fluent:dark'):
+     with patch.dict(os.environ,{'ORBIT_THEME':key}):
+      refresh_widgets();self.assertNotIn('@',label.styleSheet());self.assertNotEqual(label.styleSheet(),severance)
    refresh_widgets();self.assertEqual(label.styleSheet(),severance)
   label.deleteLater();refresh_widgets()
  def test_notes_edit_preview_recover(self):

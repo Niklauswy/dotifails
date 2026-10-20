@@ -105,7 +105,7 @@ class MusicWindow(Surface):
         self.tree.setUniformRowHeights(True)
         self.tree.setSelectionMode(QAbstractItemView.SingleSelection)
         self.tree.setAccessibleName('Canciones de la lista')
-        apply_style(self.tree, 'QTreeWidget::item{padding:6px 0;} QTreeWidget::item:selected{background:#2C3D57;}')
+        apply_style(self.tree, 'QTreeWidget::item{padding:6px 0;} QTreeWidget::item:selected{background:@selection;color:@selection_text;}')
         self.tree.header().setSectionResizeMode(1, QHeaderView.Stretch)
         for column, width in [(0, 34), (2, 175), (3, 100), (4, 100)]:
             self.tree.setColumnWidth(column, width)
@@ -162,7 +162,7 @@ class MusicWindow(Surface):
         self.outer.addWidget(split, 1)
         player = QWidget()
         player.setObjectName('musicPlayer')
-        apply_style(player, 'QWidget#musicPlayer{background:rgba(155,191,247,8);border:1px solid #344761;border-radius:16px;}')
+        apply_style(player, 'QWidget#musicPlayer{background:@card;border:@border solid @card_line;border-radius:16px;}')
         layout = QVBoxLayout(player)
         layout.setContentsMargins(18, 15, 18, 15)
         now = QHBoxLayout()
@@ -170,7 +170,7 @@ class MusicWindow(Surface):
         self.now_title = ElidedLabel('Elige una canción para escuchar')
         apply_style(self.now_title, 'font-size:16px;font-weight:600;')
         self.now_artist = ElidedLabel('Doble clic en una canción disponible')
-        apply_style(self.now_artist, 'color:#A0ACC0;font-size:12px;')
+        apply_style(self.now_artist, 'color:@muted;font-size:12px;')
         titles.addWidget(self.now_title)
         titles.addWidget(self.now_artist)
         now.addLayout(titles, 1)
@@ -459,7 +459,7 @@ class MusicWindow(Surface):
     def set_paused(self, value):
         self.paused = bool(value)
         self.play_button.setText('Reproducir' if self.paused else 'Pausar')
-        self.play_button.setIcon(icon('play' if self.paused else 'pause', 17, '#162436'))
+        self.play_button.setIcon(icon('play' if self.paused else 'pause', 17, 'on_accent'))
 
     def toggle_play(self):
         if self.current_key and self.socket is not None:

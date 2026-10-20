@@ -15,7 +15,8 @@ from ui_motion import WindowMotion,MotionButton,reveal_content
 from files_motion import animate_popup,reduced_motion
 from files_zoom import ZoomCanvas
 from clipboard_data import ClipboardLibrary,unpack
-from clipboard_visuals import STYLE,COLORS,KIND_LABEL,KIND_ICON,ClipCards,ClipDelegate,LinkHero
+from theme_tokens import apply_style,css
+from clipboard_visuals import STYLE,KIND_LABEL,KIND_ICON,ClipCards,ClipDelegate,LinkHero
 from link_preview import LinkPreviewJob
 from data_v2 import color_formats
 from clipboard_controls import ActionMenu,CopyButton,ColorValueRow
@@ -27,13 +28,13 @@ class ClipboardWindow(WindowMotion,QWidget):
         self.kind='';self.favorite=False;self.collection=None;self.grid=False;self.source_window=''
         self.rows=[];self._signature=None;self._picked=[];self.pixmaps=OrderedDict();self.detail_id=None;self._refreshing=False;self.ocr_mode=False;self.link_job=None;self._closing=False
         self.setWindowTitle('Wysun Clipboard');self.setWindowFlags(Qt.Tool|Qt.FramelessWindowHint);self.setAttribute(Qt.WA_TranslucentBackground)
-        self.setMinimumSize(680,520);self.resize(1080,860);self.setStyleSheet(STYLE)
+        self.setMinimumSize(680,520);self.resize(1080,860);apply_style(self,STYLE)
         root=QVBoxLayout(self);root.setContentsMargins(0,0,0,0);root.setSpacing(10)
         self.splitter=QSplitter(Qt.Vertical);self.splitter.setChildrenCollapsible(False);root.addWidget(self.splitter)
         surface=QWidget();surface.setObjectName('clipSurface');layout=QVBoxLayout(surface);layout.setContentsMargins(20,14,20,12);layout.setSpacing(10)
         top=QHBoxLayout();top.setSpacing(8)
         self.search=QLineEdit();self.search.setObjectName('clipSearch');self.search.setPlaceholderText('Buscar texto, imágenes o aplicación…');self.search.setClearButtonEnabled(True);self.search.setAccessibleName('Buscar en el historial y texto reconocido')
-        self.search.addAction(icon('search',18,'#a5abb7'),QLineEdit.LeadingPosition);top.addWidget(self.search,1)
+        self.search.addAction(icon('search',18,'muted'),QLineEdit.LeadingPosition);top.addWidget(self.search,1)
         self.sources=QComboBox();self.sources.setAccessibleName('Filtrar por aplicación');self.sources.setMaximumWidth(150);self.sources.addItem('Aplicaciones','');self.sources.currentIndexChanged.connect(lambda:self.refresh(True));self.sources.hide()
         self.pause=self.icon_button('pause','Pausar captura',self.toggle_capture);self.pause.hide()
         self.view=self.icon_button('layout-grid','Cambiar entre bandeja y cuadrícula',self.toggle_grid);top.addWidget(self.view)
@@ -117,7 +118,7 @@ class ClipboardWindow(WindowMotion,QWidget):
     def button(self,title,callback):
         button=MotionButton(title);button.clicked.connect(callback);button.setCursor(Qt.PointingHandCursor);return button
     def icon_button(self,symbol,label,callback):
-        button=self.button('',callback);button.setObjectName('clipIcon');button.setFixedSize(32,32);button.setIcon(icon(symbol,17,'#d5ddeb'));button.setIconSize(QSize(17,17));button.setToolTip(label);button.setAccessibleName(label);return button
+        button=self.button('',callback);button.setObjectName('clipIcon');button.setFixedSize(32,32);button.setIcon(icon(symbol,17,'glyph'));button.setIconSize(QSize(17,17));button.setToolTip(label);button.setAccessibleName(label);return button
     def present(self):
         if self.isVisible() and not getattr(self,'_motion_exiting',False):self.dismiss();return
         if not self.test:
@@ -203,7 +204,7 @@ class ClipboardWindow(WindowMotion,QWidget):
             self.heading.setText('Favoritos' if self.favorite else KIND_LABEL.get(self.kind,'Recientes')+(' · '+self.collections.currentText() if self.collection else '')+(' · '+self.sources.currentText() if self.sources.currentData() else ''))
             self.status.setText(f'{len(rows)} elementos'+(' · Captura pausada' if self.owner.paused else ''))
             self.add_collection.setToolTip('Filtros activos' if self.kind or self.collection or self.sources.currentData() else 'Filtrar por tipo, aplicación o colección')
-            self.add_collection.setIcon(icon('sliders-horizontal',17,'#83afff' if self.kind or self.collection or self.sources.currentData() else '#d5ddeb'))
+            self.add_collection.setIcon(icon('sliders-horizontal',17,'accent' if self.kind or self.collection or self.sources.currentData() else 'glyph'))
             self.pause.setIcon(icon('play' if self.owner.paused else 'pause',17));self.pause.setToolTip('Reanudar captura' if self.owner.paused else 'Pausar captura')
         finally:self._refreshing=False
     def current(self):
@@ -259,7 +260,7 @@ class ClipboardWindow(WindowMotion,QWidget):
             self.stack.setCurrentIndex(4);self.show_link(row)
             if not self.test:self.link_timer.start()
         elif kind=='color':
-            self.stack.setCurrentIndex(2);formats=self.color_formats(row['text']);self.swatch.setStyleSheet('background:'+formats.get('HEX','#22262e')[:7]+';border-radius:12px;');[button.set_value(formats.get(name,'')) for name,button in self.color_rows.items()]
+            self.stack.setCurrentIndex(2);formats=self.color_formats(row['text']);self.swatch.setStyleSheet('background:'+formats.get('HEX',css('inset'))[:7]+';border-radius:12px;');[button.set_value(formats.get(name,'')) for name,button in self.color_rows.items()]
         elif kind=='bundle':
             self.stack.setCurrentIndex(3);self.parts.blockSignals(True);self.parts.clear()
             for part in self.library.parts(row['id']):

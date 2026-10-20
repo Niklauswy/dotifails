@@ -1,5 +1,5 @@
 """Shared, interruptible Qt motion. Actions that transfer focus still hide immediately."""
-from theme_tokens import ThemeColor, apply_style
+from theme_tokens import color
 
 import os
 from PySide6.QtCore import (Qt, QSize, QObject, Property, QPropertyAnimation, QParallelAnimationGroup,
@@ -42,13 +42,13 @@ class WindowMotion:
             if not entering:self.hide()
             return
         from_top=bool(getattr(self,'motion_from_top',False))
-        distance=theme['lift']
+        distance=theme['motion_lift']
         if from_top:
             screen=self.screen();edge=screen.geometry().top() if screen else 0
             distance=-(self.height()+self._motion_target.y()-edge+10)
         start=self.pos() if was_running else self._motion_target+QPoint(0,distance if entering else 0)
         end=self._motion_target+QPoint(0,0 if entering else distance if from_top else distance//2)
-        duration=getattr(self,'motion_enter_ms',theme['enter']) if entering else getattr(self,'motion_exit_ms',theme['exit'])
+        duration=getattr(self,'motion_enter_ms',theme['motion_enter']) if entering else getattr(self,'motion_exit_ms',theme['motion_exit'])
         if self._motion_opacity is not None:
             opacity=self._motion_opacity;opacity.setDuration(duration)
             opacity.setStartValue(self.windowOpacity() if was_running else (0.0 if entering else 1.0));opacity.setEndValue(1.0 if entering else 0.0);opacity.setEasingCurve(QEasingCurve.OutCubic)
@@ -135,7 +135,7 @@ class MotionButton(QPushButton):
         else:
             frame=QStyleOptionButton(opt);frame.text='';frame.icon=QIcon();self.style().drawControl(QStyle.CE_PushButton,frame,p,self);self._paint_label(p,opt)
         if self._hover and self.isEnabled():
-            p.setPen(Qt.NoPen);p.setBrush(ThemeColor(255,255,255,round(7*self._hover)))
+            p.setPen(Qt.NoPen);p.setBrush(color('tint',round(7*self._hover)))
             p.drawRoundedRect(self.rect().adjusted(2,2,-2,-2),9,9)
 
 

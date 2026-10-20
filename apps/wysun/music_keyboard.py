@@ -2,6 +2,7 @@
 from PySide6.QtCore import QObject, QEvent, Qt, QSize
 from PySide6.QtGui import QKeySequence, QShortcut, QColor, QPen
 from PySide6.QtWidgets import QStyledItemDelegate, QStyle, QAbstractItemView, QPushButton, QMessageBox
+from theme_tokens import color, extend_style
 
 
 def shortcut(parent, keys, action, context=Qt.WindowShortcut):
@@ -20,16 +21,16 @@ class SongDelegate(QStyledItemDelegate):
         selected=bool(option.state & QStyle.State_Selected)
         hovered=bool(option.state & QStyle.State_MouseOver)
         if selected or hovered:
-            painter.setPen(QPen(QColor('#A6A6A6'),1) if selected else Qt.NoPen)
-            painter.setBrush(QColor('#303030' if selected else '#242424'))
+            painter.setPen(QPen(color('selection_line'),1) if selected else Qt.NoPen)
+            painter.setBrush(color('selection' if selected else 'hover'))
             painter.drawRoundedRect(rect,8,8)
         lines=index.data(Qt.DisplayRole).split('\n',1)
         font=option.font;font.setBold(True);painter.setFont(font)
-        painter.setPen(QColor('#EEEEEE'))
+        painter.setPen(color('selection_text' if selected else 'text'))
         bounds=rect.adjusted(12,7,-12,-27)
         painter.drawText(bounds,Qt.AlignVCenter,painter.fontMetrics().elidedText(lines[0],Qt.ElideRight,bounds.width()))
         font.setBold(False);font.setPointSizeF(max(9,font.pointSizeF()-1));painter.setFont(font)
-        painter.setPen(QColor('#AAAAAA'))
+        painter.setPen(color('muted'))
         bounds=rect.adjusted(12,29,-12,-6)
         painter.drawText(bounds,Qt.AlignVCenter,painter.fontMetrics().elidedText(lines[1] if len(lines)>1 else '',Qt.ElideRight,bounds.width()))
         painter.restore()
@@ -45,7 +46,7 @@ class KeyboardNavigation(QObject):
         search.returnPressed.connect(self.open_selection)
         for widget in window.findChildren(QAbstractItemView):
             widget.setToolTip((widget.toolTip()+'\n' if widget.toolTip() else '')+'↑ / ↓ navegar · Enter abrir · Tab cambiar de zona')
-            widget.setStyleSheet(widget.styleSheet()+'\nQAbstractItemView:focus{border:1px solid #AAAAAA;border-radius:8px;}')
+            extend_style(widget,'\nQAbstractItemView:focus{border:@border solid @focus;border-radius:8px;}')
 
     def current(self):
         return self.results.currentItem() or (self.results.item(0) if self.mini else self.results.topLevelItem(0))

@@ -1,5 +1,5 @@
 """Native process monitor with live metrics, process trees and contextual actions."""
-from theme_tokens import ThemeColor, apply_style
+from theme_tokens import apply_style, extend_style, color
 
 import os
 from collections import deque
@@ -27,28 +27,28 @@ def duration(seconds):
     return f'{days} d {hours} h' if days else (f'{hours} h {minutes} min' if hours else f'{minutes} min {seconds} s')
 
 class Sparkline(QWidget):
-    def __init__(self,color='#91B9FA',parent=None):
-        super().__init__(parent);self.values=deque(maxlen=60);self.maximum=None;self.color=QColor(color);self.setMinimumHeight(20);self.setToolTip('Últimas 60 muestras · escala relativa al máximo observado')
+    def __init__(self,tone='cat_blue',parent=None):
+        super().__init__(parent);self.values=deque(maxlen=60);self.maximum=None;self.tone=tone;self.setMinimumHeight(20);self.setToolTip('Últimas 60 muestras · escala relativa al máximo observado')
     def add(self,value):
         if value is not None:self.values.append(value);self.update()
     def clear(self):self.values.clear();self.update()
     def paintEvent(self,event):
         p=QPainter(self);p.setRenderHint(QPainter.Antialiasing);w=self.width();h=self.height()-3
-        p.setPen(QPen(ThemeColor('#303541'),1));p.drawLine(0,h,w,h)
+        p.setPen(QPen(color('grid'),1));p.drawLine(0,h,w,h)
         if len(self.values)<2:return
         high=self.maximum or max(max(self.values)*1.15,1);path=QPainterPath()
         for i,v in enumerate(self.values):
             point=QPointF(i*w/(len(self.values)-1),h-min(v/high,1)*(h-4))
             if i:path.lineTo(point)
             else:path.moveTo(point)
-        fill=QPainterPath(path);fill.lineTo(w,h);fill.lineTo(0,h);fill.closeSubpath();c=QColor(self.color);c.setAlpha(22);p.fillPath(fill,c);p.setPen(QPen(self.color,1.8));p.drawPath(path)
+        fill=QPainterPath(path);fill.lineTo(w,h);fill.lineTo(0,h);fill.closeSubpath();c=color(self.tone,22);p.fillPath(fill,c);p.setPen(QPen(color(self.tone),1.8));p.drawPath(path)
 
 class Metric(QWidget):
-    def __init__(self,title,color):
-        super().__init__();self.setObjectName('metric');self.setAttribute(Qt.WA_StyledBackground);apply_style(self,'QWidget#metric{background:rgba(155,191,247,8);border:1px solid #344761;border-radius:15px;}');layout=QVBoxLayout(self);layout.setContentsMargins(16,14,16,12);layout.setSpacing(2)
+    def __init__(self,title,tone):
+        super().__init__();self.setObjectName('metric');self.setAttribute(Qt.WA_StyledBackground);apply_style(self,'QWidget#metric{background:@card;border:@border solid @card_line;border-radius:15px;}');layout=QVBoxLayout(self);layout.setContentsMargins(16,14,16,12);layout.setSpacing(2)
         layout.addWidget(text_label(title,'subtitle'));self.value=text_label('—');apply_style(self.value,'font-size:28px;font-weight:600;');layout.addWidget(self.value)
         self.caption=text_label('Tomando la primera muestra…','subtitle');layout.addWidget(self.caption)
-        self.chart=Sparkline(color);self.chart.setFixedHeight(28);layout.addWidget(self.chart)
+        self.chart=Sparkline(tone);self.chart.setFixedHeight(28);layout.addWidget(self.chart)
     def update_value(self,text,caption,value):self.value.setText(text);self.caption.setText(caption);self.chart.add(value)
 
 class ProcessScan(QThread):
@@ -78,30 +78,30 @@ class ProcessesWindow(Surface):
         super().__init__('Wysun Processes','Procesos, recursos y diagnóstico en tiempo real',1240,790)
         self.setMinimumSize(880,600);self.model=model or Processes();self.rows=[];self.worker=None;self.detail=None;self.detail_key=None;self.items={};self.had_selection=False
         self.outer.setSpacing(14)
-        apply_style(self,self.styleSheet()+'''
-            QWidget#metric {background:rgba(255,255,255,5);border:1px solid #30343E;border-radius:10px;}
-            QTreeWidget {background:transparent;border:0;outline:0;alternate-background-color:rgba(255,255,255,3);}
+        extend_style(self,'''
+            QWidget#metric {background:@card;border:@border solid @grid;border-radius:@radius_control;}
+            QTreeWidget {background:transparent;border:0;outline:0;alternate-background-color:@tint/3;}
             QTreeWidget::item {height:34px;border:0;padding:0 4px;}
-            QTreeWidget::item:selected {background:rgba(113,158,226,42);color:#F1F4FA;}
-            QTreeWidget::item:hover {background:rgba(153,175,225,12);}
-            QHeaderView::section {background:rgba(10,16,26,85);padding:8px 4px;border:0;color:#959DAF;font-size:11px;}
-            QSplitter::handle {background:#30343E;width:1px;}
+            QTreeWidget::item:selected {background:@row_selected;color:@selection_text;}
+            QTreeWidget::item:hover {background:@row_hover;}
+            QHeaderView::section {background:@well;padding:8px 4px;border:0;color:@subtle;font-size:11px;}
+            QSplitter::handle {background:@grid;width:1px;}
             QTabWidget::pane {border:0;}
-            QTabBar::tab {color:#959DAF;background:transparent;padding:10px 12px;border-bottom:2px solid transparent;}
-            QTabBar::tab:selected {color:#DDE6FA;border-bottom:2px solid #A3B8E0;}
-            QPlainTextEdit {background:rgba(8,14,23,100);border:1px solid #30343E;font-family:monospace;font-size:11px;}
-            QPushButton:disabled {color:#666D7D;background:rgba(255,255,255,3);border-color:#292D36;}
+            QTabBar::tab {color:@subtle;background:transparent;padding:10px 12px;border-bottom:2px solid transparent;}
+            QTabBar::tab:selected {color:@text;border-bottom:2px solid @accent;}
+            QPlainTextEdit {background:@well;border:@border solid @grid;font-family:@font_mono;font-size:11px;}
+            QPushButton:disabled {color:@disabled;background:@disabled_surface;border-color:@grid;}
             QScrollBar:horizontal {height:7px;background:transparent;margin:0;}
-            QScrollBar::handle:horizontal {background:#454B5C;border-radius:3px;min-width:30px;}
+            QScrollBar::handle:horizontal {background:@scrollbar;border-radius:3px;min-width:30px;}
             QScrollBar::add-line:horizontal,QScrollBar::sub-line:horizontal {width:0;}
             QScrollBar::add-page:horizontal,QScrollBar::sub-page:horizontal {background:transparent;}
         ''')
         metrics=QHBoxLayout();metrics.setSpacing(10);self.metrics=[]
-        for name,color in [('CPU del equipo','#91B9FA'),('Memoria utilizada','#B7A6E8'),('Intercambio','#E3B978'),('Procesos','#88CBB3')]:
-            metric=Metric(name,color);metrics.addWidget(metric,1);self.metrics.append(metric)
+        for name,tone in [('CPU del equipo','cat_blue'),('Memoria utilizada','cat_purple'),('Intercambio','cat_yellow'),('Procesos','cat_green')]:
+            metric=Metric(name,tone);metrics.addWidget(metric,1);self.metrics.append(metric)
         self.outer.addLayout(metrics)
         self.metrics[0].chart.maximum=100;self.metrics[0].chart.setToolTip('CPU total · escala de 0 a 100% · últimas 60 muestras')
-        diagnostic=QHBoxLayout();self.live=text_label('● EN VIVO','eyebrow');apply_style(self.live,'color:#9ADCC1;font-size:10px;font-weight:600;letter-spacing:1px;');diagnostic.addWidget(self.live)
+        diagnostic=QHBoxLayout();self.live=text_label('● EN VIVO','eyebrow');apply_style(self.live,'color:@success;font-size:10px;font-weight:600;letter-spacing:1px;');diagnostic.addWidget(self.live)
         self.pressure=text_label('Presión de recursos · tomando muestra…','subtitle');self.pressure.setToolTip('PSI: porcentaje de tiempo que al menos una tarea estuvo esperando un recurso en los últimos 10 segundos.');self.pressure.setWordWrap(False);self.pressure.setMinimumHeight(22);diagnostic.addWidget(self.pressure,1,Qt.AlignRight);self.outer.addLayout(diagnostic)
         filters=QHBoxLayout();self.search=QLineEdit();self.search.setPlaceholderText('Buscar · nombre, pid:123, cpu>5, mem>256m…');self.search.setToolTip('Combina filtros: pid:123 · ppid:123 · user:nombre · state:R · cpu>5 · mem>256m');self.search.setClearButtonEnabled(True);filters.addWidget(self.search,1)
         self.owner=QComboBox();self.owner.addItems(['Mis procesos','Todos los usuarios']);filters.addWidget(self.owner)
@@ -109,7 +109,7 @@ class ProcessesWindow(Surface):
         self.view=QComboBox();self.view.addItems(['Lista','Árbol']);filters.addWidget(self.view)
         self.freeze=button('Congelar',self.toggle_freeze,symbol='circle-pause');self.freeze.setCheckable(True);self.freeze.setToolTip('Congelar solo la vista · Espacio cuando la tabla tiene el foco');filters.addWidget(self.freeze);self.outer.addLayout(filters)
         split=QSplitter();self.tree=QTreeWidget();self.list=self.tree
-        apply_style(self.tree,'QTreeWidget{background:transparent;border:0;outline:0;alternate-background-color:rgba(255,255,255,3);} QTreeWidget::item{height:34px;padding:0 4px;border:0;} QTreeWidget::item:selected{background:rgba(113,158,226,42);color:#F1F4FA;} QHeaderView::section{background:rgba(10,16,26,85);color:#959DAF;border:0;padding:8px 4px;font-size:11px;}')
+        apply_style(self.tree,'QTreeWidget{background:transparent;border:0;outline:0;alternate-background-color:@tint/3;} QTreeWidget::item{height:34px;padding:0 4px;border:0;} QTreeWidget::item:selected{background:@row_selected;color:@selection_text;} QHeaderView::section{background:@well;color:@subtle;border:0;padding:8px 4px;font-size:11px;}')
         from process_widgets import ResourceDelegate
         self.resource_delegate=ResourceDelegate(self.tree);self.tree.setItemDelegate(self.resource_delegate)
         self.tree.setColumnCount(7);self.tree.setHeaderLabels(['Proceso','PID','CPU %','Memoria','Lectura/s','Escritura/s','Usuario'])
@@ -121,11 +121,11 @@ class ProcessesWindow(Surface):
         head=QHBoxLayout();self.process_icon=text_label('');self.process_icon.setFixedSize(30,30);head.addWidget(self.process_icon);self.name=text_label('Selecciona un proceso');apply_style(self.name,'font-size:18px;font-weight:600;');head.addWidget(self.name,1);layout.addLayout(head)
         self.identity=text_label('Los detalles aparecerán aquí','subtitle');layout.addWidget(self.identity)
         self.tabs=QTabWidget();layout.addWidget(self.tabs,1)
-        apply_style(self.tabs,'QTabWidget::pane{border:0;background:transparent;} QTabBar::tab{color:#959DAF;background:transparent;padding:10px 8px;border-bottom:2px solid transparent;} QTabBar::tab:selected{color:#DDE6FA;border-bottom:2px solid #A3B8E0;}')
+        apply_style(self.tabs,'QTabWidget::pane{border:0;background:transparent;} QTabBar::tab{color:@subtle;background:transparent;padding:10px 8px;border-bottom:2px solid transparent;} QTabBar::tab:selected{color:@text;border-bottom:2px solid @accent;} QTabBar::tab:focus{color:@text_strong;}')
         overview=QWidget();overview_layout=QVBoxLayout(overview);overview_layout.setContentsMargins(0,8,0,0);overview_layout.setSpacing(6)
-        self.usage=text_label('—');apply_style(self.usage,'font-size:15px;color:#BFD4FF;');overview_layout.addWidget(self.usage)
+        self.usage=text_label('—');apply_style(self.usage,'font-size:15px;color:@accent_hover;');overview_layout.addWidget(self.usage)
         self.cpu_chart=Sparkline();self.cpu_chart.setFixedHeight(28);overview_layout.addWidget(self.cpu_chart)
-        self.ram=text_label('—','subtitle');overview_layout.addWidget(self.ram);self.ram_chart=Sparkline('#B7A6E8');self.ram_chart.setFixedHeight(22);overview_layout.addWidget(self.ram_chart)
+        self.ram=text_label('—','subtitle');overview_layout.addWidget(self.ram);self.ram_chart=Sparkline('cat_purple');self.ram_chart.setFixedHeight(22);overview_layout.addWidget(self.ram_chart)
         self.info=text_label('');self.info.setTextInteractionFlags(Qt.TextSelectableByMouse);overview_layout.addWidget(self.info);overview_layout.addStretch()
         self.command=QPlainTextEdit();self.command.setReadOnly(True);self.command.setPlaceholderText('Comando del proceso');self.command.setFixedHeight(65);overview_layout.addWidget(self.command)
         scroll=QScrollArea();scroll.setWidgetResizable(True);scroll.setWidget(overview);overview.setAutoFillBackground(False);scroll.viewport().setAutoFillBackground(False);apply_style(scroll,'QScrollArea{background:transparent;border:0;}');self.tabs.addTab(scroll,'Resumen')
@@ -221,7 +221,7 @@ class ProcessesWindow(Surface):
                 item.setIcon(0,icon(symbol))
                 for col in (1,2,3,4,5):item.setTextAlignment(col,Qt.AlignRight|Qt.AlignVCenter)
             item.setToolTip(0,f"{r['name']} · {STATES.get(r['state'],r['state'])}")
-            item.setForeground(0,ThemeColor('#E3B978' if r['state'] in ('T','t') else '#E1EBFA'))
+            item.setForeground(0,color('warning' if r['state'] in ('T','t') else 'text'))
             self.items[key]=item
         def detach(item):
             parent=item.parent()

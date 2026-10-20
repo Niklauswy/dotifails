@@ -29,8 +29,10 @@ def start_lock(owner, suspend=False):
     from ui_motion import reduced_motion
     environment=QProcessEnvironment.systemEnvironment()
     environment.insert('ORBIT_REDUCED_MOTION','1' if reduced_motion(window) else '0')
-    from theme_tokens import theme_id
+    from theme_tokens import theme_id,tokens
     environment.insert('ORBIT_THEME',theme_id())
+    # Space Black keeps its historical lock colour; Fluent locks on its own canvas.
+    if tokens()['style']!='space-black':environment.insert('WYSUN_LOCK_COLOR',tokens()['canvas'][1:7])
     process.setProcessEnvironment(environment)
     if buttons:buttons[0].setEnabled(False)
     finished=False

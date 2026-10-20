@@ -1,5 +1,5 @@
 """Independent connection center: NetworkManager, BlueZ and SSH."""
-from theme_tokens import ThemeColor, apply_style
+from theme_tokens import apply_style
 
 import json,os,re,subprocess,time
 from pathlib import Path
@@ -25,7 +25,7 @@ class ConnectionsWindow(Surface):
         from enhanced import ModernDelegate
         self.list=QListWidget();self.list.setItemDelegate(ModernDelegate());apply_style(self.list,'QListWidget {padding:0;}');self.list.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff);self.list.setSpacing(3);self.list.currentRowChanged.connect(self.selection_changed);self.list.itemActivated.connect(self.activate);ll.addWidget(self.list,1);self.empty=text_label('Consultando conexiones…','subtitle');self.empty.setAlignment(Qt.AlignCenter);ll.addWidget(self.empty,1)
         self.add=button('Red oculta…',self.add_item,symbol='plus');ll.addWidget(self.add);self.advanced=button('Administrar perfiles',self.advanced_settings,symbol='settings');ll.addWidget(self.advanced);middle.addWidget(left)
-        line=QFrame();line.setFixedWidth(1);apply_style(line,'background:rgba(160,170,195,26);');middle.addWidget(line)
+        line=QFrame();line.setFixedWidth(1);apply_style(line,'background:@divider;');middle.addWidget(line)
         self.inspector=QWidget();pr=QVBoxLayout(self.inspector);pr.setContentsMargins(0,0,0,0);pr.setSpacing(13);hero=QHBoxLayout();self.detail_icon=QLabel();self.detail_icon.setFixedSize(45,45);hero.addWidget(self.detail_icon);title_stack=QVBoxLayout();title_stack.setSpacing(4);self.detail_title=text_label('Selecciona una conexión','title');apply_style(self.detail_title,'font-size:19px; font-weight:600;');self.detail_title.setMaximumHeight(60);title_stack.addWidget(self.detail_title);self.detail_state=text_label('Sus detalles aparecerán aquí.','subtitle');title_stack.addWidget(self.detail_state);hero.addLayout(title_stack,1);pr.addLayout(hero)
         self.metrics=QHBoxLayout();self.metrics.setSpacing(10);pr.addLayout(self.metrics)
         scroll=QScrollArea();scroll.setWidgetResizable(True);scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff);container=QWidget();container.setObjectName('page');self.info_form=QFormLayout(container);self.info_form.setContentsMargins(0,2,6,3);self.info_form.setVerticalSpacing(12);self.info_form.setHorizontalSpacing(20);self.info_form.setFieldGrowthPolicy(QFormLayout.AllNonFixedFieldsGrow);scroll.setWidget(container);pr.addWidget(scroll,1)
@@ -91,7 +91,7 @@ class ConnectionsWindow(Surface):
         while self.info_form.rowCount():self.info_form.removeRow(0)
         if not r:
             self.detail_icon.setPixmap(badge(self.mode,44));self.detail_title.setText('Selecciona una conexión');self.detail_state.setText('Detalles y controles sin abrir otro menú.');self.primary.hide();return
-        self.primary.show();self.detail_icon.setPixmap(badge(r.get('icon',self.mode),44));self.detail_title.setText(r['title']);connected=r.get('connected');self.detail_state.setText('Conectado' if connected else 'Emparejado · disponible' if r.get('paired') else 'Conexión guardada' if r['kind'] in ('ssh','profile') else 'Disponible');apply_style(self.detail_state,'color:#8FCDA9;' if connected else 'color:#A8ADBD;')
+        self.primary.show();self.detail_icon.setPixmap(badge(r.get('icon',self.mode),44));self.detail_title.setText(r['title']);connected=r.get('connected');self.detail_state.setText('Conectado' if connected else 'Emparejado · disponible' if r.get('paired') else 'Conexión guardada' if r['kind'] in ('ssh','profile') else 'Disponible');apply_style(self.detail_state,'color:@success;' if connected else 'color:@muted;')
         self.primary.setText('Abrir terminal SSH' if r['kind']=='ssh' else 'Desconectar' if connected else 'Emparejar dispositivo' if r['kind']=='bluetooth' and not r['paired'] else 'Conectar')
         info=[];metrics=[];actions=[];cached=self.detail_cache.get(identity(r),{}).get('data',{})
         if r['kind']=='wifi':
@@ -114,7 +114,7 @@ class ConnectionsWindow(Surface):
             if r['kind']=='profile':actions.append(('Olvidar conexión',lambda row=dict(r):self.forget(row),'trash','danger'))
         actions.append(('Copiar datos',self.copy_details,'copy',''))
         for title,value in metrics:
-            box=QWidget();apply_style(box,'background:rgba(160,175,215,9);border-radius:7px;');layout=QVBoxLayout(box);layout.setContentsMargins(11,9,11,9);layout.setSpacing(5);label=text_label(title,'subtitle');apply_style(label,'font-size:10px;color:#939AAC;background:transparent');layout.addWidget(label);value_label=text_label(value);apply_style(value_label,'font-size:14px;font-weight:600;background:transparent');layout.addWidget(value_label);self.metrics.addWidget(box,1)
+            box=QWidget();apply_style(box,'background:@card;border-radius:@radius_s;');layout=QVBoxLayout(box);layout.setContentsMargins(11,9,11,9);layout.setSpacing(5);label=text_label(title,'subtitle');apply_style(label,'font-size:10px;color:@subtle;background:transparent');layout.addWidget(label);value_label=text_label(value);apply_style(value_label,'font-size:14px;font-weight:600;background:transparent');layout.addWidget(value_label);self.metrics.addWidget(box,1)
         seen=set();self.visible_details=[]
         for key,value in info:
             if key in seen:continue
@@ -212,17 +212,17 @@ class PowerWindow(Surface):
         from power_widgets import BatteryGauge,SessionAction
         self.outer.setContentsMargins(28,22,28,22);self.outer.setSpacing(18)
         hero=QHBoxLayout();hero.setSpacing(20)
-        self.clock_label=text_label('');apply_style(self.clock_label,'font-size:68px;font-weight:500;letter-spacing:-3px;color:#F0F5FF;');self.clock_label.setWordWrap(False);hero.addWidget(self.clock_label)
-        self.date_label=text_label('');self.date_label.setAlignment(Qt.AlignRight|Qt.AlignVCenter);apply_style(self.date_label,'color:#AABBD5;font-size:14px;');hero.addWidget(self.date_label,1);self.outer.addLayout(hero)
-        card=QFrame();card.setObjectName('batteryCard');apply_style(card,'QFrame#batteryCard{background:rgba(142,184,247,9);border:1px solid #334660;border-radius:20px;}')
+        self.clock_label=text_label('');apply_style(self.clock_label,'font-size:68px;font-weight:500;letter-spacing:-3px;color:@text_strong;');self.clock_label.setWordWrap(False);hero.addWidget(self.clock_label)
+        self.date_label=text_label('');self.date_label.setAlignment(Qt.AlignRight|Qt.AlignVCenter);apply_style(self.date_label,'color:@glyph_muted;font-size:14px;');hero.addWidget(self.date_label,1);self.outer.addLayout(hero)
+        card=QFrame();card.setObjectName('batteryCard');apply_style(card,'QFrame#batteryCard{background:@card;border:@border solid @card_line;border-radius:@radius_l;}')
         energy=QHBoxLayout(card);energy.setContentsMargins(14,14,22,14);energy.setSpacing(18)
         self.gauge=BatteryGauge();energy.addWidget(self.gauge)
         details=QVBoxLayout();details.setSpacing(5)
-        top=QHBoxLayout();self.battery_label=text_label('');apply_style(self.battery_label,'font-size:34px;font-weight:600;color:#E2EDFF;');top.addWidget(self.battery_label)
+        top=QHBoxLayout();self.battery_label=text_label('');apply_style(self.battery_label,'font-size:34px;font-weight:600;color:@text;');top.addWidget(self.battery_label)
         title=text_label('BATERÍA','eyebrow');top.addWidget(title,1,Qt.AlignRight);details.addLayout(top)
         self.battery_status=text_label('');details.addWidget(self.battery_status)
         self.estimate=text_label('','subtitle');details.addWidget(self.estimate)
-        self.health=text_label('','subtitle');apply_style(self.health,'font-size:11px;color:#8FA6C7;');details.addWidget(self.health)
+        self.health=text_label('','subtitle');apply_style(self.health,'font-size:11px;color:@section;');details.addWidget(self.health)
         energy.addLayout(details,1);self.outer.addWidget(card)
         self.battery_bar=QProgressBar(self);self.battery_bar.setRange(0,100);self.battery_bar.hide()
         self.outer.addWidget(text_label('CONTROLES DE LA SESIÓN','eyebrow'))
@@ -235,8 +235,8 @@ class PowerWindow(Surface):
             b.clicked.connect(lambda checked=False,r=action:self.trigger(r));b.installEventFilter(self);self.action_buttons.append(b)
             (primary if i<2 else secondary).addWidget(b,1)
         self.outer.addLayout(primary);self.outer.addLayout(secondary)
-        footer=QHBoxLayout();self.uptime_label=text_label('','subtitle');apply_style(self.uptime_label,'color:#8EA3C1;font-size:11px;');footer.addWidget(self.uptime_label,1)
-        hint=text_label('Flechas · Enter · Esc','subtitle');apply_style(hint,'font-size:10px;color:#8EA3C1;');footer.addWidget(hint);self.outer.addLayout(footer)
+        footer=QHBoxLayout();self.uptime_label=text_label('','subtitle');apply_style(self.uptime_label,'color:@section;font-size:11px;');footer.addWidget(self.uptime_label,1)
+        hint=text_label('Flechas · Enter · Esc','subtitle');apply_style(hint,'font-size:10px;color:@section;');footer.addWidget(hint);self.outer.addLayout(footer)
         self.clock_timer=QTimer(self);self.clock_timer.setInterval(1000);self.clock_timer.timeout.connect(self.update_clock)
     @staticmethod
     def uptime_text(seconds):
@@ -265,7 +265,7 @@ class PowerWindow(Surface):
         self.battery_bar.setValue(capacity if capacity is not None else 0);self.gauge.set_value(capacity,status=='Charging')
         statuses={'Charging':'Conectado · cargando','Discharging':'Usando la batería','Full':'Carga completa','Not charging':'Conectado · sin cargar','Unknown':'Estado no disponible'}
         self.battery_status.setText('Batería no disponible' if capacity is None else 'Batería baja · conecta el cargador' if capacity<=20 and status=='Discharging' else statuses.get(status,'Estado no disponible'))
-        apply_style(self.battery_status,'color:#F0B196;' if capacity is not None and capacity<=20 and status=='Discharging' else 'color:#BBD1EC;')
+        apply_style(self.battery_status,'color:@warning;' if capacity is not None and capacity<=20 and status=='Discharging' else 'color:@accent;')
         self.estimate.setText(time_estimate(data['hours'],status=='Charging') if capacity is not None else 'Este equipo no reporta una batería')
         specs=[]
         if data['watts'] is not None:specs.append(f"{data['watts']:.1f} W")

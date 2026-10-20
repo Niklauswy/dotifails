@@ -4,10 +4,11 @@ from PySide6.QtGui import QPainter,QColor,QPen,QFont,QIcon
 from PySide6.QtWidgets import QMenu,QStyle,QStyleOptionButton
 from ui_motion import MotionButton
 from icons import icon
+from theme_tokens import color, tokens
 
 class ActionMenu(QMenu):
     def command(self,symbol,title,callback,shortcut=''):
-        action=self.addAction(icon(symbol,18,'#d9dce3'),title+('\t'+shortcut if shortcut else ''),callback)
+        action=self.addAction(icon(symbol,18,'glyph'),title+('\t'+shortcut if shortcut else ''),callback)
         action.setIconVisibleInMenu(True);return action
     def section(self,title):
         action=self.addSection(title);return action
@@ -21,8 +22,8 @@ class CopyButton(MotionButton):
     def _content_rect(self,option):return super()._content_rect(option).adjusted(0,0,-26,0)
     def _paint_label(self,painter,option):
         super()._paint_label(painter,option);x=self.width()-28
-        painter.setPen(QPen(QColor(255,255,255,28),1));painter.drawLine(x,8,x,self.height()-8)
-        icon('chevron-down',14,'#b9bdc8').paint(painter,x+6,(self.height()-14)//2,14,14)
+        painter.setPen(QPen(color('tint',28),1));painter.drawLine(x,8,x,self.height()-8)
+        icon('chevron-down',14,'chevron').paint(painter,x+6,(self.height()-14)//2,14,14)
     def mousePressEvent(self,event):
         if event.button()==Qt.LeftButton and event.position().x()>=self.width()-28:
             self._menu_press=True;self.setDown(True);self.pressed.emit();event.accept();return
@@ -43,7 +44,7 @@ class ColorValueRow(MotionButton):
     def set_value(self,value):
         self.value=value;self.setText(self.name+' '+value);self.setAccessibleName(f'Copiar {self.name}: {value}. {self.shortcut_prefix}{self.number}');self.setToolTip(f'Copiar {self.name} · {self.shortcut_prefix}{self.number}');self.update()
     def _paint_label(self,painter,option):
-        rect=self._content_rect(option);painter.setFont(self.font());painter.setPen(QColor('#9da1ac'));painter.drawText(rect.adjusted(0,0,-1,0),Qt.AlignLeft|Qt.AlignVCenter,self.name)
-        font=QFont('DejaVu Sans Mono');font.setPixelSize(11 if rect.width()<360 else 12);painter.setFont(font);painter.setPen(QColor('#eceef3'));painter.drawText(rect.adjusted(44 if rect.width()<360 else 56,0,-64 if rect.width()>=360 else 0,0),Qt.AlignLeft|Qt.AlignVCenter,self.value)
-        painter.setFont(self.font());painter.setPen(QColor('#80858f'));
+        rect=self._content_rect(option);painter.setFont(self.font());painter.setPen(color('muted'));painter.drawText(rect.adjusted(0,0,-1,0),Qt.AlignLeft|Qt.AlignVCenter,self.name)
+        font=QFont(tokens()['font_mono'][0]);font.setPixelSize(11 if rect.width()<360 else 12);painter.setFont(font);painter.setPen(color('text'));painter.drawText(rect.adjusted(44 if rect.width()<360 else 56,0,-64 if rect.width()>=360 else 0,0),Qt.AlignLeft|Qt.AlignVCenter,self.value)
+        painter.setFont(self.font());painter.setPen(color('subtle'));
         if rect.width()>=360:painter.drawText(rect,Qt.AlignRight|Qt.AlignVCenter,f'{self.shortcut_prefix}{self.number}')

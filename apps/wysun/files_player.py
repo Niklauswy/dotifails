@@ -4,7 +4,8 @@ from PySide6.QtGui import QKeySequence, QShortcut, QIcon, QPixmap, QPainter
 from PySide6.QtWidgets import QHBoxLayout, QVBoxLayout, QSlider, QLabel, QWidget
 from file_viewer import VideoPlayer
 from files_motion import SoftButton, reduced_motion
-from files_visuals import STYLE, COLORS, TOKENS
+from files_visuals import STYLE, TOKENS
+from theme_tokens import apply_style
 
 _SYMBOLS = {
     'play': '<path d="m9 5 10 7-10 7z"/>',
@@ -16,13 +17,15 @@ _SYMBOLS = {
     'audio': '<path d="M9 18V5l11-2v12M9 8l11-2"/><ellipse cx="6" cy="18" rx="3" ry="2"/><ellipse cx="17" cy="15" rx="3" ry="2"/>',
 }
 
-def transport_icon(symbol, color=None, size=20):
-    color = color or COLORS['text']
+def transport_icon(symbol, color='text', size=20):
+    """Media control icon; ``color`` is a theme token (or explicit '#rrggbb')."""
+    from icons import tint, remember
+    token, color = color, tint(color)
     data = (f'<svg xmlns="http://www.w3.org/2000/svg" width="{size*2}" height="{size*2}" '
             f'viewBox="0 0 24 24" fill="none" stroke="{color}" stroke-width="1.8" '
             f'stroke-linecap="round" stroke-linejoin="round">{_SYMBOLS[symbol]}</svg>')
     pixmap = QPixmap(); pixmap.loadFromData(data.encode(), 'SVG'); pixmap.setDevicePixelRatio(2)
-    return QIcon(pixmap)
+    return remember(QIcon(pixmap), transport_icon, (symbol, token, size))
 
 class TransportButton(SoftButton):
     """Native button with a short interruptible crossfade between transport states."""
@@ -57,22 +60,22 @@ class InlinePlayer(VideoPlayer):
         self.fullscreen=False; self.audio=audio
         super().__init__(path,parent)
         self.setObjectName('inlineMedia'); self.setMinimumWidth(0)
-        self.setStyleSheet(STYLE+f'''
-            QWidget#inlineMedia, QWidget#mediaAudio {{ background: transparent; border: none; }}
-            QWidget#mediaControls {{ background: rgba(245,247,250,210); border: 1px solid rgba(255,255,255,190); border-radius: 12px; }}
-            QPushButton#mediaPlay {{ background: {COLORS['surface']}; border: 1px solid {COLORS['border']}; border-radius: 19px; padding: 0; }}
-            QPushButton#mediaPlay:hover {{ background: {COLORS['hover']}; }}
-            QPushButton#mediaPlay:pressed {{ background: {COLORS['pressed']}; }}
-            QPushButton#mediaControl {{ border-radius: 8px; padding: 0; }}
-            QPushButton#mediaControl:focus, QPushButton#mediaPlay:focus {{ border: 1px solid {COLORS['focus']}; }}
-            QLabel#mediaTime {{ color: {COLORS['muted']}; font-size: 11px; }}
-            QLabel#mediaStatus {{ color: {COLORS['muted']}; font-size: 11px; padding: 4px 2px; }}
-            QSlider#mediaPosition, QSlider#mediaVolume {{ background: transparent; border: none; }}
-            QSlider#mediaPosition::groove:horizontal, QSlider#mediaVolume::groove:horizontal {{ height: 3px; background: #cbd3dd; border-radius: 1px; }}
-            QSlider#mediaPosition::handle:horizontal, QSlider#mediaVolume::handle:horizontal {{ width: 8px; background: {COLORS['paper']}; border: 2px solid {COLORS['accent']}; margin: -5px 0; border-radius: 6px; }}
+        apply_style(self,STYLE+'''
+            QWidget#inlineMedia, QWidget#mediaAudio { background: transparent; border: none; }
+            QWidget#mediaControls { background: @surface/210; border: 1px solid @material_edge; border-radius: 12px; }
+            QPushButton#mediaPlay { background: @surface; border: 1px solid @line; border-radius: 19px; padding: 0; }
+            QPushButton#mediaPlay:hover { background: @hover; }
+            QPushButton#mediaPlay:pressed { background: @pressed; }
+            QPushButton#mediaControl { border-radius: 8px; padding: 0; }
+            QPushButton#mediaControl:focus, QPushButton#mediaPlay:focus { border: 1px solid @focus; }
+            QLabel#mediaTime { color: @muted; font-size: 11px; }
+            QLabel#mediaStatus { color: @muted; font-size: 11px; padding: 4px 2px; }
+            QSlider#mediaPosition, QSlider#mediaVolume { background: transparent; border: none; }
+            QSlider#mediaPosition::groove:horizontal, QSlider#mediaVolume::groove:horizontal { height: 3px; background: @track; border-radius: 1px; }
+            QSlider#mediaPosition::handle:horizontal, QSlider#mediaVolume::handle:horizontal { width: 8px; background: @surface; border: 2px solid @accent; margin: -5px 0; border-radius: 6px; }
         ''')
         self.surface.setMinimumHeight(100); self.surface.setVisible(not audio)
-        self.surface.setProperty('orbitOriginalStyle',None); self.surface.setStyleSheet('background: #11161e;')
+        apply_style(self.surface,'background: #11161e;')  # theme-exception: lienzo oscuro de vídeo
         layout=self.layout(); layout.setSpacing(8)
         original_controls=layout.takeAt(1).layout()
         for widget in (self.play_button,self.position,self.time_label,self.mute): original_controls.removeWidget(widget)
@@ -100,7 +103,7 @@ class InlinePlayer(VideoPlayer):
         row.addWidget(self.volume); row.addWidget(self.full_button); panel.addLayout(row)
         if audio:
             self.audio_art=QLabel(); self.audio_art.setObjectName('mediaAudio')
-            self.audio_art.setPixmap(transport_icon('audio',COLORS['muted'],48).pixmap(48,48))
+            self.audio_art.setPixmap(transport_icon('audio','muted',48).pixmap(48,48))
             self.audio_art.setAlignment(Qt.AlignCenter); self.audio_art.setMinimumHeight(110)
             layout.insertWidget(0,self.audio_art,1)
         layout.addWidget(self.control_panel)

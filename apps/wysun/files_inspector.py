@@ -4,6 +4,7 @@ from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPlainTextEdit
 from files_motion import SoftButton
+from theme_tokens import apply_style
 from files_zoom import ZoomCanvas
 from file_media import FilePreviewJob, file_kind, duration_label
 
@@ -43,7 +44,7 @@ class SelectionPreview(QWidget):
         self.canvas.setSizePolicy(QSizePolicy.Ignored,QSizePolicy.Ignored)
         layout.addWidget(self.canvas,1)
         self.text=QPlainTextEdit();self.text.setReadOnly(True);self.text.setAccessibleName('Contenido del documento')
-        self.text.setStyleSheet('QPlainTextEdit { background: #f5f6f8; color: #243247; border: 1px solid #dce4ee; border-radius: 8px; padding: 10px; selection-background-color: #dceaff; }')
+        apply_style(self.text,'QPlainTextEdit { background: @well; color: @text; border: 1px solid @line; border-radius: 8px; padding: 10px; selection-background-color: @selection; selection-color: @selection_text; }')
         layout.addWidget(self.text,1);self.text.hide()
         self.metadata=QLabel();self.metadata.setWordWrap(True);layout.addWidget(self.metadata)
         row=QHBoxLayout();self.previous=SoftButton('Anterior');self.next=SoftButton('Siguiente');self.counter=QLabel()

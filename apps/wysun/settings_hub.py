@@ -1,5 +1,5 @@
 """Wysun's complete desktop settings surface."""
-from theme_tokens import ThemeColor, apply_style
+from theme_tokens import apply_style, extend_style, color
 
 import copy
 import json
@@ -38,9 +38,9 @@ class DisplayCanvas(QWidget):
         return logical_size(p)
     def paintEvent(self,event):
         from display_layout import order
-        painter=QPainter(self);painter.setRenderHint(QPainter.Antialiasing);painter.setPen(Qt.NoPen);painter.setBrush(ThemeColor('#191B24'));painter.drawRoundedRect(self.rect(),14,14)
+        painter=QPainter(self);painter.setRenderHint(QPainter.Antialiasing);painter.setPen(Qt.NoPen);painter.setBrush(color('inset'));painter.drawRoundedRect(self.rect(),14,14)
         active=[p for p in self.plan if p['enabled']];self.rects={}
-        if not active:painter.setPen(ThemeColor('#979BAD'));painter.drawText(self.rect(),Qt.AlignCenter,'Detectando pantallas…');return
+        if not active:painter.setPen(color('subtle'));painter.drawText(self.rect(),Qt.AlignCenter,'Detectando pantallas…');return
         if not self.drag:
             minx=min(p['x'] for p in active);miny=min(p['y'] for p in active)
             maxx=max(p['x']+self.geometry_for(p)[0] for p in active);maxy=max(p['y']+self.geometry_for(p)[1] for p in active)
@@ -50,12 +50,12 @@ class DisplayCanvas(QWidget):
         for p in sorted(active,key=lambda p:p['name']==self.current):
             w,h=self.geometry_for(p);r=QRectF(ox+p['x']*self.scale,oy+p['y']*self.scale,w*self.scale,h*self.scale).adjusted(3,3,-3,-3);self.rects[p['name']]=r
             chosen=p['name']==self.current
-            painter.setPen(QPen(ThemeColor('#B9AEDC' if chosen else '#52586C'),2 if chosen else 1));painter.setBrush(ThemeColor('#363144' if chosen else '#242833'));painter.drawRoundedRect(r,10,10)
-            badge=QRectF(r.left()+10,r.top()+10,24,24);painter.setPen(Qt.NoPen);painter.setBrush(ThemeColor('#B9AEDC' if chosen else '#3A3F50'));painter.drawEllipse(badge)
-            painter.setPen(ThemeColor('#16151C' if chosen else '#E8EAF0'));painter.setFont(QFont('Inter',10,QFont.Bold));painter.drawText(badge,Qt.AlignCenter,str(numbers.get(p['name'],'')))
-            painter.setPen(ThemeColor('#E8EAF0'));painter.setFont(QFont('Inter',12,QFont.DemiBold));painter.drawText(r.adjusted(6,0,-6,-14),Qt.AlignCenter,p['name'])
+            painter.setPen(QPen(color('accent_alt' if chosen else 'line_strong'),2 if chosen else 1));painter.setBrush(color('chosen_fill' if chosen else 'surface_raised'));painter.drawRoundedRect(r,10,10)
+            badge=QRectF(r.left()+10,r.top()+10,24,24);painter.setPen(Qt.NoPen);painter.setBrush(color('accent_alt' if chosen else 'track'));painter.drawEllipse(badge)
+            painter.setPen(color('on_accent' if chosen else 'text'));painter.setFont(QFont('Inter',10,QFont.Bold));painter.drawText(badge,Qt.AlignCenter,str(numbers.get(p['name'],'')))
+            painter.setPen(color('text'));painter.setFont(QFont('Inter',12,QFont.DemiBold));painter.drawText(r.adjusted(6,0,-6,-14),Qt.AlignCenter,p['name'])
             detail=p['mode'].replace('x','×')+(' · '+('%g' % float(p.get('scale',1)))+'×' if float(p.get('scale',1) or 1)!=1 else '')+(' · Principal' if p['primary'] else '')
-            painter.setFont(QFont('Inter',9));painter.setPen(ThemeColor('#A7ACBC'));painter.drawText(r.adjusted(4,30,-4,0),Qt.AlignCenter,detail)
+            painter.setFont(QFont('Inter',9));painter.setPen(color('muted'));painter.drawText(r.adjusted(4,30,-4,0),Qt.AlignCenter,detail)
     def mousePressEvent(self,e):
         if e.button()!=Qt.LeftButton:return
         for name,r in sorted(self.rects.items(),key=lambda item:item[0]!=self.current):
@@ -76,7 +76,7 @@ class SettingsHub(LegacySettingsWindow):
         Surface.__init__(self,'Ajustes del escritorio','',1120,740)
         self.setMinimumSize(920,620);self.test=test;self.jobs=[];self.inventory=[];self.display_draft=[];self.trial=None;self.widgets={};self.rules=[];self.extra_shortcuts=[];self.extra_loaded=False;self.routes={};self.page_titles={};self.component_controls={}
         self.env=EnvironmentSettings(home);self.backend=DesktopSettings(home);self.shortcuts=ShortcutFile(home);self.rules=copy.deepcopy(self.backend.saved.get('rules',[]))
-        apply_style(self,self.styleSheet()+'''QListWidget#navigation::item {padding:8px 10px;margin:1px 0;} QListWidget#navigation::item:selected {background:#343242;color:#ECE8F8;} QLabel#section-note {color:#999DAC;font-size:12px;} QTableWidget::item {padding:8px;}''')
+        extend_style(self,'''QListWidget#navigation::item {padding:8px 10px;margin:1px 0;} QListWidget#navigation::item:selected {background:@nav_selected;color:@selection_text;} QLabel#section-note {color:@subtle;font-size:12px;} QTableWidget::item {padding:8px;}''')
         middle=QHBoxLayout();middle.setSpacing(24);sidebar=QVBoxLayout();sidebar.setSpacing(10);self.nav_search=QLineEdit();self.nav_search.setPlaceholderText('Buscar ajuste…');self.nav_search.setFixedWidth(190);sidebar.addWidget(self.nav_search);self.nav=QListWidget();self.nav.setObjectName('navigation');self.nav.setFixedWidth(190);self.nav.setIconSize(QSize(18,18));self.nav.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff);sidebar.addWidget(self.nav,1);middle.addLayout(sidebar);self.pages=QStackedWidget();middle.addWidget(self.pages,1);self.outer.addLayout(middle,1)
         builders=[('home','Resumen','settings',self.build_home),('displays','Pantallas','monitor',self.build_displays),('workspaces','Escritorios','panels-top-left',self.build_workspaces),('wallpaper','Tema','palette',self.build_wallpaper),('shortcuts','Atajos','keyboard',self.build_shortcuts),('rules','Reglas de ventanas','panels-top-left',self.build_rules),('effects','Efectos y animaciones','sliders-horizontal',lambda:self.build_component('effects')),('terminal','Terminal','terminal',lambda:self.build_component('terminal')),('startup','Inicio y aplicaciones','circle-play',self.build_startup),('files','Archivos y copias','files',self.build_files)]
         for key,title,symbol,build in builders:
@@ -94,7 +94,7 @@ class SettingsHub(LegacySettingsWindow):
         if job in self.jobs:self.jobs.remove(job)
         job.deleteLater()
     def report_error(self,message):
-        if hasattr(self,'status'):self.status.setText(message[:260]);apply_style(self.status,'color:#EDAAA7')
+        if hasattr(self,'status'):self.status.setText(message[:260]);apply_style(self.status,'color:@danger')
     def success(self,message):apply_style(self.status,'');self.status.setText(message);self.render_backups()
     def go(self,key):self.nav.setCurrentRow(self.routes[key])
     def section(self):return next((key for key,index in self.routes.items() if index==self.pages.currentIndex()),'home')
@@ -119,7 +119,7 @@ class SettingsHub(LegacySettingsWindow):
         layout=self.page();self.page_heading(layout,'Resumen');grid=QGridLayout();grid.setSpacing(12)
         entries=[('wallpaper','Tema','','palette'),('displays','Pantallas','','monitor'),('workspaces','Escritorios','','panels-top-left'),('shortcuts','Atajos','','keyboard'),('effects','Efectos y animaciones','','sliders-horizontal'),('terminal','Terminal','','terminal')]
         for i,(key,title,note,symbol) in enumerate(entries):
-            b=button(title,lambda k=key:self.go(k),symbol=symbol);b.setMinimumHeight(72);apply_style(b,'QPushButton {text-align:left;padding:16px;background:#242630;border:1px solid #363947;border-radius:10px;} QPushButton:hover {background:#2E3040;border-color:#6A6482;}');grid.addWidget(b,i//2,i%2)
+            b=button(title,lambda k=key:self.go(k),symbol=symbol);b.setMinimumHeight(72);apply_style(b,'QPushButton {text-align:left;padding:16px;background:@tile;border:@border solid @tile_line;border-radius:@radius_control;} QPushButton:hover {background:@tile_hover;border-color:@tile_hover_line;} QPushButton:focus {border:@focus_width solid @focus;}');grid.addWidget(b,i//2,i%2)
         layout.addLayout(grid);links=QHBoxLayout()
         for title,mode,symbol in [('Conexiones','network','wifi'),('Sonido','audio','volume-2'),('Sesión','power','power')]:links.addWidget(button(title,lambda m=mode:launch([str(self.env.home/'.local/bin/orbit'),m]),symbol=symbol))
         layout.addLayout(links);self.overview=text_label('','subtitle');self.overview.hide();layout.addStretch()
@@ -133,7 +133,7 @@ class SettingsHub(LegacySettingsWindow):
         for label,direction,symbol in [('A la izquierda','left','arrow-left'),('A la derecha','right','arrow-right'),('Arriba','above','arrow-up'),('Abajo','below','arrow-down')]:
             arrange.addWidget(button(label,lambda d=direction:self.move_display(d),symbol=symbol))
         arrange.addStretch(1);self.display_order=text_label('','subtitle');self.display_order.setWordWrap(False);arrange.addWidget(self.display_order);layout.addLayout(arrange)
-        card=QFrame();card.setObjectName('display-card');apply_style(card,'QFrame#display-card{background:rgba(255,255,255,8);border:1px solid #2E3240;border-radius:12px;}')
+        card=QFrame();card.setObjectName('display-card');apply_style(card,'QFrame#display-card{background:@card;border:@border solid @tile_line;border-radius:@radius_m;}')
         grid=QGridLayout(card);grid.setContentsMargins(16,14,16,14);grid.setHorizontalSpacing(14);grid.setVerticalSpacing(6)
         self.output_combo=QComboBox();self.output_combo.currentIndexChanged.connect(lambda:self.load_display_controls())
         self.output_enabled=QCheckBox('Encendida');self.output_primary=QCheckBox('Principal (foco al iniciar)')
@@ -231,32 +231,37 @@ class SettingsHub(LegacySettingsWindow):
         self.start_job(work,lambda _:None)
 
     def build_wallpaper(self):
-        from theme_tokens import theme_id
-        from theme_widgets import ThemeChoice
-        layout=self.page();self.page_heading(layout,'Tema')
-        self.theme_selected=theme_id(self.env.home);self.theme_choices={};row=QHBoxLayout();row.setSpacing(18)
-        for key in ('tokyo','severance','space-black'):
-            card=ThemeChoice(key,self.env.home);card.clicked.connect(lambda checked=False,k=key:self.select_theme(k));self.theme_choices[key]=card;row.addWidget(card,1)
-        layout.addLayout(row);self.theme_summary=text_label('','subtitle');layout.addWidget(self.theme_summary);layout.addStretch(1)
+        import theme_core
+        from theme_widgets import ThemePicker
+        layout=self.page();self.page_heading(layout,'Tema','Elige un estilo y su variante. Se aplica en vivo a Wysun, la barra, Recorder y Screenshot.')
+        self.theme_selected=theme_core.selection(self.env.home)
+        self.theme_picker=ThemePicker(self.env.home,*self.theme_selected);self.theme_picker.changed.connect(lambda style,variant:self.select_theme((style,variant)))
+        layout.addWidget(self.theme_picker);self.theme_summary=text_label('','subtitle');layout.addWidget(self.theme_summary);layout.addStretch(1)
         # Keep old monitor-refresh routing compatible; wallpaper controls are no longer exposed.
         self.wallpaper_target=QComboBox();self.wallpaper_target.hide()
         self.wallpaper_values=self.env.wallpaper_values();self.refresh_theme_selection()
+    def theme_label(self,selection):
+        import theme_core
+        values=theme_core.resolve(*selection)
+        return values['style_name']+(' · '+values['name'] if values['name']!=values['style_name'] else '')
     def refresh_theme_selection(self):
-        from theme_tokens import theme_id,THEMES
-        active=theme_id(self.env.home)
-        for key,card in self.theme_choices.items():card.setChecked(key==self.theme_selected);card.update()
-        chosen=THEMES[self.theme_selected];self.theme_summary.setText(('Activo · ' if self.theme_selected==active else 'Seleccionado · ')+chosen['name'])
+        import theme_core
+        active=theme_core.selection(self.env.home)
+        self.theme_picker.set_selection(*self.theme_selected)
+        self.theme_summary.setText(('Activo · ' if tuple(self.theme_selected)==tuple(active) else 'Seleccionado · pulsa Aplicar cambios · ')+self.theme_label(self.theme_selected))
     def select_theme(self,key):
-        self.theme_selected=key;self.refresh_theme_selection()
+        import theme_core
+        self.theme_selected=theme_core.parse(key) if isinstance(key,str) else theme_core.normalize(*key);self.refresh_theme_selection()
     def apply_wallpaper(self):
         from theme_runtime import apply_theme
         self.apply_button.setEnabled(False);self.status.setText('Aplicando el tema completo…')
         def complete(result):
-            from theme_tokens import refresh_widgets,THEMES
+            from theme_tokens import refresh_widgets
             self.env.reload();self.backend.reload();self.wallpaper_values=self.env.wallpaper_values();refresh_widgets();self.refresh_theme_selection()
             self.load_values()
-            self.success(THEMES[result['theme']]['name']+' aplicado.'+(' Algunos componentes necesitan recargarse: '+', '.join(result['warnings']) if result['warnings'] else ''))
-        job=self.start_job(lambda:apply_theme(self.env.home,self.theme_selected,self.env.runner),complete);job.finished.connect(lambda:self.apply_button.setEnabled(True))
+            self.success(result['name']+' aplicado.'+(' Algunos componentes necesitan recargarse: '+', '.join(result['warnings']) if result['warnings'] else ''))
+        selected=tuple(self.theme_selected)
+        job=self.start_job(lambda:apply_theme(self.env.home,selected,self.env.runner),complete);job.finished.connect(lambda:self.apply_button.setEnabled(True))
 
     def build_bar(self):
         layout=self.page();self.page_heading(layout,'Una barra que encaja contigo','Elige dónde aparece, ordena los módulos y ajusta el acabado.');form=self.scroll_form(layout)
@@ -377,7 +382,7 @@ class SettingsHub(LegacySettingsWindow):
             if query not in ' '.join(str(record.get(key,'')) for key in ('key','title','command','scope')).casefold():continue
             self.add_table_row(self.table,[record['key'],record['title'],record['scope']],record)
             if duplicate:
-                item=self.table.item(self.table.rowCount()-1,0);item.setForeground(ThemeColor('#E9BD93'));item.setToolTip('Combinación repetida. Edita una de las entradas o elimina la que no utilices.')
+                item=self.table.item(self.table.rowCount()-1,0);item.setForeground(color('warning'));item.setToolTip('Combinación repetida. Edita una de las entradas o elimina la que no utilices.')
         if self.table.rowCount():self.table.selectRow(0)
         self.shortcut_selected()
     def selected_shortcut(self):return self.table_selection(self.table)
@@ -418,7 +423,7 @@ class SettingsHub(LegacySettingsWindow):
             return
         schemas={
             'effects':[('duration','Duración de animaciones','int',50,600,120,' ms'),('corner-radius','Esquinas','int',0,30,12,' px'),('shadow','Sombras','bool',0,0,True,''),('shadow-radius','Tamaño de sombra','int',0,40,18,' px'),('shadow-opacity','Opacidad de sombra','float',0,1,.25,''),('blur-background','Desenfoque de fondo','bool',0,0,True,''),('blur-strength','Intensidad de desenfoque','int',1,8,3,''),('fading','Fundido al aparecer','bool',0,0,True,''),('vsync','Sincronización vertical','bool',0,0,True,'')],
-            'terminal':[('font-family','Fuente','text',0,0,'FiraCode Nerd Font',''),('font-size','Tamaño','float',8,36,20,' pt'),('background-opacity','Opacidad del fondo','float',.1,1,.6,''),('window-padding-x','Margen horizontal','int',0,60,10,' px'),('window-padding-y','Margen vertical','int',0,60,10,' px'),('scrollback-limit','Memoria del historial','int',1000,1000000,10000,' bytes'),('background','Color de fondo','color',0,0,'#1a1b26',''),('foreground','Color del texto','color',0,0,'#c0caf5','')],
+            'terminal':[('font-family','Fuente','text',0,0,'FiraCode Nerd Font',''),('font-size','Tamaño','float',8,36,20,' pt'),('background-opacity','Opacidad del fondo','float',.1,1,.6,''),('window-padding-x','Margen horizontal','int',0,60,10,' px'),('window-padding-y','Margen vertical','int',0,60,10,' px'),('scrollback-limit','Memoria del historial','int',1000,1000000,10000,' bytes'),('background','Color de fondo','color',0,0,'#1a1b26',''),('foreground','Color del texto','color',0,0,'#c0caf5','')],  # theme-exception: valores por defecto de la terminal del usuario
             'notifications':[('origin','Posición','position',0,0,'top-right',''),('font','Fuente y tamaño','text',0,0,'Inter 10',''),('transparency','Transparencia','int',0,60,5,' %'),('corner_radius','Esquinas','int',0,30,12,' px'),('notification_limit','Avisos simultáneos','int',1,12,4,''),('padding','Margen interior','int',4,40,18,' px'),('gap_size','Separación','int',0,30,10,' px'),('timeout','Duración normal','int',1,60,6,' s')]}
         for key,label,typ,lo,hi,default,suffix in schemas[kind]:
             value=values.get(key,default)

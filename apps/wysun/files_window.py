@@ -17,7 +17,8 @@ from ui_theme import PANEL_STYLE
 from theme_tokens import apply_style
 from file_media import human_size
 
-from files_visuals import STYLE, COLORS, apply_palette, ui_icon, file_icon
+from files_visuals import STYLE, apply_palette, ui_icon, file_icon
+from theme_tokens import color
 from files_motion import SoftButton, animate_popup, reduced_motion
 from files_inspector import SelectionPreview, BreadcrumbButton
 from PySide6.QtCore import QVariantAnimation, QEasingCurve, QEvent
@@ -249,7 +250,7 @@ class FilesWindow(QMainWindow):
         self.resize(1160, 740)
         self.setMinimumSize(740, 460)
         apply_palette(QApplication.instance())
-        self.setStyleSheet(STYLE)
+        apply_style(self,STYLE)
         central = QWidget(); central.setObjectName("glassCanvas")
         self.setCentralWidget(central)
         root = QVBoxLayout(central)
@@ -413,9 +414,9 @@ class FilesWindow(QMainWindow):
         def section(title):
             item=QListWidgetItem(title); item.setFlags(Qt.NoItemFlags); item.setSizeHint(QSize(150,29))
             from PySide6.QtGui import QColor, QFont
-            item.setForeground(QColor(COLORS['muted'])); font=QFont(); font.setPointSize(9); font.setBold(True); item.setFont(font); self.places.addItem(item)
+            item.setForeground(color('muted')); font=QFont(); font.setPointSize(9); font.setBold(True); item.setFont(font); self.places.addItem(item)
         def place(title,path,symbol,bookmark=False):
-            item=QListWidgetItem(ui_icon(symbol,18,COLORS['accent']),title);item.setData(Qt.UserRole,path); item.setToolTip(path)
+            item=QListWidgetItem(ui_icon(symbol,18,'accent'),title);item.setData(Qt.UserRole,path); item.setToolTip(path)
             item.setData(Qt.UserRole+1,bookmark); item.setSizeHint(QSize(150,32)); self.places.addItem(item)
         section('Favoritos')
         place('Inicio',str(Path.home()),'home')

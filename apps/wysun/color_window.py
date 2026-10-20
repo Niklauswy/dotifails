@@ -1,5 +1,5 @@
 """Color workbench: editable values, screen sampling and reusable palettes."""
-from theme_tokens import ThemeColor, apply_style
+from theme_tokens import apply_style
 
 import re
 from pathlib import Path
@@ -34,15 +34,15 @@ def contrast_text(color):
     def linear(v): return v/12.92 if v <= .04045 else ((v+.055)/1.055)**2.4
     lum = sum(w*linear(v) for w,v in zip((.2126,.7152,.0722),color.getRgbF()[:3]))
     black = (lum+.05)/.05; white = 1.05/(lum+.05)
-    return ('#111111', black) if black >= white else ('#FFFFFF', white)
+    return ('#111111', black) if black >= white else ('#FFFFFF', white)  # theme-exception: texto sobre el color del usuario
 
 
 class ColorWindow(Surface):
     def __init__(self, path=None):
         super().__init__('Wysun Colors', 'WYSUN  /  Del escritorio a tu próximo proyecto', 800, 620)
         self.store = Colors(path); self.picker = None; self.syncing = False
-        self.color = QColor('#7AA2F7')
-        top = QHBoxLayout(); self.entry = QLineEdit('#7AA2F7'); self.entry.setPlaceholderText('HEX, rgb(122, 162, 247), hsl(221, 89%, 72%)…'); top.addWidget(self.entry, 1)
+        self.color = QColor('#7AA2F7')  # theme-exception: color inicial de muestra
+        top = QHBoxLayout(); self.entry = QLineEdit(self.color.name().upper()); self.entry.setPlaceholderText('HEX, rgb(122, 162, 247), hsl(221, 89%, 72%)…'); top.addWidget(self.entry, 1)
         top.addWidget(button('Capturar  Ctrl P', self.capture, 'primary', 'palette')); self.outer.addLayout(top)
         body = QHBoxLayout(); body.setSpacing(24)
         visual = QVBoxLayout(); self.swatch = QLabel(); self.swatch.setAlignment(Qt.AlignCenter); self.swatch.setMinimumSize(280, 210); visual.addWidget(self.swatch, 1)
@@ -68,7 +68,7 @@ class ColorWindow(Surface):
 
     def update_color(self, *_):
         c = parse_color(self.entry.text()); self.formats.clear(); valid = c.isValid(); self.star.setEnabled(valid)
-        apply_style(self.entry,'' if valid else 'border-color:#EC9BA2;')
+        apply_style(self.entry,'' if valid else 'border-color:@danger;')
         if not valid:
             for field in self.fields.values(): field.clear()
             self.status.setText('Introduce HEX, RGB o HSL válido (sin transparencia)'); return
@@ -77,7 +77,7 @@ class ColorWindow(Surface):
         self.formats.addItems(formats)
         for field, text in zip(self.fields.values(), formats): field.setText(text)
         ink, ratio = contrast_text(c)
-        apply_style(self.swatch,f'background:{value};border:1px solid rgba(255,255,255,35);border-radius:14px;color:{ink};font-size:28px;font-weight:600;'); self.swatch.setText(value)
+        apply_style(self.swatch,f'background:{value};border:@border solid @line;border-radius:14px;color:{ink};font-size:28px;font-weight:600;'); self.swatch.setText(value)
         self.contrast.setText(f'Texto recomendado: {"oscuro" if ink == "#111111" else "blanco"}  ·  Color opaco')
         self.syncing = True
         for slider, v in zip(self.sliders, (max(0,h)*360, s*100, l*100)): slider.setValue(min(slider.maximum(),round(v)))

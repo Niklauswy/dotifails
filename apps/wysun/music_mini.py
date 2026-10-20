@@ -24,7 +24,7 @@ class MiniPlayer(Surface):
         self.outer.addWidget(self.matches)
         cover_row=QHBoxLayout();cover_row.addStretch();self.cover=Cover('Wysun Music',200);cover_row.addWidget(self.cover);cover_row.addStretch();self.outer.addLayout(cover_row)
         self.title=text_label('Elige una canción');self.title.setAlignment(Qt.AlignCenter);apply_style(self.title,'font-size:19px;font-weight:600;');self.outer.addWidget(self.title)
-        self.artist=text_label('');self.artist.setAlignment(Qt.AlignCenter);apply_style(self.artist,'font-size:12px;color:#A0ACC0;');self.outer.addWidget(self.artist)
+        self.artist=text_label('');self.artist.setAlignment(Qt.AlignCenter);apply_style(self.artist,'font-size:12px;color:@muted;');self.outer.addWidget(self.artist)
         row=QHBoxLayout();row.addStretch();self.favorite=control('Favoritos',player.favorite_current,'heart',checkable=True);row.addWidget(self.favorite)
         self.previous=control('Anterior',lambda:player.advance(-1),'skip-back');row.addWidget(self.previous)
         self.play=control('Reproducir',player.toggle_play,'play',primary=True);self.play.setFixedSize(48,48);row.addWidget(self.play)
@@ -93,7 +93,7 @@ class MiniPlayer(Surface):
         self.play.setEnabled(bool(player.current_key or player.all_keys()))
         state=(player.paused,player.shuffle.isChecked())
         if state!=self.rendered:
-            self.rendered=state;self.play.setIcon(icon('play' if player.paused else 'pause',20,'#162436'))
+            self.rendered=state;self.play.setIcon(icon('play' if player.paused else 'pause',20,'on_accent'))
             self.play.setAccessibleName('Reproducir' if player.paused else 'Pausar');self.play.setToolTip(self.play.accessibleName())
             self.shuffle.setChecked(player.shuffle.isChecked())
         self.volume.blockSignals(True);self.volume.setValue(player.volume.value());self.volume.blockSignals(False)

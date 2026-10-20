@@ -1,5 +1,5 @@
 """Shared native surfaces and safe editor/terminal launchers."""
-from theme_tokens import ThemeColor, apply_style
+from theme_tokens import apply_style
 
 import os, shutil, subprocess, tempfile
 from pathlib import Path
@@ -52,7 +52,7 @@ def text_label(text,style=''):
 def button(text,fn,name='',symbol=None):
     b=QPushButton(text);b.setObjectName(name);b.clicked.connect(lambda checked=False:fn())
     if not symbol and text.strip().lower().startswith('copiar'):symbol='copy'
-    if symbol:b.setIcon(icon(symbol,17,'#162436') if name=='primary' else icon(symbol));b.setIconSize(QSize(17,17))
+    if symbol:b.setIcon(icon(symbol,17,'on_accent') if name=='primary' else icon(symbol));b.setIconSize(QSize(17,17))
     return b
 
 class Surface(WindowMotion, QWidget):

@@ -78,7 +78,7 @@ class MpvSurface(QWidget):
     def hideEvent(self,event):
         self._hidden=True;super().hideEvent(event)
     def paintEvent(self,event):
-        painter=QPainter(self);painter.fillRect(self.rect(),QColor('#090A0E'))
+        painter=QPainter(self);painter.fillRect(self.rect(),QColor('#090A0E'))  # theme-exception: lienzo negro de vídeo
         if not self.image.isNull():painter.drawImage(self.rect(),self.image)
     def start(self,path,ipc,options=None):
         normalize_numeric_locale()

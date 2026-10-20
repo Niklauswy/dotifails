@@ -1,5 +1,5 @@
 """Local Hyprland settings, display trials and lossless component configuration."""
-from theme_tokens import ThemeColor, apply_style
+from theme_tokens import apply_style
 
 import configparser
 import contextlib
@@ -217,8 +217,14 @@ class EnvironmentSettings:
             atomic_write(path,old)
             raise
 
+    def bar_theme_colors(self):
+        """Bar colours of the active theme; stored colours are user overrides."""
+        from theme_tokens import tokens
+        external=tokens(self.home)['external']
+        return {key:external[key].upper() for key in ('background','foreground','accent')}
+
     def bar_values(self):
-        defaults=dict(height=36,offset=10,radius=12,opacity=65,background='#101118',foreground='#EBECF3',accent='#B8C8FA',left=['orbit','workspaces'],center=['title'],right=['resources','network','volume','battery','date','notifications','power','tray'],monitors={},tray_monitor='')
+        defaults=dict(height=36,offset=10,radius=12,opacity=65,**self.bar_theme_colors(),left=['orbit','workspaces'],center=['title'],right=['resources','network','volume','battery','date','notifications','power','tray'],monitors={},tray_monitor='')
         path=self.config/'orbit/hypr-bar.json'
         return defaults | read_json(path) if path.exists() else defaults
 
@@ -226,8 +232,12 @@ class EnvironmentSettings:
         values=copy.deepcopy(values)
         for key,lo,hi in [('height',24,64),('offset',0,60),('radius',0,30),('opacity',10,100)]:
             values[key] = bounded(values[key],lo,hi,True)
+        theme=self.bar_theme_colors()
         for key in ('background','foreground','accent'):
             color(values[key])
+            # Unchanged theme colours are not saved, so the bar keeps following the theme.
+            from theme_runtime import theme_colors
+            if str(values[key]).upper()==theme[key] or str(values[key]).upper() in theme_colors():values.pop(key)
         for side in ('left','center','right'):
             if len(values[side]) != len(set(values[side])) or any(x not in BAR_MODULES for x in values[side]):
                 raise ValueError('Módulo de barra desconocido o repetido.')
@@ -249,8 +259,8 @@ class EnvironmentSettings:
     def wallpaper_values(self):
         saved = copy.deepcopy(self.section('wallpaper'))
         if not saved.get('default'):
-            from theme_tokens import THEMES,theme_id
-            filename=THEMES[theme_id(self.home)]['wallpaper']
+            from theme_tokens import tokens
+            filename=tokens(self.home)['wallpaper']
             bundled=self.home/'.local/share/backgrounds'/filename
             if bundled.is_file():saved['default']=str(bundled)
         saved.setdefault('mode','fill')

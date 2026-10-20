@@ -1,117 +1,272 @@
-"""Complete desktop themes and shared native colour/motion tokens."""
-import colorsys,json,os,re,time
+"""Qt adapter for Wysun's semantic theme tokens (source: wysun_theme.json).
+
+Stylesheets are templates. ``@token`` becomes the token value, ``@token/40``
+the same colour with alpha 40 (0-255), and ``@svg(name,token)`` a tinted copy
+of assets/<name>.svg. Metric tokens render as pixels and ``@font_family`` as
+a quoted family list. ``apply_style`` keeps the template on the widget, so a
+style or variant change re-renders every widget, including widgets created
+later. Painters call ``color()``/``font()`` while painting and need no hook;
+other caches can register with ``on_theme_changed``.
+"""
+import os
+import re
+from functools import lru_cache
 from pathlib import Path
-from PySide6.QtGui import QColor
 
-THEMES={
- 'tokyo':dict(name='Tokyo',wallpaper='tokyo.png',description='Violeta luminoso, negro ciruela y movimiento suave.',background='#17131f',surface='#211b2e',foreground='#e5dcfa',accent='#bb9af7',muted='#9c8fb7',hue=.755,saturation=.32,enter=300,exit=170,lift=16,radius=24,pulse=.38,lock_enter=.40,lock_exit=.32,palette=['#15121c','#f7768e','#9ece6a','#e0af68','#7aa2f7','#bb9af7','#7dcfff','#a9b1d6','#504267','#ff9eaa','#b9e58b','#f2c77d','#a4b9ff','#d1b2ff','#9ce6ff','#e5dcfa']),
- 'severance':dict(name='Severance',wallpaper='azul.jpg',description='Azul petróleo, acentos de hielo y movimiento preciso.',background='#0c171c',surface='#15272e',foreground='#d2e4e8',accent='#79c9dc',muted='#7c9aa4',hue=.535,saturation=.34,enter=190,exit=120,lift=8,radius=16,pulse=.24,lock_enter=.24,lock_exit=.20,palette=['#0b151a','#df8790','#a4c3a4','#d7c49c','#7fa8d8','#a2a7cd','#79c9dc','#a8bcc3','#3e5c67','#f0a3ab','#bdd4bb','#ead8b6','#a6c5e9','#c2c5e2','#a3e2ee','#e1eff1'])
-}
-THEMES['space-black']=dict(name='Space Black',wallpaper='space-black.png',description='Grafito y plata · movimiento sutil.',background='#101012',surface='#202023',foreground='#e6e6e8',accent='#ceced4',muted='#919198',hue=0,saturation=0,enter=260,exit=160,lift=6,radius=20,pulse=.28,lock_enter=.28,lock_exit=.24,palette=['#101012','#de9297','#a9beaa','#cec1a5','#adb7ce','#b7acc6','#adbfc5','#c5c5ca','#55555c','#edacb0','#c3d3c2','#e0d4bc','#c8cede','#d3c9df','#c8d9de','#eeeef0'])
-ALIASES={'azul':'severance','morado':'tokyo','Tokyo':'tokyo','Severance':'severance'}
-_cache=(0,None,None)
+from PySide6.QtGui import QColor, QFont, QFontDatabase, QPalette
 
-def normalize(value):
-    key=ALIASES.get(value,value)
-    return key if key in THEMES else 'severance'
+import theme_core
+
+ROOT = Path(__file__).resolve().parent
+MARKER = re.compile(r'@svg\(([\w-]+),\s*([a-z][a-z0-9_]*)\)|@([a-z][a-z0-9_]*)(?:/(\d{1,3}))?')
+PIXELS = ('radius_', 'space_', 'font_caption', 'font_small', 'font_body', 'font_heading', 'font_title', 'border', 'focus_width', 'icon_size', 'shadow_')
+_listeners = []
+
 
 def theme_id(home=None):
-    override=os.environ.get('ORBIT_THEME')
-    if override:return normalize(override)
-    global _cache
-    from hypr_settings import config_dir
-    root=config_dir(home)
-    now=time.monotonic()
-    if _cache[1]==root and now-_cache[0]<.25:return _cache[2]
-    value='severance'
-    for path in (root/'orbit/theme.json',):
-        try:
-            data=json.loads(path.read_text());value=normalize(data.get('id',data.get('name','severance')));break
-        except (OSError,ValueError,TypeError):continue
-    _cache=(now,root,value);return value
+    """Active selection as 'style:variant'."""
+    return theme_core.key(*theme_core.selection(home))
 
-def tokens(home=None):return THEMES[theme_id(home)]
+
+def tokens(home=None):
+    return _resolved(*theme_core.selection(home))
+
+
+@lru_cache(maxsize=8)
+def _resolved(style, variant):
+    return theme_core.resolve(style, variant)
+
+
 def invalidate():
-    global _cache
-    _cache=(0,None,None)
+    theme_core.invalidate()
 
-def theme_color(value,key=None):
-    """Tint UI neutrals/cool accents; preserve semantic warning/success colours."""
-    if not isinstance(value,str) or not re.fullmatch(r'#[\da-fA-F]{6}',value):return value
-    red,green,blue=[int(value[n:n+2],16)/255 for n in (1,3,5)]
-    hue,light,saturation=colorsys.rgb_to_hls(red,green,blue)
-    theme=THEMES[key] if key else tokens()
-    if .46<=hue<=.83 or saturation<.16:
-        if light<.035 or (saturation<.02 and light>.95):return value
-        hue=theme['hue'];saturation=theme['saturation'] if key or not theme['saturation'] else min(.48,max(theme['saturation']*.45,saturation*.82))
-        if light<.18:saturation=theme['saturation']
-        rgb=colorsys.hls_to_rgb(hue,light,saturation)
-        return '#'+''.join(f'{round(v*255):02x}' for v in rgb)
-    return value
 
-class ThemeColor(QColor):
-    def __init__(self,*values):
-        if len(values)==1 and isinstance(values[0],str):values=(theme_color(values[0]),)
-        elif len(values) in (3,4) and all(isinstance(v,int) for v in values):
-            colour=QColor(theme_color('#'+''.join(f'{v:02x}' for v in values[:3])))
-            if len(values)==4:colour.setAlpha(values[3])
-            values=(colour,)
-        super().__init__(*values)
+def is_light(values=None):
+    values = values or tokens()
+    return QColor(values['canvas'][:7]).lightnessF() > .5
 
-def theme_css(style):
-    style=re.sub(r'#[\da-fA-F]{6}(?![\da-fA-F])',lambda m:theme_color(m[0]),style)
-    def rgb(match):
-        values=match[2].split(',')
-        try:
-            raw='#'+''.join(f'{int(v.strip()):02x}' for v in values[:3]);new=theme_color(raw)
-            mapped=[str(int(new[i:i+2],16)) for i in (1,3,5)]+values[3:]
-            return match[1]+'('+','.join(mapped)+')'
-        except (ValueError,IndexError):return match[0]
-    return re.sub(r'\b(rgb|rgba)\(([^)]+)\)',rgb,style)
 
-def apply_style(widget,style):
-    widget.setProperty('orbitOriginalStyle',style)
-    widget.setStyleSheet(theme_css(style))
+def _hex(value):
+    """Token hex is CSS order (#RRGGBB or #RRGGBBAA)."""
+    return value[:7], int(value[7:9], 16) if len(value) == 9 else 255
+
+
+def color(name, alpha=None, values=None):
+    """QColor for a colour token; ``alpha`` overrides the token's own alpha."""
+    rgb, own = _hex((values or tokens())[name])
+    result = QColor(rgb)
+    result.setAlpha(own if alpha is None else max(0, min(255, int(alpha))))
+    return result
+
+
+def paint_color(value, fallback='glyph'):
+    """Colour for data that may hold a token name or an explicit user colour."""
+    values = tokens()
+    if not value:
+        return color(fallback, values=values)
+    if isinstance(value, str) and isinstance(values.get(value), str) and values[value].startswith('#'):
+        return color(value, values=values)
+    return QColor(value)
+
+
+def css(name, alpha=None, values=None):
+    rgb, own = _hex((values or tokens())[name])
+    alpha = own if alpha is None else max(0, min(255, int(alpha)))
+    if alpha == 255:
+        return rgb.lower()
+    value = QColor(rgb)
+    return f'rgba({value.red()},{value.green()},{value.blue()},{alpha})'
+
+
+def family(values=None):
+    """First installed family of the active style."""
+    available = set(QFontDatabase.families())
+    names = (values or tokens())['font_family']
+    return next((name for name in names if name in available), names[-1])
+
+
+def font(size=None, weight=None, role=None, values=None):
+    """QFont in the theme family. ``size`` is points (as QFont('Inter', n));
+    ``role`` (body/small/caption/heading/title) uses a pixel-size token."""
+    values = values or tokens()
+    result = QFont(family(values))
+    if role:
+        result.setPixelSize(int(values['font_' + role]))
+    elif size:
+        result.setPointSizeF(size)
+    if weight is not None:
+        result.setWeight(QFont.Weight(int(weight)))
+    return result
+
+
+def svg_asset(name, token, values=None):
+    """Tinted copy of assets/<name>.svg for QSS url(); cached per colour."""
+    rgb, _ = _hex((values or tokens())[token])
+    cache = Path(os.environ.get('XDG_RUNTIME_DIR') or Path.home() / '.cache') / f'orbit-theme-{os.getuid()}'
+    target = cache / f'{name}-{rgb[1:].lower()}.svg'
+    if not target.is_file():
+        source = (ROOT / 'assets' / (name + '.svg')).read_text()
+        cache.mkdir(parents=True, exist_ok=True, mode=0o700)
+        text = re.sub(r'stroke="#[0-9a-fA-F]{6}"', f'stroke="{rgb}"', source)
+        temporary = target.with_suffix('.tmp' + str(os.getpid()))
+        temporary.write_text(text)
+        os.replace(temporary, target)
+    return target.as_posix()
+
+
+def _render(match, values):
+    if match[1]:
+        return svg_asset(match[1], match[2], values)
+    name, alpha = match[3], match[4]
+    if name not in values:
+        return match[0]
+    value = values[name]
+    if isinstance(value, str) and value.startswith('#'):
+        return css(name, alpha, values)
+    if name == 'font_family' or name == 'font_mono':
+        return ', '.join(f'"{item}"' for item in value)
+    if isinstance(value, (int, float)) and name.startswith(PIXELS):
+        return f'{value:g}px'
+    return str(value)
+
+
+def qss(template, values=None):
+    values = values or tokens()
+    return MARKER.sub(lambda match: _render(match, values), template)
+
+
+def apply_style(widget, template):
+    """Set a themed stylesheet that follows every later theme change."""
+    widget.setProperty('orbitOriginalStyle', template)
+    widget.setStyleSheet(qss(template))
+
+
+def extend_style(widget, template):
+    """Append template rules to the widget's existing themed template."""
+    base = widget.property('orbitOriginalStyle')
+    apply_style(widget, (base if base is not None else widget.styleSheet()) + template)
+
+
+def palette(values=None):
+    """QPalette matching the tokens, for unstyled native parts."""
+    values = values or tokens()
+    result = QPalette()
+    roles = [(QPalette.Window, 'canvas'), (QPalette.Base, 'surface'), (QPalette.AlternateBase, 'well'),
+             (QPalette.WindowText, 'text'), (QPalette.Text, 'text'), (QPalette.Button, 'surface'),
+             (QPalette.ButtonText, 'text'), (QPalette.Highlight, 'accent'), (QPalette.HighlightedText, 'on_accent'),
+             (QPalette.ToolTipBase, 'tooltip'), (QPalette.ToolTipText, 'on_tooltip'), (QPalette.PlaceholderText, 'muted'),
+             (QPalette.Link, 'accent'), (QPalette.BrightText, 'text_strong'), (QPalette.Mid, 'line'), (QPalette.Dark, 'line_strong')]
+    for role, name in roles:
+        result.setColor(role, color(name, 255, values))
+    for role in (QPalette.WindowText, QPalette.Text, QPalette.ButtonText):
+        result.setColor(QPalette.Disabled, role, color('disabled', 255, values))
+    return result
+
+
+def apply_palette(app=None):
+    """Fluent sets a full palette; Space Black keeps the platform palette it always used,
+    unless the app opts in with the ``orbitThemePalette`` property (Files)."""
+    from PySide6.QtWidgets import QApplication
+    app = app or QApplication.instance()
+    if not app:
+        return
+    if app.property('orbitPlatformPalette') is None:
+        app.setProperty('orbitPlatformPalette', QPalette(app.palette()))
+    values = tokens()
+    themed = values['style'] != 'space-black' or bool(app.property('orbitThemePalette'))
+    app.setPalette(palette(values) if themed else app.property('orbitPlatformPalette'))
+
+
+def on_theme_changed(callback):
+    """Register ``callback()`` for caches that are not stylesheets or painters.
+    Bound methods are held weakly, so closed windows are not kept alive."""
+    import weakref
+    reference = weakref.WeakMethod(callback) if hasattr(callback, '__self__') else (lambda: callback)
+    _listeners.append(reference)
+    return callback
+
 
 def refresh_widgets():
-    from PySide6.QtWidgets import QApplication,QWidget
+    from PySide6.QtWidgets import QApplication, QWidget
     invalidate()
-    from icons import glyph,badge
-    glyph.cache_clear();badge.cache_clear()
-    app=QApplication.instance()
-    if app and app.property('orbitOriginalStyle') is not None:app.setStyleSheet(theme_css(app.property('orbitOriginalStyle')))
+    from icons import glyph, badge, refresh_icons
+    glyph.cache_clear()
+    badge.cache_clear()
+    app = QApplication.instance()
+    if not app:
+        return
+    apply_palette(app)
+    if app.property('orbitOriginalStyle') is not None:
+        app.setStyleSheet(qss(app.property('orbitOriginalStyle')))
     for widget in QApplication.allWidgets():
-        style=widget.property('orbitOriginalStyle')
-        if style is not None:widget.setStyleSheet(theme_css(style))
-        QWidget.update(widget)
-    from icons import refresh_icons
+        template = widget.property('orbitOriginalStyle')
+        if template is not None:
+            widget.setStyleSheet(qss(template))
     refresh_icons()
+    for reference in list(_listeners):
+        callback = reference()
+        if callback is None:
+            _listeners.remove(reference)
+            continue
+        try:
+            callback()
+        except Exception as error:  # A broken listener must not stop the others.
+            print('Wysun: no se pudo actualizar el tema en', callback, error)
+    for widget in QApplication.allWidgets():
+        QWidget.update(widget)
 
-def watch_theme():
-    """Watch files and parent directories so atomic replace and late creation work."""
-    from PySide6.QtCore import QFileSystemWatcher,QTimer,QObject
+
+def watch_theme(home=None):
+    """Follow ~/.config/orbit/theme.json (atomic replace and late creation included)."""
+    from PySide6.QtCore import QFileSystemWatcher, QTimer, QObject
     from PySide6.QtWidgets import QApplication
-    from hypr_settings import config_dir
-    app=QApplication.instance()
-    if not app or hasattr(app,'orbitThemeWatcher'):return
+    app = QApplication.instance()
+    if not app or hasattr(app, 'orbitThemeWatcher'):
+        return
+    try:
+        theme_core.migrate(home)
+    except OSError as error:
+        print('Wysun: no se pudo migrar theme.json:', error)
+    apply_palette(app)
+
     class ThemeWatcher(QObject):
         def __init__(self):
-            super().__init__(app);self.watcher=QFileSystemWatcher(self);self.timer=QTimer(self)
-            self.timer.setSingleShot(True);self.timer.setInterval(40)
-            self.key=theme_id();self.watcher.fileChanged.connect(self.changed);self.watcher.directoryChanged.connect(self.changed)
-            self.timer.timeout.connect(self.refresh);self.arm()
+            super().__init__(app)
+            self.watcher = QFileSystemWatcher(self)
+            self.timer = QTimer(self)
+            self.timer.setSingleShot(True)
+            self.timer.setInterval(40)
+            self.key = theme_id(home)
+            self.watcher.fileChanged.connect(self.changed)
+            self.watcher.directoryChanged.connect(self.changed)
+            self.timer.timeout.connect(self.refresh)
+            self.arm()
+
         def arm(self):
-            targets=set()
-            for path in (config_dir()/'orbit/theme.json',):
-                if path.exists():targets.add(str(path))
-                parent=path.parent
-                while not parent.exists() and parent!=parent.parent:parent=parent.parent
-                if parent.exists():targets.add(str(parent))
-            current=set(self.watcher.files()+self.watcher.directories())
-            if current-targets:self.watcher.removePaths(list(current-targets))
-            if targets-current:self.watcher.addPaths(list(targets-current))
-        def changed(self,*_):self.timer.start()
+            targets = set()
+            path = theme_core.selection_path(home)
+            if path.exists():
+                targets.add(str(path))
+            parent = path.parent
+            while not parent.exists() and parent != parent.parent:
+                parent = parent.parent
+            if parent.exists():
+                targets.add(str(parent))
+            current = set(self.watcher.files() + self.watcher.directories())
+            if current - targets:
+                self.watcher.removePaths(list(current - targets))
+            if targets - current:
+                self.watcher.addPaths(list(targets - current))
+
+        def changed(self, *_):
+            self.timer.start()
+
         def refresh(self):
-            self.arm();invalidate();key=theme_id()
-            if key!=self.key:self.key=key;refresh_widgets()
-    app.orbitThemeWatcher=ThemeWatcher()
+            self.arm()
+            invalidate()
+            key = theme_id(home)
+            if key != self.key:
+                self.key = key
+                refresh_widgets()
+
+    app.orbitThemeWatcher = ThemeWatcher()

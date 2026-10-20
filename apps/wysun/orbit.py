@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Wysun: resident native command palette for the Hyprland desktop."""
-from theme_tokens import ThemeColor, apply_style
+from theme_tokens import apply_style, color, paint_color
 
 import argparse, datetime as dt, json, os, re, socket, subprocess, sys, time
 from pathlib import Path
@@ -22,7 +22,7 @@ def run(args):
     subprocess.Popen([str(a) for a in args],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,start_new_session=True)
 
 def divider():
-    w=QFrame();w.setFixedHeight(1);apply_style(w,'background: rgba(190,190,210,22);');return w
+    w=QFrame();w.setFixedHeight(1);apply_style(w,'background: @divider;');return w
 
 def label(text='',name=''):
     x=QLabel(text);x.setTextFormat(Qt.PlainText)
@@ -64,16 +64,16 @@ class RowDelegate(QStyledItemDelegate):
         item=index.data(Qt.UserRole) or {};rect=option.rect.adjusted(3,2,-3,-2)
         p.save();p.setRenderHint(QPainter.Antialiasing)
         if option.state & QStyle.State_Selected:
-            p.setPen(Qt.NoPen);p.setBrush(ThemeColor(230,220,255,26));p.drawRoundedRect(rect,7,7)
+            p.setPen(Qt.NoPen);p.setBrush(color('tint',26));p.drawRoundedRect(rect,7,7)
         icon=QIcon.fromTheme(item.get('icon',''))
         if not icon.isNull():icon.paint(p,rect.x()+12,rect.y()+13,25,25)
         else:
-            p.setPen(Qt.NoPen);p.setBrush(QColor(item.get('color','#b4a0dc')));p.drawRoundedRect(QRectF(rect.x()+12,rect.y()+13,25,25),6,6)
-            p.setPen(ThemeColor('#17131e'));p.setFont(QFont('Noto Sans',12,QFont.Bold));p.drawText(QRectF(rect.x()+12,rect.y()+12,25,26),Qt.AlignCenter,item.get('glyph','⌘'))
+            p.setPen(Qt.NoPen);p.setBrush(paint_color(item.get('color'),'cat_purple'));p.drawRoundedRect(QRectF(rect.x()+12,rect.y()+13,25,25),6,6)
+            p.setPen(color('canvas',255));p.setFont(QFont('Noto Sans',12,QFont.Bold));p.drawText(QRectF(rect.x()+12,rect.y()+12,25,26),Qt.AlignCenter,item.get('glyph','⌘'))
         width=rect.width()-65;tag=item.get('tag','') if rect.width()>470 else ''
         p.setFont(QFont('Inter',10));tw=p.fontMetrics().horizontalAdvance(tag)+22 if tag else 0
-        p.setPen(ThemeColor('#efeff4'));p.drawText(rect.x()+49,rect.y()+23,p.fontMetrics().elidedText(item.get('title',''),Qt.ElideRight,width-tw))
-        p.setFont(QFont('Inter',9));p.setPen(ThemeColor('#a4a4b0'));p.drawText(rect.x()+49,rect.y()+40,p.fontMetrics().elidedText(item.get('subtitle','').replace('\n',' '),Qt.ElideRight,width))
+        p.setPen(color('text'));p.drawText(rect.x()+49,rect.y()+23,p.fontMetrics().elidedText(item.get('title',''),Qt.ElideRight,width-tw))
+        p.setFont(QFont('Inter',9));p.setPen(color('muted'));p.drawText(rect.x()+49,rect.y()+40,p.fontMetrics().elidedText(item.get('subtitle','').replace('\n',' '),Qt.ElideRight,width))
         if tag:p.drawText(rect.right()-tw,rect.y()+25,tag)
         p.restore()
 
@@ -122,11 +122,11 @@ class Orbit(WindowMotion, QWidget):
         content=QHBoxLayout();content.setContentsMargins(8,0,8,0);content.setSpacing(0)
         left=QWidget();self.left=left;ll=QVBoxLayout(left);ll.setContentsMargins(6,12,6,5);ll.setSpacing(6);self.heading=label('Sugerencias','section');ll.addWidget(self.heading)
         self.results=QListWidget();self.results.setItemDelegate(RowDelegate());self.results.setVerticalScrollMode(QListWidget.ScrollPerPixel);self.results.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff);self.results.currentRowChanged.connect(self.preview);self.results.itemActivated.connect(self.activate);self.results.itemClicked.connect(self.preview);ll.addWidget(self.results,1)
-        self.empty=label('');self.empty.setAlignment(Qt.AlignCenter);self.empty.setWordWrap(True);apply_style(self.empty,'color:#a4a4b0; padding:35px;');self.empty.hide();ll.addWidget(self.empty,1);content.addWidget(left,1)
-        self.inspector=QWidget();self.inspector.setMinimumWidth(440);apply_style(self.inspector,'QWidget#inspector { border-left: 1px solid rgba(190,190,210,22); }');self.inspector.setObjectName('inspector')
+        self.empty=label('');self.empty.setAlignment(Qt.AlignCenter);self.empty.setWordWrap(True);apply_style(self.empty,'color:@muted; padding:35px;');self.empty.hide();ll.addWidget(self.empty,1);content.addWidget(left,1)
+        self.inspector=QWidget();self.inspector.setMinimumWidth(440);apply_style(self.inspector,'QWidget#inspector { border-left: 1px solid @divider; }');self.inspector.setObjectName('inspector')
         pr=QVBoxLayout(self.inspector);pr.setContentsMargins(23,22,18,18);pr.setSpacing(12);self.preview_title=label('','previewTitle');self.preview_title.setWordWrap(True);pr.addWidget(self.preview_title)
         self.picture=QLabel();self.picture.setAlignment(Qt.AlignCenter);self.picture.setMinimumHeight(160);self.picture.hide();pr.addWidget(self.picture,1)
-        self.calc_result=label('');self.calc_result.setAlignment(Qt.AlignCenter);self.calc_result.setWordWrap(True);apply_style(self.calc_result,'font-size: 44px; font-weight: 600; color: #eeeaf4;');self.calc_result.hide();pr.addWidget(self.calc_result,1)
+        self.calc_result=label('');self.calc_result.setAlignment(Qt.AlignCenter);self.calc_result.setWordWrap(True);apply_style(self.calc_result,'font-size: 44px; font-weight: 600; color: @text_strong;');self.calc_result.hide();pr.addWidget(self.calc_result,1)
         self.body=QPlainTextEdit();self.body.setReadOnly(True);pr.addWidget(self.body,1)
         self.metadata=label('','muted');self.metadata.setWordWrap(True);pr.addWidget(divider());pr.addWidget(self.metadata);content.addWidget(self.inspector,1);self.inspector.hide();self.content_pages=QStackedWidget();self.content_home=QWidget();self.content_home.setLayout(content);self.content_pages.addWidget(self.content_home);outer.addWidget(self.content_pages,1)
         outer.addWidget(divider());footer=QHBoxLayout();footer.setContentsMargins(16,7,12,7);self.status=label('Wysun · Local','muted');footer.addWidget(self.status,1);self.go=QPushButton('Abrir  ↵');self.go.clicked.connect(self.activate);footer.addWidget(self.go);self.action_button=QPushButton('Acciones  ⌃ K');self.action_button.clicked.connect(self.actions);footer.addWidget(self.action_button);outer.addLayout(footer)
@@ -201,7 +201,7 @@ class Orbit(WindowMotion, QWidget):
                 for s in self.store.snippets():
                     if fold in (s['title']+' '+s['shortcut']).casefold():rows.append(dict(s,kind='snippet',subtitle=s['shortcut'],tag='Snippet',glyph='{}'))
                 answer=calculate(q)
-                if answer is not None:rows.insert(0,dict(title=answer,subtitle=q+'  →  Copiar resultado',kind='calc',query=q,result=answer,glyph='=',tag='Calculadora',color='#b9d7b2'))
+                if answer is not None:rows.insert(0,dict(title=answer,subtitle=q+'  →  Copiar resultado',kind='calc',query=q,result=answer,glyph='=',tag='Calculadora',color='cat_green'))
                 if not rows:rows=[dict(title='Buscar en DuckDuckGo',subtitle=q,kind='web',query=q,glyph='⌕',tag='Web')]
                 heading='Resultados'
             else:
@@ -210,7 +210,7 @@ class Orbit(WindowMotion, QWidget):
             choice=self.filter.currentText();kinds={'Texto':'text','Imagen':'image','Color':'color','Enlace':'url'}
             for r in self.store.clips():
                 if fold not in r['text'].casefold() or (choice in kinds and r['kind']!=kinds[choice]):continue
-                kind=r['kind'];rows.append(dict(r,clip_kind=kind,kind='clip',title=r['text'].split('\n')[0][:110] if kind!='image' else r['text'],subtitle=dt.datetime.fromtimestamp(r['stamp']).strftime('%d %b · %H:%M'),glyph={'image':'▧','color':'●','url':'↗','text':'▤'}.get(kind,'▤'),color=r['text'] if kind=='color' else '#b4a0dc',tag=kind))
+                kind=r['kind'];rows.append(dict(r,clip_kind=kind,kind='clip',title=r['text'].split('\n')[0][:110] if kind!='image' else r['text'],subtitle=dt.datetime.fromtimestamp(r['stamp']).strftime('%d %b · %H:%M'),glyph={'image':'▧','color':'●','url':'↗','text':'▤'}.get(kind,'▤'),color=r['text'] if kind=='color' else 'cat_purple',tag=kind))
             heading='Últimos 7 días'
         elif self.mode=='snippets':
             rows=[dict(r,kind='snippet',subtitle=r['shortcut'] or 'Fragmento de texto',glyph='{}') for r in self.store.snippets() if fold in (r['title']+' '+r['shortcut']+' '+r['body']).casefold()];heading='Tus fragmentos'
@@ -222,7 +222,7 @@ class Orbit(WindowMotion, QWidget):
             rows=[dict(kind='file',title=Path(p).name,subtitle=str(Path(p).parent).replace(str(HOME),'~'),path=p,icon='text-x-generic',tag='Archivo') for _,p,_ in matches[:150]];heading=f'{len(self.files):,} archivos · por nombre' if self.files else 'Preparando índice…'
         elif self.mode=='calculator':
             answer=calculate(q)
-            if answer is not None:rows=[dict(kind='calc',title=answer,subtitle=q,query=q,result=answer,glyph='=',color='#b9d7b2')]
+            if answer is not None:rows=[dict(kind='calc',title=answer,subtitle=q,query=q,result=answer,glyph='=',color='cat_green')]
             elif not q:rows=[dict(kind='calc',title=r['result'],subtitle=r['query'],query=r['query'],result=r['result'],glyph='=') for r in self.store.calcs()]
             heading='Resultado' if q else 'Historial de cálculos'
         elif self.mode=='windows':
