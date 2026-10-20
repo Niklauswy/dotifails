@@ -1,15 +1,17 @@
-// Derivado de caelestia-dots/shell (GPL-3.0), modificado para Wysun.
-// Origen: services/{Audio,Brightness,Nmcli,Notifs}.qml
-// Commit: 507d66285e9d9fde9330adc64159cfdebb28c19a.
-// Véanse LICENSES/GPL-3.0.txt y THIRD_PARTY.md.
+// Adaptado de caelestia-dots/shell/services/{Audio,Brightness,Nmcli,Notifs}.qml
+// (GPL-3.0), modificado para Wysun. Fuente: caelestia-dots/shell, commit
+// 507d66285e9d9fde9330adc64159cfdebb28c19a. Véanse LICENSES/GPL-3.0.txt y THIRD_PARTY.md.
+// One bounded, one-shot provider bridge. It is active only while its surface is
+// open: no daemon, retry loop or timer keeps running behind a closed panel.
 import QtQuick
 import Quickshell
 import Quickshell.Io
 
 Scope {
     id: root
+
     property bool active: false
-    property string domains: "audio,brightness,network,bluetooth,battery,notifications"
+    property string domains: "network,bluetooth,battery,notifications,session"
     property var states: ({})
     property bool fixture: false
     property string fixturePath: ""
@@ -17,52 +19,97 @@ Scope {
     property string warning: ""
     property string operation: ""
     property string actionName: ""
-    readonly property bool busy: process.running
-    signal feedback(string channel, real percent, bool muted)
+    readonly property bool busy: request.running
+    property bool refreshPending: false
+    signal updated()
+
+    function refreshLater() {
+        if (refreshPending) return;
+        refreshPending = true;
+        Qt.callLater(function() { refreshPending = false; refresh(); });
+    }
 
     function run(operation, name, value) {
-        if (busy || !active) return false;
+        if (!active) return false;
+        if (request.running) {
+            error = "Hay otra operación en curso";
+            return false;
+        }
         root.operation = operation;
         root.actionName = name;
         error = "";
         warning = "";
-        var args = ["python3", Quickshell.shellPath("services/desktop_controls.py"), operation, name];
+        var args = ["/usr/bin/python3", Quickshell.shellPath("services/desktop_controls.py"), operation, name];
         if (operation === "action") args.push(String(value === undefined ? "" : value));
         if (fixture) {
-            if (!fixturePath) { error = "La vista previa no controla dispositivos"; return false; }
+            if (!fixturePath) {
+                error = "La vista previa no controla dispositivos";
+                return false;
+            }
             args.push("--fixture", fixturePath);
         }
-        process.command = args;
-        process.running = true;
+        request.command = args;
+        request.running = true;
+        timeout.restart();
         return true;
     }
+
     function refresh() { return run("snapshot", domains, ""); }
     function act(name, value) { return run("action", name, value); }
-    function accept(text) {
-        try {
-            var result = JSON.parse(text);
-            if (!result.ok) { error = result.error || "No se pudo completar la operación"; return; }
-            if (result.states) states = result.states;
-            if (result.domain && result.state) {
-                var updated = Object.assign({}, states);
-                updated[result.domain] = result.state;
-                states = updated;
-                warning = result.warning || "";
-                if (result.state.available && ["audio", "brightness"].indexOf(result.domain) >= 0)
-                    feedback(result.domain, result.state.percent, result.state.muted || false);
-            }
-        } catch (e) { error = "Respuesta del proveedor inválida"; }
+    function domain(name) {
+        var value = states && states[name];
+        return value && typeof value === "object" ? value : ({ available: false, error: "Sin datos" });
     }
-    onActiveChanged: if (active) refresh()
-    Component.onCompleted: if (active) refresh()
-    // Explicit refresh and action readback only. No timer or monitor while closed.
+
+    function accept(text) {
+        var result;
+        try { result = JSON.parse(text); }
+        catch (error) { root.error = "Respuesta del proveedor inválida"; return; }
+        if (!result || !result.ok) {
+            root.error = result && result.error ? result.error : "No se pudo completar la operación";
+            return;
+        }
+        if (result.states) {
+            var merged = Object.assign({}, root.states);
+            for (var key in result.states) merged[key] = result.states[key];
+            root.states = merged;
+        }
+        if (result.domain && result.state) {
+            var updated = Object.assign({}, root.states);
+            updated[result.domain] = result.state;
+            root.states = updated;
+        }
+        warning = result.warning || "";
+        updated();
+    }
+
+    onActiveChanged: {
+        if (active) refreshLater();
+        else if (request.running) request.running = false;
+    }
+    Component.onCompleted: if (active) refreshLater()
+
+    Timer {
+        id: timeout
+        interval: 5000
+        repeat: false
+        onTriggered: {
+            if (!request.running) return;
+            request.running = false;
+            root.error = "El proveedor no respondió a tiempo";
+        }
+    }
+
     Process {
-        id: process
+        id: request
         stdout: StdioCollector { onStreamFinished: root.accept(text) }
-        stderr: StdioCollector {}
+        stderr: StdioCollector { }
         onExited: (code, status) => {
+            timeout.stop();
             if ((code !== 0 || status !== 0) && !root.error)
-                root.error = "El proveedor no respondió. Actualiza el panel.";
+                root.error = root.operation === "snapshot"
+                    ? "El proveedor no respondió. Actualiza el panel."
+                    : "No se pudo completar la acción";
         }
     }
 }
