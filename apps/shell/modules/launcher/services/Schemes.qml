@@ -1,3 +1,5 @@
+// Derivado de caelestia-dots/shell (GPL-3.0), modificado para Wysun.
+// Base: 6c70d5cb0cbf31413d300699540c858ad28c1539; véanse LICENSE y UPSTREAM.json.
 pragma Singleton
 
 import ".."
@@ -40,7 +42,7 @@ Searcher {
         id: getSchemes
 
         running: true
-        command: ["caelestia", "scheme", "list"]
+        command: ["/usr/bin/python3", Quickshell.shellPath("wysun/backend.py"), "schemes"]
         stdout: StdioCollector {
             onStreamFinished: {
                 const schemeData = JSON.parse(text);
@@ -64,7 +66,7 @@ Searcher {
         id: getCurrent
 
         running: true
-        command: ["caelestia", "scheme", "get", "-nfv"]
+        command: ["/usr/bin/python3", Quickshell.shellPath("wysun/backend.py"), "current"]
         stdout: StdioCollector {
             onStreamFinished: {
                 const [name, flavour, variant] = text.trim().split("\n");
@@ -82,7 +84,7 @@ Searcher {
 
         function onClicked(list: AppList): void {
             list.screenState.launcher = false;
-            Quickshell.execDetached(["caelestia", "scheme", "set", "-n", name, "-f", flavour]);
+            Quickshell.execDetached(["wysun", "scheme", "set", name]);
         }
     }
 }

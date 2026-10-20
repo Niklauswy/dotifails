@@ -1,3 +1,5 @@
+// Derivado de caelestia-dots/shell (GPL-3.0), modificado para Wysun.
+// Base: 6c70d5cb0cbf31413d300699540c858ad28c1539; véanse LICENSE y UPSTREAM.json.
 #pragma once
 
 #include <qstring.h>
@@ -121,7 +123,7 @@ class LauncherConfig : public settings::ObjectNode {
                 { u"name"_s, markCtx(u"Lock"_s, u"launcher action"_s) },
                 { u"icon"_s, u"lock"_s },
                 { u"description"_s, mark(u"Lock the current session"_s) },
-                { u"command"_s, QStringList{ u"loginctl"_s, u"lock-session"_s } },
+                { u"command"_s, QStringList{ u"wysun"_s, u"lock"_s } },
             }),
             vmap({
                 { u"name"_s, markCtx(u"Sleep"_s, u"launcher action"_s) },
@@ -133,7 +135,7 @@ class LauncherConfig : public settings::ObjectNode {
                 { u"name"_s, markCtx(u"Settings"_s, u"launcher action"_s) },
                 { u"icon"_s, u"settings"_s },
                 { u"description"_s, mark(u"Configure the shell"_s) },
-                { u"command"_s, QStringList{ u"caelestia"_s, u"shell"_s, u"nexus"_s, u"open"_s } },
+                { u"command"_s, QStringList{ u"wysun"_s, u"settings"_s } },
             }),
         }))
 };

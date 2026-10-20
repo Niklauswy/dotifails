@@ -2,21 +2,32 @@
 set -eu
 config="${XDG_DATA_HOME:-$HOME/.local/share}/wysun/quickshell"
 [ -f "$config/shell.qml" ] || config="$HOME/.local/share/wysun/quickshell"
+config="${WYSUN_SHELL_CONFIG:-$config}"
+if [ -f "$config/UPSTREAM.json" ]; then
+    runtime="$config/wysun/runtime.sh"
+else
+    case "${1:-}" in
+        reload-preferences) shift; exec quickshell ipc -p "$config" call wysunShell reloadPreferences "$@" ;;
+        launcher|menu|windows|session) kind="$1"; shift; exec quickshell ipc -p "$config" call wysunShell toggle "$kind" "$@" ;;
+        close|status) action="$1"; shift; exec quickshell ipc -p "$config" call wysunShell "$action" "$@" ;;
+        *) exec quickshell --no-duplicate -p "$config" "$@" ;;
+    esac
+fi
 case "${1:-}" in
-    reload-preferences) shift; exec quickshell ipc -p "$config" call wysunShell reloadPreferences "$@" ;;
-    launcher) exec quickshell ipc -p "$config" call wysunShell toggle launcher ;;
-    menu|windows|session) kind="$1"; shift; exec quickshell ipc -p "$config" call wysunShell toggle "$kind" "$@" ;;
+    reload-preferences) shift; exec "$runtime" ipc call wysunShell reloadPreferences "$@" ;;
+    launcher) exec "$runtime" ipc call wysunShell toggle launcher ;;
+    menu|windows|session) kind="$1"; shift; exec "$runtime" ipc call wysunShell toggle "$kind" "$@" ;;
     toggle|open)
         action="$1"; shift
         surface="${1:-}"
         if [ $# -gt 0 ]; then shift; fi
         case "$surface" in
-            test|dashboard|launcher|menu|windows|session) ;;
+            test|dashboard|launcher|menu|quicksettings|notifications|windows|session) ;;
             *) echo "wysun-shell: superficie desconocida: ${surface:-<vacía>}" >&2; exit 2 ;;
         esac
-        exec quickshell ipc -p "$config" call wysunShell "$action" "$surface" "$@" ;;
-    theme) shift; exec quickshell ipc -p "$config" call wysunShell theme "$@" ;;
-    theme-settings) shift; exec quickshell ipc -p "$config" call wysunShell openThemeSettings "$@" ;;
-    close|status) action="$1"; shift; exec quickshell ipc -p "$config" call wysunShell "$action" "$@" ;;
-    *) exec quickshell --no-duplicate -p "$config" "$@" ;;
+        exec "$runtime" ipc call wysunShell "$action" "$surface" "$@" ;;
+    theme) shift; exec "$runtime" ipc call wysunShell theme "$@" ;;
+    theme-settings) shift; exec "$runtime" ipc call wysunShell openThemeSettings "$@" ;;
+    close|status) action="$1"; shift; exec "$runtime" ipc call wysunShell "$action" "$@" ;;
+    *) exec "$runtime" --no-duplicate "$@" ;;
 esac

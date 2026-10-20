@@ -1,3 +1,5 @@
+// Derivado de caelestia-dots/shell (GPL-3.0), modificado para Wysun.
+// Base: 6c70d5cb0cbf31413d300699540c858ad28c1539; véanse LICENSE y UPSTREAM.json.
 pragma ComponentBehavior: Bound
 
 import QtQuick
@@ -12,6 +14,7 @@ import qs.utils
 QtObject {
     id: notif
 
+    property bool historyOnly: false
     property bool popup
     property bool closed
     property var locks: new Set()
@@ -19,6 +22,7 @@ QtObject {
     property date time: new Date()
     property int ageMins: 0
     readonly property string timeStr: {
+        if (historyOnly) return "Historial";
         if (ageMins < 1)
             return Tr.tr("now");
 
@@ -219,6 +223,7 @@ QtObject {
         closed = true;
         if (locks.size === 0 && Notifs.list.includes(this)) {
             Notifs.list = Notifs.list.filter(n => n !== this);
+            if (historyOnly) Notifs.dismiss(notificationId);
             notification?.dismiss();
             destroy();
         }

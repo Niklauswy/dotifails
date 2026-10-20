@@ -1,3 +1,5 @@
+// Derivado de caelestia-dots/shell (GPL-3.0), modificado para Wysun.
+// Base: 6c70d5cb0cbf31413d300699540c858ad28c1539; véanse LICENSE y UPSTREAM.json.
 pragma Singleton
 
 import ".."
@@ -80,7 +82,7 @@ Searcher {
 
         function onClicked(list: AppList): void {
             list.screenState.launcher = false;
-            Quickshell.execDetached(["caelestia", "scheme", "set", "-v", variant]);
+            Quickshell.execDetached(["wysun", "scheme", "set", "--dynamic", "--variant", variant]);
         }
     }
 }

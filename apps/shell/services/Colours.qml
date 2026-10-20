@@ -1,3 +1,5 @@
+// Derivado de caelestia-dots/shell (GPL-3.0), modificado para Wysun.
+// Base: 6c70d5cb0cbf31413d300699540c858ad28c1539; véanse LICENSE y UPSTREAM.json.
 pragma Singleton
 pragma ComponentBehavior: Bound
 
@@ -79,19 +81,11 @@ Singleton {
     }
 
     function setMode(mode: string): void {
-        Quickshell.execDetached(["caelestia", "scheme", "set", "--notify", "-m", mode]);
+        Quickshell.execDetached(["wysun", "scheme", "set", "--dynamic", "--mode", mode]);
     }
 
     function reloadHyprRules(): void {
-        let rule, trEnabled;
-        if (Hypr.usingLua) {
-            rule = `eval hl.layer_rule({ match = { namespace = "caelestia-drawers" }, %1 = %2 })`;
-            trEnabled = transparency.enabled;
-        } else {
-            rule = "keyword layerrule %1 %2, match:namespace caelestia-drawers";
-            trEnabled = transparency.enabled ? 1 : 0;
-        }
-        Hypr.extras.batchMessage([rule.arg("blur").arg(trEnabled), rule.arg("ignore_alpha").arg(Math.max(0, transparency.base - 0.03))]);
+        // Compositor rules stay owned by Wysun's backed-up configuration.
     }
 
     function requestReloadHyprRules(): void {

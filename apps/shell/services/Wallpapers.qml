@@ -1,3 +1,5 @@
+// Derivado de caelestia-dots/shell (GPL-3.0), modificado para Wysun.
+// Base: 6c70d5cb0cbf31413d300699540c858ad28c1539; véanse LICENSE y UPSTREAM.json.
 pragma Singleton
 
 import QtQuick
@@ -15,6 +17,10 @@ Searcher {
     readonly property list<string> smartArg: GlobalConfig.services.smartScheme ? [] : ["--no-smart"]
     readonly property string fallback: Quickshell.shellPath("assets/wallpaper.webp")
 
+    property var wysunWallpaper: ({})
+    function forOutput(name: string): string {
+        return showPreview ? previewPath : (wysunWallpaper.monitors?.[name]?.path || wysunWallpaper.default || actualCurrent);
+    }
     property bool showPreview: false
     readonly property string current: showPreview ? previewPath : actualCurrent
     property string previewPath
@@ -30,12 +36,12 @@ Searcher {
     }
 
     function setRandom(): void {
-        Quickshell.execDetached(["caelestia", "wallpaper", "-r", ...smartArg]);
+        Quickshell.execDetached(["wysun", "settings", "wallpaper"]);
     }
 
     function setWallpaper(path: string): void {
         actualCurrent = path;
-        Quickshell.execDetached(["caelestia", "wallpaper", "-f", path, ...smartArg]);
+        Quickshell.execDetached(["wysun", "wallpaper", "set", path]);
     }
 
     function preview(path: string): void {
@@ -91,7 +97,7 @@ Searcher {
             let wall = text().trim();
             if (!wall) {
                 wall = root.fallback;
-                Quickshell.execDetached(["caelestia", "wallpaper", "-f", root.fallback, ...root.smartArg]);
+
             }
             root.actualCurrent = wall;
             root.previewColourLock = false;
@@ -99,7 +105,7 @@ Searcher {
         onLoadFailed: {
             root.actualCurrent = root.fallback;
             root.previewColourLock = false;
-            Quickshell.execDetached(["caelestia", "wallpaper", "-f", root.fallback, ...root.smartArg]);
+
         }
     }
 
@@ -114,7 +120,7 @@ Searcher {
     Process {
         id: getPreviewColoursProc
 
-        command: ["caelestia", "wallpaper", "-p", root.previewPath, ...root.smartArg]
+        command: ["/usr/bin/python3", Quickshell.shellPath("wysun/backend.py"), "preview", root.previewPath]
         stdout: StdioCollector {
             onStreamFinished: {
                 Colours.load(text, true);

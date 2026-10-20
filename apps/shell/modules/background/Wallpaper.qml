@@ -1,6 +1,9 @@
+// Derivado de caelestia-dots/shell (GPL-3.0), modificado para Wysun.
+// Base: 6c70d5cb0cbf31413d300699540c858ad28c1539; véanse LICENSE y UPSTREAM.json.
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import Quickshell
 import Caelestia
 import Caelestia.Config
 import Caelestia.I18n
@@ -25,7 +28,7 @@ Item {
         return Shaders[transition] ?? Shaders.crossfade;
     }
 
-    property string source: Wallpapers.current
+    property string source: Wallpapers.forOutput((QsWindow.window as QsWindow)?.screen?.name || "")
     property ShaderEffectSource currentCapture: capture1
     property real transitionProgress: 1
     property bool completed

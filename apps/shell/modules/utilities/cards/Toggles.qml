@@ -142,7 +142,7 @@ StyledRect {
                     delegate: Toggle {
                         icon: "notifications_off"
                         checked: PersistentState.doNotDisturb
-                        onClicked: PersistentState.doNotDisturb = !PersistentState.doNotDisturb
+                        onClicked: Notifs.toggleDnd()
                     }
                 }
                 DelegateChoice {
