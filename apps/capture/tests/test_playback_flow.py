@@ -54,9 +54,12 @@ class PlaybackFlowTests(unittest.TestCase):
         from loomrec.ui.components import SoftButton
         w=self.window
         with patch.object(w,'activate_instance') as activate:
-            for page in [w.library_page,w.settings_page]:
-                button=next(b for b in page.findChildren(SoftButton) if b.text()=='Nueva grabación');button.click()
-            self.assertEqual([c.args for c in activate.call_args_list],[('quick',),('quick',)])
+            button=next(b for b in w.library_page.findChildren(SoftButton) if b.text()=='Nueva grabación');button.click()
+            self.assertEqual([c.args for c in activate.call_args_list],[('quick',)])
+            # The redesigned Settings page has no quick button; its navigation opens the full setup.
+            activate.reset_mock()
+            nav=next(b for b,t in w.settings_page.navigation.buttons if t=='Grabar');nav.click()
+            self.assertEqual([c.args for c in activate.call_args_list],[('setup',)])
 
     def test_library_search_keeps_space_and_arrows_for_text(self):
         from PySide6.QtCore import Qt,QEvent
