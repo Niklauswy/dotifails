@@ -85,6 +85,8 @@ def theme_files(home,key):
         text=re.sub(r'/\* BEGIN ORBIT THEME \*/.*?/\* END ORBIT THEME \*/\n?','',text,flags=re.S)
         files[path]=text.rstrip()+'\n/* BEGIN ORBIT THEME */\n'+''.join(f'@define-color {name} {value};\n' for name,value in gtk.items())+'/* END ORBIT THEME */\n'
     files[config/'orbit/theme.json']=theme_core.serialize(style,variant)
+    from wysun_scheme import fixed_scheme
+    files[theme_core.scheme_path(home)]=json.dumps(fixed_scheme(style,variant),ensure_ascii=False,indent=2,sort_keys=True)+'\n'
     from hypr_settings import lua
     native=config/'orbit'
     bar_path=native/'hypr-bar.json'
@@ -117,6 +119,8 @@ def apply_theme(home,key,runner=run):
     def backup_relative(path):
         if path.is_relative_to(home):return path.relative_to(home)
         if path.is_relative_to(config):return Path('xdg-config')/path.relative_to(config)
+        state=theme_core.state_root(home)
+        if path.is_relative_to(state):return Path('xdg-state')/path.relative_to(state)
         raise ValueError('Ruta de tema fuera de HOME/XDG_CONFIG_HOME')
     for path,data in originals.items():
         if data is not None:
@@ -129,15 +133,18 @@ def apply_theme(home,key,runner=run):
         if not isinstance(value,str):raise RuntimeError('No se pudo respaldar el color de borde actual')
         previous[name]=value
     old_native='hl.config('+lua({'general':{'col':previous}})+')'
+    def write_file(path,text):
+        if path==theme_core.scheme_path(home):theme_core._atomic_write(path,text)
+        else:atomic_write(path,text,0o600 if path.name=='theme.json' else None)
     try:
-        for path,text in files.items():atomic_write(path,text,0o600 if path.name=='theme.json' else None)
+        for path,text in files.items():write_file(path,text)
         if (config/'ghostty/config').exists():runner(['ghostty','+validate-config'])
         evaluate(runner,files[native_script])
         render_wallpaper(environment['wallpaper'],display_inventory(runner),home,runner)
     except Exception:
         for path,data in originals.items():
             if data is None:path.unlink(missing_ok=True)
-            else:atomic_write(path,data.decode())
+            else:write_file(path,data.decode())
         try:evaluate(runner,old_native)
         except Exception:pass
         invalidate();raise

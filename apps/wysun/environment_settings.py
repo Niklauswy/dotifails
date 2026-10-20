@@ -271,7 +271,10 @@ class EnvironmentSettings:
     def apply_wallpaper(self, values):
         old=copy.deepcopy(self.section('wallpaper'))
         self.save_section('wallpaper',values)
-        try:render_wallpaper(values,display_inventory(self.runner),self.home,self.runner)
+        try:
+            render_wallpaper(values,display_inventory(self.runner),self.home,self.runner)
+            from wysun_scheme import regenerate_if_dynamic
+            regenerate_if_dynamic(self.home,values)
         except Exception:
             self.save_section('wallpaper',old)
             raise

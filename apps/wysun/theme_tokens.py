@@ -29,7 +29,7 @@ def theme_id(home=None):
 
 
 def tokens(home=None):
-    return _resolved(*theme_core.selection(home))
+    return theme_core.resolve_active(*theme_core.selection(home), home)
 
 
 @lru_cache(maxsize=8)
@@ -236,7 +236,7 @@ def watch_theme(home=None):
             self.timer = QTimer(self)
             self.timer.setSingleShot(True)
             self.timer.setInterval(40)
-            self.key = theme_id(home)
+            self.key = theme_core.visual_key(home)
             self.watcher.fileChanged.connect(self.changed)
             self.watcher.directoryChanged.connect(self.changed)
             self.timer.timeout.connect(self.refresh)
@@ -244,14 +244,14 @@ def watch_theme(home=None):
 
         def arm(self):
             targets = set()
-            path = theme_core.selection_path(home)
-            if path.exists():
-                targets.add(str(path))
-            parent = path.parent
-            while not parent.exists() and parent != parent.parent:
-                parent = parent.parent
-            if parent.exists():
-                targets.add(str(parent))
+            for path in (theme_core.selection_path(home), theme_core.scheme_path(home)):
+                if path.exists():
+                    targets.add(str(path))
+                parent = path.parent
+                while not parent.exists() and parent != parent.parent:
+                    parent = parent.parent
+                if parent.exists():
+                    targets.add(str(parent))
             current = set(self.watcher.files() + self.watcher.directories())
             if current - targets:
                 self.watcher.removePaths(list(current - targets))
@@ -264,7 +264,7 @@ def watch_theme(home=None):
         def refresh(self):
             self.arm()
             invalidate()
-            key = theme_id(home)
+            key = theme_core.visual_key(home)
             if key != self.key:
                 self.key = key
                 refresh_widgets()
