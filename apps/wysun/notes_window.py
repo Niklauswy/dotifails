@@ -32,17 +32,17 @@ class NotesWindow(Surface):
             QLabel#noteTitle {font-size:@font_title; font-weight:600;}
             QSplitter::handle { background:transparent; width:1px; }
         ''')
-        split = QSplitter(); self.workspace = split
+        split = QSplitter(); self.workspace = split; split.setChildrenCollapsible(False)
         left = surface(QWidget(), 'navigation'); sidebar = QVBoxLayout(left)
-        gap = metrics()['gap']; sidebar.setContentsMargins(gap, gap, gap, gap)
+        gap = metrics()['gap']; sidebar.setContentsMargins(gap, gap, gap, gap); sidebar.setSpacing(metrics()['space_s'])
         sidebar.addWidget(text_label('Biblioteca', 'title'))
         sidebar.addWidget(button('Nueva nota · Ctrl N', self.new, 'primary', 'plus'))
         self.search = QLineEdit(); self.search.setPlaceholderText('Buscar notas…'); sidebar.addWidget(self.search)
         self.folder = QComboBox(); self.folder.addItems(['Todas las notas', 'Favoritas', 'Papelera']); sidebar.addWidget(self.folder)
         self.list = QListWidget(); self.list.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff); sidebar.addWidget(self.list, 1)
-        
+        self.count = text_label('', 'utilitySubtitle'); sidebar.addWidget(self.count)
         split.addWidget(left)
-        right = surface(QWidget()); right.setObjectName('notePane'); layout = QVBoxLayout(right); layout.setContentsMargins(gap, gap, gap, gap)
+        right = surface(QWidget()); right.setObjectName('notePane'); layout = QVBoxLayout(right); layout.setContentsMargins(gap, gap, gap, gap); layout.setSpacing(metrics()['space_s'])
         toolbar = QHBoxLayout()
         self.edit_button = button('Escribir', lambda: self.set_preview(False), symbol='pencil'); self.edit_button.setCheckable(True)
         self.preview_button = button('Leer', lambda: self.set_preview(True), symbol='eye'); self.preview_button.setCheckable(True)
@@ -52,7 +52,7 @@ class NotesWindow(Surface):
         self.heading = text_label('Una idea empieza aquí', 'noteTitle'); layout.addWidget(self.heading)
         self.editor = QPlainTextEdit(); self.editor.setPlaceholderText('Crea una nota o importa tus archivos Markdown.'); layout.addWidget(self.editor, 1)
         self.preview = QTextBrowser(); self.preview.setOpenExternalLinks(False); self.theme_changed(); on_theme_changed(self.theme_changed); layout.addWidget(self.preview, 1)
-        self.meta = text_label('', 'subtitle'); layout.addWidget(self.meta); split.addWidget(right); split.setSizes([270, 620]); self.outer.addWidget(split, 1)
+        self.meta = text_label('', 'subtitle'); layout.addWidget(self.meta); split.addWidget(right); split.setSizes([300, 620]); self.outer.addWidget(split, 1)
         footer = QHBoxLayout(); self.status = text_label('Guardado local', 'subtitle'); footer.addWidget(self.status, 1)
         footer.addWidget(button('Abrir en Vim', self.vim, symbol='terminal')); footer.addWidget(button('Acciones  Alt K', self.actions)); layout.addLayout(footer)
         self.timer = QTimer(self); self.timer.setSingleShot(True); self.timer.setInterval(650); self.timer.timeout.connect(self.save)
@@ -91,6 +91,7 @@ class NotesWindow(Surface):
             if r['key'] == key: self.list.setCurrentItem(item)
         if not self.list.currentItem() and self.list.count(): self.list.setCurrentRow(0)
         self.list.blockSignals(False); self.selected(self.list.currentItem())
+        self.count.setText(f'{self.list.count()} nota' if self.list.count()==1 else f'{self.list.count()} notas')
 
     def selected(self, item, previous=None):
         if not self.save():

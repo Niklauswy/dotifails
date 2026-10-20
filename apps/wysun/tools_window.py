@@ -8,11 +8,11 @@ import os
 from pathlib import Path
 import sys
 from PySide6.QtCore import Qt, QProcess, QTimer, QUrl
-from PySide6.QtGui import QDesktopServices
+from PySide6.QtGui import QDesktopServices, QKeySequence, QShortcut
 from PySide6.QtWidgets import (QWidget,QVBoxLayout,QHBoxLayout,QListWidget,QListWidgetItem,
     QStackedWidget,QFileDialog,QLineEdit,QComboBox,QSpinBox,QCheckBox,QPlainTextEdit,
     QTableWidget,QTableWidgetItem,QHeaderView,QMessageBox,QApplication)
-from utility_material import MaterialSurface as Surface, button, surface, metrics
+from utility_material import MaterialSurface as Surface, button, section_label, surface, metrics
 from desktop_common import text_label, launch
 from ui_motion import reveal_content
 
@@ -43,14 +43,18 @@ class ToolsWindow(Surface):
     def __init__(self,test=False):
         super().__init__('Wysun Tools',width=1000,height=680)
         self.test=test;self.projects=[] if test else load_projects();self.jobs=[];self.sharing=None
-        workspace=QHBoxLayout();self.workspace=QWidget();self.workspace.setLayout(workspace)
-        rail=surface(QWidget(), 'navigation');nav=QVBoxLayout(rail);nav.addWidget(text_label('Herramientas', 'title'))
+        gap=metrics()['gap']
+        workspace=QHBoxLayout();workspace.setContentsMargins(0,0,0,0);workspace.setSpacing(gap);self.workspace=QWidget();self.workspace.setLayout(workspace)
+        rail=surface(QWidget(), 'navigation');rail.setFixedWidth(metrics()['rail_width']);nav=QVBoxLayout(rail);nav.setContentsMargins(gap,gap,gap,gap);nav.setSpacing(metrics()['space_xs'])
+        nav.addWidget(section_label('Herramientas'));nav.addSpacing(metrics()['space_s'])
         self.pages=QStackedWidget();surface(self.pages);self.tabs=[]
         for title in ('Proyectos','Diagnósticos','Archivos','Recordatorios'):
-            b=button(title,lambda index=len(self.tabs):self.page(index));b.setCheckable(True);self.tabs.append(b);nav.addWidget(b)
-        nav.addStretch();workspace.addWidget(rail);workspace.addWidget(self.pages,1)
+            b=button(title,lambda index=len(self.tabs):self.page(index),symbol={'Proyectos':'folder','Diagnósticos':'shield-check','Archivos':'files','Recordatorios':'saved'}[title],nav=True);b.setCheckable(True);self.tabs.append(b);nav.addWidget(b)
+        nav.addStretch();nav.addWidget(text_label('Alt 1–4 · cambia de sección','utilitySubtitle'))
+        workspace.addWidget(rail);workspace.addWidget(self.pages,1)
         self.make_projects();self.make_diagnostics();self.make_sharing();self.make_resets();self.outer.addWidget(self.workspace,1)
-        self.status=text_label('','subtitle');self.outer.addWidget(self.status)
+        self.status=text_label('','utilitySubtitle');self.outer.addWidget(self.status)
+        for index in range(4):QShortcut(QKeySequence(f'Alt+{index+1}'),self).activated.connect(lambda i=index:self.page(i))
         self.page(0);self.refresh_projects()
 
     def page(self,index):

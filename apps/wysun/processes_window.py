@@ -13,7 +13,7 @@ from PySide6.QtCore import QUrl
 from PySide6.QtWidgets import (QApplication, QWidget, QHBoxLayout, QVBoxLayout, QGridLayout,
     QLineEdit, QComboBox, QTreeWidget, QTreeWidgetItem, QHeaderView, QAbstractItemView,
     QSplitter, QTabWidget, QPlainTextEdit, QMessageBox, QScrollArea)
-from utility_material import MaterialSurface as Surface, button, surface, metrics as material_metrics
+from utility_material import MaterialSurface as Surface, button, surface, section_label, metrics as material_metrics
 
 from desktop_common import  text_label
 from icons import icon
@@ -101,19 +101,21 @@ class ProcessesWindow(Surface):
             QScrollBar::add-line:horizontal,QScrollBar::sub-line:horizontal {width:0;}
             QScrollBar::add-page:horizontal,QScrollBar::sub-page:horizontal {background:transparent;}
         ''')
-        resource_rail=surface(QWidget(), 'navigation'); metrics=QVBoxLayout(resource_rail);metrics.setSpacing(material_metrics()["gap"])
-        metrics.addWidget(text_label('Recursos', 'title')); self.metrics=[]
+        gap=material_metrics()["gap"]
+        resource_rail=surface(QWidget(), 'navigation');self.resource_rail=resource_rail;metrics=QVBoxLayout(resource_rail);metrics.setContentsMargins(gap,gap,gap,gap);metrics.setSpacing(gap)
+        rail_head=QHBoxLayout();rail_head.addWidget(section_label('Recursos'));rail_head.addStretch();self.live=text_label('● EN VIVO','eyebrow');apply_style(self.live,'color:@success;font-size:10px;font-weight:600;letter-spacing:1px;');rail_head.addWidget(self.live,0,Qt.AlignRight);metrics.addLayout(rail_head);self.metrics=[]
         for name,tone in [('CPU del equipo','cat_blue'),('Memoria utilizada','cat_purple'),('Intercambio','cat_yellow'),('Procesos','cat_green')]:
             metric=Metric(name,tone);metrics.addWidget(metric,1);self.metrics.append(metric)
         metrics.addStretch()
         self.metrics[0].chart.maximum=100;self.metrics[0].chart.setToolTip('CPU total · escala de 0 a 100% · últimas 60 muestras')
-        diagnostic=QHBoxLayout();self.live=text_label('● EN VIVO','eyebrow');apply_style(self.live,'color:@success;font-size:10px;font-weight:600;letter-spacing:1px;');diagnostic.addWidget(self.live)
-        self.pressure=text_label('Presión de recursos · tomando muestra…','subtitle');self.pressure.setToolTip('PSI: porcentaje de tiempo que al menos una tarea estuvo esperando un recurso en los últimos 10 segundos.');self.pressure.setWordWrap(False);self.pressure.setMinimumHeight(22);diagnostic.addWidget(self.pressure,1,Qt.AlignRight);self.outer.addLayout(diagnostic)
+        metrics.addWidget(section_label('Presión de recursos'))
+        self.pressure=text_label('Tomando muestra…','subtitle');self.pressure.setToolTip('PSI: porcentaje de tiempo que al menos una tarea estuvo esperando un recurso en los últimos 10 segundos.');self.pressure.setWordWrap(True);self.pressure.setMinimumHeight(22);metrics.addWidget(self.pressure)
+        content=surface(QWidget(), 'content');self.content=content;content_metrics=metrics=QVBoxLayout(content);content_metrics.setContentsMargins(gap,gap,gap,gap);content_metrics.setSpacing(gap)
+        content_head=QHBoxLayout();content_head.addWidget(text_label('Procesos del sistema','title'));content_head.addStretch();self.freeze=button('Congelar',self.toggle_freeze,symbol='circle-pause');self.freeze.setCheckable(True);self.freeze.setToolTip('Congelar solo la vista · Espacio cuando la tabla tiene el foco');content_head.addWidget(self.freeze);content_metrics.addLayout(content_head)
         filters=QHBoxLayout();self.search=QLineEdit();self.search.setPlaceholderText('Buscar · nombre, pid:123, cpu>5, mem>256m…');self.search.setToolTip('Combina filtros: pid:123 · ppid:123 · user:nombre · state:R · cpu>5 · mem>256m');self.search.setClearButtonEnabled(True);filters.addWidget(self.search,1)
         self.owner=QComboBox();self.owner.addItems(['Mis procesos','Todos los usuarios']);filters.addWidget(self.owner)
         self.filter=QComboBox();self.filter.addItems(['Todos los estados','Ejecutando','Pausados','Consumo alto']);filters.addWidget(self.filter)
-        self.view=QComboBox();self.view.addItems(['Lista','Árbol']);filters.addWidget(self.view)
-        self.freeze=button('Congelar',self.toggle_freeze,symbol='circle-pause');self.freeze.setCheckable(True);self.freeze.setToolTip('Congelar solo la vista · Espacio cuando la tabla tiene el foco');filters.addWidget(self.freeze);self.outer.addLayout(filters)
+        self.view=QComboBox();self.view.addItems(['Lista','Árbol']);filters.addWidget(self.view);content_metrics.addLayout(filters)
         split=QSplitter();self.tree=QTreeWidget();self.list=self.tree
         apply_style(self.tree,'QTreeWidget{background:transparent;border:0;outline:0;alternate-background-color:@tint/3;} QTreeWidget::item{height:34px;padding:0 4px;border:0;} QTreeWidget::item:selected{background:@row_selected;color:@selection_text;} QHeaderView::section{background:@well;color:@subtle;border:0;padding:8px 4px;font-size:11px;}')
         from process_widgets import ResourceDelegate
@@ -123,7 +125,7 @@ class ProcessesWindow(Surface):
         self.tree.setSortingEnabled(True);self.tree.sortByColumn(2,Qt.DescendingOrder);self.tree.setColumnWidth(0,190)
         for column,width in [(1,86),(2,62),(3,80),(4,80),(5,80),(6,85)]:self.tree.setColumnWidth(column,width)
         self.tree.header().setStretchLastSection(True);self.tree.setContextMenuPolicy(Qt.CustomContextMenu);split.addWidget(self.tree)
-        pane=QWidget();layout=QVBoxLayout(pane);layout.setContentsMargins(18,0,0,0);layout.setSpacing(9)
+        pane=QWidget();pane.setObjectName('inspector');pane.setAttribute(Qt.WA_StyledBackground);apply_style(pane,'QWidget#inspector{background:transparent;border:0;border-left:@border solid @divider;border-radius:0;}');layout=QVBoxLayout(pane);layout.setContentsMargins(18,0,0,0);layout.setSpacing(gap)
         head=QHBoxLayout();self.process_icon=text_label('');self.process_icon.setFixedSize(30,30);head.addWidget(self.process_icon);self.name=text_label('Selecciona un proceso');apply_style(self.name,'font-size:18px;font-weight:600;');head.addWidget(self.name,1);layout.addLayout(head)
         self.identity=text_label('Los detalles aparecerán aquí','subtitle');layout.addWidget(self.identity)
         self.tabs=QTabWidget();layout.addWidget(self.tabs,1)
@@ -143,10 +145,10 @@ class ProcessesWindow(Surface):
         self.reason=text_label('','subtitle');layout.addWidget(self.reason)
         actions=QHBoxLayout();self.pause_button=button('Pausar',lambda:self.act('pause'),symbol='circle-pause');self.normal=button('Terminar',lambda:self.act('terminate'),'danger', 'x');actions.addWidget(self.pause_button);actions.addWidget(self.normal);layout.addLayout(actions)
         self.more=button('Acciones  Alt K',self.actions,symbol='ellipsis');layout.addWidget(self.more)
-        pane.setMinimumWidth(300);split.addWidget(pane);split.setSizes([745,330]);workspace=QSplitter(); self.workspace=workspace; workspace.addWidget(resource_rail); workspace.addWidget(split); workspace.setSizes([230, 970]); self.outer.addWidget(workspace,1)
-        surface(pane)
+        pane.setMinimumWidth(300);split.addWidget(pane);split.setSizes([745,330]);split.setChildrenCollapsible(False);content_metrics.addWidget(split,1)
         footer=QHBoxLayout();self.status=text_label('Leyendo procesos…','subtitle');footer.addWidget(self.status,1)
-        self.interval=QComboBox();self.interval.addItems(['Cada 1 s','Cada 2 s','Cada 5 s']);self.interval.setCurrentIndex(1);footer.addWidget(self.interval);footer.addWidget(button('Actualizar  F5',lambda:self.scan(True),symbol='refresh-cw'));self.outer.addLayout(footer)
+        self.interval=QComboBox();self.interval.addItems(['Cada 1 s','Cada 2 s','Cada 5 s']);self.interval.setCurrentIndex(1);footer.addWidget(self.interval);footer.addWidget(button('Actualizar  F5',lambda:self.scan(True),symbol='refresh-cw'));content_metrics.addLayout(footer)
+        workspace=QSplitter();self.workspace=workspace;workspace.addWidget(resource_rail);workspace.addWidget(content);workspace.setSizes([250,990]);workspace.setChildrenCollapsible(False);self.outer.addWidget(workspace,1)
         self.timer=QTimer(self);self.timer.setInterval(2000);self.timer.timeout.connect(self.scan)
         for control in (self.owner,self.filter,self.view):control.currentIndexChanged.connect(self.render)
         self.search.textChanged.connect(self.render);self.search.installEventFilter(self);self.tree.itemSelectionChanged.connect(self.inspect);self.tree.customContextMenuRequested.connect(lambda _:self.actions());self.tree.itemDoubleClicked.connect(lambda *_:self.tabs.setCurrentIndex(0));self.interval.currentIndexChanged.connect(self.change_interval)
@@ -188,7 +190,7 @@ class ProcessesWindow(Surface):
         psi=s.get('pressure',{});parts=[]
         for key,title in [('cpu','CPU'),('memory','RAM'),('io','E/S')]:
             value=psi.get(key);parts.append(title+' '+(f'{value:.1f}%' if value is not None else '—'))
-        self.pressure.setText('Espera de recursos  /  '+'  ·  '.join(parts))
+        self.pressure.setText('  ·  '.join(parts))
         self.live.setText('Ⅱ CONGELADO' if self.freeze.isChecked() else '● EN VIVO')
         self.metrics[0].update_value(f'{cpu:.0f}%' if cpu is not None else '—',f"{s.get('cores',1)} núcleos lógicos · carga {s.get('load',(0,))[0]:.2f}",cpu)
         self.metrics[1].update_value(size(s['memory']),f"de {size(s['total_memory'])} en total",s['memory'])

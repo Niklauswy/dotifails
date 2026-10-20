@@ -46,13 +46,15 @@ class ColorWindow(Surface):
         super().__init__('Wysun Colors', 'WYSUN  /  Del escritorio a tu próximo proyecto', 800, 620)
         self.store = Colors(path); self.picker = None; self.syncing = False
         self.color = QColor('#7AA2F7')  # theme-exception: color inicial de muestra
-        workspace = QSplitter(); self.workspace = workspace
+        workspace = QSplitter(); self.workspace = workspace; workspace.setChildrenCollapsible(False)
         work = surface(QWidget()); work_layout = QVBoxLayout(work)
         palette = surface(QWidget(), 'navigation'); palette_layout = QVBoxLayout(palette)
         gap = metrics()['gap']
         for layout in (work_layout, palette_layout):
-            layout.setContentsMargins(gap, gap, gap, gap); layout.setSpacing(gap)
+            layout.setContentsMargins(gap, gap, gap, gap); layout.setSpacing(metrics()['space_s'])
+        work_layout.addWidget(text_label('Color', 'title'))
         palette_layout.addWidget(text_label('Tu paleta', 'title'))
+        palette_layout.addWidget(text_label('Recientes y favoritos', 'sectionLabel'))
         top = QHBoxLayout(); self.entry = QLineEdit(self.color.name().upper()); self.entry.setPlaceholderText('HEX, rgb(122, 162, 247), hsl(221, 89%, 72%)…'); top.addWidget(self.entry, 1)  # theme-exception: ejemplo de formatos en el texto de ayuda
         top.addWidget(button('Capturar  Ctrl P', self.capture, 'primary', 'palette')); work_layout.addLayout(top)
         body = QVBoxLayout(); body.setSpacing(gap)
@@ -68,9 +70,9 @@ class ColorWindow(Surface):
             row = QHBoxLayout(); tag = text_label(name, 'subtitle'); tag.setFixedWidth(84); row.addWidget(tag)
             slider = QSlider(Qt.Horizontal); slider.setRange(0, maximum); slider.valueChanged.connect(self.adjust); row.addWidget(slider); self.sliders.append(slider); values.addLayout(row)
         self.star = button('Guardar favorito', self.favorite, symbol='pin'); self.star.setCheckable(True); values.addWidget(self.star); body.addLayout(values, 1); work_layout.addLayout(body, 1)
-        tabs = QHBoxLayout();  self.filter = QComboBox(); self.filter.addItems(['Recientes y favoritos', 'Solo favoritos']); tabs.addWidget(self.filter); palette_layout.addLayout(tabs)
+        self.filter = QComboBox(); self.filter.addItems(['Recientes y favoritos', 'Solo favoritos']); palette_layout.addWidget(self.filter)
         self.recent = QListWidget(); self.recent.setViewMode(QListWidget.IconMode); self.recent.setResizeMode(QListWidget.Adjust); self.recent.setMovement(QListWidget.Static); self.recent.setIconSize(QSize(66, 36)); self.recent.setGridSize(QSize(104, 84)); self.recent.setMinimumWidth(metrics()['rail_width']); palette_layout.addWidget(self.recent, 1)
-        workspace.addWidget(work); workspace.addWidget(palette); workspace.setSizes([520, 240]); self.outer.addWidget(workspace, 1)
+        workspace.addWidget(palette); workspace.addWidget(work); workspace.setSizes([metrics()['rail_width'] + metrics()['space_xl'], 520]); self.outer.addWidget(workspace, 1)
         footer = QHBoxLayout(); self.status = text_label('Selecciona un color o captura cualquier píxel', 'subtitle'); footer.addWidget(self.status, 1)
         self.more = button('Acciones  Alt K', self.actions); footer.addWidget(self.more); self.outer.addLayout(footer)
         self.entry.textChanged.connect(self.update_color); self.filter.currentIndexChanged.connect(self.refresh)

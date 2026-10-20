@@ -187,8 +187,8 @@ def _svg_icon(svg: str, size: int) -> QIcon:
     return icon
 
 
-def ui_icon(name: str, size: int = 18, color: str = 'muted') -> QIcon:
-    """Outline icon; ``color`` is a theme token (or an explicit '#rrggbb')."""
+def ui_icon(name: str, size: int = 18, color: str = 'glyph') -> QIcon:
+    """Material Symbols icon; ``color`` is a theme token (or an explicit '#rrggbb')."""
     from utility_material import material_icon
     return material_icon(name, size, color)
 
