@@ -13,6 +13,10 @@ ShellRoot {
     readonly property string fixture: Quickshell.env("WYSUN_GALLERY_FIXTURE") || "full"
     readonly property string scenario: Quickshell.env("WYSUN_GALLERY_SCENARIO") || "capture"
     readonly property int tab: parseInt(Quickshell.env("WYSUN_GALLERY_TAB") || "0")
+    // "0,1,2,3": capture each tab in turn; "%t" in the output path becomes the tab index.
+    readonly property var tabs: (Quickshell.env("WYSUN_GALLERY_TABS") || "").split(",").filter(function(t) { return t !== ""; }).map(Number)
+    property int tabStep: 0
+    readonly property bool live: Quickshell.env("WYSUN_GALLERY_LIVE") === "1"
     readonly property bool reduced: Quickshell.env("WYSUN_GALLERY_REDUCED") === "1"
     readonly property string output: Quickshell.env("WYSUN_GALLERY_OUT") || "/tmp/wysun-dashboard.png"
     property var samples: []
@@ -76,12 +80,21 @@ ShellRoot {
                     controller: controller
                     motion: motion
                     monitorName: "DP-1"
-                    live: false
+                    live: root.live
                     providers: fixtures.providers
-                    dashboardTab: root.tab
+                    dashboardTab: root.tabs.length ? root.tabs[0] : root.tab
                 }
             }
         }
+    }
+
+    // Visible text of the card, so tests can assert what the user would read.
+    function texts(item, out) {
+        if (!item || item.visible === false) return out;
+        if (item.text !== undefined && item.font !== undefined && String(item.text) !== "") out.push(String(item.text));
+        var kids = item.children || [];
+        for (var i = 0; i < kids.length; i++) texts(kids[i], out);
+        return out;
     }
 
     function finish(code) {
@@ -90,8 +103,15 @@ ShellRoot {
     }
 
     function grab(tag, then) {
+        var path = root.output.replace("%t", String(card.dashboardTab));
         var started = scene.grabToImage(function(result) {
-            console.info("WYSUN_GALLERY_CAPTURE", tag, result.saveToFile(root.output), Appearance.style, Appearance.variant, colours.dynamic);
+            console.info("WYSUN_GALLERY_TEXTS", JSON.stringify(root.texts(card, [])));
+            var providers = card.activeProviders;
+            console.info("WYSUN_GALLERY_PROVIDERS", providers ? JSON.stringify({
+                cpu: providers.metrics.cpu, memory: providers.metrics.memory, storage: providers.metrics.storage,
+                media: providers.media ? { title: providers.media.title, players: providers.media.players.length } : null,
+                workspaces: providers.workspaces.length, windows: providers.windows.length }) : "none");
+            console.info("WYSUN_GALLERY_CAPTURE", tag, result.saveToFile(path), Appearance.style, Appearance.variant, colours.dynamic);
             if (then) then();
         });
         console.info("WYSUN_GALLERY_GRAB_REQUEST", started, scene.width, scene.height, win.visible);
@@ -114,7 +134,20 @@ ShellRoot {
             else settle.start();
         }
     }
-    Timer { id: settle; interval: root.reduced ? 400 : 1500; onTriggered: root.grab("open", function() { root.finish(0); }) }
+    Timer {
+        id: settle
+        interval: root.live ? 3500 : (root.reduced ? 400 : 1500)
+        onTriggered: root.grab("open", function() { if (root.tabs.length > 1) nextTab.start(); else root.finish(0); })
+    }
+    Timer {
+        id: nextTab
+        interval: 700
+        onTriggered: {
+            root.tabStep++;
+            card.dashboardTab = root.tabs[root.tabStep];
+            root.grab("tab", function() { if (root.tabStep + 1 < root.tabs.length) nextTab.start(); else root.finish(0); });
+        }
+    }
     Timer { id: close1; interval: 140; onTriggered: { console.info("WYSUN_GALLERY_CLOSE", popup.progress); popup.requested = false; reopen.start(); } }
     Timer { id: reopen; interval: 90; onTriggered: { console.info("WYSUN_GALLERY_REOPEN", popup.progress); popup.requested = true; done.start(); } }
     Timer {
@@ -125,5 +158,5 @@ ShellRoot {
             root.grab("interrupt", function() { root.finish(0); });
         }
     }
-    Timer { interval: 12000; running: true; onTriggered: { console.warn("WYSUN_GALLERY_TIMEOUT"); Qt.quit(); } }
+    Timer { interval: 20000; running: true; onTriggered: { console.warn("WYSUN_GALLERY_TIMEOUT"); Qt.quit(); } }
 }

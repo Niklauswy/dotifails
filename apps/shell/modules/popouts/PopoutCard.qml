@@ -21,6 +21,7 @@ Components.StyledRect {
     property bool sampling: true
     property var providers: null
     property alias dashboardTab: dashboard.currentIndex
+    readonly property var activeProviders: dashboard.providers
 
     readonly property string surface: controller ? controller.surface : ""
     readonly property bool dashboardVisible: surface === "dashboard" || surface === "test"

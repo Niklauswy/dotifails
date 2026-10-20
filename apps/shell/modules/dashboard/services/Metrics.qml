@@ -31,7 +31,6 @@ Scope {
     Process {
         id: disk
         command: ["df", "-Pk", "/"]
-        environment: ({ "LC_ALL": "C" })
         stdout: StdioCollector { onStreamFinished: if (root.enabled) root.storage = Logic.storagePercent(text) }
         onExited: (code, status) => { if (code !== 0 || status !== 0) root.storage = null; }
     }
@@ -40,7 +39,6 @@ Scope {
     Process {
         id: sensors
         command: ["sh", "-c", "for d in /sys/class/hwmon/hwmon*; do n=$(cat \"$d/name\" 2>/dev/null) || continue; t=$(cat \"$d/temp1_input\" 2>/dev/null) && echo \"T $n $t\"; done; for f in /sys/class/drm/card*/device/gpu_busy_percent; do [ -r \"$f\" ] && { echo \"G $(cat \"$f\")\"; break; }; done; exit 0"]
-        environment: ({ "LC_ALL": "C" })
         stdout: StdioCollector {
             onStreamFinished: {
                 if (!root.enabled) return;
