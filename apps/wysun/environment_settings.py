@@ -224,14 +224,14 @@ class EnvironmentSettings:
 
     def colour_values(self):
         """Selection view only; all generation stays in wysun_scheme."""
-        import theme_core
-        from settings_data import json_object
-        selection = json_object(theme_core.selection_path(self.home))
+        import theme_core, theme_intent
+        intent = theme_intent.dynamic_intent(self.home)
         scheme = theme_core.read_scheme(self.home)
-        explicit = any(k in selection for k in ('id', 'style', 'variant', 'name'))
-        return dict(dynamic=scheme.get('name') == 'dynamic' if scheme else not explicit,
+        return dict(dynamic=intent['enabled'],
                     selection=theme_core.read_file(self.home),
-                    mode=scheme.get('mode', 'dark') if scheme else 'dark')
+                    mode=intent.get('mode') or (scheme or {}).get('mode', 'dark'),
+                    variant=intent.get('variant', 'auto'),
+                    seed=intent.get('seed', ''))
 
     def apply_colour(self, values, wallpaper=None, expected=None):
         """Publish through the existing colour authority, with exact undo.
@@ -241,7 +241,7 @@ class EnvironmentSettings:
         """
         import theme_core
         from types import SimpleNamespace
-        from wysun_scheme import set_scheme
+        from wysun_scheme import set_scheme, normalize_seed, VARIANTS
         from settings_data import PreferenceBackup, json_object
         paths = {'environment.json': self.path,
                  'theme.json': theme_core.selection_path(self.home),
@@ -253,6 +253,11 @@ class EnvironmentSettings:
         if values['mode'] not in ('light', 'dark'):
             raise ValueError('Elige modo claro u oscuro.')
         dynamic = values['dynamic']
+        variant = values.get('variant') or 'auto'
+        if variant != 'auto' and variant not in VARIANTS:
+            raise ValueError('Variante Material desconocida.')
+        seed = str(values.get('seed') or '').strip()
+        seed = normalize_seed(seed) if seed else 'none'
         selected = theme_core.parse(values['selection']) if isinstance(values['selection'], str) else tuple(values['selection'])
         if not dynamic and (not selected or selected[0] not in theme_core.styles() or selected[1] not in theme_core.styles()[selected[0]]['variants']):
             raise ValueError('Elige uno de los cinco esquemas fijos.')
@@ -272,7 +277,8 @@ class EnvironmentSettings:
                 render_wallpaper(draft, display_inventory(self.runner), self.home, self.runner)
             result = set_scheme(SimpleNamespace(dynamic=dynamic,
                 theme=None if dynamic else ':'.join(selected),
-                mode=values['mode'] if dynamic else None, variant=None), self.home)
+                mode=values['mode'] if dynamic else None, variant=variant if dynamic else None,
+                seed=seed if dynamic else None), self.home)
             self.runner(['wysun', 'shell', 'reload-preferences'])
         except Exception:
             backup.restore(force=True)

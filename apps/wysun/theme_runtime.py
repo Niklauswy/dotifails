@@ -84,7 +84,8 @@ def theme_files(home,key):
         path=config/relative.removeprefix('.config/');text=path.read_text() if path.exists() else ''
         text=re.sub(r'/\* BEGIN ORBIT THEME \*/.*?/\* END ORBIT THEME \*/\n?','',text,flags=re.S)
         files[path]=text.rstrip()+'\n/* BEGIN ORBIT THEME */\n'+''.join(f'@define-color {name} {value};\n' for name,value in gtk.items())+'/* END ORBIT THEME */\n'
-    files[config/'orbit/theme.json']=theme_core.serialize(style,variant)
+    import theme_intent
+    files[config/'orbit/theme.json']=theme_intent.selection_text(style,variant,home)  # keeps unknown keys, ends the dynamic intent
     from wysun_scheme import fixed_scheme
     files[theme_core.scheme_path(home)]=json.dumps(fixed_scheme(style,variant),ensure_ascii=False,indent=2,sort_keys=True)+'\n'
     from hypr_settings import lua

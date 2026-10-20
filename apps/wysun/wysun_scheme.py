@@ -12,6 +12,7 @@ from collections import Counter
 import hashlib
 import json
 import math
+import re
 from pathlib import Path
 import sys
 from types import SimpleNamespace
@@ -492,42 +493,135 @@ def fixed_scheme(style, variant):
     }
 
 
+def seed_hash(seed):
+    """Identity of a manual seed inside scheme.json's existing wallpaper_hash field."""
+    return hashlib.sha256(b'seed:' + normalize_seed(seed).encode()).hexdigest()
+
+
+def normalize_seed(seed):
+    text = str(seed).strip()
+    if not re.fullmatch(r'#?[0-9a-fA-F]{6}', text):
+        raise ValueError('La semilla debe ser un color #RRGGBB.')
+    return '#' + text.lstrip('#').lower()
+
+
+def generate_from_seed(seed, mode=None, variant=None):
+    """Same scheme shape as generate_dynamic, from a manual accent instead of a wallpaper."""
+    seed = normalize_seed(seed)
+    mode = mode or 'dark'
+    variant = variant or 'tonalspot'
+    if mode not in ('light', 'dark'):
+        raise ValueError('--mode debe ser light o dark.')
+    if variant not in VARIANTS:
+        raise ValueError('Variante Material desconocida: ' + str(variant))
+    primary = hex_to_hct(seed[1:].upper())
+    scheme = SimpleNamespace(name='dynamic', flavour='default', mode=mode, variant=variant)
+    return {
+        'name': scheme.name,
+        'flavour': scheme.flavour,
+        'mode': mode,
+        'variant': variant,
+        'colours': gen_scheme(scheme, primary),
+        'wallpaper_hash': seed_hash(seed),
+    }
+
+
+def _wallpaper_path(wallpaper_values):
+    path = wallpaper_values.get('default') or next(
+        (entry.get('path') for entry in wallpaper_values.get('monitors', {}).values() if entry.get('path')), None)
+    return Path(path).expanduser() if path else None
+
+
 def _current_wallpaper(home=None):
     from environment_settings import EnvironmentSettings
-    values = EnvironmentSettings(home).wallpaper_values()
-    path = values.get('default')
-    if not path:
-        path = next((entry.get('path') for entry in values.get('monitors', {}).values() if entry.get('path')), None)
-    if not path or not Path(path).is_file():
+    path = _wallpaper_path(EnvironmentSettings(home).wallpaper_values())
+    if not path or not path.is_file():
         raise ValueError('Selecciona primero un fondo en Ajustes de Wysun.')
-    return Path(path)
+    return path
+
+
+def _generate_for(intent, home):
+    """The one place that turns a dynamic intent into a scheme."""
+    if intent.get('seed'):
+        return generate_from_seed(intent['seed'], intent.get('mode'), intent.get('variant'))
+    return generate_dynamic(_current_wallpaper(home), intent.get('mode'), intent.get('variant'))
 
 
 def regenerate_if_dynamic(home, wallpaper_values):
-    """Refresh the user-selected dynamic scheme after Wysun changes its wallpaper."""
-    import theme_core
+    """Refresh the dynamic scheme after the wallpaper (or the intent) changed.
+
+    Does nothing for an explicit fixed selection, when no source exists yet, or
+    when scheme.json already matches the intent (same wallpaper/seed, mode and
+    variant), so repeated calls never rewrite the contract.
+    """
+    import theme_core, theme_intent
+    intent = theme_intent.dynamic_intent(home)
+    if not intent['enabled']:
+        return None
+    if intent.get('seed'):
+        source = seed_hash(intent['seed'])
+    else:
+        path = _wallpaper_path(wallpaper_values)
+        if not path or not path.is_file():
+            return None
+        source = _file_hash(path)
     current = theme_core.read_scheme(home)
-    if not current or current.get('name') != 'dynamic':
-        return None
-    path = wallpaper_values.get('default') or next(
-        (entry.get('path') for entry in wallpaper_values.get('monitors', {}).values() if entry.get('path')), None)
-    if not path:
-        return None
-    if current.get('wallpaper_hash') == _file_hash(path):
+    if (current and current.get('name') == 'dynamic' and current.get('wallpaper_hash') == source
+            and intent.get('mode', current['mode']) == current['mode']
+            and intent.get('variant', current['variant']) == current['variant']):
         return theme_core.scheme_path(home)
-    scheme = generate_dynamic(path, current['mode'], current['variant'])
+    if intent.get('seed'):
+        scheme = generate_from_seed(intent['seed'], intent.get('mode'), intent.get('variant'))
+    else:
+        scheme = generate_dynamic(path, intent.get('mode'), intent.get('variant'))
     return theme_core.write_scheme(scheme, home)
 
 
-def set_scheme(args, home=None):
+def _restore(path, previous):
     import theme_core
+    if previous is None:
+        path.unlink(missing_ok=True)
+    else:
+        theme_core._atomic_write(path, previous.decode('utf-8'))
+    theme_core.invalidate()
+
+
+def set_scheme(args, home=None):
+    import theme_core, theme_intent
+    seed = getattr(args, 'seed', None)
+    if seed is not None and seed != 'none':
+        seed = normalize_seed(seed)
+        args.dynamic = True
+    config_path = theme_core.selection_path(home)
+    scheme_file = theme_core.scheme_path(home)
+    previous = {path: path.read_bytes() if path.exists() else None for path in (config_path, scheme_file)}
+
+    def roll_back():
+        for path, content in previous.items():
+            _restore(path, content)
+
     if args.dynamic:
         if args.theme:
             raise ValueError('Usa --dynamic o un tema fijo, no ambos.')
-        if args.variant and args.variant not in VARIANTS:
+        if args.variant not in (None, 'auto') and args.variant not in VARIANTS:
             raise ValueError('Variante Material desconocida: ' + args.variant)
-        scheme = generate_dynamic(_current_wallpaper(home), args.mode, args.variant)
-        theme_core.write_scheme(scheme, home)
+        intent = dict(theme_intent.dynamic_intent(home), enabled=True)
+        for key, given in (('mode', args.mode), ('variant', args.variant)):
+            if given == 'auto':
+                intent.pop(key, None)
+            elif given:
+                intent[key] = given
+        if seed == 'none':
+            intent.pop('seed', None)
+        elif seed:
+            intent['seed'] = seed
+        scheme = _generate_for(intent, home)
+        try:
+            theme_intent.write_dynamic(intent, home)
+            theme_core.write_scheme(scheme, home)
+        except Exception:
+            roll_back()
+            raise
         return f"Esquema dinámico listo · {scheme['mode']} · {scheme['variant']}"
     if not args.theme:
         raise ValueError('Indica --dynamic o uno de los cinco temas fijos.')
@@ -540,19 +634,43 @@ def set_scheme(args, home=None):
     scheme = fixed_scheme(style, variant)
     if args.mode and args.mode != scheme['mode']:
         raise ValueError('--mode no cambia un tema fijo; elige fluent:light o fluent:dark.')
-    config_path = theme_core.selection_path(home)
-    previous = config_path.read_bytes() if config_path.exists() else None
-    theme_core.write_selection_preserving(style, variant, home)
     try:
+        theme_intent.write_fixed(style, variant, home)
         theme_core.write_scheme(scheme, home)
     except Exception:
-        if previous is None:
-            config_path.unlink(missing_ok=True)
-        else:
-            theme_core._atomic_write(config_path, previous.decode('utf-8'))
-        theme_core.invalidate()
+        roll_back()
         raise
     return f"Tema fijo listo · {scheme['name']} · {scheme['mode']}"
+
+
+def refresh(home=None):
+    """Regenerate the dynamic scheme from the current wallpaper/seed, if wanted."""
+    from environment_settings import EnvironmentSettings
+    path = regenerate_if_dynamic(home, EnvironmentSettings(home).wallpaper_values())
+    return 'Esquema dinámico actualizado.' if path else 'Sin cambios: el esquema es fijo o falta un fondo.'
+
+
+def set_wallpaper(path, home=None, runner=None, mode=None):
+    """Public wallpaper entry point; the colour follows it when dynamic is wanted."""
+    from environment_settings import EnvironmentSettings, display_inventory, render_wallpaper, run
+    runner = runner or run
+    path = Path(path).expanduser().resolve()
+    if not path.is_file():
+        raise ValueError('El fondo no existe: ' + str(path))
+    try:
+        with Image.open(path) as image:
+            image.verify()
+    except (OSError, ValueError, Image.DecompressionBombError) as error:
+        raise ValueError('No se pudo leer el fondo seleccionado.') from error
+    environment = EnvironmentSettings(home)
+    environment.runner = runner
+    values = environment.wallpaper_values()
+    values['default'] = str(path)
+    values['monitors'] = {}
+    if mode:
+        values['mode'] = mode
+    environment.apply_wallpaper(values)
+    return 'Fondo guardado: ' + path.name
 
 
 def main(argv=None):
@@ -561,11 +679,27 @@ def main(argv=None):
     command = subparsers.add_parser('set', help='activar un esquema fijo o generar colores desde el fondo')
     command.add_argument('theme', nargs='?', help='space-black, tokyo, severance, fluent:light o fluent:dark')
     command.add_argument('--dynamic', action='store_true', help='usar el fondo global configurado en Ajustes de Wysun')
-    command.add_argument('--mode', choices=('light', 'dark'), help='forzar el modo de color dinámico')
-    command.add_argument('--variant', choices=VARIANTS, help='elegir la variante Material You')
+    command.add_argument('--mode', choices=('light', 'dark', 'auto'), help='forzar el modo de color dinámico')
+    command.add_argument('--variant', choices=(*VARIANTS, 'auto'), help='elegir la variante Material You')
+    command.add_argument('--seed', metavar='#RRGGBB', help='partir de un acento manual en lugar del fondo (none lo quita)')
+    subparsers.add_parser('refresh', help='regenerar el esquema dinámico desde el fondo o la semilla actual')
     args = parser.parse_args(argv)
     try:
-        print(set_scheme(args))
+        print(refresh() if args.action == 'refresh' else set_scheme(args))
+    except (OSError, ValueError, RuntimeError) as error:
+        parser.error(str(error))
+    return 0
+
+
+def wallpaper_main(argv=None):
+    parser = argparse.ArgumentParser(prog='wysun wallpaper', description='Fondo de escritorio de Wysun')
+    subparsers = parser.add_subparsers(dest='action', required=True)
+    command = subparsers.add_parser('set', help='guardar el fondo global y actualizar el color dinámico')
+    command.add_argument('path', help='imagen PNG, JPEG, WebP o BMP')
+    command.add_argument('--mode', choices=('fill', 'fit', 'stretch', 'center'), help='ajuste de la imagen')
+    args = parser.parse_args(argv)
+    try:
+        print(set_wallpaper(args.path, mode=args.mode))
     except (OSError, ValueError, RuntimeError) as error:
         parser.error(str(error))
     return 0
