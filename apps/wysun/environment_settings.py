@@ -295,9 +295,7 @@ class EnvironmentSettings:
             backup.restore(force=True)
             self.reload()
             theme_core.invalidate()
-            if changed_wallpaper:
-                try:render_wallpaper(old_wallpaper, display_inventory(self.runner), self.home, self.runner)
-                except Exception:pass
+            self.notify_shell()  # the bytes are restored verbatim; never re-render over them
             raise
         backup.seal()
         return dict(message=result, backup=backup)
