@@ -1,11 +1,13 @@
 """Session locking for Wysun/Wayland; wysun-lock owns authentication and grabs.
 
 Derivado de caelestia-dots/shell (GPL-3.0), modificado para Wysun.
-Visual state/centred indicator adaptation of modules/lock/Center.qml,
-Content.qml and center/{PasswordInput,StateMessage}.qml at commit
-507d66285e9d9fde9330adc64159cfdebb28c19a. See THIRD_PARTY.md and
-LICENSES/GPL-3.0.txt. Authentication and readiness remain swaylock's.
-The backend cannot render Caelestia's profile, clock, media or side columns;
+PySide6 only translates the visual hierarchy of modules/lock/Center.qml,
+Content.qml and center/{PasswordInput,StateMessage}.qml (commit
+507d66285e9d9fde9330adc64159cfdebb28c19a) to swaylock options, the default
+backend. The opt-in ``qml`` backend (apps/shell/lock.qml, selected with
+``~/.config/orbit/lock.json``) renders the fuller presentation with
+WlSessionLock and a PamContext client. See THIRD_PARTY.md and
+LICENSES/GPL-3.0.txt. Authentication and readiness never live in Qt widgets:
 no Qt password window or unlocked imitation is created here.
 """
 import json

@@ -29,19 +29,56 @@ La fuente y las dimensiones proceden de `Appearance`; Rubik se carga offline
 por el shell. La placa sólida conserva contraste en fondos claros/oscuros.
 No requiere nuevos símbolos ni amplía el subconjunto Material Symbols.
 
-El bloqueo continúa siendo swaylock, sin superficies Qt por encima. Su config
-implícita se omite para garantizar privacidad por defecto. No se leen fondo,
-portada, perfil, notificaciones ni metadatos. Los colores/geometría se toman de
-los tokens cuando el panel Qt lo solicita; invocaciones directas conservan el
-canvas opaco de recuperación. Solo se suspende después de adquisición exitosa.
-El porte completo del diseño de lock Caelestia está pendiente: swaylock estándar
-no tiene reloj, avatar, campo personalizado ni tarjetas multimedia.
+## Bloqueo
 
-Verificación aislada:
+`bin/wysun-lock` conserva **swaylock** como bloqueo predeterminado: su config
+implícita se omite, no muestra fondo, portada, perfil, notificaciones ni
+metadatos, y solo se suspende después de adquirir el bloqueo. Los colores y la
+geometría se toman de los tokens cuando el panel Qt lo solicita; invocaciones
+directas conservan el canvas opaco de recuperación.
 
-```sh
-QT_QPA_PLATFORM=offscreen python3 -m unittest discover -s apps/shell/modules/background -p 'test_*.py' -v
+Alternativa opt-in (`modules/lock/`, `lock.qml`), desactivada por defecto. Se
+activa con `~/.config/orbit/lock.json`:
+
+```json
+{"backend": "qml", "media": false}
 ```
 
-Estas pruebas usan imágenes sintéticas, procesos fixture y HOME/XDG temporales.
-No prueban un bloqueo físico ni ejecutan un compositor/Quickshell de sesión.
+o con `WYSUN_LOCK_BACKEND=qml` (la variable manda sobre el archivo). Cualquier
+valor desconocido conserva swaylock. Usa `WlSessionLock` (ext-session-lock-v1)
+de Quickshell 0.3.0: si el proceso o la shell mueren con la sesión bloqueada,
+el compositor mantiene la sesión bloqueada. La autenticación usa `PamContext`
+con el servicio empaquetado `config/pam.d/wysun-lock`, que solo hace
+`auth include /etc/pam.d/login`; no se modifica `/etc/pam.d` ni el login. Un
+único camino desbloquea: éxito de PAM. Sin IPC, sin captura de pantalla, sin
+cava. El mapa visual (reloj, fecha, campo de contraseña, mensajes de estado,
+tarjeta multimedia) y los componentes derivados están en `THIRD_PARTY.md`.
+
+`wysun-lock` espera hasta 30 s (`WYSUN_LOCK_WAIT`, 1–60) el marcador de
+disponibilidad que el cliente publica solo cuando el compositor confirmó el
+bloqueo. Si el cliente falla antes de confirmar, usa swaylock; si sigue vivo
+sin confirmar, no lanza un segundo bloqueador encima ni suspende.
+`media: true` muestra título/artista y controles del reproductor MPRIS activo
+en la pantalla bloqueada; es opt-in porque expone metadatos.
+
+Recuperación: si el cliente muere con la sesión bloqueada, Hyprland deja la
+pantalla de aviso. Hyprland solo acepta un cliente de bloqueo nuevo si
+`misc:allow_session_lock_restore` está activo (esta configuración no lo cambia;
+es un ajuste del compositor, no verificado aquí). Desde otra TTY, con
+`HYPRLAND_INSTANCE_SIGNATURE` de la sesión, se puede activar en caliente con
+`hyprctl keyword misc:allow_session_lock_restore 1` y volver a ejecutar
+`wysun-lock`. La contraseña de la cuenta desbloquea. Este mismo límite ya existe
+con swaylock.
+
+## Verificación aislada
+
+```sh
+python3 -m unittest apps/shell/tests/test_phase5_background.py apps/shell/tests/test_phase5_lock.py -v
+```
+
+Usan imágenes sintéticas, un servicio PAM temporal con secreto sintético,
+procesos fixture (swaylock/quickshell/systemctl) y HOME/XDG temporales con
+`QT_QPA_PLATFORM=offscreen`. No adquieren un bloqueo físico ni ejecutan un
+compositor. **No validado aquí:** el bloqueo real con `ext-session-lock-v1`, el
+desbloqueo con la contraseña real y la recuperación tras matar el cliente; deben
+probarse en una sesión de prueba autorizada.

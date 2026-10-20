@@ -43,6 +43,7 @@ Puedes ver el plan sin aplicar cambios:
 - Selector de ScreenCast: `~/.config/hypr/xdph.conf` activa `allow_token_by_default` y `custom_picker_binary = ~/.local/bin/wysun-share-picker`. El Recorder deja una petición de un solo uso (`$XDG_RUNTIME_DIR/loomrec-share-request.json`, 10 s) con la pantalla elegida en su barra; el selector la responde sin ventana. Cualquier otra aplicación ve `hyprland-share-picker`. Recuperar: borrar `xdph.conf` y `systemctl --user restart xdg-desktop-portal-hyprland` (solo con autorización y sin grabaciones activas).
 - Escritorios fijos: `wysun-workspaces` (llamado desde `hyprland.start` y `monitor.added`) regenera `~/.config/orbit/hypr-workspaces.lua` con el reparto guardado en Ajustes o, si no hay, el automático (1–5 / 6–9 / 10 en el portátil) y lo aplica en vivo. El automático no se guarda en `environment.json`. Para recuperar: borrar el fragmento y ejecutar `wysun-workspaces`.
 - `dotifails restore ID` recupera archivos de configuración anteriores. Los respaldos de la sesión viven en `/var/lib/dotifails/wayland-session/` y `~/.local/state/dotifails/backups/`.
+- Bloqueo: `wysun-lock` usa swaylock por defecto. Alternativa opt-in con `~/.config/orbit/lock.json` (`{"backend": "qml"}`) o `WYSUN_LOCK_BACKEND=qml`: pantalla de `apps/shell/lock.qml` con `WlSessionLock` y `PamContext` (servicio empaquetado `apps/shell/config/pam.d/wysun-lock`, sin tocar `/etc/pam.d`). Si falla antes de confirmar el bloqueo cae a swaylock; para volver, borrar la clave `backend`. Detalles en `apps/shell/modules/background/README.md`.
 
 ## Pruebas
 
