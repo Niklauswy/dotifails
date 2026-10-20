@@ -1,4 +1,11 @@
-"""Offline native capture, editable document, library and comparison workflow."""
+"""Offline native capture, editable document, library and comparison workflow.
+
+Derivado de caelestia-dots/shell (GPL-3.0), modificado para Wysun.
+507d66285e9d9fde9330adc64159cfdebb28c19a: modules/nexus/NavPane.qml,
+modules/dashboard/Media.qml and components/widgets/CoverArt.qml.
+2026-10-20: native navigation, selected-image preview, tool rail and hierarchy.
+The capture/document/storage/portal contracts are unchanged.
+"""
 from dataclasses import replace
 from datetime import datetime
 from pathlib import Path
@@ -12,6 +19,7 @@ from wybieshot.document import Document
 from wybieshot.storage import Storage
 from wybieshot.capture import CaptureEngine
 from .components import button,tool_button,label,apply_theme,apply_material,apply_style,color as token_color,SpinBox,localize_buttons
+from loomrec.ui.material import Navigation,Workspace,MediaPreview,layout_tokens,metric
 from .canvas import Canvas
 from .quick import QuickBar
 from .selection import SelectionOverlay,SelectionGroup
@@ -109,34 +117,47 @@ class Window(QMainWindow):
         self.statusBar().setAccessibleName(text)
 
     def make_library(self):
-        page=QWidget();layout=QVBoxLayout(page);layout.setContentsMargins(28,24,28,24);layout.setSpacing(16)
-        top=QHBoxLayout();top.addWidget(label('Wysun Screenshot','title'));top.addStretch();top.addWidget(button('Ajustes',self.show_settings,'settings'));layout.addLayout(top)
+        content=QWidget();layout=QVBoxLayout(content);layout_tokens(layout)
+        navigation=Navigation('Wysun Screenshot',[
+            ('Biblioteca','library',lambda:self.show_library()),
+            ('Capturar','region',lambda:self.show_quick()),
+            ('Abrir imagen','folder',lambda:self.import_image()),
+            ('Ajustes','settings',lambda:self.show_settings())])
+        page=Workspace(navigation,content);self.library_navigation=navigation
+        top=QHBoxLayout();top.addWidget(label('Tus capturas','title'));top.addStretch();layout.addLayout(top)
         hint=label('Captura, explica y continúa. Tus imágenes se quedan en este equipo.','subtitle');hint.setWordWrap(True);layout.addWidget(hint)
-        row=QHBoxLayout();row.addWidget(button('Nueva captura',self.show_quick,'region',primary=True));row.addWidget(button('Abrir imagen',self.import_image,'folder'));row.addStretch();layout.addLayout(row)
+        row=QHBoxLayout();row.addWidget(button('Nueva captura',self.show_quick,'region',primary=True));row.addStretch();layout.addLayout(row)
         self.search=QLineEdit();self.search.setPlaceholderText('Buscar capturas…');self.search.setAccessibleName('Buscar capturas');self.search.textChanged.connect(self.filter_library);layout.addWidget(self.search)
-        self.items=QListWidget();self.items.setItemDelegate(CaptureDelegate(self.items));self.items.setSpacing(4);self.items.setUniformItemSizes(True);self.items.setMouseTracking(True);self.items.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff);self.items.setSelectionMode(QAbstractItemView.ExtendedSelection);self.items.setAccessibleName('Capturas guardadas. Selecciona dos para comparar o varias para componer.');self.items.itemActivated.connect(lambda _:self.open_selected());self.items.itemSelectionChanged.connect(self.library_state);layout.addWidget(self.items,1)
+        self.items=QListWidget();self.items.setItemDelegate(CaptureDelegate(self.items));self.items.setSpacing(4);self.items.setUniformItemSizes(True);self.items.setMouseTracking(True);self.items.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff);self.items.setSelectionMode(QAbstractItemView.ExtendedSelection);self.items.setAccessibleName('Capturas guardadas. Selecciona dos para comparar o varias para componer.');self.items.itemActivated.connect(lambda _:self.open_selected());self.items.itemSelectionChanged.connect(self.library_state);media=QHBoxLayout();media.setSpacing(metric('space_l'));layout.addLayout(media,1)
+        self.library_preview=MediaPreview('captura');page.preview=self.library_preview
+        media.addWidget(self.library_preview,3);media.addWidget(self.items,4)
+        self.items.currentItemChanged.connect(self.library_preview.select)
+        self.items.itemChanged.connect(lambda item:self.library_preview.select(item) if item is self.items.currentItem() else None)
+        self.library_preview.title.setText('Tu próxima captura')
         self.empty=label('Tu próxima idea empieza con una captura.','section');self.empty.setAlignment(Qt.AlignCenter);layout.addWidget(self.empty)
         actions=QHBoxLayout();self.open_button=button('Abrir',self.open_selected,'folder');self.compose_button=button('Componer',self.compose,'compose');self.compare_button=button('Antes / después',self.compare,'compare')
         for b in (self.open_button,self.compose_button,self.compare_button):actions.addWidget(b)
         actions.addStretch();layout.addLayout(actions);self.library_page=page;self.stack.addWidget(page)
 
     def make_editor(self):
-        page=QWidget();layout=QVBoxLayout(page);layout.setContentsMargins(16,12,16,12);layout.setSpacing(10)
+        page=QWidget();layout=QVBoxLayout(page);layout_tokens(layout, 'space_m')
         header=QHBoxLayout();header.addWidget(button('Biblioteca',self.show_library,'back'));self.title=QLineEdit();self.title.setAccessibleName('Título de captura');self.title.editingFinished.connect(self.rename);header.addWidget(self.title,1)
         self.copy_button=button('Copiar',self.copy,'copy');self.export_button=button('Guardar',self.export,'save',primary=True);header.addWidget(self.copy_button);header.addWidget(self.export_button);layout.addLayout(header)
-        toolbar=QWidget();toolbar.setObjectName('shotTools');tools=QHBoxLayout(toolbar);tools.setContentsMargins(4,2,4,2);tools.setSpacing(2);self.tool_buttons={}
+        workspace=QHBoxLayout();workspace.setSpacing(metric('space_m'));layout.addLayout(workspace,1)
+        toolbar=QWidget();toolbar.setObjectName('shotTools');tools=QVBoxLayout(toolbar);layout_tokens(tools,'space_xs','space_xs');self.tool_buttons={}
+        apply_style(toolbar,'QWidget#shotTools{background:@well;border-radius:@radius_l;}')
         for key,name,shortcut in TOOLS:
             b=tool_button(name,key,shortcut,lambda checked=False,t=key:self.choose_tool(t));tools.addWidget(b);self.tool_buttons[key]=b
         tools.addStretch();self.undo_button=button('',self.undo,'undo',compact=True);self.undo_button.setAccessibleName('Deshacer');self.undo_button.setToolTip('Deshacer · Ctrl+Z')
         self.redo_button=button('',self.redo,'redo',compact=True);self.redo_button.setAccessibleName('Rehacer');self.redo_button.setToolTip('Rehacer · Ctrl+Shift+Z')
         tools.addWidget(self.undo_button);tools.addWidget(self.redo_button)
-        scroll=QScrollArea();scroll.setWidget(toolbar);scroll.setWidgetResizable(True);scroll.setFixedHeight(64);scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff);layout.addWidget(scroll)
+        scroll=QScrollArea();scroll.setWidget(toolbar);scroll.setWidgetResizable(True);scroll.setFixedWidth(metric('space_xl',3));scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff);workspace.addWidget(scroll)
         properties=QHBoxLayout();self.color_button=button('Color',self.change_color);properties.addWidget(self.color_button)
         self.width_spin=SpinBox();self.width_spin.setRange(1,64);self.width_spin.setValue(3);self.width_spin.setAccessibleName('Grosor');self.width_spin.valueChanged.connect(self.apply_properties);self.width_label=label('Grosor');properties.addWidget(self.width_label);properties.addWidget(self.width_spin)
         self.font_spin=SpinBox();self.font_spin.setRange(6,256);self.font_spin.setValue(24);self.font_spin.setAccessibleName('Tamaño de texto');self.font_spin.valueChanged.connect(self.apply_properties);self.font_label=label('Tamaño texto');properties.addWidget(self.font_label);properties.addWidget(self.font_spin)
         self.width_spin.setFixedWidth(76);self.font_spin.setFixedWidth(76)
         self.edit_button=button('Editar',self.edit_selected);properties.addWidget(self.edit_button);properties.addStretch();layout.addLayout(properties)
-        self.canvas=Canvas();self.canvas.changed.connect(self.changed);self.canvas.selected.connect(self.selection_changed);self.canvas.edit_requested.connect(self.edit_layer);layout.addWidget(self.canvas,1)
+        self.canvas=Canvas();self.canvas.changed.connect(self.changed);self.canvas.selected.connect(self.selection_changed);self.canvas.edit_requested.connect(self.edit_layer);workspace.addWidget(self.canvas,1)
         footer=QHBoxLayout();self.doc_status=label('','subtitle');footer.addWidget(self.doc_status,1);self.reset_crop=button('Restaurar recorte',lambda:self.guard(self.uncrop));footer.addWidget(self.reset_crop);layout.addLayout(footer)
         self.editor_page=page;self.stack.addWidget(page);self.choose_tool('select')
 

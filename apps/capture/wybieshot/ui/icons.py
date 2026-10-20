@@ -6,6 +6,8 @@ from loomrec.ui.tokens import tint
 
 
 def icon(name, color='muted', size=20):
+    from loomrec.ui.material import SYMBOLS
+    if name in SYMBOLS:return recorder_icon(name,color,size)
     if name not in ('select','text','arrow','rectangle','ellipse','pen','highlight','number','mask','blur','crop','copy','compare','compose','save'):
         return recorder_icon(name,color,size)
     result=QIcon()

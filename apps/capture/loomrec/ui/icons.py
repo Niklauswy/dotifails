@@ -3,6 +3,9 @@ from PySide6.QtCore import Qt,QPointF,QRectF
 from PySide6.QtGui import QIcon,QPixmap,QPainter,QPen,QColor,QPainterPath
 
 def _pixmap(name,color,size,stroke=1.6):
+    from .material import symbol_pixmap
+    material = symbol_pixmap(name, QColor(color), size)
+    if material is not None:return material
     pix=QPixmap(size*2,size*2);pix.fill(Qt.transparent);p=QPainter(pix);p.setRenderHint(QPainter.Antialiasing);p.scale(size/24*2,size/24*2)
     p.setPen(QPen(QColor(color),stroke,Qt.SolidLine,Qt.RoundCap,Qt.RoundJoin));p.setBrush(Qt.NoBrush)
     def line(a,b,c,d):p.drawLine(QPointF(a,b),QPointF(c,d))
