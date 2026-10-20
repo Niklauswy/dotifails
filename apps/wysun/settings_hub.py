@@ -278,7 +278,7 @@ class SettingsHub(LegacySettingsWindow):
 
     def choose_seed(self):
         from PySide6.QtWidgets import QColorDialog
-        chosen=QColorDialog.getColor(QColor(self.colour_seed.text().strip() or '#6750a4'),self,'Semilla de color')
+        chosen=QColorDialog.getColor(QColor(self.colour_seed.text().strip() or color('accent').name()),self,'Semilla de color')
         if chosen.isValid():self.colour_seed.setText(chosen.name())
 
     def choose_wallpaper(self):
