@@ -1,0 +1,9 @@
+#%PAM-1.0
+# Wysun · pantalla de bloqueo QML opt-in.
+#
+# Linux-PAM carga este archivo desde el configDirectory empaquetado de la shell
+# (apps/shell/config/pam.d). El include usa una ruta absoluta para delegar en el
+# servicio de login del sistema, que a su vez incluye common-auth/system-auth
+# según la distribución. Wysun no escribe ni reemplaza nada en /etc/pam.d, no
+# modifica el login y no instala módulos PAM propios.
+auth include /etc/pam.d/login

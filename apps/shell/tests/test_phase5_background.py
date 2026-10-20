@@ -8,8 +8,9 @@ import sys
 import tempfile
 import unittest
 
-MODULE = Path(__file__).resolve().parent
-ROOT = MODULE.parents[3]
+SHELL = Path(__file__).resolve().parents[1]
+MODULE = SHELL / 'modules/background'
+ROOT = SHELL.parents[1]
 sys.path.insert(0, str(ROOT / 'apps/wysun'))
 PYTHON = shutil.which('python3') or '/usr/bin/python3'
 
@@ -189,9 +190,9 @@ ShellRoot {
             root.phase++;
         }
     }
-}''' % (qml_url(MODULE), qml_url(ROOT / 'apps/shell'),
-        (ROOT / 'apps/shell/wysun_theme.json').read_text(), json.dumps(str(folder)),
-        qml_url(ROOT / 'apps/shell/assets/fonts/Rubik-Variable.ttf'))
+}''' % (qml_url(MODULE), qml_url(SHELL),
+        (SHELL / 'wysun_theme.json').read_text(), json.dumps(str(folder)),
+        qml_url(SHELL / 'assets/fonts/Rubik-Variable.ttf'))
             path = folder / 'fixture.qml'
             path.write_text(qml)
             env = {**os.environ, 'HOME': temporary, 'XDG_CONFIG_HOME': temporary,
