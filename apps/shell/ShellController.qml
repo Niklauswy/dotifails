@@ -27,7 +27,7 @@ Scope {
     function close() { state.close(); }
 
     function supportsSurface(kind) {
-        return ["test", "dashboard", "launcher", "menu", "windows", "session"].indexOf(kind) >= 0;
+        return ["test", "dashboard", "launcher", "menu", "windows", "session", "quicksettings", "notifications"].indexOf(kind) >= 0;
     }
 
     function show(kind, name, anchorX, anchorY, focusItem) {

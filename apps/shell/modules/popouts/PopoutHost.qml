@@ -8,6 +8,7 @@ import Quickshell.Hyprland
 import Quickshell.Wayland
 import "../../" as Wysun
 import "../../utils/PopoutGeometry.js" as Geometry
+import "../quicksettings" as QuickSettingsModule
 
 // One host per enabled output. Exactly one of them can be the target of the
 // shared ShellState, so only that host requests exclusive keyboard focus.
@@ -24,8 +25,8 @@ PanelWindow {
     readonly property bool active: popup.retained
     property var focusReturn: null
 
-    readonly property real targetWidth: Math.min(card.preferredWidth, Math.max(320, width - Wysun.Appearance.spaceXl * 4))
-    readonly property real targetHeight: Math.min(card.preferredHeight, Math.max(280, height - Wysun.Appearance.spaceXl * 4))
+    readonly property real targetWidth: Math.min(panel.owned ? panel.targetWidth : card.preferredWidth, Math.max(320, width - Wysun.Appearance.spaceXl * 4))
+    readonly property real targetHeight: Math.min(panel.owned ? panel.targetHeight : card.preferredHeight, Math.max(280, height - Wysun.Appearance.spaceXl * 4))
     readonly property var targetRect: Geometry.centeredRect(width, height, targetWidth, targetHeight)
 
     visible: popup.retained
@@ -117,9 +118,17 @@ PanelWindow {
             controller: host.controller
             motion: host.motion
             monitorName: host.modelData.name
+            visible: !panel.owned
             framed: false
             live: true
             sampling: host.visible
+        }
+        QuickSettingsModule.SurfacePanel {
+            id: panel
+            anchors.fill: parent
+            controller: host.controller
+            motion: host.motion
+            hostActive: host.active
         }
     }
 }
