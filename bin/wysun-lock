@@ -126,8 +126,14 @@ run_qml() {
     WYSUN_SHELL_ROOT="$shell_root" WYSUN_LOCK_READY="$ready" WYSUN_LOCK_MEDIA="$media" \
         quickshell -p "$qml" >/dev/null 2>&1 &
     pid=$!
+    # Seconds to wait for the compositor to confirm the lock (1-60, default 30).
+    limit=30
+    case "${WYSUN_LOCK_WAIT:-}" in
+        [1-9]|[1-5][0-9]|60) limit=$WYSUN_LOCK_WAIT ;;
+    esac
+    limit=$((limit * 10))
     tries=0
-    while [ ! -s "$ready" ] && kill -0 "$pid" 2>/dev/null && [ "$tries" -lt 300 ]; do
+    while [ ! -s "$ready" ] && kill -0 "$pid" 2>/dev/null && [ "$tries" -lt "$limit" ]; do
         sleep 0.1
         tries=$((tries + 1))
     done

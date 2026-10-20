@@ -261,5 +261,93 @@ ShellRoot {
             self.assertEqual(ready.read_text(), '')
 
 
+class QmlBackendSelectionTests(unittest.TestCase):
+    """bin/wysun-lock with fixture swaylock/quickshell/systemctl executables."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.folder = Path(self.tmp.name)
+        self.log = self.folder / 'calls.jsonl'
+        (self.folder / 'runtime').mkdir()
+        for executable in ('swaylock', 'systemctl', 'quickshell'):
+            path = self.folder / executable
+            path.write_text('#!' + PYTHON + '\nimport json, os, sys, time\n'
+                            'name = os.path.basename(sys.argv[0])\n'
+                            'with open(os.environ["FIXTURE_LOG"], "a") as f: f.write(json.dumps([name] + sys.argv[1:]) + "\\n")\n'
+                            'if name == "quickshell":\n'
+                            '    mode = os.environ.get("FIXTURE_QS", "ready")\n'
+                            '    if mode == "ready": open(os.environ["WYSUN_LOCK_READY"], "w").write("locked")\n'
+                            '    if mode == "hang": time.sleep(8)\n'
+                            '    sys.exit(int(os.environ.get("FIXTURE_QS_CODE", "0")))\n'
+                            'sys.exit(0)\n')
+            path.chmod(0o755)
+        self.env = {'PATH': str(self.folder) + ':/usr/bin:/bin', 'HOME': str(self.folder),
+                    'XDG_CONFIG_HOME': str(self.folder / 'config'), 'XDG_RUNTIME_DIR': str(self.folder / 'runtime'),
+                    'XDG_SESSION_TYPE': 'wayland', 'WAYLAND_DISPLAY': 'fixture-not-a-socket',
+                    'FIXTURE_LOG': str(self.log), 'WYSUN_SHELL_ROOT': str(SHELL)}
+
+    def invoke(self, *args, **environment):
+        result = subprocess.run([str(ROOT / 'bin/wysun-lock'), *args], env={**self.env, **environment},
+                                capture_output=True, text=True, timeout=30)
+        calls = [json.loads(line) for line in self.log.read_text().splitlines()] if self.log.exists() else []
+        return result, calls
+
+    def names(self, calls):
+        return [call[0] for call in calls]
+
+    def test_default_and_unknown_backends_use_swaylock_only(self):
+        for environment in ({}, {'WYSUN_LOCK_BACKEND': 'bogus'}, {'WYSUN_LOCK_BACKEND': 'QML;rm'}):
+            if self.log.exists():
+                self.log.unlink()
+            result, calls = self.invoke(**environment)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(self.names(calls), ['swaylock'])
+
+    def test_config_file_selects_qml_and_environment_wins(self):
+        (self.folder / 'config/orbit').mkdir(parents=True)
+        (self.folder / 'config/orbit/lock.json').write_text('{"backend": "qml", "media": true}')
+        result, calls = self.invoke()
+        self.assertEqual(self.names(calls), ['quickshell'])
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.log.unlink()
+        result, calls = self.invoke(WYSUN_LOCK_BACKEND='swaylock')
+        self.assertEqual(self.names(calls), ['swaylock'])
+
+    def test_qml_ready_marker_means_locked_and_suspend_follows_it(self):
+        result, calls = self.invoke('--suspend', WYSUN_LOCK_BACKEND='qml')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.names(calls), ['quickshell', 'systemctl'])
+        self.assertEqual(calls[0][:2], ['quickshell', '-p'])
+        self.assertTrue(calls[0][2].endswith('/lock.qml'))
+        self.assertEqual(os.listdir(self.folder / 'runtime'), [], 'readiness marker is removed')
+
+    def test_qml_failure_before_ready_falls_back_to_swaylock_without_suspending_early(self):
+        result, calls = self.invoke('--suspend', WYSUN_LOCK_BACKEND='qml', FIXTURE_QS='fail', FIXTURE_QS_CODE='3')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.names(calls), ['quickshell', 'swaylock', 'systemctl'])
+        self.assertEqual(os.listdir(self.folder / 'runtime'), [])
+        self.log.unlink()
+        result, calls = self.invoke(WYSUN_LOCK_BACKEND='qml', FIXTURE_QS='fail', FIXTURE_QS_CODE='3')
+        self.assertEqual(self.names(calls), ['quickshell', 'swaylock'])
+
+    def test_unconfirmed_but_alive_qml_never_gets_a_second_locker_or_suspend(self):
+        result, calls = self.invoke('--suspend', WYSUN_LOCK_BACKEND='qml', FIXTURE_QS='hang', WYSUN_LOCK_WAIT='1')
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(self.names(calls), ['quickshell'])
+
+    def test_missing_quickshell_or_shell_files_fall_back(self):
+        (self.folder / 'quickshell').unlink()
+        # /usr/bin is kept out of the lookup of quickshell by deleting the fixture;
+        # a distribution-installed one is hidden with a restricted PATH.
+        result, calls = self.invoke(WYSUN_LOCK_BACKEND='qml', PATH=str(self.folder))
+        self.assertEqual(self.names(calls), ['swaylock'])
+        self.log.unlink()
+        (self.folder / 'quickshell').write_text('#!/bin/sh\nexit 0\n')
+        (self.folder / 'quickshell').chmod(0o755)
+        result, calls = self.invoke(WYSUN_LOCK_BACKEND='qml', WYSUN_SHELL_ROOT=str(self.folder / 'missing'), PATH=str(self.folder))
+        self.assertEqual(self.names(calls), ['swaylock'])
+
+
 if __name__ == '__main__':
     unittest.main()
