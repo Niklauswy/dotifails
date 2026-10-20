@@ -35,4 +35,5 @@ jobs:
       - name: Portable manifest and whitespace
         run: |
           python3 tests/check_manifest.py
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
           git diff --check
