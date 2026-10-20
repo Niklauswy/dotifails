@@ -6,28 +6,47 @@ import QtQuick.Layouts
 import "../../../" as Wysun
 import "../../../components" as Components
 import "../performance" as Performance
+import "../" as Dashboard
 import "../Logic.js" as Logic
 
-Components.StyledRect {
+Dashboard.Card {
     id: root
     property var metrics: null
     property var motion
-    color: Wysun.Appearance.surfaceRaised
-    radius: Wysun.Appearance.radiusL
-    implicitHeight: row.implicitHeight + Wysun.Appearance.spaceL * 2
+    implicitHeight: row.implicitHeight + padding * 2
+    Accessible.role: Accessible.Grouping
+    Accessible.name: "Recursos del sistema"
+
     RowLayout {
         id: row
         anchors.fill: parent
-        anchors.margins: Wysun.Appearance.spaceL
+        anchors.margins: root.padding
         spacing: Wysun.Appearance.spaceM
         Repeater {
-            model: [{label:"CPU",value:root.metrics?.cpu}, {label:"Memoria",value:root.metrics?.memory}, {label:"Disco /",value:root.metrics?.storage}]
+            model: [
+                { label: "CPU", glyph: "memory", value: root.metrics ? root.metrics.cpu : null },
+                { label: "Memoria", glyph: "developer_board", value: root.metrics ? root.metrics.memory : null },
+                { label: "Disco /", glyph: "hard_drive", value: root.metrics ? root.metrics.storage : null }
+            ]
             delegate: ColumnLayout {
                 required property var modelData
                 Layout.fillWidth: true
-                Performance.Gauge { Layout.alignment: Qt.AlignHCenter; implicitWidth: Wysun.Appearance.spaceXl * 3; implicitHeight: implicitWidth; motion: root.motion; value: modelData.value; label: modelData.label }
-                Components.StyledText { Layout.alignment: Qt.AlignHCenter; text: modelData.label; font.pixelSize: Wysun.Appearance.fontSmall }
-                Components.StyledText { Layout.alignment: Qt.AlignHCenter; text: Logic.percentText(modelData.value); font.pixelSize: Wysun.Appearance.fontSmall; color: Wysun.Appearance.muted }
+                Layout.preferredWidth: 1
+                spacing: Wysun.Appearance.spaceXs
+                Performance.Gauge {
+                    Layout.alignment: Qt.AlignHCenter
+                    implicitWidth: Wysun.Appearance.spaceXl * 3
+                    thickness: Wysun.Appearance.spaceXs + Wysun.Appearance.borderWidth
+                    motion: root.motion
+                    value: modelData.value
+                    label: modelData.label
+                }
+                Components.StyledText {
+                    Layout.alignment: Qt.AlignHCenter
+                    text: modelData.label
+                    font.pixelSize: Wysun.Appearance.fontSmall
+                    color: Wysun.Appearance.muted
+                }
             }
         }
     }

@@ -4,7 +4,6 @@
 import QtQuick
 import QtQuick.Layouts
 import "../../" as Wysun
-import "../../components" as Components
 import "performance" as Performance
 
 GridLayout {
@@ -14,8 +13,29 @@ GridLayout {
     columns: width < Wysun.Appearance.spaceXl * 24 ? 1 : 2
     rowSpacing: Wysun.Appearance.spaceM
     columnSpacing: Wysun.Appearance.spaceM
-    Performance.HeroCard { Layout.fillWidth: true; motion: root.motion; label: "Procesador"; subLabel: "Uso de CPU"; usage: root.metrics?.cpu; temperature: root.metrics?.cpuTemperature; showTemperature: true }
-    Performance.HeroCard { Layout.fillWidth: true; motion: root.motion; label: "Memoria"; subLabel: "RAM en uso"; usage: root.metrics?.memory }
-    Performance.HeroCard { Layout.fillWidth: true; motion: root.motion; label: "Almacenamiento"; subLabel: "Sistema de archivos /"; usage: root.metrics?.storage }
-    Performance.HeroCard { Layout.fillWidth: true; motion: root.motion; label: "Gráficos"; subLabel: "Proveedor de GPU"; usage: root.metrics?.gpu; temperature: root.metrics?.gpuTemperature; showTemperature: true }
+
+    Performance.HeroCard {
+        Layout.fillWidth: true; Layout.preferredWidth: 1; Layout.alignment: Qt.AlignTop
+        motion: root.motion; glyph: "memory"; label: "Procesador"; subLabel: "Uso de CPU"
+        usage: root.metrics ? root.metrics.cpu : null
+        temperature: root.metrics ? root.metrics.cpuTemperature : null
+        showTemperature: true
+    }
+    Performance.HeroCard {
+        Layout.fillWidth: true; Layout.preferredWidth: 1; Layout.alignment: Qt.AlignTop
+        motion: root.motion; glyph: "developer_board"; label: "Memoria"; subLabel: "RAM en uso"
+        usage: root.metrics ? root.metrics.memory : null
+    }
+    Performance.HeroCard {
+        Layout.fillWidth: true; Layout.preferredWidth: 1; Layout.alignment: Qt.AlignTop
+        motion: root.motion; glyph: "hard_drive"; label: "Almacenamiento"; subLabel: "Sistema de archivos /"
+        usage: root.metrics ? root.metrics.storage : null
+    }
+    Performance.HeroCard {
+        Layout.fillWidth: true; Layout.preferredWidth: 1; Layout.alignment: Qt.AlignTop
+        motion: root.motion; glyph: "monitoring"; label: "Gráficos"; subLabel: "Proveedor de GPU"
+        usage: root.metrics ? root.metrics.gpu : null
+        temperature: root.metrics ? root.metrics.gpuTemperature : null
+        showTemperature: true
+    }
 }

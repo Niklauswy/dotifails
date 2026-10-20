@@ -30,6 +30,9 @@ PanelWindow {
     visible: popup.retained
     anchors { top: true; bottom: true; left: true; right: true }
     color: "transparent"
+    // While the card is only finishing its closing morph the output must not
+    // swallow clicks meant for the windows below.
+    mask: targetVisible ? null : passThrough
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.namespace: "wysun-popout"
     WlrLayershell.layer: WlrLayer.Overlay
@@ -87,6 +90,8 @@ PanelWindow {
         onCleared: if (host.targetVisible) host.controller.close()
     }
 
+    Region { id: passThrough }
+
     Interactions {
         anchors.fill: parent
         z: 0
@@ -98,11 +103,12 @@ PanelWindow {
         id: wrapper
         z: 1
         motion: host.motion
-        progress: host.motion && host.motion.reducedMotion ? (popup.requested ? 1 : 0) : popup.progress
+        progress: popup.progress
         originRect: regions.anchorRect(host.state.anchorX, host.state.anchorY, 72, 64, host.width, host.height)
         targetRect: host.targetRect
-        contentOpacity: Math.max(0, Math.min(1, (progress - 0.15) / 0.6))
+        contentOpacity: host.motion && host.motion.reducedMotion ? 1 : Math.max(0, Math.min(1, (progress - 0.15) / 0.6))
         focus: host.targetVisible
+        onEscapePressed: host.controller.close()
 
         PopoutCard {
             id: card
@@ -110,7 +116,7 @@ PanelWindow {
             controller: host.controller
             motion: host.motion
             monitorName: host.modelData.name
-            contentOpacity: wrapper.contentOpacity
+            framed: false
             live: true
             sampling: host.visible
         }

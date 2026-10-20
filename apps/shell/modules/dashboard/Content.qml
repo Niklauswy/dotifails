@@ -6,6 +6,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import "../../" as Wysun
 import "../../components" as Components
+import "Logic.js" as Logic
 
 FocusScope {
     id: root
@@ -18,16 +19,16 @@ FocusScope {
     property string monitorName: ""
     property int currentIndex: 0
 
-    implicitWidth: Wysun.Appearance.spaceXl * 34
-    implicitHeight: Wysun.Appearance.spaceXl * 26
+    implicitWidth: Wysun.Appearance.spaceXl * 32
+    implicitHeight: Wysun.Appearance.spaceXl * 23
     focus: true
 
     Keys.onPressed: event => {
         if (event.key === Qt.Key_Right && (event.modifiers & Qt.ControlModifier)) {
-            root.currentIndex = Math.min(root.tabCount - 1, root.currentIndex + 1);
+            root.currentIndex = Logic.clampTab(root.currentIndex + 1, root.tabCount);
             event.accepted = true;
         } else if (event.key === Qt.Key_Left && (event.modifiers & Qt.ControlModifier)) {
-            root.currentIndex = Math.max(0, root.currentIndex - 1);
+            root.currentIndex = Logic.clampTab(root.currentIndex - 1, root.tabCount);
             event.accepted = true;
         }
     }

@@ -7,16 +7,16 @@ import QtQuick.Layouts
 import "../../" as Wysun
 import "../../components" as Components
 
-// Equal-width text tabs. The upstream control is a TabBar with icons; Wysun
-// keeps the four upstream slots (Weather is replaced by Escritorios) and uses
-// a plain Row so the TabBar implicit-width binding loop observed in
-// Quickshell 0.3.0 cannot occur.
+// Equal-width tabs with an icon and a label. The upstream control is a TabBar;
+// Wysun keeps the four upstream slots (Weather is replaced by Escritorios) and
+// lays plain buttons in a Row so the indicator follows the geometry directly.
 Item {
     id: root
     property var motion
     property int currentIndex: 0
     readonly property int count: 4
     readonly property var labels: ["Inicio", "Música", "Rendimiento", "Escritorios"]
+    readonly property var glyphs: ["home", "music_note", "speed", "grid_view"]
     signal selected(int index)
 
     implicitHeight: tabRow.height + Wysun.Appearance.spaceS
@@ -25,7 +25,7 @@ Item {
         var bounded = Math.max(0, Math.min(root.count - 1, index));
         root.currentIndex = bounded;
         root.selected(bounded);
-        var button = tabRow.itemAt(bounded);
+        var button = repeater.itemAt(bounded);
         if (button) button.forceActiveFocus();
     }
 
@@ -71,15 +71,30 @@ Item {
                     border.color: Wysun.Appearance.focus
                 }
 
-                contentItem: Components.StyledText {
-                    text: tab.text
-                    color: tab.index === root.currentIndex ? Wysun.Appearance.accent : Wysun.Appearance.muted
-                    horizontalAlignment: Text.AlignHCenter
-                    verticalAlignment: Text.AlignVCenter
-                    font.pixelSize: Wysun.Appearance.fontBody
-                    font.weight: tab.index === root.currentIndex ? Font.DemiBold : Font.Normal
-                    elide: Text.ElideRight
-                    motion: root.motion
+                contentItem: Item {
+                    implicitWidth: label.implicitWidth + icon.width + Wysun.Appearance.spaceS
+                    Row {
+                        anchors.centerIn: parent
+                        spacing: Wysun.Appearance.spaceS
+                        Components.MaterialIcon {
+                            id: icon
+                            name: root.glyphs[tab.index]
+                            size: Wysun.Appearance.fontHeading
+                            color: tab.index === root.currentIndex ? Wysun.Appearance.accent : Wysun.Appearance.muted
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+                        Components.StyledText {
+                            id: label
+                            text: tab.text
+                            color: tab.index === root.currentIndex ? Wysun.Appearance.accent : Wysun.Appearance.muted
+                            font.pixelSize: Wysun.Appearance.fontBody
+                            font.weight: tab.index === root.currentIndex ? Font.DemiBold : Font.Normal
+                            elide: Text.ElideRight
+                            width: Math.min(implicitWidth, tab.width - icon.width - Wysun.Appearance.spaceL)
+                            anchors.verticalCenter: parent.verticalCenter
+                            motion: root.motion
+                        }
+                    }
                 }
             }
         }

@@ -14,6 +14,9 @@ Components.StyledRect {
     required property var motion
     property string monitorName: ""
     property real contentOpacity: 1
+    // The host draws the rounded frame while it morphs; standalone previews
+    // keep the card's own frame.
+    property bool framed: true
     property bool live: true
     property bool sampling: true
     property var providers: null
@@ -38,10 +41,10 @@ Components.StyledRect {
         : header.implicitHeight + Wysun.Appearance.spaceXl * 8 + Wysun.Appearance.spaceL * 2
 
     radius: Wysun.Appearance.radiusL
-    color: Wysun.Appearance.materialMid
-    border.width: Wysun.Appearance.borderWidth
+    color: framed ? Wysun.Appearance.materialMid : "transparent"
+    border.width: framed ? Wysun.Appearance.borderWidth : 0
     border.color: Wysun.Appearance.materialEdge
-    clip: true
+    clip: framed
 
     // Consume clicks on the card's empty areas so they cannot dismiss it.
     MouseArea {
