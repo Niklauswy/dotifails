@@ -61,6 +61,13 @@ Singleton {
         return Qt.hsla(c.hslHue, c.hslSaturation, 0.1, 1);
     }
 
+    // Wysun's producer writes camelCase palette keys; Caelestia declares them as primary_paletteKeyColor.
+    function propertyKey(name: string): string {
+        const match = /^(neutralVariant|neutral|primary|secondary|tertiary|error)PaletteKeyColor$/.exec(name);
+        if (!match) return name;
+        return `${match[1] === "neutralVariant" ? "neutral_variant" : match[1]}_paletteKeyColor`;
+    }
+
     function load(data: string, isPreview: bool): void {
         const colours = isPreview ? preview : current;
         const scheme = JSON.parse(data);
@@ -74,7 +81,7 @@ Singleton {
         }
 
         for (const [name, colour] of Object.entries(scheme.colours)) {
-            const propName = name.startsWith("term") ? name : `m3${name}`;
+            const propName = name.startsWith("term") ? name : `m3${root.propertyKey(name)}`;
             if (colours.hasOwnProperty(propName))
                 colours[propName] = `#${colour}`;
         }
