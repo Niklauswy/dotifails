@@ -7,7 +7,10 @@ if [ ! -x "$qs" ]; then
     echo 'Wysun: falta compilar el runtime Caelestia. Consulta apps/shell/WYSUN.md.' >&2
     exit 1
 fi
+export QML_IMPORT_PATH="$runtime/caelestia/lib/qt6/qml:$runtime/deps/lib/qt6/qml"
+export CAELESTIA_LIB_DIR="$runtime/caelestia/lib/caelestia"
 config="${WYSUN_SHELL_CONFIG:-$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)}"
-# qt.conf and executable/plugin RPATHs select Qt. No LD_LIBRARY_PATH or Qt
-# import/plugin environment is exported into applications launched by the shell.
+# qt.conf and executable/plugin RPATHs select Qt; no LD_LIBRARY_PATH is exported.
+# Only the Caelestia QML import path is set (applications launched by the shell
+# should ignore it; backend.py also strips it for its own subprocesses).
 exec "$qs" -p "$config" "$@"

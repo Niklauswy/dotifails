@@ -10,6 +10,7 @@ import QtQuick
 import Quickshell
 import Caelestia.Config
 import qs.services
+import qs.wysun
 import qs.modules.areapicker
 import qs.modules.background
 import qs.modules.drawers

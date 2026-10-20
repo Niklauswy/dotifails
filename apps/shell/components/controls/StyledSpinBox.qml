@@ -1,11 +1,31 @@
 import QtQuick
-import QtQuick.Templates
+import QtQuick.Templates as T
 import Caelestia.Config
 import qs.components
 import qs.services
 
-DoubleSpinBox {
+// Qt 6.9 has no DoubleSpinBox (added upstream in newer Qt): minimal equivalent API.
+T.Control {
     id: root
+
+    property real from: 0
+    property real to: 100
+    property real value: 0
+    property real stepSize: 1
+    property int decimals
+    property bool editable
+    readonly property DoubleValidator validator: DoubleValidator {
+        bottom: Math.min(root.from, root.to)
+        top: Math.max(root.from, root.to)
+        decimals: root.decimals
+        locale: root.locale.name
+    }
+
+    signal valueModified
+
+    function textFromValue(v: real, locale: var): string {
+        return Number(v).toLocaleString(locale, 'f', decimals);
+    }
 
     property int repeatRate: 400
     property int repeatDecay: 50
@@ -34,10 +54,10 @@ DoubleSpinBox {
     spacing: Tokens.spacing.small
 
     implicitWidth: contentItem.implicitWidth + leftPadding + rightPadding
-    implicitHeight: Math.max(up.indicator.implicitHeight, down.indicator.implicitHeight, contentItem.implicitHeight) + topPadding + bottomPadding
+    implicitHeight: Math.max(upButton.implicitHeight, downButton.implicitHeight, contentItem.implicitHeight) + topPadding + bottomPadding
 
-    leftPadding: up.indicator.implicitWidth + Tokens.spacing.extraSmall / 2
-    rightPadding: down.indicator.implicitWidth + Tokens.spacing.extraSmall / 2
+    leftPadding: upButton.implicitWidth + Tokens.spacing.extraSmall / 2
+    rightPadding: downButton.implicitWidth + Tokens.spacing.extraSmall / 2
 
     contentItem: TextFieldBase {
         text: root.textFromValue(root.value, root.locale)
@@ -51,6 +71,13 @@ DoubleSpinBox {
 
         implicitWidth: 65
         horizontalAlignment: TextField.AlignHCenter
+        onEditingFinished: {
+            const parsed = Number.fromLocaleString(root.locale, text);
+            if (!isNaN(parsed)) {
+                root.value = Math.min(Math.max(parsed, Math.min(root.from, root.to)), Math.max(root.from, root.to));
+                root.valueModified();
+            }
+        }
 
         background: StyledRect {
             radius: Tokens.rounding.extraSmall
@@ -58,7 +85,7 @@ DoubleSpinBox {
         }
     }
 
-    down.indicator: IconButton {
+    IconButton {
         id: downButton
 
         topRightRadius: pressed ? Tokens.rounding.small : Tokens.rounding.extraSmall
@@ -92,7 +119,7 @@ DoubleSpinBox {
         }
     }
 
-    up.indicator: IconButton {
+    IconButton {
         id: upButton
 
         anchors.right: parent.right
