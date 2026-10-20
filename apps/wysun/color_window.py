@@ -1,3 +1,6 @@
+# Derivado de caelestia-dots/shell (GPL-3.0), modificado para Wysun.
+# Fuente: 507d66285e9d9fde9330adc64159cfdebb28c19a; véase THIRD_PARTY.md.
+# Los QML de origen no incluyen avisos de copyright adicionales por archivo.
 """Color workbench: editable values, screen sampling and reusable palettes."""
 from theme_tokens import apply_style
 
@@ -6,8 +9,9 @@ from pathlib import Path
 from PySide6.QtCore import Qt, QSize
 from PySide6.QtGui import QColor, QPixmap, QPainter, QIcon, QShortcut, QKeySequence
 from PySide6.QtWidgets import (QApplication, QHBoxLayout, QVBoxLayout, QLineEdit,
-    QLabel, QListWidget, QListWidgetItem, QWidget, QComboBox, QSlider)
-from desktop_common import Surface, button, text_label
+    QLabel, QListWidget, QListWidgetItem, QWidget, QComboBox, QSlider, QSplitter)
+from utility_material import MaterialSurface as Surface, button, surface, metrics
+from desktop_common import  text_label
 from utility_data import Colors
 
 
@@ -42,9 +46,16 @@ class ColorWindow(Surface):
         super().__init__('Wysun Colors', 'WYSUN  /  Del escritorio a tu próximo proyecto', 800, 620)
         self.store = Colors(path); self.picker = None; self.syncing = False
         self.color = QColor('#7AA2F7')  # theme-exception: color inicial de muestra
+        workspace = QSplitter(); self.workspace = workspace
+        work = surface(QWidget()); work_layout = QVBoxLayout(work)
+        palette = surface(QWidget(), 'navigation'); palette_layout = QVBoxLayout(palette)
+        gap = metrics()['gap']
+        for layout in (work_layout, palette_layout):
+            layout.setContentsMargins(gap, gap, gap, gap); layout.setSpacing(gap)
+        palette_layout.addWidget(text_label('Tu paleta', 'title'))
         top = QHBoxLayout(); self.entry = QLineEdit(self.color.name().upper()); self.entry.setPlaceholderText('HEX, rgb(122, 162, 247), hsl(221, 89%, 72%)…'); top.addWidget(self.entry, 1)  # theme-exception: ejemplo de formatos en el texto de ayuda
-        top.addWidget(button('Capturar  Ctrl P', self.capture, 'primary', 'palette')); self.outer.addLayout(top)
-        body = QHBoxLayout(); body.setSpacing(24)
+        top.addWidget(button('Capturar  Ctrl P', self.capture, 'primary', 'palette')); work_layout.addLayout(top)
+        body = QVBoxLayout(); body.setSpacing(gap)
         visual = QVBoxLayout(); self.swatch = QLabel(); self.swatch.setAlignment(Qt.AlignCenter); self.swatch.setMinimumSize(280, 210); visual.addWidget(self.swatch, 1)
         self.contrast = text_label('', 'subtitle'); visual.addWidget(self.contrast); body.addLayout(visual, 1)
         values = QVBoxLayout(); values.setSpacing(10); self.fields = {}; self.formats = QComboBox(); self.formats.hide()
@@ -56,9 +67,10 @@ class ColorWindow(Surface):
         for name, maximum in [('Matiz', 359), ('Saturación', 100), ('Luminosidad', 100)]:
             row = QHBoxLayout(); tag = text_label(name, 'subtitle'); tag.setFixedWidth(84); row.addWidget(tag)
             slider = QSlider(Qt.Horizontal); slider.setRange(0, maximum); slider.valueChanged.connect(self.adjust); row.addWidget(slider); self.sliders.append(slider); values.addLayout(row)
-        self.star = button('Guardar favorito', self.favorite, symbol='pin'); self.star.setCheckable(True); values.addWidget(self.star); body.addLayout(values, 1); self.outer.addLayout(body)
-        tabs = QHBoxLayout(); tabs.addWidget(text_label('Tu paleta', 'title'), 1); self.filter = QComboBox(); self.filter.addItems(['Recientes y favoritos', 'Solo favoritos']); tabs.addWidget(self.filter); self.outer.addLayout(tabs)
-        self.recent = QListWidget(); self.recent.setViewMode(QListWidget.IconMode); self.recent.setResizeMode(QListWidget.Adjust); self.recent.setMovement(QListWidget.Static); self.recent.setIconSize(QSize(66, 36)); self.recent.setGridSize(QSize(104, 84)); self.recent.setMinimumHeight(95); self.recent.setMaximumHeight(145); self.outer.addWidget(self.recent, 1)
+        self.star = button('Guardar favorito', self.favorite, symbol='pin'); self.star.setCheckable(True); values.addWidget(self.star); body.addLayout(values, 1); work_layout.addLayout(body, 1)
+        tabs = QHBoxLayout();  self.filter = QComboBox(); self.filter.addItems(['Recientes y favoritos', 'Solo favoritos']); tabs.addWidget(self.filter); palette_layout.addLayout(tabs)
+        self.recent = QListWidget(); self.recent.setViewMode(QListWidget.IconMode); self.recent.setResizeMode(QListWidget.Adjust); self.recent.setMovement(QListWidget.Static); self.recent.setIconSize(QSize(66, 36)); self.recent.setGridSize(QSize(104, 84)); self.recent.setMinimumWidth(metrics()['rail_width']); palette_layout.addWidget(self.recent, 1)
+        workspace.addWidget(work); workspace.addWidget(palette); workspace.setSizes([520, 240]); self.outer.addWidget(workspace, 1)
         footer = QHBoxLayout(); self.status = text_label('Selecciona un color o captura cualquier píxel', 'subtitle'); footer.addWidget(self.status, 1)
         self.more = button('Acciones  Alt K', self.actions); footer.addWidget(self.more); self.outer.addLayout(footer)
         self.entry.textChanged.connect(self.update_color); self.filter.currentIndexChanged.connect(self.refresh)
@@ -77,7 +89,7 @@ class ColorWindow(Surface):
         self.formats.addItems(formats)
         for field, text in zip(self.fields.values(), formats): field.setText(text)
         ink, ratio = contrast_text(c)
-        apply_style(self.swatch,f'background:{value};border:@border solid @line;border-radius:14px;color:{ink};font-size:28px;font-weight:600;'); self.swatch.setText(value)
+        apply_style(self.swatch,f'background:{value};border:@border solid @line;border-radius:@radius_l;color:{ink};font-size:@font_title;font-weight:600;'); self.swatch.setText(value)
         self.contrast.setText(f'Texto recomendado: {"oscuro" if ink == "#111111" else "blanco"}  ·  Color opaco')  # theme-exception: tinta de texto sobre el color elegido por el usuario
         self.syncing = True
         for slider, v in zip(self.sliders, (max(0,h)*360, s*100, l*100)): slider.setValue(min(slider.maximum(),round(v)))

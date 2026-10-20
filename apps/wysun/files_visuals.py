@@ -1,3 +1,6 @@
+# Derivado de caelestia-dots/shell (GPL-3.0), modificado para Wysun.
+# Fuente: 507d66285e9d9fde9330adc64159cfdebb28c19a; véase THIRD_PARTY.md.
+# Los QML de origen no incluyen avisos de copyright adicionales por archivo.
 """Restrained desktop file-browser surfaces and original vector iconography."""
 from collections.abc import Mapping
 from functools import lru_cache
@@ -48,40 +51,40 @@ QWidget { background: @canvas; color: @text; font-family: @font_family; font-siz
 QLabel { background: transparent; }
 QWidget#glassCanvas { background: qlineargradient(x1:0,y1:0,x2:1,y2:1,stop:0 @material_top,stop:0.55 @material_mid,stop:1 @material_bottom); }
 QWidget#workspace { background: transparent; }
-QWidget#selectionPreview { background: @surface/155; border: 1px solid @material_edge; border-radius: 12px; }
+QWidget#selectionPreview { background: @surface/155; border: 1px solid @material_edge; border-radius: @radius_m; }
 QWidget#selectionPreview QLabel { background: transparent; border: none; }
 
 QMainWindow, QDialog, QMessageBox, QInputDialog { background: @canvas; color: @text; }
 QWidget#toolbar { background: qlineargradient(x1:0,y1:0,x2:0,y2:1,stop:0 @material_top,stop:1 @material_bottom); border: none; border-bottom: 1px solid @line; }
 QWidget#sidebar { background: @inset/160; border: none; }
-QWidget#sidebar QLabel { background: transparent; color: @muted; font-size: 11px; font-weight: 600; }
-QFrame#contentSurface { background: @surface; border: 1px solid @line; border-radius: 10px; }
+QWidget#sidebar QLabel { background: transparent; color: @muted; font-size: @font_small; font-weight: 600; }
+QFrame#contentSurface { background: @surface; border: 1px solid @line; border-radius: @radius_l; }
 QListWidget#places { background: transparent; border: none; outline: none; padding: 0 8px; }
-QListWidget#places::item { height: 30px; padding: 0 8px; border: 1px solid transparent; border-left: 3px solid transparent; border-radius: 6px; margin: 2px 0; color: @text; }
+QListWidget#places::item { height: 30px; padding: 0 8px; border: 1px solid transparent; border-left: 3px solid transparent; border-radius: @radius_s; margin: 2px 0; color: @text; }
 QListWidget#places::item:selected { background: @selection; color: @selection_text; border-left-color: @accent; }
 QListWidget#places::item:hover:!selected { background: @hover; }
 QListWidget#places::item:focus { border-color: @focus; }
-QLabel#folderTitle { background: transparent; font-size: 14px; font-weight: 600; color: @text; }
+QLabel#folderTitle { background: transparent; font-size: @font_heading; font-weight: 600; color: @text; }
 QWidget#pathbar { background: @surface; border-top: 1px solid @divider; }
-QWidget#pathbar QLabel { background: transparent; font-size: 11px; color: @muted; }
+QWidget#pathbar QLabel { background: transparent; font-size: @font_small; color: @muted; }
 QWidget#inspector { background: qlineargradient(x1:0,y1:0,x2:1,y2:1,stop:0 @surface/220,stop:1 @inset/205); border-left: 1px solid @divider; }
 QWidget#inspector QLabel { background: transparent; }
-QLabel#inspectorName { font-size: 14px; font-weight: 600; }
-QLabel#muted, QLabel#inspectorLocation { color: @muted; font-size: 12px; }
+QLabel#inspectorName { font-size: @font_heading; font-weight: 600; }
+QLabel#muted, QLabel#inspectorLocation { color: @muted; font-size: @font_body; }
 QWidget#glassCanvas { background: qlineargradient(x1:0,y1:0,x2:1,y2:1,stop:0 @material_top,stop:0.55 @material_mid,stop:1 @material_bottom); }
 QWidget#workspace { background: transparent; }
-QWidget#selectionPreview { background: @surface/155; border: 1px solid @material_edge; border-radius: 12px; }
+QWidget#selectionPreview { background: @surface/155; border: 1px solid @material_edge; border-radius: @radius_m; }
 QWidget#selectionPreview QLabel { background: transparent; border: none; }
 
-QWidget#viewGroup { background: @disabled_surface; border: 1px solid @line; border-radius: 8px; }
-QLabel#status, QStatusBar { background: transparent; color: @muted; font-size: 11px; border: none; }
+QWidget#viewGroup { background: @disabled_surface; border: 1px solid @line; border-radius: @radius_control; }
+QLabel#status, QStatusBar { background: transparent; color: @muted; font-size: @font_small; border: none; }
 QStatusBar::item { border: none; }
-QLineEdit { border: 1px solid @line; border-bottom: 1px solid @line_strong; border-radius: 8px; background: @surface; color: @text; padding: 6px 10px; selection-background-color: @selection; selection-color: @selection_text; }
+QLineEdit { border: 1px solid @line; border-bottom: 1px solid @line_strong; border-radius: @radius_control; background: @surface; color: @text; padding: 6px 10px; selection-background-color: @selection; selection-color: @selection_text; }
 QLineEdit:hover { border-color: @line_strong; }
 QLineEdit:focus { border: 1px solid @focus; border-bottom: 2px solid @focus; padding-bottom: 5px; }
 QLineEdit:disabled { color: @disabled; background: @disabled_surface; border-color: @divider; }
 QLineEdit#search { min-height: 18px; }
-QToolButton, QPushButton { background: transparent; border: 1px solid transparent; border-radius: 8px; padding: 5px; color: @text; }
+QToolButton, QPushButton { background: transparent; border: 1px solid transparent; border-radius: @radius_control; padding: 5px; color: @text; }
 QPushButton { background: @surface; border: 1px solid @line; padding: 6px 12px; }
 QToolButton:hover, QPushButton:hover { background: @hover; border-color: @line; }
 QToolButton:pressed, QPushButton:pressed { background: @pressed; border-color: @line_strong; }
@@ -101,9 +104,9 @@ QTreeView::item { min-height: 29px; border: 1px solid transparent; }
 QTreeView::item:selected, QListView::item:selected { background: @selection; color: @selection_text; border: 1px solid @selection_line; }
 QTreeView::item:hover:!selected, QListView::item:hover:!selected { background: @hover; }
 QTreeView::item:focus, QListView::item:focus { border: 1px solid @focus; }
-QListView::item { border: 1px solid transparent; border-radius: 8px; padding: 4px; }
+QListView::item { border: 1px solid transparent; border-radius: @radius_control; padding: 4px; }
 QHeaderView { background: @surface; }
-QHeaderView::section { background: @surface; color: @muted; border: none; border-bottom: 1px solid @divider; padding: 7px 10px; font-size: 11px; font-weight: 600; }
+QHeaderView::section { background: @surface; color: @muted; border: none; border-bottom: 1px solid @divider; padding: 7px 10px; font-size: @font_small; font-weight: 600; }
 QHeaderView::section:hover { background: @hover; }
 QTabWidget::pane { border: none; background: @surface; }
 QTabBar { background: transparent; }
@@ -119,21 +122,21 @@ QScrollBar::handle:hover { background: @line_strong; }
 QScrollBar::add-line, QScrollBar::sub-line { width: 0; height: 0; }
 QScrollBar::add-page, QScrollBar::sub-page { background: transparent; }
 QSplitter::handle { background: transparent; width: 1px; }
-QMenu { background: @menu; color: @text; border: 1px solid @line_strong; border-radius: 8px; padding: 5px; }
-QMenu::item { padding: 7px 28px 7px 12px; border: 1px solid transparent; border-radius: 6px; }
+QMenu { background: @menu; color: @text; border: 1px solid @line_strong; border-radius: @radius_control; padding: 5px; }
+QMenu::item { padding: 7px 28px 7px 12px; border: 1px solid transparent; border-radius: @radius_s; }
 QMenu::item:selected { background: @selection; color: @selection_text; }
 QMenu::item:disabled { color: @disabled; }
 QMenu::separator { height: 1px; background: @line; margin: 5px 8px; }
-QToolTip { background: @surface; color: @text; border: 1px solid @line; border-radius: 6px; padding: 6px 9px; }
-QProgressBar { border: 1px solid @line; border-radius: 6px; background: @disabled_surface; color: @text; text-align: center; min-height: 12px; }
+QToolTip { background: @surface; color: @text; border: 1px solid @line; border-radius: @radius_s; padding: 6px 9px; }
+QProgressBar { border: 1px solid @line; border-radius: @radius_s; background: @disabled_surface; color: @text; text-align: center; min-height: 12px; }
 QProgressBar::chunk { background: @accent; border-radius: 5px; }
 QSlider::groove:horizontal { height: 4px; background: @line; border-radius: 2px; }
 QSlider::sub-page:horizontal { background: @accent; border-radius: 2px; }
-QSlider::handle:horizontal { background: @surface; border: 3px solid @accent; width: 10px; margin: -6px 0; border-radius: 8px; }
+QSlider::handle:horizontal { background: @surface; border: 3px solid @accent; width: 10px; margin: -6px 0; border-radius: @radius_control; }
 QSlider::handle:horizontal:hover { border-color: @accent_hover; }
 QSlider::handle:horizontal:disabled { border-color: @disabled; }
 QCheckBox { background: transparent; spacing: 8px; }
-QComboBox, QSpinBox { background: @surface; border: 1px solid @line; border-radius: 6px; padding: 5px 9px; selection-background-color: @selection; selection-color: @selection_text; }
+QComboBox, QSpinBox { background: @surface; border: 1px solid @line; border-radius: @radius_s; padding: 5px 9px; selection-background-color: @selection; selection-color: @selection_text; }
 QComboBox:focus, QSpinBox:focus { border-color: @focus; }
 QComboBox QAbstractItemView { background: @surface; color: @text; border: 1px solid @line; selection-background-color: @selection; selection-color: @selection_text; }
 """
@@ -186,10 +189,8 @@ def _svg_icon(svg: str, size: int) -> QIcon:
 
 def ui_icon(name: str, size: int = 18, color: str = 'muted') -> QIcon:
     """Outline icon; ``color`` is a theme token (or an explicit '#rrggbb')."""
-    from icons import tint, remember
-    body = _PATHS.get(name, _PATHS['documents'])
-    stroke = tint(color)
-    return remember(_svg_icon(f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="{escape(stroke)}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">{body}</svg>', size), ui_icon, (name, size, color))
+    from utility_material import material_icon
+    return material_icon(name, size, color)
 
 # theme-exception-begin: ilustración de carpeta
 _FOLDER = '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">

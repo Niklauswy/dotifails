@@ -1,3 +1,6 @@
+# Derivado de caelestia-dots/shell (GPL-3.0), modificado para Wysun.
+# Fuente: 507d66285e9d9fde9330adc64159cfdebb28c19a; véase THIRD_PARTY.md.
+# Los QML de origen no incluyen avisos de copyright adicionales por archivo.
 """Native process monitor with live metrics, process trees and contextual actions."""
 from theme_tokens import apply_style, extend_style, color
 
@@ -10,7 +13,9 @@ from PySide6.QtCore import QUrl
 from PySide6.QtWidgets import (QApplication, QWidget, QHBoxLayout, QVBoxLayout, QGridLayout,
     QLineEdit, QComboBox, QTreeWidget, QTreeWidgetItem, QHeaderView, QAbstractItemView,
     QSplitter, QTabWidget, QPlainTextEdit, QMessageBox, QScrollArea)
-from desktop_common import Surface, button, text_label
+from utility_material import MaterialSurface as Surface, button, surface, metrics as material_metrics
+
+from desktop_common import  text_label
 from icons import icon
 from process_data import Processes, STATES, matched
 
@@ -96,10 +101,11 @@ class ProcessesWindow(Surface):
             QScrollBar::add-line:horizontal,QScrollBar::sub-line:horizontal {width:0;}
             QScrollBar::add-page:horizontal,QScrollBar::sub-page:horizontal {background:transparent;}
         ''')
-        metrics=QHBoxLayout();metrics.setSpacing(10);self.metrics=[]
+        resource_rail=surface(QWidget(), 'navigation'); metrics=QVBoxLayout(resource_rail);metrics.setSpacing(material_metrics()["gap"])
+        metrics.addWidget(text_label('Recursos', 'title')); self.metrics=[]
         for name,tone in [('CPU del equipo','cat_blue'),('Memoria utilizada','cat_purple'),('Intercambio','cat_yellow'),('Procesos','cat_green')]:
             metric=Metric(name,tone);metrics.addWidget(metric,1);self.metrics.append(metric)
-        self.outer.addLayout(metrics)
+        metrics.addStretch()
         self.metrics[0].chart.maximum=100;self.metrics[0].chart.setToolTip('CPU total · escala de 0 a 100% · últimas 60 muestras')
         diagnostic=QHBoxLayout();self.live=text_label('● EN VIVO','eyebrow');apply_style(self.live,'color:@success;font-size:10px;font-weight:600;letter-spacing:1px;');diagnostic.addWidget(self.live)
         self.pressure=text_label('Presión de recursos · tomando muestra…','subtitle');self.pressure.setToolTip('PSI: porcentaje de tiempo que al menos una tarea estuvo esperando un recurso en los últimos 10 segundos.');self.pressure.setWordWrap(False);self.pressure.setMinimumHeight(22);diagnostic.addWidget(self.pressure,1,Qt.AlignRight);self.outer.addLayout(diagnostic)
@@ -137,7 +143,8 @@ class ProcessesWindow(Surface):
         self.reason=text_label('','subtitle');layout.addWidget(self.reason)
         actions=QHBoxLayout();self.pause_button=button('Pausar',lambda:self.act('pause'),symbol='circle-pause');self.normal=button('Terminar',lambda:self.act('terminate'),'danger', 'x');actions.addWidget(self.pause_button);actions.addWidget(self.normal);layout.addLayout(actions)
         self.more=button('Acciones  Alt K',self.actions,symbol='ellipsis');layout.addWidget(self.more)
-        pane.setMinimumWidth(300);split.addWidget(pane);split.setSizes([745,330]);self.outer.addWidget(split,1)
+        pane.setMinimumWidth(300);split.addWidget(pane);split.setSizes([745,330]);workspace=QSplitter(); self.workspace=workspace; workspace.addWidget(resource_rail); workspace.addWidget(split); workspace.setSizes([230, 970]); self.outer.addWidget(workspace,1)
+        surface(pane)
         footer=QHBoxLayout();self.status=text_label('Leyendo procesos…','subtitle');footer.addWidget(self.status,1)
         self.interval=QComboBox();self.interval.addItems(['Cada 1 s','Cada 2 s','Cada 5 s']);self.interval.setCurrentIndex(1);footer.addWidget(self.interval);footer.addWidget(button('Actualizar  F5',lambda:self.scan(True),symbol='refresh-cw'));self.outer.addLayout(footer)
         self.timer=QTimer(self);self.timer.setInterval(2000);self.timer.timeout.connect(self.scan)
