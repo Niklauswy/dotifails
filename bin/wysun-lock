@@ -1,17 +1,72 @@
 #!/bin/sh
 # swaylock -f returns successfully only after acquiring the session lock.
+# Derivado de caelestia-dots/shell (GPL-3.0), modificado para Wysun.
+# Visual states from modules/lock/Center.qml and center/{PasswordInput,StateMessage}.qml
+# at 507d66285e9d9fde9330adc64159cfdebb28c19a; not its PAM/lock/IPC backend.
+# See THIRD_PARTY.md and LICENSES/GPL-3.0.txt.
 set -eu
 if [ "${XDG_SESSION_TYPE:-}" != wayland ] || [ -z "${WAYLAND_DISPLAY:-}" ]; then
     printf '%s\n' 'Wysun Lock requiere una sesión Wayland.' >&2
     exit 1
 fi
-# The theme's canvas colour (six hex digits) is passed by Wysun; anything else is ignored.
-color=121820
+suspend=false
+case "${1:-}" in
+    '') ;;
+    --suspend) suspend=true ;;
+    *) printf '%s\n' 'Uso: wysun-lock [--suspend]' >&2; exit 2 ;;
+esac
+if [ "$#" -gt 1 ]; then
+    printf '%s\n' 'Uso: wysun-lock [--suspend]' >&2
+    exit 2
+fi
+# Accept only six hex digits. Standalone key/idle invocations retain swaylock's
+# own defaults until Qt supplies the selected Material/preset presentation.
+color=121820 # theme-exception: opaque recovery canvas when invoked without Qt tokens
 case "${WYSUN_LOCK_COLOR:-}" in
     [0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]) color="$WYSUN_LOCK_COLOR" ;;
 esac
-case "${1:-}" in
-    '') exec swaylock --daemonize --color "$color" ;;
-    --suspend) swaylock --daemonize --color "$color" && exec systemctl suspend ;;
-    *) printf '%s\n' 'Uso: wysun-lock [--suspend]' >&2; exit 2 ;;
-esac
+# Ignore any implicit swaylock config: the default lock exposes no image,
+# screenshot, identity, metadata or media controls. No idle animation.
+set -- --config /dev/null --daemonize --color "$color" --font Rubik --hide-keyboard-layout --indicator-caps-lock
+for role in SURFACE ACCENT TEXT MUTED DANGER; do
+    case "$role" in
+        SURFACE) value=${WYSUN_LOCK_SURFACE:-} ;;
+        ACCENT) value=${WYSUN_LOCK_ACCENT:-} ;;
+        TEXT) value=${WYSUN_LOCK_TEXT:-} ;;
+        MUTED) value=${WYSUN_LOCK_MUTED:-} ;;
+        DANGER) value=${WYSUN_LOCK_DANGER:-} ;;
+    esac
+    case "$value" in
+        [0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]) ;;
+        *) continue ;;
+    esac
+    case "$role" in
+        SURFACE) set -- "$@" --inside-color "$value" --inside-clear-color "$value" --inside-ver-color "$value" --inside-wrong-color "$value" ;;
+        ACCENT) set -- "$@" --ring-color "$value" --ring-ver-color "$value" --key-hl-color "$value" ;;
+        TEXT) set -- "$@" --text-color "$value" --text-ver-color "$value" ;;
+        MUTED) set -- "$@" --ring-clear-color "$value" --text-clear-color "$value" --separator-color "$value" ;;
+        DANGER) set -- "$@" --ring-wrong-color "$value" --text-wrong-color "$value" --bs-hl-color "$value" ;;
+    esac
+done
+for metric in RADIUS THICKNESS FONT_SIZE; do
+    case "$metric" in
+        RADIUS) value=${WYSUN_LOCK_RADIUS:-} ;;
+        THICKNESS) value=${WYSUN_LOCK_THICKNESS:-} ;;
+        FONT_SIZE) value=${WYSUN_LOCK_FONT_SIZE:-} ;;
+    esac
+    case "$value" in
+        ''|*[!0-9]*) continue ;;
+    esac
+    # Bound values before passing them to the backend (also reject long integers).
+    [ "${#value}" -le 3 ] && [ "$value" -ge 1 ] && [ "$value" -le 256 ] || continue
+    case "$metric" in
+        RADIUS) set -- "$@" --indicator-radius "$value" ;;
+        THICKNESS) set -- "$@" --indicator-thickness "$value" ;;
+        FONT_SIZE) set -- "$@" --font-size "$value" ;;
+    esac
+done
+if "$suspend"; then
+    swaylock "$@" && exec systemctl suspend
+else
+    exec swaylock "$@"
+fi

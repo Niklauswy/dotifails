@@ -1,4 +1,13 @@
-"""Session locking for Wysun/Wayland; wysun-lock owns authentication and grabs."""
+"""Session locking for Wysun/Wayland; wysun-lock owns authentication and grabs.
+
+Derivado de caelestia-dots/shell (GPL-3.0), modificado para Wysun.
+Visual state/centred indicator adaptation of modules/lock/Center.qml,
+Content.qml and center/{PasswordInput,StateMessage}.qml at commit
+507d66285e9d9fde9330adc64159cfdebb28c19a. See THIRD_PARTY.md and
+LICENSES/GPL-3.0.txt. Authentication and readiness remain swaylock's.
+The backend cannot render Caelestia's profile, clock, media or side columns;
+no Qt password window or unlocked imitation is created here.
+"""
 import os
 from pathlib import Path
 
@@ -31,8 +40,16 @@ def start_lock(owner, suspend=False):
     environment.insert('ORBIT_REDUCED_MOTION','1' if reduced_motion(window) else '0')
     from theme_tokens import theme_id,tokens
     environment.insert('ORBIT_THEME',theme_id())
-    # Space Black keeps its historical lock colour; Fluent locks on its own canvas.
-    if tokens()['style']!='space-black':environment.insert('WYSUN_LOCK_COLOR',tokens()['canvas'][1:7])
+    values = tokens()
+    # Only semantic presentation tokens cross the process boundary; no media,
+    # profile, username, notification content, image or authentication data.
+    for name, token in (('COLOR', 'canvas'), ('SURFACE', 'surface'),
+                        ('ACCENT', 'accent'), ('TEXT', 'text'),
+                        ('MUTED', 'muted'), ('DANGER', 'danger')):
+        environment.insert('WYSUN_LOCK_' + name, values[token][1:7])
+    environment.insert('WYSUN_LOCK_RADIUS', str(round(values['space_xl'] * 3)))
+    environment.insert('WYSUN_LOCK_THICKNESS', str(max(1, round(values['focus_width']))))
+    environment.insert('WYSUN_LOCK_FONT_SIZE', str(round(values['font_body'])))
     process.setProcessEnvironment(environment)
     if buttons:buttons[0].setEnabled(False)
     finished=False
