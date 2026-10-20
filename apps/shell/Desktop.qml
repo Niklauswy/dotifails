@@ -1,7 +1,8 @@
 import QtQuick
 import Quickshell
 import Quickshell.Wayland
-import "Logic.js" as Logic
+import Quickshell.Hyprland
+import "modules/background" as BackgroundModule
 
 PanelWindow {
     id: desktop
@@ -16,14 +17,13 @@ PanelWindow {
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
     // A wallpaper never consumes desktop clicks or keyboard focus.
     mask: Region {}
-    readonly property var wallpaper: Logic.wallpaper(preferences.environment, modelData.name, preferences.home, Appearance.wallpaper)
-    Image {
+    // Each delegate observes only its own output. Variants destroys it on unplug.
+    readonly property var monitor: Hyprland.monitorFor(modelData)
+    BackgroundModule.Background {
         anchors.fill: parent
-        source: desktop.wallpaper.path ? "file://" + encodeURI(desktop.wallpaper.path).replace(/#/g, "%23").replace(/\?/g, "%3F") : ""
-        asynchronous: true
-        cache: false
-        sourceSize.width: Math.ceil(desktop.width * desktop.modelData.devicePixelRatio)
-        sourceSize.height: Math.ceil(desktop.height * desktop.modelData.devicePixelRatio)
-        fillMode: ({ fill: Image.PreserveAspectCrop, fit: Image.PreserveAspectFit, stretch: Image.Stretch, center: Image.Pad })[desktop.wallpaper.mode]
+        preferences: desktop.preferences
+        outputName: desktop.modelData.name
+        pixelRatio: desktop.modelData.devicePixelRatio
+        fullscreen: desktop.monitor?.activeWorkspace?.hasFullscreen === true
     }
 }

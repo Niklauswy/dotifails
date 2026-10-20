@@ -51,3 +51,37 @@ The Caelestia C++ plugin, `qt6-m3shapes`, `libcava`, and Google Sans Flex are no
 ## Scope
 
 Derived Caelestia code carries GPL attribution in its source headers and in this file. The vendored Material You implementation retains its MIT copyright notice. Wysun's Python median-cut quantizer is original code and has no native build or install step.
+
+## Caelestia Shell — Wysun phase 5 background and lock presentation
+
+Derivado de caelestia-dots/shell (GPL-3.0), modificado para Wysun.
+Source: https://github.com/caelestia-dots/shell at
+`507d66285e9d9fde9330adc64159cfdebb28c19a`; full license:
+[`LICENSES/GPL-3.0.txt`](LICENSES/GPL-3.0.txt). The upstream source files listed
+below have no individual copyright header; their project GPL notice is retained.
+
+| Upstream source | Wysun destination | Adaptation |
+| --- | --- | --- |
+| `modules/background/Background.qml` | `apps/shell/modules/background/Background.qml`, `BackgroundPolicy.js`; `apps/shell/Desktop.qml` integration | One passive surface per output; nine clock positions, local fullscreen policy, loader lifecycle on hotplug |
+| `modules/background/Wallpaper.qml`, `services/Wallpapers.qml` | `apps/shell/modules/background/Wallpaper.qml`, `BackgroundPolicy.js` | Local static images and output selection from existing preferences; no CLI, IPC, shaders, video or colour producer |
+| `modules/background/DesktopClock.qml` | `apps/shell/modules/background/DesktopClock.qml` | Material token plate, hour/minute/date layout, Spanish locale, scaled small-output layout; no blur or idle animation |
+| `services/Time.qml` | `apps/shell/modules/background/Time.qml` | Wall clock at minute precision; instantiated only while the optional clock is visible |
+| `modules/lock/Center.qml`, `Content.qml`, `center/PasswordInput.qml`, `center/StateMessage.qml` | `apps/wysun/screen_lock.py`, `bin/wysun-lock` | PySide6 translation of centred presentation and normal/verifying/cleared/error colour hierarchy to swaylock options (default backend); no authentication code copied |
+| `modules/lock/Center.qml`, `Content.qml`, `center/Clock.qml`, `center/InputField.qml`, `center/StateMessage.qml` | `apps/shell/modules/lock/LockPanel.qml`, `LockPolicy.js`, `OutputLock.qml` | Opt-in QML presentation: centred date/clock column, pill password field with masked buffer, Spanish state messages, per-output scaling; Wysun tokens and Rubik instead of upstream colours/fonts |
+| `modules/lock/Media.qml` | `apps/shell/modules/lock/LockMedia.qml` | Opt-in title/artist/transport card from the active MPRIS player; no cover art, no cava |
+
+The existing swaylock readiness, failure recovery and suspend sequencing remain
+authoritative for the default backend. The opt-in QML backend (`apps/shell/lock.qml`,
+`apps/shell/modules/lock/`) is a Wysun-original implementation of the session lock
+(`WlSessionLock`) and PAM client (`PamContext`, packaged service
+`apps/shell/config/pam.d/wysun-lock`); it takes only visual structure from the files
+above. `LockRoot.qml`, `LockAuth.qml`, `LockTheme.qml`, the readiness marker and
+`bin/wysun-lock` selection logic are not copies of upstream code.
+Stock swaylock cannot render Caelestia's clock/profile/input pill, side columns or
+`Media.qml`; with the default backend these are **not ported**. Media, notifications,
+avatars and wallpaper are not exposed on lock unless the user opts in to the media
+card. `Lock.qml`, `Pam.qml`, `LockSurface.qml`, unlock IPC, `Visualiser.qml`, cava and
+screencopy are excluded. Swaylock supplies native status strings and font lookup;
+Rubik is requested, using its fontconfig fallback if unavailable in that process.
+Material Symbols glyphs used by phase 5: none (labels are text); the font subset is
+not changed.
