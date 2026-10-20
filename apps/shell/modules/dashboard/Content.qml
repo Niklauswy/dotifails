@@ -1,106 +1,197 @@
-// Derivado de caelestia-dots/shell (GPL-3.0), modificado para Wysun
-// Origen: modules/dashboard/Content.qml, commit 507d66285e9d9fde9330adc64159cfdebb28c19a.
-// Avisos y licencia íntegra: THIRD_PARTY.md y LICENSES/GPL-3.0.txt.
+pragma ComponentBehavior: Bound
+
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
-import "../../" as Wysun
-import "../../components" as Components
-import "Logic.js" as Logic
+import Quickshell
+import Caelestia
+import Caelestia.Config
+import Caelestia.I18n
+import qs.components
+import qs.components.filedialog
 
-FocusScope {
+Item {
     id: root
-    property var motion
-    property var controller: null
-    property var metrics: null
-    property var media: null
-    property var workspaces: []
-    property var windows: []
-    property string monitorName: ""
-    property int currentIndex: 0
 
-    implicitWidth: Wysun.Appearance.spaceXl * 32
-    implicitHeight: Wysun.Appearance.spaceXl * 23
-    focus: true
+    required property ScreenState screenState
+    required property FileDialog facePicker
 
-    Keys.onPressed: event => {
-        if (event.key === Qt.Key_Right && (event.modifiers & Qt.ControlModifier)) {
-            root.currentIndex = Logic.clampTab(root.currentIndex + 1, root.tabCount);
-            event.accepted = true;
-        } else if (event.key === Qt.Key_Left && (event.modifiers & Qt.ControlModifier)) {
-            root.currentIndex = Logic.clampTab(root.currentIndex - 1, root.tabCount);
-            event.accepted = true;
-        }
+    readonly property var dashboardTabs: {
+        const allTabs = [
+            {
+                component: dashComponent,
+                iconName: "dashboard",
+                text: Tr.tr("Dashboard"),
+                enabled: Config.dashboard.showDashboard
+            },
+            {
+                component: mediaComponent,
+                iconName: "queue_music",
+                text: Tr.tr("Media"),
+                enabled: Config.dashboard.showMedia
+            },
+            {
+                component: performanceComponent,
+                iconName: "speed",
+                text: Tr.tr("Performance"),
+                enabled: Config.dashboard.showPerformance
+            },
+            {
+                component: weatherComponent,
+                iconName: "cloud",
+                text: Tr.tr("Weather"),
+                enabled: Config.dashboard.showWeather
+            }
+        ];
+        return allTabs.filter(tab => tab.enabled);
     }
 
-    readonly property int tabCount: 4
+    readonly property real nonAnimWidth: view.implicitWidth + viewWrapper.anchors.margins * 2
+    readonly property real nonAnimHeight: tabs.implicitHeight + tabs.anchors.topMargin + view.implicitHeight + viewWrapper.anchors.margins * 2
+
+    implicitWidth: nonAnimWidth
+    implicitHeight: nonAnimHeight
 
     Tabs {
         id: tabs
-        anchors { left: parent.left; right: parent.right; top: parent.top }
-        motion: root.motion
-        currentIndex: root.currentIndex
-        onSelected: index => root.currentIndex = index
+
+        anchors.top: parent.top
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.topMargin: CUtils.clamp(anchors.margins - Config.border.thickness, 0, anchors.margins)
+        anchors.margins: Tokens.padding.large
+
+        nonAnimWidth: root.nonAnimWidth - anchors.margins * 2
+        screenState: root.screenState
+        tabs: root.dashboardTabs
     }
 
-    Flickable {
-        id: view
-        anchors { top: tabs.bottom; bottom: parent.bottom; left: parent.left; right: parent.right; topMargin: Wysun.Appearance.spaceL }
-        clip: true
-        contentWidth: width
-        contentHeight: pane.item ? pane.item.implicitHeight : 0
-        boundsBehavior: Flickable.StopAtBounds
-        flickableDirection: Flickable.VerticalFlick
+    ClipRect {
+        id: viewWrapper
 
-        ScrollBar.vertical: ScrollBar {
-            id: scroll
-            policy: ScrollBar.AsNeeded
-            contentItem: Rectangle {
-                implicitWidth: Wysun.Appearance.spaceXs
-                radius: width / 2
-                color: scroll.pressed ? Wysun.Appearance.accent : Wysun.Appearance.lineStrong
+        anchors.top: tabs.bottom
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        anchors.margins: Tokens.padding.large
+
+        radius: Tokens.rounding.large
+        color: "transparent"
+
+        Flickable {
+            id: view
+
+            readonly property int currentIndex: root.screenState.dashboardTab
+            readonly property Item currentItem: {
+                CUtils.dependency(repeater.count); // Trigger update on count change
+                return repeater.itemAt(currentIndex);
             }
-            background: Item {}
+
+            anchors.fill: parent
+
+            flickableDirection: Flickable.HorizontalFlick
+
+            implicitWidth: currentItem?.implicitWidth ?? 0
+            implicitHeight: currentItem?.implicitHeight ?? 0
+
+            contentX: currentItem?.x ?? 0
+            contentWidth: row.implicitWidth
+            contentHeight: row.implicitHeight
+
+            onContentXChanged: {
+                if (!moving || !currentItem)
+                    return;
+
+                const x = contentX - currentItem.x;
+                if (x > currentItem.implicitWidth / 2)
+                    root.screenState.dashboardTab = Math.min(root.screenState.dashboardTab + 1, tabs.count - 1);
+                else if (x < -currentItem.implicitWidth / 2)
+                    root.screenState.dashboardTab = Math.max(root.screenState.dashboardTab - 1, 0);
+            }
+
+            onDragEnded: {
+                if (!currentItem)
+                    return;
+
+                const x = contentX - currentItem.x;
+                if (x > currentItem.implicitWidth / 10)
+                    root.screenState.dashboardTab = Math.min(root.screenState.dashboardTab + 1, tabs.count - 1);
+                else if (x < -currentItem.implicitWidth / 10)
+                    root.screenState.dashboardTab = Math.max(root.screenState.dashboardTab - 1, 0);
+                else
+                    contentX = Qt.binding(() => currentItem?.x ?? 0);
+            }
+
+            RowLayout {
+                id: row
+
+                Repeater {
+                    id: repeater
+
+                    model: ScriptModel {
+                        values: root.dashboardTabs
+                    }
+
+                    delegate: Loader {
+                        id: paneLoader
+
+                        required property int index
+                        required property var modelData
+
+                        Layout.alignment: Qt.AlignTop
+
+                        sourceComponent: modelData.component
+
+                        Component.onCompleted: active = Qt.binding(() => {
+                            if (index === view.currentIndex)
+                                return true;
+                            const vx = Math.floor(view.visibleArea.xPosition * view.contentWidth);
+                            const vex = Math.floor(vx + view.visibleArea.widthRatio * view.contentWidth);
+                            return (vx >= x && vx <= x + implicitWidth) || (vex >= x && vex <= x + implicitWidth);
+                        })
+                    }
+                }
+            }
+
+            Component {
+                id: dashComponent
+
+                Dash {
+                    screenState: root.screenState
+                    facePicker: root.facePicker
+                }
+            }
+
+            Component {
+                id: mediaComponent
+
+                Media {
+                    screenState: root.screenState
+                }
+            }
+
+            Component {
+                id: performanceComponent
+
+                Performance {}
+            }
+
+            Component {
+                id: weatherComponent
+
+                WeatherTab {}
+            }
+
+            Behavior on contentX {
+                Anim {}
+            }
         }
-
-        Loader {
-            id: pane
-            width: Math.max(0, view.width - Wysun.Appearance.spaceM)
-            sourceComponent: root.currentIndex === 0 ? dashComponent
-                : root.currentIndex === 1 ? mediaComponent
-                : root.currentIndex === 2 ? performanceComponent
-                : workspaceComponent
-            onLoaded: {
-                view.contentY = 0;
-                opacity = 0;
-                fade.restart();
-            }
-            onSourceComponentChanged: opacity = 0
-            Components.Anim {
-                id: fade
-                target: pane
-                property: "opacity"
-                to: 1
-                motion: root.motion
-                type: Components.Anim.DefaultEffects
-            }
-        }
     }
 
-    Component {
-        id: dashComponent
-        Dash { metrics: root.metrics; media: root.media; controller: root.controller; motion: root.motion; monitorName: root.monitorName }
+    Behavior on implicitWidth {
+        Anim {}
     }
-    Component {
-        id: mediaComponent
-        Media { media: root.media; controller: root.controller; motion: root.motion }
-    }
-    Component {
-        id: performanceComponent
-        Performance { metrics: root.metrics; motion: root.motion }
-    }
-    Component {
-        id: workspaceComponent
-        Workspaces { workspaces: root.workspaces; windows: root.windows; controller: root.controller; motion: root.motion }
+
+    Behavior on implicitHeight {
+        Anim {}
     }
 }

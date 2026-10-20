@@ -1,82 +1,163 @@
-// Derivado de caelestia-dots/shell (GPL-3.0), modificado para Wysun.
-// modules/background/DesktopClock.qml y services/Time.qml, commit
-// 507d66285e9d9fde9330adc64159cfdebb28c19a. Véanse THIRD_PARTY.md y LICENSES/GPL-3.0.txt.
+pragma ComponentBehavior: Bound
+
 import QtQuick
+import QtQuick.Effects
 import QtQuick.Layouts
-import "../../" as Wysun
+import Caelestia.Config
+import Caelestia.I18n
+import Caelestia.State
+import qs.components
+import qs.services
 
 Item {
     id: root
-    property date now: new Date()
-    readonly property var locale: Qt.locale("es_MX")
-    implicitWidth: layout.implicitWidth + Wysun.Appearance.spaceXl * 2
-    implicitHeight: layout.implicitHeight + Wysun.Appearance.spaceL * 2
-    Accessible.role: Accessible.StaticText
-    Accessible.name: locale.toString(now, "hh:mm, dddd d 'de' MMMM")
 
-    Rectangle {
+    required property Item wallpaper
+    required property real absX
+    required property real absY
+
+    property real clockScale: Config.background.desktopClock.scale
+    readonly property bool bgEnabled: Config.background.desktopClock.background.enabled
+    readonly property bool blurEnabled: bgEnabled && Config.background.desktopClock.background.blur && !RuntimeState.gameMode
+    readonly property bool invertColors: Config.background.desktopClock.invertColors
+    readonly property bool useLightSet: Colours.light ? !invertColors : invertColors
+    readonly property color safePrimary: useLightSet ? Colours.palette.m3primaryContainer : Colours.palette.m3primary
+    readonly property color safeSecondary: useLightSet ? Colours.palette.m3secondaryContainer : Colours.palette.m3secondary
+    readonly property color safeTertiary: useLightSet ? Colours.palette.m3tertiaryContainer : Colours.palette.m3tertiary
+
+    implicitWidth: layout.implicitWidth + (Tokens.padding.large * 4 * root.clockScale)
+    implicitHeight: layout.implicitHeight + (Tokens.padding.extraLargeIncreased * root.clockScale)
+
+    Item {
+        id: clockContainer
+
         anchors.fill: parent
-        radius: Wysun.Appearance.radiusL
-        color: Wysun.Appearance.surface
-        border.width: Wysun.Appearance.borderWidth
-        border.color: Wysun.Appearance.line
+
+        layer.enabled: Config.background.desktopClock.shadow.enabled
+        layer.effect: MultiEffect {
+            shadowEnabled: true
+            shadowColor: Colours.palette.m3shadow
+            shadowOpacity: Config.background.desktopClock.shadow.opacity
+            shadowBlur: Config.background.desktopClock.shadow.blur
+        }
+
+        Loader {
+            asynchronous: true
+            anchors.fill: parent
+            active: root.blurEnabled
+
+            sourceComponent: MultiEffect {
+                source: ShaderEffectSource {
+                    sourceItem: root.wallpaper
+                    sourceRect: Qt.rect(root.absX, root.absY, root.width, root.height)
+                }
+                maskSource: backgroundPlate
+                maskEnabled: true
+                blurEnabled: true
+                blur: 1
+                blurMax: 64
+                autoPaddingEnabled: false
+            }
+        }
+
+        StyledRect {
+            id: backgroundPlate
+
+            visible: root.bgEnabled
+            anchors.fill: parent
+            radius: Tokens.rounding.extraLarge * root.clockScale
+            opacity: Config.background.desktopClock.background.opacity
+            color: Colours.palette.m3surface
+
+            layer.enabled: root.blurEnabled
+        }
+
+        RowLayout {
+            id: layout
+
+            anchors.centerIn: parent
+            spacing: Tokens.spacing.large * root.clockScale
+
+            RowLayout {
+                spacing: Tokens.spacing.small
+
+                StyledText {
+                    text: Time.hourStr
+                    font: Tokens.font.clock.size(Tokens.font.headline.medium.pointSize * 3 * root.clockScale).weight(Font.Bold).build()
+                    color: root.safePrimary
+                }
+
+                StyledText {
+                    text: ":"
+                    font: Tokens.font.clock.size(Tokens.font.headline.medium.pointSize * 3 * root.clockScale).build()
+                    color: root.safeTertiary
+                    opacity: 0.8
+                    Layout.topMargin: -Tokens.padding.large * 1.5 * root.clockScale
+                }
+
+                StyledText {
+                    text: Time.minuteStr
+                    font: Tokens.font.clock.size(Tokens.font.headline.medium.pointSize * 3 * root.clockScale).weight(Font.Bold).build()
+                    color: root.safeSecondary
+                }
+
+                Loader {
+                    asynchronous: true
+                    Layout.alignment: Qt.AlignTop
+                    Layout.topMargin: Tokens.padding.large * 1.4 * root.clockScale
+
+                    active: Units.twelveHourClock
+                    visible: active
+
+                    sourceComponent: StyledText {
+                        text: Time.amPmStr
+                        font: Tokens.font.clock.size(Tokens.font.title.medium.pointSize * root.clockScale).build()
+                        color: root.safeSecondary
+                    }
+                }
+            }
+
+            StyledRect {
+                Layout.fillHeight: true
+                Layout.preferredWidth: 4 * root.clockScale
+                Layout.topMargin: Tokens.spacing.large * root.clockScale
+                Layout.bottomMargin: Tokens.spacing.large * root.clockScale
+                radius: Tokens.rounding.full
+                color: root.safePrimary
+                opacity: 0.8
+            }
+
+            ColumnLayout {
+                spacing: 0
+
+                StyledText {
+                    text: Time.format("MMMM").toUpperCase()
+                    font: Tokens.font.clock.size(Tokens.font.title.medium.pointSize * root.clockScale).letterSpacing(4).weight(Font.Bold).build()
+                    color: root.safeSecondary
+                }
+
+                StyledText {
+                    text: Time.format("dd")
+                    font: Tokens.font.clock.size(Tokens.font.headline.medium.pointSize * root.clockScale).letterSpacing(2).weight(Font.Medium).build()
+                    color: root.safePrimary
+                }
+
+                StyledText {
+                    text: Time.format("dddd")
+                    font: Tokens.font.clock.size(Tokens.font.body.large.pointSize * root.clockScale).letterSpacing(2).build()
+                    color: root.safeSecondary
+                }
+            }
+        }
     }
-    RowLayout {
-        id: layout
-        anchors.centerIn: parent
-        spacing: Wysun.Appearance.spaceL
-        scale: Math.max(0, Math.min(1,
-               (root.width - Wysun.Appearance.spaceS * 2) / implicitWidth,
-               (root.height - Wysun.Appearance.spaceS * 2) / implicitHeight))
-        Row {
-            spacing: Wysun.Appearance.spaceXs
-            Text {
-                text: root.locale.toString(root.now, "hh")
-                color: Wysun.Appearance.accent
-                font.family: Wysun.Appearance.fontFamily
-                font.pixelSize: Wysun.Appearance.fontTitle * 3
-                font.weight: Font.Bold
-            }
-            Text {
-                text: ":"
-                color: Wysun.Appearance.muted
-                font.family: Wysun.Appearance.fontFamily
-                font.pixelSize: Wysun.Appearance.fontTitle * 3
-            }
-            Text {
-                text: root.locale.toString(root.now, "mm")
-                color: Wysun.Appearance.text
-                font.family: Wysun.Appearance.fontFamily
-                font.pixelSize: Wysun.Appearance.fontTitle * 3
-                font.weight: Font.Bold
-            }
-        }
-        Rectangle {
-            implicitWidth: Wysun.Appearance.focusWidth
-            implicitHeight: Wysun.Appearance.fontTitle * 3
-            color: Wysun.Appearance.lineStrong
-        }
-        Column {
-            Text {
-                text: root.locale.toString(root.now, "MMMM").toLocaleUpperCase(root.locale)
-                color: Wysun.Appearance.muted
-                font.family: Wysun.Appearance.fontFamily
-                font.pixelSize: Wysun.Appearance.fontSmall
-                font.weight: Font.DemiBold
-            }
-            Text {
-                text: root.locale.toString(root.now, "dd")
-                color: Wysun.Appearance.accent
-                font.family: Wysun.Appearance.fontFamily
-                font.pixelSize: Wysun.Appearance.fontTitle * 2
-                font.weight: Font.Medium
-            }
-            Text {
-                text: root.locale.toString(root.now, "dddd")
-                color: Wysun.Appearance.text
-                font.family: Wysun.Appearance.fontFamily
-                font.pixelSize: Wysun.Appearance.fontBody
-            }
+
+    Behavior on clockScale {
+        Anim {}
+    }
+
+    Behavior on implicitWidth {
+        Anim {
+            type: Anim.StandardSmall
         }
     }
 }

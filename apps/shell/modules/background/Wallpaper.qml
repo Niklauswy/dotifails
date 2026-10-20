@@ -1,30 +1,182 @@
-// Derivado de caelestia-dots/shell (GPL-3.0), modificado para Wysun.
-// modules/background/Wallpaper.qml y services/Wallpapers.qml, commit
-// 507d66285e9d9fde9330adc64159cfdebb28c19a. Véanse THIRD_PARTY.md y LICENSES/GPL-3.0.txt.
+pragma ComponentBehavior: Bound
+
 import QtQuick
-import "BackgroundPolicy.js" as Policy
-import "../../" as Wysun
+import Caelestia
+import Caelestia.Config
+import Caelestia.I18n
+import Caelestia.Multimedia
+import Caelestia.Shaders
+import Caelestia.State
+import qs.components
+import qs.components.filedialog
+import qs.services
+import qs.utils
 
-Rectangle {
+Item {
     id: root
-    property string path: ""
-    property string mode: "fill"
-    property real pixelRatio: 1
-    readonly property alias status: image.status
-    color: Wysun.Appearance.canvas
 
-    // A static image with no shader capture, transition render loop or video.
-    Image {
-        id: image
-        objectName: "wallpaperImage"
-        anchors.fill: parent
-        source: Policy.localUrl(root.path)
+    readonly property transitionShader shader: {
+        CUtils.dependency(Config.background.wallpaperTransition);
+        let transition = CUtils.enumToString(Config.background, "wallpaperTransition");
+        if (!transition)
+            return Shaders.crossfade;
+
+        transition = transition[0].toLowerCase() + transition.slice(1);
+        return Shaders[transition] ?? Shaders.crossfade;
+    }
+
+    property string source: Wallpapers.current
+    property ShaderEffectSource currentCapture: capture1
+    property real transitionProgress: 1
+    property bool completed
+
+    onSourceChanged: {
+        transitionAnim.stop();
+
+        if (transitionProgress < 1) {
+            currentCapture = currentCapture === capture1 ? capture2 : capture1;
+            currentCapture.sourceItem = transition;
+        } else {
+            currentCapture.sourceItem = live;
+        }
+
+        currentCapture.visible = true;
+        currentCapture.scheduleUpdate();
+    }
+
+    Component.onCompleted: {
+        completed = true;
+        live.source = source;
+    }
+
+    Loader {
         asynchronous: true
-        cache: false
-        sourceSize.width: Math.ceil(root.width * root.pixelRatio)
-        sourceSize.height: Math.ceil(root.height * root.pixelRatio)
-        fillMode: ({ fill: Image.PreserveAspectCrop, fit: Image.PreserveAspectFit,
-                     stretch: Image.Stretch, center: Image.Pad })[root.mode] ?? Image.PreserveAspectCrop
-        visible: status === Image.Ready
+        anchors.fill: parent
+
+        active: root.completed && !root.source
+
+        sourceComponent: StyledRect {
+            color: Colours.palette.m3surfaceContainer
+
+            Row {
+                anchors.centerIn: parent
+                spacing: Tokens.spacing.largeIncreased
+
+                MaterialIcon {
+                    text: "sentiment_stressed"
+                    color: Colours.palette.m3onSurfaceVariant
+                    fontStyle: Tokens.font.icon.builders.extraLarge.scale(5).build()
+                }
+
+                Column {
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: Tokens.spacing.small
+
+                    StyledText {
+                        text: Tr.tr("Wallpaper missing?")
+                        color: Colours.palette.m3onSurfaceVariant
+                        font: Tokens.font.body.builders.large.size(28 * 2).weight(Font.Bold).build()
+                    }
+
+                    StyledRect {
+                        implicitWidth: selectWallText.implicitWidth + Tokens.padding.extraLargeIncreased
+                        implicitHeight: selectWallText.implicitHeight + Tokens.padding.small
+
+                        radius: Tokens.rounding.full
+                        color: Colours.palette.m3primary
+
+                        FileDialog {
+                            id: dialog
+
+                            title: Tr.tr("Select a wallpaper")
+                            filterLabel: Tr.tr("Image files")
+                            filters: Images.validImageExtensions
+                            onAccepted: path => Wallpapers.setWallpaper(path)
+                        }
+
+                        StateLayer {
+                            radius: parent.radius
+                            color: Colours.palette.m3onPrimary
+                            onClicked: dialog.open()
+                        }
+
+                        StyledText {
+                            id: selectWallText
+
+                            anchors.centerIn: parent
+
+                            text: Tr.tr("Set it now!")
+                            color: Colours.palette.m3onPrimary
+                            font: Tokens.font.body.large
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    NumberAnimation on transitionProgress {
+        id: transitionAnim
+
+        running: false
+        duration: root.shader.duration * Tokens.anim.durations.scale
+        easing: root.shader.easing
+        to: 1
+    }
+
+    ShaderEffectSource {
+        id: capture1
+
+        anchors.fill: parent
+        live: false
+        visible: false
+
+        onScheduledUpdateCompleted: {
+            visible = false;
+            transition.from = this;
+            root.transitionProgress = 0;
+            live.source = root.source;
+        }
+    }
+
+    ShaderEffectSource {
+        id: capture2
+
+        anchors.fill: parent
+        live: false
+        visible: false
+
+        onScheduledUpdateCompleted: {
+            visible = false;
+            transition.from = this;
+            root.transitionProgress = 0;
+            live.source = root.source;
+        }
+    }
+
+    Visual {
+        id: live
+
+        anchors.fill: parent
+        playing: PersistentState.wallpaperPlaying
+        animate: false
+        layer.enabled: true
+
+        onReadyChanged: {
+            if (ready && source === root.source)
+                transitionAnim.start();
+        }
+    }
+
+    ShaderEffect {
+        id: transition
+
+        property Item from
+        property Item to: live
+        property real progress: root.transitionProgress
+
+        anchors.fill: parent
+        visible: root.transitionProgress < 1
+        fragmentShader: root.shader.url
     }
 }

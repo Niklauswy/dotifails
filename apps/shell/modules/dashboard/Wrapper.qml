@@ -1,41 +1,57 @@
-// Derivado de caelestia-dots/shell (GPL-3.0), modificado para Wysun
-// Origen: modules/dashboard/Wrapper.qml, commit 507d66285e9d9fde9330adc64159cfdebb28c19a.
-// Avisos y licencia íntegra: THIRD_PARTY.md y LICENSES/GPL-3.0.txt.
+pragma ComponentBehavior: Bound
+
 import QtQuick
+import Quickshell
+import Caelestia
+import Caelestia.Config
+import Caelestia.I18n
+import qs.components
+import qs.components.filedialog
+import qs.utils
 
 Item {
     id: root
-    required property var motion
-    property var controller: null
-    property string monitorName: ""
-    property bool live: true
-    property bool sampling: visible
-    property var fixtureProviders: null
-    readonly property var providers: live ? liveProvider.item : fixtureProviders
-    property alias currentIndex: content.currentIndex
 
-    implicitWidth: content.implicitWidth
-    implicitHeight: content.implicitHeight
-
-    Loader {
-        id: liveProvider
-        active: root.live && root.sampling
-        source: "LiveProviders.qml"
-        onLoaded: {
-            item.enabled = Qt.binding(function() { return root.sampling; });
-            item.monitorName = Qt.binding(function() { return root.monitorName; });
+    required property ScreenState screenState
+    readonly property FileDialog facePicker: FileDialog {
+        title: Tr.tr("Select a profile picture")
+        filterLabel: Tr.tr("Image files")
+        filters: Images.validImageExtensions
+        onAccepted: path => {
+            if (CUtils.copyFile(Qt.resolvedUrl(path), Qt.resolvedUrl(`${Paths.home}/.face`)))
+                // TRANSLATORS: %1 = a file path
+                Quickshell.execDetached(["notify-send", "-a", "caelestia-shell", "-u", "low", "-h", `STRING:image-path:${path}`, Tr.tr("Profile picture changed"), Tr.tr("Profile picture changed to %1").arg(Paths.shortenHome(path))]);
+            else
+                // TRANSLATORS: %1 = a file path
+                Quickshell.execDetached(["notify-send", "-a", "caelestia-shell", "-u", "critical", Tr.tr("Unable to change profile picture"), Tr.tr("Failed to change profile picture to %1").arg(Paths.shortenHome(path))]);
         }
     }
 
-    Content {
+    readonly property real nonAnimHeight: (content.item as Content)?.nonAnimHeight ?? 0
+    readonly property bool shouldBeActive: screenState.dashboard && Config.dashboard.enabled
+    property real offsetScale: shouldBeActive ? 0 : 1
+
+    visible: offsetScale < 1
+    anchors.topMargin: (-implicitHeight - 5) * offsetScale
+    implicitHeight: content.implicitHeight
+    implicitWidth: content.implicitWidth || 854 // Hard coded fallback for first open
+    opacity: 1 - offsetScale
+
+    Behavior on offsetScale {
+        Anim {}
+    }
+
+    Loader {
         id: content
-        anchors.fill: parent
-        motion: root.motion
-        controller: root.controller
-        monitorName: root.monitorName
-        metrics: root.providers ? root.providers.metrics : null
-        media: root.providers ? root.providers.media : null
-        workspaces: root.providers ? root.providers.workspaces : []
-        windows: root.providers ? root.providers.windows : []
+
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.bottom: parent.bottom
+
+        active: root.shouldBeActive || root.visible
+
+        sourceComponent: Content {
+            screenState: root.screenState
+            facePicker: root.facePicker
+        }
     }
 }

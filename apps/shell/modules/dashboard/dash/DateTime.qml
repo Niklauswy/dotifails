@@ -1,58 +1,87 @@
-// Derivado de caelestia-dots/shell (GPL-3.0), modificado para Wysun
-// Origen: modules/dashboard/dash/DateTime.qml, commit 507d66285e9d9fde9330adc64159cfdebb28c19a.
-// Avisos y licencia íntegra: THIRD_PARTY.md y LICENSES/GPL-3.0.txt.
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import QtQuick.Layouts
-import "../../../" as Wysun
-import "../../../components" as Components
-import "../" as Dashboard
-import "../Logic.js" as Logic
+import Caelestia.Config
+import Caelestia.I18n
+import qs.components
+import qs.services
 
-// Clock card in the primary container role: the one place of the dashboard that
-// carries the Material You accent, as in the upstream DateTime.
-Dashboard.Card {
+Item {
     id: root
-    property date now: new Date()
-    property string monitorName: ""
-    property var motion
-    color: Wysun.Appearance.selection
-    implicitHeight: layout.implicitHeight + padding * 2
-    Accessible.role: Accessible.StaticText
-    Accessible.name: Logic.clockText(now) + ", " + Logic.dateText(now)
+
+    anchors.top: parent.top
+    anchors.bottom: parent.bottom
+    implicitWidth: Tokens.sizes.dashboard.dateTimeWidth
 
     ColumnLayout {
-        id: layout
-        anchors.fill: parent
-        anchors.margins: root.padding
-        spacing: Wysun.Appearance.spaceS
-        Item { Layout.fillHeight: true }
-        Components.StyledText {
-            Layout.fillWidth: true
-            text: Logic.clockText(root.now)
-            color: Wysun.Appearance.selectionText
-            font.pixelSize: Wysun.Appearance.fontTitle * 2.5
-            font.weight: Font.DemiBold
-            motion: root.motion
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.verticalCenter: parent.verticalCenter
+        spacing: 0
+
+        StyledText {
+            Layout.bottomMargin: -(font.pointSize * 0.4)
+            Layout.alignment: Qt.AlignHCenter
+            text: Time.hourStr
+            color: Colours.palette.m3secondary
+            font: Tokens.font.clock.size(28).weight(Font.DemiBold).build()
         }
-        Components.StyledText {
-            Layout.fillWidth: true
-            text: Logic.dateText(root.now)
-            color: Wysun.Appearance.selectionText
-            font.pixelSize: Wysun.Appearance.fontHeading
-            wrapMode: Text.WordWrap
-            maximumLineCount: 2
-            elide: Text.ElideRight
-            motion: root.motion
+
+        StyledText {
+            Layout.alignment: Qt.AlignHCenter
+            text: "•••"
+            color: Colours.palette.m3primary
+            font: Tokens.font.clock.size(28 * 0.9).build()
         }
-        Components.StyledText {
-            Layout.fillWidth: true
-            visible: text !== ""
-            text: root.monitorName ? "Pantalla " + root.monitorName : ""
-            color: Wysun.Appearance.selectionText
-            opacity: 0.75
-            font.pixelSize: Wysun.Appearance.fontSmall
-            elide: Text.ElideRight
+
+        StyledText {
+            Layout.topMargin: -(font.pointSize * 0.4)
+            Layout.alignment: Qt.AlignHCenter
+            text: Time.minuteStr
+            color: Colours.palette.m3secondary
+            font: Tokens.font.clock.size(28).weight(Font.DemiBold).build()
         }
-        Item { Layout.fillHeight: true }
+
+        Loader {
+            Layout.topMargin: -(((item as StyledText)?.font.pointSize ?? 0) * 0.4)
+            Layout.alignment: Qt.AlignHCenter
+            asynchronous: true
+            active: Config.dashboard.showClockSeconds
+            visible: active
+
+            sourceComponent: StyledText {
+                text: "•••"
+                color: Colours.palette.m3primary
+                font: Tokens.font.clock.size(28 * 0.9).build()
+            }
+        }
+        Loader {
+            Layout.topMargin: -(((item as StyledText)?.font.pointSize ?? 0) * 0.4)
+            Layout.alignment: Qt.AlignHCenter
+            asynchronous: true
+            active: Config.dashboard.showClockSeconds
+            visible: active
+
+            sourceComponent: StyledText {
+                text: Time.format("ss")
+                color: Colours.palette.m3secondary
+                font: Tokens.font.clock.size(28).weight(Font.DemiBold).build()
+            }
+        }
+
+        Loader {
+            asynchronous: true
+            Layout.alignment: Qt.AlignHCenter
+
+            active: Units.twelveHourClock
+            visible: active
+
+            sourceComponent: StyledText {
+                text: Time.amPmStr
+                color: Colours.palette.m3primary
+                font: Tokens.font.clock.size(18).weight(Font.DemiBold).build()
+            }
+        }
     }
 }

@@ -1,40 +1,165 @@
-// Derivado de caelestia-dots/shell (GPL-3.0), modificado para Wysun.
-// modules/background/{Background,Wallpaper,DesktopClock}.qml, commit
-// 507d66285e9d9fde9330adc64159cfdebb28c19a. Véanse THIRD_PARTY.md y LICENSES/GPL-3.0.txt.
+pragma ComponentBehavior: Bound
+
 import QtQuick
-import "BackgroundPolicy.js" as Policy
-import "../../Logic.js" as Logic
-import "../../" as Wysun
+import Quickshell
+import Quickshell.Wayland
+import Caelestia.Config
+import qs.components
+import qs.components.containers
+import qs.services
 
-Item {
-    id: root
-    required property var preferences
-    required property string outputName
-    property bool fullscreen: false
-    property real pixelRatio: 1
-    readonly property var wallpaper: Logic.wallpaper(preferences.environment, outputName, preferences.home, Wysun.Appearance.wallpaper)
-    readonly property var clockSettings: Policy.clockSettings(preferences.environment, outputName, fullscreen)
+Variants {
+    model: Screens.screens.filter(s => GlobalConfig.forScreen(s.name).background.enabled)
 
-    Wallpaper {
-        anchors.fill: parent
-        path: root.wallpaper.path
-        mode: root.wallpaper.mode
-        pixelRatio: root.pixelRatio
-    }
-    Loader {
-        id: clockLoader
-        objectName: "desktopClockLoader"
-        active: root.clockSettings.enabled
-        asynchronous: true
-        width: Math.min(implicitWidth, Math.max(0, root.width - Wysun.Appearance.spaceL * 2))
-        height: Math.min(implicitHeight, Math.max(0, root.height - Wysun.Appearance.spaceL * 2))
-        readonly property var placement: Policy.position(root.width, root.height, width, height,
-            Wysun.Appearance.railWidth + Wysun.Appearance.spaceXl, root.clockSettings.position)
-        x: placement.x
-        y: placement.y
-        sourceComponent: DesktopClock {
-            Time { id: clock }
-            now: clock.date
+    StyledWindow {
+        id: win
+
+        required property ShellScreen modelData
+
+        screen: modelData
+        name: "background"
+        WlrLayershell.exclusionMode: ExclusionMode.Ignore
+        WlrLayershell.layer: contentItem.Config.background.wallpaperEnabled ? WlrLayer.Background : WlrLayer.Bottom
+        color: contentItem.Config.background.wallpaperEnabled ? "black" : "transparent"
+        surfaceFormat.opaque: false
+
+        anchors.top: true
+        anchors.bottom: true
+        anchors.left: true
+        anchors.right: true
+
+        ShellState.ComponentRef {
+            screen: win.screen
+            slot: "background"
+            component: win
+        }
+
+        Item {
+            id: behindClock
+
+            anchors.fill: parent
+
+            Loader {
+                id: wallpaper
+
+                asynchronous: true
+
+                anchors.fill: parent
+                active: Config.background.wallpaperEnabled
+
+                sourceComponent: Wallpaper {}
+            }
+
+            Visualiser {
+                anchors.fill: parent
+                screen: win.modelData
+                wallpaper: wallpaper
+            }
+        }
+
+        Loader {
+            id: clockLoader
+
+            asynchronous: true
+            active: Config.background.desktopClock.enabled
+
+            anchors.margins: Tokens.padding.extraLargeIncreased
+            anchors.leftMargin: Tokens.padding.extraLargeIncreased + Tokens.sizes.bar.innerWidth + Math.max(Tokens.padding.small, Config.border.thickness)
+
+            state: Config.background.desktopClock.position
+            states: [
+                State {
+                    name: "top-left"
+
+                    AnchorChanges {
+                        target: clockLoader
+                        anchors.top: parent.top
+                        anchors.left: parent.left
+                    }
+                },
+                State {
+                    name: "top-center"
+
+                    AnchorChanges {
+                        target: clockLoader
+                        anchors.top: parent.top
+                        anchors.horizontalCenter: parent.horizontalCenter
+                    }
+                },
+                State {
+                    name: "top-right"
+
+                    AnchorChanges {
+                        target: clockLoader
+                        anchors.top: parent.top
+                        anchors.right: parent.right
+                    }
+                },
+                State {
+                    name: "middle-left"
+
+                    AnchorChanges {
+                        target: clockLoader
+                        anchors.verticalCenter: parent.verticalCenter
+                        anchors.left: parent.left
+                    }
+                },
+                State {
+                    name: "middle-center"
+
+                    AnchorChanges {
+                        target: clockLoader
+                        anchors.verticalCenter: parent.verticalCenter
+                        anchors.horizontalCenter: parent.horizontalCenter
+                    }
+                },
+                State {
+                    name: "middle-right"
+
+                    AnchorChanges {
+                        target: clockLoader
+                        anchors.verticalCenter: parent.verticalCenter
+                        anchors.right: parent.right
+                    }
+                },
+                State {
+                    name: "bottom-left"
+
+                    AnchorChanges {
+                        target: clockLoader
+                        anchors.bottom: parent.bottom
+                        anchors.left: parent.left
+                    }
+                },
+                State {
+                    name: "bottom-center"
+
+                    AnchorChanges {
+                        target: clockLoader
+                        anchors.bottom: parent.bottom
+                        anchors.horizontalCenter: parent.horizontalCenter
+                    }
+                },
+                State {
+                    name: "bottom-right"
+
+                    AnchorChanges {
+                        target: clockLoader
+                        anchors.bottom: parent.bottom
+                        anchors.right: parent.right
+                    }
+                }
+            ]
+
+            transitions: Transition {
+                AnchorAnim {}
+            }
+
+            sourceComponent: DesktopClock {
+                wallpaper: behindClock
+                absX: clockLoader.x
+                absY: clockLoader.y
+            }
         }
     }
 }

@@ -1,16 +1,11 @@
 import QtQuick
-import "../" as Wysun
+import Caelestia.Config
+import qs.services
 
-Text {
-    id: root
-    property string name: "circle"
-    property int size: 20
-    Accessible.ignored: true
-    text: name
-    color: Wysun.Appearance.text
-    font.family: Wysun.Appearance.iconFontFamily
-    font.pixelSize: size
-    horizontalAlignment: Text.AlignHCenter
-    verticalAlignment: Text.AlignVCenter
-    renderType: Text.NativeRendering
+StyledText {
+    property real fill
+    property int grade: Colours.light ? 0 : -25
+    property font fontStyle: Tokens.font.icon.small
+
+    font: Tokens.font.icon.size(fontStyle.pointSize).weight(fontStyle.weight).vaxes(fontStyle.variableAxes).fill(fill.toFixed(1)).grade(grade).build()
 }

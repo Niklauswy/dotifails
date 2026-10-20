@@ -1,97 +1,193 @@
-// Derivado de caelestia-dots/shell (GPL-3.0), modificado para Wysun.
-// Origen: services/Audio.qml (commit 507d66285e9d9fde9330adc64159cfdebb28c19a).
-// Véanse LICENSES/GPL-3.0.txt y THIRD_PARTY.md.
-// Wysun adaptation: no CavaProvider, no plugin imports and no toast. The default
-// PipeWire sink/source are the single source of truth for the OSD and controls.
+pragma Singleton
+
 import QtQuick
 import Quickshell
+import Quickshell.Io
 import Quickshell.Services.Pipewire
+import Caelestia
+import Caelestia.Config
+import Caelestia.I18n
+import Caelestia.Services
 
-Scope {
+Singleton {
     id: root
 
-    // Disabled instances (gallery, tests) never touch PipeWire.
-    property bool enabled: true
-    readonly property var sink: enabled ? Pipewire.defaultAudioSink : null
-    readonly property var source: enabled ? Pipewire.defaultAudioSource : null
-    readonly property bool available: !!sink
-    readonly property bool sourceAvailable: !!source
-    readonly property real volume: sink?.audio?.volume ?? 0
+    property string previousSinkName: ""
+    property string previousSourceName: ""
+
+    property list<PwNode> sinks: []
+    property list<PwNode> sources: []
+    property list<PwNode> streams: []
+
+    readonly property PwNode sink: Pipewire.defaultAudioSink
+    readonly property PwNode source: Pipewire.defaultAudioSource
+
     readonly property bool muted: !!sink?.audio?.muted
-    readonly property real sourceVolume: source?.audio?.volume ?? 0
+    readonly property real volume: sink?.audio?.volume ?? 0
+
     readonly property bool sourceMuted: !!source?.audio?.muted
-    readonly property string sinkName: sink?.description || sink?.name || ""
-    readonly property string sourceName: source?.description || source?.name || ""
-    readonly property real maxVolume: 1.0
-    readonly property string error: available ? "" : "No hay una salida de audio PipeWire"
+    readonly property real sourceVolume: source?.audio?.volume ?? 0
 
-    // Ignore the value populated during shell start-up; only later changes are OSD events.
-    property bool settled: false
-    property real lastVolume: 0
-    property real lastSourceVolume: 0
-    signal changed(string channel)
+    readonly property alias cava: cava
+    readonly property alias beatTracker: beatTracker
 
-    PwObjectTracker {
-        objects: [root.sink, root.source].filter(node => node !== null && node !== undefined)
-    }
-
-    Timer {
-        id: settle
-        interval: 350
-        onTriggered: {
-            root.settled = true;
-            root.lastVolume = root.volume;
-            root.lastSourceVolume = root.sourceVolume;
+    function setVolume(newVolume: real): void {
+        if (sink?.ready && sink?.audio) {
+            sink.audio.muted = false;
+            sink.audio.volume = Math.max(0, Math.min(GlobalConfig.services.maxVolume, newVolume));
         }
     }
 
-    // A node's volume arrives after it is bound; wait until both default nodes
-    // are ready before accepting changes, so start-up and device switches stay silent.
-    readonly property bool nodesReady: (!sink || sink.ready) && (!source || source.ready)
-    function resettle() {
-        settled = false;
-        if (nodesReady) settle.restart();
-        else settle.stop();
+    function incrementVolume(amount: real): void {
+        setVolume(volume + (amount || GlobalConfig.services.audioIncrement));
     }
-    onSinkChanged: resettle()
-    onSourceChanged: resettle()
-    onNodesReadyChanged: resettle()
-    Component.onCompleted: resettle()
-    onVolumeChanged: {
-        if (!settled) return;
-        if (Math.abs(volume - lastVolume) < 0.0001) return;
-        lastVolume = volume;
-        changed("volume");
-    }
-    onMutedChanged: if (settled) changed("mute")
-    onSourceVolumeChanged: {
-        if (!settled) return;
-        if (Math.abs(sourceVolume - lastSourceVolume) < 0.0001) return;
-        lastSourceVolume = sourceVolume;
-        changed("source-volume");
-    }
-    onSourceMutedChanged: if (settled) changed("source-mute")
 
-    function setVolume(value) {
-        if (!sink?.audio) return false;
-        sink.audio.muted = false;
-        sink.audio.volume = Math.max(0, Math.min(maxVolume, Number(value) || 0));
-        return true;
+    function decrementVolume(amount: real): void {
+        setVolume(volume - (amount || GlobalConfig.services.audioIncrement));
     }
-    function setSourceVolume(value) {
-        if (!source?.audio) return false;
-        source.audio.muted = false;
-        source.audio.volume = Math.max(0, Math.min(maxVolume, Number(value) || 0));
-        return true;
+
+    function setSourceVolume(newVolume: real): void {
+        if (source?.ready && source?.audio) {
+            source.audio.muted = false;
+            source.audio.volume = Math.max(0, Math.min(GlobalConfig.services.maxVolume, newVolume));
+        }
     }
-    function toggleMuted() {
-        if (!sink?.audio) return false;
-        sink.audio.muted = !sink.audio.muted;
-        return true;
+
+    function incrementSourceVolume(amount: real): void {
+        setSourceVolume(sourceVolume + (amount || GlobalConfig.services.audioIncrement));
     }
-    function toggleSourceMuted() {
-        if (!source?.audio) return false;
-        source.audio.muted = !source.audio.muted;
-        return true;
+
+    function decrementSourceVolume(amount: real): void {
+        setSourceVolume(sourceVolume - (amount || GlobalConfig.services.audioIncrement));
+    }
+
+    function setAudioSink(newSink: PwNode): void {
+        Pipewire.preferredDefaultAudioSink = newSink;
+    }
+
+    function setAudioSource(newSource: PwNode): void {
+        Pipewire.preferredDefaultAudioSource = newSource;
+    }
+
+    function cycleNextAudioOutput(): void {
+        if (sinks.length === 0)
+            return;
+
+        const currentIndex = sinks.findIndex(s => s === sink);
+        const nextIndex = (currentIndex + 1) % sinks.length;
+        setAudioSink(sinks[nextIndex]);
+    }
+
+    function setStreamVolume(stream: PwNode, newVolume: real): void {
+        if (stream?.ready && stream?.audio) {
+            stream.audio.muted = false;
+            stream.audio.volume = Math.max(0, Math.min(GlobalConfig.services.maxVolume, newVolume));
+        }
+    }
+
+    function setStreamMuted(stream: PwNode, muted: bool): void {
+        if (stream?.ready && stream?.audio) {
+            stream.audio.muted = muted;
+        }
+    }
+
+    function getStreamVolume(stream: PwNode): real {
+        return stream?.audio?.volume ?? 0;
+    }
+
+    function getStreamMuted(stream: PwNode): bool {
+        return !!stream?.audio?.muted;
+    }
+
+    function getStreamName(stream: PwNode): string {
+        if (!stream)
+            return Tr.trCtx("Unknown", "unknown audio stream");
+        // Try application name first, then description, then name
+        return stream.properties["application.name"] || stream.description || stream.name || Tr.trCtx("Unknown application", "unknown application audio stream");
+    }
+
+    function refreshNodes(): void {
+        const newSinks = [];
+        const newSources = [];
+        const newStreams = [];
+
+        for (const node of Pipewire.nodes.values) {
+            if (!node.isStream) {
+                if (node.isSink)
+                    newSinks.push(node);
+                else if (node.audio)
+                    newSources.push(node);
+            } else if (node.audio) {
+                newStreams.push(node);
+            }
+        }
+
+        root.sinks = newSinks;
+        root.sources = newSources;
+        root.streams = newStreams;
+    }
+
+    onSinkChanged: {
+        if (!sink?.ready)
+            return;
+
+        const newSinkName = sink.description || sink.name || Tr.trCtx("Unknown device", "unknown audio device");
+
+        if (previousSinkName && previousSinkName !== newSinkName && GlobalConfig.utilities.toasts.audioOutputChanged)
+            Toaster.toast(Tr.tr("Audio output changed"), Tr.tr("Now using: %1").arg(newSinkName), "volume_up");
+
+        previousSinkName = newSinkName;
+    }
+
+    onSourceChanged: {
+        if (!source?.ready)
+            return;
+
+        const newSourceName = source.description || source.name || Tr.trCtx("Unknown device", "unknown audio device");
+
+        if (previousSourceName && previousSourceName !== newSourceName && GlobalConfig.utilities.toasts.audioInputChanged)
+            Toaster.toast(Tr.tr("Audio input changed"), Tr.tr("Now using: %1").arg(newSourceName), "mic");
+
+        previousSourceName = newSourceName;
+    }
+
+    // Populate immediately: Pipewire.nodes may already be filled by the time this
+    // lazily-loaded singleton is created, so onValuesChanged would never fire.
+    Component.onCompleted: {
+        refreshNodes();
+        previousSinkName = sink?.description || sink?.name || Tr.trCtx("Unknown device", "unknown audio device");
+        previousSourceName = source?.description || source?.name || Tr.trCtx("Unknown device", "unknown audio device");
+    }
+
+    Connections {
+        function onValuesChanged(): void {
+            root.refreshNodes();
+        }
+
+        target: Pipewire.nodes
+    }
+
+    // Always track the current defaults so volume/mute bind even if the lists
+    // momentarily lag behind the default node.
+    PwObjectTracker {
+        objects: [root.sink, root.source, ...root.sinks, ...root.sources, ...root.streams].filter(n => n)
+    }
+
+    CavaProvider {
+        id: cava
+
+        bars: GlobalConfig.services.visualiserBars
+    }
+
+    BeatTracker {
+        id: beatTracker
+    }
+
+    IpcHandler {
+        function cycleOutput(): void {
+            root.cycleNextAudioOutput();
+        }
+
+        target: "audio"
     }
 }

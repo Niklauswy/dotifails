@@ -1,11 +1,51 @@
-// Derivado de caelestia-dots/shell/components/AnchorAnim.qml (GPL-3.0), modificado para Wysun.
-// Fuente: caelestia-dots/shell, commit 507d66285e9d9fde9330adc64159cfdebb28c19a.
-// Véanse LICENSES/GPL-3.0.txt y THIRD_PARTY.md.
 import QtQuick
+import Caelestia.Config
 
 AnchorAnimation {
-    property var motion
-    duration: motion ? motion.morph : 280
-    easing.type: Easing.BezierSpline
-    easing.bezierCurve: motion ? motion.emphasizedCurve : [0.2, 0, 0, 1, 1, 1]
+    enum Type {
+        StandardSmall = 0,
+        Standard,
+        StandardLarge,
+        StandardExtraLarge,
+        EmphasizedSmall,
+        Emphasized,
+        EmphasizedLarge,
+        EmphasizedExtraLarge,
+        FastSpatial,
+        DefaultSpatial,
+        SlowSpatial
+    }
+
+    property int type: AnchorAnim.DefaultSpatial
+
+    duration: {
+        if (type < AnchorAnim.StandardSmall || type > AnchorAnim.SlowSpatial)
+            return Tokens.anim.durations.expressiveDefaultSpatial;
+
+        if (type == AnchorAnim.FastSpatial)
+            return Tokens.anim.durations.expressiveFastSpatial;
+        if (type == AnchorAnim.DefaultSpatial)
+            return Tokens.anim.durations.expressiveDefaultSpatial;
+        if (type == AnchorAnim.SlowSpatial)
+            return Tokens.anim.durations.expressiveSlowSpatial;
+
+        const types = ["small", "normal", "large", "extraLarge"];
+        const idx = type % 4; // 0-7 are the 4 standard types
+        return Tokens.anim.durations[types[idx]];
+    }
+    easing: {
+        if (type == AnchorAnim.FastSpatial)
+            return Tokens.anim.expressiveFastSpatial;
+        if (type == AnchorAnim.DefaultSpatial)
+            return Tokens.anim.expressiveDefaultSpatial;
+        if (type == AnchorAnim.SlowSpatial)
+            return Tokens.anim.expressiveSlowSpatial;
+
+        if (type >= AnchorAnim.StandardSmall && type <= AnchorAnim.StandardExtraLarge)
+            return Tokens.anim.standard;
+        if (type >= AnchorAnim.EmphasizedSmall && type <= AnchorAnim.EmphasizedExtraLarge)
+            return Tokens.anim.emphasized;
+
+        return Tokens.anim.expressiveDefaultSpatial;
+    }
 }

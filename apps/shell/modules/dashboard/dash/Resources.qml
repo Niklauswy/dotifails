@@ -1,53 +1,75 @@
-// Derivado de caelestia-dots/shell (GPL-3.0), modificado para Wysun
-// Origen: modules/dashboard/dash/Resources.qml, commit 507d66285e9d9fde9330adc64159cfdebb28c19a.
-// Avisos y licencia íntegra: THIRD_PARTY.md y LICENSES/GPL-3.0.txt.
 import QtQuick
 import QtQuick.Layouts
-import "../../../" as Wysun
-import "../../../components" as Components
-import "../performance" as Performance
-import "../" as Dashboard
-import "../Logic.js" as Logic
+import Caelestia.Config
+import Caelestia.Services
+import qs.components
+import qs.components.controls
+import qs.services
 
-Dashboard.Card {
+Item {
     id: root
-    property var metrics: null
-    property var motion
-    implicitHeight: row.implicitHeight + padding * 2
-    Accessible.role: Accessible.Grouping
-    Accessible.name: "Recursos del sistema"
 
-    RowLayout {
-        id: row
-        anchors.fill: parent
-        anchors.margins: root.padding
-        spacing: Wysun.Appearance.spaceM
-        Repeater {
-            model: [
-                { label: "CPU", glyph: "memory", value: root.metrics ? root.metrics.cpu : null },
-                { label: "Memoria", glyph: "developer_board", value: root.metrics ? root.metrics.memory : null },
-                { label: "Disco /", glyph: "hard_drive", value: root.metrics ? root.metrics.storage : null }
-            ]
-            delegate: ColumnLayout {
-                required property var modelData
-                Layout.fillWidth: true
-                Layout.preferredWidth: 1
-                spacing: Wysun.Appearance.spaceXs
-                Performance.Gauge {
-                    Layout.alignment: Qt.AlignHCenter
-                    implicitWidth: Wysun.Appearance.spaceXl * 3
-                    thickness: Wysun.Appearance.spaceXs + Wysun.Appearance.borderWidth
-                    motion: root.motion
-                    value: modelData.value
-                    label: modelData.label
-                }
-                Components.StyledText {
-                    Layout.alignment: Qt.AlignHCenter
-                    text: modelData.label
-                    font.pixelSize: Wysun.Appearance.fontSmall
-                    color: Wysun.Appearance.muted
-                }
-            }
+    anchors.top: parent.top
+    anchors.bottom: parent.bottom
+
+    implicitWidth: layout.implicitWidth + layout.anchors.margins * 2
+
+    ServiceRef {
+        service: Cpu
+    }
+
+    ServiceRef {
+        service: Memory
+    }
+
+    ServiceRef {
+        service: Storage
+    }
+
+    ColumnLayout {
+        id: layout
+
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.top: parent.top
+        anchors.bottom: parent.bottom
+        anchors.margins: Tokens.padding.large
+        spacing: Tokens.spacing.medium
+
+        Resource {
+            icon: "memory"
+            value: Cpu.percentage
+        }
+
+        Resource {
+            icon: "memory_alt"
+            value: Memory.percentage
+            fgColour: Colours.palette.m3tertiary
+        }
+
+        Resource {
+            icon: "hard_disk"
+            value: Storage.percentage
+            fgColour: Colours.palette.m3secondary
+        }
+    }
+    component Resource: CircularProgress {
+        id: res
+
+        required property string icon
+
+        Layout.fillHeight: true
+        implicitSize: height
+        strokeWidth: Tokens.sizes.dashboard.resourceProgressThickness
+
+        Behavior on clampedVal {
+            Anim {}
+        }
+
+        MaterialIcon {
+            anchors.centerIn: parent
+            text: res.icon
+            font: Tokens.font.icon.large
+            color: res.fgColour
         }
     }
 }

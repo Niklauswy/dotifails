@@ -1,100 +1,257 @@
-// Derivado de caelestia-dots/shell (GPL-3.0), modificado para Wysun
-// Origen: modules/dashboard/dash/Calendar.qml, commit 507d66285e9d9fde9330adc64159cfdebb28c19a.
-// Avisos y licencia íntegra: THIRD_PARTY.md y LICENSES/GPL-3.0.txt.
+pragma ComponentBehavior: Bound
+
 import QtQuick
+import QtQuick.Controls
 import QtQuick.Layouts
-import "../../../" as Wysun
-import "../../../components" as Components
-import "../" as Dashboard
-import "../Logic.js" as Logic
+import M3Shapes
+import Caelestia.Config
+import qs.components
+import qs.components.controls
+import qs.components.effects
+import qs.services
 
-// Month grid with Monday as the first day. Navigation is local to the card and
-// returns to the current month when the surface reopens.
-Dashboard.Card {
+CustomMouseArea {
     id: root
-    property date today: new Date()
-    property var motion
-    property int year: today.getFullYear()
-    property int month: today.getMonth()
-    readonly property var weeks: Logic.monthGrid(year, month, today)
-    implicitHeight: layout.implicitHeight + padding * 2
 
-    function shift(delta) {
-        var next = Logic.shiftMonth(year, month, delta);
-        year = next.year;
-        month = next.month;
+    required property ScreenState screenState
+
+    property date currentDate: screenState.dashboardDate
+    readonly property int currMonth: currentDate.getMonth()
+    readonly property int currYear: currentDate.getFullYear()
+    readonly property int nonAnimCurrMonth: screenState.dashboardDate.getMonth()
+    readonly property int nonAnimCurrYear: screenState.dashboardDate.getFullYear()
+
+    readonly property int animDirection: screenState.dashboardDate > currentDate ? -1 : 1
+    property real animTranslate
+    property real animOpacity: 1
+
+    function onWheel(event: WheelEvent): void {
+        if (event.angleDelta.y > 0)
+            screenState.dashboardDate = new Date(nonAnimCurrYear, nonAnimCurrMonth - 1, 1);
+        else if (event.angleDelta.y < 0)
+            screenState.dashboardDate = new Date(nonAnimCurrYear, nonAnimCurrMonth + 1, 1);
     }
-    function reset() { year = today.getFullYear(); month = today.getMonth(); }
 
-    ColumnLayout {
-        id: layout
-        anchors.fill: parent
-        anchors.margins: root.padding
-        spacing: Wysun.Appearance.spaceXs
+    anchors.left: parent.left
+    anchors.right: parent.right
+    implicitHeight: inner.implicitHeight + inner.anchors.margins * 2
 
-        RowLayout {
-            Layout.fillWidth: true
-            Dashboard.IconButton {
-                glyph: "chevron_left"; label: "Mes anterior"; motion: root.motion
-                implicitWidth: Wysun.Appearance.spaceXl * 1.5
-                onClicked: root.shift(-1)
-            }
-            Components.StyledText {
-                Layout.fillWidth: true
-                text: Logic.monthTitle(root.year, root.month)
-                horizontalAlignment: Text.AlignHCenter
-                font.pixelSize: Wysun.Appearance.fontBody
-                font.weight: Font.Medium
-                Accessible.role: Accessible.Heading
-                TapHandler { onDoubleTapped: root.reset() }
-            }
-            Dashboard.IconButton {
-                glyph: "chevron_right"; label: "Mes siguiente"; motion: root.motion
-                implicitWidth: Wysun.Appearance.spaceXl * 1.5
-                onClicked: root.shift(1)
-            }
-        }
-        GridLayout {
-            Layout.fillWidth: true
-            columns: 7
-            rowSpacing: 0
-            columnSpacing: 0
-            Repeater {
-                model: Logic.WEEKDAY_HEADERS
-                delegate: Components.StyledText {
-                    required property string modelData
-                    Layout.fillWidth: true; Layout.preferredWidth: 1
-                    text: modelData
-                    horizontalAlignment: Text.AlignHCenter
-                    color: Wysun.Appearance.muted
-                    font.pixelSize: Wysun.Appearance.fontSmall
+    acceptedButtons: Qt.MiddleButton
+    onClicked: root.screenState.dashboardDate = new Date()
+
+    Anim {
+        id: trOutAnim
+
+        running: false
+        target: root
+        property: "animTranslate"
+        to: root.Tokens.padding.extraLarge * root.animDirection
+        type: Anim.FastSpatial
+    }
+
+    Behavior on currentDate {
+        SequentialAnimation {
+            ParallelAnimation {
+                ScriptAction {
+                    script: Qt.callLater(() => trOutAnim.start())
+                }
+                Anim {
+                    target: root
+                    property: "animOpacity"
+                    to: 0
+                    type: Anim.FastEffects
                 }
             }
-            Repeater {
-                model: root.weeks.reduce(function(all, row) { return all.concat(row); }, [])
+            ScriptAction {
+                script: {
+                    trOutAnim.complete();
+                    root.animTranslate = root.Tokens.padding.extraLarge * -root.animDirection;
+                }
+            }
+            PropertyAction {}
+            ParallelAnimation {
+                Anim {
+                    target: root
+                    property: "animTranslate"
+                    to: 0
+                    type: Anim.DefaultSpatial
+                }
+                Anim {
+                    target: root
+                    property: "animOpacity"
+                    to: 1
+                    type: Anim.DefaultEffects
+                }
+            }
+        }
+    }
+
+    ColumnLayout {
+        id: inner
+
+        anchors.fill: parent
+        anchors.margins: Tokens.padding.large
+        spacing: Tokens.spacing.extraSmall
+
+        RowLayout {
+            id: monthNavigationRow
+
+            Layout.fillWidth: true
+            spacing: Tokens.spacing.extraSmall
+
+            IconButton {
+                isRound: true
+                icon: "chevron_left"
+                type: IconButton.Text
+                font: Tokens.font.icon.builders.small.weight(Font.Bold).build()
+                padding: Tokens.padding.small
+                onClicked: root.screenState.dashboardDate = new Date(root.nonAnimCurrYear, root.nonAnimCurrMonth - 1, 1)
+            }
+
+            Item {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+
+                implicitWidth: monthYearDisplay.implicitWidth + Tokens.padding.large * 2
+                implicitHeight: monthYearDisplay.implicitHeight + Tokens.padding.extraSmall * 2
+
+                StateLayer {
+                    color: Colours.palette.m3primary
+                    radius: pressed ? Tokens.rounding.small : height / 2
+                    disabled: {
+                        const now = new Date();
+                        return root.nonAnimCurrMonth === now.getMonth() && root.nonAnimCurrYear === now.getFullYear();
+                    }
+                    onClicked: root.screenState.dashboardDate = new Date()
+
+                    Behavior on radius {
+                        Anim {
+                            type: Anim.DefaultEffects
+                        }
+                    }
+                }
+
+                StyledText {
+                    id: monthYearDisplay
+
+                    opacity: root.animOpacity
+                    transform: Translate {
+                        x: root.animTranslate
+                    }
+
+                    anchors.centerIn: parent
+                    text: grid.title
+                    color: Colours.palette.m3primary
+                    font: Tokens.font.title.builders.small.capitalisation(Font.Capitalize).build()
+                }
+            }
+
+            IconButton {
+                isRound: true
+                icon: "chevron_right"
+                type: IconButton.Text
+                font: Tokens.font.icon.builders.small.weight(Font.Bold).build()
+                padding: Tokens.padding.small
+                onClicked: root.screenState.dashboardDate = new Date(root.nonAnimCurrYear, root.nonAnimCurrMonth + 1, 1)
+            }
+        }
+
+        DayOfWeekRow {
+            id: daysRow
+
+            Layout.fillWidth: true
+            locale: grid.locale
+
+            delegate: StyledText {
+                required property var model
+
+                horizontalAlignment: Text.AlignHCenter
+                text: model.shortName
+                font: Tokens.font.body.builders.small.weight(Font.Medium).build()
+                color: (model.day === 0 || model.day === 6) ? Colours.palette.m3tertiary : Colours.palette.m3onSurface
+            }
+        }
+
+        Item {
+            Layout.fillWidth: true
+            implicitHeight: grid.implicitHeight
+
+            opacity: root.animOpacity
+            transform: Translate {
+                x: root.animTranslate
+            }
+
+            MonthGrid {
+                id: grid
+
+                month: root.currMonth
+                year: root.currYear
+
+                anchors.fill: parent
+
+                spacing: 3
+                locale: Qt.locale()
+
                 delegate: Item {
-                    id: cell
-                    required property var modelData
-                    Layout.fillWidth: true; Layout.preferredWidth: 1
-                    implicitHeight: Wysun.Appearance.spaceXl + Wysun.Appearance.spaceXs
-                    Accessible.role: Accessible.StaticText
-                    Accessible.name: modelData.day + (modelData.today ? ", hoy" : "")
-                    Rectangle {
+                    id: dayItem
+
+                    required property var model
+
+                    implicitWidth: implicitHeight
+                    implicitHeight: text.implicitHeight + Tokens.padding.small
+
+                    StyledText {
+                        id: text
+
                         anchors.centerIn: parent
-                        width: Math.min(parent.width, parent.height)
-                        height: width
-                        radius: width / 2
-                        visible: cell.modelData.today
-                        color: Wysun.Appearance.accent
+
+                        horizontalAlignment: Text.AlignHCenter
+                        text: grid.locale.toString(dayItem.model.day)
+                        color: {
+                            const dayOfWeek = dayItem.model.date.getDay();
+                            if (dayOfWeek === 0 || dayOfWeek === 6)
+                                return Colours.palette.m3tertiary;
+
+                            return Colours.palette.m3onSurfaceVariant;
+                        }
+                        opacity: dayItem.model.today || dayItem.model.month === grid.month ? 1 : 0.4
+                        font: Tokens.font.body.small
                     }
-                    Components.StyledText {
-                        anchors.centerIn: parent
-                        text: cell.modelData.day
-                        font.pixelSize: Wysun.Appearance.fontSmall
-                        font.weight: cell.modelData.today ? Font.DemiBold : Font.Normal
-                        color: cell.modelData.today ? Wysun.Appearance.onAccent
-                            : (cell.modelData.inMonth ? Wysun.Appearance.text : Wysun.Appearance.disabled)
-                    }
+                }
+            }
+
+            MaterialShape {
+                id: todayIndicator
+
+                readonly property Item todayItem: grid.contentItem.children.find(c => c.model.today) ?? null
+                property Item today
+
+                onTodayItemChanged: {
+                    if (todayItem)
+                        today = todayItem;
+                }
+
+                x: today ? today.x + (today.width - implicitWidth) / 2 : 0
+                y: today ? today.y - Tokens.padding.extraSmall - 1 : 0
+
+                implicitSize: today ? Math.max(today.implicitWidth, today.implicitHeight) + Tokens.padding.extraSmall * 2 : 0
+                shape: MaterialShape.Sunny
+
+                clip: true
+                color: Colours.palette.m3primary
+
+                opacity: todayItem ? 1 : 0
+
+                Colouriser {
+                    x: -todayIndicator.x
+                    y: -todayIndicator.y
+
+                    implicitWidth: grid.width
+                    implicitHeight: grid.height
+
+                    source: grid
+                    sourceColor: Colours.palette.m3onSurface
+                    colorizationColor: Colours.palette.m3onPrimary
                 }
             }
         }

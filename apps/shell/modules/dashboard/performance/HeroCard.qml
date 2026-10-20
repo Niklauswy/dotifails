@@ -1,84 +1,151 @@
-// Derivado de caelestia-dots/shell (GPL-3.0), modificado para Wysun
-// Origen: modules/dashboard/performance/HeroCard.qml; MemoryCard.qml; StorageCard.qml, commit 507d66285e9d9fde9330adc64159cfdebb28c19a.
-// Avisos y licencia íntegra: THIRD_PARTY.md y LICENSES/GPL-3.0.txt.
 import QtQuick
 import QtQuick.Layouts
-import "../../../" as Wysun
-import "../../../components" as Components
-import "../" as Dashboard
-import "../Logic.js" as Logic
+import M3Shapes
+import Caelestia.Config
+import Caelestia.I18n
+import qs.components
+import qs.components.controls
+import qs.services
+import qs.utils
 
-// Gauge plus the reading as text. The temperature line only exists for
-// providers that can have one, and says so when the sensor is absent.
-Dashboard.Card {
+StyledRect {
     id: root
+
+    required property string icon
     required property string label
-    property var motion
-    property string glyph: "speed"
-    property string subLabel: ""
-    property var usage: null
-    property var temperature: null
-    property bool showTemperature: false
+    required property string subLabel
+    required property color accent
+    required property real usage
+    required property real temperature
 
-    implicitWidth: Wysun.Appearance.spaceXl * 10
-    implicitHeight: layout.implicitHeight + padding * 2
-    Accessible.role: Accessible.Grouping
-    Accessible.name: label + ": " + Logic.percentText(usage)
+    color: Colours.tPalette.m3surfaceContainer
+    radius: Tokens.rounding.extraLarge
 
-    RowLayout {
-        id: layout
-        anchors.fill: parent
-        anchors.margins: root.padding
-        spacing: Wysun.Appearance.spaceL
+    implicitWidth: Tokens.sizes.dashboard.perfHeroCardWidth
+    implicitHeight: Math.max(tempProg.implicitHeight + detailsRow.implicitHeight + Tokens.spacing.large, usageShape.implicitHeight + usageLabel.implicitHeight) + Tokens.padding.large * 2
 
-        Gauge {
-            Layout.alignment: Qt.AlignVCenter
-            implicitWidth: Wysun.Appearance.spaceXl * 4
-            motion: root.motion
-            label: root.label
-            value: root.usage
+    CircularProgress {
+        id: tempProg
+
+        anchors.left: parent.left
+        anchors.top: parent.top
+        anchors.margins: Tokens.padding.large
+
+        fgColour: root.accent
+
+        spacing: Tokens.spacing.extraSmall
+        strokeWidth: Tokens.padding.extraSmall
+        implicitSize: Math.max(icon.implicitWidth, icon.implicitHeight) + Tokens.padding.medium * 2
+        value: root.usage
+
+        Behavior on clampedVal {
+            Anim {}
         }
-        ColumnLayout {
+
+        MaterialIcon {
+            id: icon
+
+            anchors.centerIn: parent
+            text: root.icon
+            color: root.accent
+            fontStyle: Tokens.font.icon.medium
+        }
+    }
+
+    ColumnLayout {
+        anchors.left: tempProg.right
+        anchors.right: usageShape.left
+        anchors.verticalCenter: tempProg.verticalCenter
+        anchors.margins: Tokens.spacing.large
+        spacing: Tokens.spacing.extraSmall
+
+        StyledText {
+            text: root.label
+            font: Tokens.font.title.medium
+            color: root.accent
+        }
+
+        StyledText {
             Layout.fillWidth: true
-            Layout.alignment: Qt.AlignVCenter
-            spacing: Wysun.Appearance.spaceXs
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: Wysun.Appearance.spaceS
-                Components.MaterialIcon { name: root.glyph; size: Wysun.Appearance.fontHeading; color: Wysun.Appearance.accent }
-                Components.StyledText {
-                    Layout.fillWidth: true
-                    text: root.label
-                    font.pixelSize: Wysun.Appearance.fontHeading
-                    font.weight: Font.Medium
-                    elide: Text.ElideRight
-                    motion: root.motion
-                }
+            text: root.subLabel
+            font: Tokens.font.body.small
+            color: Colours.palette.m3onSurfaceVariant
+            elide: Text.ElideRight
+        }
+    }
+
+    ColumnLayout {
+        id: detailsRow
+
+        anchors.left: parent.left
+        anchors.bottom: parent.bottom
+        anchors.margins: Tokens.padding.largeIncreased
+        spacing: Tokens.spacing.extraSmall
+
+        RowLayout {
+            Layout.leftMargin: -Tokens.padding.extraSmall
+            spacing: Tokens.spacing.extraSmall
+
+            MaterialIcon {
+                Layout.topMargin: Math.round(fontInfo.pointSize * 0.08)
+                text: root.temperature > 90 ? "thermometer_alert" : "thermometer"
+                color: root.temperature > 90 ? Colours.palette.m3error : root.accent
+                fontStyle: Tokens.font.icon.medium
+                fill: 1
             }
-            Components.StyledText {
-                Layout.fillWidth: true
-                visible: text !== ""
-                text: root.subLabel
-                font.pixelSize: Wysun.Appearance.fontSmall
-                color: Wysun.Appearance.muted
-                elide: Text.ElideRight
+
+            StyledText {
+                text: Units.formatSensorTemp(root.temperature)
+                font: Tokens.font.body.builders.medium.build()
             }
-            Components.StyledText {
-                Layout.fillWidth: true
-                visible: Logic.percentage(root.usage) === null
-                text: Logic.percentText(root.usage)
-                color: Wysun.Appearance.text
-                font.pixelSize: Wysun.Appearance.fontBody
-                elide: Text.ElideRight
-            }
-            Components.StyledText {
-                Layout.fillWidth: true
-                visible: root.showTemperature
-                text: Logic.temperatureText(root.temperature)
-                color: Wysun.Appearance.muted
-                font.pixelSize: Wysun.Appearance.fontSmall
-                elide: Text.ElideRight
-            }
+        }
+
+        StyledProgressBar {
+            value: root.temperature / 100
+            implicitHeight: Tokens.padding.small
+            fgColour: root.accent
+            indeterminate: isNaN(root.usage) || isNaN(root.temperature)
+        }
+    }
+
+    MaterialShape {
+        id: usageShape
+
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        anchors.margins: Tokens.padding.medium
+
+        implicitSize: Tokens.sizes.dashboard.perfUsageShapeSize
+        color: Colours.palette.m3secondaryContainer
+        shape: {
+            if (root.usage >= 0.8)
+                return MaterialShape.SoftBurst;
+            if (root.usage >= 0.4)
+                return MaterialShape.Sunny;
+            return MaterialShape.Cookie4Sided;
+        }
+
+        Behavior on color {
+            CAnim {}
+        }
+
+        StyledText {
+            id: usageLabel
+
+            anchors.bottom: parent.top
+            anchors.horizontalCenter: parent.horizontalCenter
+
+            // TRANSLATORS: labels the CPU or GPU utilisation percentage shown below it
+            text: Tr.trCtx("Usage", "resource usage")
+            color: Colours.palette.m3onSurfaceVariant
+            font: Tokens.font.body.small
+        }
+
+        StyledText {
+            anchors.centerIn: parent
+            text: isNaN(root.usage) ? "..." : Strings.percentOne(root.usage)
+            color: root.accent
+            font: Tokens.font.headline.builders.small.width(50).build()
         }
     }
 }

@@ -1,121 +1,185 @@
-// Derivado de caelestia-dots/shell (GPL-3.0), modificado para Wysun
-// Origen: modules/dashboard/Tabs.qml, commit 507d66285e9d9fde9330adc64159cfdebb28c19a.
-// Avisos y licencia íntegra: THIRD_PARTY.md y LICENSES/GPL-3.0.txt.
-import QtQuick
-import QtQuick.Controls
-import QtQuick.Layouts
-import "../../" as Wysun
-import "../../components" as Components
+pragma ComponentBehavior: Bound
 
-// Equal-width tabs with an icon and a label. The upstream control is a TabBar;
-// Wysun keeps the four upstream slots (Weather is replaced by Escritorios) and
-// lays plain buttons in a Row so the indicator follows the geometry directly.
+import QtQuick
+import QtQuick.Layouts
+import QtQuick.Templates
+import Quickshell
+import Caelestia.Config
+import qs.components
+import qs.components.controls
+import qs.services
+
 Item {
     id: root
-    property var motion
-    property int currentIndex: 0
-    readonly property int count: 4
-    readonly property var labels: ["Inicio", "Música", "Rendimiento", "Escritorios"]
-    readonly property var glyphs: ["home", "music_note", "speed", "grid_view"]
-    signal selected(int index)
 
-    implicitHeight: tabRow.height + Wysun.Appearance.spaceS
+    required property real nonAnimWidth
+    required property ScreenState screenState
+    required property var tabs
 
-    function activate(index) {
-        var bounded = Math.max(0, Math.min(root.count - 1, index));
-        root.currentIndex = bounded;
-        root.selected(bounded);
-        var button = repeater.itemAt(bounded);
-        if (button) button.forceActiveFocus();
-    }
+    readonly property alias count: bar.count
 
-    Row {
-        id: tabRow
-        anchors { left: parent.left; right: parent.right; top: parent.top }
-        height: Wysun.Appearance.spaceXl * 2
-        spacing: 0
+    implicitHeight: bar.implicitHeight + bar.anchors.topMargin + indicator.implicitHeight + indicator.anchors.topMargin + separator.implicitHeight
+
+    TabBar {
+        id: bar
+
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: parent.top
+        anchors.topMargin: Tokens.sizes.dashboard.tabIndicatorSpacing
+
+        currentIndex: root.screenState.dashboardTab
+        onCurrentIndexChanged: root.screenState.dashboardTab = currentIndex
+
+        implicitHeight: contentHeight
+        background: null
+        contentItem: RowLayout {
+            spacing: 0
+
+            Repeater {
+                model: bar.contentModel
+            }
+        }
 
         Repeater {
-            id: repeater
-            model: root.labels.length
-            delegate: Button {
-                id: tab
-                required property int index
-                width: tabRow.width / root.count
-                height: tabRow.height
-                padding: Wysun.Appearance.spaceXs
-                text: root.labels[index]
-                Accessible.name: root.labels[index]
-                Accessible.role: Accessible.Button
-                Accessible.description: index === root.currentIndex ? "Pestaña activa" : "Pestaña"
-                focusPolicy: Qt.TabFocus
-                onClicked: root.activate(index)
-                Keys.onLeftPressed: root.activate(index - 1)
-                Keys.onRightPressed: root.activate(index + 1)
-                Keys.onPressed: event => {
-                    if (event.key === Qt.Key_Home) {
-                        root.activate(0);
-                        event.accepted = true;
-                    } else if (event.key === Qt.Key_End) {
-                        root.activate(root.count - 1);
-                        event.accepted = true;
-                    }
-                }
+            model: ScriptModel {
+                values: root.tabs
+            }
 
-                background: Components.StyledRect {
-                    motion: root.motion
-                    radius: Wysun.Appearance.radiusControl
-                    color: tab.down ? Wysun.Appearance.pressed
-                        : (tab.hovered ? Wysun.Appearance.hover : "transparent")
-                    border.width: tab.activeFocus ? Wysun.Appearance.focusWidth : 0
-                    border.color: Wysun.Appearance.focus
-                }
+            delegate: Tab {
+                required property var modelData
 
-                contentItem: Item {
-                    implicitWidth: label.implicitWidth + icon.width + Wysun.Appearance.spaceS
-                    Row {
-                        anchors.centerIn: parent
-                        spacing: Wysun.Appearance.spaceS
-                        Components.MaterialIcon {
-                            id: icon
-                            name: root.glyphs[tab.index]
-                            size: Wysun.Appearance.fontHeading
-                            color: tab.index === root.currentIndex ? Wysun.Appearance.accent : Wysun.Appearance.muted
-                            anchors.verticalCenter: parent.verticalCenter
-                        }
-                        Components.StyledText {
-                            id: label
-                            text: tab.text
-                            color: tab.index === root.currentIndex ? Wysun.Appearance.accent : Wysun.Appearance.muted
-                            font.pixelSize: Wysun.Appearance.fontBody
-                            font.weight: tab.index === root.currentIndex ? Font.DemiBold : Font.Normal
-                            elide: Text.ElideRight
-                            width: Math.min(implicitWidth, tab.width - icon.width - Wysun.Appearance.spaceL)
-                            anchors.verticalCenter: parent.verticalCenter
-                            motion: root.motion
-                        }
-                    }
-                }
+                iconName: modelData.iconName
+                text: modelData.text
             }
         }
     }
 
-    Components.StyledRect {
-        anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
-        height: Wysun.Appearance.borderWidth
-        color: Wysun.Appearance.line
+    Item {
+        id: indicator
+
+        anchors.top: bar.bottom
+        anchors.topMargin: 5
+
+        implicitWidth: {
+            const tab = bar.currentItem;
+            if (tab)
+                return tab.implicitWidth;
+            const width = (root.nonAnimWidth - bar.spacing * (bar.count - 1)) / bar.count;
+            return width;
+        }
+        implicitHeight: 3
+
+        x: {
+            const tab = bar.currentItem;
+            const width = (root.nonAnimWidth - bar.spacing * (bar.count - 1)) / bar.count;
+            const tabWidth = tab?.implicitWidth ?? width;
+            return width * bar.currentIndex + (width - tabWidth) / 2;
+        }
+
+        clip: true
+
+        StyledRect {
+            anchors.top: parent.top
+            anchors.left: parent.left
+            anchors.right: parent.right
+            implicitHeight: parent.implicitHeight * 2
+
+            color: Colours.palette.m3primary
+            radius: Tokens.rounding.full
+        }
+
+        Behavior on x {
+            Anim {}
+        }
+
+        Behavior on implicitWidth {
+            Anim {}
+        }
     }
 
-    Components.StyledRect {
-        id: indicator
-        y: tabRow.height
-        x: root.currentIndex * tabRow.width / root.count + Wysun.Appearance.spaceM
-        width: Math.max(0, tabRow.width / root.count - Wysun.Appearance.spaceM * 2)
-        height: Wysun.Appearance.spaceXs
-        radius: height / 2
-        color: Wysun.Appearance.accent
-        motion: root.motion
-        Behavior on x { Components.Anim { motion: root.motion } }
-        Behavior on width { Components.Anim { motion: root.motion } }
+    StyledRect {
+        id: separator
+
+        anchors.top: indicator.bottom
+        anchors.left: parent.left
+        anchors.right: parent.right
+
+        implicitHeight: 1
+        color: Colours.palette.m3outlineVariant
+    }
+
+    component Tab: TabButton {
+        id: tab
+
+        required property string iconName
+        readonly property bool current: TabBar.tabBar.currentItem === this
+
+        Layout.fillWidth: true
+        Layout.preferredWidth: 1 // Uniform width across all tabs
+        implicitWidth: implicitContentWidth
+        implicitHeight: implicitContentHeight
+        background: null
+
+        contentItem: CustomMouseArea {
+            id: mouse
+
+            function onWheel(event: WheelEvent): void {
+                if (event.angleDelta.y < 0)
+                    root.screenState.dashboardTab = Math.min(root.screenState.dashboardTab + 1, bar.count - 1);
+                else if (event.angleDelta.y > 0)
+                    root.screenState.dashboardTab = Math.max(root.screenState.dashboardTab - 1, 0);
+            }
+
+            implicitWidth: Math.max(icon.width, label.width)
+            implicitHeight: icon.height + label.height
+
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+
+            onPressed: root.screenState.dashboardTab = tab.TabBar.index
+
+            StateLayer {
+                id: stateLayer
+
+                anchors.fill: undefined
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                implicitHeight: parent.height + Tokens.sizes.dashboard.tabIndicatorSpacing * 2
+
+                radius: Tokens.rounding.medium
+                color: tab.current ? Colours.palette.m3primary : Colours.palette.m3onSurface
+                onClicked: root.screenState.dashboardTab = tab.TabBar.index
+            }
+
+            MaterialIcon {
+                id: icon
+
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.bottom: label.top
+
+                text: tab.iconName
+                color: tab.current ? Colours.palette.m3primary : Colours.palette.m3onSurfaceVariant
+                fill: tab.current ? 1 : 0
+                fontStyle: Tokens.font.icon.medium
+
+                Behavior on fill {
+                    Anim {
+                        type: Anim.DefaultEffects
+                    }
+                }
+            }
+
+            StyledText {
+                id: label
+
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.bottom: parent.bottom
+
+                text: tab.text
+                color: tab.current ? Colours.palette.m3primary : Colours.palette.m3onSurfaceVariant
+            }
+        }
     }
 }

@@ -1,108 +1,60 @@
-// Derivado de caelestia-dots/shell (GPL-3.0), modificado para Wysun.
-// Origen: modules/launcher/Wrapper.qml, commit 507d66285e9d9fde9330adc64159cfdebb28c19a.
-// Véanse LICENSES/GPL-3.0.txt y THIRD_PARTY.md.
+pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell
-import "../../" as Wysun
-import "../../services" as Services
-import "../../components" as Components
-import "services" as LocalServices
-import "Logic.js" as Logic
+import Caelestia.Config
+import qs.components
+import qs.modules.launcher.services
 
-Components.StyledRect {
+Item {
     id: root
-    required property var controller
-    required property var motion
-    property bool active: controller.surface === "launcher"
-    property string errorMessage: ""
-    property alias apps: apps
-    property alias actions: actions
-    property alias schemes: schemes
-    property alias variants: variants
-    property alias content: content
 
-    signal copied(string result)
+    required property ShellScreen screen
+    required property ScreenState screenState
+    required property var panels
 
-    radius: Wysun.Appearance.radiusL
-    color: Wysun.Appearance.materialMid
-    visible: active
-    clip: true
+    readonly property bool shouldBeActive: screenState.launcher && Config.launcher.enabled
 
-    function fail(message) {
-        errorMessage = message;
-        if (controller.surface !== "launcher" && controller.show) controller.show("launcher");
+    readonly property real maxHeight: {
+        let max = screen.height - Config.border.thickness * 2 + Tokens.padding.extraLarge;
+        if (screenState.dashboard)
+            max -= panels.dashboard.nonAnimHeight;
+        return max;
     }
 
-    function activate(row) {
-        if (!row) return;
-        if (row.completion) {
-            content.query = row.completion;
-            content.searchItem.forceActiveFocus();
-            return;
-        }
-        switch (row.kind) {
-        case "apps":
-            apps.launch(row.entry);
-            break;
-        case "actions":
-            actions.launch(row.id);
-            break;
-        case "scheme":
-            if (!schemes.busy) schemes.select(row.id);
-            break;
-        case "variant":
-            if (!schemes.busy) schemes.selectVariant(row.id);
-            break;
-        case "wallpaper":
-            if (!schemes.busy) schemes.selectWallpaper(row.path);
-            break;
-        case "calc":
-            if (row.invalid) {
-                fail(row.description);
-                return;
-            }
-            Quickshell.clipboardText = row.value;
-            copied(row.value);
-            controller.close();
-            break;
-        }
+    property real offsetScale: shouldBeActive ? 0 : 1
+
+    onShouldBeActiveChanged: {
+        if (shouldBeActive)
+            implicitHeight = Qt.binding(() => content.implicitHeight);
+        else
+            implicitHeight = implicitHeight; // Break binding during close anim
     }
 
-    onActiveChanged: {
-        if (active) {
-            errorMessage = "";
-            schemes.reload();
-            Qt.callLater(content.reset);
-        }
-    }
-    Component.onCompleted: {
-        if (active) {
-            schemes.reload();
-            Qt.callLater(content.reset);
-        }
+    visible: offsetScale < 1
+    anchors.bottomMargin: (-implicitHeight - 5) * offsetScale
+    implicitHeight: content.implicitHeight
+    implicitWidth: content.implicitWidth || 630 // Hard coded fallback for first open
+    opacity: 1 - offsetScale
+
+    Component.onCompleted: Qt.callLater(() => Apps) // Load apps on init
+
+    Behavior on offsetScale {
+        Anim {}
     }
 
-    Services.Apps {
-        id: apps
-        onAccepted: root.controller.close()
-        onFailed: message => root.fail(message)
-    }
-    Services.Actions {
-        id: actions
-        onAccepted: root.controller.close()
-        onFailed: message => root.fail(message)
-    }
-    Services.Schemes {
-        id: schemes
-        onFinished: root.controller.close()
-        onFailed: message => root.fail(message)
-    }
-    LocalServices.M3Variants { id: variants }
-
-    Content {
+    Loader {
         id: content
-        anchors.fill: parent
-        launcher: root
+
+        anchors.top: parent.top
+        anchors.horizontalCenter: parent.horizontalCenter
+
+        active: root.shouldBeActive || root.visible
+
+        sourceComponent: Content {
+            screenState: root.screenState
+            panels: root.panels
+            maxHeight: root.maxHeight
+        }
     }
 }

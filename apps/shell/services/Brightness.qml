@@ -1,147 +1,238 @@
-// Derivado de caelestia-dots/shell (GPL-3.0), modificado para Wysun.
-// Origen: services/Brightness.qml (commit 507d66285e9d9fde9330adc64159cfdebb28c19a).
-// Véanse LICENSES/GPL-3.0.txt y THIRD_PARTY.md.
-// Wysun adaptation: one explicit laptop backlight, observed through
-// /sys/class/backlight/<device>/{brightness,actual_brightness} with FileView (no polling). Writes
-// stay in brightnessctl so the desktop's existing udev permissions are used.
+pragma Singleton
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import Caelestia.Config
+import qs.components.misc
+import qs.services
 
-Scope {
+Singleton {
     id: root
 
-    readonly property string sysfsRoot: Quickshell.env("WYSUN_BACKLIGHT_ROOT") || "/sys/class/backlight"
-    // Disabled instances (gallery, tests) never run brightnessctl.
-    property bool enabled: true
-    property string device: ""
-    property bool available: false
-    property bool busy: false
-    property string error: ""
-    property int current: 0
-    property int maximum: 0
-    readonly property real value: maximum > 0 ? current / maximum : 0
-    property bool settled: false
-    property real lastValue: 0
-    signal changed(real value)
+    property list<var> ddcMonitors: []
+    readonly property var ddcMonitorMap: {
+        const map = {};
+        for (const m of ddcMonitors)
+            map[m.connector] = m;
+        return map;
+    }
+    readonly property list<Monitor> monitors: variants.instances
+    property bool appleDisplayPresent: false
 
-    Component.onCompleted: if (enabled) discover.running = true
+    function getMonitorForScreen(screen: ShellScreen): var {
+        return monitors.find(m => m.modelData === screen);
+    }
 
-    function acceptDevice(text) {
-        var line = String(text || "").split("\n").find(part => part.trim().length > 0);
-        if (!line) {
-            error = "No se encontró una pantalla con brillo ajustable";
-            return;
+    function getMonitor(query: string): var {
+        if (query === "active") {
+            return monitors.find(m => Hypr.monitorFor(m.modelData)?.focused);
         }
-        var fields = line.trim().split(",");
-        var name = fields[0] || "";
-        var currentValue = parseInt(fields[2], 10);
-        var maximumValue = parseInt(fields[4], 10);
-        if (fields.length !== 5 || fields[1] !== "backlight" || !/^[A-Za-z0-9_:.+-]+$/.test(name)
-                || !isFinite(currentValue) || !isFinite(maximumValue) || maximumValue <= 0) {
-            error = "El dispositivo de brillo no es válido";
-            return;
+
+        if (query.startsWith("model:")) {
+            const model = query.slice(6);
+            return monitors.find(m => m.modelData.model === model);
         }
-        device = name;
-        current = currentValue;
-        maximum = maximumValue;
-        available = true;
-        error = "";
-        settled = false;
-        settle.restart();
+
+        if (query.startsWith("serial:")) {
+            const serial = query.slice(7);
+            return monitors.find(m => m.modelData.serialNumber === serial);
+        }
+
+        if (query.startsWith("id:")) {
+            const id = parseInt(query.slice(3), 10);
+            return monitors.find(m => Hypr.monitorFor(m.modelData)?.id === id);
+        }
+
+        return monitors.find(m => m.modelData.name === query);
     }
 
-    function sync() {
-        // actual_brightness is the attribute the kernel notifies on hardware or
-        // firmware changes; brightness covers writes made through sysfs.
-        var actualValue = parseInt(actualView.text(), 10);
-        var currentValue = isFinite(actualValue) ? actualValue : parseInt(currentView.text(), 10);
-        var maximumValue = parseInt(maxView.text(), 10);
-        if (!isFinite(currentValue) || !isFinite(maximumValue) || maximumValue <= 0)
-            return;
-        current = currentValue;
-        maximum = maximumValue;
-        if (!settled) return;
-        if (Math.abs(value - lastValue) < 0.0001) return;
-        lastValue = value;
-        changed(value);
+    function increaseBrightness(): void {
+        const monitor = getMonitor("active");
+        if (monitor)
+            monitor.setBrightness(monitor.brightness + GlobalConfig.services.brightnessIncrement);
     }
 
-    function setBrightness(value) {
-        if (!available || busy) return false;
-        var percent = Math.max(5, Math.min(100, Math.round(Number(value) * 100)));
-        write.command = ["brightnessctl", "-c", "backlight", "-d", device, "set", percent + "%"];
-        busy = true;
-        error = "";
-        write.running = true;
-        return true;
+    function decreaseBrightness(): void {
+        const monitor = getMonitor("active");
+        if (monitor)
+            monitor.setBrightness(monitor.brightness - GlobalConfig.services.brightnessIncrement);
     }
 
-    function retry() {
-        error = "";
-        available = false;
-        device = "";
-        discover.running = true;
+    onMonitorsChanged: {
+        ddcMonitors = [];
+        ddcProc.running = true;
     }
 
-    Timer {
-        id: settle
-        interval: 250
-        onTriggered: {
-            root.settled = true;
-            root.lastValue = root.value;
+    Variants {
+        id: variants
+
+        model: Quickshell.screens // Don't respect excluded screens cause ipc
+
+        Monitor {}
+    }
+
+    Process {
+        running: true
+        command: ["sh", "-c", "asdbctl get"] // To avoid warnings if asdbctl is not installed
+        stdout: StdioCollector {
+            onStreamFinished: root.appleDisplayPresent = text.trim().length > 0
         }
     }
 
     Process {
-        id: discover
-        command: ["brightnessctl", "-m", "-c", "backlight", "info"]
-        stdout: StdioCollector { id: discovery; onStreamFinished: root.acceptDevice(text) }
-        stderr: StdioCollector { }
-        onExited: (code, status) => {
-            if ((code !== 0 || status !== 0) && !root.available)
-                root.error = "No hay brillo de pantalla disponible";
+        id: ddcProc
+
+        command: ["ddcutil", "detect", "--brief"]
+        stdout: StdioCollector {
+            onStreamFinished: root.ddcMonitors = text.trim().split("\n\n").filter(d => d.startsWith("Display ")).map(d => ({
+                        busNum: d.match(/I2C bus:[ ]*\/dev\/i2c-([0-9]+)/)[1],
+                        connector: d.match(/DRM connector:\s+(.*)/)[1].replace(/^card\d+-/, "") // strip "card1-"
+                    }))
         }
     }
 
-    Process {
-        id: write
-        stderr: StdioCollector { onStreamFinished: if (text.trim().length > 0) root.error = "No se pudo cambiar el brillo" }
-        onExited: (code, status) => {
-            root.busy = false;
-            if (code !== 0 || status !== 0) root.error = "No se pudo cambiar el brillo";
+    // qmllint disable unresolved-type
+    CustomShortcut {
+        // qmllint enable unresolved-type
+        name: "brightnessUp"
+        description: "Increase brightness"
+        onPressed: root.increaseBrightness()
+    }
+
+    // qmllint disable unresolved-type
+    CustomShortcut {
+        // qmllint enable unresolved-type
+        name: "brightnessDown"
+        description: "Decrease brightness"
+        onPressed: root.decreaseBrightness()
+    }
+
+    IpcHandler {
+        function get(): real {
+            return getFor("active");
         }
+
+        // Allows searching by active/model/serial/id/name
+        function getFor(query: string): real {
+            return root.getMonitor(query)?.brightness ?? -1;
+        }
+
+        function set(value: string): string {
+            return setFor("active", value);
+        }
+
+        // Handles brightness value like brightnessctl: 0.1, +0.1, 0.1-, 10%, +10%, 10%-
+        function setFor(query: string, value: string): string {
+            const monitor = root.getMonitor(query);
+            if (!monitor)
+                return "Invalid monitor: " + query;
+
+            let targetBrightness;
+            if (value.endsWith("%-")) {
+                const percent = parseFloat(value.slice(0, -2));
+                targetBrightness = monitor.brightness - (percent / 100);
+            } else if (value.startsWith("+") && value.endsWith("%")) {
+                const percent = parseFloat(value.slice(1, -1));
+                targetBrightness = monitor.brightness + (percent / 100);
+            } else if (value.endsWith("%")) {
+                const percent = parseFloat(value.slice(0, -1));
+                targetBrightness = percent / 100;
+            } else if (value.startsWith("+")) {
+                const increment = parseFloat(value.slice(1));
+                targetBrightness = monitor.brightness + increment;
+            } else if (value.endsWith("-")) {
+                const decrement = parseFloat(value.slice(0, -1));
+                targetBrightness = monitor.brightness - decrement;
+            } else if (value.includes("%") || value.includes("-") || value.includes("+")) {
+                return `Invalid brightness format: ${value}\nExpected: 0.1, +0.1, 0.1-, 10%, +10%, 10%-`;
+            } else {
+                targetBrightness = parseFloat(value);
+            }
+
+            if (isNaN(targetBrightness))
+                return `Failed to parse value: ${value}\nExpected: 0.1, +0.1, 0.1-, 10%, +10%, 10%-`;
+
+            monitor.setBrightness(targetBrightness);
+
+            return `Set monitor ${monitor.modelData.name} brightness to ${+monitor.brightness.toFixed(2)}`;
+        }
+
+        target: "brightness"
     }
 
-    FileView {
-        id: currentView
-        path: root.device ? root.sysfsRoot + "/" + root.device + "/brightness" : ""
-        watchChanges: true
-        blockLoading: true
-        printErrors: false
-        onLoaded: root.sync()
-        onFileChanged: reload()
-        onLoadFailed: error => { if (root.device) root.error = "No se pudo leer el brillo del sistema"; }
-    }
+    component Monitor: QtObject {
+        id: monitor
 
-    FileView {
-        id: actualView
-        path: root.device ? root.sysfsRoot + "/" + root.device + "/actual_brightness" : ""
-        watchChanges: true
-        blockLoading: true
-        printErrors: false
-        onLoaded: root.sync()
-        onFileChanged: reload()
-    }
+        required property ShellScreen modelData
+        readonly property var ddcInfo: root.ddcMonitorMap[modelData.name] ?? null
+        readonly property bool isDdc: ddcInfo !== null
+        readonly property string busNum: ddcInfo?.busNum ?? ""
+        readonly property bool isAppleDisplay: root.appleDisplayPresent && modelData.model.startsWith("StudioDisplay")
+        property real brightness
+        property real queuedBrightness: NaN
 
-    FileView {
-        id: maxView
-        path: root.device ? root.sysfsRoot + "/" + root.device + "/max_brightness" : ""
-        watchChanges: true
-        blockLoading: true
-        printErrors: false
-        onLoaded: root.sync()
-        onFileChanged: reload()
-        onLoadFailed: error => { if (root.device) root.error = "No se pudo leer el brillo máximo"; }
+        readonly property Process initProc: Process {
+            stdout: StdioCollector {
+                onStreamFinished: {
+                    if (monitor.isAppleDisplay) {
+                        const val = parseInt(text.trim());
+                        monitor.brightness = val / 101;
+                    } else {
+                        const [, , , cur, max] = text.split(" ");
+                        monitor.brightness = parseInt(cur) / parseInt(max);
+                    }
+                }
+            }
+        }
+
+        readonly property Timer timer: Timer {
+            interval: 500
+            onTriggered: {
+                if (!isNaN(monitor.queuedBrightness)) {
+                    monitor.setBrightness(monitor.queuedBrightness);
+                    monitor.queuedBrightness = NaN;
+                }
+            }
+        }
+
+        function setBrightness(value: real): void {
+            value = Math.max(0, Math.min(1, value));
+            const rounded = Math.round(value * 100);
+            if (Math.round(brightness * 100) === rounded)
+                return;
+
+            if (isDdc && timer.running) {
+                queuedBrightness = value;
+                return;
+            }
+
+            brightness = value;
+
+            if (isAppleDisplay)
+                Quickshell.execDetached(["asdbctl", "set", rounded]);
+            else if (isDdc)
+                Quickshell.execDetached(["ddcutil", "-b", busNum, "setvcp", "10", rounded]);
+            else
+                Quickshell.execDetached(["brightnessctl", "s", `${rounded}%`]);
+
+            if (isDdc)
+                timer.restart();
+        }
+
+        function initBrightness(): void {
+            if (isAppleDisplay)
+                initProc.command = ["asdbctl", "get"];
+            else if (isDdc)
+                initProc.command = ["ddcutil", "-b", busNum, "getvcp", "10", "--brief"];
+            else
+                initProc.command = ["sh", "-c", "echo a b c $(brightnessctl g) $(brightnessctl m)"];
+
+            initProc.running = true;
+        }
+
+        onBusNumChanged: initBrightness()
+        Component.onCompleted: initBrightness()
     }
 }

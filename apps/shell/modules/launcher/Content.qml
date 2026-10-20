@@ -1,133 +1,126 @@
-// Derivado de caelestia-dots/shell (GPL-3.0), modificado para Wysun.
-// Origen: modules/launcher/Content.qml, commit 507d66285e9d9fde9330adc64159cfdebb28c19a.
-// Véanse LICENSES/GPL-3.0.txt y THIRD_PARTY.md.
+pragma ComponentBehavior: Bound
 
 import QtQuick
-import QtQuick.Layouts
-import "../../" as Wysun
-import "../../components" as Components
-import "Logic.js" as Logic
+import Caelestia
+import Caelestia.Config
+import Caelestia.I18n
+import qs.components
+import qs.components.controls
+import qs.services
+import qs.modules.launcher.services
 
-FocusScope {
+Item {
     id: root
-    required property var launcher
-    property alias query: search.text
-    property alias searchItem: search
-    property alias resultList: list
-    readonly property var route: Logic.route(query)
-    readonly property var rows: {
-        if (!launcher.active) return [];
-        var values;
-        switch (route.mode) {
-        case "apps":
-            return launcher.apps.query(route.query).map(entry => ({
-                kind: "apps", entry: entry, name: entry.name,
-                description: entry.genericName || entry.comment || entry.id
-            }));
-        case "actions":
-            return launcher.actions.query(route.query).map(action => Object.assign({ kind: "actions" }, action));
-        case "calc":
-            var result = Logic.calculate(route.query);
-            return [{
-                kind: "calc",
-                name: result.valid ? result.value : "Expresión inválida",
-                description: result.valid ? "Intro para copiar el resultado" : result.error,
-                invalid: !result.valid,
-                value: result.value
-            }];
-        case "scheme":
-            values = launcher.schemes.query(route.query);
-            break;
-        case "variant":
-            values = launcher.variants.query(route.query);
-            break;
-        case "wallpaper":
-            values = launcher.schemes.wallpaperQuery(route.query);
-            break;
-        default:
-            values = [];
-        }
-        return values.map(value => Object.assign({
-            kind: route.mode,
-            description: route.mode === "variant" ? "Material You desde el fondo actual"
-                : route.mode === "wallpaper" ? "Intro para aplicar este fondo" : "",
-            current: route.mode === "scheme" && Logic.isCurrentScheme(value.id,
-                Wysun.Appearance.dynamicActive, Wysun.Appearance.dynamicMode,
-                Wysun.Appearance.style, Wysun.Appearance.variant)
-        }, value));
-    }
-    onQueryChanged: launcher.errorMessage = ""
 
-    function reset() {
-        query = "";
-        search.forceActiveFocus();
-    }
+    required property ScreenState screenState
+    required property var panels
+    required property real maxHeight
 
-    ColumnLayout {
-        anchors.fill: parent
-        anchors.margins: Wysun.Appearance.spaceL
-        spacing: Wysun.Appearance.spaceS
+    readonly property int padding: Tokens.padding.large
+    readonly property int rounding: Tokens.rounding.extraLarge
 
-        RowLayout {
-            Layout.fillWidth: true
-            Components.StyledText {
-                Layout.fillWidth: true
-                text: "Wysun"
-                color: Wysun.Appearance.textStrong
-                font.pixelSize: Wysun.Appearance.fontTitle
-                Accessible.role: Accessible.Heading
-            }
-            Components.ActionButton {
-                motion: root.launcher.motion
-                implicitWidth: Wysun.Appearance.spaceXl * 2
-                implicitHeight: Wysun.Appearance.spaceXl * 2
-                glyph: "close"
-                compact: true
-                label: "Cerrar lanzador"
-                onClicked: root.launcher.controller.close()
-            }
-        }
+    implicitWidth: listWrapper.width + padding * 2
+    implicitHeight: search.height + listWrapper.height + padding + search.anchors.bottomMargin
+
+    Item {
+        id: listWrapper
+
+        implicitWidth: list.width
+        implicitHeight: list.height + root.padding
+
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.bottom: search.top
+        anchors.bottomMargin: root.padding
 
         ContentList {
             id: list
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            mode: root.route.mode
-            rows: root.rows
-            motion: root.launcher.motion
-            onChosen: row => root.launcher.activate(row)
+
+            content: root
+            screenState: root.screenState
+            panels: root.panels
+            maxHeight: root.maxHeight - search.implicitHeight - root.padding * 3
+            search: search
+            padding: root.padding
+            rounding: root.rounding
+        }
+    }
+
+    SearchBar {
+        id: search
+
+        objectName: "launcherSearch"
+
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        anchors.margins: root.padding
+        anchors.bottomMargin: CUtils.clamp(root.padding - Config.border.thickness, 0, root.padding)
+
+        topPadding: Math.round((Tokens.padding.medium + Tokens.padding.large) / 2)
+        bottomPadding: Math.round((Tokens.padding.medium + Tokens.padding.large) / 2)
+
+        placeholderText: Tr.tr("Type \"%1\" for commands").arg(GlobalConfig.launcher.actionPrefix)
+
+        onAccepted: {
+            const currentItem = list.currentList?.currentItem;
+            if (currentItem) {
+                if (list.showWallpapers) {
+                    if (Colours.scheme === "dynamic" && currentItem.modelData.path !== Wallpapers.actualCurrent)
+                        Wallpapers.previewColourLock = true;
+                    Wallpapers.setWallpaper(currentItem.modelData.path);
+                    root.screenState.launcher = false;
+                } else if (text.startsWith(GlobalConfig.launcher.actionPrefix)) {
+                    if (text.startsWith(`${GlobalConfig.launcher.actionPrefix}calc `))
+                        currentItem.onClicked();
+                    else
+                        currentItem.modelData.onClicked(list.currentList);
+                } else {
+                    Apps.launch(currentItem.modelData);
+                    root.screenState.launcher = false;
+                }
+            }
         }
 
-        Components.StyledText {
-            Layout.fillWidth: true
-            visible: text.length > 0
-            text: root.launcher.errorMessage
-                || (root.launcher.schemes.busy ? "Aplicando cambios…"
-                : root.launcher.schemes.loading ? "Consultando fondos…" : "")
-            color: root.launcher.errorMessage ? Wysun.Appearance.danger : Wysun.Appearance.muted
-            font.pixelSize: Wysun.Appearance.fontSmall
-            wrapMode: Text.WordWrap
-            maximumLineCount: 3
-            elide: Text.ElideRight
-            Accessible.role: Accessible.AlertMessage
+        Keys.onUpPressed: list.currentList?.decrementCurrentIndex()
+        Keys.onDownPressed: list.currentList?.incrementCurrentIndex()
+
+        Keys.onEscapePressed: root.screenState.launcher = false
+
+        Keys.onPressed: event => {
+            if (!GlobalConfig.launcher.vimKeybinds)
+                return;
+
+            if (event.modifiers & Qt.ControlModifier) {
+                if (event.key === Qt.Key_J || event.key === Qt.Key_N) {
+                    list.currentList?.incrementCurrentIndex();
+                    event.accepted = true;
+                } else if (event.key === Qt.Key_K || event.key === Qt.Key_P) {
+                    list.currentList?.decrementCurrentIndex();
+                    event.accepted = true;
+                }
+            } else if (event.key === Qt.Key_Tab) {
+                list.currentList?.incrementCurrentIndex();
+                event.accepted = true;
+            } else if (event.key === Qt.Key_Backtab || (event.key === Qt.Key_Tab && (event.modifiers & Qt.ShiftModifier))) {
+                list.currentList?.decrementCurrentIndex();
+                event.accepted = true;
+            }
         }
 
-        SearchBar {
-            id: search
-            objectName: "launcherSearch"
-            Layout.fillWidth: true
-            motion: root.launcher.motion
-            onAccepted: list.accept()
-            onMove: delta => list.move(delta)
-            onDismiss: root.launcher.controller.close()
-        }
+        Component.onCompleted: forceActiveFocus()
 
-        Components.StyledText {
-            Layout.fillWidth: true
-            text: "↑ ↓ elegir · Intro abrir · Esc cerrar · @ filtra apps · > acciones"
-            font.pixelSize: Wysun.Appearance.fontCaption
-            color: Wysun.Appearance.muted
-            wrapMode: Text.WordWrap
+        Connections {
+            function onLauncherChanged(): void {
+                if (!root.screenState.launcher)
+                    search.text = "";
+            }
+
+            function onSessionChanged(): void {
+                if (!root.screenState.session)
+                    search.forceActiveFocus();
+            }
+
+            target: root.screenState
         }
     }
 }
