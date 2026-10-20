@@ -1,18 +1,27 @@
 pragma ComponentBehavior: Bound
+import QtQuick
 import Quickshell
-import Quickshell.Hyprland
-import "Logic.js" as Logic
+import "services" as Services
+import "modules/rail" as RailModule
+import "modules/frame" as FrameModule
+import "modules/popouts" as PopoutModule
 
 ShellRoot {
     id: root
     Preferences { id: prefs }
-    ShellController { id: shellState; preferences: prefs; resources: stats }
+    Services.Colours { id: colours }
+    OutputManager { id: outputs }
+    ShellState { id: shellState }
+    Motion { id: motion; reducedMotion: prefs.appearance.reducedMotion }
+    ShellController { id: controller; preferences: prefs; state: shellState }
     SystemClock { id: wallClock; precision: SystemClock.Minutes }
-    ResourceStats {
-        id: stats
-        enabled: prefs.bar.left.concat(prefs.bar.center, prefs.bar.right).indexOf("resources") >= 0
-            && Quickshell.screens.some(s => Logic.barPresentation(s.width - 24).showResources
-                && Logic.monitorEnabled(prefs.environment, s.name, prefs.nativeBarData) && !Hyprland.monitorFor(s)?.activeWorkspace?.hasFullscreen)
+    FontLoader {
+        source: Quickshell.shellPath("assets/fonts/Rubik-Variable.ttf")
+        onStatusChanged: if (status === FontLoader.Ready) Appearance.refreshFonts()
+    }
+    FontLoader {
+        source: Quickshell.shellPath("assets/fonts/MaterialSymbolsRounded.ttf")
+        onStatusChanged: if (status === FontLoader.Ready) Appearance.refreshFonts()
     }
     Variants {
         model: Quickshell.screens
@@ -20,7 +29,14 @@ ShellRoot {
     }
     Variants {
         model: Quickshell.screens
-        Bar { preferences: prefs; controller: shellState; clock: wallClock; resources: stats }
+        RailModule.Rail { preferences: prefs; controller: controller; clock: wallClock; motion: motion; outputs: outputs }
     }
-    Surface { preferences: prefs; controller: shellState; clock: wallClock }
+    Variants {
+        model: Quickshell.screens
+        FrameModule.ScreenFrame { preferences: prefs; outputs: outputs }
+    }
+    Variants {
+        model: Quickshell.screens
+        PopoutModule.PopoutHost { controller: controller; motion: motion }
+    }
 }

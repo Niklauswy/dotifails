@@ -261,3 +261,77 @@ function memoryPercent(text) {
 function popupScreen(screens, focusedName) {
     return screens.find(function(s) { return s.name === focusedName; }) || screens[0] || null;
 }
+
+// Dynamic shell palette contract. Caelestia writes `colours` without a '#';
+// Wysun also accepts `colors` and m3-prefixed roles for painless handoff.
+var materialColourRoles = [
+    "primary", "onPrimary", "primaryContainer", "onPrimaryContainer", "inversePrimary",
+    "secondary", "onSecondary", "secondaryContainer", "onSecondaryContainer",
+    "tertiary", "onTertiary", "tertiaryContainer", "onTertiaryContainer",
+    "background", "onBackground", "surface", "surfaceDim", "surfaceBright",
+    "surfaceContainerLowest", "surfaceContainerLow", "surfaceContainer",
+    "surfaceContainerHigh", "surfaceContainerHighest", "onSurface", "surfaceVariant",
+    "onSurfaceVariant", "inverseSurface", "inverseOnSurface", "outline", "outlineVariant",
+    "shadow", "scrim", "surfaceTint", "error", "onError", "errorContainer", "onErrorContainer"
+];
+
+// theme-exception-begin: transparent fallbacks are only used when a theme token has not loaded
+function fixedSchemeRoles(tokens) {
+    tokens = tokens && typeof tokens === "object" ? tokens : {};
+    function pick(name, fallback) { return qmlColor(tokens[name], fallback); }
+    var primary = pick("accent", "#00000000");
+    var surface = pick("surface", "#00000000");
+    var raised = pick("surface_raised", surface);
+    var well = pick("well", surface);
+    var text = pick("text", "#00000000");
+    var muted = pick("muted", text);
+    var line = pick("line", muted);
+    var error = pick("danger", primary);
+    return {
+        primary: primary, onPrimary: pick("on_accent", text),
+        primaryContainer: pick("selection", raised), onPrimaryContainer: pick("selection_text", text),
+        secondary: primary, onSecondary: pick("on_accent", text),
+        secondaryContainer: raised, onSecondaryContainer: text,
+        tertiary: primary, onTertiary: pick("on_accent", text),
+        tertiaryContainer: raised, onTertiaryContainer: text,
+        background: pick("canvas", surface), onBackground: text,
+        surface: surface, surfaceDim: pick("canvas", surface), surfaceBright: raised,
+        surfaceContainerLowest: pick("canvas", surface), surfaceContainerLow: well,
+        surfaceContainer: surface, surfaceContainerHigh: raised, surfaceContainerHighest: raised,
+        onSurface: text, surfaceVariant: well, onSurfaceVariant: muted,
+        inverseSurface: text, inverseOnSurface: surface,
+        outline: line, outlineVariant: line, shadow: pick("scrim", "#00000000"),
+        scrim: pick("scrim", "#00000000"), surfaceTint: primary,
+        error: error, onError: pick("on_danger", text),
+        errorContainer: pick("danger", error), onErrorContainer: text
+    };
+}
+// theme-exception-end
+
+function schemePalette(data, fallbackTokens) {
+    var fallback = fixedSchemeRoles(fallbackTokens);
+    if (!data || typeof data !== "object" || Array.isArray(data))
+        return { valid: false, roles: fallback, mode: "", name: "", variant: "" };
+    var name = typeof data.name === "string" ? data.name.trim() : "";
+    var variant = typeof data.variant === "string" ? data.variant.trim() : (typeof data.flavour === "string" ? data.flavour.trim() : "");
+    var mode = data.mode === "light" || data.mode === "dark" ? data.mode : "";
+    var source = data.colours && typeof data.colours === "object" ? data.colours : data.colors;
+    if (!name || !variant || !mode || !source || typeof source !== "object" || Array.isArray(source))
+        return { valid: false, roles: fallback, mode: "", name: "", variant: "" };
+    var roles = {}, found = 0;
+    materialColourRoles.forEach(function(role) {
+        var value = source[role];
+        if (value === undefined) value = source["m3" + role];
+        if (typeof value !== "string" || !/^(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(value)) return;
+        roles[role] = qmlColor("#" + value);
+        found++;
+    });
+    if (!roles.primary || !roles.onPrimary || !roles.surface || !roles.surfaceContainer || found < 4)
+        return { valid: false, roles: fallback, mode: "", name: "", variant: "" };
+    // Optional roles inherit the selected fixed theme; new producers can add
+    // roles without making older schemes render with transparent defaults.
+    materialColourRoles.forEach(function(role) {
+        if (!roles[role]) roles[role] = fallback[role] || fallback.surface;
+    });
+    return { valid: true, roles: roles, mode: mode, name: name, variant: variant };
+}

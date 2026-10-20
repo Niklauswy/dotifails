@@ -9,6 +9,11 @@ hl.config({
     input = { kb_layout = "us", touchpad = { natural_scroll = false } },
     misc = { disable_hyprland_logo = true, force_default_wallpaper = 0 },
 })
+-- Wysun shell surfaces use explicit layer namespaces; shell motion owns their
+-- transitions, so compositor layer-open animations stay disabled.
+hl.layer_rule({ name = "wysun-rail-layer", match = { namespace = "^wysun-rail$" }, no_anim = true })
+hl.layer_rule({ name = "wysun-frame-layer", match = { namespace = "^wysun-frame$" }, no_anim = true })
+hl.layer_rule({ name = "wysun-popout-layer", match = { namespace = "^wysun-popout$" }, no_anim = true })
 hl.on("hyprland.start", function () hl.exec_cmd("wysun-session-services") end)
 -- Fixed workspaces per output: rules need the outputs to exist, so the saved
 -- (or automatic 1-5 / 6-9 / 10) layout is pinned at login and on hotplug.

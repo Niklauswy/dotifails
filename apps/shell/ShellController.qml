@@ -7,9 +7,8 @@ import "Logic.js" as Logic
 Scope {
     id: root
     required property var preferences
+    required property var state
     property var resources: null
-    property string surface: ""
-    property string screenName: ""
     property string errorMessage: ""
     property string requestedCommand: ""
     property bool commandStarted: false
@@ -19,25 +18,34 @@ Scope {
     property int secondaryClickCount: 0
     property bool secondaryClickAccepted: false
     property string secondaryClickSurface: ""
-    readonly property var popupScreen: Quickshell.screens.find(s => s.name === screenName) || null
-    readonly property bool opened: surface !== "" && popupScreen !== null
+    readonly property string surface: state.surface
+    readonly property string screenName: state.screenName
+    readonly property var popupScreen: Quickshell.screens.find(s => s.name === state.screenName) || null
+    readonly property bool opened: state.opened && popupScreen !== null
     readonly property bool busy: application.running
 
-    function close() { surface = ""; }
+    function close() { state.close(); }
 
-    function show(kind, name) {
-        if (["menu", "windows", "session"].indexOf(kind) < 0) return false;
+    function supportsSurface(kind) {
+        return ["test", "dashboard", "launcher", "menu", "windows", "session"].indexOf(kind) >= 0;
+    }
+
+    function show(kind, name, anchorX, anchorY, focusItem) {
+        if (!supportsSurface(kind)) return false;
         var target = Logic.popupScreen(Quickshell.screens, name || Hyprland.focusedMonitor?.name);
         if (!target) return false;
-        screenName = target.name;
         errorMessage = "";
-        surface = kind;
+        state.open(kind, target.name,
+            typeof anchorX === "number" && isFinite(anchorX) ? anchorX : Appearance.railWidth / 2,
+            typeof anchorY === "number" && isFinite(anchorY) ? anchorY : target.height / 2,
+            focusItem ? "rail-logo" : "", focusItem || null);
         return true;
     }
 
-    function toggle(kind, name) {
-        if (surface === kind && (!name || name === screenName)) { close(); return true; }
-        return show(kind, name);
+    function toggle(kind, name, anchorX, anchorY, focusItem) {
+        if (!supportsSurface(kind)) return false;
+        if (state.opened && (!name || name === state.screenName)) { close(); return true; }
+        return show(kind, name, anchorX, anchorY, focusItem);
     }
 
     function secondaryClick(name) {
@@ -111,7 +119,7 @@ Scope {
     Connections {
         target: Quickshell
         function onScreensChanged() {
-            if (!Quickshell.screens.some(s => s.name === root.screenName)) root.close();
+            if (!Quickshell.screens.some(s => s.name === root.state.screenName)) root.close();
         }
     }
     IpcHandler {
@@ -133,6 +141,7 @@ Scope {
                 secondaryClickCount: root.secondaryClickCount,
                 secondaryClickAccepted: root.secondaryClickAccepted,
                 secondaryClickSurface: root.secondaryClickSurface,
+                phase: root.state.phase, returnFocus: root.state.returnFocus,
                 resources: root.resources ? { enabled: root.resources.enabled,
                     cpu: root.resources.sample?.percent ?? null, memory: root.resources.memory } : null,
                 nativeBar: Object.keys(root.preferences.nativeBarData).length > 0,

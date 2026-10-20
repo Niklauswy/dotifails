@@ -1,10 +1,10 @@
 singleton Appearance 1.0 Appearance.qml
-Bar 1.0 Bar.qml
-BarModule 1.0 BarModule.qml
 Desktop 1.0 Desktop.qml
+Motion 1.0 Motion.qml
+OutputManager 1.0 OutputManager.qml
 Preferences 1.0 Preferences.qml
 ResourceStats 1.0 ResourceStats.qml
 ShellButton 1.0 ShellButton.qml
 ShellController 1.0 ShellController.qml
-Surface 1.0 Surface.qml
+ShellState 1.0 ShellState.qml
 ThemeDemo 1.0 ThemeDemo.qml

@@ -11,7 +11,10 @@ ROOT = Path(__file__).resolve().parents[1]
 @unittest.skipUnless(shutil.which("node"), "Node is needed to exercise QML's JavaScript logic")
 class LogicTests(unittest.TestCase):
     def evaluate(self, expression):
-        source = (ROOT / "Logic.js").read_text().replace(".pragma library", "", 1)
+        return self.evaluate_source(ROOT / "Logic.js", expression)
+
+    def evaluate_source(self, path, expression):
+        source = path.read_text().replace(".pragma library", "", 1)
         result = subprocess.run(
             ["node", "-e", source + "\nconsole.log(JSON.stringify(" + expression + "));"],
             check=True, capture_output=True, text=True,
@@ -39,8 +42,12 @@ class LogicTests(unittest.TestCase):
 
     def test_resolved_tokens_cover_everything_appearance_reads(self):
         import re
-        names = set(re.findall(r'(?:colorOf|numberOf)\("([a-z_]+)"', (ROOT / "Appearance.qml").read_text()))
-        self.assertGreater(len(names), 40)
+        appearance = (ROOT / "Appearance.qml").read_text()
+        names = set(re.findall(r'(?:colorOf|numberOf)\("([a-z_]+)"', appearance))
+        # roleColor's second argument names the fixed-theme token behind each
+        # Material role; count those too when checking theme coverage.
+        names.update(re.findall(r'roleColor\("[A-Za-z]+",\s*"([a-z_]+)"', appearance))
+        self.assertGreater(len(names), 30)
         for style, entry in self.SPEC["styles"].items():
             for variant in entry["variants"]:
                 tokens = self.evaluate("resolveTheme(%s,%s,%s)" % (json.dumps(self.SPEC), json.dumps(style), json.dumps(variant)))
@@ -51,6 +58,55 @@ class LogicTests(unittest.TestCase):
         self.assertEqual(self.evaluate("[qmlColor('#112233'),qmlColor('#11223344'),qmlColor('red'),qmlColor(undefined)]"),
                          ["#112233", "#44112233", "#00000000", "#00000000"])
         self.assertEqual(self.evaluate("[surfaceOpacity({translucent:true},.7),surfaceOpacity({translucent:false},.7)]"), [.7, 1])
+
+    def test_dynamic_scheme_consumes_material_roles_without_hash_and_keeps_metadata(self):
+        scheme = {
+            "name": "Wallpaper Azul", "mode": "dark", "variant": "tonal-spot", "colours": {
+                "primary": "4267A8", "onPrimary": "FFFFFF", "surface": "101522",
+                "surfaceContainer": "1B2333", "surfaceContainerLow": "171E2D",
+                "surfaceContainerHighest": "242D3F",
+                "outline": "8792A8", "onSurface": "E0E5F0"
+            }
+        }
+        result = self.evaluate("schemePalette(" + json.dumps(scheme) + ",{})")
+        self.assertTrue(result["valid"])
+        self.assertEqual((result["name"], result["mode"], result["variant"]), ("Wallpaper Azul", "dark", "tonal-spot"))
+        self.assertEqual(result["roles"]["primary"], "#4267A8")
+        self.assertEqual(result["roles"]["onPrimary"], "#FFFFFF")
+        self.assertEqual(result["roles"]["surfaceContainerHighest"], "#242D3F")
+
+    def test_dynamic_scheme_accepts_caelestia_alias_and_rejects_invalid_roles(self):
+        scheme = {"name": "Legado", "mode": "light", "flavour": "vibrant", "colours": {
+            "m3primary": "123456", "m3onPrimary": "FFFFFF", "m3surface": "FAFAFA",
+            "m3surfaceContainer": "EEEEEE", "m3outline": "555555"
+        }}
+        result = self.evaluate("schemePalette(" + json.dumps(scheme) + ",{})")
+        self.assertTrue(result["valid"])
+        self.assertEqual((result["mode"], result["variant"], result["roles"]["primary"]), ("light", "vibrant", "#123456"))
+        self.assertFalse(self.evaluate("schemePalette({name:'bad',mode:'solar',variant:'x',colours:{primary:'123456'}},{accent:'#abc'})")["valid"])
+
+    def test_colour_service_observes_xdg_state_file_and_falls_back(self):
+        source = (ROOT / "services/Colours.qml").read_text()
+        self.assertIn('Quickshell.env("XDG_STATE_HOME")', source)
+        self.assertIn('"/wysun/scheme.json"', source)
+        self.assertIn("watchChanges: true", source)
+        self.assertIn("interval: 1000", source)
+        self.assertIn("onTriggered: if (!root.dynamic) root.reload()", source)
+        self.assertIn("onLoaded: root.accept(text())", source)
+        self.assertIn("onLoadFailed: root.useFallback()", source)
+
+    def test_config_paths_respect_xdg_and_keep_legacy_orbit_directory(self):
+        paths = ROOT / "config/Paths.js"
+        self.assertEqual(self.evaluate_source(paths, "[configHome('/tmp/config','/tmp/home'), configHome('', '/tmp/home'), orbitFile('/tmp/config','theme.json')]"),
+                         ["/tmp/config", "/tmp/home/.config", "/tmp/config/orbit/theme.json"])
+
+    def test_popout_geometry_morphs_from_anchor_to_center_and_clamps(self):
+        geometry = ROOT / "utils/PopoutGeometry.js"
+        self.assertEqual(self.evaluate_source(geometry, "popoutGeometry(1200,800,50,60,600,400,0)"),
+                         {"x": 14, "y": 28, "width": 72, "height": 64})
+        self.assertEqual(self.evaluate_source(geometry, "popoutGeometry(1200,800,50,60,600,400,1)"),
+                         {"x": 300, "y": 200, "width": 600, "height": 400})
+        self.assertEqual(self.evaluate_source(geometry, "popoutGeometry(1200,800,50,60,600,400,2).width"), 600)
 
     def test_shell_theme_file_is_the_wysun_copy(self):
         source = ROOT.parents[1] / "apps/wysun/wysun_theme.json"

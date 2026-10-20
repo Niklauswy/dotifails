@@ -2,11 +2,13 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import "Logic.js" as Logic
+import "config/Paths.js" as Paths
 
 Scope {
     id: root
     readonly property string home: Quickshell.env("HOME") || ""
-    readonly property string configHome: Quickshell.env("XDG_CONFIG_HOME") || home + "/.config"
+    readonly property string configHome: Paths.configHome(Quickshell.env("XDG_CONFIG_HOME"), home)
+    readonly property string stateHome: Quickshell.env("XDG_STATE_HOME") || home + "/.local/state"
     property var themeData: ({})
     property var themeSpec: ({})
     property var environment: ({})
@@ -42,7 +44,7 @@ Scope {
     }
     FileView {
         id: themeFile
-        path: root.configHome + "/orbit/theme.json"
+        path: Paths.orbitFile(root.configHome, "theme.json")
         watchChanges: true
         printErrors: false
         onFileChanged: reload()
@@ -50,7 +52,7 @@ Scope {
     }
     FileView {
         id: appearanceFile
-        path: root.configHome + "/orbit/appearance.json"
+        path: Paths.orbitFile(root.configHome, "appearance.json")
         watchChanges: true
         printErrors: false
         onFileChanged: reload()
@@ -58,7 +60,7 @@ Scope {
     }
     FileView {
         id: environmentFile
-        path: root.configHome + "/orbit/environment.json"
+        path: Paths.orbitFile(root.configHome, "environment.json")
         watchChanges: true
         printErrors: false
         onFileChanged: reload()
@@ -66,7 +68,7 @@ Scope {
     }
     FileView {
         id: nativeBarFile
-        path: root.configHome + "/orbit/hypr-bar.json"
+        path: Paths.orbitFile(root.configHome, "hypr-bar.json")
         watchChanges: true
         printErrors: false
         onFileChanged: reload()
