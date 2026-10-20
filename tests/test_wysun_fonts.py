@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-GLYPHS = ROOT / "apps/shell/assets/fonts/material-symbols-glyphs.txt"
+GLYPHS = ROOT / "apps/wysun/assets/fonts/material-symbols-glyphs.txt"
 MUSIC = {
     "music_note", "library_music", "favorite", "group", "download",
     "folder_open", "play_arrow", "pause", "skip_previous", "skip_next",

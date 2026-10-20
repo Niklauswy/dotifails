@@ -26,7 +26,7 @@ GLYPH_FILE = "material-symbols-glyphs.txt"
 FALLBACK_ICON = "\u25cb"  # ○
 TEXT_FALLBACKS = ("Inter", "Sans Serif")
 
-_REPO_FONTS = Path(__file__).resolve().parents[1] / "shell/assets/fonts"
+_REPO_FONTS = Path(__file__).resolve().parent / "assets/fonts"
 
 
 def glyph_names(path: Path | None = None) -> tuple[str, ...]:

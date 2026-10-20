@@ -77,15 +77,14 @@ The Caelestia C++ plugin, `qt6-m3shapes`, `libcava`, and Google Sans Flex are no
 
 - Source: [google/material-design-icons](https://github.com/google/material-design-icons), `variablefont/MaterialSymbolsRounded[FILL,GRAD,opsz,wght].ttf`.
 - License: Apache License 2.0; text in [`LICENSES/Apache-2.0.txt`](LICENSES/Apache-2.0.txt).
-- Bundled file: `apps/shell/assets/fonts/MaterialSymbolsRounded.ttf`, a 661,972-byte variable-font subset. It keeps the `FILL`, `GRAD`, `opsz`, and `wght` axes and the 224 icons listed one per line in `apps/shell/assets/fonts/material-symbols-glyphs.txt` (16 for Music and 208 common shell/Qt actions). That list is the shared contract read by the subset tool and by `apps/wysun/wysun_fonts.py`.
-- Regenerate from the full upstream font with the optional developer tool `apps/shell/tools/subset_material_symbols.py` and FontTools 4.67.0 or newer. FontTools is not a runtime dependency. Add a new icon to the glyph list first; the tool rejects unknown or duplicated names.
-- SHA-256: `27b2d4142c1b71dac2fd29428b0649aa47bd7cd4f27f32f14cfb0bfbead1bdfa`.
+- Bundled files: `apps/wysun/assets/fonts/MaterialSymbolsRounded.ttf` (Wysun Qt apps) and the identical `apps/shell/assets/fonts/MaterialSymbolsRounded.ttf` (Caelestia shell): the complete variable font. The 224 icons that the Wysun Qt apps rely on are listed one per line in `apps/wysun/assets/fonts/material-symbols-glyphs.txt` (shared contract read by `apps/wysun/wysun_fonts.py`).
+- SHA-256: `32e4011709e055596eb8d2dd0f7cb547b47c1d40ac9ecb8fad54f7f7eac202e7`.
 
 ## Rubik
 
 - Source: [google/fonts](https://github.com/google/fonts), `ofl/rubik/Rubik[wght].ttf`.
 - License: SIL Open Font License 1.1; text in [`LICENSES/OFL-Rubik.txt`](LICENSES/OFL-Rubik.txt).
-- Bundled font: `apps/shell/assets/fonts/Rubik-Variable.ttf`.
+- Bundled font: `apps/wysun/assets/fonts/Rubik-Variable.ttf`.
 - SHA-256: `1b3a7437ba2af80e465e773ed60c5036d1ba6ace492d89046dbcf18fb31e4e88`.
 
 ## Scope

@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'apps/wysun'))
 import theme_core  # noqa: E402
 
-COPIES = ['apps/capture/loomrec/ui/wysun_theme.json', 'apps/shell/wysun_theme.json']
+COPIES = ['apps/capture/loomrec/ui/wysun_theme.json']
 VARIANTS = [('space-black', 'space-black'), ('space-black', 'tokyo'), ('space-black', 'severance'), ('fluent', 'light'), ('fluent', 'dark')]
 # (foreground, background, minimum WCAG ratio): text 4.5:1, UI components and focus 3:1.
 CONTRAST = [('text', 'canvas', 4.5), ('text', 'surface', 4.5), ('text', 'well', 4.5), ('muted', 'surface', 4.5), ('muted', 'canvas', 4.5), ('subtle', 'surface', 4.5),
