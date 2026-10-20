@@ -16,11 +16,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'apps/wysun'))
 from PySide6.QtCore import Qt, QPoint
 from PySide6.QtGui import QImage, QColor, QFont, QRawFont, QTextLayout
 from PySide6.QtWidgets import QApplication, QWidget
-from PySide6.QtTest import QTest
 import music_data as music
 import theme_core
 from theme_tokens import tokens, watch_theme
-from music_material import load_fonts
+from music_material import (SYMBOLS, display_family, ligature_available,
+                            load_fonts, material_icon, symbol_family)
 from music_app_window import MusicAppWindow
 from music_mini import MiniPlayer
 from wysun_scheme import fixed_scheme, generate_dynamic
@@ -56,13 +56,21 @@ mini = MiniPlayer(window)
 mini.show()
 mini.sync()
 assert 'Rubik' in load_fonts() and 'Material Symbols Rounded' in load_fonts()
+assert display_family() == 'Rubik' and symbol_family() == 'Material Symbols Rounded'
 assert window.now_title.font().family() == 'Rubik'
 raw = QRawFont.fromFont(QFont('Rubik'))
 assert raw.supportsCharacter(ord('ñ')) and raw.supportsCharacter(ord('ú'))
-# Existing offline subset must at least render its bundled symbol as one glyph.
+# Offline subset must render its bundled ligature as one glyph, and every
+# requested symbol must still yield a visible icon through the Lucide fallback.
 layout = QTextLayout('volume_up', QFont('Material Symbols Rounded'))
 layout.beginLayout(); layout.createLine(); layout.endLayout()
 assert sum(len(run.glyphIndexes()) for run in layout.glyphRuns()) == 1
+assert ligature_available('volume_up')
+assert not ligature_available('definitely_not_a_material_ligature')
+for symbol in SYMBOLS:
+    assert not material_icon(symbol).isNull(), symbol
+assert not window.play_button.icon().isNull()
+assert not window.nav.item(0).icon().isNull()
 
 before_library = (music.DATA / 'library.json').read_bytes()
 window.order.start(keys, keys[0], True)
@@ -84,21 +92,23 @@ if snapshots:
     Path(snapshots).mkdir(parents=True, exist_ok=True)
 
 
-def wait_for(predicate):
+def wait_for(predicate, detail='Theme observer did not update Music'):
     until = time.monotonic() + 3
     while time.monotonic() < until:
         app.processEvents()
         if predicate():
             return
-        QTest.qWait(10)
-    raise AssertionError('Theme observer did not update Music')
+        time.sleep(.01)
+    raise AssertionError(detail)
 
 
 schemes = [(f'{style}-{variant}', {'style': style, 'variant': variant}, fixed_scheme(style, variant))
            for style, variant in (('space-black', 'space-black'), ('space-black', 'tokyo'),
                                   ('space-black', 'severance'), ('fluent', 'light'), ('fluent', 'dark'))]
 for mode in ('light', 'dark'):
-    schemes.append(('material-you-' + mode, {'style': 'dynamic', 'variant': mode},
+    # The scheme file is the dynamic colour authority; the selection still
+    # chooses a known preset geometry until theme_core exposes "dynamic" itself.
+    schemes.append(('material-you-' + mode, {'style': 'fluent', 'variant': mode},
                     generate_dynamic(cover, mode=mode)))
 for name, chosen, scheme in schemes:
     # Same contract/atomic replace as the existing producer; no second authority.
@@ -106,8 +116,12 @@ for name, chosen, scheme in schemes:
     temporary = scheme_path.with_suffix('.tmp')
     temporary.write_text(json.dumps(scheme))
     temporary.replace(scheme_path)
-    wait_for(lambda: tokens()['canvas'].lower().lstrip('#') == scheme['colours']['background'].lower())
-    wait_for(lambda: tokens()['text'].lower() in window.styleSheet().lower())
+    # onSurfaceVariant maps to ``muted`` and has no later role overriding it;
+    # ``canvas`` intentionally takes the strongest surface container instead.
+    wait_for(lambda: tokens()['muted'].lower().lstrip('#') == scheme['colours']['onSurfaceVariant'].lower(),
+             f'{name}: tokens did not adopt scheme onSurfaceVariant ({tokens()["muted"]})')
+    wait_for(lambda: tokens()['text'].lower() in window.styleSheet().lower(),
+             f'{name}: window stylesheet did not re-render')
     assert window.order.export() == queue
     assert window.favorite_keys == {keys[0]}
     for width, height in ((1180, 760), (900, 660), (820, 600)):

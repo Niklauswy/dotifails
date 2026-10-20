@@ -17,9 +17,9 @@ from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, Q
     QSlider, QPlainTextEdit, QStackedWidget, QScrollArea, QMenu, QStyle, QStyleOptionSlider,
     QSizeGrip, QApplication, QLabel)
 from desktop_common import button, text_label, ElidedLabel
-from icons import icon
 from theme_tokens import apply_style, color, tokens, font, on_theme_changed
-from music_material import apply_music_style, metric
+from music_material import (apply_music_style, display_family, load_fonts,
+                            material_icon, metric)
 from music_window import MusicWindow, stamp, STATUS
 from music_library import PlaybackOrder, MusicStore, normalize, artists, parse_lrc
 from music_metadata import Metadata
@@ -76,11 +76,19 @@ class Cover(QWidget):
         super().__init__()
         self.title, self.image, self.paths = title, QPixmap(), []
         self.setFixedSize(size, size)
+        self.setAttribute(Qt.WA_Hover)
+        self.hovered = False
         self.setToolTip(title)
         self.setAccessibleName(title)
 
     def set_image(self, path):
         self.image = QPixmap(str(path));self.update()
+
+    def enterEvent(self, event):
+        self.hovered = True;self.update();super().enterEvent(event)
+
+    def leaveEvent(self, event):
+        self.hovered = False;self.update();super().leaveEvent(event)
 
     def paintEvent(self, event):
         painter = QPainter(self);painter.setRenderHint(QPainter.Antialiasing)
@@ -99,15 +107,23 @@ class Cover(QWidget):
                 painter.drawPixmap(target, scaled, QRectF(x, y, target.width(), target.height()))
         else:
             painter.setPen(color('accent'))
-            cover_font = font(role='title', weight=600);cover_font.setFamily('Rubik');cover_font.setPixelSize(max(metric('font_body'), int(self.width()*.25)));painter.setFont(cover_font)
+            cover_font = font(role='title', weight=600);cover_font.setFamily(display_family());cover_font.setPixelSize(max(metric('font_body'), int(self.width()*.25)));painter.setFont(cover_font)
             initials = ''.join(word[0] for word in self.title.split()[:2]).upper() or '♪'
             painter.drawText(rect, Qt.AlignCenter, initials)
+        # StateLayer.qml: a soft hover layer inside the same clipped surface.
+        if self.hovered:
+            painter.fillRect(rect, color('text', 20))
         painter.setClipping(False);painter.setPen(QPen(color('line'),tokens()['border']));painter.setBrush(Qt.NoBrush)
         painter.drawRoundedRect(rect, radius, radius);painter.end()
 
 
 def control(label, callback, symbol, primary=False, checkable=False):
-    result = button('', callback, 'primary' if primary else '', symbol)
+    # Details.qml/ButtonRow: round tonal transport, filled play/pause.
+    result = button('', callback, 'primary' if primary else '')
+    result.setIcon(material_icon(symbol, metric('icon_size'),
+                                 'on_accent' if primary else 'glyph'))
+    result.setIconSize(QSize(metric('icon_size'), metric('icon_size')))
+    result.setProperty('musicSymbol', symbol)
     size = metric('space_xl', 2 if primary else 1.75)
     result.setFixedSize(size, size)
     result.setToolTip(label);result.setAccessibleName(label);result.setCheckable(checkable)
@@ -140,6 +156,7 @@ class MusicAppWindow(MusicWindow):
         self.view = 'home'
         self.metadata = None
         self.restoring = False
+        load_fonts()  # Package the families before transparent icons are built.
         super().__init__(test=test)
         self.setWindowTitle('Wysun Music')
         self.resize(1180, 760)
@@ -193,8 +210,11 @@ class MusicAppWindow(MusicWindow):
         sidebar = QWidget();self.sidebar=sidebar;sidebar.setObjectName('musicNavigation');side = QVBoxLayout(sidebar);side.setContentsMargins(*([metric('space_s')]*4));side.setSpacing(metric('space_m'))
         sidebar.setFixedWidth(metric('space_xl',7))
         self.nav = QListWidget();self.nav.setFixedHeight(metric('space_xl',10));self.nav.setSpacing(0);self.nav.setAccessibleName('Navegación de música')
-        for key, name, symbol in [('home','Canciones','music'), ('albums','Álbumes','music'), ('favorites','Favoritos','heart'), ('artists','Artistas','users'), ('downloads','Descargas','download')]:
-            item = QListWidgetItem(icon(symbol), name);item.setData(Qt.UserRole,key);item.setSizeHint(QSize(0,metric('space_xl',1.75)));self.nav.addItem(item)
+        self.nav.setIconSize(QSize(metric('icon_size'),metric('icon_size')))
+        for key, name, symbol in [('home','Canciones','music'), ('albums','Álbumes','albums'), ('favorites','Favoritos','heart'), ('artists','Artistas','users'), ('downloads','Descargas','download')]:
+            item = QListWidgetItem(material_icon(symbol, metric('icon_size')), name)
+            item.setData(Qt.UserRole,key);item.setData(Qt.UserRole+1,symbol)
+            item.setSizeHint(QSize(0,metric('space_xl',1.75)));self.nav.addItem(item)
         self.nav.currentItemChanged.connect(lambda item,_: self.go(item.data(Qt.UserRole)) if item else None)
         side.addWidget(self.nav)
         side.addWidget(text_label('Tus playlists', 'musicCategory'))
@@ -202,7 +222,11 @@ class MusicAppWindow(MusicWindow):
         self.collections.setIconSize(QSize(30,30));self.collections.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.collections.currentItemChanged.connect(self.select_collection)
         side.addWidget(self.collections,1)
-        side.addWidget(button('Carpeta de música', lambda: QDesktopServices.openUrl(__import__('PySide6.QtCore',fromlist=['QUrl']).QUrl.fromLocalFile(str(music.LIBRARY))), symbol='folder-open'))
+        folder = button('Carpeta de música', lambda: QDesktopServices.openUrl(__import__('PySide6.QtCore',fromlist=['QUrl']).QUrl.fromLocalFile(str(music.LIBRARY))))
+        folder.setIcon(material_icon('folder-open', metric('icon_size')))
+        folder.setIconSize(QSize(metric('icon_size'), metric('icon_size')))
+        folder.setProperty('musicSymbol', 'folder-open')
+        side.addWidget(folder)
         body.addWidget(sidebar)
         center = QWidget();self.center=center;content = QHBoxLayout(center);self.content_layout=content;content.setContentsMargins(0,0,0,0);content.setSpacing(metric('space_m'))
         self.hero = QWidget();self.hero.setObjectName('musicArtwork')
@@ -216,7 +240,10 @@ class MusicAppWindow(MusicWindow):
         self.hero_play = button('Reproducir', self.play_view,'primary','play');hero.addWidget(self.hero_play)
         self.hero_shuffle = button('Aleatorio',self.shuffle_view,symbol='shuffle');hero.addWidget(self.hero_shuffle)
         hero.addStretch();content.addWidget(self.hero)
-        self.pages = QStackedWidget();content.addWidget(self.pages,1)
+        tracks_panel=QWidget();self.tracks_panel=tracks_panel;tracks_panel.setObjectName('musicTracks')
+        tracks_layout=QVBoxLayout(tracks_panel);self.tracks_layout=tracks_layout
+        tracks_layout.setContentsMargins(*([metric('space_m')]*4));tracks_layout.setSpacing(metric('space_s'))
+        self.pages = QStackedWidget();tracks_layout.addWidget(self.pages,1);content.addWidget(tracks_panel,1)
         self.tree = QTreeWidget();self.tree.setColumnCount(5);self.tree.setHeaderLabels(['','Canción','Artista','Duración','♡'])
         self.tree.setRootIsDecorated(False);self.tree.setUniformRowHeights(True);self.tree.setSelectionMode(QAbstractItemView.SingleSelection)
         self.tree.setAccessibleName('Canciones disponibles');self.tree.setMouseTracking(True)
@@ -280,7 +307,7 @@ class MusicAppWindow(MusicWindow):
         self.play_button=control('Reproducir · Ctrl+Espacio',self.toggle_play,'play',primary=True);row.addWidget(self.play_button)
         self.next_button=control('Siguiente · Ctrl+→',lambda:self.advance(1),'skip-forward');row.addWidget(self.next_button)
         self.repeat=control('Repetir lista',self.change_repeat,'repeat',checkable=True);row.addWidget(self.repeat)
-        row.addSpacing(10);row.addWidget(control('Letra sincronizada',self.toggle_lyrics,'file-text'))
+        row.addSpacing(10);row.addWidget(control('Letra sincronizada',self.toggle_lyrics,'lyrics'))
         row.addWidget(control('Silenciar',self.mute,'volume-2'));self.volume=QSlider(Qt.Horizontal);self.volume.setFixedWidth(metric('space_xl',3));self.volume.setRange(0,100);self.volume.setValue(60)
         self.volume.setAccessibleName('Volumen');self.volume.valueChanged.connect(lambda value:self.command(['set_property','volume',value]));row.addWidget(self.volume)
         pl.addLayout(row)
@@ -323,6 +350,23 @@ class MusicAppWindow(MusicWindow):
         self.hero.setFixedWidth(metric('space_xl',11))
         self.hero_cover.setFixedSize(*([metric('space_xl', 11)-metric('space_l',2)]*2))
         for layout in (self.body_layout,self.content_layout):layout.setSpacing(metric('space_m'))
+        self.tracks_layout.setContentsMargins(*([metric('space_m')]*4))
+        self.tracks_layout.setSpacing(metric('space_s'))
+        self.nav.setFixedHeight(metric('space_xl',10))
+        self.nav.setIconSize(QSize(metric('icon_size'),metric('icon_size')))
+        for i in range(self.nav.count()):
+            item=self.nav.item(i);symbol=item.data(Qt.UserRole+1)
+            if symbol:item.setIcon(material_icon(symbol,metric('icon_size')))
+            item.setSizeHint(QSize(0,metric('space_xl',1.75)))
+        for i in range(self.collections.count()):
+            self.collections.item(i).setSizeHint(QSize(0,metric('space_xl',2)))
+        from PySide6.QtWidgets import QPushButton
+        for widget in self.findChildren(QPushButton):
+            symbol=widget.property('musicSymbol')
+            if not symbol:continue
+            tint='on_accent' if widget.objectName()=='primary' else 'glyph'
+            widget.setIcon(material_icon(symbol,metric('icon_size'),tint))
+            widget.setIconSize(QSize(metric('icon_size'),metric('icon_size')))
         self.row_signature=None
         self.render_tracks()
         for i in range(self.lyric_list.count()):
@@ -651,7 +695,7 @@ class MusicAppWindow(MusicWindow):
         self.hero_shuffle.setEnabled(self.hero_play.isEnabled())
 
     def set_paused(self,value):
-        self.paused=bool(value);self.play_button.setText('');self.play_button.setIcon(icon('play' if self.paused else 'pause',17,'on_accent'))
+        self.paused=bool(value);self.play_button.setText('');self.play_button.setIcon(material_icon('play' if self.paused else 'pause',metric('icon_size'),'on_accent'))
         name='Reproducir' if self.paused else 'Pausar';self.play_button.setToolTip(name+' · Ctrl+Espacio');self.play_button.setAccessibleName(name)
 
     def toggle_play(self):

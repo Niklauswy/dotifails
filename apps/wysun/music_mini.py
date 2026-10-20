@@ -8,12 +8,12 @@ from music_app_window import Cover,SeekSlider,control
 from music_library import normalize
 from music_keyboard import KeyboardNavigation, SongDelegate, shortcut, playback_shortcuts, keyboard_help
 from music_window import stamp
-from icons import icon
 from theme_tokens import apply_style
-from music_material import apply_music_style, metric
+from music_material import apply_music_style, load_fonts, material_icon, metric
 
 class MiniPlayer(Surface):
     def __init__(self,player):
+        load_fonts()
         super().__init__('Wysun Music',width=420,height=620)
         apply_music_style(self)
         self.player=player;self.last_key=None;self.last_cover=None;self.rendered=None
@@ -34,7 +34,7 @@ class MiniPlayer(Surface):
         self.shuffle=control('Aleatorio',self.toggle_shuffle,'shuffle',checkable=True);row.addWidget(self.shuffle);row.addStretch();self.outer.addLayout(row)
         self.seek=SeekSlider();self.seek.setAccessibleName('Posición de reproducción');self.seek.seeked.connect(player.seek_to);self.outer.addWidget(self.seek)
         time_row=QHBoxLayout();self.elapsed=text_label('0:00','subtitle');time_row.addWidget(self.elapsed);time_row.addStretch();self.total=text_label('0:00','subtitle');time_row.addWidget(self.total);self.outer.addLayout(time_row)
-        footer=QHBoxLayout();footer.addWidget(control('Letra',self.show_lyrics,'file-text'));footer.addWidget(button('Abrir Wysun Music',self.open_full,symbol='arrow-up-right'),1)
+        footer=QHBoxLayout();footer.addWidget(control('Letra',self.show_lyrics,'lyrics'));footer.addWidget(button('Abrir Wysun Music',self.open_full,symbol='arrow-up-right'),1)
         self.volume=QSlider(Qt.Horizontal);self.volume.setRange(0,100);self.volume.setFixedWidth(65);self.volume.setAccessibleName('Volumen');self.volume.valueChanged.connect(player.volume.setValue);footer.addWidget(self.volume);self.outer.addLayout(footer)
         self.timer=QTimer(self);self.timer.timeout.connect(self.sync);self.timer.start(200)
         QShortcut(QKeySequence('Ctrl+F'),self).activated.connect(self.search.setFocus)
@@ -95,7 +95,7 @@ class MiniPlayer(Surface):
         self.play.setEnabled(bool(player.current_key or player.all_keys()))
         state=(player.paused,player.shuffle.isChecked())
         if state!=self.rendered:
-            self.rendered=state;self.play.setIcon(icon('play' if player.paused else 'pause',20,'on_accent'))
+            self.rendered=state;self.play.setIcon(material_icon('play' if player.paused else 'pause',metric('icon_size'),'on_accent'))
             self.play.setAccessibleName('Reproducir' if player.paused else 'Pausar');self.play.setToolTip(self.play.accessibleName())
             self.shuffle.setChecked(player.shuffle.isChecked())
         self.volume.blockSignals(True);self.volume.setValue(player.volume.value());self.volume.blockSignals(False)

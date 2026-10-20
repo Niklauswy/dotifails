@@ -1,6 +1,7 @@
 """Run the native Music acceptance probe in an isolated Qt/data process."""
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -20,7 +21,9 @@ class MusicMaterialTests(unittest.TestCase):
                        ORBIT_MUSIC_LIBRARY=str(home / 'audio'),
                        QT_QPA_PLATFORM='offscreen', ORBIT_REDUCED_MOTION='1')
             env.pop('ORBIT_THEME', None)
-            result = subprocess.run([sys.executable, str(Path(__file__).with_name('music_material_ui.py'))],
+            # The AO runtime can report its own bundle as sys.executable.
+            python = sys.executable if Path(sys.executable).is_file() else shutil.which('python3')
+            result = subprocess.run([python, str(Path(__file__).with_name('music_material_ui.py'))],
                                     env=env, text=True, capture_output=True, timeout=60)
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             self.assertIn('MUSIC_MATERIAL_OK', result.stdout)
