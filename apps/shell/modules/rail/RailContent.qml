@@ -45,10 +45,27 @@ Item {
             motion: root.motion
             compact: true
             glyph: "dashboard"
-            label: "Wysun · abrir popout de prueba"
+            label: "Wysun · abrir dashboard"
             Layout.alignment: Qt.AlignHCenter
-            onClicked: root.controller.toggle("test", root.screenName, root.width / 2,
+            onClicked: root.controller.toggle("dashboard", root.screenName, root.width / 2,
                 brandButton.mapToItem(root, brandButton.width / 2, brandButton.height / 2).y, brandButton)
+        }
+
+        Components.ActionButton {
+            motion: root.motion
+            compact: true
+            glyph: "search"
+            label: "Buscar aplicaciones"
+            Layout.alignment: Qt.AlignHCenter
+            onClicked: root.controller.toggle("launcher", root.screenName)
+        }
+        Components.ActionButton {
+            motion: root.motion
+            compact: true
+            glyph: "notifications"
+            label: "Notificaciones"
+            Layout.alignment: Qt.AlignHCenter
+            onClicked: root.controller.toggle("notifications", root.screenName)
         }
 
         Rectangle { Layout.fillWidth: true; Layout.preferredHeight: Wysun.Appearance.borderWidth; color: Wysun.Appearance.line }
@@ -131,7 +148,7 @@ Item {
             glyph: root.sink?.audio?.muted ? "volume_off" : (root.volumePercent < 0 ? "volume_mute" : "volume_up")
             label: root.volumePercent < 0 ? "Audio no disponible" : "Volumen " + root.volumePercent + "%"
             Layout.alignment: Qt.AlignHCenter
-            onClicked: root.controller.launch("audio")
+            onClicked: root.controller.toggle("quicksettings", root.screenName)
         }
         Components.ActionButton {
             motion: root.motion
@@ -139,7 +156,7 @@ Item {
             glyph: "wifi"
             label: "Conexiones"
             Layout.alignment: Qt.AlignHCenter
-            onClicked: root.controller.launch("connections")
+            onClicked: root.controller.toggle("quicksettings", root.screenName)
         }
         Components.ActionButton {
             visible: root.hasBattery
@@ -148,7 +165,7 @@ Item {
             glyph: root.batteryPercentage < 0.15 ? "battery_alert" : "battery_full"
             label: "Batería " + Math.round(root.batteryPercentage * 100) + "%"
             Layout.alignment: Qt.AlignHCenter
-            onClicked: root.controller.launch("power")
+            onClicked: root.controller.toggle("quicksettings", root.screenName)
         }
         Components.ActionButton {
             motion: root.motion
@@ -156,7 +173,7 @@ Item {
             glyph: "power_settings_new"
             label: "Energía y sesión"
             Layout.alignment: Qt.AlignHCenter
-            onClicked: root.controller.launch("power")
+            onClicked: root.controller.toggle("session", root.screenName)
         }
     }
 }

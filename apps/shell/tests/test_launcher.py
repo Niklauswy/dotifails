@@ -180,9 +180,9 @@ class LauncherWiringTests(unittest.TestCase):
         self.assertIn('supportsSurface', (ROOT / "ShellController.qml").read_text())
         self.assertIn('"launcher"', (ROOT / "ShellController.qml").read_text())
 
-    def test_wallpapers_are_read_only_and_open_settings(self):
+    def test_wallpapers_use_the_public_writer_and_listing_stays_read_only(self):
         schemes = (ROOT / "services/Schemes.qml").read_text()
-        self.assertIn('["wysun", "settings", "wallpaper"]', schemes)
+        self.assertIn('["wysun", "wallpaper", "set", path]', schemes)
         self.assertNotIn("apply_wallpaper", schemes)
         backend = (LAUNCHER / "backend.py").read_text()
         self.assertNotIn("apply_wallpaper", backend)

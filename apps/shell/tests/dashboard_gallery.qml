@@ -148,8 +148,8 @@ ShellRoot {
             root.grab("tab", function() { if (root.tabStep + 1 < root.tabs.length) nextTab.start(); else root.finish(0); });
         }
     }
-    Timer { id: close1; interval: 140; onTriggered: { console.info("WYSUN_GALLERY_CLOSE", popup.progress); popup.requested = false; reopen.start(); } }
-    Timer { id: reopen; interval: 90; onTriggered: { console.info("WYSUN_GALLERY_REOPEN", popup.progress); popup.requested = true; done.start(); } }
+    Timer { id: close1; interval: 140; onTriggered: { console.info("WYSUN_GALLERY_CLOSE", popup.progress); popup.requested = false; console.info("WYSUN_GALLERY_CLOSE_IMMEDIATE", popup.progress); reopen.start(); } }
+    Timer { id: reopen; interval: 90; onTriggered: { console.info("WYSUN_GALLERY_REOPEN", popup.progress); popup.requested = true; console.info("WYSUN_GALLERY_REOPEN_IMMEDIATE", popup.progress); done.start(); } }
     Timer {
         id: done
         interval: 1500

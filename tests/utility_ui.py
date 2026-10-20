@@ -11,6 +11,20 @@ from utilities import NotesWindow,ColorWindow,ProcessesWindow
 class UtilityUITests(unittest.TestCase):
  @classmethod
  def setUpClass(cls):cls.app=QApplication.instance() or QApplication([])
+ def test_material_glyphs_and_data_survive_all_presets(self):
+  from unittest.mock import patch
+  from utility_material import glyph_coverage,SYMBOLS,icon
+  from theme_tokens import refresh_widgets
+  path,family,missing=glyph_coverage();self.assertEqual(missing,())
+  for symbol in SYMBOLS:self.assertFalse(icon(symbol).isNull(),symbol)
+  with tempfile.TemporaryDirectory() as tmp:
+   w=NotesWindow(tmp);w.new();w.editor.setPlainText('# Fixture\nTexto privado sintético');self.assertTrue(w.save());key=w.key
+   try:
+    for variant in ('space-black','tokyo','severance','fluent:light','fluent:dark'):
+     with patch.dict(os.environ,{'ORBIT_THEME':variant}):
+      refresh_widgets();w.resize(1100,700);w.show();wait(50)
+      self.assertEqual(w.key,key);self.assertIn('Texto privado sintético',w.editor.toPlainText());self.assertFalse(w.grab().isNull())
+   finally:w.close()
  def test_theme_switch_refreshes_existing_widgets(self):
   from unittest.mock import patch
   from PySide6.QtWidgets import QLabel

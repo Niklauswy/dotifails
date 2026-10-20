@@ -310,7 +310,7 @@ def _atomic_write(path, text):
 def _backup(path, home=None):
     if not path.is_file():
         return None
-    root = Path(home or Path.home()) / '.local/state/orbit/theme-backups'
+    root = state_root(home) / 'orbit/theme-backups'
     root.mkdir(parents=True, exist_ok=True, mode=0o700)
     target = root / ('theme-' + datetime.datetime.now().strftime('%Y%m%d-%H%M%S-%f') + '.json')
     _atomic_write(target, path.read_text(encoding='utf-8', errors='replace'))

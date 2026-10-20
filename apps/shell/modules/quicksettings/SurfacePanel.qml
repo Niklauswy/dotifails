@@ -22,7 +22,7 @@ Components.StyledRect {
     property bool preview: false
     property var demoEntries: []
 
-    readonly property var surfaces: ["quicksettings", "notifications", "session"]
+    readonly property var surfaces: ["menu", "quicksettings", "notifications", "session"]
     property string current: ""
     readonly property bool owned: current !== ""
     // Preferred size per surface; PopoutGeometry bounds it to the screen.

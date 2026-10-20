@@ -50,7 +50,7 @@ FocusScope {
         return values.map(value => Object.assign({
             kind: route.mode,
             description: route.mode === "variant" ? "Material You desde el fondo actual"
-                : route.mode === "wallpaper" ? "Intro abre Ajustes para aplicarlo" : "",
+                : route.mode === "wallpaper" ? "Intro para aplicar este fondo" : "",
             current: route.mode === "scheme" && Logic.isCurrentScheme(value.id,
                 Wysun.Appearance.dynamicActive, Wysun.Appearance.dynamicMode,
                 Wysun.Appearance.style, Wysun.Appearance.variant)

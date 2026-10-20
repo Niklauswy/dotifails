@@ -41,15 +41,12 @@ Scope {
     function reload() {
         if (!listing.running) listing.running = true;
     }
-    // The public wallpaper writer belongs to phase 6. Until it exists, the
-    // launcher only lists wallpapers and opens the existing Settings page;
-    // it never writes environment.json or scheme.json itself.
     function selectWallpaper(path) {
         if (!wallpapers.some(row => row.path === path)) {
             failed("El fondo ya no está disponible. Vuelve a consultar la lista.");
             return false;
         }
-        return dispatch.run(["wysun", "settings", "wallpaper"], "Ajustes de fondo", "", true);
+        return dispatch.run(["wysun", "wallpaper", "set", path], "Ajustes de fondo", "", true);
     }
 
     Launcher.Dispatcher {

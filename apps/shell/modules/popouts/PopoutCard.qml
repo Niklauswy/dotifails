@@ -25,14 +25,11 @@ Components.StyledRect {
     readonly property var activeProviders: dashboard.providers
 
     readonly property string surface: controller ? controller.surface : ""
-    readonly property bool dashboardVisible: surface === "dashboard" || surface === "test"
-    readonly property string pendingTitle: {
-        switch (surface) {
-        case "launcher": return "Lanzador";
-        case "menu": return "Menú rápido";
-        case "windows": return "Ventanas";
-        case "session": return "Sesión";
-        default: return "Panel";
+    readonly property bool dashboardVisible: surface === "dashboard" || surface === "test" || surface === "windows"
+    Connections {
+        target: root.controller
+        function onSurfaceChanged() {
+            if (root.surface === "windows") dashboard.currentIndex = 3;
         }
     }
     readonly property real preferredWidth: dashboardVisible
@@ -110,30 +107,7 @@ Components.StyledRect {
             fixtureProviders: root.providers
         }
 
-        ColumnLayout {
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            visible: !root.dashboardVisible
-            spacing: Wysun.Appearance.spaceM
 
-            Item { Layout.fillHeight: true }
-            Components.StyledText {
-                Layout.fillWidth: true
-                text: root.pendingTitle
-                color: Wysun.Appearance.textStrong
-                font.pixelSize: Wysun.Appearance.fontHeading
-                font.weight: Font.DemiBold
-                Accessible.role: Accessible.Heading
-            }
-            Components.StyledText {
-                Layout.fillWidth: true
-                text: "Este módulo se integrará en una fase posterior. Mientras tanto, Escape o un clic fuera cierran el panel."
-                color: Wysun.Appearance.muted
-                font.pixelSize: Wysun.Appearance.fontBody
-                wrapMode: Text.WordWrap
-            }
-            Item { Layout.fillHeight: true }
-        }
     }
 
     // Additive integration point for phase 3. The loader is kept alive so an

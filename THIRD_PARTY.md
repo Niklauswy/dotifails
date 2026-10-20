@@ -132,3 +132,29 @@ not changed.
 - `apps/wysun/music_app_window.py` translates the cover/details separation in `modules/dashboard/Media.qml`, title/artist/seek/transport hierarchy in `modules/dashboard/media/Details.qml`, cover clipping/fallback in `components/widgets/CoverArt.qml`, and navigation grouping in `modules/nexus/NavPane.qml` to native PySide6 widgets. The local library, mpv, queue, downloads and persistence remain Wysun's existing implementation.
 - `apps/wysun/music_material.py` adapts the semantic surfaces, text roles and interaction-state layering of `components/StyledRect.qml`, `StyledText.qml` and `StateLayer.qml`. It uses the existing Wysun theme watcher and shared native motion/reduced-motion implementation. No QML, M3Shapes, visualiser, blur or C++ plugin is loaded by Music.
 - These are adaptations of upstream **shell widgets**, not a port of an upstream full-screen music application. Both derived files carry “Derivado de caelestia-dots/shell (GPL-3.0), modificado para Wysun”. Offline Rubik (OFL) and Material Symbols Rounded (Apache-2.0) resources are described above; the Music adapter resolves packaged resources and does not download fonts.
+
+## Wysun Files, utilities and capture native presentation (phase 7)
+
+Derivado de caelestia-dots/shell (GPL-3.0), modificado para Wysun.
+Source: https://github.com/caelestia-dots/shell, commit
+`507d66285e9d9fde9330adc64159cfdebb28c19a`; license: `LICENSES/GPL-3.0.txt`.
+Upstream files have no individual copyright header; no notices were removed.
+
+- `modules/nexus/NavPane.qml` and `components/{StyledRect,StyledText,StateLayer}.qml`
+  inform `apps/wysun/utility_material.py`, `files_{window,visuals}.py`,
+  `{notes,color,processes,connections,tools}_window.py` and `power_widgets.py`.
+  These are native QWidget translations; models, filesystem and private stores
+  remain Wysun's existing implementation.
+- `modules/nexus/NavPane.qml`, `modules/dashboard/Media.qml`,
+  `modules/dashboard/media/Details.qml`, `components/widgets/CoverArt.qml` and
+  `components/{StyledRect,StyledText,StateLayer}.qml` inform
+  `apps/capture/loomrec/ui/{material,layouts,components,settings}.py` and
+  `apps/capture/wybieshot/ui/main.py`. Library artwork/navigation, editor tool
+  grouping and playback hierarchy change; capture/portal/media contracts stay
+  in the existing backends. This is not an upstream full-screen music app.
+- Files/utilities package Rubik and complete Material Symbols fallback resources
+  in `apps/wysun/assets/utils-material/`, with OFL and Apache-2.0 notices.
+  Capture packages its own copies under `loomrec/ui/assets/fonts/`, with
+  `apps/capture/assets/licenses/{OFL-Rubik,Apache-2.0,GPL-3.0}.txt`; it does not
+  import the installed Orbit application. No download or host font installation
+  is needed. Shared fonts and vendor provenance are described above.

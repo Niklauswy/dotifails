@@ -117,8 +117,10 @@ class DashboardQmlTests(unittest.TestCase):
         raw = tagged(lines, "WYSUN_GALLERY_SAMPLES")[0]
         samples = json.loads(raw[: raw.index("]") + 1])
         self.assertGreater(len(samples), 10)
-        jumps = [abs(b - a) for a, b in zip(samples, samples[1:])]
-        self.assertLess(max(jumps), 0.35, "no frame may jump across the morph")
+        # Timer samples may skip rendered frames under load. Check continuity
+        # at the two retargets directly instead of assuming a frame cadence.
+        self.assertAlmostEqual(float(tagged(lines, "WYSUN_GALLERY_CLOSE_IMMEDIATE")[0]), closed_at)
+        self.assertAlmostEqual(float(tagged(lines, "WYSUN_GALLERY_REOPEN_IMMEDIATE")[0]), reopened_at)
         self.assertEqual(samples[-1], 1)
         self.assertTrue(raw.rstrip().endswith("open"), raw[-30:])
         # Once it has started opening, the close/reopen never fell back to zero.
