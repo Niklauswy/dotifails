@@ -6,16 +6,19 @@ import shutil
 import subprocess
 import sys
 import tempfile
-import time
 import unittest
-from unittest.mock import patch
 
 MODULE = Path(__file__).resolve().parent
 ROOT = MODULE.parents[3]
 sys.path.insert(0, str(ROOT / 'apps/wysun'))
+PYTHON = shutil.which('python3') or '/usr/bin/python3'
 
 
-@unittest.skipUnless(shutil.which('node'), 'Node is required for QML JS contracts')
+def qml_url(path):
+    """QML import/FontLoader URL for an absolute path (``import "/x"`` is rejected)."""
+    return 'file:' + str(path).replace('%', '%25').replace(' ', '%20').replace('#', '%23')
+
+
 class BackgroundPolicyTests(unittest.TestCase):
     def evaluate(self, expression):
         source = (MODULE / 'BackgroundPolicy.js').read_text().replace('.pragma library', '')
@@ -66,7 +69,7 @@ class LockCommandTests(unittest.TestCase):
         self.log = self.folder / 'calls.jsonl'
         for executable in ('swaylock', 'systemctl'):
             path = self.folder / executable
-            path.write_text('#!' + sys.executable + '\nimport json, os, sys\n'
+            path.write_text('#!' + PYTHON + '\nimport json, os, sys\n'
                             'with open(os.environ["FIXTURE_LOG"], "a") as f: f.write(json.dumps(sys.argv)+"\\n")\n'
                             'sys.exit(int(os.environ.get("FIXTURE_FAIL", "0")) if "swaylock" in sys.argv[0] else 0)\n')
             path.chmod(0o755)
@@ -120,10 +123,6 @@ class LockCommandTests(unittest.TestCase):
         self.assertNotIn('$(touch nope)', calls[0])
 
 
-if __name__ == '__main__':
-    unittest.main()
-
-
 @unittest.skipUnless(shutil.which('quickshell'), 'Quickshell 0.3 is required for isolated QML loading')
 class BackgroundQmlTests(unittest.TestCase):
     def test_real_qml_synthetic_images_clock_idle_fullscreen_hotplug_and_wake(self):
@@ -137,8 +136,8 @@ class BackgroundQmlTests(unittest.TestCase):
             self.assertTrue(image.save(str(folder / 'synthetic #1.png')))
             qml = '''import QtQuick
 import Quickshell
-import %s as BackgroundModule
-import %s as Wysun
+import "%s" as BackgroundModule
+import "%s" as Wysun
 ShellRoot {
     id: root
     property int phase: 0
@@ -150,7 +149,7 @@ ShellRoot {
         property string home: %s
         property var environment: ({wallpaper:{default:home + "/synthetic #1.png",clock:{enabled:true,position:"bottom-right"}}})
     }
-    FontLoader { source: %s; onStatusChanged: if (status === FontLoader.Ready) Wysun.Appearance.refreshFonts() }
+    FontLoader { source: "%s"; onStatusChanged: if (status === FontLoader.Ready) Wysun.Appearance.refreshFonts() }
     FloatingWindow {
         implicitWidth: 720; implicitHeight: 480; visible: true
         BackgroundModule.Background { id: first; anchors.fill: parent; preferences: prefs; outputName: "DP-1" }
@@ -190,9 +189,9 @@ ShellRoot {
             root.phase++;
         }
     }
-}''' % (json.dumps(str(MODULE)), json.dumps(str(ROOT / 'apps/shell')),
+}''' % (qml_url(MODULE), qml_url(ROOT / 'apps/shell'),
         (ROOT / 'apps/shell/wysun_theme.json').read_text(), json.dumps(str(folder)),
-        json.dumps(str(ROOT / 'apps/shell/assets/fonts/Rubik-Variable.ttf')))
+        qml_url(ROOT / 'apps/shell/assets/fonts/Rubik-Variable.ttf'))
             path = folder / 'fixture.qml'
             path.write_text(qml)
             env = {**os.environ, 'HOME': temporary, 'XDG_CONFIG_HOME': temporary,
@@ -201,10 +200,14 @@ ShellRoot {
                    'QT_QPA_PLATFORM': 'offscreen', 'QT_QUICK_BACKEND': 'software',
                    'DISPLAY': '', 'WAYLAND_DISPLAY': '',
                    'DBUS_SESSION_BUS_ADDRESS': 'unix:path=' + temporary + '/no-session-bus'}
-            result = subprocess.run(['quickshell', '-p', str(path)], env=env, capture_output=True, text=True, timeout=15)
+            result = subprocess.run(['quickshell', '-p', str(path)], env=env, capture_output=True, text=True, timeout=30)
             output = result.stdout + result.stderr
             self.assertEqual(result.returncode, 0, output)
             self.assertIn('FIXTURE_PASS', output, output)
             self.assertNotIn('FIXTURE_FAIL', output)
             self.assertNotIn('ReferenceError', output)
             self.assertNotIn('TypeError', output)
+
+
+if __name__ == '__main__':
+    unittest.main()
