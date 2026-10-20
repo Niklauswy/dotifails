@@ -10,10 +10,12 @@ from music_keyboard import KeyboardNavigation, SongDelegate, shortcut, playback_
 from music_window import stamp
 from icons import icon
 from theme_tokens import apply_style
+from music_material import apply_music_style, metric
 
 class MiniPlayer(Surface):
     def __init__(self,player):
         super().__init__('Wysun Music',width=420,height=620)
+        apply_music_style(self)
         self.player=player;self.last_key=None;self.last_cover=None;self.rendered=None
         self.outer.setContentsMargins(24,20,24,20);self.outer.setSpacing(12)
         self.search=QLineEdit();self.search.setPlaceholderText('Cambiar de canción…');self.search.setClearButtonEnabled(True)
@@ -23,8 +25,8 @@ class MiniPlayer(Surface):
         self.matches.setAccessibleName('Canciones disponibles');self.matches.itemClicked.connect(self.play_item);self.matches.itemActivated.connect(self.play_item)
         self.outer.addWidget(self.matches)
         cover_row=QHBoxLayout();cover_row.addStretch();self.cover=Cover('Wysun Music',200);cover_row.addWidget(self.cover);cover_row.addStretch();self.outer.addLayout(cover_row)
-        self.title=text_label('Elige una canción');self.title.setAlignment(Qt.AlignCenter);apply_style(self.title,'font-size:19px;font-weight:600;');self.outer.addWidget(self.title)
-        self.artist=text_label('');self.artist.setAlignment(Qt.AlignCenter);apply_style(self.artist,'font-size:12px;color:@muted;');self.outer.addWidget(self.artist)
+        self.title=text_label('Elige una canción');self.title.setAlignment(Qt.AlignCenter);apply_style(self.title,'font-size:@font_title;font-weight:600;');self.outer.addWidget(self.title)
+        self.artist=text_label('');self.artist.setAlignment(Qt.AlignCenter);apply_style(self.artist,'font-size:@font_small;color:@muted;');self.outer.addWidget(self.artist)
         row=QHBoxLayout();row.addStretch();self.favorite=control('Favoritos',player.favorite_current,'heart',checkable=True);row.addWidget(self.favorite)
         self.previous=control('Anterior',lambda:player.advance(-1),'skip-back');row.addWidget(self.previous)
         self.play=control('Reproducir',player.toggle_play,'play',primary=True);self.play.setFixedSize(48,48);row.addWidget(self.play)
@@ -82,7 +84,7 @@ class MiniPlayer(Surface):
             self.title.setText(track.get('title','Elige una canción'));self.artist.setText(track.get('artist',''))
             self.cover.title=track.get('title','Wysun Music');self.cover.image=__import__('PySide6.QtGui',fromlist=['QPixmap']).QPixmap();self.cover.update()
             from ui_motion import reveal_content
-            reveal_content(self.cover,140)
+            reveal_content(self.cover,metric('motion_fast'))
         path=player.covers.get(player.current_key)
         if path and path!=self.last_cover:self.cover.set_image(path);self.last_cover=path
         self.seek.setRange(0,round(player.duration));self.seek.setEnabled(bool(player.current_key))
