@@ -1,10 +1,15 @@
 #!/usr/bin/env python3
-"""Bounded wallpaper adapter; delegates writes and colour generation to Wysun.
+"""Read-only wallpaper list for the Wysun launcher.
 
 Derivado de caelestia-dots/shell (GPL-3.0), modificado para Wysun.
 Origen: modules/launcher/WallpaperList.qml and items/WallpaperItem.qml,
 commit 507d66285e9d9fde9330adc64159cfdebb28c19a.
 Véanse LICENSES/GPL-3.0.txt y THIRD_PARTY.md.
+
+This adapter never writes settings, environment.json or scheme.json. Applying a
+wallpaper is owned by Wysun Ajustes (and, from phase 6, the public
+`wysun wallpaper set` command); the launcher only enumerates bounded local
+files and opens that page.
 """
 import argparse
 import json
@@ -63,20 +68,9 @@ def list_wallpapers(settings, extra_folders=()):
     return sorted(result, key=lambda row: (not row['current'], row['name'].casefold(), row['path']))
 
 
-def select_wallpaper(settings, path, folders=()):
-    if not any(row['path'] == path for row in list_wallpapers(settings, folders)):
-        raise ValueError('El fondo ya no está disponible en las carpetas configuradas.')
-    # Existing API validates images, preserves unknown settings and monitor overrides,
-    # makes a backup and calls regenerate_if_dynamic. No new scheme.json writer.
-    values = settings.wallpaper_values()
-    values['default'] = path
-    settings.apply_wallpaper(values)
-
-
 def main(argv=None):
-    parser = argparse.ArgumentParser(description='Fondos locales de Wysun')
-    parser.add_argument('action', choices=('list', 'wallpaper'))
-    parser.add_argument('path', nargs='?')
+    parser = argparse.ArgumentParser(description='Fondos locales de Wysun (solo lectura)')
+    parser.add_argument('action', choices=('list',))
     args = parser.parse_args(argv)
     try:
         source = app_root()
@@ -85,15 +79,7 @@ def main(argv=None):
         settings = EnvironmentSettings()
         bundled = source.parents[1] / 'assets/backgrounds'
         folders = (Path.home() / '.local/share/backgrounds', Path.home() / 'Pictures/Wallpapers', bundled)
-        if args.action == 'list':
-            if args.path:
-                raise ValueError('La consulta de fondos no acepta una ruta.')
-            print(json.dumps(list_wallpapers(settings, folders), ensure_ascii=False))
-        else:
-            if not args.path:
-                raise ValueError('Selecciona un fondo de la lista.')
-            select_wallpaper(settings, args.path, folders)
-            print('Fondo actualizado. Los ajustes por monitor se conservan.')
+        print(json.dumps(list_wallpapers(settings, folders), ensure_ascii=False))
     except (OSError, ValueError, RuntimeError, ImportError) as error:
         print(str(error), file=sys.stderr)
         return 1

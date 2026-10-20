@@ -7,6 +7,7 @@ import QtQuick.Layouts
 import "../../" as Wysun
 import "../../components" as Components
 import "Logic.js" as Logic
+
 FocusScope {
     id: root
     required property var launcher
@@ -15,26 +16,58 @@ FocusScope {
     property alias resultList: list
     readonly property var route: Logic.route(query)
     readonly property var rows: {
+        if (!launcher.active) return [];
         var values;
-        switch(route.mode) {
-        case "apps": return launcher.apps.query(route.query).map(e => ({ kind: "apps", entry: e, name: e.name, description: e.genericName || e.comment || e.id }));
-        case "actions": return launcher.actions.query(route.query).map(a => Object.assign({kind: "actions"}, a));
+        switch (route.mode) {
+        case "apps":
+            return launcher.apps.query(route.query).map(entry => ({
+                kind: "apps", entry: entry, name: entry.name,
+                description: entry.genericName || entry.comment || entry.id
+            }));
+        case "actions":
+            return launcher.actions.query(route.query).map(action => Object.assign({ kind: "actions" }, action));
         case "calc":
             var result = Logic.calculate(route.query);
-            return [{kind: "calc", name: result.valid ? result.value : "Expresión inválida", description: result.valid ? "Intro para copiar el resultado" : result.error, invalid: !result.valid, value: result.value}];
-        case "scheme": values = launcher.schemes.query(route.query); break;
-        case "variant": values = launcher.variants.query(route.query); break;
-        case "wallpaper": values = launcher.schemes.wallpaperQuery(route.query); break;
-        default: values = [];
+            return [{
+                kind: "calc",
+                name: result.valid ? result.value : "Expresión inválida",
+                description: result.valid ? "Intro para copiar el resultado" : result.error,
+                invalid: !result.valid,
+                value: result.value
+            }];
+        case "scheme":
+            values = launcher.schemes.query(route.query);
+            break;
+        case "variant":
+            values = launcher.variants.query(route.query);
+            break;
+        case "wallpaper":
+            values = launcher.schemes.wallpaperQuery(route.query);
+            break;
+        default:
+            values = [];
         }
-        return values.map(v => Object.assign({kind: route.mode, description: route.mode === "variant" ? "Material You desde el fondo actual" : "", current: route.mode === "scheme" && (v.id === "dynamic" ? Wysun.Appearance.dynamicActive : v.id === Wysun.Appearance.variant || v.id === Wysun.Appearance.style + ":" + Wysun.Appearance.variant)}, v));
+        return values.map(value => Object.assign({
+            kind: route.mode,
+            description: route.mode === "variant" ? "Material You desde el fondo actual"
+                : route.mode === "wallpaper" ? "Intro abre Ajustes para aplicarlo" : "",
+            current: route.mode === "scheme" && Logic.isCurrentScheme(value.id,
+                Wysun.Appearance.dynamicActive, Wysun.Appearance.dynamicMode,
+                Wysun.Appearance.style, Wysun.Appearance.variant)
+        }, value));
     }
     onQueryChanged: launcher.errorMessage = ""
-    function reset() { query = ""; search.forceActiveFocus(); }
+
+    function reset() {
+        query = "";
+        search.forceActiveFocus();
+    }
+
     ColumnLayout {
         anchors.fill: parent
         anchors.margins: Wysun.Appearance.spaceL
         spacing: Wysun.Appearance.spaceS
+
         RowLayout {
             Layout.fillWidth: true
             Components.StyledText {
@@ -54,6 +87,7 @@ FocusScope {
                 onClicked: root.launcher.controller.close()
             }
         }
+
         ContentList {
             id: list
             Layout.fillWidth: true
@@ -63,10 +97,13 @@ FocusScope {
             motion: root.launcher.motion
             onChosen: row => root.launcher.activate(row)
         }
+
         Components.StyledText {
             Layout.fillWidth: true
             visible: text.length > 0
-            text: root.launcher.errorMessage || (root.launcher.schemes.busy ? "Aplicando cambios…" : root.launcher.schemes.loading ? "Consultando fondos…" : "")
+            text: root.launcher.errorMessage
+                || (root.launcher.schemes.busy ? "Aplicando cambios…"
+                : root.launcher.schemes.loading ? "Consultando fondos…" : "")
             color: root.launcher.errorMessage ? Wysun.Appearance.danger : Wysun.Appearance.muted
             font.pixelSize: Wysun.Appearance.fontSmall
             wrapMode: Text.WordWrap
@@ -74,6 +111,7 @@ FocusScope {
             elide: Text.ElideRight
             Accessible.role: Accessible.AlertMessage
         }
+
         SearchBar {
             id: search
             objectName: "launcherSearch"
@@ -83,11 +121,13 @@ FocusScope {
             onMove: delta => list.move(delta)
             onDismiss: root.launcher.controller.close()
         }
+
         Components.StyledText {
             Layout.fillWidth: true
-            text: "↑ ↓ elegir · Intro abrir · Esc cerrar"
+            text: "↑ ↓ elegir · Intro abrir · Esc cerrar · @ filtra apps · > acciones"
             font.pixelSize: Wysun.Appearance.fontCaption
             color: Wysun.Appearance.muted
+            wrapMode: Text.WordWrap
         }
     }
 }

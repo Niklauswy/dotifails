@@ -16,6 +16,25 @@
   - Popout host (phase 2), without `BlobGroup`, `MultiEffect` or any plugin import: `apps/shell/modules/popouts/Wrapper.qml` and `ClipWrapper.qml` from `modules/bar/popouts/Wrapper.qml` and `ClipWrapper.qml`; `PopoutState.qml` from `modules/bar/popouts/PopoutState.qml`; `Interactions.qml` and `Regions.qml` from `modules/drawers/Interactions.qml` and `Regions.qml`; the composition in `PopoutHost.qml`/`PopoutCard.qml` follows `modules/drawers/Panels.qml`; `apps/shell/utils/PopoutGeometry.js` from the geometry of `modules/bar/popouts/Wrapper.qml`
   - Dashboard (phase 2), `apps/shell/modules/dashboard/`: `Wrapper.qml`, `Content.qml`, `Tabs.qml`, `Dash.qml`, `Media.qml` and `Performance.qml` from the files of the same name in `modules/dashboard/`; `dash/Resources.qml`, `dash/DateTime.qml`, `dash/Calendar.qml` and `dash/Media.qml` from `modules/dashboard/dash/`; `performance/HeroCard.qml` and `performance/Gauge.qml` from `modules/dashboard/performance/` (the circular progress is redrawn with `QtQuick.Shapes` instead of the plugin's `CircularProgress`); `services/Media.qml` from `services/Players.qml` adapted to Wysun Music and to MPRIS players without remote artwork. The upstream fourth tab (Weather) is replaced by `Workspaces.qml` ("Escritorios"), original Wysun code over the existing Hyprland model; `Card.qml`, `IconButton.qml`, `Logic.js`, `LiveProviders.qml`, `performance/ArcPath.qml` and `services/Metrics.qml` are Wysun code written for this port.
   - `apps/shell/services/Colours.qml` from `services/Colours.qml`, adapted to Wysun's fixed-theme fallback and `scheme.json` contract
+  - `apps/shell/modules/launcher/Wrapper.qml` from `modules/launcher/Wrapper.qml`
+  - `apps/shell/modules/launcher/Content.qml` from `modules/launcher/Content.qml`
+  - `apps/shell/modules/launcher/ContentList.qml` from `modules/launcher/ContentList.qml`
+  - `apps/shell/modules/launcher/AppList.qml` from `modules/launcher/AppList.qml`
+  - `apps/shell/modules/launcher/WallpaperList.qml` from `modules/launcher/WallpaperList.qml`
+  - `apps/shell/modules/launcher/SearchBar.qml` from `components/controls/SearchBar.qml` and `modules/launcher/Content.qml`
+  - `apps/shell/modules/launcher/items/ResultItem.qml` from `modules/launcher/items/{AppItem,ActionItem,CalcItem,SchemeItem,VariantItem,WallpaperItem}.qml`
+  - `apps/shell/modules/launcher/services/M3Variants.qml` from `modules/launcher/services/M3Variants.qml`
+  - `apps/shell/modules/launcher/Dispatcher.qml` from the command handling in `modules/launcher/services/{Apps,Actions,Schemes}.qml`
+  - `apps/shell/modules/launcher/backend.py` from `modules/launcher/WallpaperList.qml` and `items/WallpaperItem.qml`, reduced to a read-only wallpaper list
+  - `apps/shell/modules/launcher/Logic.js` from `modules/launcher/{Content,AppList}.qml`, `modules/launcher/services/{Apps,Actions,Schemes,M3Variants}.qml` and the flow of `utils/Searcher.qml`
+  - `apps/shell/services/Apps.qml`, `Actions.qml` and `Schemes.qml` from the same-named `modules/launcher/services/` files
+
+  The launcher does not include Caelestia's `utils/scripts/fzf.js`
+  (BSD-3-Clause) or `utils/scripts/fuzzysort.js` (MIT); the search and
+  arithmetic code in `Logic.js` is a bounded Wysun implementation. Caelestia's
+  `caelestia` CLI calls, `Qalculator`, wallpaper writer, `wrap_term_launch.sh`
+  and `modules/Shortcuts.qml` are not copied. Wysun uses `DesktopEntries`,
+  `Wysun`'s allowlist and existing `wysun scheme set` producer instead.
 
 ### Phase 4: notifications, OSD, session and quick settings
 

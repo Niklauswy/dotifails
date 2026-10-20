@@ -4,7 +4,17 @@ config="${XDG_DATA_HOME:-$HOME/.local/share}/wysun/quickshell"
 [ -f "$config/shell.qml" ] || config="$HOME/.local/share/wysun/quickshell"
 case "${1:-}" in
     reload-preferences) shift; exec quickshell ipc -p "$config" call wysunShell reloadPreferences "$@" ;;
+    launcher) exec quickshell ipc -p "$config" call wysunShell toggle launcher ;;
     menu|windows|session) kind="$1"; shift; exec quickshell ipc -p "$config" call wysunShell toggle "$kind" "$@" ;;
+    toggle|open)
+        action="$1"; shift
+        surface="${1:-}"
+        if [ $# -gt 0 ]; then shift; fi
+        case "$surface" in
+            test|dashboard|launcher|menu|windows|session) ;;
+            *) echo "wysun-shell: superficie desconocida: ${surface:-<vacía>}" >&2; exit 2 ;;
+        esac
+        exec quickshell ipc -p "$config" call wysunShell "$action" "$surface" "$@" ;;
     theme) shift; exec quickshell ipc -p "$config" call wysunShell theme "$@" ;;
     theme-settings) shift; exec quickshell ipc -p "$config" call wysunShell openThemeSettings "$@" ;;
     close|status) action="$1"; shift; exec quickshell ipc -p "$config" call wysunShell "$action" "$@" ;;

@@ -12,19 +12,25 @@ Scope {
     property var entries: DesktopEntries.applications.values
     signal accepted(string label)
     signal failed(string message)
-    function query(text) { return Logic.appSearch(entries, text); }
+
+    function query(text) {
+        return Logic.appSearch(entries, text);
+    }
+
     function launch(entry) {
         if (!entry || entries.indexOf(entry) < 0 || entry.noDisplay || !entry.command.length) {
-            failed("La aplicación ya no está disponible. Vuelve a buscarla."); return false;
+            failed("La aplicación ya no está disponible. Vuelve a buscarla.");
+            return false;
         }
-        // DesktopEntry owns terminal command/field-code handling in Quickshell 0.3.
-        // Its execute() has no completion result; do not claim terminal startup proof.
-        if (entry.runInTerminal) {
-            try { entry.execute(); accepted(entry.name); return true; }
-            catch (error) { failed("No se pudo solicitar la terminal: " + error); return false; }
-        }
-        return dispatch.run(Array.from(entry.command), entry.name, entry.workingDirectory, false);
+        // DesktopEntry.command is the parsed Exec command (field codes already
+        // resolved). runInTerminal is honoured with Wysun's terminal wrapper;
+        // the Caelestia wrap_term_launch.sh script and caelestia CLI are not used.
+        var command = Array.from(entry.command);
+        if (entry.runInTerminal)
+            command = ["wysun-terminal", "-e"].concat(command);
+        return dispatch.run(command, entry.name, entry.workingDirectory, false);
     }
+
     Launcher.Dispatcher {
         id: dispatch
         onAccepted: label => root.accepted(label)

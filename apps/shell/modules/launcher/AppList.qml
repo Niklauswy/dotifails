@@ -5,7 +5,9 @@
 import QtQuick
 import QtQuick.Controls
 import "../../" as Wysun
+import "../../components" as Components
 import "items"
+
 ListView {
     id: root
     property var motion
@@ -15,6 +17,7 @@ ListView {
     boundsBehavior: Flickable.StopAtBounds
     highlightMoveDuration: motion ? motion.hover : 0
     onModelChanged: currentIndex = count ? 0 : -1
+    onCountChanged: if (count === 0) currentIndex = -1
     onCurrentIndexChanged: if (currentIndex >= 0) positionViewAtIndex(currentIndex, ListView.Contain)
     delegate: ResultItem {
         required property var modelData
@@ -23,7 +26,12 @@ ListView {
         row: modelData
         motion: root.motion
         selected: root.currentIndex === index
-        onClicked: { root.currentIndex = index; root.chosen(modelData); }
+        onClicked: {
+            root.currentIndex = index;
+            root.chosen(modelData);
+        }
     }
-    ScrollBar.vertical: ScrollBar { }
+    // The list is keyboard-driven from SearchBar; the default Controls
+    // scrollbar would bring an unthemed style.
+    ScrollBar.vertical: ScrollBar { policy: ScrollBar.AlwaysOff }
 }

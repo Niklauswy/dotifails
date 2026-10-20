@@ -7,6 +7,7 @@ import QtQuick.Layouts
 import "../../" as Wysun
 import "../../components" as Components
 import "../dashboard" as Dashboard
+import "../launcher" as LauncherModule
 
 Components.StyledRect {
     id: root
@@ -58,6 +59,7 @@ Components.StyledRect {
         id: content
         anchors.fill: parent
         anchors.margins: Wysun.Appearance.spaceL
+        visible: root.controller.surface !== "launcher"
         opacity: root.contentOpacity
         spacing: Wysun.Appearance.spaceM
 
@@ -131,6 +133,23 @@ Components.StyledRect {
                 wrapMode: Text.WordWrap
             }
             Item { Layout.fillHeight: true }
+        }
+    }
+
+    // Additive integration point for phase 3. The loader is kept alive so an
+    // application launched from the launcher is not killed when the card
+    // closes; the launcher itself hides through its `active` binding.
+    Loader {
+        id: launcherLoader
+        anchors.fill: parent
+        active: true
+        visible: root.controller.surface === "launcher"
+        opacity: root.contentOpacity
+        sourceComponent: Component {
+            LauncherModule.Wrapper {
+                controller: root.controller
+                motion: root.motion
+            }
         }
     }
 }

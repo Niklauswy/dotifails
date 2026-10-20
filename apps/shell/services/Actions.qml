@@ -10,12 +10,20 @@ Scope {
     id: root
     signal accepted(string label)
     signal failed(string message)
-    function query(text) { return Logic.search(Logic.modes.concat(Logic.actions), text, ["name", "id", "description"]); }
+
+    function query(text) {
+        return Logic.search(Logic.modes.concat(Logic.actions), text, ["name", "id", "description"]);
+    }
+
     function launch(id) {
         var argv = Logic.actionArgv(id);
-        if (!argv.length) { failed("Acción no permitida."); return false; }
+        if (!argv.length) {
+            failed("Acción no permitida.");
+            return false;
+        }
         return dispatch.run(argv, id, "", false);
     }
+
     Launcher.Dispatcher {
         id: dispatch
         onAccepted: label => root.accepted(label)
