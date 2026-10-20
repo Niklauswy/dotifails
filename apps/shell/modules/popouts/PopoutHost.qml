@@ -34,6 +34,7 @@ PanelWindow {
         } else {
             grab.active = false;
         }
+        progress = targetVisible ? 1 : 0;
     }
     onProgressChanged: {
         if (targetVisible && progress >= 1) controller.state.phase = "open";

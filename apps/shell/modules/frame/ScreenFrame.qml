@@ -29,6 +29,8 @@ PanelWindow {
     Rectangle {
         anchors.fill: parent
         anchors.margins: Wysun.Appearance.frameInset
+        // Keep the work-area frame clear of the rail's controls.
+        anchors.leftMargin: Wysun.Appearance.railWidth + Wysun.Appearance.frameInset
         color: "transparent"
         radius: Wysun.Appearance.frameRadius
         border.width: Wysun.Appearance.frameThickness
