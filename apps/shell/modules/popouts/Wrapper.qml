@@ -1,33 +1,39 @@
 // Derivado de caelestia-dots/shell (GPL-3.0), modificado para Wysun
-// Origen: modules/bar/popouts/Wrapper.qml; ClipWrapper.qml, commit 507d66285e9d9fde9330adc64159cfdebb28c19a.
+// Origen: modules/bar/popouts/Wrapper.qml, commit 507d66285e9d9fde9330adc64159cfdebb28c19a.
 // Avisos y licencia íntegra: THIRD_PARTY.md y LICENSES/GPL-3.0.txt.
 import QtQuick
+import "../../utils/PopoutGeometry.js" as Geometry
 import "../../components" as Components
 
+// Geometry-only morph surface. Position and size are a pure function of
+// `progress`; the animation lives in PopoutState so an interrupted transition
+// retargets continuously instead of stacking Behaviors.
 FocusScope {
     id: root
     required property var motion
-    property bool requested: false
-    property real originX: 0
-    property real originY: 0
-    property real originWidth: 0
-    property real originHeight: 0
-    property real targetX: 0
-    property real targetY: 0
-    property real targetWidth: 0
-    property real targetHeight: 0
     property real progress: 0
-    default property alias content: clipper.data
-    readonly property bool retained: requested || progress > 0
-    x: requested ? targetX : originX
-    y: requested ? targetY : originY
-    width: requested ? targetWidth : originWidth
-    height: requested ? targetHeight : originHeight
-    // Each geometry animation retargets from its current value, including when
-    // a second invocation changes the origin/monitor during an opening/close.
-    Behavior on x { Components.Anim { motion: root.motion; duration: root.motion.reducedMotion ? 0 : root.motion.morph; type: Components.Anim.Emphasized } }
-    Behavior on y { Components.Anim { motion: root.motion; duration: root.motion.reducedMotion ? 0 : root.motion.morph; type: Components.Anim.Emphasized } }
-    Behavior on width { Components.Anim { motion: root.motion; duration: root.motion.reducedMotion ? 0 : root.motion.morph; type: Components.Anim.Emphasized } }
-    Behavior on height { Components.Anim { motion: root.motion; duration: root.motion.reducedMotion ? 0 : root.motion.morph; type: Components.Anim.Emphasized } }
-    ClipWrapper { id: clipper; anchors.fill: parent }
+    property var originRect: ({ x: 0, y: 0, width: 72, height: 64 })
+    property var targetRect: ({ x: 0, y: 0, width: 0, height: 0 })
+    property real contentOpacity: 1
+    default property alias content: clipper.content
+
+    readonly property var geometry: Geometry.interpolateRect(
+        originRect.x, originRect.y, originRect.width, originRect.height,
+        targetRect.x, targetRect.y, targetRect.width, targetRect.height,
+        motion && motion.reducedMotion ? (progress > 0 ? 1 : 0) : progress)
+
+    x: geometry.x
+    y: geometry.y
+    width: geometry.width
+    height: geometry.height
+    visible: progress > 0
+    clip: true
+
+    ClipWrapper {
+        id: clipper
+        anchors.fill: parent
+        opacity: root.contentOpacity
+        Accessible.role: Accessible.Grouping
+        Accessible.name: "Panel de Wysun"
+    }
 }

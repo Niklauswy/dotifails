@@ -4,12 +4,18 @@
 import QtQuick
 import "../../components" as Components
 
-Item {
+// One state machine per output. `progress` is animated, so a close that is
+// interrupted by a new open continues from the current value instead of
+// restarting from zero (the host morph follows this number directly).
+QtObject {
     id: root
     required property var motion
     property bool requested: false
     property real progress: requested ? 1 : 0
     readonly property bool retained: requested || progress > 0
     readonly property string phase: requested ? (progress < 1 ? "opening" : "open") : (progress > 0 ? "closing" : "closed")
-    Behavior on progress { Components.Anim { motion: root.motion; type: Components.Anim.Emphasized } }
+
+    Behavior on progress {
+        Components.Anim { motion: root.motion; type: Components.Anim.Emphasized }
+    }
 }

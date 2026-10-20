@@ -13,23 +13,29 @@ Item {
     property var fixtureProviders: null
     readonly property var providers: live ? liveProvider.item : fixtureProviders
     property alias currentIndex: content.currentIndex
+
     implicitWidth: content.implicitWidth
     implicitHeight: content.implicitHeight
+
     Loader {
         id: liveProvider
         active: root.live && root.sampling
         source: "LiveProviders.qml"
-        onLoaded: { item.enabled = Qt.binding(() => root.sampling); item.monitorName = Qt.binding(() => root.monitorName); }
+        onLoaded: {
+            item.enabled = Qt.binding(function() { return root.sampling; });
+            item.monitorName = Qt.binding(function() { return root.monitorName; });
+        }
     }
+
     Content {
         id: content
         anchors.fill: parent
         motion: root.motion
         controller: root.controller
         monitorName: root.monitorName
-        metrics: root.providers?.metrics || null
-        media: root.providers?.media || null
-        workspaces: root.providers?.workspaces || []
-        windows: root.providers?.windows || []
+        metrics: root.providers ? root.providers.metrics : null
+        media: root.providers ? root.providers.media : null
+        workspaces: root.providers ? root.providers.workspaces : []
+        windows: root.providers ? root.providers.windows : []
     }
 }

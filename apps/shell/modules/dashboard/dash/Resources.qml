@@ -11,6 +11,7 @@ import "../Logic.js" as Logic
 Components.StyledRect {
     id: root
     property var metrics: null
+    property var motion
     color: Wysun.Appearance.surfaceRaised
     radius: Wysun.Appearance.radiusL
     implicitHeight: row.implicitHeight + Wysun.Appearance.spaceL * 2

@@ -3,11 +3,15 @@
 // Avisos y licencia íntegra: THIRD_PARTY.md y LICENSES/GPL-3.0.txt.
 import QtQuick
 
+// Full-output scrim. Clicks on the card never reach this MouseArea because the
+// card is a sibling above it; clicks outside the card close the surface and
+// are consumed so they cannot activate the application below on release.
 MouseArea {
     id: root
     required property var controller
-    acceptedButtons: Qt.AllButtons
-    // Press is consumed on this output; it must never activate an underlying
-    // application on release after closing the panel.
-    onClicked: root.controller.close()
+    property bool active: true
+    anchors.fill: parent
+    acceptedButtons: active ? Qt.AllButtons : Qt.NoButton
+    hoverEnabled: true
+    onClicked: if (root.active) root.controller.close()
 }

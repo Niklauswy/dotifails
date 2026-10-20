@@ -10,6 +10,7 @@ import "../Logic.js" as Logic
 Components.StyledRect {
     id: root
     required property string label
+    property var motion
     property string subLabel: ""
     property var usage: null
     property var temperature: null
