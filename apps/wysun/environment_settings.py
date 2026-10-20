@@ -635,5 +635,6 @@ def render_wallpaper(values, outputs, home=None, runner=run):
     from hypr_settings import config_dir
     config=config_dir(home)/'orbit/environment.json';data=read_json(config);data['wallpaper']=copy.deepcopy(values)
     atomic_write(config,json.dumps(data,ensure_ascii=False,indent=2)+'\n')
-    runner(['wysun','shell','reload-preferences'])
+    try:runner(['wysun','shell','reload-preferences'])
+    except Exception:pass  # the shell watches environment.json; a stopped shell is not a failed save
     return selected_paths[0]

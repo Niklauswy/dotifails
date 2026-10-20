@@ -10,6 +10,7 @@ from theme_tokens import apply_style, extend_style, color, tokens, font
 
 import copy
 import json
+import theme_core
 import os
 import subprocess
 from pathlib import Path
@@ -23,6 +24,8 @@ from settings_shortcuts import expanded_rows,change_binding,application_shortcut
 from environment_settings import (EnvironmentSettings,DisplayTrial,display_inventory,display_plan,BAR_MODULES)
 from icons import icon
 from ui_motion import MotionButton as QPushButton
+
+MATERIAL_VARIANTS=(('tonalspot','Tonal'),('vibrant','Vibrante'),('expressive','Expresiva'),('content','Contenido'),('fidelity','Fiel al fondo'),('neutral','Neutra'),('monochrome','Monocroma'),('rainbow','Arcoíris'),('fruitsalad','Macedonia'))
 
 class Job(QThread):
     ready=Signal(object)
@@ -111,7 +114,7 @@ class SettingsHub(LegacySettingsWindow):
         self.pages.setCurrentIndex(index);
         from ui_motion import reveal_content
         reveal_content(self.pages.currentWidget())
-        key=self.section();self.apply_button.setVisible(key in ('displays','wallpaper','shell','bar','appearance','behavior','rules','effects','terminal','notifications'));self.apply_button.setText('Probar distribución' if key=='displays' else 'Aplicar cambios')
+        key=self.section();self.apply_button.setVisible(key in ('displays','wallpaper','shell','bar','appearance','behavior','rules','effects','terminal','notifications'));self.apply_button.setText('Probar distribución' if key=='displays' else 'Aplicar cambios');self.apply_button.setEnabled(not(key=='shell' and getattr(self,'shell_error','')))
         if key=='shortcuts' and not self.extra_loaded:
             self.extra_loaded=True;self.start_job(lambda:application_shortcuts(home=self.env.home),self.receive_shortcuts)
         elif key=='workspaces':self.refresh_workspaces()
@@ -255,16 +258,28 @@ class SettingsHub(LegacySettingsWindow):
         for style,spec in theme_core.styles().items():
             for variant in spec['variants']:
                 value=theme_core.resolve(style,variant)
-                self.colour_source.addItem(spec['name']+' · '+value['name'],(style,variant))
+                self.colour_source.addItem(spec['name']+' · '+value['name'],theme_core.key(style,variant))
         self.colour_source.setAccessibleName('Origen del esquema');form.addRow('Colores',self.colour_source)
         self.colour_mode=QComboBox();self.colour_mode.addItem('Oscuro','dark');self.colour_mode.addItem('Claro','light');form.addRow('Modo Material You',self.colour_mode)
-        self.seed_note=text_label('El acento se extrae del fondo. La semilla manual requiere el contrato del productor de color.','subtitle');self.seed_note.setWordWrap(True);form.addRow(self.seed_note)
+        self.colour_variant=QComboBox();self.colour_variant.addItem('Automática · según el fondo','auto')
+        for key,title in MATERIAL_VARIANTS:self.colour_variant.addItem(title,key)
+        self.colour_variant.setAccessibleName('Variante Material You');form.addRow('Variante',self.colour_variant)
+        self.colour_seed=QLineEdit();self.colour_seed.setPlaceholderText('#RRGGBB · vacío usa el fondo');self.colour_seed.setAccessibleName('Semilla de color');self.colour_seed.setMaxLength(7)
+        seed_row=QHBoxLayout();seed_row.addWidget(self.colour_seed,1);seed_row.addWidget(button('Elegir',self.choose_seed,symbol='palette'));form.addRow('Semilla',seed_row)
+        self.seed_note=text_label('Material You parte del fondo; una semilla manual lo sustituye sin cambiar el modo ni la variante.','subtitle');self.seed_note.setWordWrap(True);form.addRow(self.seed_note)
         self.theme_summary=text_label('','subtitle');self.theme_summary.setWordWrap(True);form.addRow(self.theme_summary)
         self.wallpaper_target=QComboBox();self.wallpaper_target.hide()
         self.load_colour_preferences()
         self.colour_source.currentIndexChanged.connect(self.colour_changed)
         self.colour_mode.currentIndexChanged.connect(self.preference_edited)
+        self.colour_variant.currentIndexChanged.connect(self.preference_edited)
+        self.colour_seed.textChanged.connect(self.preference_edited)
         self.wallpaper_path.textChanged.connect(self.preference_edited)
+
+    def choose_seed(self):
+        from PySide6.QtWidgets import QColorDialog
+        chosen=QColorDialog.getColor(QColor(self.colour_seed.text().strip() or '#6750a4'),self,'Semilla de color')
+        if chosen.isValid():self.colour_seed.setText(chosen.name())
 
     def choose_wallpaper(self):
         path,_=QFileDialog.getOpenFileName(self,'Elegir fondo',str(self.env.home),'Imágenes (*.png *.jpg *.jpeg *.webp *.bmp)')
@@ -278,24 +293,30 @@ class SettingsHub(LegacySettingsWindow):
 
     def load_colour_preferences(self):
         self.colour_baseline=self.env.colour_values();self.theme_selected=tuple(self.colour_baseline['selection'])
-        source='dynamic' if self.colour_baseline['dynamic'] else self.theme_selected
+        source='dynamic' if self.colour_baseline['dynamic'] else theme_core.key(*self.theme_selected)
         self.colour_source.setCurrentIndex(max(0,self.colour_source.findData(source)))
         self.colour_mode.setCurrentIndex(max(0,self.colour_mode.findData(self.colour_baseline['mode'])))
-        self.colour_mode.setEnabled(source=='dynamic')
+        self.colour_variant.setCurrentIndex(max(0,self.colour_variant.findData(self.colour_baseline['variant'])));self.colour_seed.setText(self.colour_baseline['seed'])
+        self.set_dynamic_controls(source=='dynamic')
         self.wallpaper_values=self.env.wallpaper_values();self.wallpaper_path.setText(self.wallpaper_values.get('default',''))
         self.update_wallpaper_preview();self.refresh_theme_selection()
 
     def colour_changed(self,*_):
         selected=self.colour_source.currentData()
-        self.colour_mode.setEnabled(selected=='dynamic')
-        if selected!='dynamic':self.theme_selected=tuple(selected)
+        self.set_dynamic_controls(selected=='dynamic')
+        if selected!='dynamic':self.theme_selected=theme_core.parse(selected)
         self.preference_edited();self.refresh_theme_selection()
+
+    def set_dynamic_controls(self,enabled):
+        for control in (self.colour_mode,self.colour_variant,self.colour_seed):control.setEnabled(enabled)
 
     def refresh_theme_selection(self):
         if not hasattr(self,'colour_source'):return
         import theme_core
         current=theme_core.read_scheme(self.env.home)
-        active='Material You' if current and current['name']=='dynamic' else self.theme_label(theme_core.read_file(self.env.home))
+        if current and current['name']=='dynamic':active='Material You'
+        elif self.colour_baseline['dynamic']:active='Material You · elige un fondo para generar los colores; mientras tanto se usa '+self.theme_label(theme_core.read_file(self.env.home))
+        else:active=self.theme_label(theme_core.read_file(self.env.home))
         self.theme_summary.setText('Activo · '+active)
 
     def theme_label(self,selection):
@@ -306,11 +327,11 @@ class SettingsHub(LegacySettingsWindow):
     def select_theme(self,key):
         import theme_core
         self.theme_selected=theme_core.parse(key) if isinstance(key,str) else theme_core.normalize(*key)
-        self.colour_source.setCurrentIndex(self.colour_source.findData(tuple(self.theme_selected)))
+        self.colour_source.setCurrentIndex(self.colour_source.findData(theme_core.key(*self.theme_selected)))
 
     def apply_wallpaper(self):
         source=self.colour_source.currentData()
-        values=dict(dynamic=source=='dynamic',selection=self.theme_selected if source=='dynamic' else source,mode=self.colour_mode.currentData())
+        values=dict(dynamic=source=='dynamic',selection=self.theme_selected if source=='dynamic' else source,mode=self.colour_mode.currentData(),variant=self.colour_variant.currentData(),seed=self.colour_seed.text().strip())
         path=self.wallpaper_path.text().strip()
         self.apply_button.setEnabled(False);self.status.setText('Aplicando fondo y colores…')
         def complete(result):
@@ -324,7 +345,8 @@ class SettingsHub(LegacySettingsWindow):
     def build_shell(self):
         layout=self.page();self.page_heading(layout,'Paneles','El riel y el marco comparten las preferencias del escritorio. La bandeja tiene una sola salida propietaria.')
         form=self.scroll_form(layout)
-        self.shell_baseline=self.env.shell_values()
+        self.read_shell_state()
+        self.shell_note=text_label('','subtitle');self.shell_note.setWordWrap(True);form.addRow(self.shell_note)
         self.rail_enabled=QCheckBox('Mostrar el riel izquierdo');self.frame_enabled=QCheckBox('Mostrar el marco del escritorio')
         self.low_power=QCheckBox('Bajo consumo');self.low_power.setToolTip('Permite al shell reducir trabajo visual; no cambia los servicios ni el perfil de energía del sistema.')
         for key,control in [('rail_enabled',self.rail_enabled),('frame_enabled',self.frame_enabled),('low_power',self.low_power)]:
@@ -334,13 +356,33 @@ class SettingsHub(LegacySettingsWindow):
         for title,control in [('Salida principal',self.shell_primary),('Bandeja de aplicaciones',self.shell_tray)]:
             control.addItem('Automática','');form.addRow(title,control);control.currentIndexChanged.connect(self.preference_edited)
         self.shell_opacity=QSpinBox();self.shell_opacity.setRange(65,100);self.shell_opacity.setSuffix(' %')
-        self.shell_motion=QCheckBox('Reducir movimiento');self.appearance_baseline=self.env.appearance_values()
+        self.shell_motion=QCheckBox('Reducir movimiento')
         self.shell_opacity.setValue(self.appearance_baseline['opacity']);self.shell_motion.setChecked(self.appearance_baseline['reduced_motion'])
         form.addRow('Opacidad',self.shell_opacity);form.addRow(self.shell_motion)
         self.shell_opacity.valueChanged.connect(self.preference_edited);self.shell_motion.toggled.connect(self.preference_edited)
         form.addRow(button('Revertir último cambio de preferencias',self.undo_preferences,symbol='rotate-ccw'))
+        self.panel_controls=[self.rail_enabled,self.frame_enabled,self.low_power,self.shell_primary,self.shell_tray,self.shell_opacity,self.shell_motion]
+        self.show_shell_state()
+
+    def read_shell_state(self):
+        """Read shell.json and appearance.json; an unreadable file blocks only its own page."""
+        from settings_data import SHELL_DEFAULTS
+        self.shell_error=''
+        try:self.shell_baseline=self.env.shell_values()
+        except (OSError,ValueError) as error:
+            self.shell_baseline=dict(SHELL_DEFAULTS);self.shell_error=str(error)
+        try:self.appearance_baseline=self.env.appearance_values()
+        except (OSError,ValueError) as error:
+            self.appearance_baseline=dict(opacity=80,reduced_motion=False);self.shell_error=self.shell_error or str(error)
+
+    def show_shell_state(self):
+        blocked=bool(self.shell_error)
+        self.shell_note.setVisible(blocked);self.shell_note.setText(self.shell_error+' Corrige o restaura el archivo y pulsa Recargar; no se modificó nada.' if blocked else '')
+        for control in self.panel_controls+list(self.shell_checks.values()):control.setEnabled(not blocked)
+        if self.section()=='shell':self.apply_button.setEnabled(not blocked)
 
     def apply_shell_preferences(self):
+        if self.shell_error:self.report_error(self.shell_error);return
         values=dict(anchor='left',rail_enabled=self.rail_enabled.isChecked(),frame_enabled=self.frame_enabled.isChecked(),
                     low_power=self.low_power.isChecked(),monitors={name:c.isChecked() for name,c in self.shell_checks.items()},
                     primary_monitor=self.shell_primary.currentData() or '',tray_monitor=self.shell_tray.currentData() or '')
@@ -407,10 +449,10 @@ class SettingsHub(LegacySettingsWindow):
         finally:self.preferences_loading=False
 
     def load_shell_preferences(self):
-        self.shell_baseline=self.env.shell_values();self.appearance_baseline=self.env.appearance_values()
+        self.read_shell_state()
         for key,control in [('rail_enabled',self.rail_enabled),('frame_enabled',self.frame_enabled),('low_power',self.low_power)]:control.setChecked(self.shell_baseline[key])
         self.shell_opacity.setValue(self.appearance_baseline['opacity']);self.shell_motion.setChecked(self.appearance_baseline['reduced_motion'])
-        self.refresh_shell_outputs()
+        self.refresh_shell_outputs();self.show_shell_state()
 
     def undo_preferences(self):
         if not self.preferences_backup:self.status.setText('No hay un cambio de esta ventana para revertir. Las copias anteriores siguen en Archivos y copias.');return
