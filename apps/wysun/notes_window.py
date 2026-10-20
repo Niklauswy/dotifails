@@ -1,3 +1,6 @@
+# Derivado de caelestia-dots/shell (GPL-3.0), modificado para Wysun.
+# Fuente: 507d66285e9d9fde9330adc64159cfdebb28c19a; véase THIRD_PARTY.md.
+# Los QML de origen no incluyen avisos de copyright adicionales por archivo.
 """A focused Markdown library, using the same surfaces and actions as Wysun."""
 from theme_tokens import apply_style, extend_style, css, on_theme_changed
 
@@ -8,7 +11,8 @@ from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import (QApplication, QWidget, QHBoxLayout, QVBoxLayout,
     QLineEdit, QComboBox, QListWidget, QListWidgetItem, QPlainTextEdit,
     QTextBrowser, QSplitter, QFileDialog)
-from desktop_common import Surface, button, text_label, open_vim
+from utility_material import MaterialSurface as Surface, button, surface, metrics
+from desktop_common import  text_label, open_vim
 from icons import icon
 from utility_data import Notes, digest
 
@@ -22,20 +26,23 @@ class NotesWindow(Surface):
         self.key = self.expected = None
         self.dirty = self.loading = False
         extend_style(self,'''
-            QPlainTextEdit, QTextBrowser { background:transparent; border:0; padding:12px; font-size:14px; }
+            QPlainTextEdit, QTextBrowser { background:transparent; border:0; padding:12px; font-size:@font_body; }
             QListWidget::item { padding:0; margin:2px 0; }
-            QWidget#notePane { border-left:1px solid @grid; }
-            QLabel#noteTitle {font-size:17px; font-weight:600;}
+            QWidget#notePane { border:0; }
+            QLabel#noteTitle {font-size:@font_title; font-weight:600;}
             QSplitter::handle { background:transparent; width:1px; }
         ''')
-        split = QSplitter()
-        left = QWidget(); sidebar = QVBoxLayout(left); sidebar.setContentsMargins(0, 0, 14, 0)
+        split = QSplitter(); self.workspace = split
+        left = surface(QWidget(), 'navigation'); sidebar = QVBoxLayout(left)
+        gap = metrics()['gap']; sidebar.setContentsMargins(gap, gap, gap, gap)
+        sidebar.addWidget(text_label('Biblioteca', 'title'))
+        sidebar.addWidget(button('Nueva nota · Ctrl N', self.new, 'primary', 'plus'))
         self.search = QLineEdit(); self.search.setPlaceholderText('Buscar notas…'); sidebar.addWidget(self.search)
         self.folder = QComboBox(); self.folder.addItems(['Todas las notas', 'Favoritas', 'Papelera']); sidebar.addWidget(self.folder)
         self.list = QListWidget(); self.list.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff); sidebar.addWidget(self.list, 1)
-        sidebar.addWidget(button('Nueva nota   Ctrl N', self.new, 'primary', 'plus'))
+        
         split.addWidget(left)
-        right = QWidget(); right.setObjectName('notePane'); layout = QVBoxLayout(right); layout.setContentsMargins(20, 0, 0, 0)
+        right = surface(QWidget()); right.setObjectName('notePane'); layout = QVBoxLayout(right); layout.setContentsMargins(gap, gap, gap, gap)
         toolbar = QHBoxLayout()
         self.edit_button = button('Escribir', lambda: self.set_preview(False), symbol='pencil'); self.edit_button.setCheckable(True)
         self.preview_button = button('Leer', lambda: self.set_preview(True), symbol='eye'); self.preview_button.setCheckable(True)
@@ -47,7 +54,7 @@ class NotesWindow(Surface):
         self.preview = QTextBrowser(); self.preview.setOpenExternalLinks(False); self.theme_changed(); on_theme_changed(self.theme_changed); layout.addWidget(self.preview, 1)
         self.meta = text_label('', 'subtitle'); layout.addWidget(self.meta); split.addWidget(right); split.setSizes([270, 620]); self.outer.addWidget(split, 1)
         footer = QHBoxLayout(); self.status = text_label('Guardado local', 'subtitle'); footer.addWidget(self.status, 1)
-        footer.addWidget(button('Abrir en Vim', self.vim, symbol='terminal')); footer.addWidget(button('Acciones  Alt K', self.actions)); self.outer.addLayout(footer)
+        footer.addWidget(button('Abrir en Vim', self.vim, symbol='terminal')); footer.addWidget(button('Acciones  Alt K', self.actions)); layout.addLayout(footer)
         self.timer = QTimer(self); self.timer.setSingleShot(True); self.timer.setInterval(650); self.timer.timeout.connect(self.save)
         self.search.textChanged.connect(self.refresh); self.folder.currentIndexChanged.connect(self.refresh)
         self.list.currentItemChanged.connect(self.selected); self.editor.textChanged.connect(self.changed)

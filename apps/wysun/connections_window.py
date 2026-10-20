@@ -1,3 +1,6 @@
+# Derivado de caelestia-dots/shell (GPL-3.0), modificado para Wysun.
+# Fuente: 507d66285e9d9fde9330adc64159cfdebb28c19a; véase THIRD_PARTY.md.
+# Los QML de origen no incluyen avisos de copyright adicionales por archivo.
 """Independent connection center: NetworkManager, BlueZ and SSH."""
 from theme_tokens import apply_style
 
@@ -5,7 +8,8 @@ import json,os,re,subprocess,time
 from pathlib import Path
 from PySide6.QtCore import Qt,QProcess,QProcessEnvironment,QTimer,QSize,QEvent,QDateTime,QLocale
 from PySide6.QtWidgets import (QApplication,QDialog,QVBoxLayout,QHBoxLayout,QFormLayout,QLineEdit,QSpinBox,QListWidget,QListWidgetItem,QLabel,QMessageBox,QInputDialog,QWidget,QFrame,QScrollArea,QGridLayout,QCheckBox,QProgressBar)
-from desktop_common import Surface,button,text_label,launch,open_vim
+from utility_material import MaterialSurface as Surface, button, surface, metrics
+from desktop_common import button,text_label,launch,open_vim
 from connections_data import ConnectionScan,SSHProfiles,ssh_args
 from icons import icon,badge
 from PySide6.QtGui import QKeySequence,QShortcut
@@ -15,23 +19,26 @@ class ConnectionsWindow(Surface):
     def __init__(self):
         super().__init__('Wysun Conexiones','Redes, dispositivos y servidores · todo en un lugar',1040,650)
         self.mode='wifi';self.scan=None;self.rows=[];self.meta={};self.proc=None;self.prompting=False;self.output='';self.failed=False;self.scan_process=None;self.profile_store=SSHProfiles();self.page_state={};self.detail_cache={};self.detail_scan=None;self.detail_for='';self.refreshing=False
-        self.tabs={};tabs=QHBoxLayout();tabs.setSpacing(5)
+        workspace=QHBoxLayout();self.workspace=QWidget();self.workspace.setLayout(workspace)
+        navigation=surface(QWidget(), 'navigation');tabs=QVBoxLayout(navigation);tabs.setSpacing(metrics()['space_s'])
+        content=surface(QWidget());content_layout=QVBoxLayout(content);gap=metrics()['gap'];content_layout.setContentsMargins(gap,gap,gap,gap)
+        workspace.addWidget(navigation);workspace.addWidget(content,1);self.tabs={}
         for i,(key,title,symbol) in enumerate([('wifi','Wi-Fi y Ethernet','wifi'),('bluetooth','Bluetooth','bluetooth'),('vpn','VPN','vpn'),('ssh','SSH','ssh'),('saved','Guardadas','files')]):
             b=button(title,lambda k=key:self.select_mode(k),symbol=symbol);b.setCheckable(True);b.setToolTip(f'Alt + {i+1}');tabs.addWidget(b);self.tabs[key]=b
             QShortcut(QKeySequence(f'Alt+{i+1}'),self).activated.connect(lambda k=key:self.select_mode(k))
-        tabs.addStretch();self.outer.addLayout(tabs)
-        tools=QHBoxLayout();self.search=QLineEdit();self.search.setPlaceholderText('Buscar red o dispositivo…');self.search.textChanged.connect(self.render);self.search.installEventFilter(self);tools.addWidget(self.search,1);self.toggle=button('Wi-Fi',self.toggle_radio,symbol='power');tools.addWidget(self.toggle);self.refresh=button('Actualizar',self.rescan,symbol='refresh-cw');tools.addWidget(self.refresh);self.outer.addLayout(tools)
-        middle=QHBoxLayout();middle.setSpacing(22);left=QWidget();left.setFixedWidth(360);ll=QVBoxLayout(left);ll.setContentsMargins(0,0,0,0);ll.setSpacing(9);self.list_heading=text_label('Redes cercanas','subtitle');ll.addWidget(self.list_heading)
+        tabs.addStretch();self.outer.addWidget(self.workspace,1)
+        tools=QHBoxLayout();self.search=QLineEdit();self.search.setPlaceholderText('Buscar red o dispositivo…');self.search.textChanged.connect(self.render);self.search.installEventFilter(self);tools.addWidget(self.search,1);self.toggle=button('Wi-Fi',self.toggle_radio,symbol='power');tools.addWidget(self.toggle);self.refresh=button('Actualizar',self.rescan,symbol='refresh-cw');tools.addWidget(self.refresh);content_layout.addLayout(tools)
+        middle=QHBoxLayout();middle.setSpacing(gap);left=QWidget();left.setMinimumWidth(metrics()['rail_width']);ll=QVBoxLayout(left);ll.setContentsMargins(0,0,0,0);ll.setSpacing(9);self.list_heading=text_label('Redes cercanas','subtitle');ll.addWidget(self.list_heading)
         from enhanced import ModernDelegate
         self.list=QListWidget();self.list.setItemDelegate(ModernDelegate());apply_style(self.list,'QListWidget {padding:0;}');self.list.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff);self.list.setSpacing(3);self.list.currentRowChanged.connect(self.selection_changed);self.list.itemActivated.connect(self.activate);ll.addWidget(self.list,1);self.empty=text_label('Consultando conexiones…','subtitle');self.empty.setAlignment(Qt.AlignCenter);ll.addWidget(self.empty,1)
-        self.add=button('Red oculta…',self.add_item,symbol='plus');ll.addWidget(self.add);self.advanced=button('Administrar perfiles',self.advanced_settings,symbol='settings');ll.addWidget(self.advanced);middle.addWidget(left)
+        self.add=button('Red oculta…',self.add_item,symbol='plus');ll.addWidget(self.add);self.advanced=button('Administrar perfiles',self.advanced_settings,symbol='settings');ll.addWidget(self.advanced);middle.addWidget(left,1)
         line=QFrame();line.setFixedWidth(1);apply_style(line,'background:@divider;');middle.addWidget(line)
         self.inspector=QWidget();pr=QVBoxLayout(self.inspector);pr.setContentsMargins(0,0,0,0);pr.setSpacing(13);hero=QHBoxLayout();self.detail_icon=QLabel();self.detail_icon.setFixedSize(45,45);hero.addWidget(self.detail_icon);title_stack=QVBoxLayout();title_stack.setSpacing(4);self.detail_title=text_label('Selecciona una conexión','title');apply_style(self.detail_title,'font-size:19px; font-weight:600;');self.detail_title.setMaximumHeight(60);title_stack.addWidget(self.detail_title);self.detail_state=text_label('Sus detalles aparecerán aquí.','subtitle');title_stack.addWidget(self.detail_state);hero.addLayout(title_stack,1);pr.addLayout(hero)
         self.metrics=QHBoxLayout();self.metrics.setSpacing(10);pr.addLayout(self.metrics)
         scroll=QScrollArea();scroll.setWidgetResizable(True);scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff);container=QWidget();container.setObjectName('page');self.info_form=QFormLayout(container);self.info_form.setContentsMargins(0,2,6,3);self.info_form.setVerticalSpacing(12);self.info_form.setHorizontalSpacing(20);self.info_form.setFieldGrowthPolicy(QFormLayout.AllNonFixedFieldsGrow);scroll.setWidget(container);pr.addWidget(scroll,1)
         self.auto_connect=QCheckBox('Conectar automáticamente');self.auto_connect.clicked.connect(self.change_auto);pr.addWidget(self.auto_connect)
         self.primary=button('Conectar',self.activate,'primary');self.primary.setMinimumHeight(38);pr.addWidget(self.primary)
-        self.action_grid=QGridLayout();self.action_grid.setSpacing(6);pr.addLayout(self.action_grid);middle.addWidget(self.inspector,1);self.outer.addLayout(middle,1)
+        self.action_grid=QGridLayout();self.action_grid.setSpacing(6);pr.addLayout(self.action_grid);middle.addWidget(self.inspector,1);content_layout.addLayout(middle,1)
         footer=QHBoxLayout();self.status=text_label('','subtitle');footer.addWidget(self.status,1);hint=text_label('↑↓ Selección · Alt 1–5 Secciones · Ctrl Tab Cambiar','subtitle');hint.setWordWrap(False);footer.addWidget(hint);self.outer.addLayout(footer)
         self.search.returnPressed.connect(self.activate);self.periodic=QTimer(self);self.periodic.setInterval(5000);self.periodic.timeout.connect(lambda:self.load() if self.isVisible() and not self.busy() else None);self.periodic.start()
         self.detail_timer=QTimer(self);self.detail_timer.setSingleShot(True);self.detail_timer.setInterval(100);self.detail_timer.timeout.connect(self.load_detail)
@@ -208,12 +215,15 @@ class ConnectionsWindow(Surface):
 
 class PowerWindow(Surface):
     def __init__(self,owner):
-        super().__init__('Wysun Power','',620,590);self.owner=owner;self.action_buttons=[]
+        super().__init__('Wysun Power','Estado del equipo y controles de sesión',960,650);self.owner=owner;self.action_buttons=[]
         from power_widgets import BatteryGauge,SessionAction
-        self.outer.setContentsMargins(28,22,28,22);self.outer.setSpacing(18)
+        workspace=QHBoxLayout();self.workspace=QWidget();self.workspace.setLayout(workspace)
+        overview=surface(QWidget());overview_layout=QVBoxLayout(overview)
+        controls=surface(QWidget(), 'navigation');controls_layout=QVBoxLayout(controls)
+        workspace.addWidget(overview,1);workspace.addWidget(controls,1);self.outer.addWidget(self.workspace,1)
         hero=QHBoxLayout();hero.setSpacing(20)
         self.clock_label=text_label('');apply_style(self.clock_label,'font-size:68px;font-weight:500;letter-spacing:-3px;color:@text_strong;');self.clock_label.setWordWrap(False);hero.addWidget(self.clock_label)
-        self.date_label=text_label('');self.date_label.setAlignment(Qt.AlignRight|Qt.AlignVCenter);apply_style(self.date_label,'color:@glyph_muted;font-size:14px;');hero.addWidget(self.date_label,1);self.outer.addLayout(hero)
+        self.date_label=text_label('');self.date_label.setAlignment(Qt.AlignRight|Qt.AlignVCenter);apply_style(self.date_label,'color:@glyph_muted;font-size:14px;');hero.addWidget(self.date_label,1);overview_layout.addLayout(hero)
         card=QFrame();card.setObjectName('batteryCard');apply_style(card,'QFrame#batteryCard{background:@card;border:@border solid @card_line;border-radius:@radius_l;}')
         energy=QHBoxLayout(card);energy.setContentsMargins(14,14,22,14);energy.setSpacing(18)
         self.gauge=BatteryGauge();energy.addWidget(self.gauge)
@@ -223,18 +233,18 @@ class PowerWindow(Surface):
         self.battery_status=text_label('');details.addWidget(self.battery_status)
         self.estimate=text_label('','subtitle');details.addWidget(self.estimate)
         self.health=text_label('','subtitle');apply_style(self.health,'font-size:11px;color:@section;');details.addWidget(self.health)
-        energy.addLayout(details,1);self.outer.addWidget(card)
+        energy.addLayout(details,1);overview_layout.addWidget(card);overview_layout.addStretch()
         self.battery_bar=QProgressBar(self);self.battery_bar.setRange(0,100);self.battery_bar.hide()
-        self.outer.addWidget(text_label('CONTROLES DE LA SESIÓN','eyebrow'))
+        controls_layout.addWidget(text_label('Controles de sesión','title'))
         from system_panels import power_rows
-        actions=power_rows();primary=QHBoxLayout();primary.setSpacing(12);secondary=QHBoxLayout();secondary.setSpacing(12)
+        actions=power_rows();primary=QVBoxLayout();primary.setSpacing(metrics()['space_s']);secondary=QVBoxLayout();secondary.setSpacing(metrics()['space_s'])
         hints=['Mantén tus aplicaciones abiertas','Continúa justo donde estabas','Volver al inicio de sesión','Reiniciar el equipo','Apagar el equipo']
         for i,action in enumerate(actions):
             title='Bloquear' if i==0 else action['title']
             b=SessionAction(title,hints[i],action['action'],danger=i==4,compact=i>=2)
             b.clicked.connect(lambda checked=False,r=action:self.trigger(r));b.installEventFilter(self);self.action_buttons.append(b)
             (primary if i<2 else secondary).addWidget(b,1)
-        self.outer.addLayout(primary);self.outer.addLayout(secondary)
+        controls_layout.addLayout(primary);controls_layout.addLayout(secondary);controls_layout.addStretch()
         footer=QHBoxLayout();self.uptime_label=text_label('','subtitle');apply_style(self.uptime_label,'color:@section;font-size:11px;');footer.addWidget(self.uptime_label,1)
         hint=text_label('Flechas · Enter · Esc','subtitle');apply_style(hint,'font-size:10px;color:@section;');footer.addWidget(hint);self.outer.addLayout(footer)
         self.clock_timer=QTimer(self);self.clock_timer.setInterval(1000);self.clock_timer.timeout.connect(self.update_clock)

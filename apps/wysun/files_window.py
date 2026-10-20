@@ -1,3 +1,6 @@
+# Derivado de caelestia-dots/shell (GPL-3.0), modificado para Wysun.
+# Fuente: 507d66285e9d9fde9330adc64159cfdebb28c19a; véase THIRD_PARTY.md.
+# Los QML de origen no incluyen avisos de copyright adicionales por archivo.
 """Wysun Archivos: native, non-destructive local file management."""
 import datetime
 import json
@@ -18,6 +21,7 @@ from theme_tokens import apply_style
 from file_media import human_size
 
 from files_visuals import STYLE, apply_palette, ui_icon, file_icon
+from utility_material import materialize, metrics, surface
 from theme_tokens import color
 from files_motion import SoftButton, animate_popup, reduced_motion
 from files_inspector import SelectionPreview, BreadcrumbButton
@@ -40,8 +44,8 @@ class LocationLabel(QLabel):
 def button(label, symbol, callback, tooltip=None):
     result = SoftButton(label)
     result.setIcon(ui_icon(symbol))
-    result.setFixedHeight(30)
-    if not label: result.setFixedWidth(32)
+    result.setFixedHeight(metrics()["control_height"])
+    if not label: result.setFixedWidth(metrics()["control_height"])
     result.setCursor(Qt.PointingHandCursor)
     result.setToolTip(tooltip or label)
     result.setAccessibleName(tooltip or label)
@@ -245,7 +249,7 @@ class FilesWindow(QMainWindow):
         self.jobs, self.viewers = [], []
         self.hidden = self.settings.value('hidden', False, type=bool)
         self.grid_mode = self.settings.value('viewMode', 'icons') == 'icons'
-        self.setWindowTitle('Wysun Files')
+        self.setWindowTitle('Wysun Archivos')
         self.setWindowIcon(file_icon(str(Path.home()), 48))
         self.resize(1160, 740)
         self.setMinimumSize(740, 460)
@@ -255,11 +259,11 @@ class FilesWindow(QMainWindow):
         self.setCentralWidget(central)
         root = QVBoxLayout(central)
         root.setContentsMargins(0, 0, 0, 0); root.setSpacing(0)
-        toolbar = QWidget(); self.toolbar=toolbar; toolbar.setObjectName('toolbar'); toolbar.setFixedHeight(56)
+        toolbar = QWidget(); self.toolbar=toolbar; toolbar.setObjectName('toolbar'); toolbar.setMinimumHeight(metrics()['header_height'])
         tools = QHBoxLayout(toolbar); tools.setContentsMargins(12, 0, 14, 0); tools.setSpacing(6)
         self.sidebar_button = button('', 'sidebar', self.toggle_sidebar, 'Mostrar u ocultar barra lateral')
         tools.addWidget(self.sidebar_button)
-        self.app_label = QLabel('Archivos'); self.app_label.setObjectName('appLabel'); self.app_label.setFixedWidth(126)
+        self.app_label = QLabel('Wysun'); self.app_label.setObjectName('appLabel'); self.app_label.setMinimumWidth(metrics()['rail_width'])
         tools.addWidget(self.app_label)
         self.back_button = button('', 'back', lambda: self.current().go(-1), 'Atrás · Alt+←')
         self.forward_button = button('', 'forward', lambda: self.current().go(1), 'Adelante · Alt+→')
@@ -267,21 +271,24 @@ class FilesWindow(QMainWindow):
         self.folder_title = QLabel('Inicio'); self.folder_title.setObjectName('folderTitle')
         self.folder_title.setTextFormat(Qt.PlainText); self.folder_title.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
         tools.addWidget(self.folder_title, 1)
-        group = QWidget(); group.setObjectName('viewGroup'); group.setFixedHeight(32)
+        commands = QWidget(); commands.setObjectName('fileCommands')
+        command_layout = QHBoxLayout(commands); command_layout.setContentsMargins(*([metrics()['gap']] * 4))
+        command_layout.addStretch()
+        group = QWidget(); group.setObjectName('viewGroup')
         controls = QHBoxLayout(group); controls.setContentsMargins(2, 2, 2, 2); controls.setSpacing(1)
         self.grid_button = button('', 'grid', lambda: self.set_grid(True), 'Iconos · Ctrl+1')
         self.list_button = button('', 'list', lambda: self.set_grid(False), 'Lista · Ctrl+2')
         for control in (self.grid_button, self.list_button):
-            control.setCheckable(True); control.setFixedSize(30, 26); controls.addWidget(control)
-        tools.addWidget(group); tools.addSpacing(6)
-        self.new_folder_button = button('', 'new-folder', self.new_folder, 'Nueva carpeta · Ctrl+Shift+N')
-        tools.addWidget(self.new_folder_button)
+            control.setCheckable(True); control.setFixedSize(metrics()['control_height'], metrics()['control_height']); controls.addWidget(control)
+        command_layout.addWidget(group)
+        self.new_folder_button = button('Nueva carpeta', 'new-folder', self.new_folder, 'Nueva carpeta · Ctrl+Shift+N')
+        command_layout.addWidget(self.new_folder_button)
         self.details_button = button('', 'info', self.toggle_inspector, 'Información del archivo')
-        self.details_button.setCheckable(True); self.details_button.setChecked(False); tools.addWidget(self.details_button)
+        self.details_button.setCheckable(True); self.details_button.setChecked(False); command_layout.addWidget(self.details_button)
         self.sort_button=button('Ordenar','down',self.sort_menu,'Ordenar archivos en lista o iconos')
-        tools.addWidget(self.sort_button)
+        command_layout.addWidget(self.sort_button)
         self.more_button = button('', 'more', self.more_menu, 'Más acciones')
-        tools.addWidget(self.more_button)
+        command_layout.addWidget(self.more_button)
         self.filter_edit = QLineEdit(); self.filter_edit.setObjectName('search'); self.filter_edit.setFixedWidth(165)
         self.filter_edit.setPlaceholderText('Filtrar carpeta'); self.filter_edit.setClearButtonEnabled(True)
         self.filter_edit.setAccessibleName('Filtrar nombres en esta carpeta')
@@ -295,6 +302,7 @@ class FilesWindow(QMainWindow):
         self.places.itemClicked.connect(lambda item: self.navigate(item.data(Qt.UserRole)) if item.data(Qt.UserRole) else None)
         self.places.itemActivated.connect(lambda item: self.navigate(item.data(Qt.UserRole)) if item.data(Qt.UserRole) else None)
         self.places.setContextMenuPolicy(Qt.CustomContextMenu); self.places.customContextMenuRequested.connect(self.place_menu)
+        side.addWidget(QLabel('Lugares'))
         side.addWidget(self.places,1)
         side_note=QLabel('Wysun'); side_note.setObjectName('sidebarNote'); side.addWidget(side_note)
         self.splitter.addWidget(self.sidebar)
@@ -305,6 +313,7 @@ class FilesWindow(QMainWindow):
         self.tabs=QTabWidget(); self.tabs.setDocumentMode(True); self.tabs.tabBar().setDrawBase(False)
         self.tabs.setTabsClosable(True); self.tabs.setMovable(True); self.tabs.setTabBarAutoHide(True)
         self.tabs.tabCloseRequested.connect(self.close_tab); self.tabs.currentChanged.connect(self.tab_changed)
+        main_layout.addWidget(commands)
         main_layout.addWidget(self.tabs,1)
         self.progress=QProgressBar(); self.progress.setRange(0,0); self.progress.setTextVisible(False); self.progress.setFixedHeight(3); self.progress.hide(); main_layout.addWidget(self.progress)
         self.pathbar=QWidget(); self.pathbar.setObjectName('pathbar'); self.pathbar.setFixedHeight(36); self.pathbar.installEventFilter(self); self.pathbar.setToolTip('Doble clic para copiar la ruta absoluta')
@@ -312,7 +321,7 @@ class FilesWindow(QMainWindow):
         self.path_edit=QLineEdit(); self.path_edit.setAccessibleName('Ruta de la carpeta'); self.path_edit.hide()
         self.path_edit.returnPressed.connect(self.enter_path)
         self.path_layout.addWidget(self.path_edit)
-        main_layout.addWidget(self.pathbar)
+        main_layout.insertWidget(0, self.pathbar)
         self.splitter.addWidget(main)
         self.inspector=QWidget(); self.inspector.setObjectName('inspector'); self.inspector.setMinimumWidth(260); self.inspector.setMaximumWidth(16777215)
         details=QVBoxLayout(self.inspector); details.setContentsMargins(16,16,16,16); details.setSpacing(10)
@@ -338,6 +347,12 @@ class FilesWindow(QMainWindow):
         for path in paths or [str(Path.home())]:
             target=Path(path).expanduser(); self.new_tab(str(target if target.is_dir() else target.parent))
         self.set_grid(self.grid_mode); self.selection_changed(); self.current().view().setFocus()
+        materialize(self)
+        surface(self.sidebar, 'navigation')
+        surface(content)
+        surface(self.inspector)
+        apply_style(self.folder_title, 'font-size: @font_title; font-weight: 600;')
+        self.inspector_animation.setDuration(metrics()['motion_enter'])
 
     def toggle_sidebar(self):
         self.sidebar.setVisible(not self.sidebar.isVisible())
@@ -507,7 +522,7 @@ class FilesWindow(QMainWindow):
         self.tabs.setTabToolTip(self.tabs.currentIndex(), tab.path)
         self.back_button.setEnabled(tab.position > 0)
         self.forward_button.setEnabled(tab.position < len(tab.history) - 1)
-        self.setWindowTitle(title + ' · Wysun Files')
+        self.setWindowTitle(title + ' · Wysun Archivos')
         self.update_status()
 
     def update_status(self):
