@@ -1,6 +1,6 @@
-// Adaptado de caelestia-dots/shell/services/{Audio,Brightness,Nmcli,Notifs}.qml
-// (GPL-3.0), modificado para Wysun. Fuente: caelestia-dots/shell, commit
-// 507d66285e9d9fde9330adc64159cfdebb28c19a. Véanse LICENSES/GPL-3.0.txt y THIRD_PARTY.md.
+// Derivado de caelestia-dots/shell (GPL-3.0), modificado para Wysun.
+// Origen: services/{Audio,Brightness,Nmcli,Notifs}.qml (commit 507d66285e9d9fde9330adc64159cfdebb28c19a).
+// Véanse LICENSES/GPL-3.0.txt y THIRD_PARTY.md.
 // One bounded, one-shot provider bridge. It is active only while its surface is
 // open: no daemon, retry loop or timer keeps running behind a closed panel.
 import QtQuick

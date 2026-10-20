@@ -1,6 +1,6 @@
-// Adaptado de caelestia-dots/shell/services/Audio.qml (GPL-3.0),
-// modificado para Wysun. Fuente: caelestia-dots/shell, commit
-// 507d66285e9d9fde9330adc64159cfdebb28c19a. Véanse LICENSES/GPL-3.0.txt y THIRD_PARTY.md.
+// Derivado de caelestia-dots/shell (GPL-3.0), modificado para Wysun.
+// Origen: services/Audio.qml (commit 507d66285e9d9fde9330adc64159cfdebb28c19a).
+// Véanse LICENSES/GPL-3.0.txt y THIRD_PARTY.md.
 // Wysun adaptation: no CavaProvider, no plugin imports and no toast. The default
 // PipeWire sink/source are the single source of truth for the OSD and controls.
 import QtQuick

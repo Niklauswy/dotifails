@@ -1,7 +1,6 @@
-// Adaptado de caelestia-dots/shell/modules/sidebar/NotifDock.qml,
-// modules/notifications/Content.qml y services/NotifData.qml (GPL-3.0),
-// modificado para Wysun. Fuente: caelestia-dots/shell, commit
-// 507d66285e9d9fde9330adc64159cfdebb28c19a. Véanse LICENSES/GPL-3.0.txt y THIRD_PARTY.md.
+// Derivado de caelestia-dots/shell (GPL-3.0), modificado para Wysun.
+// Origen: modules/sidebar/NotifDock.qml, modules/notifications/Content.qml, services/NotifData.qml (commit 507d66285e9d9fde9330adc64159cfdebb28c19a).
+// Véanse LICENSES/GPL-3.0.txt y THIRD_PARTY.md.
 // Dunst is the only notification server and keeps its own toasts. This centre
 // reads a bounded history snapshot and never registers a second D-Bus owner.
 import QtQuick

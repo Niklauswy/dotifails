@@ -1,6 +1,5 @@
-// Adaptado de caelestia-dots/shell/modules/osd/Content.qml y
-// modules/bar/popouts/AudioPopout.qml (GPL-3.0), modificado para Wysun.
-// Fuente: caelestia-dots/shell, commit 507d66285e9d9fde9330adc64159cfdebb28c19a.
+// Derivado de caelestia-dots/shell (GPL-3.0), modificado para Wysun.
+// Origen: modules/osd/Content.qml, modules/bar/popouts/AudioPopout.qml (commit 507d66285e9d9fde9330adc64159cfdebb28c19a).
 // Véanse LICENSES/GPL-3.0.txt y THIRD_PARTY.md.
 // PipeWire is observed directly; the Python provider is not used for audio or
 // brightness, so multimedia keys and external changes share the same source.

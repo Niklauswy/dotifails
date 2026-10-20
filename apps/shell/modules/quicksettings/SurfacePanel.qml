@@ -1,6 +1,5 @@
-// Derivado de caelestia-dots/shell/modules/drawers/ContentWindow.qml y
-// modules/utilities/Wrapper.qml (GPL-3.0), modificado para Wysun. Fuente:
-// caelestia-dots/shell, commit 507d66285e9d9fde9330adc64159cfdebb28c19a.
+// Derivado de caelestia-dots/shell (GPL-3.0), modificado para Wysun.
+// Origen: modules/drawers/ContentWindow.qml, modules/utilities/Wrapper.qml (commit 507d66285e9d9fde9330adc64159cfdebb28c19a).
 // Véanse LICENSES/GPL-3.0.txt y THIRD_PARTY.md.
 // Card chrome for the quick settings, notification centre and session menu.
 // The Loader destroys the content as soon as the popout is hidden, so a closed

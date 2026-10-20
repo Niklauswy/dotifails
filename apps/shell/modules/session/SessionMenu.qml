@@ -1,6 +1,6 @@
-// Adaptado de caelestia-dots/shell/modules/session/Content.qml (GPL-3.0),
-// modificado para Wysun. Fuente: caelestia-dots/shell, commit
-// 507d66285e9d9fde9330adc64159cfdebb28c19a. Véanse LICENSES/GPL-3.0.txt y THIRD_PARTY.md.
+// Derivado de caelestia-dots/shell (GPL-3.0), modificado para Wysun.
+// Origen: modules/session/Content.qml (commit 507d66285e9d9fde9330adc64159cfdebb28c19a).
+// Véanse LICENSES/GPL-3.0.txt y THIRD_PARTY.md.
 // Lock, suspend, log out, restart and power off through bounded providers.
 // Irreversible actions need a second, explicit confirmation; nothing runs when
 // the panel opens and no timer keeps running behind a closed surface.

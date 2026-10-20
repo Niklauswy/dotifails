@@ -1,6 +1,6 @@
-// Adaptado de caelestia-dots/shell/modules/bar/popouts/Battery.qml (GPL-3.0),
-// modificado para Wysun. Fuente: caelestia-dots/shell, commit
-// 507d66285e9d9fde9330adc64159cfdebb28c19a. Véanse LICENSES/GPL-3.0.txt y THIRD_PARTY.md.
+// Derivado de caelestia-dots/shell (GPL-3.0), modificado para Wysun.
+// Origen: modules/bar/popouts/Battery.qml (commit 507d66285e9d9fde9330adc64159cfdebb28c19a).
+// Véanse LICENSES/GPL-3.0.txt y THIRD_PARTY.md.
 import QtQuick
 import QtQuick.Layouts
 import "../../" as Wysun

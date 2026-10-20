@@ -1,6 +1,6 @@
-// Adaptado de caelestia-dots/shell/modules/notifications/Notification.qml
-// (GPL-3.0), modificado para Wysun. Fuente: caelestia-dots/shell, commit
-// 507d66285e9d9fde9330adc64159cfdebb28c19a. Véanse LICENSES/GPL-3.0.txt y THIRD_PARTY.md.
+// Derivado de caelestia-dots/shell (GPL-3.0), modificado para Wysun.
+// Origen: modules/notifications/Notification.qml (commit 507d66285e9d9fde9330adc64159cfdebb28c19a).
+// Véanse LICENSES/GPL-3.0.txt y THIRD_PARTY.md.
 // Dunst owns the notification lifecycle and the original actions. This card
 // only presents the inert history entry and offers copy/remove.
 import QtQuick

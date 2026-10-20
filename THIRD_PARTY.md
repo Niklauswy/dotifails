@@ -15,6 +15,27 @@
   - `apps/shell/modules/popouts/PopoutHost.qml` and `PopoutCard.qml` from `modules/drawers/ContentWindow.qml`
   - `apps/shell/services/Colours.qml` from `services/Colours.qml`, adapted to Wysun's fixed-theme fallback and `scheme.json` contract
 
+### Phase 4: notifications, OSD, session and quick settings
+
+Marked in every file as "Derivado de caelestia-dots/shell (GPL-3.0), modificado para Wysun". Source commit for all rows: `507d66285e9d9fde9330adc64159cfdebb28c19a` (upstream files carry no per-file notices; the repository licence is GPL-3.0). Origin → destination:
+
+| Origin (caelestia-dots/shell) | Destination (`apps/shell/`) |
+| --- | --- |
+| `modules/sidebar/NotifDock.qml`, `modules/notifications/Content.qml` | `modules/notifications/NotificationCenter.qml` |
+| `modules/notifications/Notification.qml` | `modules/notifications/NotificationCard.qml` |
+| `modules/osd/Wrapper.qml`, `modules/osd/Content.qml` | `modules/osd/Osd.qml`, `OsdState.qml`, `OsdHost.qml`, `OsdContent.qml`, `LevelBar.qml` |
+| `modules/session/Content.qml` | `modules/session/SessionMenu.qml` |
+| `modules/utilities/Wrapper.qml`, `Content.qml` | `modules/quicksettings/QuickSettings.qml`, `Content.qml`, `SectionCard.qml` |
+| `modules/utilities/cards/Toggles.qml`, `cards/IdleInhibit.qml` | `modules/quicksettings/Toggles.qml`, `ControlButton.qml`, `IdleInhibit.qml` |
+| `modules/drawers/ContentWindow.qml` | `modules/quicksettings/SurfacePanel.qml` |
+| `modules/bar/popouts/{AudioPopout,Battery,Bluetooth,Network}.qml` | `modules/quicksettings/{AudioPopout,Battery,Bluetooth,Network}.qml`, `LevelSlider.qml` |
+| `services/Audio.qml` (without `CavaProvider`) | `services/Audio.qml` (PipeWire default nodes only) |
+| `services/Brightness.qml` | `services/Brightness.qml` (one backlight, sysfs via `FileView`, writes through `brightnessctl`) |
+| `services/Nmcli.qml` | `services/Nmcli.qml`, `services/desktop_controls.py` (one-shot `nmcli`) |
+| `services/NotifData.qml`, `services/Notifs.qml` | `services/NotifData.qml`, `services/Notifs.qml` (presentation model only) |
+
+Not ported: `NotificationServer` (Dunst stays the only D-Bus owner and keeps its toasts), `CavaProvider`, the Caelestia C++ plugin, `utilities/cards/Record*.qml` and the screen recorder (Wysun Recorder and its portals are used unchanged).
+
 The Caelestia C++ plugin, `qt6-m3shapes`, `libcava`, and Google Sans Flex are not included. The shell uses Quickshell 0.3.0 APIs supplied by Debian.
 
 ## Caelestia CLI

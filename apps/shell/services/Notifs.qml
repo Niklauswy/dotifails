@@ -1,6 +1,5 @@
-// Adaptado de caelestia-dots/shell/services/Notifs.qml (GPL-3.0), solo el
-// modelo de presentación; no se porta NotificationServer. Fuente:
-// caelestia-dots/shell, commit 507d66285e9d9fde9330adc64159cfdebb28c19a.
+// Derivado de caelestia-dots/shell (GPL-3.0), modificado para Wysun.
+// Origen: services/Notifs.qml (commit 507d66285e9d9fde9330adc64159cfdebb28c19a).
 // Véanse LICENSES/GPL-3.0.txt y THIRD_PARTY.md.
 // Dunst remains the one and only server. Reading its history never creates a
 // second bus owner and never shows a toast from Quickshell.

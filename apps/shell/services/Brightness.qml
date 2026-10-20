@@ -1,6 +1,6 @@
-// Adaptado de caelestia-dots/shell/services/Brightness.qml (GPL-3.0),
-// modificado para Wysun. Fuente: caelestia-dots/shell, commit
-// 507d66285e9d9fde9330adc64159cfdebb28c19a. Véanse LICENSES/GPL-3.0.txt y THIRD_PARTY.md.
+// Derivado de caelestia-dots/shell (GPL-3.0), modificado para Wysun.
+// Origen: services/Brightness.qml (commit 507d66285e9d9fde9330adc64159cfdebb28c19a).
+// Véanse LICENSES/GPL-3.0.txt y THIRD_PARTY.md.
 // Wysun adaptation: one explicit laptop backlight, observed through
 // /sys/class/backlight/<device>/{brightness,actual_brightness} with FileView (no polling). Writes
 // stay in brightnessctl so the desktop's existing udev permissions are used.
