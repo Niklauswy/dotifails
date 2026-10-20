@@ -2,19 +2,54 @@
 """Public Wysun entry point; retain the existing storage and IPC identities."""
 import os
 from pathlib import Path
+import subprocess
 import sys
+
+
+def shell_launcher():
+    """Try the opt-in QML launcher; return True only when the shell accepted it.
+
+    Unset by default: `wysun` keeps the existing Qt launcher path, every mode,
+    argv and ORBIT_THEME. If the shell is not running, the caller falls through
+    to the Qt launcher instead of leaving the user without a launcher.
+    """
+    if os.environ.get('WYSUN_LAUNCHER', '').strip().lower() not in ('qml', 'shell', 'quickshell', '1', 'true', 'yes'):
+        return False
+    helper = Path(__file__).resolve().parent / 'wysun-shell'
+    if not helper.is_file():
+        return False
+    try:
+        result = subprocess.run([str(helper), 'launcher'], timeout=2,
+                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                                check=False)
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return result.returncode == 0
 
 
 def main():
     args = sys.argv[1:]
     if args and args[0] in ('--help', '-h', 'help'):
         print('Wysun · aplicaciones del escritorio\n'
-              'Uso: wysun [shell|lock|session-check|doctor|audio|calendar|recorder|screenshot|music|music-mini|files|settings|tools|notes|processes|colors|connections|power] [opciones]\n'
+              'Uso: wysun [scheme|wallpaper|shell|lock|session-check|doctor|audio|calendar|recorder|screenshot|music|music-mini|files|settings|tools|notes|processes|colors|connections|power] [opciones]\n'
               'Sin argumentos abre el lanzador. Recorder y Screenshot abren su biblioteca;\n'
-              'wysun recorder --quick-record abre la barra de preparación sin grabar.')
+              'wysun recorder --quick-record abre la barra de preparación sin grabar.\n'
+              'Con WYSUN_LAUNCHER=qml se intenta primero el lanzador del shell Quickshell;\n'
+              'si la shell no responde se abre el lanzador Qt de siempre.')
         return 0
     command = args.pop(0) if args else 'toggle'
     command = {'launcher': 'toggle', 'colors': 'color', 'connections': 'network'}.get(command, command)
+    if command in ('scheme', 'wallpaper'):
+        root = Path(__file__).resolve().parents[1]
+        app = root / 'apps/wysun'
+        if not app.is_dir():
+            data_home = Path(os.environ.get('XDG_DATA_HOME', str(Path.home() / '.local/share')))
+            app = data_home / 'orbit/app'
+        sys.path.insert(0, str(app))
+        import wysun_scheme
+        return (wysun_scheme.wallpaper_main if command == 'wallpaper' else wysun_scheme.main)(args)
+    if command == 'toggle' and not args and shell_launcher():
+        return 0
     commands = {'doctor': 'dotifails', 'shell': 'wysun-shell', 'lock': 'wysun-lock', 'session-check': 'wysun-session', 'recorder': 'wysun-recorder', 'screenshot': 'wysun-screenshot',
                 'files': 'orbit-files', 'tools-cli': 'orbit-tools'}
     executable = Path(__file__).resolve().parent / commands.get(command, 'orbit')

@@ -1,5 +1,8 @@
+# Derivado de caelestia-dots/shell (GPL-3.0), modificado para Wysun.
+# Fuente: 507d66285e9d9fde9330adc64159cfdebb28c19a; véase THIRD_PARTY.md.
+# Los QML de origen no incluyen avisos de copyright adicionales por archivo.
 """A focused Markdown library, using the same surfaces and actions as Wysun."""
-from theme_tokens import ThemeColor, apply_style
+from theme_tokens import apply_style, extend_style, css, on_theme_changed
 
 from pathlib import Path
 from datetime import datetime
@@ -8,7 +11,8 @@ from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import (QApplication, QWidget, QHBoxLayout, QVBoxLayout,
     QLineEdit, QComboBox, QListWidget, QListWidgetItem, QPlainTextEdit,
     QTextBrowser, QSplitter, QFileDialog)
-from desktop_common import Surface, button, text_label, open_vim
+from utility_material import MaterialSurface as Surface, button, surface, metrics
+from desktop_common import  text_label, open_vim
 from icons import icon
 from utility_data import Notes, digest
 
@@ -21,21 +25,24 @@ class NotesWindow(Surface):
             self.store.import_legacy(Path.home() / 'Documents/QuickNotes/notes.md')
         self.key = self.expected = None
         self.dirty = self.loading = False
-        apply_style(self,self.styleSheet() + '''
-            QPlainTextEdit, QTextBrowser { background:transparent; border:0; padding:12px; font-size:14px; }
+        extend_style(self,'''
+            QPlainTextEdit, QTextBrowser { background:transparent; border:0; padding:12px; font-size:@font_body; }
             QListWidget::item { padding:0; margin:2px 0; }
-            QWidget#notePane { border-left:1px solid #30333D; }
-            QLabel#noteTitle {font-size:17px; font-weight:600;}
+            QWidget#notePane { border:0; }
+            QLabel#noteTitle {font-size:@font_title; font-weight:600;}
             QSplitter::handle { background:transparent; width:1px; }
         ''')
-        split = QSplitter()
-        left = QWidget(); sidebar = QVBoxLayout(left); sidebar.setContentsMargins(0, 0, 14, 0)
+        split = QSplitter(); self.workspace = split; split.setChildrenCollapsible(False)
+        left = surface(QWidget(), 'navigation'); sidebar = QVBoxLayout(left)
+        gap = metrics()['gap']; sidebar.setContentsMargins(gap, gap, gap, gap); sidebar.setSpacing(metrics()['space_s'])
+        sidebar.addWidget(text_label('Biblioteca', 'title'))
+        sidebar.addWidget(button('Nueva nota · Ctrl N', self.new, 'primary', 'plus'))
         self.search = QLineEdit(); self.search.setPlaceholderText('Buscar notas…'); sidebar.addWidget(self.search)
         self.folder = QComboBox(); self.folder.addItems(['Todas las notas', 'Favoritas', 'Papelera']); sidebar.addWidget(self.folder)
         self.list = QListWidget(); self.list.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff); sidebar.addWidget(self.list, 1)
-        sidebar.addWidget(button('Nueva nota   Ctrl N', self.new, 'primary', 'plus'))
+        self.count = text_label('', 'utilitySubtitle'); sidebar.addWidget(self.count)
         split.addWidget(left)
-        right = QWidget(); right.setObjectName('notePane'); layout = QVBoxLayout(right); layout.setContentsMargins(20, 0, 0, 0)
+        right = surface(QWidget()); right.setObjectName('notePane'); layout = QVBoxLayout(right); layout.setContentsMargins(gap, gap, gap, gap); layout.setSpacing(metrics()['space_s'])
         toolbar = QHBoxLayout()
         self.edit_button = button('Escribir', lambda: self.set_preview(False), symbol='pencil'); self.edit_button.setCheckable(True)
         self.preview_button = button('Leer', lambda: self.set_preview(True), symbol='eye'); self.preview_button.setCheckable(True)
@@ -44,10 +51,10 @@ class NotesWindow(Surface):
         self.more = button('', self.actions, symbol='ellipsis'); self.more.setToolTip('Acciones · Alt K'); toolbar.addWidget(self.more); layout.addLayout(toolbar)
         self.heading = text_label('Una idea empieza aquí', 'noteTitle'); layout.addWidget(self.heading)
         self.editor = QPlainTextEdit(); self.editor.setPlaceholderText('Crea una nota o importa tus archivos Markdown.'); layout.addWidget(self.editor, 1)
-        self.preview = QTextBrowser(); self.preview.setOpenExternalLinks(False); self.preview.document().setDefaultStyleSheet('body {line-height:1.6;} h1,h2 {color:#E8EAF0;} code {color:#BEC9E5;}'); layout.addWidget(self.preview, 1)
-        self.meta = text_label('', 'subtitle'); layout.addWidget(self.meta); split.addWidget(right); split.setSizes([270, 620]); self.outer.addWidget(split, 1)
+        self.preview = QTextBrowser(); self.preview.setOpenExternalLinks(False); self.theme_changed(); on_theme_changed(self.theme_changed); layout.addWidget(self.preview, 1)
+        self.meta = text_label('', 'subtitle'); layout.addWidget(self.meta); split.addWidget(right); split.setSizes([300, 620]); self.outer.addWidget(split, 1)
         footer = QHBoxLayout(); self.status = text_label('Guardado local', 'subtitle'); footer.addWidget(self.status, 1)
-        footer.addWidget(button('Abrir en Vim', self.vim, symbol='terminal')); footer.addWidget(button('Acciones  Alt K', self.actions)); self.outer.addLayout(footer)
+        footer.addWidget(button('Abrir en Vim', self.vim, symbol='terminal')); footer.addWidget(button('Acciones  Alt K', self.actions)); layout.addLayout(footer)
         self.timer = QTimer(self); self.timer.setSingleShot(True); self.timer.setInterval(650); self.timer.timeout.connect(self.save)
         self.search.textChanged.connect(self.refresh); self.folder.currentIndexChanged.connect(self.refresh)
         self.list.currentItemChanged.connect(self.selected); self.editor.textChanged.connect(self.changed)
@@ -55,6 +62,9 @@ class NotesWindow(Surface):
             QShortcut(QKeySequence(key), self).activated.connect(fn)
         self.set_preview(False); self.refresh()
 
+    def theme_changed(self):
+        self.preview.document().setDefaultStyleSheet('body {line-height:1.6;} h1,h2 {color:'+css('text')+';} code {color:'+css('accent')+';}')
+        self.preview.setMarkdown(self.editor.toPlainText()) if hasattr(self,'editor') else None
     def is_trash(self): return self.folder.currentIndex() == 2
 
     def row_widget(self, row):
@@ -81,6 +91,7 @@ class NotesWindow(Surface):
             if r['key'] == key: self.list.setCurrentItem(item)
         if not self.list.currentItem() and self.list.count(): self.list.setCurrentRow(0)
         self.list.blockSignals(False); self.selected(self.list.currentItem())
+        self.count.setText(f'{self.list.count()} nota' if self.list.count()==1 else f'{self.list.count()} notas')
 
     def selected(self, item, previous=None):
         if not self.save():

@@ -25,7 +25,7 @@ from .camera_preview import CameraPreview
 
 TITLE = 'Wysun Recorder · Presentación'
 EDGE = 6
-COLORS = ('#E5484D', '#F5B83D', '#3E8BF0', '#30A46C', '#FFFFFF')
+COLORS = ('#E5484D', '#F5B83D', '#3E8BF0', '#30A46C', '#FFFFFF')  # theme-exception: tintas de anotación del usuario
 TOOLS = (('pointer', 'Puntero · Esc'), ('arrow', 'Flecha · A'), ('number', 'Número · N'),
          ('rect', 'Recuadro · R'), ('marker', 'Resaltador · H'))
 BUBBLE = {'small': .20, 'medium': .28, 'large': .38}
@@ -83,9 +83,12 @@ def place_window(widget, rect, title=TITLE):
     return True
 
 
-def tool_icon(kind, color='#E6EBF3', size=22):
+def tool_icon(kind, color='on_hud', size=22):
     """Presentation tool glyphs drawn to match the outline icon family."""
     from PySide6.QtGui import QIcon, QPixmap
+    from .icons import remember
+    from .tokens import tint
+    token, color = color, tint(color)
     pix = QPixmap(size * 2, size * 2)
     pix.fill(Qt.transparent)
     p = QPainter(pix)
@@ -117,7 +120,7 @@ def tool_icon(kind, color='#E6EBF3', size=22):
         p.drawRoundedRect(QRectF(13, 6, 9, 9), 2, 2)
     p.end()
     pix.setDevicePixelRatio(2)
-    return QIcon(pix)
+    return remember(QIcon(pix), tool_icon, (kind, token, size))
 
 
 class Toolbar(QFrame):
@@ -127,11 +130,13 @@ class Toolbar(QFrame):
         super().__init__(overlay)
         self.overlay = overlay
         self.setObjectName('presenterToolbar')
-        self.setStyleSheet('#presenterToolbar{background:rgba(16,20,29,232);border:1px solid rgba(255,255,255,30);border-radius:16px;}'
-                           'QToolButton{background:transparent;border:0;border-radius:10px;color:#E6EBF3;font-size:18px;min-width:40px;min-height:40px;}'
-                           'QToolButton:hover{background:rgba(255,255,255,26);}'
-                           'QToolButton:checked{background:#2569CA;color:white;}'
-                           'QFrame#sep{background:rgba(255,255,255,30);max-height:1px;min-height:1px;}')
+        from .tokens import apply_style
+        apply_style(self, '#presenterToolbar{background:@hud;border:1px solid @hud_line;border-radius:16px;}'
+                          'QToolButton{background:transparent;border:0;border-radius:10px;color:@on_hud;font-size:18px;min-width:40px;min-height:40px;}'
+                          'QToolButton:hover{background:@hud_hover;}'
+                          'QToolButton:focus{border:@focus_width solid @on_hud;}'
+                          'QToolButton:checked{background:@hud_accent;color:@on_hud;}'
+                          'QFrame#sep{background:@hud_line;max-height:1px;min-height:1px;}')
         layout = QVBoxLayout(self)
         layout.setContentsMargins(6, 8, 6, 8)
         layout.setSpacing(4)
@@ -144,17 +149,18 @@ class Toolbar(QFrame):
         layout.addWidget(self.separator())
         self.color = self.button(None, 'Color · C', overlay.next_color)
         layout.addWidget(self.color)
-        layout.addWidget(self.button(icon('undo', '#E6EBF3', 22), 'Deshacer · Ctrl+Z', overlay.undo))
-        layout.addWidget(self.button(icon('trash', '#E6EBF3', 22), 'Borrar todo · Supr', overlay.clear))
+        layout.addWidget(self.button(icon('undo', 'on_hud', 22), 'Deshacer · Ctrl+Z', overlay.undo))
+        layout.addWidget(self.button(icon('trash', 'on_hud', 22), 'Borrar todo · Supr', overlay.clear))
         layout.addWidget(self.separator())
-        self.camera = self.button(icon('camera', '#E6EBF3', 22), 'Cámara: mostrar u ocultar', overlay.toggle_camera)
+        self.camera = self.button(icon('camera', 'on_hud', 22), 'Cámara: mostrar u ocultar', overlay.toggle_camera)
         layout.addWidget(self.camera)
         self.shape = self.button(tool_icon('shape'), 'Cámara: círculo o recuadro', overlay.toggle_shape)
         layout.addWidget(self.shape)
         layout.addWidget(self.separator())
-        self.pause = self.button(icon('pause', '#E6EBF3', 22), 'Pausar o reanudar', overlay.request_pause)
+        self.pause = self.button(icon('pause', 'on_hud', 22), 'Pausar o reanudar', overlay.request_pause)
         layout.addWidget(self.pause)
-        self.stop = self.button(icon('stop', '#FF8A8F', 22), 'Terminar grabación', overlay.request_stop)
+        self.stop = self.button(icon('stop', '#FF8A8F', 22)  # theme-exception: rojo semántico de detener grabación
+        , 'Terminar grabación', overlay.request_stop)
         layout.addWidget(self.stop)
         self.adjustSize()
 
@@ -193,7 +199,7 @@ class Toolbar(QFrame):
         swatch.fill(Qt.transparent)
         p = QPainter(swatch)
         p.setRenderHint(QPainter.Antialiasing)
-        p.setPen(QPen(QColor(255, 255, 255, 200), 2))
+        p.setPen(QPen(QColor(255, 255, 255, 200), 2))  # theme-exception: muestra de tinta sobre la pantalla
         p.setBrush(QColor(self.overlay.color))
         p.drawEllipse(QRectF(9, 9, 26, 26))
         p.end()
@@ -482,10 +488,11 @@ class PresenterOverlay(QWidget):
         if self.camera_visible and self.camera_device is not None:
             self._paint_bubble(p)
         if self.tool != 'pointer':
-            p.setPen(QPen(QColor(229, 72, 77, 150), 3))
+            p.setPen(QPen(QColor(229, 72, 77, 150), 3))  # theme-exception: aviso de modo dibujo sobre la pantalla grabada
             p.setBrush(Qt.NoBrush)
             p.drawRect(QRectF(self.rect()).adjusted(1.5, 1.5, -1.5, -1.5))
 
+    # theme-exception-begin: anotaciones dibujadas sobre el vídeo grabado
     def _paint_shape(self, p, shape):
         kind = shape[0]
         color = QColor(shape[2])
@@ -520,6 +527,7 @@ class PresenterOverlay(QWidget):
             p.setBrush(Qt.NoBrush)
             p.drawPath(path)
 
+    # theme-exception-end
     def _paint_bubble(self, p):
         b = self.bubble
         path = QPainterPath()
@@ -529,16 +537,17 @@ class PresenterOverlay(QWidget):
             path.addRoundedRect(b, b.height() / 8, b.height() / 8)
         p.save()
         p.setClipPath(path)
-        p.fillRect(b, QColor('#18263A'))
+        from .tokens import color
+        p.fillRect(b, color('media'))
         if not self.camera_image.isNull():
             image = self.camera_image
             scale = max(b.width() / image.width(), b.height() / image.height())
             w, h = image.width() * scale, image.height() * scale
             p.drawImage(QRectF(b.center().x() - w / 2, b.center().y() - h / 2, w, h), image)
         else:
-            p.setPen(QColor('#BAC9DD'))
+            p.setPen(color('hud_muted'))
             p.drawText(b, Qt.AlignCenter, 'Cámara')
         p.restore()
-        p.setPen(QPen(QColor(255, 255, 255, 210), 3))
+        p.setPen(QPen(QColor(255, 255, 255, 210), 3))  # theme-exception: borde de la cámara en el vídeo
         p.setBrush(Qt.NoBrush)
         p.drawPath(path)

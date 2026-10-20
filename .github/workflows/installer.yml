@@ -19,13 +19,13 @@ jobs:
       ORBIT_REDUCED_MOTION: '1'
       PYTHONDONTWRITEBYTECODE: '1'
     steps:
-      - uses: actions/checkout@v7
-        with:
-          persist-credentials: false
       - name: Native test dependencies
         run: |
           apt-get update
-          apt-get install --yes --no-install-recommends python3 python3-pyside6.qtwidgets python3-pyside6.qtsvg python3-dbus python3-gi python3-xlib bat git ca-certificates
+          apt-get install --yes --no-install-recommends python3 python3-pyside6.qtwidgets python3-pyside6.qtsvg python3-dbus python3-gi python3-xlib python3-pil bat git ca-certificates
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Component selection and recovery
         run: python3 -m unittest discover -s tests -p test_visual_installer.py -v
       - name: Boot preservation and rollback
@@ -35,4 +35,5 @@ jobs:
       - name: Portable manifest and whitespace
         run: |
           python3 tests/check_manifest.py
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
           git diff --check

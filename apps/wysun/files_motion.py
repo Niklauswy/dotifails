@@ -104,9 +104,8 @@ class SoftButton(QPushButton):
             painter = QPainter(self)
             painter.setRenderHint(QPainter.Antialiasing)
             painter.setPen(Qt.NoPen)
-            color = QColor(COLORS["accent"])
-            color.setAlpha(round(15 * self._soft_hover + 18 * self._soft_press))
-            painter.setBrush(color)
+            from theme_tokens import color
+            painter.setBrush(color("accent", round(15 * self._soft_hover + 18 * self._soft_press)))
             painter.drawRoundedRect(self.rect().adjusted(1, 1, -1, -1), TOKENS["radii"]["small"], TOKENS["radii"]["small"])
             painter.end()
         super().paintEvent(event)

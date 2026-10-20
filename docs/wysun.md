@@ -37,3 +37,7 @@ Los accesos del menú conservan sus IDs existentes y cambian su nombre visible; 
 ## Alcance
 
 Esta integración cambia la distribución y los nombres públicos. Conserva las interfaces, motores, formatos y funciones existentes. La sesión Wysun / Hyprland se prepara con el componente `wayland`, activo por defecto; consulta [instalación y recuperación](wayland.md). Las funciones de captura usan los portales XDG (Screenshot y ScreenCast/PipeWire) y no XWayland.
+
+## Temas
+
+Dos estilos (Space Black y Fluent) y cinco variantes se aplican en vivo a todas las superficies de Wysun. Los tokens viven en `apps/wysun/wysun_theme.json`; la guía, los valores de contraste y cómo crear un widget que obedezca el tema están en [themes.md](themes.md).

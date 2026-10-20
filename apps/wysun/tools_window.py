@@ -1,3 +1,6 @@
+# Derivado de caelestia-dots/shell (GPL-3.0), modificado para Wysun.
+# Fuente: 507d66285e9d9fde9330adc64159cfdebb28c19a; véase THIRD_PARTY.md.
+# Los QML de origen no incluyen avisos de copyright adicionales por archivo.
 """Personal project workspace and bounded tooling jobs, using the shared CLI."""
 from __future__ import annotations
 import json
@@ -5,11 +8,12 @@ import os
 from pathlib import Path
 import sys
 from PySide6.QtCore import Qt, QProcess, QTimer, QUrl
-from PySide6.QtGui import QDesktopServices
+from PySide6.QtGui import QDesktopServices, QKeySequence, QShortcut
 from PySide6.QtWidgets import (QWidget,QVBoxLayout,QHBoxLayout,QListWidget,QListWidgetItem,
     QStackedWidget,QFileDialog,QLineEdit,QComboBox,QSpinBox,QCheckBox,QPlainTextEdit,
     QTableWidget,QTableWidgetItem,QHeaderView,QMessageBox,QApplication)
-from desktop_common import Surface, text_label, button, launch
+from utility_material import MaterialSurface as Surface, button, section_label, surface, metrics
+from desktop_common import text_label, launch
 from ui_motion import reveal_content
 
 LIBRARY=Path(__file__).resolve().parent.parent/'tools'
@@ -39,12 +43,18 @@ class ToolsWindow(Surface):
     def __init__(self,test=False):
         super().__init__('Wysun Tools',width=1000,height=680)
         self.test=test;self.projects=[] if test else load_projects();self.jobs=[];self.sharing=None
-        nav=QHBoxLayout();self.pages=QStackedWidget();self.tabs=[]
+        gap=metrics()['gap']
+        workspace=QHBoxLayout();workspace.setContentsMargins(0,0,0,0);workspace.setSpacing(gap);self.workspace=QWidget();self.workspace.setLayout(workspace)
+        rail=surface(QWidget(), 'navigation');rail.setFixedWidth(metrics()['rail_width']);nav=QVBoxLayout(rail);nav.setContentsMargins(gap,gap,gap,gap);nav.setSpacing(metrics()['space_xs'])
+        nav.addWidget(section_label('Herramientas'));nav.addSpacing(metrics()['space_s'])
+        self.pages=QStackedWidget();surface(self.pages);self.tabs=[]
         for title in ('Proyectos','Diagnósticos','Archivos','Recordatorios'):
-            b=button(title,lambda index=len(self.tabs):self.page(index));b.setCheckable(True);self.tabs.append(b);nav.addWidget(b)
-        nav.addStretch();self.outer.addLayout(nav)
-        self.make_projects();self.make_diagnostics();self.make_sharing();self.make_resets();self.outer.addWidget(self.pages,1)
-        self.status=text_label('','subtitle');self.outer.addWidget(self.status)
+            b=button(title,lambda index=len(self.tabs):self.page(index),symbol={'Proyectos':'folder','Diagnósticos':'shield-check','Archivos':'files','Recordatorios':'saved'}[title],nav=True);b.setCheckable(True);self.tabs.append(b);nav.addWidget(b)
+        nav.addStretch();nav.addWidget(text_label('Alt 1–4 · cambia de sección','utilitySubtitle'))
+        workspace.addWidget(rail);workspace.addWidget(self.pages,1)
+        self.make_projects();self.make_diagnostics();self.make_sharing();self.make_resets();self.outer.addWidget(self.workspace,1)
+        self.status=text_label('','utilitySubtitle');self.outer.addWidget(self.status)
+        for index in range(4):QShortcut(QKeySequence(f'Alt+{index+1}'),self).activated.connect(lambda i=index:self.page(i))
         self.page(0);self.refresh_projects()
 
     def page(self,index):
@@ -53,7 +63,7 @@ class ToolsWindow(Surface):
         if index==3:self.refresh_resets()
 
     def panel(self):
-        widget=QWidget();layout=QVBoxLayout(widget);layout.setContentsMargins(0,0,0,0);layout.setSpacing(14)
+        widget=QWidget();layout=QVBoxLayout(widget);gap=metrics()['gap'];layout.setContentsMargins(gap,gap,gap,gap);layout.setSpacing(gap)
         self.pages.addWidget(widget);return layout
 
     def make_projects(self):

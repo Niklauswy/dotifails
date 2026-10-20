@@ -125,7 +125,7 @@ def config(values):
             elif key=='split_ratio':value=float(value)*2
             else:value=int(value)
             result.setdefault(section,{})[name]=value
-        elif key in COLOR_MAPPING:result.setdefault('general',{}).setdefault('col',{})[COLOR_MAPPING[key]]='rgb('+str(value).lstrip('#')+')'
+        elif key in COLOR_MAPPING:result.setdefault('general',{}).setdefault('col',{})[COLOR_MAPPING[key]]='rgb('+str(value).lstrip('#')+')'  # theme-exception: sintaxis de color de Hyprland
     return result
 
 
@@ -150,7 +150,7 @@ class HyprDesktopSettings:
         self.observed=self.path.read_text() if self.path.exists() else ''
         self.saved=json.loads(self.observed) if self.observed else {'values':{},'rules':[]}
         from settings_data import SCHEMA
-        self.values={k:str(self.saved.get('values',{}).get(k,'true' if t[1]=='bool' else t[2][0] if t[1]=='enum' else '#7AA2F7' if t[1]=='color' else t[2])) for k,t in SCHEMA.items()}
+        self.values={k:str(self.saved.get('values',{}).get(k,'true' if t[1]=='bool' else t[2][0] if t[1]=='enum' else '#7AA2F7' if t[1]=='color' else t[2])) for k,t in SCHEMA.items()}  # theme-exception: valor por defecto del compositor
         for key,(section,name) in MAPPING.items():
             try:
                 value=option(self.runner,section+':'+name)
@@ -246,7 +246,7 @@ def effects_script(values):
     opacity=float(values['shadow-opacity'])
     if not 0<=opacity<=1:raise ValueError('Opacidad inválida')
     decoration=dict(rounding=integer('corner-radius',0,20),
-        shadow=dict(enabled=bool(values['shadow']),range=integer('shadow-radius',0,40),color='rgba(000000'+f'{round(opacity*255):02x}'+')'),
+        shadow=dict(enabled=bool(values['shadow']),range=integer('shadow-radius',0,40),color='rgba(000000'+f'{round(opacity*255):02x}'+')'),  # theme-exception: sintaxis de color de Hyprland
         blur=dict(enabled=bool(values['blur-background']),size=integer('blur-strength',1,8)))
     duration=integer('duration',50,600)/100
     text='hl.config('+lua({'decoration':decoration})+')\n'

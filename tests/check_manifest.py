@@ -7,7 +7,7 @@ backgrounds=root/'assets/backgrounds'
 assert set(p.name for p in backgrounds.iterdir())=={'tokyo.png','azul.jpg','space-black.png'}
 assert hashlib.sha256((backgrounds/'tokyo.png').read_bytes()).hexdigest()=='a017bb425a0c09dc598a3ce8b3f551cd9e64b91de61e1ecbd8b20a29db54cac2'
 themes=json.loads((root/'manifests/themes.json').read_text())
-assert set(themes)=={'severance','tokyo','space-black'}
+assert set(themes)=={'severance','tokyo','space-black','fluent-light','fluent-dark'}
 for theme in themes.values():
  assert (backgrounds/theme['wallpaper']).is_file()
  if theme.get('archive'):assert hashlib.sha256((root/theme['archive']).read_bytes()).hexdigest()==theme['sha256']
@@ -32,7 +32,7 @@ for base in ('config','apps','bin','assets'):
    assert not re.search(r'/home/nicolas|~/proyects/|\.local/opt/',text),str(p)
    assert not re.search(r'\brofi(?:\s|/|-)',text,re.I),str(p)
   assert p.suffix not in ('.sqlite3','.db'),str(p)
-print('MANIFEST_OK: three wallpapers and theme profiles, matching tool locks, no conflicting shortcuts or personal paths')
+print('MANIFEST_OK: five theme profiles with their wallpapers, matching tool locks, no conflicting shortcuts or personal paths')
 
 assert (root/'bin/orbit-tools').is_file()
 assert not (root/'scripts').exists()

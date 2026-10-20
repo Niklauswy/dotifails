@@ -2,6 +2,7 @@
 import fnmatch
 import os
 from pathlib import Path
+from theme_tokens import apply_style
 from PySide6.QtCore import Qt, Signal, QSortFilterProxyModel, QModelIndex, QMimeDatabase
 from PySide6.QtWidgets import (QWidget,QHBoxLayout,QVBoxLayout,QLabel,QComboBox,
     QLineEdit,QCheckBox,QMessageBox,QAbstractItemView)
@@ -80,7 +81,7 @@ class FileChooser(FilesWindow):
         for view in (tab.tree,tab.grid):
             shortcut=QShortcut(QKeySequence('Return'),view);shortcut.setContext(Qt.WidgetWithChildrenShortcut);shortcut.activated.connect(self.open_selected);self.shortcuts.append(shortcut)
         footer=QWidget();layout=QVBoxLayout(footer);layout.setContentsMargins(16,8,16,12)
-        self.error=QLabel();self.error.setWordWrap(True);self.error.setStyleSheet('color:#aa293b;background:transparent;');layout.addWidget(self.error)
+        self.error=QLabel();self.error.setWordWrap(True);apply_style(self.error,'color:@danger;background:transparent;');layout.addWidget(self.error)
         row=QHBoxLayout();self.filename=QLineEdit();self.filename.setAccessibleName('Nombre del archivo')
         self.filename.setText(str(options.get('current_name') or (Path(current).name if current else '')))
         self.filename.returnPressed.connect(self.accept_selection)

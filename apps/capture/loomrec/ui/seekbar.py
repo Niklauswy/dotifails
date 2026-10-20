@@ -2,6 +2,7 @@
 from PySide6.QtCore import QPointF, QRectF, Qt, Signal
 from PySide6.QtGui import QColor, QPainter
 from PySide6.QtWidgets import QToolTip, QWidget
+from .tokens import color
 
 
 def clock(seconds):
@@ -90,18 +91,18 @@ class SeekBar(QWidget):
         active = self._hover is not None or self._drag is not None or self.hasFocus()
         if active:
             track = track.adjusted(0, -1, 0, 1)
-        painter.setBrush(QColor('#D5DEEA'))
+        painter.setBrush(color('track'))
         painter.drawRoundedRect(track, track.height() / 2, track.height() / 2)
         if self._hover is not None and self.duration:
             hover = QRectF(track.left(), track.top(), min(track.width(), max(0., self._hover - track.left())), track.height())
-            painter.setBrush(QColor('#B8C9E0'))
+            painter.setBrush(color('line_strong'))
             painter.drawRoundedRect(hover, track.height() / 2, track.height() / 2)
         ratio = self.position / self.duration if self.duration else 0.
         done = QRectF(track.left(), track.top(), track.width() * min(1., ratio), track.height())
-        painter.setBrush(QColor('#2569CA'))
+        painter.setBrush(color('accent'))
         painter.drawRoundedRect(done, track.height() / 2, track.height() / 2)
         if self.duration:
             radius = 7 if active else 5
-            painter.setBrush(QColor('#FFFFFF'))
-            painter.setPen(QColor('#2569CA'))
+            painter.setBrush(color('surface'))
+            painter.setPen(color('focus') if self.hasFocus() else color('accent'))
             painter.drawEllipse(QPointF(done.right(), track.center().y()), radius, radius)

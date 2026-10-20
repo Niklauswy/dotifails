@@ -5,6 +5,7 @@ from PySide6.QtGui import QPainter,QColor,QPen,QPolygonF
 from PySide6.QtWidgets import QWidget,QVBoxLayout,QHBoxLayout,QFormLayout
 from .components import CheckBox,ComboBox,Disclosure,label
 from .motion import reduced_motion
+from .tokens import color
 from ..cursor import CURSOR_ARROW,CURSOR_FILL,CURSOR_OUTLINE,CURSOR_ACCENT,HALO_RADIUS,CLICK_DURATION,effect_settings
 
 PRESETS=(('Sencillo','simple'),('Presentación','presentation'),('Estela','trail'))
@@ -50,9 +51,9 @@ class CursorDemo(QWidget):
     def showEvent(self,event):super().showEvent(event);self.sync()
     def hideEvent(self,event):self.timer.stop();super().hideEvent(event)
     def paintEvent(self,event):
-        p=QPainter(self);p.setRenderHint(QPainter.Antialiasing);p.setPen(Qt.NoPen);p.setBrush(QColor('#EDF3FA'));p.drawRoundedRect(QRectF(self.rect()),12,12)
-        p.setBrush(QColor('#DFE9F6'));p.drawRoundedRect(QRectF(18,18,90,9),4,4);p.drawRoundedRect(QRectF(18,35,130,6),3,3)
-        p.setPen(QColor('#596A80'));p.drawText(QRectF(18,80,self.width()-36,24),Qt.AlignLeft|Qt.AlignVCenter,self.tr('Demostración local') if self.model.visible else self.tr('El cursor no aparecerá en el video'))
+        p=QPainter(self);p.setRenderHint(QPainter.Antialiasing);p.setPen(Qt.NoPen);p.setBrush(color('inset'));p.drawRoundedRect(QRectF(self.rect()),12,12)
+        p.setBrush(color('track'));p.drawRoundedRect(QRectF(18,18,90,9),4,4);p.drawRoundedRect(QRectF(18,35,130,6),3,3)
+        p.setPen(color('muted'));p.drawText(QRectF(18,80,self.width()-36,24),Qt.AlignLeft|Qt.AlignVCenter,self.tr('Demostración local') if self.model.visible else self.tr('El cursor no aparecerá en el video'))
         if not self.model.visible:return
         e=effect_settings(self.model.effects);enhanced=bool(e);t=self.phase
         size=e.get('size',32) if enhanced else 22;scale=size/32

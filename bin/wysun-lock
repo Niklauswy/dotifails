@@ -1,12 +1,164 @@
 #!/bin/sh
-# swaylock -f returns successfully only after acquiring the session lock.
+# Wysun lock entry point. `swaylock -f` (daemonized) returns successfully only
+# after acquiring the session lock; the opt-in QML backend uses
+# WlSessionLock/ext-session-lock-v1 and writes a readiness marker only when the
+# compositor has confirmed the lock. If that client fails before confirmation,
+# this script falls back to swaylock instead of claiming a false lock.
+# Derivado de caelestia-dots/shell (GPL-3.0), modificado para Wysun.
+# Presentación visual de modules/lock/Center.qml y center/{PasswordInput,StateMessage}.qml
+# en 507d66285e9d9fde9330adc64159cfdebb28c19a; no su backend PAM/lock/IPC.
+# Véanse THIRD_PARTY.md y LICENSES/GPL-3.0.txt.
 set -eu
 if [ "${XDG_SESSION_TYPE:-}" != wayland ] || [ -z "${WAYLAND_DISPLAY:-}" ]; then
     printf '%s\n' 'Wysun Lock requiere una sesión Wayland.' >&2
     exit 1
 fi
-case "${1:-}" in
-    '') exec swaylock --daemonize --color 121820 ;;
-    --suspend) swaylock --daemonize --color 121820 && exec systemctl suspend ;;
+suspend=false
+case "$#" in
+    0) ;;
+    1)
+        case "$1" in
+            --suspend) suspend=true ;;
+            *) printf '%s\n' 'Uso: wysun-lock [--suspend]' >&2; exit 2 ;;
+        esac
+        ;;
     *) printf '%s\n' 'Uso: wysun-lock [--suspend]' >&2; exit 2 ;;
 esac
+
+# Opt-in backend. Default is the proven swaylock lock; both the environment and
+# a small, flat preference file are accepted. Invalid values never select QML.
+config="${XDG_CONFIG_HOME:-$HOME/.config}/orbit/lock.json"
+backend=${WYSUN_LOCK_BACKEND:-}
+media=${WYSUN_LOCK_MEDIA:-}
+if [ -r "$config" ]; then
+    if [ -z "$backend" ]; then
+        backend=$(sed -n 's/.*"backend"[[:space:]]*:[[:space:]]*"\([A-Za-z]*\)".*/\1/p' "$config" | head -n 1)
+    fi
+    if [ -z "$media" ]; then
+        media=$(sed -n 's/.*"media"[[:space:]]*:[[:space:]]*true.*/1/p' "$config" | head -n 1)
+    fi
+fi
+backend=${backend:-swaylock}
+case "$media" in 1) ;; *) media=0 ;; esac
+case "$backend" in
+    swaylock|qml) ;;
+    *) printf '%s\n' 'Wysun Lock: backend desconocido; se usa swaylock.' >&2; backend=swaylock ;;
+esac
+
+# Accept only six hex digits. Standalone key/idle invocations retain swaylock's
+# own defaults until Qt supplies the selected Material/preset presentation.
+color=121820 # theme-exception: opaque recovery canvas when invoked without Qt tokens
+case "${WYSUN_LOCK_COLOR:-}" in
+    [0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]) color="$WYSUN_LOCK_COLOR" ;;
+esac
+
+run_swaylock() {
+    # Ignore any implicit swaylock config: the default lock exposes no image,
+    # screenshot, identity, metadata or media controls. No idle animation.
+    set -- --config /dev/null --daemonize --color "$color" --font Rubik --hide-keyboard-layout --indicator-caps-lock
+    for role in SURFACE ACCENT TEXT MUTED DANGER; do
+        case "$role" in
+            SURFACE) value=${WYSUN_LOCK_SURFACE:-} ;;
+            ACCENT) value=${WYSUN_LOCK_ACCENT:-} ;;
+            TEXT) value=${WYSUN_LOCK_TEXT:-} ;;
+            MUTED) value=${WYSUN_LOCK_MUTED:-} ;;
+            DANGER) value=${WYSUN_LOCK_DANGER:-} ;;
+        esac
+        case "$value" in
+            [0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]) ;;
+            *) continue ;;
+        esac
+        case "$role" in
+            SURFACE) set -- "$@" --inside-color "$value" --inside-clear-color "$value" --inside-ver-color "$value" --inside-wrong-color "$value" ;;
+            ACCENT) set -- "$@" --ring-color "$value" --ring-ver-color "$value" --key-hl-color "$value" ;;
+            TEXT) set -- "$@" --text-color "$value" --text-ver-color "$value" ;;
+            MUTED) set -- "$@" --ring-clear-color "$value" --text-clear-color "$value" --separator-color "$value" ;;
+            DANGER) set -- "$@" --ring-wrong-color "$value" --text-wrong-color "$value" --bs-hl-color "$value" ;;
+        esac
+    done
+    for metric in RADIUS THICKNESS FONT_SIZE; do
+        case "$metric" in
+            RADIUS) value=${WYSUN_LOCK_RADIUS:-} ;;
+            THICKNESS) value=${WYSUN_LOCK_THICKNESS:-} ;;
+            FONT_SIZE) value=${WYSUN_LOCK_FONT_SIZE:-} ;;
+        esac
+        case "$value" in
+            ''|*[!0-9]*) continue ;;
+        esac
+        # Bound values before passing them to the backend (also reject long integers).
+        [ "${#value}" -le 3 ] && [ "$value" -ge 1 ] && [ "$value" -le 256 ] || continue
+        case "$metric" in
+            RADIUS) set -- "$@" --indicator-radius "$value" ;;
+            THICKNESS) set -- "$@" --indicator-thickness "$value" ;;
+            FONT_SIZE) set -- "$@" --font-size "$value" ;;
+        esac
+    done
+    if "$suspend"; then
+        swaylock "$@" && exec systemctl suspend
+    else
+        exec swaylock "$@"
+    fi
+}
+
+shell_root=${WYSUN_SHELL_ROOT:-}
+if [ -z "$shell_root" ]; then
+    script_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+    if [ -f "$script_root/apps/shell/lock.qml" ]; then
+        shell_root="$script_root/apps/shell"
+    else
+        shell_root="${XDG_DATA_HOME:-$HOME/.local/share}/wysun/quickshell"
+    fi
+fi
+qml="$shell_root/lock.qml"
+
+run_qml() {
+    if [ ! -f "$qml" ] || ! command -v quickshell >/dev/null 2>&1; then
+        printf '%s\n' 'Wysun Lock: el bloqueo QML no está instalado; se usa swaylock.' >&2
+        run_swaylock
+    fi
+    runtime=${XDG_RUNTIME_DIR:-}
+    if [ -z "$runtime" ] || [ ! -d "$runtime" ]; then runtime=${TMPDIR:-/tmp}; fi
+    ready=$(mktemp "$runtime/wysun-lock-ready.XXXXXX") || {
+        printf '%s\n' 'Wysun Lock: no hay un directorio temporal seguro; se usa swaylock.' >&2
+        run_swaylock
+    }
+    trap 'rm -f "$ready"' EXIT HUP INT TERM
+    WYSUN_SHELL_ROOT="$shell_root" WYSUN_LOCK_READY="$ready" WYSUN_LOCK_MEDIA="$media" \
+        quickshell -p "$qml" >/dev/null 2>&1 &
+    pid=$!
+    # Seconds to wait for the compositor to confirm the lock (1-60, default 30).
+    limit=30
+    case "${WYSUN_LOCK_WAIT:-}" in
+        [1-9]|[1-5][0-9]|60) limit=$WYSUN_LOCK_WAIT ;;
+    esac
+    limit=$((limit * 10))
+    tries=0
+    while [ ! -s "$ready" ] && kill -0 "$pid" 2>/dev/null && [ "$tries" -lt "$limit" ]; do
+        sleep 0.1
+        tries=$((tries + 1))
+    done
+    if [ -s "$ready" ]; then
+        rm -f "$ready"
+        trap - EXIT HUP INT TERM
+        if "$suspend"; then
+            systemctl suspend
+        fi
+        exit 0
+    fi
+    if kill -0 "$pid" 2>/dev/null; then
+        printf '%s\n' 'Wysun Lock: el cliente QML no confirmó el bloqueo a tiempo; puede seguir bloqueando. No se lanza swaylock encima.' >&2
+        rm -f "$ready"
+        exit 1
+    fi
+    wait "$pid" 2>/dev/null || true
+    rm -f "$ready"
+    printf '%s\n' 'Wysun Lock: el bloqueo QML falló antes de confirmar; se usa swaylock.' >&2
+    trap - EXIT HUP INT TERM
+    run_swaylock
+}
+
+if [ "$backend" = qml ]; then
+    run_qml
+else
+    run_swaylock
+fi

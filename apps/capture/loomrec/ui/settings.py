@@ -4,6 +4,8 @@ from pathlib import Path
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QWidget,QVBoxLayout,QHBoxLayout,QFormLayout,QScrollArea,QFileDialog
 from .components import label,surface,SoftButton,ComboBox,CheckBox
+from .tokens import apply_style
+from .material import Navigation,Workspace,layout_tokens
 from ..videolibrary import preferences,save_preferences
 from ..schema import atomic_json
 from ..integration import shortcut_settings
@@ -13,12 +15,16 @@ def key_rows(layout):
     for action,chord in shortcut_settings().items():
         row=QHBoxLayout();row.addWidget(label(names[action]),1)
         for key in chord.split('+'):
-            cap=label(key.capitalize());cap.setStyleSheet('background:#E7EEF8;color:#405B7A;border:1px solid #CFDCEB;border-radius:6px;padding:5px 8px;');row.addWidget(cap)
+            cap=label(key.capitalize());apply_style(cap,'background:@hover;color:@ink;border:1px solid @line_strong;border-radius:6px;padding:5px 8px;');row.addWidget(cap)
         layout.addLayout(row)
 
 def build(w):
-    page=QWidget();w.settings_page=page;outer=QVBoxLayout(page);outer.setContentsMargins(28,24,28,24);outer.setSpacing(20)
-    nav=QHBoxLayout();back=SoftButton('Biblioteca','back',quiet=True);back.clicked.connect(w.back_library);nav.addWidget(back);nav.addStretch();record=SoftButton('Nueva grabación','record',primary=True);record.clicked.connect(lambda:w.activate_instance('quick'));nav.addWidget(record);outer.addLayout(nav)
+    content=QWidget();outer=QVBoxLayout(content);layout_tokens(outer)
+    navigation=Navigation('Wysun Recorder',[
+        ('Biblioteca','library',w.back_library),
+        ('Grabar','record',lambda:w.activate_instance('setup')),
+        ('Ajustes','settings',lambda:None)],active=2)
+    page=Workspace(navigation,content);w.settings_page=page
     outer.addWidget(label('Ajustes','title'));outer.addWidget(label('Tu espacio de trabajo y tus preferencias de grabación.','subtitle'))
     scroll=QScrollArea();scroll.setWidgetResizable(True);outer.addWidget(scroll,1);host=QWidget();body=QVBoxLayout(host);body.setContentsMargins(8,8,8,16);body.setSpacing(22);scroll.setWidget(host)
     from .cursor_settings import CursorPanel

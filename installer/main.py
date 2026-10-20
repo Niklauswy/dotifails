@@ -261,8 +261,9 @@ class Deployment:
         if 'tools' in selected:self.configure_scripts()
         self.stage('Configuraciones y aplicaciones')
         requested_theme=theme
-        theme=theme or read(self.home/'.config/orbit/theme.json',{}).get('id') or self.receipt.get('theme') or 'severance'
-        theme={'azul':'severance','morado':'tokyo'}.get(theme,theme)
+        from install_model import installer_theme,theme_selection
+        theme=theme_selection(theme) and installer_theme({'id':theme}) or installer_theme(read(self.home/'.config/orbit/theme.json',{}),self.receipt.get('theme') or 'severance')
+        selection=theme_selection(theme)
         appearance=read(self.source/'manifests/themes.json')[theme]
         home_source=self.backup/'generated/theme-home'
         shutil.copytree(self.source/'config',home_source)
@@ -271,7 +272,7 @@ class Deployment:
         if (self.source/'apps/wysun/theme_runtime.py').exists():
             sys.path.insert(0,str(self.source/'apps/wysun'))
             from theme_runtime import theme_files
-            themed,_=theme_files(home_source,theme)
+            themed,_=theme_files(home_source,selection)
             for path,text in themed.items():
                 path.parent.mkdir(parents=True,exist_ok=True)
                 path.write_text(text)
@@ -323,7 +324,8 @@ class Deployment:
                 for group in ('icons','themes'):
                     for item in sorted((root/group).iterdir()):self.deploy(item,Path('.local/share')/group/item.name)
         if 'desktop' in selected:
-            self.generated(json.dumps(dict(id=theme,name=appearance['name']),indent=2)+'\n',Path('.config/orbit/theme.json'))
+            from install_model import theme_core
+            self.generated(theme_core().serialize(*selection),Path('.config/orbit/theme.json'))
             preferences=read(self.home/'.config/orbit/environment.json',{})
             if requested_theme or not preferences.get('wallpaper',{}).get('default'):
                 preferences['wallpaper']=dict(default=str(self.home/'.local/share/backgrounds'/appearance['wallpaper']),mode='fill',monitors={},folders=preferences.get('wallpaper',{}).get('folders',[]))
@@ -545,7 +547,7 @@ def main(argv=None):
         p.add_argument('--orbit-only','--wysun-only',dest='orbit_only',action='store_true',help='Solo código y lanzador de Wysun; conserva el resto del escritorio y los datos privados')
         p.add_argument('--boot-only',action='store_true',help='Solo GRUB, Plymouth e inicio de sesión; conserva la sesión abierta y respalda /etc y /boot')
         p.add_argument('--installer-only',action='store_true',help='Actualizar solo el instalador visual, la CLI y sus manifiestos')
-        p.add_argument('--theme',choices=['severance','tokyo','space-black','azul','morado'],help='Perfil visual; Severance en instalaciones nuevas, conserva el elegido al actualizar')
+        p.add_argument('--theme',choices=['severance','tokyo','space-black','fluent-light','fluent-dark','azul','morado'],help='Perfil visual; Severance en instalaciones nuevas, conserva el elegido al actualizar')
         p.add_argument('--components',help='Componentes separados por comas: desktop,wayland,terminal,editor,tools,boot')
         p.add_argument('--boot-components',default='grub,plymouth,greeter',help='Pantallas de arranque: grub,plymouth,greeter')
         p.add_argument('--plan',action='store_true',help='Mostrar el plan exacto en JSON, sin aplicar cambios')

@@ -1,4 +1,11 @@
-"""Dedicated, lightweight Wysun music library and player."""
+"""Dedicated, lightweight Wysun music library and player.
+
+Derivado de caelestia-dots/shell (GPL-3.0), modificado para Wysun.
+Presentation: modules/dashboard/Media.qml, dashboard/media/Details.qml,
+components/widgets/CoverArt.qml and modules/nexus/NavPane.qml at
+507d66285e9d9fde9330adc64159cfdebb28c19a. Upstream has no per-file notices.
+Native translation only; see THIRD_PARTY.md and LICENSES/GPL-3.0.txt.
+"""
 import bisect
 import html
 import json
@@ -10,8 +17,9 @@ from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, Q
     QSlider, QPlainTextEdit, QStackedWidget, QScrollArea, QMenu, QStyle, QStyleOptionSlider,
     QSizeGrip, QApplication, QLabel)
 from desktop_common import button, text_label, ElidedLabel
-from icons import icon
-from theme_tokens import ThemeColor, apply_style
+from theme_tokens import apply_style, color, tokens, font, on_theme_changed
+from music_material import (apply_music_style, display_family, load_fonts,
+                            material_icon, metric)
 from music_window import MusicWindow, stamp, STATUS
 from music_library import PlaybackOrder, MusicStore, normalize, artists, parse_lrc
 from music_metadata import Metadata
@@ -68,18 +76,26 @@ class Cover(QWidget):
         super().__init__()
         self.title, self.image, self.paths = title, QPixmap(), []
         self.setFixedSize(size, size)
+        self.setAttribute(Qt.WA_Hover)
+        self.hovered = False
         self.setToolTip(title)
         self.setAccessibleName(title)
 
     def set_image(self, path):
         self.image = QPixmap(str(path));self.update()
 
+    def enterEvent(self, event):
+        self.hovered = True;self.update();super().enterEvent(event)
+
+    def leaveEvent(self, event):
+        self.hovered = False;self.update();super().leaveEvent(event)
+
     def paintEvent(self, event):
         painter = QPainter(self);painter.setRenderHint(QPainter.Antialiasing)
         rect = QRectF(self.rect()).adjusted(.5, .5, -.5, -.5)
-        radius = min(12, self.width()/8)
+        radius = min(tokens()["radius_l"], self.width()/8)
         clip = QPainterPath();clip.addRoundedRect(rect, radius, radius);painter.setClipPath(clip)
-        painter.fillRect(rect, ThemeColor('#263449'))
+        painter.fillRect(rect, color('hover'))
         images = [self.image] if not self.image.isNull() else [QPixmap(p) for p in self.paths[:4]]
         images = [p for p in images if not p.isNull()]
         if 1<len(images)<4:images=(images*4)[:4]
@@ -90,17 +106,26 @@ class Cover(QWidget):
                 x, y = (scaled.width()-target.width())/2, (scaled.height()-target.height())/2
                 painter.drawPixmap(target, scaled, QRectF(x, y, target.width(), target.height()))
         else:
-            painter.setPen(ThemeColor('#B8CBF2'))
-            font = painter.font();font.setPixelSize(max(14, int(self.width()*.25)));font.setWeight(font.Weight.DemiBold);painter.setFont(font)
+            painter.setPen(color('accent'))
+            cover_font = font(role='title', weight=600);cover_font.setFamily(display_family());cover_font.setPixelSize(max(metric('font_body'), int(self.width()*.25)));painter.setFont(cover_font)
             initials = ''.join(word[0] for word in self.title.split()[:2]).upper() or '♪'
             painter.drawText(rect, Qt.AlignCenter, initials)
-        painter.setClipping(False);painter.setPen(QPen(ThemeColor(255,255,255,25),1));painter.setBrush(Qt.NoBrush)
+        # StateLayer.qml: a soft hover layer inside the same clipped surface.
+        if self.hovered:
+            painter.fillRect(rect, color('text', 20))
+        painter.setClipping(False);painter.setPen(QPen(color('line'),tokens()['border']));painter.setBrush(Qt.NoBrush)
         painter.drawRoundedRect(rect, radius, radius);painter.end()
 
 
 def control(label, callback, symbol, primary=False, checkable=False):
-    result = button('', callback, 'primary' if primary else '', symbol)
-    result.setFixedSize(42 if primary else 36, 42 if primary else 36)
+    # Details.qml/ButtonRow: round tonal transport, filled play/pause.
+    result = button('', callback, 'primary' if primary else '')
+    result.setIcon(material_icon(symbol, metric('icon_size'),
+                                 'on_accent' if primary else 'glyph'))
+    result.setIconSize(QSize(metric('icon_size'), metric('icon_size')))
+    result.setProperty('musicSymbol', symbol)
+    size = metric('space_xl', 2 if primary else 1.75)
+    result.setFixedSize(size, size)
     result.setToolTip(label);result.setAccessibleName(label);result.setCheckable(checkable)
     return result
 
@@ -131,13 +156,16 @@ class MusicAppWindow(MusicWindow):
         self.view = 'home'
         self.metadata = None
         self.restoring = False
+        load_fonts()  # Package the families before transparent icons are built.
         super().__init__(test=test)
         self.setWindowTitle('Wysun Music')
-        self.resize(1120, 720)
-        self.setMinimumSize(760, 600)
-        self.outer.setContentsMargins(22, 18, 22, 12)
-        self.outer.setSpacing(12)
+        self.resize(1180, 760)
+        self.setMinimumSize(820, 600)
+
         self.setObjectName('musicApp')
+        apply_music_style(self)
+        on_theme_changed(self.refresh_presentation)
+        self.refresh_presentation()
         self.metadata = Metadata(music.DATA, self)
         self.metadata.ready.connect(self.metadata_ready)
         if not test:
@@ -178,34 +206,44 @@ class MusicAppWindow(MusicWindow):
         header.insertWidget(1, self.search, 1)
         header.insertWidget(2, control('Añadir archivos', self.import_files, 'folder-open'))
         header.insertWidget(3, control('Buscar y descargar', lambda: self.go('online'), 'download'))
-        body = QHBoxLayout();body.setSpacing(20)
-        sidebar = QWidget();self.sidebar=sidebar;side = QVBoxLayout(sidebar);side.setContentsMargins(0,8,0,0);side.setSpacing(12)
-        sidebar.setFixedWidth(178)
-        self.nav = QListWidget();self.nav.setFixedHeight(196);self.nav.setSpacing(2)
-        for key, name, symbol in [('home','Biblioteca','music'), ('favorites','Favoritos','heart'), ('artists','Artistas','users'), ('downloads','Descargas','download')]:
-            item = QListWidgetItem(icon(symbol), name);item.setData(Qt.UserRole,key);item.setSizeHint(QSize(160,42));self.nav.addItem(item)
+        body = QHBoxLayout();self.body_layout=body;body.setSpacing(metric('space_m'))
+        sidebar = QWidget();self.sidebar=sidebar;sidebar.setObjectName('musicNavigation');side = QVBoxLayout(sidebar);side.setContentsMargins(*([metric('space_s')]*4));side.setSpacing(metric('space_m'))
+        sidebar.setFixedWidth(metric('space_xl',7))
+        self.nav = QListWidget();self.nav.setFixedHeight(metric('space_xl',10));self.nav.setSpacing(0);self.nav.setAccessibleName('Navegación de música')
+        self.nav.setIconSize(QSize(metric('icon_size'),metric('icon_size')))
+        for key, name, symbol in [('home','Canciones','music'), ('albums','Álbumes','albums'), ('favorites','Favoritos','heart'), ('artists','Artistas','users'), ('downloads','Descargas','download')]:
+            item = QListWidgetItem(material_icon(symbol, metric('icon_size')), name)
+            item.setData(Qt.UserRole,key);item.setData(Qt.UserRole+1,symbol)
+            item.setSizeHint(QSize(0,metric('space_xl',1.75)));self.nav.addItem(item)
         self.nav.currentItemChanged.connect(lambda item,_: self.go(item.data(Qt.UserRole)) if item else None)
         side.addWidget(self.nav)
-        side.addWidget(text_label('TUS PLAYLISTS', 'eyebrow'))
-        self.collections = QListWidget();self.collections.setWordWrap(True);self.collections.setSpacing(5)
+        side.addWidget(text_label('Tus playlists', 'musicCategory'))
+        self.collections = QListWidget();self.collections.setWordWrap(True);self.collections.setSpacing(metric('space_xs'))
         self.collections.setIconSize(QSize(30,30));self.collections.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.collections.currentItemChanged.connect(self.select_collection)
         side.addWidget(self.collections,1)
-        side.addWidget(button('Carpeta de música', lambda: QDesktopServices.openUrl(__import__('PySide6.QtCore',fromlist=['QUrl']).QUrl.fromLocalFile(str(music.LIBRARY))), symbol='folder-open'))
+        folder = button('Carpeta de música', lambda: QDesktopServices.openUrl(__import__('PySide6.QtCore',fromlist=['QUrl']).QUrl.fromLocalFile(str(music.LIBRARY))))
+        folder.setIcon(material_icon('folder-open', metric('icon_size')))
+        folder.setIconSize(QSize(metric('icon_size'), metric('icon_size')))
+        folder.setProperty('musicSymbol', 'folder-open')
+        side.addWidget(folder)
         body.addWidget(sidebar)
-        center = QWidget();self.center=center;content = QVBoxLayout(center);content.setContentsMargins(0,0,0,0);content.setSpacing(10)
-        self.hero = QWidget();hero = QHBoxLayout(self.hero);hero.setContentsMargins(0,8,0,12);hero.setSpacing(18)
-        self.hero_cover = Cover('Biblioteca',112);hero.addWidget(self.hero_cover)
-        titles = QVBoxLayout();titles.setSpacing(7)
-        self.category = text_label('BIBLIOTECA LOCAL','eyebrow');titles.addWidget(self.category)
-        self.heading = text_label('Tu música, a un clic');apply_style(self.heading,'font-size:25px;font-weight:600;');titles.addWidget(self.heading)
-        self.summary = text_label('', 'subtitle');titles.addWidget(self.summary)
-        self.source = QLabel();self.source.setTextFormat(Qt.RichText);self.source.setOpenExternalLinks(False);self.source.linkActivated.connect(self.search_link)
-        apply_style(self.source,'color:#A0ACC0;font-size:11px;');titles.addWidget(self.source)
-        actions = QHBoxLayout();self.hero_play = button('Reproducir', self.play_view,'primary','play');actions.addWidget(self.hero_play)
-        self.hero_shuffle = button('Aleatorio',self.shuffle_view,symbol='shuffle');actions.addWidget(self.hero_shuffle);actions.addStretch()
-        titles.addLayout(actions);hero.addLayout(titles,1);content.addWidget(self.hero)
-        self.pages = QStackedWidget();content.addWidget(self.pages,1)
+        center = QWidget();self.center=center;content = QHBoxLayout(center);self.content_layout=content;content.setContentsMargins(0,0,0,0);content.setSpacing(metric('space_m'))
+        self.hero = QWidget();self.hero.setObjectName('musicArtwork')
+        hero = QVBoxLayout(self.hero);hero.setContentsMargins(*([metric('space_l')]*4));hero.setSpacing(metric('space_m'))
+        self.category = text_label('Biblioteca local','musicCategory');hero.addWidget(self.category)
+        self.hero_cover = Cover('Tu música',metric('space_xl',10));hero.addWidget(self.hero_cover,0,Qt.AlignHCenter)
+        self.heading = text_label('Tu música','musicHeading');hero.addWidget(self.heading)
+        self.summary = text_label('', 'subtitle');hero.addWidget(self.summary)
+        self.source = QLabel();self.source.setWordWrap(True);self.source.setTextFormat(Qt.RichText);self.source.setOpenExternalLinks(False);self.source.linkActivated.connect(self.search_link)
+        self.source.setObjectName('musicDetail');hero.addWidget(self.source)
+        self.hero_play = button('Reproducir', self.play_view,'primary','play');hero.addWidget(self.hero_play)
+        self.hero_shuffle = button('Aleatorio',self.shuffle_view,symbol='shuffle');hero.addWidget(self.hero_shuffle)
+        hero.addStretch();content.addWidget(self.hero)
+        tracks_panel=QWidget();self.tracks_panel=tracks_panel;tracks_panel.setObjectName('musicTracks')
+        tracks_layout=QVBoxLayout(tracks_panel);self.tracks_layout=tracks_layout
+        tracks_layout.setContentsMargins(*([metric('space_m')]*4));tracks_layout.setSpacing(metric('space_s'))
+        self.pages = QStackedWidget();tracks_layout.addWidget(self.pages,1);content.addWidget(tracks_panel,1)
         self.tree = QTreeWidget();self.tree.setColumnCount(5);self.tree.setHeaderLabels(['','Canción','Artista','Duración','♡'])
         self.tree.setRootIsDecorated(False);self.tree.setUniformRowHeights(True);self.tree.setSelectionMode(QAbstractItemView.SingleSelection)
         self.tree.setAccessibleName('Canciones disponibles');self.tree.setMouseTracking(True)
@@ -213,11 +251,6 @@ class MusicAppWindow(MusicWindow):
         self.tree.header().setSectionResizeMode(2,QHeaderView.Stretch)
         for col,width in [(0,30),(3,76),(4,42)]:self.tree.setColumnWidth(col,width)
         self.tree.setColumnWidth(2,200);self.tree.header().setMinimumSectionSize(28)
-        apply_style(self.tree,'''QTreeWidget{background:transparent;border:0;outline:0;}
-            QTreeWidget::item{height:39px;border-bottom:1px solid rgba(255,255,255,8);padding:2px;}
-            QTreeWidget::item:hover{background:#233047;}
-            QTreeWidget::item:selected{background:#2C3D57;}
-            QTreeWidget::item:focus{border:1px solid #91B5ED;}''')
         self.tree.itemDoubleClicked.connect(self.row_double_clicked)
         self.tree.itemClicked.connect(self.row_clicked)
         self.tree.itemSelectionChanged.connect(self.update_actions)
@@ -247,42 +280,42 @@ class MusicAppWindow(MusicWindow):
         self.pages.addWidget(self.artist_list) # 4
         self.empty_label=text_label('','subtitle');self.empty_label.setAlignment(Qt.AlignCenter);self.pages.addWidget(self.empty_label) # 5
         body.addWidget(center,1)
-        self.lyrics_panel=QWidget();self.lyrics_panel.setFixedWidth(320);lyrics=QVBoxLayout(self.lyrics_panel);lyrics.setContentsMargins(12,8,0,0)
+        self.lyrics_panel=QWidget();self.lyrics_panel.setObjectName('musicLyrics');self.lyrics_panel.setFixedWidth(metric('space_xl', 13));lyrics=QVBoxLayout(self.lyrics_panel);lyrics.setContentsMargins(*([metric('space_m')]*4))
         lyric_header=QHBoxLayout();lyric_header.addWidget(text_label('LETRA','eyebrow'),1);lyric_header.addWidget(control('Cerrar letra',self.toggle_lyrics,'x'));lyrics.addLayout(lyric_header);self.lyric_title=text_label('Elige una canción','previewTitle');lyrics.addWidget(self.lyric_title)
         self.lyric_status=text_label('','subtitle');lyrics.addWidget(self.lyric_status)
         self.audio_version_button=button('Usar audio de canción',lambda:self.play_key(self.current_key,keep_queue=True),symbol='music');self.audio_version_button.hide();lyrics.addWidget(self.audio_version_button)
         self.lyric_list=QListWidget();self.lyric_list.setWordWrap(True);self.lyric_list.setSpacing(6);self.lyric_list.setSelectionMode(QAbstractItemView.SingleSelection)
-        apply_style(self.lyric_list,'QListWidget::item{padding:10px 4px;color:#8596B2;border-radius:8px;}QListWidget::item:selected{background:rgba(155,191,247,12);color:#E8EDF7;}QListWidget::item:hover{background:rgba(155,191,247,8);}')
+        apply_style(self.lyric_list,'QListWidget::item{padding:@space_s @space_xs;color:@subtle;border-radius:@radius_s;}QListWidget::item:selected{background:@row_hover;color:@text;}QListWidget::item:hover{background:@card;}')
         self.lyric_list.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff);self.lyric_list.setTextElideMode(Qt.ElideNone)
         self.lyric_list.setToolTip('Clic en una línea para ir a ese momento de la canción')
         self.lyric_list.itemClicked.connect(self.seek_lyric);self.lyric_list.itemActivated.connect(self.seek_lyric);lyrics.addWidget(self.lyric_list,1)
         offsets=QHBoxLayout();offsets.addWidget(button('− 0.5 s',lambda:self.offset_lyrics(-.5)))
         self.offset_label=text_label('0.0 s','subtitle');offsets.addWidget(self.offset_label);offsets.addWidget(button('+ 0.5 s',lambda:self.offset_lyrics(.5)));lyrics.addLayout(offsets)
         self.lyrics_panel.hide();body.addWidget(self.lyrics_panel);self.outer.addLayout(body,1)
-        player=QWidget();player.setObjectName('musicPlayer')
-        apply_style(player,'QWidget#musicPlayer{background:rgba(155,191,247,8);border:1px solid rgba(180,203,239,28);border-radius:18px;}')
-        pl=QVBoxLayout(player);pl.setContentsMargins(14,10,14,8);pl.setSpacing(4)
-        row=QHBoxLayout();row.setSpacing(8);self.now_cover=Cover('Música',46);row.addWidget(self.now_cover)
-        now=QVBoxLayout();now.setSpacing(2);self.now_title=ElidedLabel('Elige una canción');apply_style(self.now_title,'font-weight:600;font-size:13px;');now.addWidget(self.now_title)
+        player=QWidget();self.player_panel=player;player.setObjectName('musicPlayer')
+        apply_style(player,'QWidget#musicPlayer{background:@surface;border-radius:@radius_l;}')
+        pl=QVBoxLayout(player);pl.setContentsMargins(*([metric('space_m')]*4));pl.setSpacing(metric('space_xs'))
+        row=QHBoxLayout();row.setSpacing(metric('space_s'));self.now_cover=Cover('Música',metric('space_xl',2));row.addWidget(self.now_cover)
+        now=QVBoxLayout();now.setSpacing(metric('space_xs'));self.now_title=ElidedLabel('Elige una canción');self.now_title.setObjectName('musicTrackTitle');now.addWidget(self.now_title)
         self.now_artist=QLabel('Tu biblioteca local');self.now_artist.setMinimumWidth(0);
         from PySide6.QtWidgets import QSizePolicy
         self.now_artist.setSizePolicy(QSizePolicy.Ignored,QSizePolicy.Preferred);self.now_artist.setTextFormat(Qt.RichText);self.now_artist.linkActivated.connect(lambda name:self.go('artist',artist=name))
-        apply_style(self.now_artist,'font-size:11px;color:#A0ACC0;');now.addWidget(self.now_artist);row.addLayout(now,1)
+        self.now_artist.setObjectName('musicDetail');now.addWidget(self.now_artist);row.addLayout(now,1)
         self.favorite_button=control('Añadir a favoritos',self.favorite_current,'heart',checkable=True);row.addWidget(self.favorite_button)
         self.shuffle=control('Aleatorio',self.change_shuffle,'shuffle',checkable=True);row.addWidget(self.shuffle)
         self.previous_button=control('Anterior · Ctrl+←',lambda:self.advance(-1),'skip-back');row.addWidget(self.previous_button)
         self.play_button=control('Reproducir · Ctrl+Espacio',self.toggle_play,'play',primary=True);row.addWidget(self.play_button)
         self.next_button=control('Siguiente · Ctrl+→',lambda:self.advance(1),'skip-forward');row.addWidget(self.next_button)
         self.repeat=control('Repetir lista',self.change_repeat,'repeat',checkable=True);row.addWidget(self.repeat)
-        row.addSpacing(10);row.addWidget(control('Letra sincronizada',self.toggle_lyrics,'file-text'))
-        row.addWidget(control('Silenciar',self.mute,'volume-2'));self.volume=QSlider(Qt.Horizontal);self.volume.setFixedWidth(78);self.volume.setRange(0,100);self.volume.setValue(60)
+        row.addSpacing(10);row.addWidget(control('Letra sincronizada',self.toggle_lyrics,'lyrics'))
+        row.addWidget(control('Silenciar',self.mute,'volume-2'));self.volume=QSlider(Qt.Horizontal);self.volume.setFixedWidth(metric('space_xl',3));self.volume.setRange(0,100);self.volume.setValue(60)
         self.volume.setAccessibleName('Volumen');self.volume.valueChanged.connect(lambda value:self.command(['set_property','volume',value]));row.addWidget(self.volume)
         pl.addLayout(row)
         timeline=QHBoxLayout();self.elapsed=text_label('0:00','subtitle');self.elapsed.setFixedWidth(40);timeline.addWidget(self.elapsed)
         self.seek=SeekSlider();self.seek.setAccessibleName('Posición de reproducción');self.seek.setEnabled(False);self.seek.seeked.connect(self.seek_to)
         timeline.addWidget(self.seek,1);self.total=text_label('0:00','subtitle');self.total.setFixedWidth(40);timeline.addWidget(self.total);pl.addLayout(timeline)
         self.outer.addWidget(player)
-        footer=QHBoxLayout();self.status=text_label('','subtitle');self.status.hide();footer.addWidget(self.status,1)
+        footer=QHBoxLayout();self.status=text_label('Reproducción local · puedes cerrar el panel y seguir escuchando','subtitle');footer.addWidget(self.status,1)
         footer.addWidget(QSizeGrip(self));self.outer.addLayout(footer)
         # Compatibility for the older downloader helpers.
         self.download_button=self.details
@@ -304,10 +337,42 @@ class MusicAppWindow(MusicWindow):
         shortcut(self,'Ctrl+J',self.focus_content)
         shortcut(self,'F1',lambda:keyboard_help(self))
         self.collections.itemActivated.connect(lambda _:self.focus_content())
-        self.nav.itemActivated.connect(lambda _:self.collections.setFocus() if self.view=='home' else self.focus_content())
+        self.nav.itemActivated.connect(lambda _:self.focus_content())
         self.source.setTextInteractionFlags(Qt.TextBrowserInteraction);self.source.setFocusPolicy(Qt.StrongFocus)
         self.now_artist.setTextInteractionFlags(Qt.TextBrowserInteraction);self.now_artist.setFocusPolicy(Qt.StrongFocus)
         self.search.setToolTip('↑ / ↓ elegir · Enter reproducir · Esc limpiar · Ctrl+J ir a resultados')
+
+    def refresh_presentation(self):
+        """Reflow native metrics and cached brushes after a live scheme change."""
+        self.outer.setContentsMargins(*([metric('space_l')]*4))
+        self.outer.setSpacing(metric('space_m'))
+        self.sidebar.setFixedWidth(metric('space_xl',7))
+        self.hero.setFixedWidth(metric('space_xl',11))
+        self.hero_cover.setFixedSize(*([metric('space_xl', 11)-metric('space_l',2)]*2))
+        for layout in (self.body_layout,self.content_layout):layout.setSpacing(metric('space_m'))
+        self.tracks_layout.setContentsMargins(*([metric('space_m')]*4))
+        self.tracks_layout.setSpacing(metric('space_s'))
+        self.nav.setFixedHeight(metric('space_xl',10))
+        self.nav.setIconSize(QSize(metric('icon_size'),metric('icon_size')))
+        for i in range(self.nav.count()):
+            item=self.nav.item(i);symbol=item.data(Qt.UserRole+1)
+            if symbol:item.setIcon(material_icon(symbol,metric('icon_size')))
+            item.setSizeHint(QSize(0,metric('space_xl',1.75)))
+        for i in range(self.collections.count()):
+            self.collections.item(i).setSizeHint(QSize(0,metric('space_xl',2)))
+        from PySide6.QtWidgets import QPushButton
+        for widget in self.findChildren(QPushButton):
+            symbol=widget.property('musicSymbol')
+            if not symbol:continue
+            tint='on_accent' if widget.objectName()=='primary' else 'glyph'
+            widget.setIcon(material_icon(symbol,metric('icon_size'),tint))
+            widget.setIconSize(QSize(metric('icon_size'),metric('icon_size')))
+        self.row_signature=None
+        self.render_tracks()
+        for i in range(self.lyric_list.count()):
+            self.lyric_list.item(i).setForeground(color('accent' if i==self.lyric_index else 'subtle'))
+            self.size_lyric(self.lyric_list.item(i))
+        self.update()
 
     def focus_content(self):
         page=self.pages.currentWidget()
@@ -318,7 +383,7 @@ class MusicAppWindow(MusicWindow):
 
     def keyboard_page(self,view):
         self.go(view)
-        target={'artists':self.artist_list,'downloads':self.download_list,'online':self.online_query,'favorites':self.tree,'home':self.collections}[view]
+        target={'artists':self.artist_list,'downloads':self.download_list,'online':self.online_query,'favorites':self.tree,'home':self.tree}[view]
         target.setFocus()
 
     def open_selected_artist(self):
@@ -364,16 +429,16 @@ class MusicAppWindow(MusicWindow):
         for key,c in self.state['collections'].items():
             if key=='audio-versions':continue
             title={'nadie-sabe':'Nadie sabe…','bad-bunny':'Bad Bunny · éxitos','top-global':'Top 100 · Global','top-mexico':'Top 100 · México'}.get(key,c['title'])
-            item=QListWidgetItem(title);item.setData(Qt.UserRole,key);item.setToolTip(c['title']);item.setSizeHint(QSize(168,46));self.collections.addItem(item)
+            item=QListWidgetItem(title);item.setData(Qt.UserRole,key);item.setToolTip(c['title']);item.setSizeHint(QSize(0,metric('space_xl',2)));self.collections.addItem(item)
             if key==self.collection:self.collections.setCurrentItem(item)
         self.collections.blockSignals(False)
         self.render_downloads();self.render_tracks()
-        if self.view=='home':self.render_gallery()
+        if self.view=='albums':self.render_gallery()
         if self.view=='artists':self.render_artists()
         self.update_collection_icons()
 
     def go(self,view='home',collection='all',artist=None):
-        if view not in {'home','tracks','favorites','artists','artist','downloads','online'}:view='home'
+        if view not in {'home','albums','tracks','favorites','artists','artist','downloads','online'}:view='home'
         self.view,self.collection,self.artist_name=view,collection,artist
         self.search.blockSignals(True);self.search.clear();self.search.blockSignals(False)
         self.nav.blockSignals(True);self.nav.clearSelection()
@@ -386,16 +451,16 @@ class MusicAppWindow(MusicWindow):
         self.collections.blockSignals(False)
         self.hero_cover.image=QPixmap();self.hero_cover.paths=[];self.hero_cover.title=artist or 'Música';self.hero_cover.update()
         self.source.clear();self.hero_play.show();self.hero_shuffle.show()
-        if view=='home':
-            self.category.setText('BIBLIOTECA LOCAL');self.heading.setText('Biblioteca')
-            self.summary.setText(f'{len(self.all_keys())} canciones · guardadas en este equipo');self.hero_cover.hide();self.render_gallery();self.pages.setCurrentIndex(3)
+        if view=='albums':
+            self.category.setText('BIBLIOTECA LOCAL');self.heading.setText('Álbumes y playlists')
+            self.summary.setText(f'{len(self.all_keys())} canciones · guardadas en este equipo');self.hero_cover.show();self.render_gallery();self.pages.setCurrentIndex(3)
         elif view=='artists':
-            self.category.setText('TU BIBLIOTECA');self.heading.setText('Artistas');self.hero_cover.hide();self.hero_play.hide();self.hero_shuffle.hide();self.render_artists();self.pages.setCurrentIndex(4)
+            self.category.setText('TU BIBLIOTECA');self.heading.setText('Artistas');self.hero_cover.show();self.hero_play.hide();self.hero_shuffle.hide();self.render_artists();self.pages.setCurrentIndex(4)
         elif view in {'downloads','online'}:
             self.category.setText('TU BIBLIOTECA');self.heading.setText('Descargas' if view=='downloads' else 'Añadir música')
-            self.summary.setText('Gestiona lo que guardas en este equipo');self.hero_cover.hide();self.hero_play.hide();self.hero_shuffle.hide();self.pages.setCurrentIndex(1 if view=='downloads' else 2)
+            self.summary.setText('Gestiona lo que guardas en este equipo');self.hero_cover.show();self.hero_play.hide();self.hero_shuffle.hide();self.pages.setCurrentIndex(1 if view=='downloads' else 2)
         else:
-            self.hero_cover.show();self.category.setText('ARTISTA' if view=='artist' else ('FAVORITOS' if view=='favorites' else 'PLAYLIST'))
+            self.hero_cover.show();self.category.setText('ARTISTA' if view=='artist' else ('FAVORITOS' if view=='favorites' else 'BIBLIOTECA LOCAL' if view=='home' else 'PLAYLIST'))
             c=self.state['collections'].get(collection,{})
             self.heading.setText(artist if view=='artist' else ('Tus favoritos' if view=='favorites' else c.get('title','Todas las canciones')))
             if c.get('date'):self.category.setText('RANKING · '+c['date'])
@@ -407,7 +472,7 @@ class MusicAppWindow(MusicWindow):
             self.render_tracks();self.pages.setCurrentIndex(0 if self.visible_keys else 5)
         self.update_actions()
         from ui_motion import reveal_content
-        reveal_content(self.pages.currentWidget(),140)
+        reveal_content(self.pages.currentWidget(),metric('motion_fast'))
 
     def select_collection(self,item,previous=None):
         if item:self.go('tracks',item.data(Qt.UserRole))
@@ -415,7 +480,7 @@ class MusicAppWindow(MusicWindow):
     def search_changed(self):
         query=normalize(self.search.text())
         if query:
-            self.hero_cover.hide();self.category.setText('BÚSQUEDA GLOBAL');self.heading.setText('Resultados en toda tu música')
+            self.hero_cover.show();self.category.setText('BÚSQUEDA GLOBAL');self.heading.setText('Resultados en toda tu música')
             self.render_tracks();self.pages.setCurrentIndex(0 if self.visible_keys else 5)
             matching_artists=sorted({a for k in self.visible_keys for a in artists(self.state['tracks'][k]) if query in normalize(a)})
             matching_collections=[(k,c) for k,c in self.state['collections'].items() if k!='audio-versions' and query in normalize(c['title'])]
@@ -451,10 +516,10 @@ class MusicAppWindow(MusicWindow):
                 item=self.tree.topLevelItem(i)
                 if item is None:item=QTreeWidgetItem();self.tree.addTopLevelItem(item)
                 for col,value in enumerate(['▶' if current else str(i+1),title,artist,stamp(duration),'♥' if favorite else '♡']):item.setText(col,value)
-                item.setData(0,Qt.UserRole,key);item.setSizeHint(0,QSize(0,40))
+                item.setData(0,Qt.UserRole,key);item.setSizeHint(0,QSize(0,metric('space_xl',2)))
                 item.setToolTip(1,title);item.setToolTip(2,'Ver artista · '+artist);item.setToolTip(4,'Quitar de favoritos' if favorite else 'Añadir a favoritos · F')
                 item.setTextAlignment(3,Qt.AlignRight|Qt.AlignVCenter);item.setTextAlignment(4,Qt.AlignCenter)
-                item.setForeground(0,ThemeColor('#B8CBF2' if current else '#8596B2'));item.setForeground(4,ThemeColor('#B8CBF2' if favorite else '#8596B2'))
+                item.setForeground(0,color('accent' if current else 'subtle'));item.setForeground(4,color('accent' if favorite else 'subtle'))
                 if key==selected:self.tree.setCurrentItem(item)
             self.tree.blockSignals(False);self.tree.verticalScrollBar().setValue(scroll);self.row_signature=signature
         self.summary.setText(f'{len(keys)} canciones · {stamp(sum(self.playable(k).get("duration",0) for k in keys))} de música')
@@ -468,7 +533,7 @@ class MusicAppWindow(MusicWindow):
             names=artists(self.state['tracks'][key])
             if len(names)==1:self.go('artist',artist=names[0])
             else:
-                menu=QMenu(self);apply_style(menu,'QMenu{background:#1C293D;color:#E8EDF7;padding:6px;}QMenu::item{padding:10px 20px;}QMenu::item:selected{background:#304766;}')
+                menu=QMenu(self);apply_style(menu,'QMenu{background:@menu;color:@text;padding:6px;border:@border solid @line_strong;}QMenu::item{padding:10px 20px;}QMenu::item:selected{background:@menu_selected;}')
                 for name in names:menu.addAction(name,lambda checked=False,n=name:self.go('artist',artist=n))
                 menu.exec(self.tree.viewport().mapToGlobal(self.tree.visualItemRect(item).center()))
 
@@ -503,13 +568,13 @@ class MusicAppWindow(MusicWindow):
             section=QWidget();layout=QVBoxLayout(section);layout.setContentsMargins(0,0,0,0);layout.setSpacing(8)
             layout.addWidget(text_label(label,'previewTitle'));grid=QGridLayout();grid.setSpacing(12)
             for i,(key,c) in enumerate(collections):
-                card=QWidget();card.setMinimumHeight(112);card.setObjectName('collectionCard');apply_style(card,'QWidget#collectionCard{background:rgba(255,255,255,4);border-radius:16px;}')
-                cl=QHBoxLayout(card);cl.setContentsMargins(12,12,12,12);cl.setSpacing(12)
-                cover=Cover(c['title'],80);cl.addWidget(cover);self.cover_widgets[key]=cover;self.apply_cover(key,cover)
-                info=QVBoxLayout();info.setSpacing(6);title=text_label(c['title']);apply_style(title,'font-size:14px;font-weight:600;');info.addWidget(title)
+                card=QWidget();card.setMinimumHeight(metric('space_xl',5));card.setObjectName('collectionCard');apply_style(card,'QWidget#collectionCard{background:@fill;border-radius:@radius_l;}')
+                cl=QHBoxLayout(card);cl.setContentsMargins(*([metric('space_m')]*4));cl.setSpacing(metric('space_m'))
+                cover=Cover(c['title'],metric('space_xl',3));cl.addWidget(cover);self.cover_widgets[key]=cover;self.apply_cover(key,cover)
+                info=QVBoxLayout();info.setSpacing(6);title=text_label(c['title']);apply_style(title,'font-size:@font_heading;font-weight:600;');info.addWidget(title)
                 count=sum(self.available(k) for k in c['tracks']);info.addWidget(text_label(f'{count} canciones'+(' · '+c['date'] if c.get('date') else ''),'subtitle'))
                 action=button('Abrir playlist',lambda k=key:self.go('tracks',k),symbol='arrow-right');info.addWidget(action);cl.addLayout(info,1)
-                grid.addWidget(card,i//2,i%2)
+                grid.addWidget(card,i,0)
             layout.addLayout(grid);self.gallery_layout.addWidget(section)
         self.gallery_layout.addWidget(button('Ver todas las canciones',lambda:self.go('tracks'),symbol='music'))
         spacer=QWidget();spacer.setFixedHeight(1);self.gallery_layout.addWidget(spacer);self.gallery_layout.addStretch()
@@ -556,7 +621,7 @@ class MusicAppWindow(MusicWindow):
             self.covers[key]=data['path']
             if key in self.cover_widgets:self.apply_cover(key,self.cover_widgets[key])
             for collection,widget in self.cover_widgets.items():self.apply_cover(collection,widget)
-            if self.view=='tracks':self.apply_cover(self.collection,self.hero_cover)
+            if self.view in {'home','tracks','favorites'}:self.apply_cover(self.collection,self.hero_cover)
             if key==self.current_key:self.now_cover.set_image(data['path'])
             self.update_collection_icons()
         elif kind=='artist' and self.view=='artist' and key==self.artist_name:
@@ -575,7 +640,7 @@ class MusicAppWindow(MusicWindow):
         self.favorite_button.setEnabled(bool(self.current_key));self.favorite_button.setChecked(self.current_key in self.favorite_keys)
         self.now_cover.image=QPixmap();self.now_cover.title=track.get('title','Música');self.now_cover.update();self.apply_cover(self.current_key,self.now_cover)
         from ui_motion import reveal_content
-        reveal_content(self.now_cover,140)
+        reveal_content(self.now_cover,metric('motion_fast'))
         self.request_track_cover(self.current_key)
         if self.lyrics_panel.isVisible():self.request_lyrics()
 
@@ -630,7 +695,7 @@ class MusicAppWindow(MusicWindow):
         self.hero_shuffle.setEnabled(self.hero_play.isEnabled())
 
     def set_paused(self,value):
-        self.paused=bool(value);self.play_button.setText('');self.play_button.setIcon(icon('play' if self.paused else 'pause',17,'#162436'))
+        self.paused=bool(value);self.play_button.setText('');self.play_button.setIcon(material_icon('play' if self.paused else 'pause',metric('icon_size'),'on_accent'))
         name='Reproducir' if self.paused else 'Pausar';self.play_button.setToolTip(name+' · Ctrl+Espacio');self.play_button.setAccessibleName(name)
 
     def toggle_play(self):
@@ -665,10 +730,10 @@ class MusicAppWindow(MusicWindow):
             index=bisect.bisect_right([row[0] for row in self.lyric_rows],self.current_position+offset)-1
             if index!=self.lyric_index:
                 if 0<=self.lyric_index<self.lyric_list.count():
-                    old=self.lyric_list.item(self.lyric_index);old.setForeground(ThemeColor('#8596B2'));self.lyric_font(old,16)
+                    old=self.lyric_list.item(self.lyric_index);old.setForeground(color('subtle'));self.lyric_font(old,16)
                 self.lyric_index=index
                 if 0<=index<self.lyric_list.count():
-                    item=self.lyric_list.item(index);item.setForeground(ThemeColor('#E8EDF7'));self.lyric_font(item,21);self.scroll_lyric(item)
+                    item=self.lyric_list.item(index);item.setForeground(color('text'));self.lyric_font(item,21);self.scroll_lyric(item)
 
     def lyric_font(self,item,size):
         from PySide6.QtGui import QFont
@@ -677,8 +742,8 @@ class MusicAppWindow(MusicWindow):
     def size_lyric(self,item):
         from PySide6.QtGui import QFont,QFontMetrics
         from PySide6.QtCore import QRect
-        self.lyric_font(item,16)
-        font=QFont(item.font());font.setPixelSize(21)
+        self.lyric_font(item,metric('font_heading'))
+        font=QFont(item.font());font.setPixelSize(metric('font_title'))
         width=max(230,self.lyrics_panel.width()-50)
         bounds=QFontMetrics(font).boundingRect(QRect(0,0,width,1000),Qt.TextWordWrap,item.text())
         item.setSizeHint(QSize(width,max(48,bounds.height()+24)))
@@ -696,7 +761,7 @@ class MusicAppWindow(MusicWindow):
         if reduced_motion(self):return
         scrollbar.setValue(start)
         if self.lyric_scroll_animation is None:self.lyric_scroll_animation=QPropertyAnimation(scrollbar,b'value',self)
-        animation=self.lyric_scroll_animation;animation.stop();animation.setDuration(140);animation.setStartValue(start);animation.setEndValue(end);animation.setEasingCurve(QEasingCurve.OutCubic);animation.start()
+        animation=self.lyric_scroll_animation;animation.stop();animation.setDuration(metric('motion_fast'));animation.setStartValue(start);animation.setEndValue(end);animation.setEasingCurve(QEasingCurve.OutCubic);animation.start()
 
     def seek_to(self,value):
         if not self.current_key:return
@@ -731,7 +796,7 @@ class MusicAppWindow(MusicWindow):
         if self.lyric_rows:
             self.lyric_status.setText('Sincronizada · LRCLIB')
             for position,text in self.lyric_rows:
-                item=QListWidgetItem(text);item.setData(Qt.UserRole,position);item.setForeground(ThemeColor('#8596B2'));self.lyric_list.addItem(item);self.size_lyric(item)
+                item=QListWidgetItem(text);item.setData(Qt.UserRole,position);item.setForeground(color('subtle'));self.lyric_list.addItem(item);self.size_lyric(item)
         elif data.get('instrumental'):self.lyric_status.setText('Instrumental · no hay letra')
         elif data.get('plain'):
             self.lyric_status.setText('Letra sin sincronizar · LRCLIB')

@@ -126,7 +126,7 @@ class BootDeployment:
                 ('greeter','usr/share/pixmaps/orbit-login.png',self.source/'system/boot/greeter/logo.png'),
                 ('greeter','etc/lightdm/lightdm.conf.d/99-orbit-greeter.conf','[Seat:*]\ngreeter-session=blue-crt\n'),
                 ('greeter','etc/lightdm/slick-greeter.conf',merged_ini(self.path('etc/lightdm/slick-greeter.conf'),'Greeter',{
-                    'background':'/usr/share/backgrounds/orbit-login.png','background-color':'#04047e',
+                    'background':'/usr/share/backgrounds/orbit-login.png','background-color':'#04047e',  # theme-exception: color del cargador de arranque del sistema, no del escritorio
                     'draw-user-backgrounds':'false','draw-grid':'false','show-hostname':'false',
                     'theme-name':'Orbit-Greeter','icon-theme-name':'Adwaita',
                     'font-name':'DejaVu Sans Mono 11','logo':'/usr/share/pixmaps/orbit-login.png',

@@ -93,8 +93,8 @@ def configure(deployment):
                  legacy=(manifest, 'desktop' if module == 'loomrec' else None))
         icon = ((source / 'assets/wybie-screenshot.svg').read_text() if module == 'wybieshot' else
                 '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">'
-                '<rect width="64" height="64" rx="16" fill="#19242d"/>'
-                '<circle cx="32" cy="32" r="18" fill="#dc695b"/>'
-                '<circle cx="32" cy="32" r="7" fill="#f5f0df"/></svg>\n')
+                '<rect width="64" height="64" rx="16" fill="#19242d"/>'  # theme-exception: icono de aplicacion
+                '<circle cx="32" cy="32" r="18" fill="#dc695b"/>'  # theme-exception: icono de aplicacion
+                '<circle cx="32" cy="32" r="7" fill="#f5f0df"/></svg>\n')  # theme-exception: icono de aplicacion
         _publish(deployment, icon, '.local/share/icons/hicolor/scalable/apps/' + old + '.svg',
                  legacy=(manifest, 'icon' if module == 'loomrec' else None))

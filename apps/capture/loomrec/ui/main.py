@@ -275,7 +275,7 @@ class Window(QMainWindow):
             self.showMaximized() if self._was_maximized else self.showNormal();self.viewer_header.show()
     def player_state(self):
         from .icons import icon
-        self.play_button.setIcon(icon('play' if self.player.paused else 'pause','#FFFFFF'))
+        self.play_button.setIcon(icon('play' if self.player.paused else 'pause','on_accent'))
         self.mute_button.setIcon(icon('muted' if self.player.muted else 'sound'))
         self.mute_button.setToolTip(self.tr('Activar sonido · M') if self.player.muted else self.tr('Silenciar · M'))
         self.volume.blockSignals(True);self.volume.setValue(self.player.volume);self.volume.blockSignals(False)
@@ -555,7 +555,7 @@ class Window(QMainWindow):
         except Exception as exc: self.error(self.tr('No se pudo restaurar Dunst: ')+str(exc))
 
     def make_tray(self):
-        icon=QPixmap(24,24); icon.fill(QColor('#ce594f'))
+        icon=QPixmap(24,24); icon.fill(QColor('#ce594f'))  # theme-exception: icono de bandeja de grabación
         self.tray=QSystemTrayIcon(QIcon(icon),self); self.tray.setToolTip('Wysun Recorder')
         menu=QMenu()
         menu.addAction(self.tr('Pausar / reanudar'),self.pause_capture)
@@ -643,7 +643,7 @@ class Window(QMainWindow):
         self.pause_record.setVisible(state=='recording')
         self.record.setText(self.tr('Reanudar') if active else self.tr('Grabar'))
         from .icons import icon
-        self.record.setIcon(icon('play' if active else 'record','#FFFFFF'))
+        self.record.setIcon(icon('play' if active else 'record','on_accent'))
         self.record.setEnabled(state=='paused' if active else not self.capture_pending)
         self.record.setAccessibleName(self.record.text());self.record.setToolTip(self.record.text())
 

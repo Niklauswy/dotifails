@@ -102,7 +102,7 @@ class NativeSettingsTests(unittest.TestCase):
     def test_native_bar_and_theme_with_xdg_outside_home(self):
         from environment_settings import EnvironmentSettings
         from theme_runtime import apply_theme
-        from theme_tokens import THEMES,theme_id,invalidate
+        from theme_tokens import theme_id,invalidate
         from ui_appearance import save_appearance,read_appearance
         with tempfile.TemporaryDirectory() as home,tempfile.TemporaryDirectory() as xdg,patch.dict(os.environ,{'HOME':home,'XDG_CONFIG_HOME':xdg,'WAYLAND_DISPLAY':'fixture','ORBIT_THEME':''}):
             native=Path(xdg)/'orbit/hypr-bar.json';native.parent.mkdir(parents=True);native.write_text(json.dumps({'height':40,'background':'#101118','opacity':65}))
@@ -119,9 +119,10 @@ class NativeSettingsTests(unittest.TestCase):
             wallpaper=Path(home)/'.local/share/backgrounds/tokyo.png';wallpaper.parent.mkdir(parents=True);image=QImage(32,20,QImage.Format_ARGB32);image.fill(QColor('red'));image.save(str(wallpaper),'PNG')
             result=apply_theme(Path.home(),'tokyo',runner)
             self.assertTrue(Path(result['backup']).is_dir())
-            saved=json.loads(native.read_text());self.assertEqual(saved['background'],THEMES['tokyo']['background']);self.assertEqual(saved['monitors'],{'DP-1':True})
+            # Theme colours are no longer copied into the bar file: the bar follows the theme.
+            saved=json.loads(native.read_text());self.assertNotIn('background',saved);self.assertEqual(saved['monitors'],{'DP-1':True})
             self.assertTrue((Path(xdg)/'orbit/environment.json').exists());self.assertFalse((Path(home)/'.config').exists())
-            invalidate();self.assertEqual(theme_id(Path.home()),'tokyo')
+            invalidate();self.assertEqual(theme_id(Path.home()),'space-black:tokyo')
             save_appearance({'opacity':77,'reduced_motion':True},Path.home());self.assertEqual(read_appearance()['opacity'],77)
             self.assertIn(['wysun','shell','reload-preferences'],calls);self.assertFalse(any('bspc' in c or 'desktop-bar' in str(c) for c in calls))
     def test_first_fragment_runtime_error_rolls_back_files_and_partial_bindings(self):
@@ -168,9 +169,9 @@ class NativeSettingsTests(unittest.TestCase):
             theme_tokens.invalidate();theme_tokens.watch_theme();watcher=APP.orbitThemeWatcher
             try:
                 path=Path(home)/'config/orbit/theme.json';path.parent.mkdir(parents=True);path.write_text('{"id":"tokyo"}')
-                wait(120);self.assertEqual(watcher.key,'tokyo');self.assertEqual(refresh.call_count,1)
+                wait(120);self.assertEqual(watcher.key,'space-black:tokyo');self.assertEqual(refresh.call_count,1)
                 alternate=path.with_suffix('.new');alternate.write_text('{"id":"space-black"}');alternate.replace(path)
-                wait(120);self.assertEqual(watcher.key,'space-black');self.assertEqual(refresh.call_count,2)
+                wait(120);self.assertEqual(watcher.key,'space-black:space-black');self.assertEqual(refresh.call_count,2)
                 wait(100);self.assertEqual(refresh.call_count,2);self.assertFalse(watcher.timer.isActive())
             finally:
                 watcher.deleteLater();del APP.orbitThemeWatcher

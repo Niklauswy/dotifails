@@ -1,12 +1,20 @@
-"""Wysun's complete desktop settings surface."""
-from theme_tokens import ThemeColor, apply_style
+"""Wysun's complete desktop settings surface.
+
+Derivado de caelestia-dots/shell (GPL-3.0), modificado para Wysun.
+Presentation translated from modules/nexus at commit
+507d66285e9d9fde9330adc64159cfdebb28c19a. Upstream files have no individual
+copyright headers; their GPL-3.0 notice is retained in LICENSES/GPL-3.0.txt.
+See THIRD_PARTY.md for the exact adaptation map.
+"""
+from theme_tokens import apply_style, extend_style, color, tokens, font
 
 import copy
 import json
+import theme_core
 import os
 import subprocess
 from pathlib import Path
-from PySide6.QtCore import Qt,QRectF,QPointF,QSize,QThread,Signal,QTimer
+from PySide6.QtCore import Qt,QRectF,QPointF,QSize,QThread,Signal,QTimer,QFileSystemWatcher
 from PySide6.QtGui import QColor,QPainter,QPen,QPixmap,QImageReader,QIcon,QFont,QKeySequence,QShortcut
 from PySide6.QtWidgets import (QApplication,QWidget,QFrame,QVBoxLayout,QHBoxLayout,QFormLayout,QGridLayout,QLineEdit,QLabel,QListWidget,QListWidgetItem,QStackedWidget,QComboBox,QCheckBox,QSpinBox,QDoubleSpinBox,QPushButton,QScrollArea,QAbstractItemView,QTableWidget,QTableWidgetItem,QHeaderView,QFileDialog,QDialog,QDialogButtonBox,QMessageBox,QInputDialog,QPlainTextEdit,QFontComboBox)
 from desktop_common import Surface,button,text_label,open_vim,launch
@@ -16,6 +24,8 @@ from settings_shortcuts import expanded_rows,change_binding,application_shortcut
 from environment_settings import (EnvironmentSettings,DisplayTrial,display_inventory,display_plan,BAR_MODULES)
 from icons import icon
 from ui_motion import MotionButton as QPushButton
+
+MATERIAL_VARIANTS=(('tonalspot','Tonal'),('vibrant','Vibrante'),('expressive','Expresiva'),('content','Contenido'),('fidelity','Fiel al fondo'),('neutral','Neutra'),('monochrome','Monocroma'),('rainbow','Arcoíris'),('fruitsalad','Macedonia'))
 
 class Job(QThread):
     ready=Signal(object)
@@ -38,9 +48,9 @@ class DisplayCanvas(QWidget):
         return logical_size(p)
     def paintEvent(self,event):
         from display_layout import order
-        painter=QPainter(self);painter.setRenderHint(QPainter.Antialiasing);painter.setPen(Qt.NoPen);painter.setBrush(ThemeColor('#191B24'));painter.drawRoundedRect(self.rect(),14,14)
+        painter=QPainter(self);painter.setRenderHint(QPainter.Antialiasing);painter.setPen(Qt.NoPen);painter.setBrush(color('inset'));painter.drawRoundedRect(self.rect(),14,14)
         active=[p for p in self.plan if p['enabled']];self.rects={}
-        if not active:painter.setPen(ThemeColor('#979BAD'));painter.drawText(self.rect(),Qt.AlignCenter,'Detectando pantallas…');return
+        if not active:painter.setPen(color('subtle'));painter.drawText(self.rect(),Qt.AlignCenter,'Detectando pantallas…');return
         if not self.drag:
             minx=min(p['x'] for p in active);miny=min(p['y'] for p in active)
             maxx=max(p['x']+self.geometry_for(p)[0] for p in active);maxy=max(p['y']+self.geometry_for(p)[1] for p in active)
@@ -50,12 +60,12 @@ class DisplayCanvas(QWidget):
         for p in sorted(active,key=lambda p:p['name']==self.current):
             w,h=self.geometry_for(p);r=QRectF(ox+p['x']*self.scale,oy+p['y']*self.scale,w*self.scale,h*self.scale).adjusted(3,3,-3,-3);self.rects[p['name']]=r
             chosen=p['name']==self.current
-            painter.setPen(QPen(ThemeColor('#B9AEDC' if chosen else '#52586C'),2 if chosen else 1));painter.setBrush(ThemeColor('#363144' if chosen else '#242833'));painter.drawRoundedRect(r,10,10)
-            badge=QRectF(r.left()+10,r.top()+10,24,24);painter.setPen(Qt.NoPen);painter.setBrush(ThemeColor('#B9AEDC' if chosen else '#3A3F50'));painter.drawEllipse(badge)
-            painter.setPen(ThemeColor('#16151C' if chosen else '#E8EAF0'));painter.setFont(QFont('Inter',10,QFont.Bold));painter.drawText(badge,Qt.AlignCenter,str(numbers.get(p['name'],'')))
-            painter.setPen(ThemeColor('#E8EAF0'));painter.setFont(QFont('Inter',12,QFont.DemiBold));painter.drawText(r.adjusted(6,0,-6,-14),Qt.AlignCenter,p['name'])
+            painter.setPen(QPen(color('accent_alt' if chosen else 'line_strong'),2 if chosen else 1));painter.setBrush(color('chosen_fill' if chosen else 'surface_raised'));painter.drawRoundedRect(r,10,10)
+            badge=QRectF(r.left()+10,r.top()+10,24,24);painter.setPen(Qt.NoPen);painter.setBrush(color('accent_alt' if chosen else 'track'));painter.drawEllipse(badge)
+            painter.setPen(color('on_accent' if chosen else 'text'));painter.setFont(QFont('Inter',10,QFont.Bold));painter.drawText(badge,Qt.AlignCenter,str(numbers.get(p['name'],'')))
+            painter.setPen(color('text'));painter.setFont(QFont('Inter',12,QFont.DemiBold));painter.drawText(r.adjusted(6,0,-6,-14),Qt.AlignCenter,p['name'])
             detail=p['mode'].replace('x','×')+(' · '+('%g' % float(p.get('scale',1)))+'×' if float(p.get('scale',1) or 1)!=1 else '')+(' · Principal' if p['primary'] else '')
-            painter.setFont(QFont('Inter',9));painter.setPen(ThemeColor('#A7ACBC'));painter.drawText(r.adjusted(4,30,-4,0),Qt.AlignCenter,detail)
+            painter.setFont(QFont('Inter',9));painter.setPen(color('muted'));painter.drawText(r.adjusted(4,30,-4,0),Qt.AlignCenter,detail)
     def mousePressEvent(self,e):
         if e.button()!=Qt.LeftButton:return
         for name,r in sorted(self.rects.items(),key=lambda item:item[0]!=self.current):
@@ -76,14 +86,16 @@ class SettingsHub(LegacySettingsWindow):
         Surface.__init__(self,'Ajustes del escritorio','',1120,740)
         self.setMinimumSize(920,620);self.test=test;self.jobs=[];self.inventory=[];self.display_draft=[];self.trial=None;self.widgets={};self.rules=[];self.extra_shortcuts=[];self.extra_loaded=False;self.routes={};self.page_titles={};self.component_controls={}
         self.env=EnvironmentSettings(home);self.backend=DesktopSettings(home);self.shortcuts=ShortcutFile(home);self.rules=copy.deepcopy(self.backend.saved.get('rules',[]))
-        apply_style(self,self.styleSheet()+'''QListWidget#navigation::item {padding:8px 10px;margin:1px 0;} QListWidget#navigation::item:selected {background:#343242;color:#ECE8F8;} QLabel#section-note {color:#999DAC;font-size:12px;} QTableWidget::item {padding:8px;}''')
-        middle=QHBoxLayout();middle.setSpacing(24);sidebar=QVBoxLayout();sidebar.setSpacing(10);self.nav_search=QLineEdit();self.nav_search.setPlaceholderText('Buscar ajuste…');self.nav_search.setFixedWidth(190);sidebar.addWidget(self.nav_search);self.nav=QListWidget();self.nav.setObjectName('navigation');self.nav.setFixedWidth(190);self.nav.setIconSize(QSize(18,18));self.nav.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff);sidebar.addWidget(self.nav,1);middle.addLayout(sidebar);self.pages=QStackedWidget();middle.addWidget(self.pages,1);self.outer.addLayout(middle,1)
-        builders=[('home','Resumen','settings',self.build_home),('displays','Pantallas','monitor',self.build_displays),('workspaces','Escritorios','panels-top-left',self.build_workspaces),('wallpaper','Tema','palette',self.build_wallpaper),('shortcuts','Atajos','keyboard',self.build_shortcuts),('rules','Reglas de ventanas','panels-top-left',self.build_rules),('effects','Efectos y animaciones','sliders-horizontal',lambda:self.build_component('effects')),('terminal','Terminal','terminal',lambda:self.build_component('terminal')),('startup','Inicio y aplicaciones','circle-play',self.build_startup),('files','Archivos y copias','files',self.build_files)]
+        extend_style(self,'''QListWidget#navigation::item {padding:8px 10px;margin:1px 0;} QListWidget#navigation::item:selected {background:@nav_selected;color:@selection_text;} QLabel#section-note {color:@subtle;font-size:12px;} QTableWidget::item {padding:8px;}''')
+        middle=QHBoxLayout();middle.setSpacing(int(tokens()['space_xl']));sidebar=QVBoxLayout();sidebar.setSpacing(int(tokens()['space_m']));self.nav_search=QLineEdit();self.nav_search.setPlaceholderText('Buscar ajuste…');self.nav_search.setFixedWidth(190);sidebar.addWidget(self.nav_search);self.nav=QListWidget();self.nav.setObjectName('navigation');self.nav.setFixedWidth(190);self.nav.setIconSize(QSize(18,18));self.nav.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff);sidebar.addWidget(self.nav,1);middle.addLayout(sidebar);self.pages=QStackedWidget();middle.addWidget(self.pages,1);self.outer.addLayout(middle,1)
+        builders=[('home','Resumen','settings',self.build_home),('displays','Pantallas','monitor',self.build_displays),('workspaces','Escritorios','panels-top-left',self.build_workspaces),('wallpaper','Fondo y estilo','palette',self.build_wallpaper),('shell','Paneles','panels-top-left',self.build_shell),('shortcuts','Atajos','keyboard',self.build_shortcuts),('rules','Reglas de ventanas','panels-top-left',self.build_rules),('effects','Efectos y animaciones','sliders-horizontal',lambda:self.build_component('effects')),('terminal','Terminal','terminal',lambda:self.build_component('terminal')),('startup','Inicio y aplicaciones','circle-play',self.build_startup),('files','Archivos y copias','files',self.build_files)]
         for key,title,symbol,build in builders:
             self.routes[key]=self.pages.count();self.page_titles[key]=title;self.nav.addItem(QListWidgetItem(icon(symbol),title));build()
         footer=QHBoxLayout();self.status=text_label('','subtitle');footer.addWidget(self.status,1);footer.addWidget(button('Recargar',self.reload,symbol='refresh-cw'));self.apply_button=button('Aplicar cambios',self.apply,'primary',symbol='check');footer.addWidget(self.apply_button);self.outer.addLayout(footer)
         self.nav.currentRowChanged.connect(self.select_page);self.nav_search.textChanged.connect(self.filter_navigation);QShortcut(QKeySequence('Ctrl+F'),self).activated.connect(self.nav_search.setFocus);QShortcut(QKeySequence('Ctrl+Return'),self).activated.connect(self.apply)
         self.load_values();self.nav.setCurrentRow(0);self.start_job(lambda:display_inventory(self.env.runner),self.receive_displays)
+        self.preferences_backup=None;self.preferences_dirty=False;self.preferences_loading=False
+        self.watch_preferences()
         QTimer.singleShot(50,self,self.refresh_startup)
 
     def start_job(self,fn,callback,progress=None):
@@ -94,7 +106,7 @@ class SettingsHub(LegacySettingsWindow):
         if job in self.jobs:self.jobs.remove(job)
         job.deleteLater()
     def report_error(self,message):
-        if hasattr(self,'status'):self.status.setText(message[:260]);apply_style(self.status,'color:#EDAAA7')
+        if hasattr(self,'status'):self.status.setText(message[:260]);apply_style(self.status,'color:@danger')
     def success(self,message):apply_style(self.status,'');self.status.setText(message);self.render_backups()
     def go(self,key):self.nav.setCurrentRow(self.routes[key])
     def section(self):return next((key for key,index in self.routes.items() if index==self.pages.currentIndex()),'home')
@@ -102,24 +114,26 @@ class SettingsHub(LegacySettingsWindow):
         self.pages.setCurrentIndex(index);
         from ui_motion import reveal_content
         reveal_content(self.pages.currentWidget())
-        key=self.section();self.apply_button.setVisible(key in ('displays','wallpaper','bar','appearance','behavior','rules','effects','terminal','notifications'));self.apply_button.setText('Probar distribución' if key=='displays' else 'Aplicar cambios')
+        key=self.section();self.apply_button.setVisible(key in ('displays','wallpaper','shell','bar','appearance','behavior','rules','effects','terminal','notifications'));self.apply_button.setText('Probar distribución' if key=='displays' else 'Aplicar cambios');self.apply_button.setEnabled(not(key=='shell' and getattr(self,'shell_error','')))
         if key=='shortcuts' and not self.extra_loaded:
             self.extra_loaded=True;self.start_job(lambda:application_shortcuts(home=self.env.home),self.receive_shortcuts)
         elif key=='workspaces':self.refresh_workspaces()
         elif key=='wallpaper':self.refresh_theme_selection()
     def filter_navigation(self,text):
-        words={'displays':'monitor resolución frecuencia posición principal','shortcuts':'hyprland teclas grabar','effects':'hyprland sombra blur desenfoque velocidad','wallpaper':'tema Tokyo Severance Space Black colores imagen fondo','terminal':'ghostty fuente colores'}
+        words={'displays':'monitor resolución frecuencia posición principal','shortcuts':'hyprland teclas grabar','effects':'hyprland sombra blur desenfoque velocidad','wallpaper':'Material You dinámico claro oscuro tema Tokyo Severance Space Black Fluent colores imagen fondo', 'shell':'riel marco panel bandeja principal salidas bajo consumo','terminal':'ghostty fuente colores'}
         for key,index in self.routes.items():self.nav.item(index).setHidden(text.casefold() not in (self.page_titles[key]+' '+words.get(key,'')).casefold())
     def page_heading(self,layout,title,note=''):
         layout.addWidget(text_label(title,'title'))
+        if note:
+            label=text_label(note,'subtitle');label.setWordWrap(True);layout.addWidget(label)
     def scroll_form(self,layout):
         scroll=QScrollArea();scroll.setWidgetResizable(True);holder=QWidget();holder.setObjectName('page');form=QFormLayout(holder);form.setContentsMargins(0,8,12,8);form.setVerticalSpacing(12);scroll.setWidget(holder);layout.addWidget(scroll,1);return form
 
     def build_home(self):
         layout=self.page();self.page_heading(layout,'Resumen');grid=QGridLayout();grid.setSpacing(12)
-        entries=[('wallpaper','Tema','','palette'),('displays','Pantallas','','monitor'),('workspaces','Escritorios','','panels-top-left'),('shortcuts','Atajos','','keyboard'),('effects','Efectos y animaciones','','sliders-horizontal'),('terminal','Terminal','','terminal')]
+        entries=[('wallpaper','Fondo y estilo','','palette'),('shell','Paneles','','panels-top-left'),('displays','Pantallas','','monitor'),('workspaces','Escritorios','','panels-top-left'),('shortcuts','Atajos','','keyboard'),('effects','Efectos y animaciones','','sliders-horizontal'),('terminal','Terminal','','terminal')]
         for i,(key,title,note,symbol) in enumerate(entries):
-            b=button(title,lambda k=key:self.go(k),symbol=symbol);b.setMinimumHeight(72);apply_style(b,'QPushButton {text-align:left;padding:16px;background:#242630;border:1px solid #363947;border-radius:10px;} QPushButton:hover {background:#2E3040;border-color:#6A6482;}');grid.addWidget(b,i//2,i%2)
+            b=button(title,lambda k=key:self.go(k),symbol=symbol);b.setMinimumHeight(72);apply_style(b,'QPushButton {text-align:left;padding:16px;background:@tile;border:@border solid @tile_line;border-radius:@radius_control;} QPushButton:hover {background:@tile_hover;border-color:@tile_hover_line;} QPushButton:focus {border:@focus_width solid @focus;}');grid.addWidget(b,i//2,i%2)
         layout.addLayout(grid);links=QHBoxLayout()
         for title,mode,symbol in [('Conexiones','network','wifi'),('Sonido','audio','volume-2'),('Sesión','power','power')]:links.addWidget(button(title,lambda m=mode:launch([str(self.env.home/'.local/bin/orbit'),m]),symbol=symbol))
         layout.addLayout(links);self.overview=text_label('','subtitle');self.overview.hide();layout.addStretch()
@@ -133,7 +147,7 @@ class SettingsHub(LegacySettingsWindow):
         for label,direction,symbol in [('A la izquierda','left','arrow-left'),('A la derecha','right','arrow-right'),('Arriba','above','arrow-up'),('Abajo','below','arrow-down')]:
             arrange.addWidget(button(label,lambda d=direction:self.move_display(d),symbol=symbol))
         arrange.addStretch(1);self.display_order=text_label('','subtitle');self.display_order.setWordWrap(False);arrange.addWidget(self.display_order);layout.addLayout(arrange)
-        card=QFrame();card.setObjectName('display-card');apply_style(card,'QFrame#display-card{background:rgba(255,255,255,8);border:1px solid #2E3240;border-radius:12px;}')
+        card=QFrame();card.setObjectName('display-card');apply_style(card,'QFrame#display-card{background:@card;border:@border solid @tile_line;border-radius:@radius_m;}')
         grid=QGridLayout(card);grid.setContentsMargins(16,14,16,14);grid.setHorizontalSpacing(14);grid.setVerticalSpacing(6)
         self.output_combo=QComboBox();self.output_combo.currentIndexChanged.connect(lambda:self.load_display_controls())
         self.output_enabled=QCheckBox('Encendida');self.output_primary=QCheckBox('Principal (foco al iniciar)')
@@ -153,7 +167,7 @@ class SettingsHub(LegacySettingsWindow):
         from display_layout import normalize
         self.inventory=outputs;self.display_draft=normalize(display_plan(outputs));self.canvas.plan=self.display_draft;self.output_combo.blockSignals(True);self.output_combo.clear()
         for p in self.display_draft:self.output_combo.addItem(p['name'],p['name'])
-        self.output_combo.blockSignals(False);self.load_display_controls();self.refresh_bar_monitors();self.wallpaper_target.clear();self.wallpaper_target.addItem('Todas las pantallas','')
+        self.output_combo.blockSignals(False);self.load_display_controls();self.refresh_bar_monitors();self.refresh_shell_outputs();self.wallpaper_target.clear();self.wallpaper_target.addItem('Todas las pantallas','')
         for p in self.display_draft:self.wallpaper_target.addItem(p['name'],p['name'])
         self.overview.setText(f"{len(self.display_draft)} pantallas conectadas · {len(expanded_rows(self.shortcuts))} atajos globales · Preferencias locales")
         self.show_display_order()
@@ -231,32 +245,221 @@ class SettingsHub(LegacySettingsWindow):
         self.start_job(work,lambda _:None)
 
     def build_wallpaper(self):
-        from theme_tokens import theme_id
-        from theme_widgets import ThemeChoice
-        layout=self.page();self.page_heading(layout,'Tema')
-        self.theme_selected=theme_id(self.env.home);self.theme_choices={};row=QHBoxLayout();row.setSpacing(18)
-        for key in ('tokyo','severance','space-black'):
-            card=ThemeChoice(key,self.env.home);card.clicked.connect(lambda checked=False,k=key:self.select_theme(k));self.theme_choices[key]=card;row.addWidget(card,1)
-        layout.addLayout(row);self.theme_summary=text_label('','subtitle');layout.addWidget(self.theme_summary);layout.addStretch(1)
-        # Keep old monitor-refresh routing compatible; wallpaper controls are no longer exposed.
+        import theme_core
+        layout=self.page();self.page_heading(layout,'Fondo y estilo','Material You toma el acento de tu fondo. También puedes conservar uno de los cinco esquemas fijos.')
+        form=self.scroll_form(layout)
+        self.wallpaper_preview=QLabel();self.wallpaper_preview.setAlignment(Qt.AlignCenter)
+        self.wallpaper_preview.setFixedHeight(int(tokens()['space_xl'])*6)
+        apply_style(self.wallpaper_preview,'background:@surface_raised;border-radius:@radius_l;')
+        form.addRow(self.wallpaper_preview)
+        self.wallpaper_path=QLineEdit();self.wallpaper_path.setAccessibleName('Imagen de fondo')
+        row=QHBoxLayout();row.addWidget(self.wallpaper_path,1);row.addWidget(button('Elegir imagen',self.choose_wallpaper,symbol='image'));form.addRow('Fondo global',row)
+        self.colour_source=QComboBox();self.colour_source.addItem('Material You · desde el fondo','dynamic')
+        for style,spec in theme_core.styles().items():
+            for variant in spec['variants']:
+                value=theme_core.resolve(style,variant)
+                self.colour_source.addItem(spec['name']+' · '+value['name'],theme_core.key(style,variant))
+        self.colour_source.setAccessibleName('Origen del esquema');form.addRow('Colores',self.colour_source)
+        self.colour_mode=QComboBox();self.colour_mode.addItem('Oscuro','dark');self.colour_mode.addItem('Claro','light');form.addRow('Modo Material You',self.colour_mode)
+        self.colour_variant=QComboBox();self.colour_variant.addItem('Automática · según el fondo','auto')
+        for key,title in MATERIAL_VARIANTS:self.colour_variant.addItem(title,key)
+        self.colour_variant.setAccessibleName('Variante Material You');form.addRow('Variante',self.colour_variant)
+        self.colour_seed=QLineEdit();self.colour_seed.setPlaceholderText('#RRGGBB · vacío usa el fondo');self.colour_seed.setAccessibleName('Semilla de color');self.colour_seed.setMaxLength(7)
+        seed_row=QHBoxLayout();seed_row.addWidget(self.colour_seed,1);seed_row.addWidget(button('Elegir',self.choose_seed,symbol='palette'));form.addRow('Semilla',seed_row)
+        self.seed_note=text_label('Material You parte del fondo; una semilla manual lo sustituye sin cambiar el modo ni la variante.','subtitle');self.seed_note.setWordWrap(True);form.addRow(self.seed_note)
+        self.theme_summary=text_label('','subtitle');self.theme_summary.setWordWrap(True);form.addRow(self.theme_summary)
         self.wallpaper_target=QComboBox();self.wallpaper_target.hide()
-        self.wallpaper_values=self.env.wallpaper_values();self.refresh_theme_selection()
+        self.load_colour_preferences()
+        self.colour_source.currentIndexChanged.connect(self.colour_changed)
+        self.colour_mode.currentIndexChanged.connect(self.preference_edited)
+        self.colour_variant.currentIndexChanged.connect(self.preference_edited)
+        self.colour_seed.textChanged.connect(self.preference_edited)
+        self.wallpaper_path.textChanged.connect(self.preference_edited)
+
+    def choose_seed(self):
+        from PySide6.QtWidgets import QColorDialog
+        chosen=QColorDialog.getColor(QColor(self.colour_seed.text().strip() or color('accent').name()),self,'Semilla de color')
+        if chosen.isValid():self.colour_seed.setText(chosen.name())
+
+    def choose_wallpaper(self):
+        path,_=QFileDialog.getOpenFileName(self,'Elegir fondo',str(self.env.home),'Imágenes (*.png *.jpg *.jpeg *.webp *.bmp)')
+        if path:self.wallpaper_path.setText(path);self.update_wallpaper_preview()
+
+    def update_wallpaper_preview(self):
+        path=self.wallpaper_path.text().strip()
+        pixmap=QPixmap(path) if path else QPixmap()
+        self.wallpaper_preview.setPixmap(pixmap.scaledToHeight(self.wallpaper_preview.height(),Qt.SmoothTransformation))
+        if pixmap.isNull():self.wallpaper_preview.setText('Selecciona una imagen para el fondo')
+
+    def load_colour_preferences(self):
+        self.colour_baseline=self.env.colour_values();self.theme_selected=tuple(self.colour_baseline['selection'])
+        source='dynamic' if self.colour_baseline['dynamic'] else theme_core.key(*self.theme_selected)
+        self.colour_source.setCurrentIndex(max(0,self.colour_source.findData(source)))
+        self.colour_mode.setCurrentIndex(max(0,self.colour_mode.findData(self.colour_baseline['mode'])))
+        self.colour_variant.setCurrentIndex(max(0,self.colour_variant.findData(self.colour_baseline['variant'])));self.colour_seed.setText(self.colour_baseline['seed'])
+        self.set_dynamic_controls(source=='dynamic')
+        self.wallpaper_values=self.env.wallpaper_values();self.wallpaper_path.setText(self.wallpaper_values.get('default',''))
+        self.update_wallpaper_preview();self.refresh_theme_selection()
+
+    def colour_changed(self,*_):
+        selected=self.colour_source.currentData()
+        self.set_dynamic_controls(selected=='dynamic')
+        if selected!='dynamic':self.theme_selected=theme_core.parse(selected)
+        self.preference_edited();self.refresh_theme_selection()
+
+    def set_dynamic_controls(self,enabled):
+        for control in (self.colour_mode,self.colour_variant,self.colour_seed):control.setEnabled(enabled)
+
     def refresh_theme_selection(self):
-        from theme_tokens import theme_id,THEMES
-        active=theme_id(self.env.home)
-        for key,card in self.theme_choices.items():card.setChecked(key==self.theme_selected);card.update()
-        chosen=THEMES[self.theme_selected];self.theme_summary.setText(('Activo · ' if self.theme_selected==active else 'Seleccionado · ')+chosen['name'])
+        if not hasattr(self,'colour_source'):return
+        import theme_core
+        current=theme_core.read_scheme(self.env.home)
+        if current and current['name']=='dynamic':active='Material You'
+        elif self.colour_baseline['dynamic']:active='Material You · elige un fondo para generar los colores; mientras tanto se usa '+self.theme_label(theme_core.read_file(self.env.home))
+        else:active=self.theme_label(theme_core.read_file(self.env.home))
+        self.theme_summary.setText('Activo · '+active)
+
+    def theme_label(self,selection):
+        import theme_core
+        values=theme_core.resolve(*selection)
+        return values['style_name']+' · '+values['name']
+
     def select_theme(self,key):
-        self.theme_selected=key;self.refresh_theme_selection()
+        import theme_core
+        self.theme_selected=theme_core.parse(key) if isinstance(key,str) else theme_core.normalize(*key)
+        self.colour_source.setCurrentIndex(self.colour_source.findData(theme_core.key(*self.theme_selected)))
+
     def apply_wallpaper(self):
-        from theme_runtime import apply_theme
-        self.apply_button.setEnabled(False);self.status.setText('Aplicando el tema completo…')
+        source=self.colour_source.currentData()
+        values=dict(dynamic=source=='dynamic',selection=self.theme_selected if source=='dynamic' else source,mode=self.colour_mode.currentData(),variant=self.colour_variant.currentData(),seed=self.colour_seed.text().strip())
+        path=self.wallpaper_path.text().strip()
+        self.apply_button.setEnabled(False);self.status.setText('Aplicando fondo y colores…')
         def complete(result):
-            from theme_tokens import refresh_widgets,THEMES
-            self.env.reload();self.backend.reload();self.wallpaper_values=self.env.wallpaper_values();refresh_widgets();self.refresh_theme_selection()
-            self.load_values()
-            self.success(THEMES[result['theme']]['name']+' aplicado.'+(' Algunos componentes necesitan recargarse: '+', '.join(result['warnings']) if result['warnings'] else ''))
-        job=self.start_job(lambda:apply_theme(self.env.home,self.theme_selected,self.env.runner),complete);job.finished.connect(lambda:self.apply_button.setEnabled(True))
+            self.preferences_backup=result['backup'];self.preferences_loading=True
+            self.env.reload();self.load_colour_preferences();self.preferences_loading=False;self.preferences_dirty=False
+            from theme_tokens import refresh_widgets
+            refresh_widgets();self.success(result['message']+' · Puedes revertir este cambio.')
+        job=self.start_job(lambda:self.env.apply_colour(values,path,self.colour_baseline),complete)
+        job.finished.connect(lambda:self.apply_button.setEnabled(True))
+
+    def build_shell(self):
+        layout=self.page();self.page_heading(layout,'Paneles','El riel y el marco comparten las preferencias del escritorio. La bandeja tiene una sola salida propietaria.')
+        form=self.scroll_form(layout)
+        self.read_shell_state()
+        self.shell_note=text_label('','subtitle');self.shell_note.setWordWrap(True);form.addRow(self.shell_note)
+        self.rail_enabled=QCheckBox('Mostrar el riel izquierdo');self.frame_enabled=QCheckBox('Mostrar el marco del escritorio')
+        self.low_power=QCheckBox('Bajo consumo');self.low_power.setToolTip('Permite al shell reducir trabajo visual; no cambia los servicios ni el perfil de energía del sistema.')
+        for key,control in [('rail_enabled',self.rail_enabled),('frame_enabled',self.frame_enabled),('low_power',self.low_power)]:
+            control.setChecked(self.shell_baseline[key]);form.addRow(control);control.toggled.connect(self.preference_edited)
+        self.shell_screens=QWidget();self.shell_screen_layout=QVBoxLayout(self.shell_screens);self.shell_checks={};form.addRow('Salidas con paneles',self.shell_screens)
+        self.shell_primary=QComboBox();self.shell_tray=QComboBox()
+        for title,control in [('Salida principal',self.shell_primary),('Bandeja de aplicaciones',self.shell_tray)]:
+            control.addItem('Automática','');form.addRow(title,control);control.currentIndexChanged.connect(self.preference_edited)
+        self.shell_opacity=QSpinBox();self.shell_opacity.setRange(65,100);self.shell_opacity.setSuffix(' %')
+        self.shell_motion=QCheckBox('Reducir movimiento')
+        self.shell_opacity.setValue(self.appearance_baseline['opacity']);self.shell_motion.setChecked(self.appearance_baseline['reduced_motion'])
+        form.addRow('Opacidad',self.shell_opacity);form.addRow(self.shell_motion)
+        self.shell_opacity.valueChanged.connect(self.preference_edited);self.shell_motion.toggled.connect(self.preference_edited)
+        form.addRow(button('Revertir último cambio de preferencias',self.undo_preferences,symbol='rotate-ccw'))
+        self.panel_controls=[self.rail_enabled,self.frame_enabled,self.low_power,self.shell_primary,self.shell_tray,self.shell_opacity,self.shell_motion]
+        self.show_shell_state()
+
+    def read_shell_state(self):
+        """Read shell.json and appearance.json; an unreadable file blocks only its own page."""
+        from settings_data import SHELL_DEFAULTS
+        self.shell_error=''
+        try:self.shell_baseline=self.env.shell_values()
+        except (OSError,ValueError) as error:
+            self.shell_baseline=dict(SHELL_DEFAULTS);self.shell_error=str(error)
+        try:self.appearance_baseline=self.env.appearance_values()
+        except (OSError,ValueError) as error:
+            self.appearance_baseline=dict(opacity=80,reduced_motion=False);self.shell_error=self.shell_error or str(error)
+
+    def show_shell_state(self):
+        blocked=bool(self.shell_error)
+        self.shell_note.setVisible(blocked);self.shell_note.setText(self.shell_error+' Corrige o restaura el archivo y pulsa Recargar; no se modificó nada.' if blocked else '')
+        for control in self.panel_controls+list(self.shell_checks.values()):control.setEnabled(not blocked)
+        if self.section()=='shell':self.apply_button.setEnabled(not blocked)
+
+    def apply_shell_preferences(self):
+        if self.shell_error:self.report_error(self.shell_error);return
+        values=dict(anchor='left',rail_enabled=self.rail_enabled.isChecked(),frame_enabled=self.frame_enabled.isChecked(),
+                    low_power=self.low_power.isChecked(),monitors={name:c.isChecked() for name,c in self.shell_checks.items()},
+                    primary_monitor=self.shell_primary.currentData() or '',tray_monitor=self.shell_tray.currentData() or '')
+        appearance=dict(opacity=self.shell_opacity.value(),reduced_motion=self.shell_motion.isChecked())
+        self.apply_button.setEnabled(False)
+        def complete(backup):
+            self.preferences_backup=backup;self.preferences_dirty=False;self.preferences_loading=True
+            self.load_shell_preferences();self.preferences_loading=False;self.success('Paneles guardados. Puedes revertir este cambio.')
+        job=self.start_job(lambda:self.env.apply_panels(values,appearance,self.shell_baseline,self.appearance_baseline),complete)
+        job.finished.connect(lambda:self.apply_button.setEnabled(True))
+
+    def refresh_shell_outputs(self):
+        if not hasattr(self,'shell_checks'):return
+        values=self.shell_baseline
+        self.preferences_loading=True
+        while self.shell_screen_layout.count():
+            item=self.shell_screen_layout.takeAt(0)
+            if item.widget():item.widget().deleteLater()
+        self.shell_checks={}
+        names=list(dict.fromkeys([o['name'] for o in self.inventory]+list(values['monitors'])+[values['primary_monitor'],values['tray_monitor']]))
+        for combo in (self.shell_primary,self.shell_tray):combo.clear();combo.addItem('Automática','')
+        for name in filter(None,names):
+            connected=any(o['name']==name for o in self.inventory)
+            check=QCheckBox(name+('' if connected else ' · desconectada'));check.setChecked(values['monitors'].get(name,True));check.toggled.connect(self.preference_edited)
+            self.shell_checks[name]=check;self.shell_screen_layout.addWidget(check)
+            self.shell_primary.addItem(name,name);self.shell_tray.addItem(name,name)
+        self.shell_primary.setCurrentIndex(max(0,self.shell_primary.findData(values['primary_monitor'])))
+        self.shell_tray.setCurrentIndex(max(0,self.shell_tray.findData(values['tray_monitor'])))
+        self.preferences_loading=False
+
+    def preference_edited(self,*_):
+        if not getattr(self,'preferences_loading',False):self.preferences_dirty=True
+
+    def watch_preferences(self):
+        self.preference_watcher=QFileSystemWatcher(self)
+        self.preference_watcher.fileChanged.connect(self.preferences_changed)
+        self.preference_watcher.directoryChanged.connect(self.preferences_changed)
+        self.arm_preference_watcher()
+
+    def arm_preference_watcher(self):
+        import theme_core
+        paths=[self.env.path,self.env.config/'orbit/shell.json',self.env.config/'orbit/appearance.json',theme_core.selection_path(self.env.home),theme_core.scheme_path(self.env.home)]
+        watched=set(self.preference_watcher.files()+self.preference_watcher.directories())
+        for path in paths:
+            parent=path.parent
+            while not parent.exists() and parent!=parent.parent:parent=parent.parent
+            for item in (parent,path):
+                if item.exists() and str(item) not in watched:self.preference_watcher.addPath(str(item));watched.add(str(item))
+
+    def preferences_changed(self,*_):
+        self.arm_preference_watcher()
+        if getattr(self,'preference_refresh_pending',False):return
+        self.preference_refresh_pending=True;QTimer.singleShot(80,self,self.sync_preferences)
+
+    def sync_preferences(self):
+        self.preference_refresh_pending=False
+        if self.jobs:return
+        if self.preferences_dirty:
+            self.status.setText('Las preferencias cambiaron fuera de esta ventana. Tu borrador se conserva; pulsa Recargar para actualizarlo.')
+            return
+        try:
+            self.preferences_loading=True;self.env.reload();self.load_colour_preferences();self.load_shell_preferences()
+        except (OSError,ValueError) as error:self.report_error(str(error))
+        finally:self.preferences_loading=False
+
+    def load_shell_preferences(self):
+        self.read_shell_state()
+        for key,control in [('rail_enabled',self.rail_enabled),('frame_enabled',self.frame_enabled),('low_power',self.low_power)]:control.setChecked(self.shell_baseline[key])
+        self.shell_opacity.setValue(self.appearance_baseline['opacity']);self.shell_motion.setChecked(self.appearance_baseline['reduced_motion'])
+        self.refresh_shell_outputs();self.show_shell_state()
+
+    def undo_preferences(self):
+        if not self.preferences_backup:self.status.setText('No hay un cambio de esta ventana para revertir. Las copias anteriores siguen en Archivos y copias.');return
+        try:
+            self.env.undo_preferences(self.preferences_backup);self.preferences_backup=None;self.preferences_dirty=False
+            self.sync_preferences();self.success('Preferencias anteriores restauradas.')
+        except (OSError,ValueError,RuntimeError) as error:self.report_error(str(error))
 
     def build_bar(self):
         layout=self.page();self.page_heading(layout,'Una barra que encaja contigo','Elige dónde aparece, ordena los módulos y ajusta el acabado.');form=self.scroll_form(layout)
@@ -377,7 +580,7 @@ class SettingsHub(LegacySettingsWindow):
             if query not in ' '.join(str(record.get(key,'')) for key in ('key','title','command','scope')).casefold():continue
             self.add_table_row(self.table,[record['key'],record['title'],record['scope']],record)
             if duplicate:
-                item=self.table.item(self.table.rowCount()-1,0);item.setForeground(ThemeColor('#E9BD93'));item.setToolTip('Combinación repetida. Edita una de las entradas o elimina la que no utilices.')
+                item=self.table.item(self.table.rowCount()-1,0);item.setForeground(color('warning'));item.setToolTip('Combinación repetida. Edita una de las entradas o elimina la que no utilices.')
         if self.table.rowCount():self.table.selectRow(0)
         self.shortcut_selected()
     def selected_shortcut(self):return self.table_selection(self.table)
@@ -418,7 +621,7 @@ class SettingsHub(LegacySettingsWindow):
             return
         schemas={
             'effects':[('duration','Duración de animaciones','int',50,600,120,' ms'),('corner-radius','Esquinas','int',0,30,12,' px'),('shadow','Sombras','bool',0,0,True,''),('shadow-radius','Tamaño de sombra','int',0,40,18,' px'),('shadow-opacity','Opacidad de sombra','float',0,1,.25,''),('blur-background','Desenfoque de fondo','bool',0,0,True,''),('blur-strength','Intensidad de desenfoque','int',1,8,3,''),('fading','Fundido al aparecer','bool',0,0,True,''),('vsync','Sincronización vertical','bool',0,0,True,'')],
-            'terminal':[('font-family','Fuente','text',0,0,'FiraCode Nerd Font',''),('font-size','Tamaño','float',8,36,20,' pt'),('background-opacity','Opacidad del fondo','float',.1,1,.6,''),('window-padding-x','Margen horizontal','int',0,60,10,' px'),('window-padding-y','Margen vertical','int',0,60,10,' px'),('scrollback-limit','Memoria del historial','int',1000,1000000,10000,' bytes'),('background','Color de fondo','color',0,0,'#1a1b26',''),('foreground','Color del texto','color',0,0,'#c0caf5','')],
+            'terminal':[('font-family','Fuente','text',0,0,'FiraCode Nerd Font',''),('font-size','Tamaño','float',8,36,20,' pt'),('background-opacity','Opacidad del fondo','float',.1,1,.6,''),('window-padding-x','Margen horizontal','int',0,60,10,' px'),('window-padding-y','Margen vertical','int',0,60,10,' px'),('scrollback-limit','Memoria del historial','int',1000,1000000,10000,' bytes'),('background','Color de fondo','color',0,0,'#1a1b26',''),('foreground','Color del texto','color',0,0,'#c0caf5','')],  # theme-exception: valores por defecto de la terminal del usuario
             'notifications':[('origin','Posición','position',0,0,'top-right',''),('font','Fuente y tamaño','text',0,0,'Inter 10',''),('transparency','Transparencia','int',0,60,5,' %'),('corner_radius','Esquinas','int',0,30,12,' px'),('notification_limit','Avisos simultáneos','int',1,12,4,''),('padding','Margen interior','int',4,40,18,' px'),('gap_size','Separación','int',0,30,10,' px'),('timeout','Duración normal','int',1,60,6,' s')]}
         for key,label,typ,lo,hi,default,suffix in schemas[kind]:
             value=values.get(key,default)
@@ -442,13 +645,6 @@ class SettingsHub(LegacySettingsWindow):
             controls['vsync'].setEnabled(False);controls['vsync'].setToolTip('Wayland sincroniza la presentación mediante el compositor.')
         if kind=='terminal':form.addRow(text_label('Se verá en las terminales nuevas. En una terminal abierta, recarga Ghostty con Ctrl + Shift + , . Neovim conserva su propio tema.','subtitle'))
         if kind=='notifications':form.addRow(button('Probar notificación',lambda:launch(['notify-send','Wysun · Notificaciones','Así se ven tus avisos actuales.']),symbol='bell'))
-        if kind=='effects':
-            from ui_appearance import read_appearance
-            appearance=read_appearance(self.env.home)
-            self.glass_opacity=QSpinBox();self.glass_opacity.setRange(65,100);self.glass_opacity.setSuffix(' %');self.glass_opacity.setValue(appearance['opacity'])
-            self.reduce_motion=QCheckBox('Reducir movimiento de Wysun');self.reduce_motion.setChecked(appearance['reduced_motion'])
-            form.addRow(text_label('CRISTAL DE WYSUN','eyebrow'));form.addRow('Opacidad del cristal',self.glass_opacity);form.addRow(self.reduce_motion)
-            form.addRow(text_label('El fondo deja ver el escritorio; el texto conserva su opacidad. Hyprland aplica el desenfoque. 100% crea una superficie sólida.','subtitle'))
         if kind=='effects':form.addRow(text_label('Una duración de 100–140 ms mantiene el movimiento ágil. Las reglas especiales de ventanas se conservan.','subtitle'))
     def component_values_from_ui(self,kind):
         return {key:c.isChecked() if isinstance(c,QCheckBox) else c.currentData() if isinstance(c,QComboBox) else c.value() if isinstance(c,(QSpinBox,QDoubleSpinBox)) else c.text().strip() for key,c in self.component_controls[kind].items()}
@@ -483,15 +679,28 @@ class SettingsHub(LegacySettingsWindow):
         layout=self.page();self.page_heading(layout,'Archivos y copias de seguridad','Abre la configuración en Neovim. Antes de cada cambio conservamos la versión anterior.');grid=QGridLayout()
         files=[('Hyprland','wysun/hyprland.lua'),('Atajos Wysun','orbit/hypr-shortcuts.lua'),('Reglas Wysun','orbit/hypr-settings.lua'),('Efectos','orbit/hypr-effects.lua'),('Notificaciones','wysun/dunstrc'),('Ghostty','ghostty/config'),('Neovim','nvim/lua/mappings.lua'),('Preferencias del entorno','orbit/environment.json')]
         for i,(title,path) in enumerate(files):grid.addWidget(button(title,lambda p=path:open_vim(self.env.home/'.config'/p),symbol='file-code'),i//3,i%3)
-        layout.addLayout(grid);layout.addWidget(text_label('Copias disponibles · selecciona para inspeccionar o restaurar','subtitle'));self.backups=QListWidget();layout.addWidget(self.backups,1);row=QHBoxLayout();row.addWidget(button('Ver en Vim',self.inspect_backup,symbol='terminal'));row.addWidget(button('Restaurar atajos / ventanas',self.restore_shortcuts,symbol='rotate-cw'));row.addWidget(button('Abrir carpeta',lambda:launch(['xdg-open',str(self.env.home/'.local/share/orbit/settings-backups')]),symbol='folder-open'));layout.addLayout(row);self.render_backups()
+        layout.addLayout(grid);layout.addWidget(text_label('Copias disponibles · selecciona para inspeccionar o restaurar','subtitle'));self.backups=QListWidget();layout.addWidget(self.backups,1);row=QHBoxLayout();row.addWidget(button('Ver en Vim',self.inspect_backup,symbol='terminal'));row.addWidget(button('Restaurar copia',self.restore_settings_backup,symbol='rotate-cw'));row.addWidget(button('Abrir carpeta',lambda:launch(['xdg-open',str(self.env.home/'.local/share/orbit/settings-backups')]),symbol='folder-open'));layout.addLayout(row);self.render_backups()
+    def restore_settings_backup(self):
+        item=self.backups.currentItem()
+        if not item:return
+        folder=Path(item.data(Qt.UserRole))
+        if not (folder/'receipt.json').is_file():self.restore_shortcuts();return
+        try:
+            from settings_data import PreferenceBackup
+            backup=PreferenceBackup.open(self.env.home,self.env.preference_paths(),folder)
+            self.env.undo_preferences(backup);self.preferences_dirty=False;self.sync_preferences();self.success('Copia de preferencias restaurada.')
+        except (OSError,ValueError,RuntimeError) as error:self.report_error(str(error))
+
     def inspect_backup(self):
         item=self.backups.currentItem()
-        if item:open_vim(item.data(Qt.UserRole))
+        if item:
+            path=Path(item.data(Qt.UserRole));open_vim(path/'receipt.json' if path.is_dir() else path)
     def render_backups(self):
         if not hasattr(self,'backups'):return
         self.backups.clear();root=self.env.home/'.local/share/orbit/settings-backups'
         for path in sorted(root.glob('*'),reverse=True)[:80]:
-            if path.is_file():item=QListWidgetItem(path.name);item.setData(Qt.UserRole,str(path));self.backups.addItem(item)
+            if path.is_file() or (path/'receipt.json').is_file():
+                item=QListWidgetItem(path.name);item.setData(Qt.UserRole,str(path));self.backups.addItem(item)
     def reload(self):
         self.env.reload();self.backend.reload();self.shortcuts.reload();self.rules=copy.deepcopy(self.backend.saved.get('rules',[]));self.load_values();self.render_rules();self.render_shortcuts();self.render_backups();self.refresh_startup();self.start_job(lambda:display_inventory(self.env.runner),self.receive_displays)
         self.extra_loaded=False
@@ -511,25 +720,20 @@ class SettingsHub(LegacySettingsWindow):
                 elif isinstance(c,QSpinBox):c.setValue(int(float(value)))
                 elif isinstance(c,QDoubleSpinBox):c.setValue(float(value))
                 else:c.setText('#'+str(value).lstrip('#') if key in ('background','foreground') else str(value))
-        from ui_appearance import read_appearance
-        appearance=read_appearance(self.env.home)
-        self.glass_opacity.setValue(appearance['opacity']);self.reduce_motion.setChecked(appearance['reduced_motion'])
-        self.wallpaper_values=self.env.wallpaper_values();self.success('Configuración actual recargada.')
+        self.preferences_loading=True;self.load_colour_preferences();self.load_shell_preferences();self.preferences_loading=False;self.preferences_dirty=False;self.success('Configuración actual recargada.')
     def apply(self):
         key=self.section()
         if not self.apply_button.isEnabled():return
         if key=='displays':self.try_displays();return
         if key=='wallpaper':self.apply_wallpaper();return
+        if key=='shell':
+            self.apply_shell_preferences();return
         if key in ('appearance','behavior','rules'):values=dict(self.backend.values) if key=='rules' else self.values();rules=copy.deepcopy(self.rules);fn=lambda:self.backend.apply(values,rules);message='Reglas actualizadas.'
         elif key=='bar':values=self.bar_values_from_ui();fn=lambda:self.env.apply_bar(values);message='Barra actualizada en las pantallas elegidas.'
         elif key in ('effects','terminal','notifications'):
             values=self.component_values_from_ui(key)
-            appearance=dict(opacity=self.glass_opacity.value(),reduced_motion=self.reduce_motion.isChecked()) if key=='effects' else None
             def fn():
                 self.env.apply_component(key,values)
-                if appearance is not None:
-                    from ui_appearance import save_appearance
-                    save_appearance(appearance,self.env.home)
             message='Configuración guardada. Abre una terminal nueva o recarga Ghostty.' if key=='terminal' else 'Cambios aplicados.'
         else:return
         self.apply_button.setEnabled(False);self.status.setText('Aplicando…');job=self.start_job(fn,lambda _:self.success(message));job.finished.connect(lambda:self.apply_button.setEnabled(True))

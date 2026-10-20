@@ -53,7 +53,7 @@ class LauncherClipboard(ClipboardWindow):
         self.color_rows={};self.color_grid=QGridLayout();self.color_grid.setContentsMargins(0,0,0,0);self.color_grid.setSpacing(2)
         for number,name in enumerate(('HEX','RGB','HSL','CMYK'),1):
             row=ColorValueRow(name,number,lambda checked=False,n=name:self.copy_color(n));row.shortcut_prefix='Ctrl+Alt+';row.setMinimumHeight(26)
-            apply_style(row,'QPushButton {background:transparent;border:1px solid transparent;padding:3px 7px;border-radius:7px;} QPushButton:hover {background:rgba(180,190,210,15);} QPushButton:focus {border-color:#91B5ED;}')
+            apply_style(row,'QPushButton {background:transparent;border:1px solid transparent;padding:3px 7px;border-radius:7px;} QPushButton:hover {background:@row_hover;} QPushButton:focus {border-color:@focus_input;}')
             self.color_rows[name]=row;self.color_grid.addWidget(row,number-1,0)
         color_layout.addLayout(self.color_grid);scroll=QScrollArea();scroll.setWidgetResizable(True);scroll.setWidget(color_page);self.stack.addWidget(scroll)
         self.parts=QListWidget();self.parts.setDragDropMode(QAbstractItemView.InternalMove);self.parts.model().rowsMoved.connect(self.reorder_parts);self.stack.addWidget(self.parts)

@@ -23,5 +23,19 @@
     "gtk": "Arc-Darker",
     "icons": "Win11-Dark",
     "cursor": "Fluent"
+  },
+  "fluent-light": {
+    "name": "Fluent claro",
+    "wallpaper": "azul.jpg",
+    "gtk": "Arc",
+    "icons": "Win11",
+    "cursor": "Fluent"
+  },
+  "fluent-dark": {
+    "name": "Fluent oscuro",
+    "wallpaper": "azul.jpg",
+    "gtk": "Arc-Darker",
+    "icons": "Win11-Dark",
+    "cursor": "Fluent"
   }
 }

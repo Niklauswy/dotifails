@@ -22,7 +22,7 @@ def color_formats(text):
  c=color_value(text)
  if not c:return {}
  r,g,b=[int(c[i:i+2],16) for i in (1,3,5)];h,l,s=colorsys.rgb_to_hls(r/255,g/255,b/255)
- return {'HEX':c,'RGB':f'rgb({r}, {g}, {b})','HSL':f'hsl({round(h*360)}, {round(s*100)}%, {round(l*100)}%)'}
+ return {'HEX':c,'RGB':f'rgb({r}, {g}, {b})','HSL':f'hsl({round(h*360)}, {round(s*100)}%, {round(l*100)}%)'}  # theme-exception: formatos de color para copiar
 
 def template(text,clipboard=''):
  now=dt.datetime.now()

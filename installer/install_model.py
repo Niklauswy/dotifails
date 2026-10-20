@@ -25,7 +25,31 @@ ARTIFACTS = {
     'editor': {'nvim', 'node'},
     'tools': set(), 'boot': set(), 'wayland': set(),
 }
-THEMES = ('severance', 'tokyo', 'space-black')
+THEMES = ('severance', 'tokyo', 'space-black', 'fluent-light', 'fluent-dark')
+WYSUN = Path(__file__).resolve().parents[1] / 'apps/wysun'
+
+
+def theme_core():
+    """The shared theme selection rules (apps/wysun/theme_core.py), loaded from the source tree."""
+    import sys
+    if str(WYSUN) not in sys.path:
+        sys.path.insert(0, str(WYSUN))
+    import theme_core as module
+    return module
+
+
+def theme_selection(key):
+    """(style, variant) for an installer theme id or any accepted alias; None if unknown."""
+    return theme_core().parse(key) if isinstance(key, str) else None
+
+
+def installer_theme(data, fallback='severance'):
+    """Installer id ('tokyo', 'fluent-dark'...) for a theme.json object, new or legacy format."""
+    core = theme_core()
+    style, variant, _legacy = core.from_object(data if isinstance(data, dict) else {})
+    if not (isinstance(data, dict) and ('style' in data or 'variant' in data or 'id' in data or 'name' in data)):
+        style, variant = theme_selection(fallback) or core.default()
+    return 'fluent-' + variant if style == 'fluent' else variant
 
 
 def load_json(path, default=None):

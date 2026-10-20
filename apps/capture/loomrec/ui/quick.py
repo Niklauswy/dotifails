@@ -3,6 +3,7 @@ from PySide6.QtCore import Qt,QTimer,QPoint,QSize
 from PySide6.QtGui import QCursor,QShortcut,QKeySequence
 from PySide6.QtWidgets import QApplication,QWidget,QHBoxLayout,QVBoxLayout,QFormLayout,QLabel,QDialog,QListWidget,QListWidgetItem,QScrollArea,QFrame,QSizePolicy
 from .materials import apply_material
+from .tokens import apply_style
 from .components import DeviceChoices,SoftButton,ComboBox,SpinBox,DoubleSpinBox,CheckBox,surface,label
 
 
@@ -92,7 +93,7 @@ class QuickBar(QWidget):
         super().__init__(None,Qt.Tool|Qt.FramelessWindowHint|Qt.WindowStaysOnTopHint)
         self.owner=owner;self.popup=None;self.setWindowTitle('Wysun Recorder · Captura rápida');self.setAttribute(Qt.WA_TranslucentBackground)
         self.setObjectName('quickBar')
-        self.setStyleSheet('#quickBar {color:#445E7A;} #quickBar > QPushButton {font-size:14px;color:#445E7A;border-radius:20px;padding:10px 14px;} #quickBar > QPushButton[primary="true"] {color:white;font-size:16px;font-weight:600;border-radius:26px;} #quickBar > QPushButton[quiet="true"] {background:transparent;border-color:transparent;} #quickBar > QPushButton[quiet="true"]:hover {background:rgba(255,255,255,90);} #quickBar > QPushButton:focus {border:2px solid #4179C2;} #quickBar > QPushButton[sourceActive="true"] {background:#D9E9FC;border:1px solid #A9C7EB;} #quickBar > QPushButton[sourceUnavailable="true"] {background:#F7EDD9;border:1px solid #D6B879;}')
+        apply_style(self,'#quickBar {color:@ink;} #quickBar > QPushButton {font-size:14px;color:@ink;border-radius:20px;padding:10px 14px;} #quickBar > QPushButton[primary="true"] {color:@on_accent;font-size:16px;font-weight:600;border-radius:26px;} #quickBar > QPushButton[quiet="true"] {background:transparent;border-color:transparent;} #quickBar > QPushButton[quiet="true"]:hover {background:@surface/90;} #quickBar > QPushButton:focus {border:2px solid @focus;} #quickBar > QPushButton[sourceActive="true"] {background:@pressed;border:1px solid @selection_line;} #quickBar > QPushButton[sourceUnavailable="true"] {background:@warning_soft;border:1px solid @warning_line;}')
         self.row=QHBoxLayout(self);self.row.setContentsMargins(20,16,20,16);self.row.setSpacing(8)
         self.source_buttons=[]
         self.mode=SoftButton(self.tr('Pantalla ⌄'),'screen',quiet=True);self.mode.setMinimumWidth(148);self.mode.clicked.connect(lambda:self.sources(self.mode));self.row.addWidget(self.mode,2)
@@ -158,7 +159,7 @@ class QuickBar(QWidget):
         """Pill segmented control: one tap, no drop-down."""
         from PySide6.QtWidgets import QButtonGroup,QPushButton
         box=QWidget();box.setObjectName('segmented');row=QHBoxLayout(box);row.setContentsMargins(3,3,3,3);row.setSpacing(2)
-        box.setStyleSheet('#segmented{background:#E4EBF4;border-radius:12px;} #segmented QPushButton{background:transparent;border:0;border-radius:9px;padding:6px 10px;color:#445E7A;font-size:13px;} #segmented QPushButton:checked{background:#FFFFFF;color:#1C2A3B;font-weight:600;} #segmented QPushButton:hover:!checked{background:rgba(255,255,255,120);}')
+        apply_style(box,'#segmented{background:@track;border-radius:12px;} #segmented QPushButton{background:transparent;border:0;border-radius:9px;padding:6px 10px;color:@ink;font-size:13px;} #segmented QPushButton:checked{background:@surface;color:@text;font-weight:600;} #segmented QPushButton:hover:!checked{background:@surface/120;} #segmented QPushButton:focus{border:@focus_width solid @focus;}')
         group=QButtonGroup(box);group.setExclusive(True)
         for text,value in options:
             b=QPushButton(text);b.setCheckable(True);b.setCursor(Qt.PointingHandCursor);b.setChecked(value==current)
@@ -219,7 +220,7 @@ class QuickBar(QWidget):
             button.setToolTip(description);button.setAccessibleName(description.replace('\n',': '))
             if changed:
                 from .icons import icon
-                button.setIcon(icon(symbol,'#87682F' if unavailable else '#2165D5' if active else '#596A80'));button.style().unpolish(button);button.style().polish(button);button.update()
+                button.setIcon(icon(symbol,'warning' if unavailable else 'accent' if active else 'muted'));button.style().unpolish(button);button.style().polish(button);button.update()
         mode=self.tr('Ventana') if w.window_target or w.capture_modes.buttons()[2].isChecked() else self.tr('Región') if w.capture_modes.buttons()[1].isChecked() else self.tr('Pantalla')
         self.mode.setText((mode if self.width()>=660 else '')+' ⌄');self.mode.setAccessibleName(mode+' · '+self.tr('Elegir área'));self.mode.setToolTip(mode+' · '+self.tr('Elegir área'))
         self.start.setText(self.tr('Cancelar')+' · '+str(w.remaining+1) if w.capture_pending else self.tr('Grabar'))

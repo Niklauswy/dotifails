@@ -1,26 +1,58 @@
-pragma ComponentBehavior: Bound
+// Derivado de caelestia-dots/shell (GPL-3.0), modificado para Wysun.
+// Base: 6c70d5cb0cbf31413d300699540c858ad28c1539; véanse LICENSE y UPSTREAM.json.
+//@ pragma Env QS_CRASHREPORT_URL=https://github.com/caelestia-dots/shell/issues/new?template=crash.yml
+//@ pragma DefaultEnv QS_NO_RELOAD_POPUP=1
+//@ pragma DefaultEnv QS_DROP_EXPENSIVE_FONTS=1
+//@ pragma DefaultEnv QSG_RENDER_LOOP=threaded
+//@ pragma DefaultEnv QT_QUICK_FLICKABLE_WHEEL_DECELERATION=10000
+
+import QtQuick
 import Quickshell
-import Quickshell.Hyprland
-import "Logic.js" as Logic
+import Caelestia.Config
+import qs.services
+import qs.wysun
+import qs.modules.areapicker
+import qs.modules.background
+import qs.modules.drawers
+import qs.modules.lock
+import qs.daemons
 
 ShellRoot {
     id: root
-    Preferences { id: prefs }
-    ShellController { id: shellState; preferences: prefs; resources: stats }
-    SystemClock { id: wallClock; precision: SystemClock.Minutes }
-    ResourceStats {
-        id: stats
-        enabled: prefs.bar.left.concat(prefs.bar.center, prefs.bar.right).indexOf("resources") >= 0
-            && Quickshell.screens.some(s => Logic.barPresentation(s.width - 24).showResources
-                && Logic.monitorEnabled(prefs.environment, s.name, prefs.nativeBarData) && !Hyprland.monitorFor(s)?.activeWorkspace?.hasFullscreen)
+
+    settings.watchFiles: true
+
+    Component.onCompleted: {
+        // Force certain singletons to load on shell init instead of lazily
+        Notifs;
+        Players;
+        Brightness;
+        Weather.reload();
+
+        if (GlobalConfig.utilities.vpn.enabled)
+            VPN;
     }
-    Variants {
-        model: Quickshell.screens
-        Desktop { preferences: prefs }
+
+    FontLoader {
+        source: Quickshell.shellPath("assets/google-sans-flex/GoogleSansFlex-VariableFont_GRAD,ROND,opsz,slnt,wdth,wght.ttf")
     }
-    Variants {
-        model: Quickshell.screens
-        Bar { preferences: prefs; controller: shellState; clock: wallClock; resources: stats }
+
+    Binding {
+        target: ShellState
+        property: "shellRoot"
+        value: root
     }
-    Surface { preferences: prefs; controller: shellState; clock: wallClock }
+
+    FontLoader { source: Quickshell.shellPath("assets/fonts/MaterialSymbolsRounded.ttf") }
+
+    // Modules
+    Background {}
+    Drawers {}
+    AreaPicker {}
+    WysunBridge {}
+
+    // Daemons
+    BatteryMonitor {}
+    IdleInhibit {}
+
 }
