@@ -21,8 +21,9 @@ The Caelestia C++ plugin, `qt6-m3shapes`, `libcava`, and Google Sans Flex are no
 
 - Source: [google/material-design-icons](https://github.com/google/material-design-icons), `variablefont/MaterialSymbolsRounded[FILL,GRAD,opsz,wght].ttf`.
 - License: Apache License 2.0; text in [`LICENSES/Apache-2.0.txt`](LICENSES/Apache-2.0.txt).
-- Bundled font: `apps/shell/assets/fonts/MaterialSymbolsRounded.ttf`.
-- SHA-256: `32e4011709e055596eb8d2dd0f7cb547b47c1d40ac9ecb8fad54f7f7eac202e7`.
+- Bundled file: `apps/shell/assets/fonts/MaterialSymbolsRounded.ttf`, a 34,532-byte variable-font subset. It keeps the `FILL`, `GRAD`, `opsz`, and `wght` axes and the nine Wysun icon ligatures: `dashboard`, `volume_off`, `volume_mute`, `volume_up`, `wifi`, `battery_alert`, `battery_full`, `power_settings_new`, and `close`.
+- Regenerate from the full upstream font with the optional developer tool `apps/shell/tools/subset_material_symbols.py` and FontTools 4.67.0 or newer. FontTools is not a runtime dependency.
+- SHA-256: `538ef0eec31455a2423f014feb0d9905e39452ed8097bf64c6253927fb08dcc8`.
 
 ## Rubik
 

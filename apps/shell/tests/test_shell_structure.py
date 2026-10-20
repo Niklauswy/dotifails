@@ -45,7 +45,9 @@ class ShellStructureTests(unittest.TestCase):
         self.assertIn('"../../utils/PopoutGeometry.js"', (SHELL / "modules/popouts/PopoutHost.qml").read_text())
 
     def test_fonts_and_licenses_are_packaged(self):
-        self.assertTrue((SHELL / "assets/fonts/MaterialSymbolsRounded.ttf").is_file())
+        material_symbols = SHELL / "assets/fonts/MaterialSymbolsRounded.ttf"
+        self.assertTrue(material_symbols.is_file())
+        self.assertLessEqual(material_symbols.stat().st_size, 64 * 1024)
         self.assertTrue((SHELL / "assets/fonts/Rubik-Variable.ttf").is_file())
         self.assertTrue((REPO / "LICENSES/Apache-2.0.txt").is_file())
         self.assertTrue((REPO / "LICENSES/OFL-Rubik.txt").is_file())
