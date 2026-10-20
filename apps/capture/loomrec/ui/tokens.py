@@ -1,8 +1,9 @@
 """Wysun theme for Recorder and Screenshot (Fluent pearl, Fluent mica or Space Black).
 
 Capture releases are installed apart from the launcher, so they carry their own
-byte-identical copies of theme_core.py and wysun_theme.json and read only the
-selection from ~/.config/orbit/theme.json. Stylesheets are templates: ``@token``,
+byte-identical copies of theme_core.py and wysun_theme.json and read the palette
+selection from ~/.config/orbit/theme.json plus the optional Material scheme from
+$XDG_STATE_HOME/wysun/scheme.json. Stylesheets are templates: ``@token``,
 ``@token/alpha`` (0-255). ``apply_theme`` installs the palette and stylesheet and
 follows later style/variant changes live.
 """
@@ -25,7 +26,7 @@ def tokens():
     selection = theme_core.selection()
     if selection not in _cache:
         _cache[selection] = theme_core.resolve(*selection)
-    return _cache[selection]
+    return theme_core.resolve_active(*selection)
 
 
 class _Tokens(Mapping):
@@ -251,19 +252,22 @@ def watch(app):
             self.timer = QTimer(self)
             self.timer.setSingleShot(True)
             self.timer.setInterval(40)
-            self.key = theme_core.selection()
+            self.key = theme_core.visual_key()
             self.files.fileChanged.connect(self.timer.start)
             self.files.directoryChanged.connect(self.timer.start)
             self.timer.timeout.connect(self.check)
             self.arm()
 
         def arm(self):
-            path = theme_core.selection_path()
-            targets = {str(path)} if path.exists() else set()
-            parent = path.parent
-            while not parent.exists() and parent != parent.parent:
-                parent = parent.parent
-            targets.add(str(parent))
+            targets = set()
+            for path in (theme_core.selection_path(), theme_core.scheme_path()):
+                if path.exists():
+                    targets.add(str(path))
+                parent = path.parent
+                while not parent.exists() and parent != parent.parent:
+                    parent = parent.parent
+                if parent.exists():
+                    targets.add(str(parent))
             current = set(self.files.files() + self.files.directories())
             if current - targets:
                 self.files.removePaths(list(current - targets))
@@ -273,7 +277,7 @@ def watch(app):
         def check(self):
             self.arm()
             theme_core.invalidate()
-            key = theme_core.selection()
+            key = theme_core.visual_key()
             if key != self.key:
                 self.key = key
                 refresh(app)

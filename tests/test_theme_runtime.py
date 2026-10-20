@@ -35,6 +35,7 @@ class CompleteThemeTests(unittest.TestCase):
    self.assertEqual(terminal.count('palette = '),16);self.assertIn(ext['background'][1:],terminal)
    environment=json.loads((self.home/'.config/orbit/environment.json').read_text());self.assertEqual(environment['workspaces']['names'],['keep']);self.assertEqual(environment['wallpaper']['folders'],['/my/library']);self.assertTrue(environment['wallpaper']['default'].endswith(wallpaper(key)))
    saved=json.loads((self.home/'.config/orbit/theme.json').read_text());self.assertEqual(theme_core.key(saved['style'],saved['variant']),theme_core.key(*theme_core.parse(key)))
+   scheme=json.loads(theme_core.scheme_path(self.home).read_text());self.assertEqual(scheme['name'],theme_core.parse(key)[1]);self.assertEqual(scheme['mode'],'light' if key=='fluent:light' else 'dark');self.assertTrue(all(not value.startswith('#') for value in scheme['colours'].values()))
    self.assertEqual((self.home/'.config/orbit/theme.json').stat().st_mode&0o777,0o600)
    invalidate();self.assertEqual(theme_id(self.home),theme_core.key(*theme_core.parse(key)))
    self.assertEqual((self.home/'.config/starship.toml').read_text().count('[palettes.orbit]'),1)
