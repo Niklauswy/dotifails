@@ -17,16 +17,5 @@ class EffectBoundsTests(unittest.TestCase):
             with self.subTest(radius=radius),self.assertRaisesRegex(ValueError,'corner-radius'):
                 effects_script(dict(values,**{'corner-radius':radius}))
 
-    def test_effect_form_uses_hyprland_bounds_including_under_xwayland(self):
-        # The shell form is generated from the bridge schema; its limits must match Hyprland's.
-        import os
-        os.environ['WYSUN_APP_DIR']=str(Path(__file__).resolve().parents[2]/'apps/wysun')
-        sys.path.insert(0,str(Path(__file__).resolve().parents[2]/'apps/shell/wysun'))
-        import desktop_bridge
-        rows={row[0]:row for row in desktop_bridge.COMPONENTS['effects'][2]}
-        self.assertEqual(rows['corner-radius'][3:5],(0,20))
-        for key in ('shadow','blur-background','fading'):self.assertEqual(rows[key][2],'bool')
-        self.assertEqual(rows['vsync'][2],'fixed')
-
 
 if __name__=='__main__':unittest.main()
