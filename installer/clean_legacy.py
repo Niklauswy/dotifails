@@ -22,6 +22,7 @@ CANDIDATES = (
     ('.local/share/orbit-backup-*', 'copias de versiones antiguas de Orbit'),
     ('.local/share/orbit-v?-backup-*', 'copias de versiones antiguas de Orbit'),
     ('.local/share/orbit-desktop-backup', 'marcador de copia antigua de Orbit'),
+    ('.local/bin/orbit-notification-status', 'script de la barra X11 (polybar), ya sin uso'),
     ('.cache/quickshell/qmlcache', 'caché QML compilada (se regenera con el runtime nuevo)'),
 )
 
