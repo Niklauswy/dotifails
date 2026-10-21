@@ -7,7 +7,6 @@ import QtQuick.Effects
 import Quickshell
 import Wysun.Config
 import qs.components
-import qs.components.controls
 import qs.services
 import "OverviewGeometry.js" as Geometry
 
@@ -56,7 +55,7 @@ Item {
 
     focus: true
     Component.onCompleted: {
-        searchBar.forceActiveFocus();
+        root.forceActiveFocus();
         reveal = Qt.binding(() => root.open ? 1 : 0);
     }
     Keys.onEscapePressed: close()
@@ -67,13 +66,6 @@ Item {
             const state = ShellState.forScreen(output);
             if (state) { state.overview = false; state.overviewKeyboard = false; }
         }
-    }
-    function search(text) {
-        const panels = ShellState.componentsFor(screen)?.panels;
-        if (!panels?.launcher?.available) return;
-        close();
-        screenState.launcherQuery = text;
-        screenState.launcher = true;
     }
     function cornerRadius(row, column, vertical, horizontal) {
         const atTop = row === 0, atBottom = row === rows - 1;
@@ -97,19 +89,6 @@ Item {
         Column {
             id: column
             spacing: Tokens.spacing.medium
-
-            SearchBar {
-                id: searchBar
-                anchors.horizontalCenter: parent.horizontalCenter
-                width: Math.min(background.width, root.workspaceWidth * 2.4)
-                placeholderText: "Search, calculate or run"
-                bg.border.width: 1
-                bg.border.color: Colours.palette.m3outlineVariant
-                onTextEdited: { if (text.length) root.search(text); }
-                onPressed: root.search(text)
-                onAccepted: root.search(text)
-                Keys.onEscapePressed: root.close()
-            }
 
             Item {
                 width: background.width + root.shadowMargin * 2

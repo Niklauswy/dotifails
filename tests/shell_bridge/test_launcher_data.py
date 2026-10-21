@@ -114,7 +114,7 @@ class WiringTests(unittest.TestCase):
         self.assertIn('Catalog.categories()', content)
         self.assertIn('FilePreview', content)
         emoji = (LAUNCHER / 'EmojiPicker.qml').read_text()
-        self.assertIn('anchors.top: true', emoji)
+        self.assertIn('anchors.bottom: true', emoji)
         self.assertIn('mode: "emoji"', emoji)
         self.assertIn('GridView', emoji)
 

@@ -160,6 +160,13 @@ Nunca reiniciar Hyprland ni el login para actualizar un panel.
 
 - **Atajos**: `config/.config/wysun/hyprland.lua` (Hyprland 0.55, Lua). Atajos privados en `~/.config/wysun/local.lua`.
   Los de captura apuntan a `wysun screenshot …` / `wysun recorder …`. `apps/shell/daemons/Shortcuts.qml` está disponible si se decide mover atajos al shell.
+- **Cheat sheet** (`Super+/`, `apps/shell/modules/cheatsheet`): `backend.py` vuelve a leer `~/.config/wysun/hyprland.lua`
+  en cada apertura, sin caché. Un bind nuevo aparece solo si lleva `description="Wysun | <Categoría> | <texto>"`
+  (por ejemplo `{description="Wysun | Notes | Quick note"}`): se lista en esa categoría con ese texto y una categoría
+  nueva se crea sola, al final de las conocidas (Shell, Apps, Windows, Workspaces, Capture, Media, Session). El texto
+  va en inglés. Las etiquetas de procedencia heredadas (`equivalent`, `adapted`, `extra`, `no-equivalent`, `private`,
+  `session`, `overview`, `cheatsheet`, `emoji`) no cuentan como categoría: esos binds conservan la etiqueta
+  derivada del dispatcher. Si dos binds usan las mismas teclas, el último gana. Prueba: `tests/shell_bridge/test_cheatsheet.py`.
 - **Lanzador**: `wysun` abre el widget inferior del shell (`apps/shell/modules/launcher`); no existe lanzador Qt ni
   alternativo: si el shell no responde, el comando falla con un mensaje. Modos con `>`: `clip`, `files`, `snip`, `win`,
   `emoji`, `hist`, `run`; datos en `apps/wysun/launcher_data.py` (mismo almacén que el residente). `wysun clipboard|snippets|

@@ -2,6 +2,9 @@
 """Reads the active Hyprland Lua config and prints its real binds grouped for the cheat sheet.
 
 Binds whose description marks them as having no Wysun equivalent (notification stubs) are skipped.
+A bind whose description is "Wysun | <Category> | <text>" is listed under that category with that text;
+unknown categories become new groups. Older provenance tags (equivalent, adapted, extra...) keep the
+labels derived from the dispatcher. The file is read on every call, so nothing is cached.
 """
 import json
 import re
@@ -24,6 +27,8 @@ WYSUN = {'launcher': 'Open the launcher', 'toggle': 'Open the launcher', 'clipbo
          'windows': 'Window switcher', 'cheatsheet': 'This cheat sheet'}
 SHELL = {'overview': 'Workspace overview', 'session': 'Session panel', 'menu': 'Quick menu',
          'cheatsheet': 'This cheat sheet', 'reload-preferences': 'Reload shell preferences'}
+# Provenance tags used by the stock config; they say where a bind came from, not how to list it.
+PROVENANCE = {'adapted', 'cheatsheet', 'emoji', 'equivalent', 'extra', 'no-equivalent', 'overview', 'private', 'session'}
 APPS = {'wysun-terminal': 'Terminal', 'brave-browser': 'Browser', 'discord': 'Discord'}
 
 
@@ -94,23 +99,43 @@ def describe(action):
     return None
 
 
+def explicit(description):
+    """Returns (category, text) for a "Wysun | <Category> | <text>" description, else None."""
+    parts = [p.strip() for p in description.split('|', 2)]
+    if len(parts) != 3 or parts[0].lower() != 'wysun' or not parts[1] or not parts[2]:
+        return None
+    if parts[1].lower() in PROVENANCE:
+        return None
+    return parts[1], parts[2]
+
+
 def keycaps(spec):
     parts = [p.strip() for p in spec.split('+')]
     return [MODS.get(p, KEYS.get(p, p.upper() if len(p) == 1 else p)) for p in parts]
 
 
 def collect(text):
-    seen, rows = set(), []
+    seen, rows, bound = set(), [], {}
     for line in text.splitlines():
         m = BIND.match(line.strip())
         if not m:
             continue
-        spec, action, _ = m.groups()
-        info = describe(action)
-        if info is None or re.search(r'KP_', spec):
+        spec, action, description = m.groups()
+        if re.search(r'KP_', spec):
+            continue
+        info = explicit(description) or describe(action)
+        if info is None:
             continue
         keys = keycaps(spec)
         category, label = info
+        if explicit(description):
+            row = {'category': category, 'keys': keys, 'label': label}
+            if spec in bound:  # a later bind on the same keys replaces the earlier one
+                rows[bound[spec]] = row
+            else:
+                bound[spec] = len(rows)
+                rows.append(row)
+            continue
         if re.search(r'\(arrow keys\)$', label) or label in ('Go to workspace', 'Send window to workspace'):
             key = (category, label, tuple(keys[:-1]))
             if key in seen:

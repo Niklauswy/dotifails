@@ -5,17 +5,20 @@ import QtQuick.Controls as Controls
 import Quickshell
 import Quickshell.Io
 import Wysun.Config
+import Wysun.I18n
+import Wysun.Services
 import qs.components
 import qs.components.controls
 import qs.services
+import qs.modules.dashboard.performance
 
 FloatingWindow {
     id: win
     title: "Wysun Processes"
     implicitWidth: Math.min(1320, (screen?.width ?? 1440) * 0.92)
-    implicitHeight: Math.min(850, (screen?.height ?? 1000) * 0.86)
+    implicitHeight: Math.min(980, (screen?.height ?? 1000) * 0.92)
     minimumSize.width: 980
-    minimumSize.height: 620
+    minimumSize.height: 640
     color: Colours.tPalette.m3surface
     contentItem.Config.screen: screen.name
     contentItem.Tokens.screen: screen.name
@@ -35,7 +38,8 @@ FloatingWindow {
     property int matched: 0
     property string query: ""
     property string owner: "mine"
-    property string mode: "list"
+    property string mode: "apps"
+    property bool showCards: true
     property string sort: "cpu"
     property bool descending: true
     property var collapsed: []
@@ -98,35 +102,76 @@ FloatingWindow {
             spacing: Tokens.spacing.medium
             RowLayout {
                 Layout.fillWidth: true
-                MaterialIcon { text: 'monitoring'; color: Colours.palette.m3primary }
+                spacing: Tokens.spacing.medium
+                MaterialIcon { text: 'monitoring'; color: Colours.palette.m3primary; fontStyle: Tokens.font.icon.large }
                 ColumnLayout {
-                    spacing: Tokens.spacing.extraSmall
-                    StyledText { text: 'Processes'; font: Tokens.font.headline.small }
-                    StyledText { text: (win.frozen ? 'Paused' : 'Live') + ' · ' + (win.summary.count ?? 0) + ' processes · ' + (win.summary.running ?? 0) + ' running'; color: Colours.palette.m3onSurfaceVariant }
+                    spacing: 0
+                    StyledText { text: 'Processes'; font: Tokens.font.title.large }
+                    StyledText { text: (win.frozen ? 'Paused' : 'Live') + ' · ' + (win.summary.count ?? 0) + ' processes · ' + (win.summary.running ?? 0) + ' running'; color: Colours.palette.m3onSurfaceVariant; font: Tokens.font.body.small }
                 }
                 Item { Layout.fillWidth: true }
-                TextButton { text: win.interval + 's refresh'; onClicked: win.interval = win.interval === 1 ? 2 : win.interval === 2 ? 5 : 1 }
-                TextButton { text: win.frozen ? 'Resume' : 'Pause updates'; onClicked: win.frozen = !win.frozen }
-                TextButton { text: 'Close'; onClicked: win.destroy() }
+                TextButton { text: win.showCards ? 'Hide overview' : 'Show overview'; type: TextButton.Tonal; onClicked: win.showCards = !win.showCards }
+                TextButton { text: win.interval + 's refresh'; type: TextButton.Tonal; onClicked: win.interval = win.interval === 1 ? 2 : win.interval === 2 ? 5 : 1 }
+                TextButton { text: win.frozen ? 'Resume' : 'Pause updates'; type: TextButton.Tonal; onClicked: win.frozen = !win.frozen }
+                IconButton { icon: 'close'; type: IconButton.Text; onClicked: win.destroy() }
+            }
+            // The Performance dashboard cards, reused as they are.
+            ColumnLayout {
+                Layout.fillWidth: true
+                visible: win.showCards
+                spacing: Tokens.spacing.medium
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Tokens.spacing.medium
+                    HeroCard {
+                        Layout.fillWidth: true
+                        icon: 'memory'
+                        label: Tr.tr('CPU')
+                        subLabel: Cpu.name
+                        usage: Cpu.percentage
+                        temperature: Cpu.temperature
+                        accent: Colours.palette.m3primary
+                        ServiceRef { service: Cpu }
+                    }
+                    HeroCard {
+                        Layout.fillWidth: true
+                        visible: Gpu.type !== GpuType.None
+                        icon: 'desktop_windows'
+                        label: Tr.tr('GPU')
+                        subLabel: Gpu.name || (Gpu.detecting ? Tr.tr('Detecting GPU...') : Tr.trCtx('None', 'GPU name'))
+                        usage: Gpu.percentage
+                        temperature: Gpu.temperature
+                        accent: Colours.palette.m3secondary
+                        ServiceRef { service: Gpu }
+                    }
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Tokens.spacing.medium
+                    StorageCard { Layout.fillWidth: true; Layout.fillHeight: true }
+                    NetworkCard { Layout.fillWidth: true; Layout.fillHeight: true }
+                    MemoryCard { Layout.fillWidth: true; Layout.fillHeight: true }
+                }
             }
             RowLayout {
                 Layout.fillWidth: true
                 spacing: Tokens.spacing.small
-                Metric { Layout.fillWidth: true; label: 'CPU'; value: win.pct(win.summary.cpu); samples: win.history.cpu; subtitle: (win.summary.cores ?? 0) + ' logical cores' }
-                Metric { Layout.fillWidth: true; label: 'Memory'; value: win.size(win.summary.memory); samples: win.history.memory; ceiling: win.summary.total_memory ?? 1; tone: Colours.palette.m3tertiary; subtitle: 'of ' + win.size(win.summary.total_memory) }
-                Metric { Layout.fillWidth: true; label: 'GPU'; value: win.pct(win.summary.gpu); samples: win.history.gpu; tone: Colours.palette.m3secondary; subtitle: win.summary.gpu === null || win.summary.gpu === undefined ? 'Driver telemetry unavailable' : win.summary.gpu_source + (win.summary.gpu_memory === null ? '' : ' · ' + win.size(win.summary.gpu_memory)) }
-                Metric { Layout.fillWidth: true; label: 'Disk I/O'; value: win.rate(win.summary.disk); samples: win.history.disk; ceiling: Math.max(1048576, ...win.history.disk); subtitle: 'Physical devices · read + write' }
-                Metric { Layout.fillWidth: true; label: 'Network'; value: win.rate(win.summary.network); samples: win.history.network; ceiling: Math.max(1048576, ...win.history.network); tone: Colours.palette.m3tertiary; subtitle: 'System · receive + send' }
-            }
-            RowLayout {
-                Layout.fillWidth: true
-                StyledTextField { Layout.fillWidth: true; placeholderText: 'Search name, pid:, user:, cpu>5, mem>500m'; leadingIcon: 'search'; text: win.query; onTextEdited: win.query = text; verticalPadding: Tokens.padding.small }
-                TextButton { text: win.owner === 'mine' ? 'My processes' : 'All users'; onClicked: win.owner = win.owner === 'mine' ? 'all' : 'mine' }
+                SearchBar {
+                    Layout.fillWidth: true
+                    font: Tokens.font.body.medium
+                    placeholderText: 'Search name, pid:, user:, cpu>5, mem>500m'
+                    topPadding: Tokens.padding.medium
+                    bottomPadding: Tokens.padding.medium
+                    text: win.query
+                    onTextEdited: win.query = text
+                }
+                TextButton { text: win.owner === 'mine' ? 'My processes' : 'All users'; type: TextButton.Tonal; onClicked: win.owner = win.owner === 'mine' ? 'all' : 'mine' }
                 Repeater {
-                    model: ['list', 'tree', 'apps']
+                    model: ['apps', 'list', 'tree']
                     TextButton {
                         required property string modelData
-                        text: ({list: 'List', tree: 'Tree', apps: 'Applications'})[modelData]
+                        text: ({list: 'List', tree: 'Tree', apps: 'By app'})[modelData]
+                        type: TextButton.Tonal
                         isToggle: true; checked: win.mode === modelData
                         onClicked: { win.mode = modelData; internalChecked = true; win.collapsed = []; }
                     }
@@ -137,24 +182,26 @@ FloatingWindow {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 spacing: Tokens.spacing.medium
-                Rectangle {
+                StyledRect {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    color: Colours.tPalette.m3surfaceContainerLow
-                    radius: Tokens.rounding.medium
+                    color: Colours.tPalette.m3surfaceContainer
+                    radius: Tokens.rounding.extraLarge
                     ColumnLayout {
                         anchors.fill: parent
-                        anchors.margins: Tokens.padding.small
-                        spacing: Tokens.spacing.extraSmall
+                        anchors.margins: Tokens.padding.large
+                        spacing: Tokens.spacing.small
                         Row {
                             id: header
                             Layout.fillWidth: true
+                            Layout.leftMargin: Tokens.padding.medium
+                            Layout.rightMargin: Tokens.padding.medium
                             Repeater {
-                                model: [{key:'name', label:'Process', weight:0.32}, {key:'pid', label:'PID', weight:0.09}, {key:'cpu', label:'CPU', weight:0.11}, {key:'memory', label:'Memory', weight:0.16}, {key:'gpu', label:'GPU', weight:0.11}, {key:'read_rate', label:'Read/s', weight:0.105}, {key:'write_rate', label:'Write/s', weight:0.105}]
+                                model: [{key:'name', label:'Process', weight:0.34}, {key:'cpu', label:'CPU', weight:0.17}, {key:'memory', label:'Memory', weight:0.17}, {key:'gpu', label:'GPU', weight:0.10}, {key:'read_rate', label:'Read/s', weight:0.11}, {key:'write_rate', label:'Write/s', weight:0.11}]
                                 Item {
                                     required property var modelData
                                     width: header.width * modelData.weight; height: Tokens.spacing.extraLargeIncreased
-                                    StyledText { anchors.verticalCenter: parent.verticalCenter; text: modelData.label + (win.sort === modelData.key ? (win.descending ? ' ↓' : ' ↑') : ''); color: win.sort === modelData.key ? Colours.palette.m3primary : Colours.palette.m3onSurfaceVariant; font: Tokens.font.label.small }
+                                    StyledText { anchors.verticalCenter: parent.verticalCenter; text: modelData.label + (win.sort === modelData.key ? (win.descending ? ' ↓' : ' ↑') : ''); color: win.sort === modelData.key ? Colours.palette.m3primary : Colours.palette.m3onSurfaceVariant; font: Tokens.font.label.medium }
                                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: win.reorder(parent.modelData.key) }
                                 }
                             }
@@ -164,83 +211,105 @@ FloatingWindow {
                             Layout.fillWidth: true
                             Layout.fillHeight: true
                             clip: true
+                            spacing: Tokens.spacing.extraSmall
                             model: win.rows
                             boundsBehavior: Flickable.StopAtBounds
-                            Controls.ScrollBar.vertical: Controls.ScrollBar {}
-                            delegate: Rectangle {
+                            StyledScrollBar.vertical: StyledScrollBar { flickable: table }
+                            delegate: StyledRect {
                                 id: entry
                                 required property var modelData
                                 required property int index
+                                readonly property bool chosen: !!win.selectedKey && modelData.pid === win.selectedKey[0] && modelData.start === win.selectedKey[1]
                                 width: table.width
                                 height: Tokens.spacing.extraExtraLarge
-                                radius: Tokens.rounding.small
-                                color: win.selectedKey && modelData.pid === win.selectedKey[0] && modelData.start === win.selectedKey[1] ? Colours.palette.m3secondaryContainer : hover.containsMouse ? Colours.tPalette.m3surfaceContainerHigh : 'transparent'
-                                MouseArea { id: hover; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: win.choose(entry.modelData) }
+                                radius: Tokens.rounding.medium
+                                color: chosen ? Colours.palette.m3secondaryContainer : modelData.group ? Colours.tPalette.m3surfaceContainerHigh : 'transparent'
+                                StateLayer { radius: entry.radius; onClicked: win.choose(entry.modelData) }
                                 Row {
                                     anchors.fill: parent
+                                    anchors.leftMargin: Tokens.padding.medium
+                                    anchors.rightMargin: Tokens.padding.medium
+                                    readonly property real full: width
                                     Item {
-                                        width: table.width * 0.32; height: parent.height
+                                        width: parent.full * 0.34; height: parent.height
                                         RowLayout {
                                             anchors.fill: parent
                                             anchors.rightMargin: Tokens.padding.small
-                                            spacing: Tokens.spacing.extraSmall
-                                            Item { width: Math.min(entry.modelData.depth ?? 0, 6) * Tokens.spacing.medium; Layout.fillHeight: true }
-                                            Item {
-                                                Layout.preferredWidth: Tokens.spacing.large
-                                                Layout.fillHeight: true
-                                                StyledText {
-                                                    anchors.centerIn: parent
-                                                    text: entry.modelData.group || entry.modelData.hasChildren ? (win.collapsed.includes(entry.modelData.group ? entry.modelData.app : entry.modelData.pid) ? '▸' : '▾') : '·'
-                                                    color: Colours.palette.m3primary
-                                                }
-                                                MouseArea { anchors.fill: parent; enabled: !!entry.modelData.hasChildren || !!entry.modelData.group; cursorShape: Qt.PointingHandCursor; onClicked: win.fold(entry.modelData.group ? entry.modelData.app : entry.modelData.pid) }
+                                            spacing: Tokens.spacing.small
+                                            Item { Layout.preferredWidth: Math.min(entry.modelData.depth ?? 0, 6) * Tokens.spacing.medium; Layout.fillHeight: true }
+                                            MaterialIcon {
+                                                visible: !!entry.modelData.group || !!entry.modelData.hasChildren
+                                                text: win.collapsed.includes(entry.modelData.group ? entry.modelData.app : entry.modelData.pid) ? 'chevron_right' : 'expand_more'
+                                                color: Colours.palette.m3primary
+                                                fontStyle: Tokens.font.icon.small
+                                                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: win.fold(entry.modelData.group ? entry.modelData.app : entry.modelData.pid) }
                                             }
+                                            Item { visible: !entry.modelData.group && !entry.modelData.hasChildren; Layout.preferredWidth: Tokens.spacing.large }
                                             ColumnLayout {
                                                 Layout.fillWidth: true; spacing: 0
-                                                StyledText { Layout.fillWidth: true; text: entry.modelData.name; elide: Text.ElideRight; font: Tokens.font.label.medium }
-                                                StyledText { Layout.fillWidth: true; text: entry.modelData.group ? entry.modelData.count + ' processes' : entry.modelData.user + ' · ' + entry.modelData.stateLabel; font: Tokens.font.label.small; color: Colours.palette.m3onSurfaceVariant; elide: Text.ElideRight }
+                                                StyledText { Layout.fillWidth: true; text: entry.modelData.name; elide: Text.ElideRight; font: entry.modelData.group ? Tokens.font.title.small : Tokens.font.body.medium }
+                                                StyledText { Layout.fillWidth: true; text: entry.modelData.group ? entry.modelData.count + ' processes' : entry.modelData.user + ' · PID ' + entry.modelData.pid + ' · ' + entry.modelData.stateLabel; font: Tokens.font.label.small; color: Colours.palette.m3onSurfaceVariant; elide: Text.ElideRight }
                                             }
                                         }
                                     }
                                     Repeater {
-                                        model: [{value:entry.modelData.group ? '—' : entry.modelData.pid, weight:0.09}, {value:win.pct(entry.modelData.cpu), weight:0.11}, {value:win.size(entry.modelData.memory), weight:0.16}, {value:win.pct(entry.modelData.gpu), weight:0.11}, {value:win.size(entry.modelData.read_rate), weight:0.105}, {value:win.size(entry.modelData.write_rate), weight:0.105}]
+                                        model: [
+                                            {value: win.pct(entry.modelData.cpu), weight: 0.17, bar: Math.min(1, (entry.modelData.cpu ?? 0) / 100), tone: Colours.palette.m3primary},
+                                            {value: win.size(entry.modelData.memory), weight: 0.17, bar: Math.min(1, (entry.modelData.memory ?? 0) / Math.max(1, win.summary.total_memory ?? 1)), tone: Colours.palette.m3tertiary},
+                                            {value: win.pct(entry.modelData.gpu), weight: 0.10, bar: Math.min(1, (entry.modelData.gpu ?? 0) / 100), tone: Colours.palette.m3secondary},
+                                            {value: win.size(entry.modelData.read_rate), weight: 0.11, bar: -1},
+                                            {value: win.size(entry.modelData.write_rate), weight: 0.11, bar: -1}
+                                        ]
                                         Item {
                                             required property var modelData
-                                            width: table.width * modelData.weight; height: entry.height
-                                            StyledText { anchors.verticalCenter: parent.verticalCenter; width: parent.width - Tokens.spacing.extraSmall; text: parent.modelData.value; elide: Text.ElideRight; font: Tokens.font.label.small }
+                                            width: parent.full * modelData.weight; height: entry.height
+                                            ColumnLayout {
+                                                anchors.verticalCenter: parent.verticalCenter
+                                                width: parent.width - Tokens.spacing.large
+                                                spacing: Tokens.spacing.extraSmall
+                                                StyledText { Layout.fillWidth: true; text: parent.parent.modelData.value; elide: Text.ElideRight; font: Tokens.font.label.medium }
+                                                StyledProgressBar {
+                                                    visible: parent.parent.modelData.bar >= 0
+                                                    Layout.fillWidth: true
+                                                    implicitHeight: Tokens.spacing.extraSmall
+                                                    value: parent.parent.modelData.bar
+                                                    fgColour: parent.parent.modelData.tone
+                                                    Behavior on value { Anim {} }
+                                                }
+                                            }
                                         }
                                     }
                                 }
                             }
                             StyledText { anchors.centerIn: parent; visible: !table.count; text: win.started ? 'No matching processes' : 'Connecting to process telemetry…'; color: Colours.palette.m3onSurfaceVariant }
                         }
-                        StyledText { text: win.matched + ' matching · ' + win.rows.length + (win.rows.length === 1 ? ' row' : ' rows') + ' · CPU: 100% = one logical core'; font: Tokens.font.label.small; color: Colours.palette.m3onSurfaceVariant }
+                        StyledText { Layout.leftMargin: Tokens.padding.medium; text: win.matched + ' matching · ' + win.rows.length + (win.rows.length === 1 ? ' row' : ' rows') + ' · CPU: 100% = one logical core'; font: Tokens.font.label.small; color: Colours.palette.m3onSurfaceVariant }
                     }
                 }
-                Rectangle {
-                    Layout.preferredWidth: win.selected ? Math.max(280, win.width * 0.25) : 240
+                StyledRect {
+                    Layout.preferredWidth: win.selected ? Math.max(300, win.width * 0.26) : 260
                     Layout.fillHeight: true
                     color: Colours.tPalette.m3surfaceContainer
-                    radius: Tokens.rounding.medium
+                    radius: Tokens.rounding.extraLarge
                     ColumnLayout {
-                        anchors.fill: parent; anchors.margins: Tokens.padding.medium; spacing: Tokens.spacing.small
+                        anchors.fill: parent; anchors.margins: Tokens.padding.large; spacing: Tokens.spacing.small
                         StyledText { text: win.selected ? win.selected.name : 'Process inspector'; font: Tokens.font.title.medium; Layout.fillWidth: true; elide: Text.ElideRight }
-                        StyledText { text: win.selected ? 'PID ' + win.selected.pid + ' · parent ' + win.selected.ppid + ' · ' + (win.exited ? 'Exited' : win.selected.stateLabel) : 'Select a process to inspect its activity, files and threads.'; Layout.fillWidth: true; wrapMode: Text.Wrap; color: Colours.palette.m3onSurfaceVariant }
+                        StyledText { text: win.selected ? 'PID ' + win.selected.pid + ' · parent ' + win.selected.ppid + ' · ' + (win.exited ? 'Exited' : win.selected.stateLabel) : 'Select a process to inspect its activity, files and threads.'; Layout.fillWidth: true; wrapMode: Text.Wrap; color: Colours.palette.m3onSurfaceVariant; font: Tokens.font.body.small }
                         Metric { visible: !!win.selected; Layout.fillWidth: true; implicitHeight: Tokens.spacing.extraExtraLarge * 2.5; label: 'Process CPU · ' + win.size(win.selected?.memory); value: win.pct(win.selected?.cpu); samples: win.processHistory; ceiling: Math.max(100, ...win.processHistory); subtitle: win.selected ? win.selected.threads + (win.selected.threads === 1 ? ' thread' : ' threads') + ' · nice ' + win.selected.nice : '' }
                         StyledText { visible: !!win.selected; text: win.selected?.reason || 'Actions affect only the selected process.'; Layout.fillWidth: true; wrapMode: Text.Wrap; color: Colours.palette.m3onSurfaceVariant; font: Tokens.font.label.small }
                         Flow {
                             visible: !!win.selected; Layout.fillWidth: true; Layout.preferredHeight: childrenRect.height; spacing: Tokens.spacing.extraSmall
                             enabled: win.canAct
-                            TextButton { disabled: !win.canAct; text: 'End process'; onClicked: win.ask('terminate', 0) }
-                            TextButton { disabled: !win.canAct; text: 'Force kill'; onClicked: win.ask('kill', 0) }
-                            TextButton { disabled: !win.canAct; text: (win.selected?.state === 'T' || win.selected?.state === 't') ? 'Resume' : 'Suspend'; onClicked: win.ask((win.selected?.state === 'T' || win.selected?.state === 't') ? 'resume' : 'pause', 0) }
-                            TextButton { disabled: !win.canAct; text: 'Priority'; onClicked: win.ask('priority', win.selected.nice) }
+                            TextButton { disabled: !win.canAct; type: TextButton.Tonal; text: 'End process'; onClicked: win.ask('terminate', 0) }
+                            TextButton { disabled: !win.canAct; type: TextButton.Tonal; text: 'Force kill'; onClicked: win.ask('kill', 0) }
+                            TextButton { disabled: !win.canAct; type: TextButton.Tonal; text: (win.selected?.state === 'T' || win.selected?.state === 't') ? 'Resume' : 'Suspend'; onClicked: win.ask((win.selected?.state === 'T' || win.selected?.state === 't') ? 'resume' : 'pause', 0) }
+                            TextButton { disabled: !win.canAct; type: TextButton.Tonal; text: 'Priority'; onClicked: win.ask('priority', win.selected.nice) }
                         }
                         StyledText { visible: !!win.message; text: win.message; color: Colours.palette.m3primary; Layout.fillWidth: true; wrapMode: Text.Wrap }
-                        TextButton { visible: !!win.selected && !win.exited; text: 'Refresh details'; onClicked: win.refreshDetails() }
+                        TextButton { visible: !!win.selected && !win.exited; text: 'Refresh details'; type: TextButton.Text; onClicked: win.refreshDetails() }
                         Controls.ScrollView {
                             Layout.fillHeight: true; Layout.fillWidth: true; clip: true
-                            Controls.TextArea { text: win.selected ? win.detailText() : 'GPU per process requires DRM fdinfo support.\n\nPer-process network usage is unavailable without privileged tracing. The network graph shows system totals.\n\nDisk rates count physical I/O; cached reads may be zero.'; readOnly: true; selectByMouse: true; wrapMode: TextEdit.Wrap; color: Colours.palette.m3onSurfaceVariant; font: Tokens.font.label.small; background: null }
+                            Controls.TextArea { text: win.selected ? win.detailText() : 'GPU per process requires DRM fdinfo support.\n\nPer-process network usage is unavailable without privileged tracing. The network card shows system totals.\n\nDisk rates count physical I/O; cached reads may be zero.'; readOnly: true; selectByMouse: true; wrapMode: TextEdit.Wrap; color: Colours.palette.m3onSurfaceVariant; font: Tokens.font.label.small; background: null }
                         }
                     }
                 }
