@@ -54,7 +54,7 @@ El perfil Samsung es opcional y específico del equipo con pantalla táctil defe
 ## Qué incluye
 
 - Hyprland y su configuración en Lua, monitores detectados, escritorios administrados por el compositor y agentes de D-Bus y Polkit. Al desconectar pantallas se recuperan los perfiles y las ventanas permanecen donde el compositor las coloque.
-- Quickshell: barra con módulos de recursos, conexiones, audio, calendario y notificaciones; paneles de escritorio integrados con Wysun. La apariencia se mantiene mediante transparencias y animaciones del compositor.
+- Quickshell (runtime privado compilado por `installer/runtime_build.py`, ver [ARCHITECTURE.md](ARCHITECTURE.md)): barra con módulos de recursos, conexiones, audio, calendario y notificaciones; paneles de escritorio integrados con Wysun. La apariencia se mantiene mediante transparencias y animaciones del compositor.
 - Wysun nativa en Qt: aplicaciones, ventanas, portapapeles, OCR local en español/inglés, archivos con vistas previas, reproductor multimedia, snippets, calculadora y emojis a color.
 - Conexiones Wi-Fi, Bluetooth, VPN y SSH; menú de sesión; ajustes visuales de Hyprland, pantallas, barra y atajos.
 - Notas Markdown, procesos y selector de color con lupa, integrado con el portal de color.

@@ -8,7 +8,7 @@ Las aplicaciones de `apps/wysun/` siguen siendo Python/PySide6 y se ejecutan en 
 
 - Debian 13 (trixie) o Parrot 7 (echo), x86_64.
 - El instalador usa el repositorio de la distribución y sus *backports* (`trixie-backports` o `echo-backports`). No añade ni mezcla repositorios externos.
-- Versiones comprobadas: `hyprland` 0.55.x, `quickshell` 0.3.x, `xdg-desktop-portal-hyprland` 1.4.x, `hyprpicker` 0.4.x. El instalador rechaza el plan antes de aplicar cambios si otra serie aparece.
+- Versiones comprobadas: `hyprland` 0.55.x, `xdg-desktop-portal-hyprland` 1.4.x, `hyprpicker` 0.4.x. Quickshell no viene del sistema: se compila en un runtime privado (`installer/runtime_build.py`, versiones en `manifests/runtime.json`) junto con Qt 6.9.3; el plan incluye sus paquetes de compilación y la primera instalación tarda lo que dure esa compilación. El instalador rechaza el plan antes de aplicar cambios si otra serie aparece.
 - `xwayland` y las bibliotecas X11 se conservan para aplicaciones heredadas. XWayland no convierte una captura X11 en una captura nativa: Recorder y Screenshot usan siempre el portal.
 
 Puedes ver el plan sin aplicar cambios:

@@ -27,7 +27,7 @@ El cambio de nombre no mueve ni borra archivos personales. Se conservan:
 | Preferencias de Recorder | `~/.config/loomrec/` |
 | Sesiones editables de Screenshot | `~/.local/share/wybie-screenshot/` |
 | Exportaciones | Las carpetas elegidas en cada aplicación |
-| Comandos anteriores | `orbit`, `musika`, `musica`, `orbit-files`, `loomrec`, `wybie-screenshot` |
+| Comandos anteriores | `orbit`, `orbit-files`, `loomrec`, `wybie-screenshot` (los alias `musica`/`musika` se retiraron: usa `wysun music`) |
 | Paquetes, sockets, nombres de escritorio y clases de ventana | Identidades técnicas existentes para conservar compatibilidad |
 
 Recorder y Screenshot se incorporan sin depender del repositorio original `loom`. Sus lanzadores antiguos solo se adoptan automáticamente si su contenido coincide con el manifiesto del instalador anterior. Los archivos personalizados se conservan y la versión propuesta queda en `incoming/` dentro del respaldo de dotifails. Los instaladores independientes antiguos quedan como herramientas históricas de compatibilidad; no deben usarse para administrar la nueva distribución.
