@@ -332,7 +332,7 @@ class Deployment:
                 self.generated(json.dumps(preferences,indent=2)+'\n',Path('.config/orbit/environment.json'))
             if not self.conflicts:self.receipt['theme']=theme
         self.configure_manager()
-        if profile:self.deploy(self.source/'profiles'/f'{profile}.sh',Path('.config/dotifails/machine.sh'))
+        if profile:self.deploy(self.source/'machines'/f'{profile}.sh',Path('.config/dotifails/machine.sh'))
         if 'desktop' in selected:
             self.generated(WYSUN_DESKTOP,Path('.local/share/applications/orbit.desktop'))
             (self.home/'Screenshots').mkdir(exist_ok=True)

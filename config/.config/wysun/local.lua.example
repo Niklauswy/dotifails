@@ -1,0 +1,10 @@
+-- Wysun · preferencias de ESTA máquina (copia a ~/.config/wysun/local.lua).
+-- Este archivo es dato del usuario: las actualizaciones nunca lo reemplazan.
+-- Aquí van monitores concretos, escalas, rutas personales y atajos privados;
+-- la configuración general del repositorio no debe nombrar equipos ni rutas.
+
+-- Una pantalla con ajuste explícito (las demás conservan su regla automática):
+-- hl.monitor({ output = "eDP-1", mode = "1920x1080@60", position = "0x0", scale = 1.0 })
+
+-- Atajos personales (se cargan después de los generales):
+-- hl.bind("SUPER + SHIFT + S", hl.dsp.exec_cmd("wysun screenshot --region --path ~/Pictures/Screenshots"))
