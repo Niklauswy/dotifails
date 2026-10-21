@@ -11,6 +11,17 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 class SidebarTests(unittest.TestCase):
+    def test_requested_drawer_is_not_masked_or_below_a_fullscreen_client(self):
+        source = (ROOT / 'apps/shell/modules/drawers/ContentWindow.qml').read_text()
+        self.assertIn('mask: hasFullscreen && !hasRequestedDrawer ? emptyRegion : regions', source)
+        self.assertIn('WlrLayershell.layer: (hasFullscreen && hasRequestedDrawer)', source)
+        requested = re.search(r'readonly property bool hasRequestedDrawer: (.*?)(?:\n\n)', source, re.S)[1]
+        for surface in ('launcher', 'sidebar', 'session', 'dashboard', 'utilities'):
+            self.assertIn(f'(screenState.{surface} && contentItem.Config.{surface}.enabled)', requested)
+        transition = re.search(r'onHasFullscreenChanged: \{(.*?)\n    }', source, re.S)[1]
+        for surface in ('launcher', 'sidebar', 'session', 'dashboard', 'utilities'):
+            self.assertIn(f'screenState.{surface} = false;', transition)
+
     def test_global_ctrl_x_is_unique_and_keeps_super_ctrl_x(self):
         lua = (ROOT / 'config/.config/wysun/hyprland.lua').read_text()
         binds = re.findall(r'^hl\.bind\("([^"]+)", (.+)$', lua, re.M)

@@ -35,6 +35,14 @@ StyledWindow {
         return hasFullscreenOnNormalWs;
     }
 
+    // A manually opened drawer must remain visible and clickable over a
+    // fullscreen client. Never grab input behind an empty fullscreen mask.
+    readonly property bool hasRequestedDrawer: (screenState.launcher && contentItem.Config.launcher.enabled)
+        || (screenState.sidebar && contentItem.Config.sidebar.enabled)
+        || (screenState.session && contentItem.Config.session.enabled)
+        || (screenState.dashboard && contentItem.Config.dashboard.enabled)
+        || (screenState.utilities && contentItem.Config.utilities.enabled)
+
     property real fsTransitionProg: hasFullscreen ? 1 : 0
     readonly property real sdfBorderOffset: 2 * fsTransitionProg // SDFs joins are not exact, so offset by 2px to ensure nothing shows
     readonly property real borderThickness: contentItem.Config.border.thickness * (1 - fsTransitionProg)
@@ -62,15 +70,17 @@ StyledWindow {
         screenState.launcher = false;
         screenState.session = false;
         screenState.dashboard = false;
+        screenState.sidebar = false;
+        screenState.utilities = false;
         panels.popouts.close();
     }
 
     name: "drawers"
     WlrLayershell.exclusionMode: ExclusionMode.Ignore
-    WlrLayershell.layer: (fsTransitionProg > 0 && contentItem.Config.general.showOverFullscreen) || (hasSpecialWorkspace && hasFullscreenOnNormalWs) ? WlrLayer.Overlay : WlrLayer.Top
+    WlrLayershell.layer: (hasFullscreen && hasRequestedDrawer) || (fsTransitionProg > 0 && contentItem.Config.general.showOverFullscreen) || (hasSpecialWorkspace && hasFullscreenOnNormalWs) ? WlrLayer.Overlay : WlrLayer.Top
     WlrLayershell.keyboardFocus: screenState.launcher || screenState.session || screenState.sidebar ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
 
-    mask: hasFullscreen ? emptyRegion : regions
+    mask: hasFullscreen && !hasRequestedDrawer ? emptyRegion : regions
 
     anchors.top: true
     anchors.bottom: true
