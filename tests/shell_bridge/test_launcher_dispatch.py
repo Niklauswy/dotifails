@@ -66,6 +66,7 @@ class LauncherDispatchTests(unittest.TestCase):
                 (('notes',), 'orbit', ['notes']),
                 (('settings', 'displays'), 'orbit', ['settings', 'displays']),
                 (('clipboard',), 'orbit', ['clipboard']),
+                (('recover', '--dry-run'), 'wysun-recover', ['--dry-run']),
                 (('files', '/tmp/example'), 'orbit-files', ['/tmp/example']),
                 (('launcher', 'query'), 'orbit', ['toggle', 'query']),
                 (('recorder', '--quick-record'), 'wysun-recorder', ['--quick-record'])):

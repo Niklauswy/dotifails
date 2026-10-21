@@ -33,6 +33,7 @@ class ActionWindow(Window):
         for image,screen,origin,geometry in selection_parts(frozen):
             overlay=SelectionOverlay(image,geometry,screen=screen,image_origin=origin)
             overlay.selected.connect(self.selected_region);overlay.cancelled.connect(self.cancel_capture)
+            overlay.recovery_requested.connect(self.recover_capture)
             overlay.control_drag_finished.connect(lambda o=overlay:QTimer.singleShot(0,lambda:self.accept_selection(o)))
             overlay.installEventFilter(self)
             overlays.append(overlay)

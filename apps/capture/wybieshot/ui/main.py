@@ -530,6 +530,7 @@ class Window(QMainWindow):
             overlay=FloatingSelection(image,geometry,screen=screen,image_origin=origin)
             overlay.finished.connect(lambda doc,action,o=overlay:self.complete_floating(doc,action,overlay=o))
             overlay.cancelled.connect(self.cancel_capture)
+            overlay.recovery_requested.connect(self.recover_capture)
             overlays.append(overlay)
         if not overlays:raise RuntimeError('No hay una pantalla disponible para la selección')
         return overlays[0] if len(overlays)==1 else SelectionGroup(overlays)
@@ -581,6 +582,16 @@ class Window(QMainWindow):
         if self._capture_job is not None and feedback:
             feedback.cancel();self.capture_timer.stop();return True
         return False
+
+    def recover_capture(self):
+        """Release a stuck capture, preserving every in-progress annotation."""
+        if not self.busy and not self.overlay:return False
+        for overlay in getattr(self.overlay, 'overlays', []):
+            document = getattr(overlay, 'document', None)
+            if document is not None:self.storage.save(document)
+        self.cancel_capture()
+        # Portal cancellation retains the lease until the worker finishes.
+        return 'pending' if self.busy else True
 
     def cancel_capture(self):
         if self.defer_capture_cancel():return

@@ -174,6 +174,7 @@ hl.bind("SUPER + CTRL + ALT + space", hl.dsp.exec_cmd("dunstify -a Wysun -u low 
 hl.bind("SUPER + SHIFT + space", hl.dsp.exec_cmd("wysun shell menu"), {description="Wysun | extra | Alias adicional sin desplazar baseline"})
 hl.bind("SUPER + E", hl.dsp.exec_cmd("wysun files"), {description="Wysun | extra | Alias adicional sin desplazar baseline"})
 hl.bind("SUPER + CTRL + ALT + L", hl.dsp.exec_cmd("wysun lock"), {description="Wysun | extra | Alias adicional sin desplazar baseline"})
+hl.bind("SUPER + CTRL + ALT + Escape", hl.dsp.exec_cmd("wysun recover"), {description="Wysun | extra | Recuperación: cierra overlays de captura y del shell y relanza el shell si cayó; no depende del shell"})
 hl.bind("SUPER + SHIFT + R", hl.dsp.exec_cmd("wysun recorder --quick-record"), {description="Wysun | extra | Alias adicional sin desplazar baseline"})
 hl.bind("SUPER + Q", hl.dsp.window.close(), {description="Wysun | extra | Alias adicional sin desplazar baseline"})
 hl.bind("SUPER + SHIFT + F", hl.dsp.window.float({action="toggle"}), {description="Wysun | extra | Alias adicional sin desplazar baseline"})

@@ -21,7 +21,9 @@ def main():
     args = parser.parse_args()
     with tempfile.TemporaryDirectory(prefix='wysun-installed-') as temporary:
         home = Path(temporary)
-        env = dict(os.environ, HOME=str(home), QT_QPA_PLATFORM='offscreen', PYTHONDONTWRITEBYTECODE='1')
+        # Runtime construction has its own clean-container test; this checks deployment/dispatch only.
+        env = dict(os.environ, HOME=str(home), QT_QPA_PLATFORM='offscreen',
+                   PYTHONDONTWRITEBYTECODE='1', WYSUN_SKIP_RUNTIME='1')
         for variable, relative in (('XDG_CONFIG_HOME', '.xdg/config'), ('XDG_DATA_HOME', '.xdg/data'),
                                    ('XDG_STATE_HOME', '.xdg/state'), ('XDG_CACHE_HOME', '.xdg/cache'),
                                    ('XDG_RUNTIME_DIR', 'runtime')):
@@ -45,7 +47,9 @@ def main():
                   (('loomrec', '--version'), 'Wysun Recorder'),
                   (('wybie-screenshot', '--version'), 'Wysun Screenshot'),
                   (('wysun', 'recorder', '--help'), '--quick-record'),
-                  (('wysun', 'screenshot', '--help'), '--library')]
+                  (('wysun', 'screenshot', '--help'), '--cancel-selection'),
+                  (('wysun', 'screenshot', '--cancel-selection'), '0 selección(es)'),
+                  (('wysun', 'recover', '--help'), 'Wysun recovery')]
         if args.runtime_root:checks.append((('wysun', 'session-check'), 'WYSUN_SESSION_PREFLIGHT_OK'))
         for argv, expected in checks:
             before = time.monotonic()
