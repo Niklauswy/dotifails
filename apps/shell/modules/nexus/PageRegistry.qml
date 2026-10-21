@@ -17,13 +17,6 @@ QtObject {
         },
 
         // Connectivity
-        // TODO
-        // {
-        //     label: Tr.tr("Display"),
-        //     icon: "monitor",
-        //     description: Tr.tr("Output configuration"),
-        //     category: "connectivity"
-        // },
         {
             key: "network",
             label: Tr.tr("Network"),
@@ -46,14 +39,22 @@ QtObject {
             description: Tr.tr("App volumes, sound devices"),
             category: "connectivity"
         },
+
+        // Preserve the first four indices used by bar deep links.
         {
-            key: "ssh",
-            label: "SSH",
-            icon: "terminal",
-            description: "Servidores y accesos remotos",
+            key: "displays",
+            label: Tr.tr("Displays"),
+            icon: "monitor",
+            description: Tr.tr("Arrangement, resolution, scale and refresh rate"),
             category: "connectivity"
         },
-
+        {
+            key: "workspaces",
+            label: Tr.tr("Workspaces"),
+            icon: "view_carousel",
+            description: Tr.tr("Workspace assignments by display"),
+            category: "shell"
+        },
         // System
         {
             key: "updates",
@@ -67,13 +68,6 @@ QtObject {
             label: Tr.tr("Plugins"),
             icon: "extension",
             description: Tr.tr("Manage plugins"),
-            category: "system"
-        },
-        {
-            key: "processes",
-            label: "Procesos",
-            icon: "monitor_heart",
-            description: "CPU, memoria y control de procesos",
             category: "system"
         },
 
@@ -116,13 +110,6 @@ QtObject {
             category: "about"
         },
 
-        // The bar's deep links only use the first four pages; keep those first.
-        {
-            key: "desktop",
-            label: Tr.tr("Escritorio"),
-            icon: "desktop_windows",
-            description: Tr.tr("Pantallas, atajos, reglas, inicio y copias"),
-            category: "desktop"
-        },
+
     ]
 }

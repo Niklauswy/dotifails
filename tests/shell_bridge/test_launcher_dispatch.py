@@ -75,11 +75,11 @@ class LauncherDispatchTests(unittest.TestCase):
             target = str(ROOT / 'bin' / executable)
             execute.assert_called_once_with(target, [target, *forwarded])
 
-    def test_settings_connections_and_processes_open_native_pages(self):
+    def test_settings_and_connections_open_native_pages(self):
         helper = str(ROOT / 'bin/wysun-shell')
         for args, route in ((('settings',), 'home'), (('settings', 'displays'), 'displays'),
-                            (('connections',), 'network'), (('processes',), 'processes'),
-                            (('settings-effects',), 'effects')):
+                            (('connections',), 'network'),
+                            (('settings-workspaces',), 'workspaces')):
             status, run, execute = self.invoke(args)
             self.assertEqual(status, 0, args)
             self.assertEqual(run.call_args.args[0], [helper, 'nexus', route])
@@ -88,7 +88,7 @@ class LauncherDispatchTests(unittest.TestCase):
     def test_native_pages_never_fall_back_to_a_qt_window(self):
         for kwargs in ({'response': 'false\n'}, {'code': 1}, {'error': FileNotFoundError()},
                        {'error': subprocess.TimeoutExpired('ipc', 4)}):
-            status, run, execute = self.invoke(('settings', 'shortcuts'), **kwargs)
+            status, run, execute = self.invoke(('settings', 'displays'), **kwargs)
             self.assertEqual(status, 1)
             execute.assert_not_called()
 

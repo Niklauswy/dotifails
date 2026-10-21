@@ -1,4 +1,4 @@
-"""Settings, connections and processes are shell (Nexus) pages; Qt windows are gone."""
+"""Nexus exposes display settings directly and rejects retired routes."""
 import json
 from pathlib import Path
 import re
@@ -8,9 +8,9 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
 NEXUS = ROOT / 'apps/shell/modules/nexus'
-CATALOGUE = NEXUS / 'pages/DesktopSections.js'
+CATALOGUE = NEXUS / 'pages/SettingsRoutes.js'
 REMOVED = ('settings_hub', 'settings_window', 'settings_app', 'shortcut_capture', 'connections_window',
-           'connections_data', 'connection_details', 'processes_window', 'process_widgets')
+           'connections_data', 'connection_details')
 
 
 def page_keys():
@@ -19,7 +19,7 @@ def page_keys():
 
 class NativePagesTests(unittest.TestCase):
     def sections(self):
-        return re.findall(r'\{route: "([^"]+)"[^}]*sub: (\d+)', CATALOGUE.read_text())
+        return []
 
     def test_qt_settings_connections_and_processes_windows_are_removed(self):
         for name in REMOVED:
@@ -34,24 +34,19 @@ class NativePagesTests(unittest.TestCase):
         self.assertEqual(len(keys), len(set(keys)))
         self.assertEqual(keys[:4], ['wallpaper', 'network', 'bluetooth', 'audio'])  # bar deep links
         components = (NEXUS / 'PageCompRegistry.qml').read_text()
-        self.assertEqual(len(re.findall(r'^        Component \{$', components, re.M)), len(keys))
-        self.assertLess(keys.index('about'), keys.index('desktop'))
-        self.assertIn('processes', keys)
-        self.assertIn('ssh', keys)
+        self.assertEqual(len(re.findall(r'^        Component \{', components, re.M)), len(keys))
+        self.assertIn('displays', keys)
+        self.assertIn('workspaces', keys)
+        for retired in ('desktop', 'processes', 'ssh'):
+            self.assertNotIn(retired, keys)
 
-    def test_every_section_has_a_distinct_route_and_an_existing_sub_page(self):
-        sections = self.sections()
-        routes = [route for route, _ in sections]
-        self.assertEqual(len(routes), len(set(routes)))
-        self.assertGreaterEqual(len(routes), 9)
-        components = (NEXUS / 'PageCompRegistry.qml').read_text()
-        desktop = components[components.index('DesktopPage {}'):]
-        listed = len(re.findall(r'^                Component \{$', desktop.split('\n        }\n    ]')[0], re.M)) + 1
-        for route, sub in sections:
-            self.assertLess(int(sub), listed, route)
-        for page in ('DisplaysPage', 'WorkspacesPage', 'ShortcutsPage', 'ShortcutEditPage', 'WindowsPage',
+    def test_retired_pages_and_bridge_are_absent(self):
+        for name in ('DesktopPage', 'ShortcutsPage', 'ShortcutEditPage', 'WindowsPage',
                      'RuleEditPage', 'ComponentPage', 'StartupPage', 'BackupsPage'):
-            self.assertTrue((NEXUS / 'pages' / (page + '.qml')).is_file(), page)
+            self.assertFalse((NEXUS / 'pages' / (name + '.qml')).exists())
+        self.assertFalse((ROOT / 'apps/shell/wysun/desktop_bridge.py').exists())
+        self.assertFalse((NEXUS / 'pages/processes').exists())
+        self.assertFalse((NEXUS / 'pages/ssh').exists())
 
     def test_page_routes_target_registered_pages(self):
         source = CATALOGUE.read_text()
@@ -76,13 +71,15 @@ class NativePagesTests(unittest.TestCase):
         if not node:
             self.skipTest('Node JavaScript engine unavailable')
         source = CATALOGUE.read_text().replace('.pragma library', '')
-        result = subprocess.run([node], input=source + '\nconsole.log(JSON.stringify([sections.length, section("displays").sub, section("nope")]));',
+        result = subprocess.run([node], input=source + '\nconsole.log(JSON.stringify(pageRoutes));',
                                 text=True, capture_output=True, timeout=10)
         self.assertEqual(result.returncode, 0, result.stderr)
-        count, sub, missing = json.loads(result.stdout)
-        self.assertGreaterEqual(count, 9)
-        self.assertEqual(sub, 1)
-        self.assertIsNone(missing)
+        routes = json.loads(result.stdout)
+        self.assertEqual(routes['displays'], 'displays')
+        self.assertEqual(routes['workspaces'], 'workspaces')
+        for retired in ('desktop', 'effects', 'shortcuts', 'ssh', 'processes', 'terminal', 'startup', 'files', 'notifications', 'rules'):
+            self.assertNotIn(retired, routes)
+
 
 
 if __name__ == '__main__':

@@ -26,7 +26,7 @@ function utilities() {
         ["Wysun Colors", "Capturar, convertir y guardar colores", "colorize", ["wysun", "colors"]],
         ["Wysun Processes", "Procesos y recursos del sistema", "memory", ["wysun", "processes"]],
         ["Wysun Tools", "Proyectos, diagnósticos y archivos", "terminal", ["wysun", "tools"]],
-        ["Conexiones", "Wi-Fi, Ethernet, Bluetooth, VPN y SSH", "wifi", ["wysun", "connections"]],
+        ["Conexiones", "Wi-Fi, Ethernet, Bluetooth and VPN", "wifi", ["wysun", "connections"]],
         ["Sonido", "Volumen y dispositivos de audio", "volume_up", ["wysun", "audio"]],
         ["Notificaciones", "Historial y modo concentración", "notifications", ["wysun", "notifications"]],
         ["Calendario", "Consultar fechas", "calendar_month", ["wysun", "calendar"]],
@@ -34,9 +34,8 @@ function utilities() {
         ["Sesión", "Bloqueo, suspensión y opciones de energía", "power_settings_new", ["wysun", "power"]],
         ["Wysun Recorder", "Biblioteca y controles de grabación", "videocam", ["wysun", "recorder"]],
         ["Wysun Screenshot", "Biblioteca y captura de pantalla", "screenshot", ["wysun", "screenshot"]],
-        ["Wysun Settings", "Pantallas, atajos, reglas, inicio y copias", "settings", ["wysun", "settings"]],
+        ["Wysun Settings", "Displays, workspaces and desktop preferences", "settings", ["wysun", "settings"]],
         ["Fondo y estilo", "Cambiar el fondo y las preferencias de color", "wallpaper", ["wysun", "settings", "wallpaper"]],
-        ["Efectos y animaciones", "Sombras, desenfoque y velocidad", "animation", ["wysun", "settings", "effects"]],
         ["Terminal", "Abrir la terminal configurada", "terminal", ["wysun-terminal"]],
         ["Sesión (lateral)", "Salir, apagar, suspender o reiniciar", "power_settings_new", ["wysun", "shell", "session"]]
     ].map(function(item) {

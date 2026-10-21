@@ -38,8 +38,8 @@ def shell_command(command, args):
     return 0
 
 
-# Settings, connections and processes live in the shell (Nexus); these are the pages they open.
-NEXUS_DEFAULTS = {'settings': 'home', 'connections': 'network', 'network': 'network', 'processes': 'processes'}
+# Settings and network connections live in Nexus.
+NEXUS_DEFAULTS = {'settings': 'home', 'connections': 'network', 'network': 'network'}
 
 
 def open_nexus(command, args):

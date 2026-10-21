@@ -80,6 +80,15 @@ def move(plan, name, direction):
             for p in row:
                 p['x'] = x
                 x += logical_size(p)[0]
+        elif len(row) == 1:
+            # A display moved above/below must also be able to rejoin a row.
+            others = [p for p in plan if p.get('enabled', True) and p is not target]
+            if others:
+                neighbour = min(others, key=lambda p: abs(p['y'] - target['y']))
+                adjacent = [p for p in others if p['y'] == neighbour['y']]
+                target['y'] = neighbour['y']
+                target['x'] = (min(p['x'] for p in adjacent) - logical_size(target)[0]
+                               if direction == 'left' else max(p['x'] + logical_size(p)[0] for p in adjacent))
     elif direction in ('above', 'below'):
         others = [p for p in plan if p.get('enabled', True) and p is not target]
         if others:

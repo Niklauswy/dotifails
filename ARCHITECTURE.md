@@ -159,8 +159,7 @@ Nunca reiniciar Hyprland ni el login para actualizar un panel.
 ## 6. Atajos, tema y ajustes (para las siguientes olas)
 
 - **Atajos**: `config/.config/wysun/hyprland.lua` (Hyprland 0.55, Lua). Atajos privados en `~/.config/wysun/local.lua`.
-  Los de captura apuntan a `wysun screenshot …` / `wysun recorder …`. `apps/wysun/settings_shortcuts.py` y `shortcut_capture.py`
-  los editan desde Ajustes. `apps/shell/daemons/Shortcuts.qml` está disponible si se decide mover atajos al shell.
+  Los de captura apuntan a `wysun screenshot …` / `wysun recorder …`. `apps/shell/daemons/Shortcuts.qml` está disponible si se decide mover atajos al shell.
 - **Lanzador**: `wysun` abre el widget inferior del shell (`apps/shell/modules/launcher`); no existe lanzador Qt ni
   alternativo: si el shell no responde, el comando falla con un mensaje. Modos con `>`: `clip`, `files`, `snip`, `win`,
   `emoji`, `hist`, `run`; datos en `apps/wysun/launcher_data.py` (mismo almacén que el residente). `wysun clipboard|snippets|
@@ -170,15 +169,13 @@ Nunca reiniciar Hyprland ni el login para actualizar un panel.
 - **Panel de sesión**: `Super+X` alterna el panel lateral de sesión (salir, apagar, suspender, reiniciar) en el monitor
   enfocado y Escape lo cierra. `Ctrl+X` no está asignado: vuelve a ser Cortar en las aplicaciones. Los paneles invocados explícitamente conservan máscara interactiva y capa overlay
   sobre fullscreen; no dejan un foco invisible.
-- **Ajustes, conexiones y procesos**: son páginas del shell (“nexus”, `apps/shell/modules/nexus`; preferencias del shell en
-  `~/.config/wysun/shell/shell.json`). Ya no existen las ventanas Qt Wysun Settings, Conexiones ni Procesos: `wysun settings
-  [ruta]`, `wysun connections` y `wysun processes` piden al shell abrir la página (`wysun-shell nexus <ruta>`, IPC `nexus
-  openRoute`) y fallan con un mensaje si el shell no está disponible. Las páginas de Escritorio (Pantallas con prueba y
-  reversión, Escritorios, Atajos, Ventanas y reglas, Efectos, Terminal, Notificaciones, Inicio, Archivos y copias), SSH y
-  Procesos hablan con `apps/shell/wysun/desktop_bridge.py` (JSON, sin Qt), que reutiliza `hypr_settings.py`,
-  `environment_settings.py`, `display_layout.py`, `settings_data.py`, `settings_shortcuts.py`, `ssh_profiles.py` y
-  `process_data.py`. Escriben `~/.config/orbit/hypr-*.lua`, que `hyprland.lua` carga. Wi-Fi, VPN y Bluetooth usan las
-  páginas nativas de Red y Dispositivos conectados.
+- **Settings y conexiones**: páginas nativas de Nexus (`apps/shell/modules/nexus`). `wysun settings [ruta]`
+  abre las páginas registradas por `SettingsRoutes.js`; Displays y Workspaces son entradas principales en inglés.
+  `apps/shell/wysun/display_bridge.py` atiende exclusivamente distribución de monitores (prueba, confirmación y
+  reversión con watchdog independiente) y asignaciones persistentes de workspaces por monitor. Reutiliza
+  `environment_settings.py`, `display_layout.py` y `hypr_settings.py`. No hay sección Escritorio ni páginas
+  Terminal, Notificaciones, Inicio, Archivos y copias, Efectos, Ventanas, Atajos, SSH o Processes en Settings.
+  Wi-Fi, VPN y Bluetooth usan Red y Dispositivos conectados. `wysun processes` se gestiona fuera de Nexus.
 - **Tema**: Space Black (`space-black`, `tokyo`, `severance`) y Fluent (`light`, `dark`); selección en
   `~/.config/orbit/theme.json`. Los tokens viven en `apps/wysun/wysun_theme.json`; Quickshell los lee por
   `apps/shell/services/Colours.qml` (vía `scheme.json`); `tests/test_theme_literals.py` rechaza colores literales

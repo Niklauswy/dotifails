@@ -7,7 +7,7 @@ import Wysun.I18n
 import qs.components
 import qs.services
 import qs.modules.nexus
-import "pages/DesktopSections.js" as DesktopSections
+import "pages/SettingsRoutes.js" as SettingsRoutes
 
 Singleton {
     id: root
@@ -18,16 +18,15 @@ Singleton {
         nexusComp.createObject(parent ?? dummy, props);
     }
 
-    // Open (or reuse) the settings window on a named route, e.g. "displays" or "processes".
+    // Open (or reuse) the settings window on a named route, e.g. "displays" or "workspaces".
     function createRoute(route: string): bool {
-        const section = DesktopSections.section(route);
-        const key = section || route === "home" ? "desktop" : DesktopSections.pageRoutes[route];
+        const key = SettingsRoutes.pageRoutes[route];
         const idx = PageRegistry.pages.findIndex(p => p.key === key);
         if (idx < 0)
             return false;
         if (!routed || !routed.visible)
             routed = nexusComp.createObject(dummy, {});
-        routed.go(idx, section ? section.sub : (DesktopSections.pageSubs[route] ?? -1), section?.kind ?? "");
+        routed.go(idx, SettingsRoutes.pageSubs[route] ?? -1, "");
         return true;
     }
 
@@ -44,10 +43,9 @@ Singleton {
             color: Colours.tPalette.m3surface
             surfaceFormat.opaque: false
 
-            onVisibleChanged: {
-                if (!visible)
-                    destroy();
-            }
+            // Display trials may temporarily unmap a window while outputs change.
+            // Only an explicit close ends the settings window.
+            onClosed: destroy()
 
             implicitWidth: nexus.implicitWidth
             implicitHeight: nexus.implicitHeight

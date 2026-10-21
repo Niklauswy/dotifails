@@ -55,7 +55,7 @@ Scope {
         }
         function close(): void { root.close(); }
         function reloadPreferences(): void { environment.reload(); }
-        // Settings, connections and processes are Nexus pages (displays, shortcuts, processes, ...).
+        // Settings and network connections are Nexus pages.
         function openRoute(route: string): bool { return WindowFactory.createRoute(route); }
         function openThemeSettings(): bool { Quickshell.execDetached(['wysun', 'settings', 'theme']); return true; }
         function theme(): string { return JSON.stringify({ name: Colours.scheme, variant: Colours.flavour }); }

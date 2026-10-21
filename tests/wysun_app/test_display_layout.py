@@ -38,6 +38,15 @@ class LayoutTests(unittest.TestCase):
         self.assertEqual((above['DP-1']['y'], above['DP-2']['y']), (1080, 1080))
         self.assertEqual(layout.overlaps(list(above.values())), [])
 
+    def test_display_on_its_own_row_can_rejoin_beside_other_displays(self):
+        plan = layout.normalize([monitor('A', 0), monitor('B', 1920), monitor('C', 3840)])
+        above = layout.move(plan, 'B', 'above')
+        for direction, expected in [('left', ['B', 'A', 'C']), ('right', ['A', 'C', 'B'])]:
+            joined = layout.move(above, 'B', direction)
+            self.assertEqual(layout.order(joined), expected)
+            self.assertEqual({p['y'] for p in joined}, {0})
+            self.assertFalse(layout.overlaps(joined))
+
     def test_disabled_outputs_keep_no_position_and_fragment_disables_them(self):
         plan = layout.normalize([monitor('A', 100), monitor('B', 0, enabled=False)])
         text = layout.monitors_fragment(plan)

@@ -10,16 +10,6 @@ from unittest.mock import Mock,patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'apps/wysun'))
 
 class PreservedServicesTests(unittest.TestCase):
-    def test_ssh_include_profiles_and_argv_never_execute_match(self):
-        import ssh_profiles as data
-        with tempfile.TemporaryDirectory() as folder:
-            root=Path(folder);config=root/'config';(root/'hosts').mkdir();(root/'hosts/own').write_text('Host own-fixture\n HostName 192.0.2.1\n User fixture\n Port 2222\nMatch exec "SHOULD NEVER EXECUTE"\n')
-            config.write_text('Include hosts/*\nHost * !skip\n')
-            with patch.object(data,'terminal_args',side_effect=lambda args,title:args):
-                rows=data.ssh_hosts(config);self.assertEqual(len(rows),1);self.assertEqual(data.ssh_args(rows[0]),['ssh','--','own-fixture'])
-                profiles=data.SSHProfiles(root/'ssh.json');profiles.save(dict(name='Own',host='192.0.2.2',user='fixture',port=2222));saved=profiles.saved()[0]
-                self.assertEqual(data.ssh_args(saved),['ssh','-p','2222','-l','fixture','--','192.0.2.2'])
-                with self.assertRaises(ValueError):data.ssh_args(dict(saved,host='--bad'))
     def test_audio_and_notification_history_generate_actions_only(self):
         import system_panels as panels
         answers={'get-default-sink':'own-sink','get-sink-volume':'Volume: 32768 / 50%', 'sinks':json.dumps([dict(name='own-sink',description='Synthetic sink')]),'is-paused':'true','history':json.dumps({'data':[[dict(summary={'data':'Own notice'},appname={'data':'Own app'},body={'data':'<b>Fixture</b>'},id={'data':42})]]})}
