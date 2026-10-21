@@ -16,7 +16,7 @@ case "${1:-}" in
         surface="${1:-}"
         if [ $# -gt 0 ]; then shift; fi
         case "$surface" in
-            test|dashboard|launcher|emoji|menu|quicksettings|notifications|windows|session|sidebar) ;;
+            test|dashboard|launcher|emoji|menu|quicksettings|notifications|windows|session|sidebar|processes) ;;
             *) echo "wysun-shell: superficie desconocida: ${surface:-<vacía>}" >&2; exit 2 ;;
         esac
         exec "$runtime" ipc call wysunShell "$action" "$surface" "$@" ;;

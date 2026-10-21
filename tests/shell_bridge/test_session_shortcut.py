@@ -40,6 +40,7 @@ var ShellState = {
     forScreen: function(screen) { return states[screens.indexOf(screen)]; },
     componentsFor: function(screen) { return {panels: {launcher: {available: launcherAvailable}}}; }
 };
+var processes = { close: function() {}, open: function() { return true; } };
 var launcherAvailable = false;
 var root = {surfaces: SURFACES};
 var surfaces = root.surfaces;

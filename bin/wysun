@@ -11,6 +11,7 @@ SHELL_ROUTES = {
     'toggle': ['launcher'], 'launcher': ['launcher'],
     'clipboard': ['category', 'clip'], 'snippets': ['category', 'snippets'], 'emoji': ['emoji'],
     'calculator': ['category', 'calc'], 'windows': ['category', 'windows'], 'power': ['session'],
+    'processes': ['open', 'processes'],
     'audio': ['open', 'quicksettings'], 'notifications': ['open', 'notifications'],
     'calendar': ['open', 'dashboard'], 'system': ['open', 'dashboard'],
 }
@@ -38,7 +39,7 @@ def shell_command(command, args):
     return 0
 
 
-# Settings and network connections live in Nexus.
+# Settings and connections use Nexus; Processes has its own shell module.
 NEXUS_DEFAULTS = {'settings': 'home', 'connections': 'network', 'network': 'network'}
 
 

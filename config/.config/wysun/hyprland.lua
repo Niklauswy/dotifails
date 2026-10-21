@@ -18,6 +18,7 @@ hl.on("hyprland.start", function () hl.exec_cmd("wysun-session-services") end)
 hl.on("hyprland.start", function () hl.exec_cmd("wysun-workspaces") end)
 hl.on("monitor.added", function () hl.exec_cmd("wysun-workspaces") end)
 -- Keep the primary Python launcher at its own responsive popup geometry.
+hl.window_rule({ name = "wysun-processes", match = { title = "^Wysun Processes$" }, float = true, center = true })
 hl.window_rule({ name = "wysun-orbit-panels", match = { class = "^(orbit|Orbit|orbit-music|orbit-settings)$" }, float = true, center = true, border_size = 0, rounding = 0, no_shadow = true })
 hl.window_rule({ name = "wysun-launcher", match = { class = "^orbit$", title = "^Wysun$" }, float = true, center = true, border_size = 0 })
 hl.window_rule({ name = "wysun-power", match = { class = "^orbit$", title = "^Wysun Power( — Wysun)?$" }, float = true, center = true, border_size = 0 })

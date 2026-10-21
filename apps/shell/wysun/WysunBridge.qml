@@ -5,22 +5,26 @@ import Quickshell.Io
 import qs.services
 import qs.utils
 import qs.modules.nexus
+import qs.modules.processes
 
 Scope {
     id: root
     readonly property var surfaces: ({ dashboard: 'dashboard', test: 'dashboard', windows: 'dashboard',
         launcher: 'launcher', emoji: 'emoji', menu: 'utilities', quicksettings: 'utilities', notifications: 'sidebar', sidebar: 'sidebar', session: 'session' })
+    Processes { id: processes }
     function current() { return ShellState.forActive(); }
     function available(kind, state) {
         return kind !== 'launcher' || !!ShellState.componentsFor(state.modelData)?.panels?.launcher?.available;
     }
     function close() {
+        processes.close();
         for (const screen of Quickshell.screens) {
             const state = ShellState.forScreen(screen);
             if (state) for (const name of Object.values(surfaces)) state[name] = false;
         }
     }
     function show(kind, toggle) {
+        if (kind === "processes") return processes.open(toggle);
         const state = current(), field = surfaces[kind];
         if (!state || !field || !available(kind, state)) return false;
         const value = toggle ? !state[field] : true;
@@ -62,15 +66,15 @@ Scope {
         }
         function close(): void { root.close(); }
         function reloadPreferences(): void { environment.reload(); }
-        // Settings and network connections are Nexus pages.
-        function openRoute(route: string): bool { return WindowFactory.createRoute(route); }
+        // Preserve legacy process routes while opening the independent module.
+        function openRoute(route: string): bool { return route === "processes" ? processes.open(false) : WindowFactory.createRoute(route); }
         function openThemeSettings(): bool { Quickshell.execDetached(['wysun', 'settings', 'theme']); return true; }
         function theme(): string { return JSON.stringify({ name: Colours.scheme, variant: Colours.flavour }); }
         function status(): string {
             const state = root.current();
             return JSON.stringify({ implementation: 'wysun', revision: '6c70d5cb',
                 screens: Quickshell.screens.map(s => s.name), focused: Hypr.focusedMonitor?.name ?? '',
-                open: state ? Object.keys(root.surfaces).filter(k => state[root.surfaces[k]]) : [],
+                open: (state ? Object.keys(root.surfaces).filter(k => state[root.surfaces[k]]) : []).concat(processes.window ? ['processes'] : []),
                 scheme: Colours.scheme });
         }
     }
