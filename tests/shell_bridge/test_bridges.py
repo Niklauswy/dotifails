@@ -138,7 +138,7 @@ class DispatcherTests(unittest.TestCase):
                              (0, ['ipc', 'call', 'wysunShell', 'toggle', 'session']))
 
     def test_search_and_brightness_reach_the_shell_ipc(self):
-        self.assertEqual(self.dispatch('search', '>clip x')[1], ['ipc', 'call', 'wysunShell', 'search', '>clip x'])
+        self.assertEqual(self.dispatch('search', '>clip')[1], ['ipc', 'call', 'wysunShell', 'search', '>clip'])
         self.assertEqual(self.dispatch('brightness', 'up')[1], ['ipc', 'call', 'wysunShell', 'brightness', 'up'])
 
     def test_media_key_helper_covers_every_bound_key(self):
