@@ -4,7 +4,7 @@ from unittest.mock import patch
 from PySide6.QtCore import Qt,QEvent,QTimer
 from PySide6.QtGui import QImage,QColor,QIcon,QKeyEvent
 from PySide6.QtWidgets import QApplication,QDialog,QMessageBox
-from connections_data import ssh_hosts,SSHProfiles,ssh_args,ConnectionScan
+from ssh_profiles import ssh_hosts,SSHProfiles,ssh_args
 from desktop_common import vim_args,is_text_file
 from desktop_v3 import OrbitV3
 from data_v2 import StoreV2
@@ -22,7 +22,7 @@ class IntegrationDataTests(unittest.TestCase):
             rows=ssh_hosts(root/'config');self.assertEqual([r['alias'] for r in rows],['staging','prod']);self.assertEqual(rows[0]['user'],'deploy');self.assertEqual(rows[1]['user'],'');self.assertNotIn('wrong',str(rows))
             store=SSHProfiles(root/'ssh.json');store.save({'name':'Local','host':'localhost','user':'nicolas','port':2222});self.assertEqual(store.saved()[0]['port'],2222);self.assertEqual((root/'ssh.json').stat().st_mode&0o777,0o600)
             with self.assertRaises(ValueError):store.save({'name':'Bad','host':'-oProxyCommand=bad','port':22})
-            with patch('connections_data.terminal_args',side_effect=lambda args,title:args):args=ssh_args(store.saved()[0]);self.assertEqual(args,['ssh','-p','2222','-l','nicolas','--','localhost'])
+            with patch('ssh_profiles.terminal_args',side_effect=lambda args,title:args):args=ssh_args(store.saved()[0]);self.assertEqual(args,['ssh','-p','2222','-l','nicolas','--','localhost'])
     def test_vim_paths_are_separate_arguments(self):
         with tempfile.TemporaryDirectory() as tmp:
             path=Path(tmp)/'space $(unsafe).py';path.write_text('print("hello")');args=vim_args(path);self.assertEqual(args[-2:],['--',str(path)]);self.assertTrue(is_text_file(path));binary=Path(tmp)/'binary';binary.write_bytes(b'a\0b');self.assertFalse(is_text_file(binary))
@@ -82,9 +82,6 @@ class UITests(unittest.TestCase):
                 self.app.sendEvent(button,QKeyEvent(QEvent.KeyPress,Qt.Key_Return,Qt.NoModifier))
                 if answer==QMessageBox.Yes:execute.assert_called_once_with(['systemctl','poweroff']);self.assertFalse(power.isVisible())
                 else:execute.assert_not_called();self.assertTrue(power.isVisible())
-    def test_connections_readonly_all_tabs(self):
-        for mode in ('wifi','bluetooth','vpn','saved','ssh'):
-            output=[];scan=ConnectionScan(mode);scan.ready.connect(lambda m,rows,meta:output.append((m,rows,meta)));scan.run();self.assertEqual(output[0][0],mode);self.assertIsInstance(output[0][1],list)
     def test_real_app_icons_available(self):
         for name in ('system-file-manager','utilities-terminal','brave-browser'):self.assertFalse(QIcon.fromTheme(name).isNull())
 

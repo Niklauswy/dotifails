@@ -2,17 +2,17 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Layouts
-import Quickshell
 import Wysun.Config
-import Wysun.I18n
-import qs.modules.nexus.common
+import qs.components
 import qs.services
+import qs.modules.nexus.common
 import "DesktopSections.js" as DesktopSections
 
+// Desktop section hub: every setting that used to live in the Qt Wysun Settings window.
 PageBase {
     id: root
 
-    title: "Wysun Settings"
+    title: "Escritorio"
 
     ColumnLayout {
         anchors.horizontalCenter: parent.horizontalCenter
@@ -23,7 +23,7 @@ PageBase {
         Repeater {
             model: DesktopSections.sections
 
-            RowButton {
+            NavRow {
                 required property var modelData
                 required property int index
 
@@ -32,13 +32,11 @@ PageBase {
                 icon: modelData.icon
                 text: modelData.title
                 subtext: modelData.description
-                trailingIcon: "open_in_new"
                 activeFocusOnTab: true
-                color: activeFocus ? Colours.palette.m3secondaryContainer : Colours.tPalette.m3surfaceContainer
-                Keys.onReturnPressed: Quickshell.execDetached(DesktopSections.command(modelData.route))
-                Keys.onEnterPressed: Quickshell.execDetached(DesktopSections.command(modelData.route))
-                Keys.onSpacePressed: Quickshell.execDetached(DesktopSections.command(modelData.route))
-                onClicked: Quickshell.execDetached(DesktopSections.command(modelData.route))
+                Keys.onReturnPressed: root.nState.openDesktopSection(modelData)
+                Keys.onEnterPressed: root.nState.openDesktopSection(modelData)
+                Keys.onSpacePressed: root.nState.openDesktopSection(modelData)
+                onClicked: root.nState.openDesktopSection(modelData)
             }
         }
     }

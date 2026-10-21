@@ -17,6 +17,11 @@ QtObject {
     property string selectedNetworkSsid
     property string selectedEthernetInterface
     property bool networkDetailsFromSaved
+    property string desktopKind
+    property var selectedShortcut
+    property var selectedRule
+    property var selectedSsh
+    property var selectedProcess
 
     signal close
     signal subPageOpened(idx: int)
@@ -25,6 +30,13 @@ QtObject {
     function openSubPage(idx: int): void {
         subPageIdxStack.push(idx);
         subPageOpened(idx);
+    }
+
+    // Open a section of the Escritorio page (sub-page index + form kind).
+    function openDesktopSection(section: var): void {
+        desktopKind = section.kind ?? "";
+        selectedShortcut = null;
+        openSubPage(section.sub);
     }
 
     function closeSubPage(): void {

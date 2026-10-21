@@ -140,6 +140,10 @@ Scope {
             WindowFactory.create();
         }
 
+        function openRoute(route: string): bool {
+            return WindowFactory.createRoute(route);
+        }
+
         target: "nexus"
     }
 

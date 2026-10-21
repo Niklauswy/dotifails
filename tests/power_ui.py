@@ -6,7 +6,7 @@ sys.path.insert(0,str(Path(__file__).parents[1]/'apps/wysun'))
 from PySide6.QtCore import Qt,QEvent
 from PySide6.QtGui import QKeyEvent
 from PySide6.QtWidgets import QApplication,QPushButton
-from connections_window import PowerWindow
+from power_window import PowerWindow
 
 class PowerKeyboardTests(unittest.TestCase):
  @classmethod

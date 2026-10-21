@@ -1,144 +1,88 @@
-"""Native settings links use the existing resident IPC and preserve draft pages."""
-import ast
+"""Settings, connections and processes are shell (Nexus) pages; Qt windows are gone."""
 import json
-import os
 from pathlib import Path
 import re
 import shutil
 import subprocess
-import sys
-import tempfile
-import time
 import unittest
-from unittest.mock import Mock, patch
 
-os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / 'apps/wysun'))
-from PySide6.QtWidgets import QApplication
-import settings_app
-from settings_hub import SettingsHub
-from environment_settings import EnvironmentSettings
-from hypr_settings import HyprDesktopSettings, HyprShortcutFile
-import theme_core
-
-APP = QApplication.instance() or QApplication([])
-CATALOGUE = ROOT / 'apps/shell/modules/nexus/pages/DesktopSections.js'
+NEXUS = ROOT / 'apps/shell/modules/nexus'
+CATALOGUE = NEXUS / 'pages/DesktopSections.js'
+REMOVED = ('settings_hub', 'settings_window', 'settings_app', 'shortcut_capture', 'connections_window',
+           'connections_data', 'connection_details', 'processes_window', 'process_widgets')
 
 
-def sections():
-    source = CATALOGUE.read_text()
-    return re.findall(r'\{route: "([^"]+)"', source)
+def page_keys():
+    return re.findall(r'key: "([a-z]+)"', (NEXUS / 'PageRegistry.qml').read_text())
 
 
-def inline_job(window, fn, callback, progress=None):
-    try:
-        callback(fn())
-    except Exception as error:
-        window.report_error(str(error))
-    return Mock()
+class NativePagesTests(unittest.TestCase):
+    def sections(self):
+        return re.findall(r'\{route: "([^"]+)"[^}]*sub: (\d+)', CATALOGUE.read_text())
 
+    def test_qt_settings_connections_and_processes_windows_are_removed(self):
+        for name in REMOVED:
+            self.assertFalse((ROOT / 'apps/wysun' / (name + '.py')).exists(), name)
+        sources = ' '.join(p.read_text(errors='ignore') for p in (ROOT / 'apps/wysun').glob('*.py')
+                           if p.name not in ('desktop_bridge.py',))
+        for name in REMOVED:
+            self.assertNotRegex(sources, r'(from|import)\s+' + name + r'\b', name)
 
-def runner(args):
-    if list(args[:3]) == ['hyprctl', '-j', 'monitors']:
-        return json.dumps([dict(name='SYNTHETIC', width=800, height=600, x=0, y=0, scale=1,
-                               refreshRate=60, availableModes=['800x600@60.00Hz'], focused=True)])
-    if args[-1] in ('binds', 'clients', 'workspaces'):
-        return '[]'
-    if len(args) > 2 and args[2] == 'getoption':
-        return '{"int": 1}'
-    return 'ok'
+    def test_page_registry_and_components_stay_aligned(self):
+        keys = page_keys()
+        self.assertEqual(len(keys), len(set(keys)))
+        self.assertEqual(keys[:4], ['wallpaper', 'network', 'bluetooth', 'audio'])  # bar deep links
+        components = (NEXUS / 'PageCompRegistry.qml').read_text()
+        self.assertEqual(len(re.findall(r'^        Component \{$', components, re.M)), len(keys))
+        self.assertLess(keys.index('about'), keys.index('desktop'))
+        self.assertIn('processes', keys)
+        self.assertIn('ssh', keys)
 
+    def test_every_section_has_a_distinct_route_and_an_existing_sub_page(self):
+        sections = self.sections()
+        routes = [route for route, _ in sections]
+        self.assertEqual(len(routes), len(set(routes)))
+        self.assertGreaterEqual(len(routes), 9)
+        components = (NEXUS / 'PageCompRegistry.qml').read_text()
+        desktop = components[components.index('DesktopPage {}'):]
+        listed = len(re.findall(r'^                Component \{$', desktop.split('\n        }\n    ]')[0], re.M)) + 1
+        for route, sub in sections:
+            self.assertLess(int(sub), listed, route)
+        for page in ('DisplaysPage', 'WorkspacesPage', 'ShortcutsPage', 'ShortcutEditPage', 'WindowsPage',
+                     'RuleEditPage', 'ComponentPage', 'StartupPage', 'BackupsPage'):
+            self.assertTrue((NEXUS / 'pages' / (page + '.qml')).is_file(), page)
 
-class SettingsSectionTests(unittest.TestCase):
-    def test_catalogue_matches_all_actual_hub_routes(self):
-        tree = ast.parse((ROOT / 'apps/wysun/settings_hub.py').read_text())
-        builders = next(node.value for node in ast.walk(tree) if isinstance(node, ast.Assign)
-                        and any(isinstance(t, ast.Name) and t.id == 'builders' for t in node.targets))
-        routes = [entry.elts[0].value for entry in builders.elts]
-        self.assertEqual(sections(), routes)
-        self.assertEqual(len(set(sections())), 11)
-        # Both registry lists append the desktop page; all existing indices stay stable.
-        registry = (ROOT / 'apps/shell/modules/nexus/PageRegistry.qml').read_text()
-        components = (ROOT / 'apps/shell/modules/nexus/PageCompRegistry.qml').read_text()
-        self.assertLess(registry.index('label: Tr.tr("About")'), registry.index('category: "desktop"'))
-        self.assertLess(components.index('AboutPage {}'), components.index('DesktopPage {}'))
+    def test_page_routes_target_registered_pages(self):
+        source = CATALOGUE.read_text()
+        targets = set(re.findall(r':\s*"([a-z]+)"', source[source.index('var pageRoutes'):]))
+        self.assertLessEqual(targets, set(page_keys()))
+
+    def test_shell_links_use_only_known_routes(self):
+        known = {r for r, _ in self.sections()} | set(re.findall(r'^\s+(\w+): "[a-z]+",?$', CATALOGUE.read_text()[CATALOGUE.read_text().index('var pageRoutes'):], re.M))
+        for path in list((ROOT / 'apps/shell').rglob('*.qml')) + list((ROOT / 'apps/shell').rglob('*.js')):
+            if 'modules/nexus' in str(path):
+                continue
+            for match in re.finditer(r'\[?["\']wysun["\'],\s*["\']settings["\'],\s*["\'](\w+)["\']', path.read_text(errors='ignore')):
+                self.assertIn(match.group(1), known, f'{path.name}: {match.group(1)}')
+
+    def test_desktop_entry_opens_settings_through_wysun(self):
         desktop = (ROOT / 'config/.local/share/applications/orbit-settings.desktop').read_text()
         self.assertIn('Name=Wysun Settings', desktop)
         self.assertIn('Exec=wysun settings', desktop)
 
-    def test_native_commands_target_only_existing_sections(self):
+    def test_catalogue_is_valid_javascript(self):
         node = shutil.which('node')
         if not node:
             self.skipTest('Node JavaScript engine unavailable')
         source = CATALOGUE.read_text().replace('.pragma library', '')
-        result = subprocess.run([node], input=source + '\nconsole.log(JSON.stringify([sections.map(s => command(s.route)), command("unknown")]));',
+        result = subprocess.run([node], input=source + '\nconsole.log(JSON.stringify([sections.length, section("displays").sub, section("nope")]));',
                                 text=True, capture_output=True, timeout=10)
         self.assertEqual(result.returncode, 0, result.stderr)
-        commands, invalid = json.loads(result.stdout)
-        self.assertEqual(commands, [['wysun', 'settings', route] for route in sections()])
-        self.assertEqual(invalid, [])
-
-    def test_every_link_reuses_one_live_settings_window_and_keeps_unsaved_drafts(self):
-        for theme in ('space-black', 'tokyo', 'severance', 'fluent:light', 'fluent:dark'):
-            with self.subTest(theme=theme):
-                self.check_routes(theme)
-
-    def check_routes(self, theme):
-        with tempfile.TemporaryDirectory(prefix='wysun-sections-') as folder:
-            home = Path(folder)
-            env = dict(os.environ, HOME=folder, XDG_CONFIG_HOME=str(home / '.config'),
-                       XDG_STATE_HOME=str(home / '.local/state'), XDG_RUNTIME_DIR=folder,
-                       QT_QPA_PLATFORM='offscreen')
-            for name in ('ORBIT_THEME', 'WYSUN_THEME'):
-                env.pop(name, None)
-            env['WYSUN_THEME'] = theme
-            with patch.dict(os.environ, env, clear=True), \
-                    patch.object(SettingsHub, 'start_job', inline_job), \
-                    patch.object(SettingsHub, 'present', lambda win: None), \
-                    patch('settings_hub.EnvironmentSettings', side_effect=lambda h: EnvironmentSettings(h, runner)), \
-                    patch('settings_hub.DesktopSettings', side_effect=lambda h: HyprDesktopSettings(h, runner)), \
-                    patch('settings_hub.ShortcutFile', side_effect=lambda h: HyprShortcutFile(h, runner)), \
-                    patch('settings_hub.application_shortcuts', return_value=[]):
-                theme_core.invalidate()
-                window = SettingsHub(test=True, home=home)
-                server = None
-                try:
-                    window.colour_seed.setText('#123abc')
-                    window.shell_opacity.setValue(91)
-                    pages = [window.pages.widget(i) for i in range(window.pages.count())]
-                    endpoint = home / f'orbit-settings-{os.getuid()}.sock'
-                    try:
-                        server = settings_app.LocalSettingsServer(endpoint)
-                    except PermissionError:
-                        self.skipTest('Sandbox blocks Unix sockets; run with local socket access')
-                    received = []
-                    def present(route):
-                        received.append(route)
-                        settings_app.present_route(window, route)
-                    server.requested.connect(present)
-                    for route in sections() + ['displays', 'displays']:
-                        before = len(received)
-                        result = subprocess.run([sys.executable, str(ROOT / 'apps/wysun/orbit-client'), 'settings', route],
-                                                env=env, capture_output=True, text=True, timeout=5)
-                        self.assertEqual(result.returncode, 0, result.stderr)
-                        deadline = time.monotonic() + 2
-                        while len(received) == before and time.monotonic() < deadline:
-                            APP.processEvents()
-                            time.sleep(.005)
-                        self.assertEqual(received[-1:], [route])
-                        self.assertEqual(window.section(), route)
-                        self.assertEqual([window.pages.widget(i) for i in range(window.pages.count())], pages)
-                        self.assertEqual(window.colour_seed.text(), '#123abc')
-                        self.assertEqual(window.shell_opacity.value(), 91)
-                    self.assertFalse((home / '.local/state/orbit-settings.log').exists(), 'client spawned another Settings')
-                    self.assertEqual(window.windowTitle(), 'Wysun Settings')
-                finally:
-                    if server:
-                        server.close()
-                    window.deleteLater()
-                    APP.processEvents()
-                    theme_core.invalidate()
+        count, sub, missing = json.loads(result.stdout)
+        self.assertGreaterEqual(count, 9)
+        self.assertEqual(sub, 1)
+        self.assertIsNone(missing)
 
 
 if __name__ == '__main__':

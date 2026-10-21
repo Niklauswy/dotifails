@@ -85,7 +85,7 @@ def application_shortcuts(root=None, home=None):
             return label_action(node.func)
         if isinstance(node,ast.Attribute):return action_labels.get(node.attr,node.attr.replace('_',' '))
         return ast.unparse(node)
-    for filename,scope in [('orbit.py','Wysun'),('desktop_v3.py','Wysun'),('enhanced.py','Wysun'),('connections_window.py','Conexiones'),('files_controller.py','Archivos'),('settings_hub.py','Ajustes'),('desktop_common.py','Ajustes')]:
+    for filename,scope in [('orbit.py','Wysun'),('desktop_v3.py','Wysun'),('enhanced.py','Wysun'),('files_controller.py','Archivos'),('desktop_common.py','Ajustes')]:
         path = root/filename
         if not path.exists():
             continue
@@ -110,8 +110,6 @@ def application_shortcuts(root=None, home=None):
                     rows.append(dict(key=key,title=action,command=ast.unparse(handler) if handler else action,scope=scope,editable=False,path=str(path)))
         except (SyntaxError,OSError):
             pass
-    for i,title in enumerate(('Wi-Fi y Ethernet','Bluetooth','VPN','SSH','Conexiones guardadas')):
-        rows.append(dict(key=f'Alt+{i+1}',title='Abrir '+title,command='Sección '+title,scope='Conexiones',editable=False,path=str(root/'connections_window.py')))
     # Neovim's own public mapping APIs include the user's and NvChad's bindings.
     lua = "require('mappings'); local r={}; for _,m in ipairs({'n','i','v','x','t'}) do for _,k in ipairs(vim.api.nvim_get_keymap(m)) do if k.desc and k.desc~='' then r[#r+1]={key=k.lhs,title=k.desc,mode=m} end end end; print('ORBIT_KEYS:'..vim.json.encode(r))"
     try:

@@ -15,7 +15,6 @@ def shortcut(window,key,fn):QShortcut(QKeySequence(key),window).activated.connec
 from notes_window import NotesWindow
 
 
-from processes_window import ProcessesWindow
 
 
 

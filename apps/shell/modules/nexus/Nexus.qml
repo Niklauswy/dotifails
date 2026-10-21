@@ -20,6 +20,40 @@ Item {
 
     signal close
 
+    // Jump to a page (and an optional sub-page of the Escritorio section).
+    property int pendingSub: -1
+    property string pendingKind
+
+    function go(idx: int, sub: int, kind: string): void {
+        if (idx === nState.currentPageIdx) {
+            while (nState.subPageIdxStack.length > 0)
+                nState.closeSubPage();
+            openPending(sub, kind);
+            return;
+        }
+        nState.currentPageIdx = idx;
+        // The new page replaces the old one after its fade-out; open the sub-page once it exists.
+        pendingSub = sub;
+        pendingKind = kind;
+        if (sub >= 0)
+            subTimer.restart();
+    }
+
+    function openPending(sub: int, kind: string): void {
+        if (sub < 0)
+            return;
+        nState.desktopKind = kind;
+        nState.selectedShortcut = null;
+        nState.openSubPage(sub);
+    }
+
+    Timer {
+        id: subTimer
+
+        interval: 700
+        onTriggered: root.openPending(root.pendingSub, root.pendingKind)
+    }
+
     implicitWidth: Math.round(implicitHeight * Tokens.sizes.nexus.ratio)
     implicitHeight: Math.round(nState.screen.height * Tokens.sizes.nexus.heightMult)
 

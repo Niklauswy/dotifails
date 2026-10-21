@@ -64,7 +64,6 @@ class LauncherDispatchTests(unittest.TestCase):
     def test_other_modes_and_arguments_never_toggle_launcher(self):
         for args, executable, forwarded in (
                 (('notes',), 'orbit', ['notes']),
-                (('settings', 'displays'), 'orbit', ['settings', 'displays']),
                 (('clipboard',), 'orbit', ['clipboard']),
                 (('recover', '--help'), 'wysun-recover', ['--help']),
                 (('files', '/tmp/example'), 'orbit-files', ['/tmp/example']),
@@ -74,6 +73,23 @@ class LauncherDispatchTests(unittest.TestCase):
             run.assert_not_called()
             target = str(ROOT / 'bin' / executable)
             execute.assert_called_once_with(target, [target, *forwarded])
+
+    def test_settings_connections_and_processes_open_native_pages(self):
+        helper = str(ROOT / 'bin/wysun-shell')
+        for args, route in ((('settings',), 'home'), (('settings', 'displays'), 'displays'),
+                            (('connections',), 'network'), (('processes',), 'processes'),
+                            (('settings-effects',), 'effects')):
+            status, run, execute = self.invoke(args)
+            self.assertEqual(status, 0, args)
+            self.assertEqual(run.call_args.args[0], [helper, 'nexus', route])
+            execute.assert_not_called()
+
+    def test_native_pages_never_fall_back_to_a_qt_window(self):
+        for kwargs in ({'response': 'false\n'}, {'code': 1}, {'error': FileNotFoundError()},
+                       {'error': subprocess.TimeoutExpired('ipc', 4)}):
+            status, run, execute = self.invoke(('settings', 'shortcuts'), **kwargs)
+            self.assertEqual(status, 1)
+            execute.assert_not_called()
 
 
 if __name__ == '__main__':

@@ -80,22 +80,10 @@ def render(out, source, theme):
         except Exception as error:
             print('fail launcher', mode, error)
     launcher.hide()
-    from settings_hub import SettingsHub
-    settings = attempt('settings-home', lambda: SettingsHub(test=True, home=home))
-    if settings:
-        for page in ('wallpaper', 'bar', 'appearance'):
-            try:
-                settings.go(page)
-                settle(200)
-                settings.grab().save(str(out / ('settings-' + page + '.png')))
-                print('ok settings', page)
-            except Exception as error:
-                print('fail settings', page, error)
     from utilities import NotesWindow, ColorWindow
     attempt('notes', lambda: NotesWindow(str(home / 'notes')))
     attempt('colors', lambda: ColorWindow(home / 'colors.json'))
-    from connections_window import ConnectionsWindow, PowerWindow
-    attempt('connections', ConnectionsWindow)
+    from power_window import PowerWindow
     attempt('power', lambda: PowerWindow(launcher))
     from tools_window import ToolsWindow
     attempt('tools', lambda: ToolsWindow(test=True))

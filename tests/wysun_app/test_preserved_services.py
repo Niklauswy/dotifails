@@ -10,25 +10,8 @@ from unittest.mock import Mock,patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'apps/wysun'))
 
 class PreservedServicesTests(unittest.TestCase):
-    def test_wifi_escaped_ssid_strongest_and_current_details(self):
-        import connection_details as details
-        devices='GENERAL.DEVICE:wlan-fixture\nGENERAL.TYPE:wifi\nGENERAL.STATE:100 (connected)\nGENERAL.CONNECTION:Own\\:Wifi\nGENERAL.CON-UUID:own-uuid\nIP4.ADDRESS[1]:192.0.2.5/24\nIP4.GATEWAY:192.0.2.1'
-        networks='*:Own\\:Wifi:00\\:11\\:22\\:33\\:44\\:55:84:WPA2:wlan-fixture:5000:36:100 Mbit/s:Infra\n:Own\\:Wifi:00\\:11\\:22\\:33\\:44\\:66:99:WPA2:wlan-fixture:5000:36:100 Mbit/s:Infra'
-        with patch.object(details,'nm',side_effect=lambda a:devices if a[-2:]==['device','show'] else 'enabled' if a==['radio','wifi'] else networks):
-            rows,meta=details.wifi_inventory()
-        self.assertTrue(meta['enabled']);self.assertEqual(len(rows),1);self.assertEqual(rows[0]['title'],'Own:Wifi');self.assertEqual(rows[0]['signal'],84);self.assertEqual(rows[0]['uuid'],'own-uuid');self.assertIn(('Dirección IPv4','192.0.2.5/24'),rows[0]['info'])
-    def test_vpn_profiles_and_bluetooth_inventory_without_system_bus(self):
-        from connections_data import ConnectionScan
-        vpn=ConnectionScan('vpn');found=[];vpn.ready.connect(lambda mode,rows,meta:found.extend(rows))
-        with patch('connections_data.cmd',return_value='OwnVPN:own-id:wireguard:wg-fixture:yes\nOwnEthernet:ethernet-id:802-3-ethernet:eth-fixture:yes'):vpn.run()
-        self.assertEqual(len(found),1);self.assertEqual(found[0]['uuid'],'own-id');self.assertTrue(found[0]['connected'])
-        objects={'/fixture/adapter':{'org.bluez.Adapter1':{'Powered':True,'Alias':'Own adapter'}},'/fixture/device':{'org.bluez.Device1':{'Address':'00:11:22:33:44:55','Alias':'Own device','Connected':True,'Paired':True,'Trusted':True},'org.bluez.Battery1':{'Percentage':73}}}
-        bus=Mock();interface=Mock();interface.GetManagedObjects.return_value=objects;dbus=types.SimpleNamespace(SystemBus=Mock(return_value=bus),Interface=Mock(return_value=interface))
-        scan=ConnectionScan('bluetooth');result=[];scan.ready.connect(lambda mode,rows,meta:result.append((rows,meta)))
-        with patch.dict(sys.modules,{'dbus':dbus}):scan.run()
-        rows,meta=result[0];self.assertTrue(meta['enabled']);self.assertEqual(rows[0]['battery'],73);self.assertTrue(rows[0]['paired']);bus.close.assert_called_once();dbus.SystemBus.assert_called_once_with(private=True)
     def test_ssh_include_profiles_and_argv_never_execute_match(self):
-        import connections_data as data
+        import ssh_profiles as data
         with tempfile.TemporaryDirectory() as folder:
             root=Path(folder);config=root/'config';(root/'hosts').mkdir();(root/'hosts/own').write_text('Host own-fixture\n HostName 192.0.2.1\n User fixture\n Port 2222\nMatch exec "SHOULD NEVER EXECUTE"\n')
             config.write_text('Include hosts/*\nHost * !skip\n')

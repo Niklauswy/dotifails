@@ -7,12 +7,28 @@ import Wysun.I18n
 import qs.components
 import qs.services
 import qs.modules.nexus
+import "pages/DesktopSections.js" as DesktopSections
 
 Singleton {
     id: root
 
+    property var routed
+
     function create(parent: Item, props: var): void {
         nexusComp.createObject(parent ?? dummy, props);
+    }
+
+    // Open (or reuse) the settings window on a named route, e.g. "displays" or "processes".
+    function createRoute(route: string): bool {
+        const section = DesktopSections.section(route);
+        const key = section || route === "home" ? "desktop" : DesktopSections.pageRoutes[route];
+        const idx = PageRegistry.pages.findIndex(p => p.key === key);
+        if (idx < 0)
+            return false;
+        if (!routed || !routed.visible)
+            routed = nexusComp.createObject(dummy, {});
+        routed.go(idx, section ? section.sub : -1, section?.kind ?? "");
+        return true;
     }
 
     QtObject {
@@ -41,6 +57,10 @@ Singleton {
 
             contentItem.Config.screen: screen.name
             contentItem.Tokens.screen: screen.name
+
+            function go(idx: int, sub: int, kind: string): void {
+                nexus.go(idx, sub, kind);
+            }
 
             title: Tr.tr("Wysun Settings — %1").arg(PageRegistry.pages[nexus.nState.currentPageIdx].label)
 

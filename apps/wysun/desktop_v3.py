@@ -9,6 +9,8 @@ from data_v2 import color_formats,template
 from desktop_common import is_text_file,open_vim,edit_text,launch
 from icons import icon
 
+NEXUS_ROUTES=('settings','network','processes')
+
 class OrbitV3(OrbitV2):
     def __init__(self,store=None,test=False):
         self.utilities={};self.clipboard_ui=None;self._launcher_results=None;super().__init__(store,test);self._launcher_results=self.results;self.setWindowTitle('Wysun');self.action_button.setText('Acciones  Alt K');self.back.setIcon(icon('search'));self.back.setToolTip('Inicio');self.private.setContextMenuPolicy(Qt.CustomContextMenu);self.private.customContextMenuRequested.connect(self.history_menu)
@@ -31,32 +33,29 @@ class OrbitV3(OrbitV2):
         return rows
     def show_utility(self,mode):
         self.hide()
-        if mode in ('settings','music') and not self.test:
+        if mode in NEXUS_ROUTES:
+            # Settings, connections and processes are shell widgets now.
+            if not self.test:launch([str(Path.home()/'.local/bin/wysun'),mode]);return
+            return
+        if mode=='music' and not self.test:
             launch([str(Path(__file__).with_name('orbit-client')),mode]);return
         if mode not in self.utilities:
-            if mode=='settings':
-                from settings_hub import SettingsHub
-                window=SettingsHub(test=self.test)
-            elif mode=='music':
+            if mode=='music':
                 from music_app_window import MusicAppWindow
                 window=MusicAppWindow(test=self.test)
             elif mode=='tools':
                 from tools_window import ToolsWindow
                 window=ToolsWindow(test=self.test)
-            elif mode in ('notes','processes','color'):
-                from utilities import NotesWindow,ProcessesWindow,ColorWindow
-                window={'notes':NotesWindow,'processes':ProcessesWindow,'color':ColorWindow}[mode]()
-            elif mode=='network':
-                from connections_window import ConnectionsWindow
-                window=ConnectionsWindow()
+            elif mode in ('notes','color'):
+                from utilities import NotesWindow,ColorWindow
+                window={'notes':NotesWindow,'color':ColorWindow}[mode]()
             else:
-                from connections_window import PowerWindow
+                from power_window import PowerWindow
                 window=PowerWindow(self)
             self.utilities[mode]=window
         window=self.utilities[mode]
         if window.isVisible() and not getattr(window,'_motion_exiting',False):window.close();return
         window.present()
-        if mode=='network':self.utilities[mode].load()
     def show_mode(self,mode='home'):
         if mode in ('network','power','settings','notes','processes','color','tools','music'):self.show_utility(mode);return
         super().show_mode(mode)

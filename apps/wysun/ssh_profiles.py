@@ -1,8 +1,7 @@
+"""SSH profiles: saved entries plus read-only ~/.ssh/config aliases (no Qt)."""
 import glob, json, os, re, shlex
 from pathlib import Path
-from PySide6.QtCore import QThread,Signal
-from system_panels import cmd,split_nm,NetworkScan
-from desktop_common import terminal_args
+from terminal_args import terminal_args
 from settings_data import atomic_write
 
 def ssh_hosts(config=None):
@@ -68,36 +67,3 @@ class SSHProfiles:
         atomic_write(self.path,json.dumps(rows,ensure_ascii=False,indent=2)+'\n')
     def delete(self,index):
         rows=self.saved();rows.pop(index);atomic_write(self.path,json.dumps(rows,ensure_ascii=False,indent=2)+'\n')
-
-class ConnectionScan(QThread):
-    ready=Signal(str,object,object)
-    def __init__(self,mode):super().__init__();self.mode=mode
-    def run(self):
-        rows=[];meta={}
-        try:
-            if self.mode=='wifi':
-                from connection_details import wifi_inventory
-                rows,meta=wifi_inventory()
-            elif self.mode in ('saved','vpn'):
-                for line in cmd(['nmcli','-t','-f','NAME,UUID,TYPE,DEVICE,AUTOCONNECT','connection','show']).splitlines():
-                    d=split_nm(line)
-                    if len(d)<5 or d[2]=='loopback':continue
-                    if self.mode=='vpn' and d[2] not in ('vpn','wireguard'):continue
-                    rows.append(dict(kind='profile',title=d[0],subtitle=('VPN' if d[2] in ('vpn','wireguard') else 'Wi-Fi' if d[2]=='802-11-wireless' else 'Ethernet')+' · '+('Conectado' if d[3] else 'Guardado'),uuid=d[1],device=d[3],connected=bool(d[3]),auto=d[4]=='yes',icon='vpn' if self.mode=='vpn' else 'network'))
-            elif self.mode=='bluetooth':
-                import dbus
-                bus=dbus.SystemBus(private=True)
-                try:objects=dbus.Interface(bus.get_object('org.bluez','/'),'org.freedesktop.DBus.ObjectManager').GetManagedObjects(timeout=5)
-                finally:bus.close()
-                meta['available']=False;meta['enabled']=False
-                for path,interfaces in objects.items():
-                    if 'org.bluez.Adapter1' in interfaces:
-                        a=interfaces['org.bluez.Adapter1'];meta.update(available=True,enabled=bool(a.get('Powered',False)),adapter=str(a.get('Alias','Bluetooth')))
-                    if 'org.bluez.Device1' not in interfaces:continue
-                    d=interfaces['org.bluez.Device1'];battery=interfaces.get('org.bluez.Battery1',{}).get('Percentage');connected=bool(d.get('Connected',False));paired=bool(d.get('Paired',False));state='Conectado' if connected else 'Emparejado' if paired else 'Disponible'
-                    rows.append(dict(kind='bluetooth',title=str(d.get('Alias',d.get('Name',d['Address']))),subtitle=state+(f' · {battery}%' if battery is not None else ''),address=str(d['Address']),connected=connected,paired=paired,trusted=bool(d.get('Trusted',False)),icon='bluetooth',battery=int(battery) if battery is not None else None,device_type=str(d.get('Icon','Dispositivo')),adapter=str(d.get('Adapter','')).split('/')[-1]))
-                rows.sort(key=lambda r:(not r['connected'],not r['paired'],r['title']))
-            elif self.mode=='ssh':
-                for i,r in enumerate(SSHProfiles().all()):rows.append(dict(r,kind='ssh',title=r['name'],subtitle=(r['user']+'@' if r['user'] else '')+r['host']+' · '+str(r['port'])+(' · ~/.ssh/config' if r.get('imported') else ''),profile_index=i,icon='ssh'))
-        except Exception as e:meta['error']='No se pudo consultar '+self.mode+'. Revisa que el servicio esté activo.'
-        self.ready.emit(self.mode,rows,meta)

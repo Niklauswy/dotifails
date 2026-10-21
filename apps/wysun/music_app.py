@@ -9,7 +9,7 @@ import sys
 import time
 from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QApplication
-from settings_app import LocalSettingsServer
+from local_ipc import LocalSettingsServer
 
 
 def ipc_properties(endpoint, properties):

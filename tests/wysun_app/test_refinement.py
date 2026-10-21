@@ -9,9 +9,8 @@ from PySide6.QtWidgets import QApplication
 from PySide6.QtGui import QKeyEvent
 from desktop_common import Surface,button
 from ui_appearance import read_appearance,save_appearance
-from connections_window import PowerWindow
+from power_window import PowerWindow
 from energy_data import battery_snapshot,time_estimate
-from processes_window import ProcessesWindow
 from process_data import matched,pressure,thread_snapshot
 
 
@@ -93,25 +92,5 @@ class PowerTests(unittest.TestCase):
             w.hide();self.assertFalse(w.clock_timer.isActive())
         finally:w.hide();w.deleteLater();wait(5)
 
-
-class ProcessTests(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):cls.app=QApplication.instance() or QApplication([])
-    def setUp(self):
-        model=Mock();model.action_reason.return_value=None;self.w=ProcessesWindow(model);self.w.scan=Mock();self.w.show();self.w.rows=[row(10),row(20,ppid=10),row(30,ppid=20)];self.w.render();wait(10)
-    def tearDown(self):self.w.hide();self.w.deleteLater();wait(5)
-    def test_refresh_keeps_items_and_selection(self):
-        w=self.w;item=w.items[(20,'10')];w.tree.clearSelection();item.setSelected(True);w.tree.setCurrentItem(item)
-        w.rows[1]['cpu']=77.;w.render();self.assertIs(w.items[(20,'10')],item);self.assertEqual(w.current()['pid'],20);self.assertEqual(item.text(2),'77.0')
-    def test_parent_disappears_and_list_tree_switch(self):
-        w=self.w;w.view.setCurrentIndex(1);self.assertEqual(w.items[(30,'10')].parent(),w.items[(20,'10')]);w.rows=w.rows[1:];w.render()
-        self.assertIsNone(w.items[(20,'10')].parent());w.view.setCurrentIndex(0);self.assertEqual(w.tree.topLevelItemCount(),2)
-        w.rows=[row(20,start='99')];w.render();self.assertFalse(w.selected())
-    def test_thread_details_and_advanced_filter(self):
-        w=self.w;w.search.setText('mem>256m cpu>20');self.assertEqual(len(w.items),3)
-        w.show_details(dict(threads=[dict(tid=22,name='worker',state='S',cpu_time=3.2,wait='futex_wait')],thread_count=1,cgroup='0::/demo',context_switches={'voluntary_ctxt_switches':'3'}))
-        self.assertEqual(w.threads.topLevelItem(0).text(4),'futex_wait');self.assertIn('/demo',w.paths.toPlainText())
-    def test_frozen_view_ignores_inflight_sample(self):
-        w=self.w;w.freeze.click();before=w.rows;w.loaded(dict(manual=False,rows=[]));self.assertIs(w.rows,before);self.assertFalse(w.timer.isActive())
 
 if __name__=='__main__':unittest.main(verbosity=2)

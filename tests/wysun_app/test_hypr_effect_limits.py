@@ -1,10 +1,7 @@
 """Native effect bounds from Hyprland v0.55.2 ConfigValues.cpp, no host bus."""
 from pathlib import Path
 import sys
-import tempfile
 import unittest
-from types import SimpleNamespace
-from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'apps/wysun'))
 from hypr_settings import effects_script
@@ -20,24 +17,16 @@ class EffectBoundsTests(unittest.TestCase):
             with self.subTest(radius=radius),self.assertRaisesRegex(ValueError,'corner-radius'):
                 effects_script(dict(values,**{'corner-radius':radius}))
 
-    def test_effect_ui_uses_hyprland_bounds_including_under_xwayland(self):
-        # Build only the effect form; no SettingsHub startup, jobs, network or IPC.
-        from PySide6.QtWidgets import QApplication,QWidget,QVBoxLayout,QFormLayout
-        from settings_hub import SettingsHub
-        app=QApplication.instance() or QApplication([])
-        with tempfile.TemporaryDirectory() as home:
-            for native,maximum in ((True,20),(False,20)):
-                with self.subTest(native=native),patch('desktop_backend.wayland',return_value=native):
-                    widget=QWidget();layout=QVBoxLayout(widget);form=QFormLayout();layout.addLayout(form)
-                    owner=SimpleNamespace(env=SimpleNamespace(home=Path(home),component_values=lambda _:{}),
-                        component_controls={},page=lambda:layout,page_heading=lambda *_:None,
-                        scroll_form=lambda _:form,choose_color=lambda _:None)
-                    SettingsHub.build_component(owner,'effects')
-                    control=owner.component_controls['effects']['corner-radius']
-                    self.assertEqual(control.maximum(),maximum)
-                    control.setValue(30)
-                    self.assertEqual(control.value(),maximum)
-                    widget.close();widget.deleteLater();app.processEvents()
+    def test_effect_form_uses_hyprland_bounds_including_under_xwayland(self):
+        # The shell form is generated from the bridge schema; its limits must match Hyprland's.
+        import os
+        os.environ['WYSUN_APP_DIR']=str(Path(__file__).resolve().parents[2]/'apps/wysun')
+        sys.path.insert(0,str(Path(__file__).resolve().parents[2]/'apps/shell/wysun'))
+        import desktop_bridge
+        rows={row[0]:row for row in desktop_bridge.COMPONENTS['effects'][2]}
+        self.assertEqual(rows['corner-radius'][3:5],(0,20))
+        for key in ('shadow','blur-background','fading'):self.assertEqual(rows[key][2],'bool')
+        self.assertEqual(rows['vsync'][2],'fixed')
 
 
 if __name__=='__main__':unittest.main()
