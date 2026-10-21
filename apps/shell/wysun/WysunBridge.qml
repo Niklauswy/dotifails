@@ -4,6 +4,7 @@ import Quickshell
 import Quickshell.Io
 import qs.services
 import qs.utils
+import qs.modules.nexus
 
 Scope {
     id: root
@@ -43,6 +44,8 @@ Scope {
         function openOn(output: string, surface: string): bool { return root.showOn(output, surface); }
         function close(): void { root.close(); }
         function reloadPreferences(): void { environment.reload(); }
+        // Settings, connections and processes are Nexus pages (displays, shortcuts, processes, ...).
+        function openRoute(route: string): bool { return WindowFactory.createRoute(route); }
         function openThemeSettings(): bool { Quickshell.execDetached(['wysun', 'settings', 'theme']); return true; }
         function theme(): string { return JSON.stringify({ name: Colours.scheme, variant: Colours.flavour }); }
         function status(): string {
