@@ -47,6 +47,29 @@ class ProcessWidgetTests(unittest.TestCase):
         result, _ = backend.view([row(1, 2), row(2, 1)], dict(mode='tree'))
         self.assertEqual(len(result), 2)
 
+    def test_named_english_state_filter(self):
+        rows = [dict(row(2), state='R'), dict(row(3), state='S')]
+        self.assertEqual([r['pid'] for r in backend.view(rows, dict(query='state:Running'))[0]], [2])
+
+    def test_drm_shared_clients_are_counted_once(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            fdinfo = base/'proc/2/fdinfo'
+            fdinfo.mkdir(parents=True)
+            for fd in ('4', '5'):
+                (fdinfo/fd).write_text('drm-pdev: 0000:00:02.0\ndrm-client-id: 7\ndrm-engine-render: 200000000 ns\n')
+            real_path = backend.Path
+            def paths(value):
+                return base/'proc' if str(value) == '/proc' else real_path(value)
+            telemetry = backend.Telemetry()
+            telemetry.drm_previous = {(2, '1'): 100000000}
+            telemetry.drm_current = {}
+            telemetry.engine_current = {}
+            with patch.object(backend, 'Path', side_effect=paths):
+                self.assertAlmostEqual(telemetry.drm(row(2), 1), 10)
+            self.assertEqual(len(telemetry.engine_current), 1)
+
     def test_priority_rejects_reused_identity_without_syscall(self):
         with patch.object(backend.Processes, 'checked', side_effect=RuntimeError('stale')), patch.object(os, 'setpriority') as change:
             with self.assertRaises(RuntimeError):

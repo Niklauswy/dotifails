@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import select
+import re
 import shutil
 import subprocess
 import sys
@@ -20,7 +21,9 @@ STATES = {'R': 'Running', 'S': 'Sleeping', 'D': 'I/O wait', 'T': 'Stopped', 't':
 
 def view(rows, control):
     selected = [r for r in rows if (control.get('owner') != 'mine' or r['uid'] == os.getuid())
-                and matched(r, control.get('query', ''))]
+                and matched(r, re.sub(r'state:(running|sleeping|stopped|idle|zombie)',
+                                     lambda m: 'state:' + {'running':'R', 'sleeping':'S', 'stopped':'T', 'idle':'I', 'zombie':'Z'}[m[1].lower()],
+                                     control.get('query', ''), flags=re.I))]
     key = control.get('sort', 'cpu')
     if key not in ('name', 'pid', 'cpu', 'memory', 'gpu', 'read_rate', 'write_rate', 'threads', 'nice'):
         key = 'cpu'
@@ -93,6 +96,7 @@ class Telemetry:
         self.model = Processes()
         self.previous = None
         self.drm_previous = {}
+        self.engine_previous = {}
         self.nvidia = shutil.which('nvidia-smi')
 
     def counters(self):
@@ -139,8 +143,11 @@ class Telemetry:
                 client = data.get('drm-client-id')
                 if client:
                     client = (data.get('drm-pdev', ''), client.strip())
-                    clients[client] = sum(int(v.split()[0]) for k, v in data.items()
-                                          if k.startswith('drm-engine-') and not k.startswith('drm-engine-capacity-'))
+                    engines = {k: int(v.split()[0]) for k, v in data.items()
+                               if k.startswith('drm-engine-') and not k.startswith('drm-engine-capacity-')}
+                    clients[client] = sum(engines.values())
+                    for engine, value in engines.items():
+                        self.engine_current[(client, engine)] = value
         except (OSError, ValueError):
             pass
         current = sum(clients.values()) if clients else None
@@ -155,13 +162,13 @@ class Telemetry:
         elapsed = max(.01, now-self.previous[0]) if self.previous else 1
         rows = self.model.scan()
         self.drm_current = {}
+        self.engine_current = {}
         for row in rows:
             row['stateLabel'] = STATES.get(row['state'], row['state'])
             row['gpu'] = self.drm(row, elapsed) if row['uid'] == os.getuid() else None
             row['app'] = row['name']
             try:
                 cgroup = (Path('/proc')/str(row['pid'])/'cgroup').read_text()
-                import re
                 app = re.search(r'app-(?:[^/]*?-)?([^/]+?)(?:-[0-9a-f]+)?\.(?:scope|service)', cgroup)
                 if app:
                     row['app'] = app[1].replace('\\x2d', '-')
@@ -176,6 +183,18 @@ class Telemetry:
         summary['disk'] = max(0, (disk-self.previous[1])/elapsed) if self.previous else None
         summary['network'] = max(0, (network-self.previous[2])/elapsed) if self.previous else None
         summary['gpu'], summary['gpu_memory'], _ = self.gpu(elapsed)
+        summary['gpu_source'] = 'Driver utilization'
+        if summary['gpu'] is None:
+            engines = {}
+            for (client, engine), value in self.engine_current.items():
+                old = self.engine_previous.get((client, engine))
+                if old is not None:
+                    key = (client[0], engine)
+                    engines[key] = engines.get(key, 0) + max(0, value-old)/1e9/elapsed*100
+            if engines:
+                summary['gpu'] = min(100, max(engines.values()))
+                summary['gpu_source'] = 'Busiest DRM engine'
+        self.engine_previous = self.engine_current
         self.previous = (now, disk, network)
         return rows, summary
 
@@ -240,5 +259,6 @@ if __name__ == '__main__':
         pass
     except Exception as error:
         print(json.dumps(dict(ok=False, error='Permission denied. Higher priority may require administrator privileges.'
-                             if isinstance(error, PermissionError) else str(error))), flush=True)
+                             if isinstance(error, PermissionError) else
+                             'The process exited or changed identity. Select it again.' if isinstance(error, (ProcessLookupError, FileNotFoundError, RuntimeError)) else str(error))), flush=True)
         sys.exit(1)

@@ -108,7 +108,7 @@ FloatingWindow {
                 spacing: Tokens.spacing.small
                 Metric { Layout.fillWidth: true; label: 'CPU'; value: win.pct(win.summary.cpu); samples: win.history.cpu; subtitle: (win.summary.cores ?? 0) + ' logical cores' }
                 Metric { Layout.fillWidth: true; label: 'Memory'; value: win.size(win.summary.memory); samples: win.history.memory; ceiling: win.summary.total_memory ?? 1; tone: Colours.palette.m3tertiary; subtitle: 'of ' + win.size(win.summary.total_memory) }
-                Metric { Layout.fillWidth: true; label: 'GPU'; value: win.pct(win.summary.gpu); samples: win.history.gpu; tone: Colours.palette.m3secondary; subtitle: win.summary.gpu === null || win.summary.gpu === undefined ? 'Driver telemetry unavailable' : 'VRAM ' + win.size(win.summary.gpu_memory) }
+                Metric { Layout.fillWidth: true; label: 'GPU'; value: win.pct(win.summary.gpu); samples: win.history.gpu; tone: Colours.palette.m3secondary; subtitle: win.summary.gpu === null || win.summary.gpu === undefined ? 'Driver telemetry unavailable' : win.summary.gpu_source + (win.summary.gpu_memory === null ? '' : ' · ' + win.size(win.summary.gpu_memory)) }
                 Metric { Layout.fillWidth: true; label: 'Disk I/O'; value: win.rate(win.summary.disk); samples: win.history.disk; ceiling: Math.max(1048576, ...win.history.disk); subtitle: 'Physical devices · read + write' }
                 Metric { Layout.fillWidth: true; label: 'Network'; value: win.rate(win.summary.network); samples: win.history.network; ceiling: Math.max(1048576, ...win.history.network); tone: Colours.palette.m3tertiary; subtitle: 'System · receive + send' }
             }
@@ -229,7 +229,7 @@ FloatingWindow {
                         TextButton { visible: !!win.selected && !win.exited; text: 'Refresh details'; onClicked: win.refreshDetails() }
                         Controls.ScrollView {
                             Layout.fillHeight: true; Layout.fillWidth: true; clip: true
-                            Controls.TextArea { text: win.selected ? win.detailText() : 'GPU per process requires DRM fdinfo support.\n\nPer-process network usage is unavailable without privileged tracing. The network graph shows system totals.\n\nDisk rates count physical I/O; cached reads may be zero.'; readOnly: true; selectByMouse: true; wrapMode: TextEdit.WrapAnywhere; color: Colours.palette.m3onSurfaceVariant; font: Tokens.font.label.small; background: null }
+                            Controls.TextArea { text: win.selected ? win.detailText() : 'GPU per process requires DRM fdinfo support.\n\nPer-process network usage is unavailable without privileged tracing. The network graph shows system totals.\n\nDisk rates count physical I/O; cached reads may be zero.'; readOnly: true; selectByMouse: true; wrapMode: TextEdit.Wrap; color: Colours.palette.m3onSurfaceVariant; font: Tokens.font.label.small; background: null }
                         }
                     }
                 }
