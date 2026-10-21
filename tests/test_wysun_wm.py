@@ -25,4 +25,17 @@ class NativeActionsTests(unittest.TestCase):
   a['floating']=True;self.assertIn('.pin(',plan('pin',a,[a])[0])
  def test_rejects_selector_injection(self):
   with self.assertRaises(ValueError):plan('resize-left',window('0x1";os.execute()',1),[])
+class ActivationTests(unittest.TestCase):
+ def test_focus_only_when_nothing_covers_the_target(self):
+  clients=[dict(window('0x1',1,workspace=7),**{'class':'foot'}),window('0x2',2,workspace=3)]
+  dispatchers,target=m['activation_plan'](clients,'foot')
+  self.assertEqual(target['address'],'0x1');self.assertEqual(dispatchers,['hl.dsp.focus({window="address:0x1"})'])
+ def test_covering_fullscreen_on_same_workspace_is_left_before_focus(self):
+  cover=dict(window('0x2',2,workspace=7),fullscreen=2)
+  dispatchers,_=m['activation_plan']([dict(window('0x1',1,workspace=7),**{'class':'foot'}),cover],'foot')
+  self.assertIn('address:0x2',dispatchers[0]);self.assertIn('action="set"',dispatchers[0]);self.assertIn('focus',dispatchers[1])
+ def test_fullscreen_elsewhere_is_ignored_and_unknown_class_is_none(self):
+  other=dict(window('0x2',2,workspace=3),fullscreen=2)
+  dispatchers,_=m['activation_plan']([dict(window('0x1',1,workspace=7),**{'class':'foot'}),other],'foot')
+  self.assertEqual(len(dispatchers),1);self.assertEqual(m['activation_plan']([other],'nada'),([],None))
 if __name__=='__main__':unittest.main()
