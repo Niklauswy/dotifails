@@ -62,3 +62,69 @@ La sonda pública se ejecutó en un Hyprland anidado y aislado con salida sinté
 ## Límites
 
 Las suites no capturaron una pantalla física, micrófono ni cámara, y no validan rendimiento de sesiones largas. La comprobación manual del marco de Screenshot abrió una captura del escritorio activo y la canceló sin guardar ni inspeccionar el contenido. El teclado y el puntero de la prueba E2E son sintéticos. Las revisiones anteriores del escritorio X11 quedan documentadas únicamente en el historial de Git.
+
+## Runtime privado · P2-B, 20 de octubre de 2026
+
+La suite general incluye ahora `tests/wysun_app` y `tests/shell_bridge`:
+`QT_QPA_PLATFORM=offscreen python3 -m unittest discover -s tests -v` ejecuta
+374 pruebas antes de integrar P2-A (correctas con acceso a sockets locales). La comprobación independiente
+del puente del shell ejecuta 16 pruebas; `tests/utility_ui.py`, 7. El humo instalado devuelve `WYSUN_INSTALLED_SMOKE_OK` en 3,173 s,
+con HOME/XDG temporales y sin reconstruir el runtime. El manifiesto
+y la guarda de identidad del shell también pasan. Los errores `EPERM` de sockets
+bajo confinamiento requieren repetir esa validación con acceso de sesión.
+
+La prueba de construcción del runtime tiene una entrada reproducible que sólo
+acepta un contenedor Debian 13 desechable. No monta HOME, cachés ni runtime del host:
+
+```sh
+podman run --rm --label ao.session="$AO_SESSION_ID" \
+  -e WYSUN_CONTAINER_TEST=1 -e WYSUN_BUILD_JOBS=2 \
+  -v "$PWD:/src:ro" docker.io/library/debian:13 \
+  sh /src/tests/container-runtime.sh
+```
+
+Reserva al menos 12 GB de disco para el almacén del contenedor y la compilación.
+En entornos donde `/tmp` es tmpfs, el almacén debe vivir en disco. Se puede aislar
+con `podman --root "$HOME/.cache/wysun-runtime-validation/storage"
+--runroot /tmp/wysun-runtime-validation/run --storage-driver vfs ...`.
+Si no hay un gestor de cgroups accesible, usa `--cgroup-manager cgroupfs` como
+opción global y `--cgroups disabled` en `run`; los dos trabajos de compilación
+siguen limitados por `WYSUN_BUILD_JOBS`.
+
+La prueba instala sólo las dependencias declaradas, descarga Qt 6.9.3, compila
+libcava, M3Shapes, Quickshell y el plugin Wysun. Comprueba `--version`, bibliotecas
+con `ldd`, sellos completos y una segunda ejecución sin reconstrucciones.
+El marcador final es `WYSUN_RUNTIME_CONTAINER_OK`. Esto valida la construcción
+y los enlaces del runtime; no prueba login, renderizado ni dispositivos físicos.
+
+
+## Integración A+B · 21 de octubre de 2026
+
+Desplegada la integración `092d27fa`: base P2-B `9481005c` y cambios P2-A
+`0b4e8157` + `87304965`. Se conservaron el runtime privado `Wysun.*`, la
+migración de nombres, los guards de selección y la recuperación cooperativa.
+
+- Checks dirigidos: instalador 20/20, Screenshot 76/76 antes del follow-up,
+  recovery final 4/4, guard final 12/12 y humo integrado correcto (2,92 s).
+- Instalador acotado sin conflictos; respaldo final
+  `~/.local/state/dotifails/backups/20261021T113642Z-a04229`.
+  El respaldo anterior `20261021T113509Z-2fa8d6` incluye en `manual/` la preimagen
+  de `hyprland.lua` antes de añadir únicamente el atajo de recuperación.
+- No se reconstruyó el runtime: su sello de plugin coincidía con la fuente.
+  No se instalaron ni retiraron paquetes y no se reinició Hyprland.
+- Sesión física actual: tres monitores, siete menús abiertos y comprobados por
+  IPC, cierre del picker correcto, selección real en las tres salidas.
+  Escape dirigido a la ventana propia termina con código 0 y sin ventanas.
+  `wysun recover` confirma una selección cerrada, cero pendientes, salida 0 y
+  cero ventanas restantes. No se guardó ni inspeccionó contenido de pantalla.
+- La respuesta `pending` sigue devolviendo fallo/petición pendiente mientras el
+  portal conserva el lease; los tests finales verifican que no se anuncia cierre
+  sólo por enviar IPC.
+- El supervisor de sesión anterior conserva sus hijos para preservar el
+  residente y las aplicaciones. El nuevo auto-reinicio del shell queda instalado
+  para el próximo inicio de sesión; el shell actual fue abierto por recovery.
+
+La prueba limpia Debian del runtime permanece pendiente, independiente del
+resultado de despliegue. El primer intento agotó el tmpfs de `/tmp`; el segundo
+se inició con almacén aislado en disco y no se toma como aprobado sin su marcador
+final. La entrada preparada es `tests/container-runtime.sh`.

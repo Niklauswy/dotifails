@@ -101,7 +101,7 @@ $XDG_DATA_HOME/wysun/runtime/            (por defecto ~/.local/share/wysun/runti
 - **Cambiar el plugin C++**: editar `apps/shell/plugin`, `python3 installer/runtime_build.py` (o `./instalar.sh --orbit-only`),
   reiniciar el shell (sección 5).
 - **Otra máquina**: `./instalar.sh` (componente `wayland`) instala paquetes de build, ejecuta `runtime_build.py` y despliega el
-  shell. Probado desde cero en un contenedor Debian 13 (ver `docs/validation.md`).
+  shell. La validación limpia Debian 13 del runtime sigue pendiente (ver `docs/validation.md`).
 
 ## 4. Instalador (`instalar.sh` → `installer/main.py`)
 
@@ -197,6 +197,6 @@ python3 apps/capture/run_tests.py                              # captura (medios
 python3 tests/wysun_installed_smoke.py                         # sobre la instalación real
 ```
 
-Pruebas de sockets/compositor requieren la sesión gráfica; un bloqueo de sandbox no prueba un fallo del producto. Seis pruebas
-de `tests/wysun_app` (`native_ui` ×2, `preserved_apps`, `wysun_platform`, `hypr_effect_limits`, `native_settings` watcher) fallan
-de forma previa e independiente en este equipo: están anotadas como línea base.
+Pruebas de sockets/compositor requieren acceso de sesión; un bloqueo de sandbox no prueba un fallo del producto. Las seis
+expectativas antiguas de `tests/wysun_app` se corrigieron en `d5017d01`; la suite general P2-B pasó 374 pruebas antes de integrar
+P2-A. Las comprobaciones dirigidas de integración y el alcance del despliegue están en `docs/validation.md`.

@@ -49,5 +49,5 @@ Puedes ver el plan sin aplicar cambios:
 
 - Suites generales: `python3 -m unittest discover -s tests -v`, `QT_QPA_PLATFORM=offscreen python3 tests/utility_ui.py`, `python3 tests/check_manifest.py`.
 - Captura: `python3 apps/capture/run_tests.py` (HOME/XDG temporales y sin sesión gráfica heredada).
-- Sesión y compositor: `apps/shell/tests/nested_runtime.py` arranca Hyprland anidado con medios sintéticos. La sonda `tests/wayland_screenshot_route_probe.py` verifica la ruta real de Screenshot en unos 55 segundos.
+- Sesión y compositor: las sondas `tests/wayland_*_probe.py` usan Hyprland anidado con medios sintéticos. La sonda `tests/wayland_screenshot_route_probe.py` verifica la ruta real de Screenshot en unos 55 segundos.
 - Las pruebas de medios y compositor se ejecutan en serie; un bloqueo del sandbox no demuestra un fallo del producto.
