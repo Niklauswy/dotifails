@@ -12,6 +12,8 @@ var pageRoutes = {
     bluetooth: "bluetooth",
     audio: "audio",
     displays: "displays",
-    workspaces: "workspaces"
+    workspaces: "workspaces",
+    lock: "lock",
+    idle: "lock"
 };
 var pageSubs = {theme: 3};

@@ -249,7 +249,7 @@ class WaylandInstallTests(unittest.TestCase):
         (binary / 'systemctl').write_text('#!/bin/sh\nprintf called > "$WYSUN_TEST_LOG"\n')
         for path in binary.iterdir(): path.chmod(0o755)
         env = dict(os.environ, PATH=str(binary) + ':' + os.environ['PATH'], HOME=str(self.home),
-                   WAYLAND_DISPLAY='fixture', XDG_SESSION_TYPE='wayland', WYSUN_TEST_LOG=str(log))
+                   WAYLAND_DISPLAY='fixture', XDG_SESSION_TYPE='wayland', WYSUN_TEST_LOG=str(log), WYSUN_LOCK_BACKEND='swaylock')
         result = subprocess.run([str(ROOT / 'bin/wysun-lock'), '--suspend'], env=env, capture_output=True)
         self.assertNotEqual(result.returncode, 0)
         self.assertFalse(log.exists())

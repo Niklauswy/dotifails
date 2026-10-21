@@ -37,7 +37,7 @@ detectan por huella y se guardan como `incoming/`).
 | Componente | Qué es | Arranca |
 |---|---|---|
 | Hyprland 0.55.x | Compositor, configuración Lua `~/.config/wysun/hyprland.lua` (de `config/.config/wysun/hyprland.lua`) | `wysun-session` (sesión “Wysun / Hyprland”) |
-| `wysun-session-services` | Supervisor: `wysun-shell`, `swayidle` (bloqueo), `wysun daemon`, `dunst`, polkit | Hyprland `exec` |
+| `wysun-session-services` | Supervisor: `wysun-shell`, `wysun-idle` (swayidle configurable: bloqueo/pantalla), `wysun daemon`, `dunst`, polkit | Hyprland `exec` |
 | Shell (`wysun-shell` → `runtime.sh` → Quickshell) | Barra, dashboard, lanzador QML, menús, notificaciones (vista), OSD, sesión, fondos | supervisor |
 | `wysun daemon` (`orbit.py --daemon`) | Residente Qt: lanzador, portapapeles, Notas, procesos, OCR; socket `$XDG_RUNTIME_DIR/orbit-<uid>.sock` | supervisor |
 | Dunst | Único dueño de D-Bus de notificaciones | supervisor |

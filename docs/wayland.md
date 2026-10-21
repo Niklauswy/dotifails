@@ -44,6 +44,7 @@ Puedes ver el plan sin aplicar cambios:
 - Escritorios fijos: `wysun-workspaces` (llamado desde `hyprland.start` y `monitor.added`) regenera `~/.config/orbit/hypr-workspaces.lua` con el reparto guardado en Ajustes o, si no hay, el automático (1–5 / 6–9 / 10 en el portátil) y lo aplica en vivo. El automático no se guarda en `environment.json`. Para recuperar: borrar el fragmento y ejecutar `wysun-workspaces`.
 - `dotifails restore ID` recupera archivos de configuración anteriores. Los respaldos de la sesión viven en `/var/lib/dotifails/wayland-session/` y `~/.local/state/dotifails/backups/`.
 - Bloqueo: `wysun-lock` usa swaylock por defecto. Alternativa opt-in con `~/.config/orbit/lock.json` (`{"backend": "qml"}`) o `WYSUN_LOCK_BACKEND=qml`: pantalla de `apps/shell/lock.qml` con `WlSessionLock` y `PamContext` (servicio empaquetado `apps/shell/config/pam.d/wysun-lock`, sin tocar `/etc/pam.d`). Si falla antes de confirmar el bloqueo cae a swaylock; para volver, borrar la clave `backend`. Detalles en `apps/shell/modules/background/README.md`.
+- Inactividad: `wysun-idle run` (hijo de `wysun-session-services`) vigila `swayidle` según `~/.config/orbit/idle.json` (`lock_minutes`, `display_off_minutes`, `lock_before_sleep`; 0 = nunca; por defecto no bloquea por inactividad y sí antes de suspender). Ajustes → Lock & Idle lo cambia en vivo (`wysun-idle set`). En una sesión iniciada antes de este cambio, `wysun-idle` pausa (SIGSTOP) el swayidle heredado de 600 s y lo reanuda al salir.
 
 ## Pruebas
 

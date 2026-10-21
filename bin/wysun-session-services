@@ -77,8 +77,7 @@ def main():
                  'XDG_RUNTIME_DIR', 'XDG_CONFIG_HOME', 'XDG_DATA_HOME', 'XDG_DATA_DIRS')
     subprocess.run(['dbus-update-activation-environment', '--systemd',
                     *(name for name in variables if name in os.environ)], check=True)
-    commands = [list(SHELL_COMMAND), ['swayidle', '-w', 'timeout', '600', 'wysun-lock',
-                                'before-sleep', 'wysun-lock'], ['wysun', 'daemon']]
+    commands = [list(SHELL_COMMAND), ['wysun-idle', 'run'], ['wysun', 'daemon']]
     # Both notification/polkit agents are scoped to this newly selected login.
     if shutil.which('dunst'):
         config = Path.home() / '.config/wysun/dunstrc'

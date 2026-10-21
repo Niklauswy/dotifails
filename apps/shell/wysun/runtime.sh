@@ -11,4 +11,4 @@ export QML_IMPORT_PATH="$runtime/shell/lib/qt6/qml:$runtime/deps/lib/qt6/qml"
 export WYSUN_LIB_DIR="$runtime/shell/lib/wysun"
 config="${WYSUN_SHELL_CONFIG:-$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)}"
 # Executable and plugin RPATHs select Qt; no LD_LIBRARY_PATH is exported.
-exec "$qs" -p "$config" "$@"
+exec "$qs" -p "${WYSUN_SHELL_ENTRY:-$config}" "$@"
