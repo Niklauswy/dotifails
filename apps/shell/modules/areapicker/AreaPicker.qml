@@ -76,6 +76,13 @@ Scope {
             root.activeAsync = true;
         }
 
+        // Recovery path: the picker holds exclusive keyboard focus on every
+        // output, so it must be closable without a key press inside it.
+        function close(): void {
+            root.closing = true;
+            root.activeAsync = false;
+        }
+
         target: "picker"
     }
 

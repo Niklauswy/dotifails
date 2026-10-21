@@ -47,7 +47,9 @@ def main():
                   (('loomrec', '--version'), 'Wysun Recorder'),
                   (('wybie-screenshot', '--version'), 'Wysun Screenshot'),
                   (('wysun', 'recorder', '--help'), '--quick-record'),
-                  (('wysun', 'screenshot', '--help'), '--library')]
+                  (('wysun', 'screenshot', '--help'), '--cancel-selection'),
+                  (('wysun', 'screenshot', '--cancel-selection'), '0 selección(es)'),
+                  (('wysun', 'recover', '--help'), 'Wysun recovery')]
         if args.runtime_root:checks.append((('wysun', 'session-check'), 'WYSUN_SESSION_PREFLIGHT_OK'))
         for argv, expected in checks:
             before = time.monotonic()

@@ -1,13 +1,100 @@
 """Frozen-frame selection. Never captures a desktop or saves a frame itself."""
-from PySide6.QtCore import QPoint, QRect, QRectF, Qt, Signal
-from PySide6.QtGui import QColor, QCursor, QPainter, QPen
-from PySide6.QtWidgets import QWidget
+from PySide6.QtCore import QObject, QPoint, QRect, QRectF, QTimer, Qt, Signal
+from PySide6.QtGui import QColor, QCursor, QGuiApplication, QPainter, QPen
+from PySide6.QtWidgets import QApplication, QDialog, QWidget
 from loomrec.ui.tokens import color
+
+
+class SelectionGuard(QObject):
+    """Fullscreen overlays must never outlive their usefulness.
+
+    A frozen overlay covers every output; if none of them holds the keyboard
+    focus, Escape cannot reach the app and the desktop would stay covered. The
+    guard cancels the selection when focus is lost for `lost_limit` checks in a
+    row, or when the monitor topology changes (the frozen crops no longer map
+    to real outputs). Dialogs opened by an overlay (save, colour) own the focus
+    legitimately and pause the check.
+    """
+    interval_ms = 500
+    lost_limit = 4
+
+    def __init__(self, overlays, on_cancel):
+        super().__init__(QApplication.instance())
+        self.overlays = list(overlays)
+        self.on_cancel = on_cancel
+        self.lost = 0
+        self.fired = False
+        self.stopped = False
+        self.timer = QTimer(self)
+        self.timer.setInterval(self.interval_ms)
+        self.timer.timeout.connect(self.check)
+        app = QGuiApplication.instance()
+        app.screenAdded.connect(self.topology_changed)
+        app.screenRemoved.connect(self.topology_changed)
+        self.screens = list(app.screens())
+        for screen in self.screens:
+            screen.geometryChanged.connect(self.topology_changed)
+            screen.logicalDotsPerInchChanged.connect(self.topology_changed)
+        self.timer.start()
+
+    def stop(self):
+        if self.stopped:return
+        self.stopped = True
+        self.timer.stop()
+        app = QGuiApplication.instance()
+        for signal in (app.screenAdded, app.screenRemoved):
+            try:signal.disconnect(self.topology_changed)
+            except (RuntimeError, TypeError):pass
+        for screen in self.screens:
+            try:
+                screen.geometryChanged.disconnect(self.topology_changed)
+                screen.logicalDotsPerInchChanged.disconnect(self.topology_changed)
+            except (RuntimeError, TypeError):
+                pass
+        self.screens.clear()
+        self.overlays.clear()
+        self.on_cancel = None
+        self.deleteLater()
+
+    def has_dialog(self):
+        return QApplication.activePopupWidget() is not None or any(
+            isinstance(w, QDialog) and w.isVisible() for w in QApplication.topLevelWidgets())
+
+    def visible(self):
+        try:return any(o.isVisible() for o in self.overlays)
+        except RuntimeError:return False  # overlay already destroyed
+
+    def annotating(self):
+        # Never discard an edit in progress: only the bare selection phase can
+        # leave the user without a way to cancel.
+        return any(getattr(o, 'document', None) is not None for o in self.overlays)
+
+    def check(self):
+        if self.fired or self.stopped:return
+        if not self.visible():
+            self.stop();return
+        active = QApplication.activeWindow()
+        owns_focus = active is not None and any(active is o or o.isAncestorOf(active) for o in self.overlays)
+        if owns_focus or self.has_dialog() or self.annotating():
+            self.lost = 0;return
+        self.lost += 1
+        if self.lost >= self.lost_limit:self.fire()
+
+    def topology_changed(self, *_):
+        if not self.stopped and self.visible():self.fire()
+
+    def fire(self):
+        if self.fired or self.stopped:return
+        self.fired = True
+        callback = self.on_cancel
+        self.stop()
+        callback()
 
 
 class SelectionOverlay(QWidget):
     selected = Signal(QRect)
     cancelled = Signal()
+    recovery_requested = Signal()
     control_drag_finished = Signal()
     _control_drag_owner = None
 
@@ -40,8 +127,11 @@ class SelectionOverlay(QWidget):
         right=round((rect.x()+rect.width())*sx);bottom=round((rect.y()+rect.height())*sy)
         return QRect(left,top,right-left,bottom-top).intersected(self.image.rect())
 
-    def present(self):
+    def present(self, guard=True):
         from loomrec.portal import is_wayland
+        if guard:
+            if getattr(self, '_guard', None) is not None:self._guard.stop()
+            self._guard = SelectionGuard([self], self.recovery_requested.emit)
         if self.target_screen is not None:
             # One native, fullscreen overlay per output. The image is already the
             # crop for this output, so selection is never made on a miniature
@@ -154,7 +244,9 @@ class SelectionOverlay(QWidget):
         if key==Qt.Key_Escape:self.hide();self.cancelled.emit();return
         if key in (Qt.Key_Return,Qt.Key_Enter):
             if self.selection.width()>1 and self.selection.height()>1:
-                self.hide();self.selected.emit(self.source_rect(self.selection.normalized().intersected(self.rect())))
+                rect = self.source_rect(self.selection.normalized().intersected(self.rect()))
+                rect.translate(self.image_origin)
+                self.hide();self.selected.emit(rect)
             else:
                 self.selection=QRect(self.width()//4,self.height()//4,max(2,self.width()//2),max(2,self.height()//2));self.update()
             return
@@ -189,6 +281,8 @@ class SelectionOverlay(QWidget):
         super().keyReleaseEvent(event)
 
     def hideEvent(self,event):
+        guard = getattr(self, '_guard', None)
+        if guard is not None:guard.stop()
         if SelectionOverlay._control_drag_owner is self:
             SelectionOverlay._control_drag_owner=None
             self.control_origin=None;self.control_dragging=False
@@ -200,16 +294,25 @@ class SelectionGroup:
     def __init__(self,overlays):
         self.overlays=list(overlays)
     def present(self):
-        for overlay in self.overlays:overlay.present()
+        previous = getattr(self, '_guard', None)
+        if previous is not None:previous.stop()
+        for overlay in self.overlays:overlay.present(guard=False)
+        self._guard = SelectionGuard(self.overlays, self.overlays[0].recovery_requested.emit) if self.overlays else None
         pointer=QCursor.pos()
         target=next((overlay for overlay in self.overlays if overlay.geometry().contains(pointer)),None)
         if target is not None:
             target.raise_();target.activateWindow();target.setFocus()
     def hide(self):
+        guard = getattr(self, '_guard', None)
+        if guard is not None:guard.stop()
         for overlay in self.overlays:overlay.hide()
     def deleteLater(self):
+        guard = getattr(self, '_guard', None)
+        if guard is not None:guard.stop()
         for overlay in self.overlays:overlay.deleteLater()
     def close(self):
+        guard = getattr(self, '_guard', None)
+        if guard is not None:guard.stop()
         for overlay in self.overlays:overlay.close()
     def __bool__(self):
         return bool(self.overlays)

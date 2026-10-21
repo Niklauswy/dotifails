@@ -8,6 +8,43 @@ import subprocess
 import time
 
 children = []
+SHELL_COMMAND = ['wysun-shell']
+# The shell paints the wallpaper, bar and launcher. If it dies the login is left
+# on the bare compositor background, so it is relaunched; a crash loop backs off.
+RESTART_WINDOW = 60.0
+RESTART_BURST = 5
+RESTART_COOLDOWN = 30.0
+
+
+def log_event(message):
+    """Append to the user's state log; never let logging break supervision."""
+    try:
+        state = Path(os.environ.get('XDG_STATE_HOME') or Path.home() / '.local/state') / 'wysun'
+        state.mkdir(parents=True, exist_ok=True)
+        with open(state / 'session-services.log', 'a', encoding='utf-8') as handle:
+            handle.write(time.strftime('%Y-%m-%d %H:%M:%S ') + message + '\n')
+    except OSError:
+        pass
+
+
+def revive_shell(restarts, clock=time.monotonic):
+    """Relaunch children[0] (the shell) after it exits; returns True if relaunched."""
+    code = children[0].poll()
+    if code is None:
+        return False
+    now = clock()
+    restarts[:] = [stamp for stamp in restarts if now - stamp < RESTART_WINDOW]
+    if len(restarts) >= RESTART_BURST and now - restarts[-1] < RESTART_COOLDOWN:
+        return False
+    restarts.append(now)
+    detail = f'señal {-code}' if code < 0 else f'código {code}'
+    try:
+        children[0] = subprocess.Popen(SHELL_COMMAND)
+    except OSError as error:
+        log_event(f'wysun-shell terminó ({detail}); no se pudo relanzar: {error}')
+        return False
+    log_event(f'wysun-shell terminó ({detail}); relanzado')
+    return True
 
 
 def stop_children():
@@ -40,7 +77,7 @@ def main():
                  'XDG_RUNTIME_DIR', 'XDG_CONFIG_HOME', 'XDG_DATA_HOME', 'XDG_DATA_DIRS')
     subprocess.run(['dbus-update-activation-environment', '--systemd',
                     *(name for name in variables if name in os.environ)], check=True)
-    commands = [['wysun-shell'], ['swayidle', '-w', 'timeout', '600', 'wysun-lock',
+    commands = [list(SHELL_COMMAND), ['swayidle', '-w', 'timeout', '600', 'wysun-lock',
                                 'before-sleep', 'wysun-lock'], ['wysun', 'daemon']]
     # Both notification/polkit agents are scoped to this newly selected login.
     if shutil.which('dunst'):
@@ -55,11 +92,13 @@ def main():
         for command in commands:
             children.append(subprocess.Popen(command))
         # The idle locker belongs to the login, independently of the UI. A
-        # crashed shell can be opened again with `wysun shell`; it must never
-        # disable the already running inactivity/sleep protection.
+        # crashed shell is relaunched by revive_shell (or by `wysun recover`); it
+        # must never disable the already running inactivity/sleep protection.
         idle = children[1]
+        restarts = []
         while idle.poll() is None:
             time.sleep(1)
+            revive_shell(restarts)
         # Fail closed if the idle monitor itself dies. This invokes the same
         # checked lock acquisition as the public command, without suspending.
         lock_requested = True

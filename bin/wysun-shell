@@ -19,5 +19,6 @@ case "${1:-}" in
     theme) shift; exec "$runtime" ipc call wysunShell theme "$@" ;;
     theme-settings) shift; exec "$runtime" ipc call wysunShell openThemeSettings "$@" ;;
     close|status) action="$1"; shift; exec "$runtime" ipc call wysunShell "$action" "$@" ;;
+    picker) shift; exec "$runtime" ipc call picker "${1:-close}" ;;
     *) exec "$runtime" --no-duplicate "$@" ;;
 esac

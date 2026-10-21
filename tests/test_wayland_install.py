@@ -299,6 +299,60 @@ class WaylandInstallTests(unittest.TestCase):
         daemon.terminate.assert_called_once()
         for child in (shell,idle,daemon):child.wait.assert_called_once_with(timeout=2)
 
+    def test_recovery_uses_cooperative_capture_and_exact_shell_ipc(self):
+        recovery = runpy.run_path(str(ROOT / 'bin/wysun-recover'))
+        main = recovery['main']
+        calls = []
+        def run(command, **kwargs):
+            calls.append(command)
+            return Mock(returncode=0, stdout='')
+        with patch.dict(main.__globals__, {'run': run}), patch('os.kill') as kill, patch('subprocess.Popen') as launch:
+            self.assertEqual(main([]), 0)
+            kill.assert_not_called();launch.assert_not_called()
+        self.assertEqual([command[1:] for command in calls], [
+            ['--cancel-selection'], ['status'], ['close'], ['picker', 'close']])
+
+    def test_recovery_reports_unresponsive_capture_without_signalling(self):
+        recovery = runpy.run_path(str(ROOT / 'bin/wysun-recover'))
+        main = recovery['main']
+        def run(command, **kwargs):
+            return Mock(returncode=1 if '--cancel-selection' in command else 0, stdout='')
+        with patch.dict(main.__globals__, {'run': run}), patch('os.kill') as kill:
+            self.assertEqual(main([]), 1)
+            kill.assert_not_called()
+
+    def test_dead_shell_is_relaunched_with_crash_loop_backoff(self):
+        services = runpy.run_path(str(ROOT / 'bin/wysun-session-services'))
+        revive, children = services['revive_shell'], services['children']
+        dead, fresh = Mock(), Mock()
+        dead.poll.return_value = -9
+        children[:] = [dead]
+        restarts, log = [], []
+        with patch.dict(revive.__globals__, {'log_event': log.append}), \
+             patch('subprocess.Popen', return_value=fresh) as launch:
+            self.assertTrue(revive(restarts, clock=lambda: 0))
+            fresh.poll.return_value = None
+            self.assertFalse(revive(restarts, clock=lambda: 0))  # a live shell is left alone
+            fresh.poll.return_value = 1
+            restarts.clear()
+            self.assertTrue(revive(restarts, clock=lambda: 0))
+            launch.reset_mock()
+            restarts.clear()
+            children[:] = [dead]
+            self.assertTrue(revive(restarts, clock=lambda: 0))
+            launch.assert_called_once_with(['wysun-shell'])
+            self.assertIs(children[0], fresh)
+            self.assertIn('señal 9', log[0])
+            for moment in range(1, services['RESTART_BURST']):
+                self.assertTrue(revive(restarts, clock=lambda m=moment: m))
+            self.assertFalse(revive(restarts, clock=lambda: 10))  # burst exhausted: cool down
+            self.assertTrue(revive(restarts, clock=lambda: 10 + services['RESTART_COOLDOWN']))
+        with patch.dict(revive.__globals__, {'log_event': log.append}), \
+             patch('subprocess.Popen', side_effect=OSError('fixture')):
+            children[:] = [dead]
+            self.assertFalse(revive([], clock=lambda: 0))
+        children.clear()
+
     def test_partial_client_start_failure_reaps_already_started_children(self):
         services = runpy.run_path(str(ROOT / 'bin/wysun-session-services'))
         shell = Mock(); shell.poll.return_value = None

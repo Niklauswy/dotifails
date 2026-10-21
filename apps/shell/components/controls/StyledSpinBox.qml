@@ -70,7 +70,7 @@ T.Control {
         rightPadding: Tokens.padding.medium
 
         implicitWidth: 65
-        horizontalAlignment: TextField.AlignHCenter
+        horizontalAlignment: Qt.AlignHCenter
         onEditingFinished: {
             const parsed = Number.fromLocaleString(root.locale, text);
             if (!isNaN(parsed)) {
