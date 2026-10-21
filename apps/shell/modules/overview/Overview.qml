@@ -14,15 +14,25 @@ Scope {
             id: loader
             required property ShellScreen modelData
             readonly property var state: ShellState.forScreen(modelData)
-            active: state?.overview ?? false
+            readonly property bool open: state?.overview ?? false
+            // Stay loaded after closing until the exit animation has finished.
+            property bool lingering: false
+            onOpenChanged: if (open) lingering = true
+            active: open || lingering
             StyledWindow {
                 name: "overview"
                 screen: loader.modelData
                 anchors { top: true; bottom: true; left: true; right: true }
                 WlrLayershell.layer: WlrLayer.Overlay
                 WlrLayershell.exclusionMode: ExclusionMode.Ignore
-                WlrLayershell.keyboardFocus: loader.state?.overviewKeyboard ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
-                OverviewWidget { anchors.fill: parent; screen: loader.modelData; screenState: loader.state }
+                WlrLayershell.keyboardFocus: loader.open && loader.state?.overviewKeyboard ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+                OverviewWidget {
+                    anchors.fill: parent
+                    screen: loader.modelData
+                    screenState: loader.state
+                    open: loader.open
+                    onClosed: loader.lingering = false
+                }
             }
         }
     }

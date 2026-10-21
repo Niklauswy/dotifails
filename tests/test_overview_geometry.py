@@ -41,3 +41,8 @@ class OverviewGeometryTests(unittest.TestCase):
 
     def test_disappearing_monitor_has_finite_fallback(self):
         self.assertEqual(self.geometry({}, {}), dict(x=0, y=0, width=400, height=225))
+
+    def test_reserved_edges_shrink_the_source_area(self):
+        actual = self.geometry({'at': [60, 10], 'size': [1850, 1060]},
+                               {'width': 1920, 'height': 1080, 'reserved': [60, 10, 10, 10]})
+        self.assertEqual(actual, dict(x=0, y=0, width=400, height=225))
