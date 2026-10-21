@@ -137,6 +137,18 @@ class DispatcherTests(unittest.TestCase):
             self.assertEqual(self.dispatch('session')[:2],
                              (0, ['ipc', 'call', 'wysunShell', 'toggle', 'session']))
 
+    def test_search_and_brightness_reach_the_shell_ipc(self):
+        self.assertEqual(self.dispatch('search', '>clip x')[1], ['ipc', 'call', 'wysunShell', 'search', '>clip x'])
+        self.assertEqual(self.dispatch('brightness', 'up')[1], ['ipc', 'call', 'wysunShell', 'brightness', 'up'])
+
+    def test_media_key_helper_covers_every_bound_key(self):
+        helper = (ROOT / 'bin/wysun-control').read_text()
+        lua = (ROOT / 'config/.config/wysun/hyprland.lua').read_text()
+        for action in re.findall(r'wysun-control (\S+?)"', lua):
+            self.assertIn(f'{action})', helper, action)
+        for key in ('XF86AudioMicMute', 'XF86MonBrightnessUp', 'XF86AudioRaiseVolume'):
+            self.assertIn(f'"{key}"', lua)
+
     def test_unknown_surface_is_rejected(self):
         code, out, err = self.dispatch('toggle', 'rm')
         self.assertEqual(code, 2); self.assertEqual(out, [])

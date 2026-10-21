@@ -47,6 +47,11 @@ Scope {
             root.current().launcherQuery = text;
             return true;
         }
+        // Brightness keys: go through the shell so the OSD reacts.
+        function brightness(direction: string): bool {
+            if (direction === 'up') Brightness.increaseBrightness(); else if (direction === 'down') Brightness.decreaseBrightness(); else return false;
+            return true;
+        }
         function close(): void { root.close(); }
         function reloadPreferences(): void { environment.reload(); }
         function openThemeSettings(): bool { Quickshell.execDetached(['wysun', 'settings', 'theme']); return true; }

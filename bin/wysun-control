@@ -10,8 +10,11 @@ case "${1:-}" in
     volume-down) need wpctl; exec wpctl set-volume "$sink" 5%- ;;
     volume-mute) need wpctl; exec wpctl set-mute "$sink" toggle ;;
     mic-mute) need wpctl; exec wpctl set-mute "$source" toggle ;;
-    brightness-up) need brightnessctl; exec brightnessctl -q set 5%+ ;;
-    brightness-down) need brightnessctl; exec brightnessctl -q set 5%- ;;
+    # The shell applies the change itself so its OSD appears; brightnessctl is the fallback.
+    brightness-up) "$(dirname "$0")/wysun-shell" brightness up >/dev/null 2>&1 && exit 0
+        need brightnessctl; exec brightnessctl -q set 5%+ ;;
+    brightness-down) "$(dirname "$0")/wysun-shell" brightness down >/dev/null 2>&1 && exit 0
+        need brightnessctl; exec brightnessctl -q set 5%- ;;
     media-next) need playerctl; exec playerctl next ;;
     media-previous) need playerctl; exec playerctl previous ;;
     media-play-pause) need playerctl; exec playerctl play-pause ;;
