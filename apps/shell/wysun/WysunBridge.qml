@@ -9,7 +9,7 @@ import qs.modules.nexus
 Scope {
     id: root
     readonly property var surfaces: ({ dashboard: 'dashboard', test: 'dashboard', windows: 'dashboard',
-        launcher: 'launcher', menu: 'utilities', quicksettings: 'utilities', notifications: 'sidebar', sidebar: 'sidebar', session: 'session' })
+        overview: 'overview', launcher: 'launcher', menu: 'utilities', quicksettings: 'utilities', notifications: 'sidebar', sidebar: 'sidebar', session: 'session' })
     function current() { return ShellState.forActive(); }
     function available(kind, state) {
         return kind !== 'launcher' || !!ShellState.componentsFor(state.modelData)?.panels?.launcher?.available;

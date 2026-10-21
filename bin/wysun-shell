@@ -8,13 +8,13 @@ case "${1:-}" in
     brightness) shift; exec "$runtime" ipc call wysunShell brightness "${1:-}" ;;
     search) shift; exec "$runtime" ipc call wysunShell search "${1:-}" ;;
     launcher) exec "$runtime" ipc call wysunShell toggle launcher ;;
-    menu|windows|session|sidebar) kind="$1"; shift; exec "$runtime" ipc call wysunShell toggle "$kind" "$@" ;;
+    overview|menu|windows|session|sidebar) kind="$1"; shift; exec "$runtime" ipc call wysunShell toggle "$kind" "$@" ;;
     toggle|open)
         action="$1"; shift
         surface="${1:-}"
         if [ $# -gt 0 ]; then shift; fi
         case "$surface" in
-            test|dashboard|launcher|menu|quicksettings|notifications|windows|session|sidebar) ;;
+            overview|test|dashboard|launcher|menu|quicksettings|notifications|windows|session|sidebar) ;;
             *) echo "wysun-shell: superficie desconocida: ${surface:-<vacía>}" >&2; exit 2 ;;
         esac
         exec "$runtime" ipc call wysunShell "$action" "$surface" "$@" ;;

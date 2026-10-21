@@ -10,6 +10,7 @@ import Quickshell
 import Wysun.Config
 import qs.services
 import qs.wysun
+import qs.modules.overview
 import qs.modules.areapicker
 import qs.modules.background
 import qs.modules.drawers
@@ -48,6 +49,7 @@ ShellRoot {
     Background {}
     Drawers {}
     AreaPicker {}
+    Overview {}
     WysunBridge {}
 
     // Daemons
