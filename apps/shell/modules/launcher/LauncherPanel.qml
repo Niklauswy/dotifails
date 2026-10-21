@@ -222,6 +222,10 @@ Item {
             Quickshell.execDetached(argv);
     }
 
+    function showWindow(address: string): void {
+        Quickshell.execDetached(["wysun", "activate", address.startsWith("0x") ? address : "0x" + address]);
+    }
+
     function dispatchWindow(verb: string, address: string): void {
         const addr = address.startsWith("0x") ? address : "0x" + address;
         const lua = {focus: `hl.dsp.focus({ window = "address:${addr}" })`, close: `hl.dsp.window.close({ window = "address:${addr}" })`};
@@ -232,10 +236,16 @@ Item {
         if (!r || r.header)
             return;
         switch (r.kind) {
-        case "app":
-            Apps.launch(r);
+        case "app": {
+            // Already open: bring that window forward (workspace switch, leaving a covering fullscreen).
+            const open = LauncherIndex.windowOf(r);
+            if (open)
+                showWindow(open);
+            else
+                Apps.launch(r);
             close();
             return;
+        }
         case "cmd":
             if (r.view) {
                 push({id: r.view});
@@ -264,7 +274,7 @@ Item {
             close();
             return;
         case "window":
-            dispatchWindow("focus", r.address);
+            showWindow(r.address);
             close();
             return;
         case "web":

@@ -41,7 +41,7 @@ Singleton {
                 icon: a.entry?.icon ?? "", type: "Application",
                 l: name.toLowerCase(),
                 a: [a.genericName, a.keywords, a.comment, a.categories, a.startupClass, a.id].join(" ").toLowerCase(),
-                freq: a.frequency, entry: a.entry, runInTerminal: a.entry?.runInTerminal ?? false
+                freq: a.frequency, startupClass: a.startupClass, entry: a.entry, runInTerminal: a.entry?.runInTerminal ?? false
             });
         }
         rows = out;
