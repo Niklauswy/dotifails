@@ -169,9 +169,9 @@ class NativeSettingsTests(unittest.TestCase):
             theme_tokens.invalidate();theme_tokens.watch_theme();watcher=APP.orbitThemeWatcher
             try:
                 path=Path(home)/'config/orbit/theme.json';path.parent.mkdir(parents=True);path.write_text('{"id":"tokyo"}')
-                wait(120);self.assertEqual(watcher.key,'space-black:tokyo');self.assertEqual(refresh.call_count,1)
+                wait(120);self.assertEqual(watcher.key,(('space-black','tokyo'),None));self.assertEqual(refresh.call_count,1)
                 alternate=path.with_suffix('.new');alternate.write_text('{"id":"space-black"}');alternate.replace(path)
-                wait(120);self.assertEqual(watcher.key,'space-black:space-black');self.assertEqual(refresh.call_count,2)
+                wait(120);self.assertEqual(watcher.key,(('space-black','space-black'),None));self.assertEqual(refresh.call_count,2)
                 wait(100);self.assertEqual(refresh.call_count,2);self.assertFalse(watcher.timer.isActive())
             finally:
                 watcher.deleteLater();del APP.orbitThemeWatcher

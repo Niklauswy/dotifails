@@ -59,9 +59,11 @@ class DesktopTests(unittest.TestCase):
         desktop.focused=Mock(return_value='0x456');desktop.run.reset_mock()
         ok,_=paste_to('0x123',desktop)
         self.assertFalse(ok);self.assertEqual(desktop.run.call_count,1)
-    def test_sway_tree_keeps_native_and_xwayland_identity(self):
-        tree=dict(nodes=[dict(type='workspace',name='work',nodes=[dict(id=72,app_id='native',name='own',focused=True,rect={}),dict(id=73,window=12,window_properties={'class':'legacy'})])])
-        desktop=Desktop(lambda _:json.dumps(tree),'sway')
-        rows=desktop.windows();self.assertEqual(rows[0]['id'],'72');self.assertEqual(rows[0]['workspace'],'work');self.assertTrue(rows[1]['xwayland'])
+    def test_unsupported_desktop_is_rejected_without_running_commands(self):
+        runner=Mock()
+        for backend in ('sway','bspwm','x11'):
+            with self.subTest(backend=backend),self.assertRaisesRegex(ValueError,'Hyprland'):
+                Desktop(runner,backend)
+        runner.assert_not_called()
 
 if __name__=='__main__':unittest.main()

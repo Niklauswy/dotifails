@@ -24,11 +24,11 @@ class NativeUITests(unittest.TestCase):
             field=KeyField('old');values=[];field.captured.connect(values.append);field.record()
             field.keyPressEvent(QKeyEvent(QKeyEvent.KeyPress,Qt.Key_J,Qt.ControlModifier|Qt.AltModifier))
             field.keyReleaseEvent(QKeyEvent(QKeyEvent.KeyRelease,Qt.Key_Control,Qt.NoModifier))
-            self.assertEqual(values,['ctrl + alt + j']);self.assertIsNone(field.connection);field.close()
+            self.assertEqual(values,['ctrl + alt + j']);self.assertFalse(field.recording);self.assertFalse(field.timer.isActive());field.close()
     def test_lock_and_suspend_use_managed_acquire_wrapper(self):
         import screen_lock
         with tempfile.TemporaryDirectory() as home,patch.dict(os.environ,{'HOME':home,'WAYLAND_DISPLAY':'owned'}):
-            wrapper=Path(home)/'.local/bin/wysun-lock';wrapper.parent.mkdir(parents=True);wrapper.write_text('# synthetic no execution\n')
+            wrapper=Path(home)/'.local/bin/wysun-lock';wrapper.parent.mkdir(parents=True);wrapper.write_text('# synthetic no execution\n');wrapper.chmod(0o700)
             self.assertEqual(screen_lock.lock_command(),[str(wrapper)])
 
 if __name__=='__main__':unittest.main()
