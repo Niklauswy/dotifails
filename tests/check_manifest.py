@@ -32,6 +32,12 @@ for base in ('config','apps','bin','assets'):
    assert not re.search(r'/home/nicolas|~/proyects/|\.local/opt/',text),str(p)
    assert not re.search(r'\brofi(?:\s|/|-)',text,re.I),str(p)
   assert p.suffix not in ('.sqlite3','.db'),str(p)
+runtime=json.loads((root/'manifests/runtime.json').read_text())
+for name,source in runtime['sources'].items():
+ assert source['url'].startswith('https://'),name
+ assert re.fullmatch('[a-f0-9]{40}',source.get('commit','0'*40)) and re.fullmatch('[a-f0-9]{64}',source.get('sha256','0'*64)),name
+assert re.fullmatch(r'\d+\.\d+\.\d+',runtime['qt']['version'])
+assert not any('caelestia' in str(p).lower() for p in (root/'apps/shell').rglob('*') if p.name not in ('UPSTREAM.json','LICENSE','THIRD_PARTY.md')),'shell paths must not use the former project name'
 print('MANIFEST_OK: five theme profiles with their wallpapers, matching tool locks, no conflicting shortcuts or personal paths')
 
 assert (root/'bin/orbit-tools').is_file()
