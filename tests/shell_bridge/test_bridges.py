@@ -158,7 +158,10 @@ class DispatcherTests(unittest.TestCase):
         script = (ROOT / 'bin/wysun-shell').read_text()
         names = re.search(r'test\|([\w|]+)\) ;;', script)[1].split('|') + ['test']
         for name in set(names):
-            self.assertRegex(qml, rf'\b{name}:')
+            if name == 'processes':
+                self.assertIn('if (kind === "processes") return processes.open(toggle)', qml)
+            else:
+                self.assertRegex(qml, rf'\b{name}:')
 
     def test_hyprland_shell_bindings_use_dispatcher_commands(self):
         lua = (ROOT / 'config/.config/wysun/hyprland.lua').read_text()

@@ -78,12 +78,18 @@ class LauncherDispatchTests(unittest.TestCase):
     def test_settings_connections_and_processes_open_native_pages(self):
         helper = str(ROOT / 'bin/wysun-shell')
         for args, route in ((('settings',), 'home'), (('settings', 'displays'), 'displays'),
-                            (('connections',), 'network'), (('processes',), 'processes'),
+                            (('connections',), 'network'),
                             (('settings-effects',), 'effects')):
             status, run, execute = self.invoke(args)
             self.assertEqual(status, 0, args)
             self.assertEqual(run.call_args.args[0], [helper, 'nexus', route])
             execute.assert_not_called()
+
+    def test_processes_opens_dedicated_shell_widget(self):
+        status, run, execute = self.invoke(('processes',))
+        self.assertEqual(status, 0)
+        self.assertEqual(run.call_args.args[0], [str(ROOT / 'bin/wysun-shell'), 'open', 'processes'])
+        execute.assert_not_called()
 
     def test_native_pages_never_fall_back_to_a_qt_window(self):
         for kwargs in ({'response': 'false\n'}, {'code': 1}, {'error': FileNotFoundError()},
