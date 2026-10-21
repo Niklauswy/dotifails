@@ -20,7 +20,7 @@ Item {
 
     signal close
 
-    // Jump to a page (and an optional sub-page of the Escritorio section).
+    // Jump to a page and its optional sub-page.
     property int pendingSub: -1
     property string pendingKind
 
@@ -42,8 +42,6 @@ Item {
     function openPending(sub: int, kind: string): void {
         if (sub < 0)
             return;
-        nState.desktopKind = kind;
-        nState.selectedShortcut = null;
         nState.openSubPage(sub);
     }
 

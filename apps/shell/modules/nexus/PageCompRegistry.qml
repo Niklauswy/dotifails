@@ -13,8 +13,6 @@ import qs.modules.nexus.pages.audio
 import qs.modules.nexus.pages.bluetooth
 import qs.modules.nexus.pages.network
 import qs.modules.nexus.pages.panels
-import qs.modules.nexus.pages.processes
-import qs.modules.nexus.pages.ssh
 import qs.modules.nexus.pages.services
 import qs.modules.nexus.pages.wallandstyle
 import qs.modules.nexus.pages.panels.taskbar
@@ -94,17 +92,9 @@ QtObject {
                 }
             }
         },
-        Component {
-            // SSH
-            StackPage {
-                Component {
-                    SshPage {}
-                }
-                Component {
-                    SshEditPage {}
-                }
-            }
-        },
+
+        Component { StackPage { Component { DisplaysPage {} } } },
+        Component { StackPage { Component { WorkspacesPage {} } } },
 
         // System
         Component {
@@ -112,17 +102,6 @@ QtObject {
         },
         Component {
             PlaceholderComp {}
-        },
-        Component {
-            // Processes
-            StackPage {
-                Component {
-                    ProcessesPage {}
-                }
-                Component {
-                    ProcessDetailPage {}
-                }
-            }
         },
 
         // Shell
@@ -207,41 +186,8 @@ QtObject {
                     AboutPage {}
                 }
             }
-        },
-        Component {
-            StackPage {
-                Component {
-                    DesktopPage {}
-                }
-                Component {
-                    DisplaysPage {}
-                }
-                Component {
-                    WorkspacesPage {}
-                }
-                Component {
-                    ShortcutsPage {}
-                }
-                Component {
-                    ShortcutEditPage {}
-                }
-                Component {
-                    WindowsPage {}
-                }
-                Component {
-                    RuleEditPage {}
-                }
-                Component {
-                    ComponentPage {}
-                }
-                Component {
-                    StartupPage {}
-                }
-                Component {
-                    BackupsPage {}
-                }
-            }
         }
+
     ]
 
     readonly property Component placeholderComp: Component {
