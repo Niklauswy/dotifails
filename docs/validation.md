@@ -128,3 +128,29 @@ La prueba limpia Debian del runtime permanece pendiente, independiente del
 resultado de despliegue. El primer intento agotó el tmpfs de `/tmp`; el segundo
 se inició con almacén aislado en disco y no se toma como aprobado sin su marcador
 final. La entrada preparada es `tests/container-runtime.sh`.
+
+
+## Incremento C/D · 21 de octubre de 2026
+
+Código desplegado `88210e18`: commits de lateral y lanzador `e2883e7b` y
+`9fdc3266`, integrados como `f7fba72c` y `d6420897`, más corrección de máscara
+fullscreen. El dispatcher conserva `wysun recover` y el runtime privado.
+Respaldo incremental sin conflictos: `20261021T114343Z-524d46`; en `manual/`
+está la preimagen del archivo de Hyprland antes de añadir Ctrl+X.
+
+El puente pasa 26/26 checks. En la sesión real se verificaron cuatro toggles
+con Ctrl+X, Escape en lateral y lanzador predeterminado, consulta «foot» y Enter
+abriendo una terminal nueva. Sobre esa terminal en fullscreen, launcher y
+lateral recibieron Escape y devolvieron el control. La lateral abrió y cerró
+con Escape en eDP-1, DP-1 y DP-2. Al limpiar, la dirección y PID de la terminal
+de prueba ya no existían: no se cerró ninguna otra ventana. Recovery siguió
+respondiendo correctamente y Hyprland no se reinició.
+
+Ctrl+X queda reservado globalmente para la lateral, incluso dentro de editores.
+Esto intercepta esa combinación de Cortar; se conservan las acciones Cortar y
+sus atajos alternativos. No se eliminaron acciones de ninguna aplicación.
+
+La máscara heredada vacía en fullscreen podía mantener foco sobre un panel
+inaccesible. `88210e18` utiliza la región interactiva y capa overlay cuando
+hay un panel invocado, y cierra los estados de lateral/utilidades al cambiar
+fullscreen. No se modificó ni reconstruyó el plugin C++.

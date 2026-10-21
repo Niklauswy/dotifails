@@ -50,7 +50,7 @@ detectan por huella y se guardan como `incoming/`).
 viven en `hyprland.lua`.
 
 - **IPC**: `wysunShell` (en `apps/shell/wysun/WysunBridge.qml`): `toggle|open <superficie>`, `close`, `status`, `reloadPreferences`,
-  `theme`, `openThemeSettings`. Superficies: `dashboard, launcher, menu, quicksettings, notifications, windows, session`.
+  `theme`, `openThemeSettings`. Superficies: `dashboard, launcher, menu, quicksettings, notifications, sidebar, windows, session`.
   Acceso: `wysun-shell <acción> [superficie]` (o `wysun shell …`). `wysun-shell status` devuelve JSON (pantallas, abiertas, esquema).
 - **Capas Layer Shell**: espacio de nombres `wysun-*` (`wysun-drawers`, `wysun-background`, `wysun-border-exclusion`…). Las reglas de
   Hyprland usan `^wysun-.*$`.
@@ -162,9 +162,13 @@ Nunca reiniciar Hyprland ni el login para actualizar un panel.
 - **Atajos**: `config/.config/wysun/hyprland.lua` (Hyprland 0.55, Lua). Atajos privados en `~/.config/wysun/local.lua`.
   Los de captura apuntan a `wysun screenshot …` / `wysun recorder …`. `apps/wysun/settings_shortcuts.py` y `shortcut_capture.py`
   los editan desde Ajustes. `apps/shell/daemons/Shortcuts.qml` está disponible si se decide mover atajos al shell.
-- **Lanzador**: hoy `wysun` abre el lanzador Qt (`orbit.py`); `WYSUN_LAUNCHER=qml` prueba primero `wysun-shell launcher`
-  (`apps/shell/modules/launcher`). Sus acciones por defecto en `plugin/src/Wysun/Config/launcherconfig.hpp` llaman a comandos
+- **Lanzador**: en Wayland `wysun` abre por defecto el widget inferior del shell (`apps/shell/modules/launcher`).
+  `WYSUN_LAUNCHER=qt` elige la paleta Qt; si el shell rechaza o no está disponible se usa ese alternativo. Una respuesta
+  ambigua o un timeout no abre un segundo lanzador. Sus acciones por defecto en `plugin/src/Wysun/Config/launcherconfig.hpp` llaman a comandos
   que ya no existen como `wysun wallpaper -r`: revisar al migrar el lanzador.
+- **Lateral**: `Ctrl+X` alterna el panel en el monitor enfocado y Escape lo cierra. La combinación se intercepta
+  globalmente, también en editores: las acciones Cortar y sus atajos alternativos siguen disponibles. Los paneles invocados
+  explícitamente conservan máscara interactiva y capa overlay sobre fullscreen; no dejan un foco invisible.
 - **Ajustes**: dos superficies conviven — Wysun Settings Qt (`apps/wysun/settings_*`) y el panel “nexus” del shell
   (`apps/shell/modules/nexus`, configuración en `~/.config/wysun/shell/shell.json`). `settings_hub.py`/`hypr_settings.py` escriben
   `~/.config/orbit/hypr-*.lua`, que `hyprland.lua` carga.
