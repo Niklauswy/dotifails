@@ -10,7 +10,7 @@ import qs.modules.processes
 Scope {
     id: root
     readonly property var surfaces: ({ dashboard: 'dashboard', test: 'dashboard', windows: 'dashboard',
-        launcher: 'launcher', emoji: 'emoji', menu: 'utilities', quicksettings: 'utilities', notifications: 'sidebar', sidebar: 'sidebar', session: 'session' })
+        overview: 'overview', launcher: 'launcher', emoji: 'emoji', menu: 'utilities', quicksettings: 'utilities', notifications: 'sidebar', sidebar: 'sidebar', session: 'session' })
     Processes { id: processes }
     function current() { return ShellState.forActive(); }
     function available(kind, state) {
@@ -29,6 +29,12 @@ Scope {
         if (!state || !field || !available(kind, state)) return false;
         const value = toggle ? !state[field] : true;
         close(); state[field] = value;
+        if (kind === 'overview') {
+            for (const output of Quickshell.screens) {
+                const other = ShellState.forScreen(output);
+                if (other) { other.overview = value; other.overviewKeyboard = other === state; }
+            }
+        }
         if (kind === 'launcher' && value) state.launcherCategory = 'all';
         if (kind === 'windows') state.dashboardTab = 3;
         return true;
@@ -40,6 +46,7 @@ Scope {
         const state = screen ? ShellState.forScreen(screen) : null;
         if (!state || !field || !available(kind, state)) return false;
         close(); state[field] = true;
+        if (kind === 'overview') state.overviewKeyboard = true;
         return true;
     }
     IpcHandler {
