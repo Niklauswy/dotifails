@@ -72,6 +72,10 @@ class Build:
     def env(self):
         env = dict(os.environ)
         env['PKG_CONFIG_PATH'] = os.pathsep.join(filter(None, [str(self.deps / 'lib/pkgconfig'), env.get('PKG_CONFIG_PATH', '')]))
+        # WYSUN_EXTRA_PREFIX: optional extra prefixes (headers/libs) for hosts where -dev packages cannot be installed.
+        for extra in filter(None, os.environ.get('WYSUN_EXTRA_PREFIX', '').split(os.pathsep)):
+            env['CPATH'] = os.pathsep.join(filter(None, [str(Path(extra) / 'include'), env.get('CPATH', '')]))
+            env['LIBRARY_PATH'] = os.pathsep.join(filter(None, [str(Path(extra) / 'lib'), env.get('LIBRARY_PATH', '')]))
         return env
 
     def cmake(self, source, build, prefix, *options):
