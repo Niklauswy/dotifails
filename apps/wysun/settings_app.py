@@ -69,6 +69,13 @@ def stale(started,window,root=ROOT):
             and not getattr(window,'jobs',None) and getattr(window,'trial',None) is None)
 
 
+def present_route(window, route):
+    """Navigate the existing window without rebuilding pages or discarding drafts."""
+    route = 'wallpaper' if route in ('theme', 'tema') else route
+    window.go(route if route in window.routes else 'home')
+    window.present()
+
+
 def main():
     runtime=Path(os.environ.get('XDG_RUNTIME_DIR',str(Path.home()/'.cache/orbit')))
     runtime.mkdir(parents=True,exist_ok=True,mode=0o700)
@@ -84,7 +91,7 @@ def main():
     if endpoint.exists():
         if not endpoint.is_socket():raise RuntimeError('La ruta de comunicación está ocupada por otro archivo.')
         endpoint.unlink()
-    app=QApplication(['Orbit','-name','Orbit']);app.setStyle('Fusion');app.setApplicationName('Orbit');app.setApplicationDisplayName('Wysun Ajustes');app.setDesktopFileName('orbit-settings');app.setQuitOnLastWindowClosed(False)
+    app=QApplication(['Orbit','-name','Orbit']);app.setStyle('Fusion');app.setApplicationName('Orbit');app.setApplicationDisplayName('Wysun Settings');app.setDesktopFileName('orbit-settings');app.setQuitOnLastWindowClosed(False)
     from theme_tokens import watch_theme
     watch_theme()
     server=LocalSettingsServer(endpoint,app)
@@ -96,7 +103,7 @@ def main():
         if stale(started,window):
             # An update installed new code: never keep serving the old pages.
             server.close();os.execv(sys.executable,[sys.executable,str(ROOT/'settings_app.py'),route])
-        window.go(route if route in window.routes else 'home');window.present()
+        present_route(window, route)
     server.requested.connect(present);QTimer.singleShot(0,lambda:present(page))
     def finish():
         for job in list(window.jobs):job.wait(15000)

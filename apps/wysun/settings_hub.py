@@ -83,7 +83,7 @@ class DisplayCanvas(QWidget):
 
 class SettingsHub(LegacySettingsWindow):
     def __init__(self,test=False,home=None):
-        Surface.__init__(self,'Ajustes del escritorio','',1120,740)
+        Surface.__init__(self,'Wysun Settings','',1120,740)
         self.setMinimumSize(920,620);self.test=test;self.jobs=[];self.inventory=[];self.display_draft=[];self.trial=None;self.widgets={};self.rules=[];self.extra_shortcuts=[];self.extra_loaded=False;self.routes={};self.page_titles={};self.component_controls={}
         self.env=EnvironmentSettings(home);self.backend=DesktopSettings(home);self.shortcuts=ShortcutFile(home);self.rules=copy.deepcopy(self.backend.saved.get('rules',[]))
         extend_style(self,'''QListWidget#navigation::item {padding:8px 10px;margin:1px 0;} QListWidget#navigation::item:selected {background:@nav_selected;color:@selection_text;} QLabel#section-note {color:@subtle;font-size:12px;} QTableWidget::item {padding:8px;}''')

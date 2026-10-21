@@ -23,7 +23,7 @@ class OrbitV3(OrbitV2):
         for r in rows:
             if r.get('key')=='network':r.update(title='Wysun Conexiones',subtitle='Wi-Fi, Bluetooth, VPN y SSH',tag='Super + N')
         rows.append(dict(kind='command',title='Wysun Recorder',subtitle='Grabar y editar videos localmente',icon='video',key='recorder',cmd=[str(Path.home()/'.local/bin/wysun'),'recorder'],tag='Super + Shift + L'))
-        rows.append(dict(kind='mode',mode='settings',title='Wysun Ajustes',subtitle='Pantallas, temas y atajos',icon='settings',key='settings',tag='Super + Alt + ,'))
+        rows.append(dict(kind='mode',mode='settings',title='Wysun Settings',subtitle='Pantallas, temas y atajos',icon='settings',key='settings',tag='Super + Alt + ,'))
         rows.append(dict(kind='command',title='Opciones del historial',subtitle='Pausar, limpiar y administrar el portapapeles',icon='clipboard',key='history-settings',cmd=[],tag='Ajustes'))
         rows=[r for r in rows if r.get('key') not in ('quicknote','color','processes')]
         for mode,title,subtitle,symbol in [('music','Wysun Music','Biblioteca local, playlists y descargas','music'),('tools','Wysun Tools','Proyectos, diagnósticos y archivos','terminal'),('notes','Wysun Notes','Markdown, favoritos y edición en Vim','file-text'),('processes','Wysun Processes','CPU, memoria, hilos y presión de recursos','cpu'),('color','Wysun Colors','Capturar, convertir y guardar colores','palette')]:

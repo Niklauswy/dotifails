@@ -90,5 +90,13 @@ QtObject {
             description: Tr.tr("System information, credits"),
             category: "about"
         },
+
+        // Keep existing page indices stable for the bar's deep links.
+        {
+            label: Tr.tr("Escritorio"),
+            icon: "desktop_windows",
+            description: Tr.tr("Pantallas, atajos, reglas, inicio y copias"),
+            category: "desktop"
+        },
     ]
 }
