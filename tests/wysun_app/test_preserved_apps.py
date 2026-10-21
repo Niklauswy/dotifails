@@ -5,7 +5,7 @@ import sys
 import tempfile
 import unittest
 from unittest.mock import patch
-sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'apps/wysun'))
 
 class PreservedAppsTests(unittest.TestCase):
     def test_music_close_reopen_preserves_session_favorites_order_and_lyrics(self):

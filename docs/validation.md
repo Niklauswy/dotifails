@@ -17,7 +17,7 @@ Cambios estructurales verificados:
 | Comprobación | Resultado |
 |---|---|
 | Suite general (`python3 -m unittest discover -s tests`) | 169 pruebas correctas |
-| Aplicaciones Wysun (`test_orbit`, `test_refinement`, `test_v2`, `test_v3`, `test_v4`) | 52 pruebas correctas |
+| Aplicaciones Wysun (`tests/wysun_app/`) | 52 pruebas correctas |
 | Lógica del shell (`apps/shell`: `tests.test_logic`) | 14 pruebas correctas |
 | Interfaz de utilidades (`tests/utility_ui.py`) | 6 pruebas correctas |
 | Captura (`apps/capture/run_tests.py`) | 354 pruebas correctas en 120,487 s |

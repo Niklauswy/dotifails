@@ -5,7 +5,7 @@ Qt is offscreen; this verifies real software rendering, not a Wayland compositor
 """
 import os,sys,tempfile,subprocess,time,json,resource,socket
 from pathlib import Path
-ROOT=Path(__file__).resolve().parents[3]
+ROOT=Path(__file__).resolve().parents[2]
 with tempfile.TemporaryDirectory(prefix='wysun-mpv-proof-') as temporary:
  os.environ.update(HOME=temporary,QT_QPA_PLATFORM='offscreen',WYSUN_LIBMPV=os.environ.get('WYSUN_LIBMPV','libmpv.so.2'))
  for var,folder in [('XDG_CONFIG_HOME','config'),('XDG_DATA_HOME','data'),('XDG_CACHE_HOME','cache'),('XDG_STATE_HOME','state'),('XDG_RUNTIME_DIR','run')]:

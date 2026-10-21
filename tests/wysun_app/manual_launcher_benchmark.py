@@ -16,7 +16,7 @@ import tempfile
 import time
 
 start=time.perf_counter()
-parser=argparse.ArgumentParser();parser.add_argument('--source',type=Path,default=Path(__file__).resolve().parents[1]);parser.add_argument('--platform',choices=['offscreen','wayland','xcb'],default='offscreen');args=parser.parse_args()
+parser=argparse.ArgumentParser();parser.add_argument('--source',type=Path,default=Path(__file__).resolve().parents[2] / 'apps/wysun');parser.add_argument('--platform',choices=['offscreen','wayland','xcb'],default='offscreen');args=parser.parse_args()
 with tempfile.TemporaryDirectory(prefix='wysun-launcher-bench-') as folder:
     home=Path(folder)
     os.environ['HOME']=str(home);os.environ['QT_QPA_PLATFORM']=args.platform;os.environ['ORBIT_REDUCED_MOTION']='1'

@@ -8,7 +8,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-SOURCE=Path(__file__).resolve().parents[1]/'backend.py'
+SOURCE=Path(__file__).resolve().parents[2]/'apps/shell/wysun/backend.py'
 spec=importlib.util.spec_from_file_location('wysun_cael_backend',SOURCE)
 backend=importlib.util.module_from_spec(spec);spec.loader.exec_module(backend)
 

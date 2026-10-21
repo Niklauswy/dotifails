@@ -4,7 +4,7 @@ import sys
 import tempfile
 import unittest
 from unittest.mock import Mock,patch
-sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'apps/wysun'))
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QKeyEvent

@@ -47,7 +47,7 @@ Las pruebas completas de la aplicación requieren `python3-pyside6.qttest`, adem
 
 ```sh
 cd apps/wysun
-QT_QPA_PLATFORM=offscreen python3 -m unittest test_orbit test_v2 test_v3 test_v4 test_settings_hub test_bar_visibility
+QT_QPA_PLATFORM=offscreen python3 -m unittest discover -s tests/wysun_app -t tests
 ```
 
 `tests/container-install.sh` prepara un usuario de prueba y ejecuta instalación, pruebas, repetición y verificaciones de Neovim en una imagen limpia. Se ejecuta dentro de un contenedor, nunca directamente en el equipo. No valida el arranque de un gestor gráfico, hardware Wi-Fi/Bluetooth ni GPU física; esas pruebas requieren una VM o equipo de prueba.

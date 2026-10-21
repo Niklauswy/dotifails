@@ -5,7 +5,7 @@ from pathlib import Path
 import sys
 import tempfile
 import unittest
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'apps/wysun'))
 import workspace_layout as layouts
 
 
@@ -167,7 +167,7 @@ class LoginRestoreTests(unittest.TestCase):
             self.assertFalse((Path(folder)/'.config/orbit/hypr-workspaces.lua').exists())
 
     def test_wrapper_runs_installed_runtime(self):
-        root = Path(__file__).resolve().parents[3]
+        root = Path(__file__).resolve().parents[2]
         text = (root/'bin/wysun-workspaces').read_text()
         self.assertIn("share/orbit/app/settings_runtime.py", text)
         self.assertIn("'workspaces'", text)

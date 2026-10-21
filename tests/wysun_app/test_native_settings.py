@@ -7,7 +7,7 @@ import sys
 import tempfile
 import unittest
 from unittest.mock import Mock,patch
-sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'apps/wysun'))
 from PySide6.QtCore import QMimeData,QUrl,QObject,QByteArray
 from PySide6.QtGui import QImage,QColor
 from PySide6.QtWidgets import QApplication
@@ -193,7 +193,7 @@ class NativeSettingsTests(unittest.TestCase):
         with patch.object(clip,'drain_watch_offer') as drain,patch.object(clip.subprocess,'check_output',return_value='text/plain'),patch.object(clip,'read_offer',return_value=b'own fixture'),patch('builtins.print'):
             clip.snapshot();drain.assert_called_once()
     def test_libmpv_distribution_copies_are_identical(self):
-        root=Path(__file__).resolve().parents[3]
+        root=Path(__file__).resolve().parents[2]
         self.assertEqual((root/'apps/wysun/mpv_embed.py').read_bytes(),(root/'apps/capture/loomrec/ui/mpv_embed.py').read_bytes())
 
 if __name__=='__main__':unittest.main()

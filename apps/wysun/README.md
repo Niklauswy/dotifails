@@ -52,7 +52,7 @@ Usa `dotifails restore` para listar respaldos y `dotifails restore ID` para recu
 
 ## Validación
 
-`python3 test_orbit.py` ejecuta las pruebas de cálculo seguro, retención, snippets, búsqueda, navegación, copiado de texto e imágenes y vista previa de archivos. Usa datos temporales y el backend offscreen.
+`python3 -m unittest tests.wysun_app.test_launcher_core` ejecuta las pruebas de cálculo seguro, retención, snippets, búsqueda, navegación, copiado de texto e imágenes y vista previa de archivos. Usa datos temporales y el backend offscreen.
 
 ## Versión 2 · medios y controles
 
@@ -71,7 +71,7 @@ El botón **Bloquear** usa `i3lock`, incluido en las dependencias del instalador
 - Alt + Tab usa el selector de ventanas de Wysun.
 - Barra flotante en tres secciones. Recursos abre información de sistema; red abre conexiones; clic derecho en volumen abre las salidas de audio; fecha abre calendario; campana abre notificaciones y clic derecho pausa los avisos.
 
-`python3 test_v2.py` valida además migración, colores sin prefijo, OCR real, cuadrícula de emojis a color, filtros, acciones, snippets enriquecidos y cancelación de apagado. Las pruebas de red son de consulta; no desconectan el equipo. Las conexiones nuevas y el bloqueo/suspensión dependen de NetworkManager, Polkit y el bloqueador del sistema.
+`python3 -m unittest tests.wysun_app.test_launcher_enhanced` valida además migración, colores sin prefijo, OCR real, cuadrícula de emojis a color, filtros, acciones, snippets enriquecidos y cancelación de apagado. Las pruebas de red son de consulta; no desconectan el equipo. Las conexiones nuevas y el bloqueo/suspensión dependen de NetworkManager, Polkit y el bloqueador del sistema.
 
 Los archivos de imagen que abres desde el historial se materializan en `~/.cache/orbit/opened/`, con permisos privados; los temporales de más de un día se limpian al volver a abrir una imagen.
 
@@ -121,7 +121,7 @@ Los cambios de Hyprland requieren «Aplicar cambios» y se aplican en vivo media
 
 ### Verificación v3
 
-`QT_QPA_PLATFORM=offscreen python3 -m unittest test_orbit test_v2 test_v3`
+`QT_QPA_PLATFORM=offscreen python3 -m unittest discover -s tests/wysun_app -t tests`
 
 52 pruebas: cálculos, medios, OCR, historial, menús contextuales, archivos con espacios, perfiles SSH, conflictos, guardado y reversión de ajustes, paneles independientes e iconos reales. Verificación adicional de Neovim leyendo un archivo temporal en modo headless y revisión visual de las ventanas en la sesión Wysun / Hyprland.
 
@@ -145,7 +145,7 @@ Conectar/desconectar, editar, confiar, olvidar, configurar IP/DNS y conexión au
 
 ### Verificación y copia
 
-`QT_QPA_PLATFORM=offscreen python3 -m unittest test_orbit test_v2 test_v3 test_v4`
+`QT_QPA_PLATFORM=offscreen python3 -m unittest discover -s tests/wysun_app -t tests`
 
 45 pruebas. La ampliación cubre OCR real de archivos e invalidación de caché, búsqueda literal, fotograma y metadatos de vídeo, acciones por tipo, copia de imágenes/archivos, vista ampliada y navegación/selección persistente en conexiones. Reproducción, pausa, salto temporal y cierre de mpv comprobados adicionalmente en la sesión Wysun / Hyprland con un vídeo de prueba.
 
@@ -174,7 +174,7 @@ Los cambios se aplican con el botón correspondiente. Los atajos se guardan desd
 
 Copias: `~/.local/share/orbit/settings-backups/`. Copia previa a esta ampliación: `~/.local/share/orbit/settings-upgrade-backups/20260925-131042/`. Las capturas de pantalla usadas para las pruebas no forman parte de la configuración.
 
-Verificación: `QT_QPA_PLATFORM=offscreen python3 -m unittest tests.test_native_settings test_v3`. Las pruebas de configuración usan directorios temporales; comprueban reversión de pantallas, confirmación, desconexión, persistencia, conflictos, conservación de archivos y fondos por monitor. Además se comprueba la captura de teclado y se revisan las secciones en la sesión Wysun / Hyprland real.
+Verificación: `QT_QPA_PLATFORM=offscreen python3 -m unittest tests.wysun_app.test_native_settings tests.wysun_app.test_desktop_utilities`. Las pruebas de configuración usan directorios temporales; comprueban reversión de pantallas, confirmación, desconexión, persistencia, conflictos, conservación de archivos y fondos por monitor. Además se comprueba la captura de teclado y se revisan las secciones en la sesión Wysun / Hyprland real.
 
 
 ## Utilidades nativas
@@ -199,7 +199,7 @@ En **Ajustes → Efectos y animaciones** puedes cambiar la opacidad (65–100%) 
 
 **Super + Shift + K** abre Monitor de actividad: selección estable entre muestras, medidores de consumo, presión PSI de CPU/RAM/E/S, carga del sistema, hilos con tiempo acumulado y punto de espera, grupos de control y cambios de contexto. Combina filtros como `cpu>5 mem>256m user:demo`, `pid:123`, `ppid:123` o `state:R`. Congelar detiene las muestras, F5 actualiza una vez. Las señales siguen verificando identidad con pidfd y protegen procesos de la sesión.
 
-Validación adicional: `QT_QPA_PLATFORM=offscreen python3 -m unittest test_refinement -v`. Las capturas de revisión usan datos de ejemplo. No contienen notas, historial ni comandos privados.
+Validación adicional: `QT_QPA_PLATFORM=offscreen python3 -m unittest tests.wysun_app.test_refinement -v`. Las capturas de revisión usan datos de ejemplo. No contienen notas, historial ni comandos privados.
 
 ## Temas
 

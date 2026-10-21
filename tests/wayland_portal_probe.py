@@ -29,7 +29,7 @@ def wait_for(function, description, timeout=20):
 
 
 def verify_gtk(run_dir, env, command, start):
-    sys.path.insert(0, str(ROOT / 'apps/wysun/tests'))
+    sys.path.insert(0, str(ROOT / 'tests/wysun_app'))
     from manual_gtk_filechooser_probe import run_cases as gtk_cases
     from wayland_test_pointer import SyntheticPointer
     pointer = SyntheticPointer(env);pointer.keyboard()

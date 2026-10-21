@@ -4,7 +4,7 @@ from pathlib import Path
 import sys
 import tempfile
 import unittest
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'apps/wysun'))
 import display_layout as layout
 
 
@@ -105,7 +105,7 @@ class RuntimeTests(unittest.TestCase):
             self.assertEqual((home / '.config/orbit/hypr-monitors.lua').read_text(), layout.monitors_fragment(saved))
 
     def test_hyprland_config_loads_fragment_after_local_preferences(self):
-        text = (Path(__file__).resolve().parents[3] / 'config/.config/wysun/hyprland.lua').read_text()
+        text = (Path(__file__).resolve().parents[2] / 'config/.config/wysun/hyprland.lua').read_text()
         self.assertLess(text.index('dofile(localPath)'), text.index('dofile(monitorsPath)'))
 
 
