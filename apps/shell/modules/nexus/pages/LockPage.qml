@@ -34,50 +34,50 @@ PageBase {
     title: "Lock & Idle"
     Component.onCompleted: load()
 
-    Process {
-        id: getProc
-
-        command: ["wysun-idle", "get"]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                try {
-                    const prefs = JSON.parse(text);
-                    root.lockMinutes = prefs.lock_minutes;
-                    root.displayOffMinutes = prefs.display_off_minutes;
-                    root.lockBeforeSleep = prefs.lock_before_sleep;
-                } catch (error) {
-                    root.status = "Could not read the idle preferences.";
-                    root.failed = true;
-                }
-            }
-        }
-    }
-
-    Process {
-        id: setProc
-
-        stdout: StdioCollector {
-            onStreamFinished: {
-                root.load();
-                root.status = "Saved and applied to this session.";
-                root.failed = false;
-            }
-        }
-        stderr: StdioCollector {
-            onStreamFinished: {
-                if (text.trim()) {
-                    root.status = text.trim();
-                    root.failed = true;
-                }
-            }
-        }
-    }
-
     ColumnLayout {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.top: parent.top
         width: root.cappedWidth
         spacing: Tokens.spacing.extraSmall / 2
+
+        Process {
+            id: getProc
+
+            command: ["wysun-idle", "get"]
+            stdout: StdioCollector {
+                onStreamFinished: {
+                    try {
+                        const prefs = JSON.parse(text);
+                        root.lockMinutes = prefs.lock_minutes;
+                        root.displayOffMinutes = prefs.display_off_minutes;
+                        root.lockBeforeSleep = prefs.lock_before_sleep;
+                    } catch (error) {
+                        root.status = "Could not read the idle preferences.";
+                        root.failed = true;
+                    }
+                }
+            }
+        }
+
+        Process {
+            id: setProc
+
+            stdout: StdioCollector {
+                onStreamFinished: {
+                    root.load();
+                    root.status = "Saved and applied to this session.";
+                    root.failed = false;
+                }
+            }
+            stderr: StdioCollector {
+                onStreamFinished: {
+                    if (text.trim()) {
+                        root.status = text.trim();
+                        root.failed = true;
+                    }
+                }
+            }
+        }
 
         SectionHeader {
             first: true
