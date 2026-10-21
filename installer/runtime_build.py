@@ -94,8 +94,9 @@ class Build:
         if not (venv / 'bin/aqt').exists():
             run([sys.executable, '-m', 'venv', venv])
             run([venv / 'bin/pip', 'install', '--quiet', 'aqtinstall==' + spec['aqtinstall']])
+        # aqt writes aqtinstall.log into its working directory: keep that out of the source tree.
         run([venv / 'bin/aqt', 'install-qt', 'linux', 'desktop', spec['version'], spec['arch'],
-             '-O', self.prefix / 'qt', '-m', *spec['modules']])
+             '-O', self.prefix / 'qt', '-m', *spec['modules']], cwd=self.cache)
         self.save('qt', spec)
 
     def deps_step(self):
