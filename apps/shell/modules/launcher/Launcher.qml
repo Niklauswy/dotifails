@@ -43,7 +43,7 @@ Scope {
             anchors.top: true
             margins.top: Math.max(8, modelData.height * 0.13 - pad)
             implicitWidth: panel.panelWidth + pad * 2
-            implicitHeight: panel.maxPanelHeight + pad * 2
+            implicitHeight: panel.panelHeight + pad * 2
             exclusionMode: ExclusionMode.Ignore
             WlrLayershell.layer: WlrLayer.Overlay
             WlrLayershell.keyboardFocus: active ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
@@ -69,6 +69,8 @@ Scope {
 
                 x: win.pad
                 y: win.pad
+                originX: (win.modelData.width - win.width) / 2
+                originY: win.margins.top
                 screen: win.modelData
                 state: win.state
                 reveal: win.reveal

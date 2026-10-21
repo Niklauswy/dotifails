@@ -25,19 +25,50 @@ def row(kind, title, subtitle='', icon='', **extra):
     return dict(kind=kind, title=title, subtitle=subtitle, icon=icon, **extra)
 
 
+def clip_folder():
+    folder = Path(os.environ.get('XDG_RUNTIME_DIR') or tempfile.gettempdir()) / 'wysun-launcher'
+    folder.mkdir(mode=0o700, exist_ok=True)
+    return folder
+
+
+def clip_image(store, clip_id, folder):
+    """Export an image clip once as clip-<id>-<w>x<h>.png and return (path, width, height)."""
+    for found in folder.glob(f'clip-{clip_id}-*.png'):
+        try:
+            w, h = found.stem.split('-')[2].split('x')
+            return str(found), int(w), int(h)
+        except ValueError:
+            pass
+    blob = store.blob(clip_id)
+    if not blob:
+        return '', 0, 0
+    w, h = (int.from_bytes(blob[16:20], 'big'), int.from_bytes(blob[20:24], 'big')) if blob[:8] == b'\x89PNG\r\n\x1a\n' else (0, 0)
+    target = folder / f'clip-{clip_id}-{w}x{h}.png'
+    target.write_bytes(blob)
+    return str(target), w, h
+
+
 def clip_rows(store, text):
     words = text.split()
     wanted = CLIP_KINDS.get(words[0].casefold()) if words else None
     needle = ' '.join(words[1:] if wanted else words).casefold()
-    rows = []
+    rows, folder, images = [], clip_folder(), 0
     for r in store.clips():
         if needle not in r['text'].casefold() or (wanted and r['kind'] != wanted):
             continue
         kind = r['kind']
+        extra = {}
         title = 'Image' if kind == 'image' else (r['text'].split('\n')[0][:110] or '—')
+        if kind == 'image' and images < 40:
+            images += 1
+            path, w, h = clip_image(store, r['id'], folder)
+            if path:
+                extra = dict(thumb=path, width=w, height=h)
+                if w:
+                    title = f'Image ({w} × {h})'
         rows.append(row('clip', title, dt.datetime.fromtimestamp(r['stamp']).strftime('%d %b · %H:%M') + f'  ·  {kind}',
                         CLIP_ICONS.get(kind, 'description'), id=r['id'], clip_kind=kind, value=r['text'], stamp=r['stamp'],
-                        swatch=r['text'] if kind == 'color' else ''))
+                        swatch=r['text'] if kind == 'color' else '', **extra))
     return rows[:LIMIT]
 
 
@@ -283,19 +314,13 @@ def main(argv):
             store.db.close()
         return 0
     if len(argv) == 2 and argv[0] == 'clip-file':
-        # Image clips are exported once to the runtime dir so the shell can load them lazily by path.
         store = Store()
         try:
-            blob = store.blob(int(argv[1]))
+            path, _, _ = clip_image(store, int(argv[1]), clip_folder())
         finally:
             store.db.close()
-        if blob:
-            folder = Path(os.environ.get('XDG_RUNTIME_DIR') or tempfile.gettempdir()) / 'wysun-launcher'
-            folder.mkdir(mode=0o700, exist_ok=True)
-            target = folder / f'clip-{int(argv[1])}.png'
-            if not target.exists():
-                target.write_bytes(blob)
-            print(target)
+        if path:
+            print(path)
         return 0
     if len(argv) == 2 and argv[0] == 'preview':
         print(json.dumps(preview(argv[1]), ensure_ascii=False))

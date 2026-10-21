@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import QtQuick.Effects
 import QtQuick.Layouts
 import Quickshell
 import Wysun
@@ -26,9 +27,22 @@ Item {
 
     readonly property real scale: Math.max(0.85, Math.min(1.5, screen.height / 1080))
     readonly property real panelWidth: Math.min(760 * scale, screen.width - Tokens.padding.extraExtraLarge * 2)
-    readonly property real baseHeight: Math.min(480 * scale, screen.height - Tokens.padding.extraExtraLarge * 2)
-    readonly property real maxPanelHeight: Math.min(baseHeight * 1.2, screen.height - Tokens.padding.extraExtraLarge * 2)
-    property real panelHeight: previewOn ? maxPanelHeight : baseHeight
+    readonly property real panelHeight: Math.min(500 * scale, screen.height - Tokens.padding.extraExtraLarge * 2)
+    readonly property real maxPanelHeight: panelHeight
+    readonly property font fontBody: Tokens.font.body.builders.medium.size(10.5 * scale).build()
+    readonly property font fontSmall: Tokens.font.body.builders.small.size(9 * scale).build()
+    readonly property font fontStrong: Tokens.font.body.builders.small.size(9 * scale).weight(Font.Medium).build()
+    property real originX
+    property real originY
+    property string filter: "all"
+    property bool filterOpen
+    property string actionFilter
+    readonly property var filterOptions: ({
+            clipboard: [["all", "All Types"], ["text", "Text Only"], ["image", "Images Only"], ["url", "Links Only"], ["color", "Colors Only"]],
+            files: [["all", "All Files"], ["image", "Images Only"], ["folder", "Folders Only"]]
+        })
+    readonly property var filters: filterOptions[current.id] ?? null
+    readonly property string filterLabel: (filters?.find(f => f[0] === filter) ?? ["", ""])[1]
     readonly property alias surface: surface
 
     property var stack: [{id: "root"}]
@@ -47,7 +61,7 @@ Item {
     property bool hlOn
     readonly property string query: search.text
 
-    readonly property var results: current.id === "root" ? Results.root(query, LauncherIndex.context) : current.id === "snippet-form" ? [] : Results.view(current.id, query, LauncherIndex.context, current.target)
+    readonly property var results: current.id === "root" ? Results.root(query, LauncherIndex.context) : current.id === "snippet-form" ? [] : Results.view(current.id, query, LauncherIndex.context, current.target, filter)
     readonly property var items: flatten(results)
     readonly property var row: items[selected] ?? null
     readonly property bool formOpen: current.id === "snippet-form"
@@ -99,6 +113,8 @@ Item {
     }
 
     function push(view: var): void {
+        filter = "all";
+        filterOpen = false;
         search.clear();
         stack = stack.concat([view]);
         actionsOpen = false;
@@ -124,6 +140,8 @@ Item {
     function pop(): void {
         if (stack.length < 2)
             return;
+        filter = "all";
+        filterOpen = false;
         search.clear();
         stack = stack.slice(0, -1);
         actionsOpen = false;
@@ -315,6 +333,13 @@ Item {
             close();
     }
 
+    function openActions(): void {
+        actionFilter = "";
+        actionMenu.current = 0;
+        actionMenu.confirmId = "";
+        actionsOpen = true;
+    }
+
     function saveSnippet(): void {
         const args = ["save-snippet", form.title, form.shortcut, form.body];
         if (form.snippetId >= 0)
@@ -332,7 +357,9 @@ Item {
             return;
         }
         if (actionsOpen) {
-            if (e.key === Qt.Key_Up) actionMenu.move(-1);
+            if (e.key === Qt.Key_Backspace && actionFilter) actionFilter = actionFilter.slice(0, -1);
+            else if (!ctrl && e.text.length === 1 && e.text >= " " && e.key !== Qt.Key_Escape) actionFilter += e.text;
+            else if (e.key === Qt.Key_Up) actionMenu.move(-1);
             else if (e.key === Qt.Key_Down) actionMenu.move(1);
             else if (e.key === Qt.Key_Return || e.key === Qt.Key_Enter) runAction(actionMenu.actions[actionMenu.current]);
             else if (e.key === Qt.Key_Escape || (ctrl && e.key === Qt.Key_K)) actionsOpen = false;
@@ -361,7 +388,7 @@ Item {
             if (previewOn) previewFocus = true;
         } else if (e.key === Qt.Key_Backspace && search.text === "" && stack.length > 1) pop();
         else if (ctrl && e.key === Qt.Key_K) {
-            if (row) { actionMenu.current = 0; actionMenu.confirmId = ""; actionsOpen = true; }
+            if (row) openActions();
         } else if (ctrl && e.key === Qt.Key_Delete) {
             const del = Actions.actionsFor(row, false, []).find(a => a.shortcut === "Ctrl Del");
             if (del) runAction(del);
@@ -412,15 +439,11 @@ Item {
 
     // Visuals ------------------------------------------------------------------------------------
 
-    implicitWidth: panelWidth
-    implicitHeight: maxPanelHeight
+    readonly property color hairline: Qt.alpha(Colours.palette.m3onSurface, 0.1)
+    readonly property real rowRadius: Tokens.rounding.small
 
-    Behavior on panelHeight {
-        NumberAnimation {
-            duration: Tokens.anim.durations.small * 0.8
-            easing: Tokens.anim.standard
-        }
-    }
+    implicitWidth: panelWidth
+    implicitHeight: panelHeight
 
     Elevation {
         anchors.fill: surface
@@ -435,67 +458,116 @@ Item {
 
         width: root.panelWidth
         height: root.panelHeight
-        radius: Tokens.rounding.largeIncreased
-        color: Colours.palette.m3surfaceContainer
-        border.width: 1
-        border.color: Qt.alpha(Colours.palette.m3outlineVariant, 0.6)
-        clip: true
+        radius: Tokens.rounding.medium
+        color: "transparent"
         opacity: root.reveal
         scale: 0.96 + 0.04 * root.reveal
 
-        // Search field
+        // Frosted material: the wallpaper, blurred and tinted, under a translucent surface.
+        Item {
+            id: material
+
+            anchors.fill: parent
+            layer.enabled: true
+            layer.effect: MultiEffect {
+                maskEnabled: true
+                maskSource: maskShape
+                maskThresholdMin: 0.5
+                maskSpreadAtMin: 1
+            }
+
+            Image {
+                id: wall
+
+                x: -(root.originX + root.x + surface.x)
+                y: -(root.originY + root.y + surface.y)
+                width: root.screen.width
+                height: root.screen.height
+                source: Wallpapers.current ? "file://" + Wallpapers.current : ""
+                sourceSize: Qt.size(root.screen.width / 4, root.screen.height / 4)
+                fillMode: Image.PreserveAspectCrop
+                asynchronous: true
+                cache: true
+                layer.enabled: true
+                layer.effect: MultiEffect {
+                    blurEnabled: true
+                    blurMax: 48
+                    blur: 1
+                    saturation: 0.2
+                }
+            }
+            Rectangle {
+                anchors.fill: parent
+                color: Qt.alpha(Colours.palette.m3surface, Colours.light ? 0.82 : 0.78)
+            }
+        }
+        Item {
+            id: maskShape
+
+            anchors.fill: parent
+            visible: false
+            layer.enabled: true
+
+            Rectangle {
+                anchors.fill: parent
+                radius: surface.radius
+            }
+        }
+        Rectangle {
+            anchors.fill: parent
+            radius: surface.radius
+            color: "transparent"
+            border.width: 1
+            border.color: Qt.alpha(Colours.palette.m3onSurface, 0.14)
+        }
+
+        // Header -------------------------------------------------------------------------------
         Item {
             id: head
 
             anchors.top: parent.top
             anchors.left: parent.left
             anchors.right: parent.right
-            height: 64 * root.scale
+            height: 56 * root.scale
 
-            MaterialIcon {
+            Rectangle {
                 id: lead
 
                 anchors.left: parent.left
-                anchors.leftMargin: Tokens.padding.large + Tokens.padding.small
+                anchors.leftMargin: Tokens.padding.medium
                 anchors.verticalCenter: parent.verticalCenter
-                text: root.stack.length > 1 ? "arrow_back" : "search"
-                color: Colours.palette.m3onSurfaceVariant
-                fontStyle: Tokens.font.icon.builders.large.scale(root.scale).build()
+                width: 28 * root.scale
+                height: width
+                radius: width / 2
+                color: root.stack.length > 1 ? Qt.alpha(Colours.palette.m3onSurface, 0.1) : "transparent"
 
+                MaterialIcon {
+                    anchors.centerIn: parent
+                    text: root.stack.length > 1 ? "arrow_back" : "search"
+                    color: root.stack.length > 1 ? Colours.palette.m3onSurface : Colours.palette.m3onSurfaceVariant
+                    fontStyle: Tokens.font.icon.builders.medium.scale(root.scale * 0.9).build()
+                }
                 MouseArea {
                     anchors.fill: parent
-                    anchors.margins: -Tokens.padding.small
                     enabled: root.stack.length > 1
                     cursorShape: Qt.PointingHandCursor
                     onClicked: root.pop()
                 }
             }
 
-            StyledText {
-                id: crumb
-
-                anchors.left: lead.right
-                anchors.leftMargin: Tokens.spacing.medium
-                anchors.verticalCenter: parent.verticalCenter
-                visible: root.stack.length > 1
-                text: root.titles[root.current.id] ?? ""
-                font: Tokens.font.title.small
-                color: Colours.palette.m3primary
-            }
-
             TextFieldBase {
                 id: search
 
-                anchors.left: root.stack.length > 1 ? crumb.right : lead.right
-                anchors.leftMargin: Tokens.spacing.medium
-                anchors.right: busy.left
+                anchors.left: lead.right
+                anchors.leftMargin: Tokens.spacing.small
+                anchors.right: filterBox.visible ? filterBox.left : busy.left
                 anchors.rightMargin: Tokens.spacing.medium
                 anchors.verticalCenter: parent.verticalCenter
                 visible: !root.formOpen
                 background: null
                 leftPadding: 0
                 rightPadding: 0
-                font: Tokens.font.body.builders.large.size(20 * root.scale).build()
+                font: Tokens.font.body.builders.large.size(12.75 * root.scale).build()
                 focus: true
                 placeholderText: ""
                 onTextChanged: root.previewFocus = false
@@ -520,9 +592,52 @@ Item {
                 anchors.right: parent.right
                 anchors.rightMargin: Tokens.padding.large
                 anchors.verticalCenter: parent.verticalCenter
-                width: 20 * root.scale
+                width: 18 * root.scale
                 height: width
-                visible: root.busy
+                visible: root.busy && !filterBox.visible
+            }
+
+            // Compact filter dropdown (clipboard, files)
+            Rectangle {
+                id: filterBox
+
+                anchors.right: parent.right
+                anchors.rightMargin: Tokens.padding.medium
+                anchors.verticalCenter: parent.verticalCenter
+                visible: !!root.filters && !root.formOpen
+                width: filterRow.implicitWidth + Tokens.padding.large
+                height: 30 * root.scale
+                radius: Tokens.rounding.small
+                color: filterMouse.containsMouse ? Qt.alpha(Colours.palette.m3onSurface, 0.1) : "transparent"
+                border.width: 1
+                border.color: Qt.alpha(Colours.palette.m3onSurface, 0.16)
+
+                Row {
+                    id: filterRow
+
+                    anchors.centerIn: parent
+                    spacing: Tokens.spacing.medium
+
+                    StyledText {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: root.filterLabel
+                        font: root.fontStrong
+                    }
+                    MaterialIcon {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "keyboard_arrow_down"
+                        fontStyle: Tokens.font.icon.small
+                        color: Colours.palette.m3onSurface
+                    }
+                }
+                MouseArea {
+                    id: filterMouse
+
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: root.filterOpen = !root.filterOpen
+                }
             }
 
             Rectangle {
@@ -530,11 +645,11 @@ Item {
                 anchors.left: parent.left
                 anchors.right: parent.right
                 height: 1
-                color: Qt.alpha(Colours.palette.m3outlineVariant, 0.5)
+                color: root.hairline
             }
         }
 
-        // Body
+        // Body ---------------------------------------------------------------------------------
         Item {
             id: body
 
@@ -543,13 +658,12 @@ Item {
             anchors.left: parent.left
             anchors.right: parent.right
 
-            readonly property real gap: Tokens.spacing.medium
-            property real listWidth: root.previewOn ? width * 0.45 : width
+            property real listWidth: root.previewOn ? width * 0.4 : width
 
             Behavior on listWidth {
                 NumberAnimation {
                     duration: Tokens.anim.durations.small * 0.8
-                                        easing: Tokens.anim.standard
+                    easing: Tokens.anim.standard
                 }
             }
 
@@ -559,8 +673,6 @@ Item {
                 width: body.listWidth
                 height: parent.height
                 visible: !root.formOpen
-                opacity: 1
-                x: 0
 
                 ListView {
                     id: list
@@ -583,14 +695,14 @@ Item {
 
                     // Selection pill: slides between rows; rows report their geometry when current.
                     Rectangle {
-                        x: Tokens.padding.small
+                        x: 0
                         y: root.hlY
                         z: -1
-                        width: list.width - Tokens.padding.small * 2
+                        width: list.width
                         height: root.hlH
-                        radius: Tokens.rounding.medium
-                        color: Colours.palette.m3secondaryContainer
-                        opacity: root.hlOn && root.items.length > 0 ? 0.85 : 0
+                        radius: root.rowRadius
+                        color: Qt.alpha(Colours.palette.m3onSurface, 0.1)
+                        opacity: root.hlOn && root.items.length > 0 ? 1 : 0
 
                         Behavior on y {
                             enabled: root.hlOn
@@ -615,23 +727,31 @@ Item {
                     horizontalAlignment: Text.AlignHCenter
                     wrapMode: Text.WordWrap
                     text: Results.emptyText(root.current.id, root.query)
-                    font: Tokens.font.body.medium
+                    font: root.fontBody
                     color: Colours.palette.m3onSurfaceVariant
                 }
+            }
+
+            Rectangle {
+                x: body.listWidth
+                width: 1
+                height: parent.height
+                color: root.hairline
+                opacity: root.previewOn ? 1 : 0
             }
 
             PreviewPane {
                 id: preview
 
-                x: body.listWidth + body.gap
-                width: body.width - body.listWidth - body.gap * 2
-                height: parent.height - Tokens.padding.small
+                x: body.listWidth + 1
+                width: body.width - body.listWidth - 1
+                height: parent.height
                 opacity: root.previewOn ? 1 : 0
                 visible: opacity > 0.01
                 scale: root.scale
                 row: root.previewOn ? root.row : null
                 focusedPane: root.previewFocus
-                decodeSize: Qt.size(root.panelWidth * 0.55 * 2, root.maxPanelHeight * 2)
+                decodeSize: Qt.size(root.panelWidth * 0.6 * 2, 200 * root.scale * 2)
 
                 Behavior on opacity {
                     Anim {
@@ -650,30 +770,30 @@ Item {
             }
         }
 
-        // Footer
+        // Footer -------------------------------------------------------------------------------
         Item {
             id: foot
 
             anchors.bottom: parent.bottom
             anchors.left: parent.left
             anchors.right: parent.right
-            height: 44 * root.scale
+            height: 40 * root.scale
 
             Rectangle {
                 anchors.top: parent.top
                 anchors.left: parent.left
                 anchors.right: parent.right
                 height: 1
-                color: Qt.alpha(Colours.palette.m3outlineVariant, 0.5)
+                color: root.hairline
             }
 
             Row {
                 anchors.left: parent.left
-                anchors.leftMargin: Tokens.padding.large
+                anchors.leftMargin: Tokens.padding.medium
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: Tokens.spacing.small
 
-                readonly property bool appIcon: !!root.row && !root.formOpen && (root.row.kind === "app" || root.row.kind === "window")
+                readonly property bool appIcon: !!root.row && !root.formOpen && root.stack.length === 1 && (root.row.kind === "app" || root.row.kind === "window")
 
                 AppIcon {
                     anchors.verticalCenter: parent.verticalCenter
@@ -681,17 +801,26 @@ Item {
                     name: parent.appIcon ? root.row.icon : ""
                     size: 20 * root.scale
                 }
-                MaterialIcon {
+                // The extension icon carries the only accent colour.
+                Rectangle {
                     anchors.verticalCenter: parent.verticalCenter
                     visible: !parent.appIcon
-                    text: root.row && !root.formOpen ? root.row.icon || "bolt" : "bolt"
+                    width: 20 * root.scale
+                    height: width
+                    radius: Tokens.rounding.extraSmall + 1
                     color: Colours.palette.m3primary
-                    fontStyle: Tokens.font.icon.small
+
+                    MaterialIcon {
+                        anchors.centerIn: parent
+                        text: root.stack.length > 1 ? root.viewIcons[root.current.id] ?? "bolt" : root.row && !root.formOpen ? root.row.icon || "bolt" : "search"
+                        color: Colours.palette.m3onPrimary
+                        fontStyle: Tokens.font.icon.builders.small.scale(root.scale * 0.8).build()
+                    }
                 }
                 StyledText {
                     anchors.verticalCenter: parent.verticalCenter
-                    text: root.formOpen ? "New Snippet" : root.stack.length > 1 ? (root.titles[root.current.id] ?? "") + " · Esc to go back" : root.row ? root.row.title : "Wysun"
-                    font: Tokens.font.label.medium
+                    text: root.formOpen ? "New Snippet" : root.stack.length > 1 ? root.titles[root.current.id] ?? "" : root.row ? root.row.title : "Wysun"
+                    font: root.fontStrong
                     color: Colours.palette.m3onSurfaceVariant
                     elide: Text.ElideRight
                     width: Math.min(implicitWidth, root.panelWidth * 0.4)
@@ -700,52 +829,136 @@ Item {
 
             Row {
                 anchors.right: parent.right
-                anchors.rightMargin: Tokens.padding.large
+                anchors.rightMargin: Tokens.padding.small
                 anchors.verticalCenter: parent.verticalCenter
-                spacing: Tokens.spacing.large
+                spacing: Tokens.spacing.medium
                 visible: !root.formOpen
 
                 Row {
                     spacing: Tokens.spacing.small
                     anchors.verticalCenter: parent.verticalCenter
+
                     StyledText {
                         anchors.verticalCenter: parent.verticalCenter
                         text: Actions.primaryLabel(root.row)
-                        font: Tokens.font.label.medium
+                        font: root.fontStrong
                     }
                     Keycaps {
                         anchors.verticalCenter: parent.verticalCenter
                         keys: ["↵"]
                     }
                 }
-                Row {
-                    id: actionsHint
-
-                    spacing: Tokens.spacing.small
+                Rectangle {
                     anchors.verticalCenter: parent.verticalCenter
-                    StyledText {
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: "Actions"
-                        font: Tokens.font.label.medium
-                        color: Colours.palette.m3onSurfaceVariant
+                    width: 1
+                    height: 16 * root.scale
+                    color: root.hairline
+                }
+                Rectangle {
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: actionsHint.implicitWidth + Tokens.padding.medium
+                    height: 28 * root.scale
+                    radius: Tokens.rounding.small
+                    color: actionsMouse.containsMouse || root.actionsOpen ? Qt.alpha(Colours.palette.m3onSurface, 0.1) : "transparent"
+
+                    Row {
+                        id: actionsHint
+
+                        anchors.centerIn: parent
+                        spacing: Tokens.spacing.small
+
+                        StyledText {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "Actions"
+                            font: root.fontStrong
+                            color: Colours.palette.m3onSurfaceVariant
+                        }
+                        Keycaps {
+                            anchors.verticalCenter: parent.verticalCenter
+                            keys: ["Ctrl", "K"]
+                        }
                     }
-                    Keycaps {
-                        anchors.verticalCenter: parent.verticalCenter
-                        keys: ["Ctrl", "K"]
+                    MouseArea {
+                        id: actionsMouse
+
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            if (!root.row)
+                                return;
+                            if (root.actionsOpen)
+                                root.actionsOpen = false;
+                            else
+                                root.openActions();
+                        }
                     }
                 }
             }
+        }
 
-            MouseArea {
-                anchors.right: parent.right
-                anchors.top: parent.top
-                anchors.bottom: parent.bottom
-                width: actionsHint.width + Tokens.padding.large
-                cursorShape: Qt.PointingHandCursor
-                onClicked: {
-                    if (root.row) {
-                        actionMenu.current = 0;
-                        root.actionsOpen = !root.actionsOpen;
+        // Filter dropdown menu
+        Rectangle {
+            visible: root.filterOpen && !!root.filters
+            anchors.right: parent.right
+            anchors.rightMargin: Tokens.padding.medium
+            anchors.top: head.bottom
+            anchors.topMargin: -Tokens.padding.extraSmall
+            width: 180 * root.scale
+            height: filterList.implicitHeight + Tokens.padding.small * 2
+            radius: Tokens.rounding.small
+            color: Qt.alpha(Colours.palette.m3surfaceContainerHigh, 0.97)
+            border.width: 1
+            border.color: Qt.alpha(Colours.palette.m3onSurface, 0.16)
+            z: 5
+
+            Column {
+                id: filterList
+
+                anchors.fill: parent
+                anchors.margins: Tokens.padding.small
+
+                Repeater {
+                    model: root.filters ?? []
+
+                    Rectangle {
+                        id: opt
+
+                        required property var modelData
+
+                        width: filterList.width
+                        height: 30 * root.scale
+                        radius: Tokens.rounding.extraSmall
+                        color: optMouse.containsMouse ? Qt.alpha(Colours.palette.m3onSurface, 0.1) : "transparent"
+
+                        StyledText {
+                            anchors.left: parent.left
+                            anchors.leftMargin: Tokens.padding.small
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: opt.modelData[1]
+                            font: root.fontStrong
+                        }
+                        MaterialIcon {
+                            anchors.right: parent.right
+                            anchors.rightMargin: Tokens.padding.small
+                            anchors.verticalCenter: parent.verticalCenter
+                            visible: root.filter === opt.modelData[0]
+                            text: "check"
+                            fontStyle: Tokens.font.icon.small
+                        }
+                        MouseArea {
+                            id: optMouse
+
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                root.filter = opt.modelData[0];
+                                root.filterOpen = false;
+                                root.autoFirst = true;
+                                search.forceActiveFocus();
+                            }
+                        }
                     }
                 }
             }
@@ -756,11 +969,12 @@ Item {
             id: actionMenu
 
             anchors.right: parent.right
-            anchors.rightMargin: Tokens.padding.large
+            anchors.rightMargin: Tokens.padding.small
             anchors.bottom: foot.top
-            anchors.bottomMargin: Tokens.padding.small
+            anchors.bottomMargin: Tokens.padding.extraSmall
             scale: root.scale
-            actions: Actions.actionsFor(root.row, root.row ? LauncherIndex.isPinned(root.row) : false, root.desktopActionsOf(root.row))
+            source: Actions.actionsFor(root.row, root.row ? LauncherIndex.isPinned(root.row) : false, root.desktopActionsOf(root.row))
+            filterText: root.actionFilter
             visible: opacity > 0.01
             opacity: root.actionsOpen ? 1 : 0
             transformOrigin: Item.BottomRight
@@ -776,33 +990,39 @@ Item {
         MouseArea {
             anchors.fill: parent
             z: -1
-            onClicked: root.actionsOpen = false
+            onClicked: {
+                root.actionsOpen = false;
+                root.filterOpen = false;
+            }
         }
     }
 
     // View change: the list slides in a few pixels while fading.
-    SequentialAnimation {
+    ParallelAnimation {
         id: viewAnim
 
-        ParallelAnimation {
-            NumberAnimation {
-                target: listBox
-                property: "opacity"
-                from: 0
-                to: 1
-                duration: Tokens.anim.durations.expressiveFastEffects
-                                easing: Tokens.anim.standard
-            }
-            NumberAnimation {
-                target: listBox
-                property: "x"
-                from: Tokens.padding.large
-                to: 0
-                duration: Tokens.anim.durations.expressiveFastEffects
-                                easing: Tokens.anim.standard
-            }
+        NumberAnimation {
+            target: listBox
+            property: "opacity"
+            from: 0
+            to: 1
+            duration: Tokens.anim.durations.expressiveFastEffects
+            easing: Tokens.anim.standard
+        }
+        NumberAnimation {
+            target: listBox
+            property: "x"
+            from: Tokens.padding.large
+            to: 0
+            duration: Tokens.anim.durations.expressiveFastEffects
+            easing: Tokens.anim.standard
         }
     }
+
+    readonly property var viewIcons: ({
+            clipboard: "content_paste", snippets: "data_object", windows: "web_asset", files: "folder_open", apps: "apps",
+            system: "power_settings_new", "calc-history": "calculate", openwith: "apps", "snippet-form": "data_object"
+        })
 
     function focusSearch(): void {
         search.forceActiveFocus();

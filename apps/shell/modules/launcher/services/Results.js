@@ -1,6 +1,7 @@
 .pragma library
 .import "Search.js" as Search
 .import "Calc.js" as Calc
+.import "Files.js" as Files
 
 // Pure result builders. `ctx` is a snapshot of the in-memory indexes (apps, commands, windows,
 // clipboard, snippets, files, usage); nothing here touches processes or the filesystem.
@@ -72,10 +73,10 @@ function filtered(query, list, limit) {
     return q ? Search.rank(Search.terms(q), list, limit) : list.slice(0, limit);
 }
 
-function view(id, query, ctx, target) {
+function view(id, query, ctx, target, filter) {
     switch (id) {
     case "clipboard":
-        return filtered(query, ctx.clips, 150).map(r => Object.assign({}, r, {section: dayLabel(r.stamp)}));
+        return filtered(query, ctx.clips.filter(r => !filter || filter === "all" || r.clip_kind === filter), 150).map(r => Object.assign({}, r, {section: dayLabel(r.stamp)}));
     case "snippets": {
         const create = {kind: "cmd", key: "snippet-new", title: "Create Snippet", subtitle: "Name, abbreviation and text", icon: "add", type: "Action", form: "snippet", section: "Snippets"};
         return [create].concat(tag(filtered(query, ctx.snippets, 100), "Snippets"));
@@ -83,7 +84,8 @@ function view(id, query, ctx, target) {
     case "windows":
         return tag(filtered(query, ctx.windows, 100), "Open Windows");
     case "files":
-        return query.trim() ? tag(ctx.files, "Results") : tag(ctx.recentFiles.slice(0, 40), "Recent Files");
+        const keep = r => !filter || filter === "all" || (filter === "image" ? !r.isDir && Files.isImage(r.path) : r.isDir);
+        return query.trim() ? tag(ctx.files.filter(keep), "Results") : tag(ctx.recentFiles.filter(keep).slice(0, 40), "Recent Files");
     case "apps": {
         const sorted = query.trim() ? Search.rank(Search.terms(query), ctx.apps, 200, appBoost) : ctx.apps.slice().sort((a, b) => a.l < b.l ? -1 : 1);
         return tag(sorted, "Applications");

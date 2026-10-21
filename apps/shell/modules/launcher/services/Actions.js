@@ -21,6 +21,15 @@ function primaryLabel(row) {
 }
 
 function actionsFor(row, pinned, desktopActions) {
+    return grouped(rawActions(row, pinned, desktopActions));
+}
+
+// Group 0: the primary action, 1: the rest, 2: destructive ones.
+function grouped(list) {
+    return list.map((x, i) => Object.assign(x, {group: x.danger ? 2 : (i === 0 ? 0 : 1)}));
+}
+
+function rawActions(row, pinned, desktopActions) {
     if (!row)
         return [];
     const pin = a("pin", pinned ? "Unpin from Favorites" : "Pin to Favorites", pinned ? "keep_off" : "keep");
