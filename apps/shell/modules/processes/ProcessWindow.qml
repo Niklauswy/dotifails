@@ -214,7 +214,7 @@ FloatingWindow {
                             }
                             StyledText { anchors.centerIn: parent; visible: !table.count; text: win.started ? 'No matching processes' : 'Connecting to process telemetry…'; color: Colours.palette.m3onSurfaceVariant }
                         }
-                        StyledText { text: win.matched + ' matching · ' + win.rows.length + ' rows · CPU: 100% = one logical core'; font: Tokens.font.label.small; color: Colours.palette.m3onSurfaceVariant }
+                        StyledText { text: win.matched + ' matching · ' + win.rows.length + (win.rows.length === 1 ? ' row' : ' rows') + ' · CPU: 100% = one logical core'; font: Tokens.font.label.small; color: Colours.palette.m3onSurfaceVariant }
                     }
                 }
                 Rectangle {
@@ -226,7 +226,7 @@ FloatingWindow {
                         anchors.fill: parent; anchors.margins: Tokens.padding.medium; spacing: Tokens.spacing.small
                         StyledText { text: win.selected ? win.selected.name : 'Process inspector'; font: Tokens.font.title.medium; Layout.fillWidth: true; elide: Text.ElideRight }
                         StyledText { text: win.selected ? 'PID ' + win.selected.pid + ' · parent ' + win.selected.ppid + ' · ' + (win.exited ? 'Exited' : win.selected.stateLabel) : 'Select a process to inspect its activity, files and threads.'; Layout.fillWidth: true; wrapMode: Text.Wrap; color: Colours.palette.m3onSurfaceVariant }
-                        Metric { visible: !!win.selected; Layout.fillWidth: true; implicitHeight: Tokens.spacing.extraExtraLarge * 2.5; label: 'Process CPU · ' + win.size(win.selected?.memory); value: win.pct(win.selected?.cpu); samples: win.processHistory; ceiling: Math.max(100, ...win.processHistory); subtitle: win.selected ? win.selected.threads + ' threads · nice ' + win.selected.nice : '' }
+                        Metric { visible: !!win.selected; Layout.fillWidth: true; implicitHeight: Tokens.spacing.extraExtraLarge * 2.5; label: 'Process CPU · ' + win.size(win.selected?.memory); value: win.pct(win.selected?.cpu); samples: win.processHistory; ceiling: Math.max(100, ...win.processHistory); subtitle: win.selected ? win.selected.threads + (win.selected.threads === 1 ? ' thread' : ' threads') + ' · nice ' + win.selected.nice : '' }
                         StyledText { visible: !!win.selected; text: win.selected?.reason || 'Actions affect only the selected process.'; Layout.fillWidth: true; wrapMode: Text.Wrap; color: Colours.palette.m3onSurfaceVariant; font: Tokens.font.label.small }
                         Flow {
                             visible: !!win.selected; Layout.fillWidth: true; Layout.preferredHeight: childrenRect.height; spacing: Tokens.spacing.extraSmall
