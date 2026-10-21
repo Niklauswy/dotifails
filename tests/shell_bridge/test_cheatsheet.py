@@ -29,6 +29,10 @@ class CheatsheetTests(unittest.TestCase):
         found = groups(STOCK + NEW % ('Notes', 'Quick note'))
         self.assertEqual(found['Notes'], [{'keys': ['Super', 'Shift', 'N'], 'label': 'Quick note'}])
 
+    def test_recover_bind_is_listed_under_session(self):
+        line = 'hl.bind("SUPER + Escape", hl.dsp.exec_cmd("sh -c \'wysun recover; hyprctl reload\'"), {description="Wysun | session | Recover desktop"})\n'
+        self.assertEqual(groups(line)['Session'][0]['keys'], ['Super', 'Esc'])
+
     def test_legacy_provenance_tags_keep_derived_labels(self):
         found = groups(STOCK)
         self.assertEqual(found['Apps'][0]['label'], 'Terminal')

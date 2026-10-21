@@ -39,6 +39,8 @@ def describe(action):
     m = re.match(r'hl\.dsp\.exec_cmd\("(.*)"\)$', action)
     if m:
         cmd = m.group(1).split()
+        if cmd[:2] == ['sh', '-c'] and 'wysun recover' in m.group(1):
+            return ('Session', 'Recover desktop: relaunch shell and reload Hyprland')
         if cmd == ['wysun']:
             return ('Shell', 'Open the launcher')
         if cmd[0] == 'wysun' and len(cmd) > 1:
