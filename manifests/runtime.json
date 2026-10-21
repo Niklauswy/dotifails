@@ -57,6 +57,7 @@
     "libqalculate-dev",
     "libaubio-dev",
     "libsensors-dev",
-    "libvulkan-dev"
+    "libvulkan-dev",
+    "libpulse0"
   ]
 }
