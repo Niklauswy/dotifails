@@ -6,28 +6,38 @@ import qs.components
 import qs.components.effects
 import qs.services
 
-// Ctrl+K popover with the secondary actions of the selected item.
+// Ctrl+K popover: grouped actions with shortcut keycaps and a filter line at the bottom.
 Item {
     id: root
 
-    property var actions: []
+    property var source: []
+    property string filterText
     property int current: 0
     property string confirmId
     property real scale: 1
+    readonly property font body: Tokens.font.body.builders.medium.size(10.5 * scale).build()
+
+    readonly property var actions: {
+        const f = filterText.trim().toLowerCase();
+        return f ? source.filter(a => a.title.toLowerCase().includes(f)) : source;
+    }
 
     signal triggered(var action)
 
-    implicitWidth: 340 * scale
-    implicitHeight: list.contentHeight + Tokens.padding.small * 2
+    implicitWidth: 310 * scale
+    implicitHeight: list.contentHeight + footer.height + Tokens.padding.small * 2 + 1
+
+    onFilterTextChanged: current = 0
 
     function move(d: int): void {
-        current = (current + d + actions.length) % actions.length;
+        if (actions.length)
+            current = (current + d + actions.length) % actions.length;
     }
 
     Elevation {
         anchors.fill: parent
         radius: panel.radius
-        level: 3
+        level: 4
     }
 
     Rectangle {
@@ -35,66 +45,106 @@ Item {
 
         anchors.fill: parent
         radius: Tokens.rounding.medium
-        color: Colours.palette.m3surfaceContainerHigh
+        color: Qt.alpha(Colours.palette.m3surfaceContainerHigh, 0.96)
         border.width: 1
-        border.color: Colours.palette.m3outlineVariant
+        border.color: Qt.alpha(Colours.palette.m3onSurface, 0.16)
+        clip: true
 
         ListView {
             id: list
 
-            anchors.fill: parent
+            anchors.top: parent.top
+            anchors.left: parent.left
+            anchors.right: parent.right
             anchors.margins: Tokens.padding.small
+            height: contentHeight
             interactive: false
-            currentIndex: root.current
             model: root.actions
-            highlightMoveDuration: Tokens.anim.durations.expressiveFastEffects
-            highlight: Rectangle {
-                radius: Tokens.rounding.small
-                color: Colours.palette.m3secondaryContainer
-            }
             delegate: Item {
                 id: item
 
                 required property var modelData
                 required property int index
+                readonly property bool sep: index > 0 && modelData.group !== root.actions[index - 1].group
+                readonly property bool on: root.current === index
 
                 width: ListView.view.width
-                height: 36 * root.scale
+                height: 36 * root.scale + (sep ? Tokens.padding.small + 1 : 0)
 
-                MaterialIcon {
-                    id: ico
+                Rectangle {
+                    visible: item.sep
+                    x: -Tokens.padding.small
+                    width: parent.width + Tokens.padding.small * 2
+                    height: 1
+                    y: Tokens.padding.small / 2
+                    color: Qt.alpha(Colours.palette.m3onSurface, 0.1)
+                }
+                Rectangle {
+                    anchors.bottom: parent.bottom
+                    width: parent.width
+                    height: 36 * root.scale
+                    radius: Tokens.rounding.small
+                    color: item.on ? Qt.alpha(Colours.palette.m3onSurface, 0.1) : "transparent"
 
-                    anchors.left: parent.left
-                    anchors.leftMargin: Tokens.padding.small
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: item.modelData.icon
-                    fontStyle: Tokens.font.icon.small
-                    color: item.modelData.danger ? Colours.palette.m3error : Colours.palette.m3onSurfaceVariant
-                }
-                StyledText {
-                    anchors.left: ico.right
-                    anchors.leftMargin: Tokens.spacing.small
-                    anchors.right: keys.left
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: root.confirmId === item.modelData.id ? "Press ↵ again to confirm" : item.modelData.title
-                    elide: Text.ElideRight
-                    font: Tokens.font.body.medium
-                    color: item.modelData.danger ? Colours.palette.m3error : Colours.palette.m3onSurface
-                }
-                Keycaps {
-                    id: keys
+                    MaterialIcon {
+                        id: ico
 
-                    anchors.right: parent.right
-                    anchors.rightMargin: Tokens.padding.small
-                    anchors.verticalCenter: parent.verticalCenter
-                    keys: item.modelData.shortcut ? item.modelData.shortcut.split(" ") : []
+                        anchors.left: parent.left
+                        anchors.leftMargin: Tokens.padding.small
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: item.modelData.icon
+                        fontStyle: Tokens.font.icon.small
+                        color: item.modelData.danger ? Colours.palette.m3error : Colours.palette.m3onSurface
+                    }
+                    StyledText {
+                        anchors.left: ico.right
+                        anchors.leftMargin: Tokens.spacing.small
+                        anchors.right: keys.left
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: root.confirmId === item.modelData.id ? "Press ↵ again to confirm" : item.modelData.title
+                        elide: Text.ElideRight
+                        font: root.body
+                        color: item.modelData.danger ? Colours.palette.m3error : Colours.palette.m3onSurface
+                    }
+                    Keycaps {
+                        id: keys
+
+                        anchors.right: parent.right
+                        anchors.rightMargin: Tokens.padding.small
+                        anchors.verticalCenter: parent.verticalCenter
+                        keys: item.modelData.shortcut ? item.modelData.shortcut.split(" ") : []
+                    }
+                    MouseArea {
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        onPositionChanged: root.current = item.index
+                        onClicked: root.triggered(item.modelData)
+                    }
                 }
-                MouseArea {
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    onPositionChanged: root.current = item.index
-                    onClicked: root.triggered(item.modelData)
-                }
+            }
+        }
+
+        Item {
+            id: footer
+
+            anchors.bottom: parent.bottom
+            anchors.left: parent.left
+            anchors.right: parent.right
+            height: 38 * root.scale
+
+            Rectangle {
+                anchors.top: parent.top
+                width: parent.width
+                height: 1
+                color: Qt.alpha(Colours.palette.m3onSurface, 0.1)
+            }
+            StyledText {
+                anchors.left: parent.left
+                anchors.leftMargin: Tokens.padding.medium
+                anchors.verticalCenter: parent.verticalCenter
+                text: root.filterText || "Search..."
+                font: root.body
+                color: root.filterText ? Colours.palette.m3onSurface : Colours.palette.m3onSurfaceVariant
             }
         }
     }

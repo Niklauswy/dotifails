@@ -18,7 +18,7 @@ class LauncherLogicTests(unittest.TestCase):
             text = (SERVICES / name).read_text().replace('.pragma library', '')
             parts.append('\n'.join(l for l in text.splitlines() if not l.startswith('.import')))
         # Results.js uses Search./Calc. namespaces from .import; provide them over the shared scope.
-        script = '\n'.join(parts) + '\nvar Search = {terms, rank, rankScored, score}; var Calc = {evaluate};\n' + body
+        script = '\n'.join(parts) + '\nvar Search = {terms, rank, rankScored, score}; var Calc = {evaluate}; var Files = {isImage, icon, row};\n' + body
         result = subprocess.run([node], input=script, capture_output=True, text=True, timeout=10)
         self.assertEqual(result.returncode, 0, result.stderr)
 

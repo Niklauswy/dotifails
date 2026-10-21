@@ -105,6 +105,17 @@ Singleton {
         snippetProc.running = true;
     }
 
+    // An open window of this app, if any (matched on the Wayland class).
+    function windowOf(row: var): var {
+        const keys = [row.startupClass, row.id.replace(/\.desktop$/, "")].filter(Boolean).map(k => k.toLowerCase());
+        for (const t of Hypr.toplevels.values) {
+            const cls = (t.lastIpcObject?.class ?? "").toLowerCase();
+            if (cls && keys.includes(cls))
+                return t.address;
+        }
+        return null;
+    }
+
     function refreshWindows(): void {
         const out = [];
         for (const t of Hypr.toplevels.values) {

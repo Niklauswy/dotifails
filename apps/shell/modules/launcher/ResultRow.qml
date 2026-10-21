@@ -19,9 +19,9 @@ Item {
     readonly property int ordinal: modelData.n ?? -1
 
     width: ListView.view?.width ?? 0
-    height: header ? Tokens.sizes.launcher.itemHeight * 0.5 * panel.scale + Tokens.padding.small
+    height: header ? 30 * panel.scale
         : card ? Tokens.sizes.launcher.itemHeight * 1.7 * panel.scale
-        : Tokens.sizes.launcher.itemHeight * 0.88 * panel.scale
+        : 40 * panel.scale
 
     function report(): void {
         if (current && !header) {
@@ -41,10 +41,10 @@ Item {
         visible: root.header
         anchors.left: parent.left
         anchors.bottom: parent.bottom
-        anchors.leftMargin: Tokens.padding.large
+        anchors.leftMargin: Tokens.padding.small + Tokens.padding.extraSmall
         anchors.bottomMargin: Tokens.padding.extraSmall
         text: root.modelData.title ?? ""
-        font: Tokens.font.label.medium
+        font: root.panel.fontStrong
         color: Colours.palette.m3onSurfaceVariant
     }
 
@@ -62,14 +62,13 @@ Item {
 
             StyledText {
                 text: root.modelData.subtitle ?? ""
-                font: Tokens.font.body.medium
-                color: Colours.palette.m3onSecondaryContainer
-                opacity: 0.7
+                font: root.panel.fontBody
+                color: Colours.palette.m3onSurfaceVariant
             }
             StyledText {
                 text: root.modelData.title ?? ""
                 font: Tokens.font.headline.large
-                color: Colours.palette.m3onSecondaryContainer
+                color: Colours.palette.m3onSurface
             }
         }
 
@@ -78,7 +77,7 @@ Item {
             anchors.rightMargin: Tokens.padding.large
             anchors.verticalCenter: parent.verticalCenter
             text: "Copy ↵"
-            font: Tokens.font.label.medium
+            font: root.panel.fontStrong
             color: Colours.palette.m3onSurfaceVariant
         }
     }
@@ -93,59 +92,66 @@ Item {
         Item {
             id: iconBox
 
+            readonly property bool appLike: root.modelData.kind === "app" || root.modelData.kind === "window" || root.modelData.kind === "openwith"
+
             anchors.left: parent.left
             anchors.leftMargin: Tokens.padding.small
             anchors.verticalCenter: parent.verticalCenter
-            width: 32 * root.panel.scale
+            width: 20 * root.panel.scale
             height: width
 
             AppIcon {
                 anchors.fill: parent
-                visible: root.modelData.kind === "app" || root.modelData.kind === "window" || root.modelData.kind === "openwith"
+                visible: iconBox.appLike
                 name: visible ? (root.modelData.icon ?? "") : ""
                 size: parent.width
             }
-            Rectangle {
+            Image {
                 anchors.fill: parent
-                visible: root.modelData.swatch !== undefined && root.modelData.swatch !== ""
-                radius: Tokens.rounding.small
-                color: root.modelData.swatch || "transparent" // theme-exception: user colour sample from clipboard
+                visible: !!root.modelData.thumb
+                source: visible ? "file://" + root.modelData.thumb : ""
+                sourceSize: Qt.size(64, 64)
+                fillMode: Image.PreserveAspectCrop
+                asynchronous: true
             }
             Rectangle {
                 anchors.fill: parent
-                visible: !(root.modelData.kind === "app" || root.modelData.kind === "window" || root.modelData.kind === "openwith") && !(root.modelData.swatch)
-                radius: Tokens.rounding.small
-                color: root.current ? Colours.palette.m3primaryContainer : Colours.tPalette.m3surfaceContainerHigh
-
-                MaterialIcon {
-                    anchors.centerIn: parent
-                    text: root.modelData.icon || "draft"
-                    color: root.current ? Colours.palette.m3onPrimaryContainer : Colours.palette.m3primary
-                    fontStyle: Tokens.font.icon.builders.medium.scale(root.panel.scale).build()
-                }
+                visible: !!root.modelData.swatch
+                radius: Tokens.rounding.extraSmall
+                color: root.modelData.swatch || "transparent" // theme-exception: user colour sample from clipboard
+            }
+            MaterialIcon {
+                anchors.centerIn: parent
+                visible: !iconBox.appLike && !root.modelData.thumb && !root.modelData.swatch
+                text: root.modelData.icon || "draft"
+                color: Colours.palette.m3onSurface
+                fontStyle: Tokens.font.icon.builders.small.scale(root.panel.scale * 1.1).build()
             }
         }
 
-        Column {
+        Row {
             anchors.left: iconBox.right
             anchors.leftMargin: Tokens.spacing.medium
             anchors.right: meta.left
             anchors.rightMargin: Tokens.spacing.medium
             anchors.verticalCenter: parent.verticalCenter
+            spacing: Tokens.spacing.small
 
             StyledText {
-                width: parent.width
+                id: title
+
                 text: root.modelData.title ?? ""
-                font: Tokens.font.body.medium
+                font: root.panel.fontBody
                 elide: Text.ElideRight
+                width: Math.min(implicitWidth, parent.width)
             }
             StyledText {
-                width: parent.width
-                text: root.panel.confirmKey === root.modelData.key ? "Press ↵ again to confirm" : (root.modelData.subtitle ?? "")
-                font: Tokens.font.body.small
+                width: Math.max(0, parent.width - title.width - parent.spacing)
+                visible: width > 20
+                text: root.panel.confirmKey === root.modelData.key ? "Press ↵ again to confirm" : (root.panel.previewOn ? "" : root.modelData.subtitle ?? "")
+                font: root.panel.fontBody
                 color: root.panel.confirmKey === root.modelData.key ? Colours.palette.m3error : Colours.palette.m3onSurfaceVariant
                 elide: Text.ElideRight
-                visible: text !== ""
             }
         }
 
@@ -153,7 +159,7 @@ Item {
             id: meta
 
             anchors.right: parent.right
-            anchors.rightMargin: Tokens.padding.medium
+            anchors.rightMargin: Tokens.padding.small
             anchors.verticalCenter: parent.verticalCenter
             spacing: Tokens.spacing.small
 
@@ -166,9 +172,9 @@ Item {
             }
             StyledText {
                 anchors.verticalCenter: parent.verticalCenter
-                visible: !(root.panel.ctrlHeld && root.ordinal >= 0 && root.ordinal < 9)
+                visible: !root.panel.previewOn && !(root.panel.ctrlHeld && root.ordinal >= 0 && root.ordinal < 9)
                 text: root.modelData.type ?? ""
-                font: Tokens.font.label.medium
+                font: root.panel.fontBody
                 color: Colours.palette.m3onSurfaceVariant
             }
             Keycaps {

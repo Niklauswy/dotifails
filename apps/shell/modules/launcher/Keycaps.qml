@@ -20,17 +20,17 @@ Row {
 
             required property string modelData
 
-            width: Math.max(height, label.implicitWidth + Tokens.padding.small * 1.5)
-            height: label.implicitHeight + Tokens.padding.extraSmall * 1.5
-            radius: Tokens.rounding.extraSmall
-            color: Colours.tPalette.m3surfaceContainerHighest
+            width: Math.max(height, label.implicitWidth + Tokens.padding.small)
+            height: 20
+            radius: Tokens.rounding.extraSmall + 1
+            color: Qt.alpha(Colours.palette.m3onSurface, 0.12)
 
             StyledText {
                 id: label
 
                 anchors.centerIn: parent
                 text: cap.modelData
-                font: Tokens.font.label.small
+                font: Tokens.font.body.builders.small.size(8.25).weight(Font.Medium).build()
                 color: root.textColor
             }
         }
