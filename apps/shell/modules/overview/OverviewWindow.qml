@@ -9,10 +9,11 @@ import Quickshell.Wayland
 import Wysun.Config
 import qs.components
 import qs.services
-import qs.utils
+import "OverviewGeometry.js" as Geometry
 
 Rectangle {
     id: root
+    required property string outputName
     required property var client
     required property real workspaceWidth
     required property real workspaceHeight
@@ -20,16 +21,13 @@ Rectangle {
     signal focusRequested()
     readonly property var ipc: client.lastIpcObject
     readonly property var monitor: client.monitor?.lastIpcObject ?? {}
-    // Hyprland client coordinates are logical and global. Source output scale and
-    // rotation matter even when the overview is shown on a different output.
-    readonly property real sourceWidth: Math.max(1, ((monitor.transform ?? 0) % 2 ? monitor.height : monitor.width) / (monitor.scale || 1))
-    readonly property real sourceHeight: Math.max(1, ((monitor.transform ?? 0) % 2 ? monitor.width : monitor.height) / (monitor.scale || 1))
-    readonly property real homeX: Math.max(0, Math.min(workspaceWidth - width, ((ipc.at?.[0] ?? 0) - (monitor.x ?? 0)) / sourceWidth * workspaceWidth))
-    readonly property real homeY: Math.max(0, Math.min(workspaceHeight - height, ((ipc.at?.[1] ?? 0) - (monitor.y ?? 0)) / sourceHeight * workspaceHeight))
+    readonly property var bounds: Geometry.geometry(ipc, monitor, workspaceWidth, workspaceHeight)
+    readonly property real homeX: bounds.x
+    readonly property real homeY: bounds.y
     x: homeX
     y: homeY
-    width: Math.max(Tokens.spacing.large, Math.min(workspaceWidth, (ipc.size?.[0] ?? sourceWidth) / sourceWidth * workspaceWidth))
-    height: Math.max(Tokens.spacing.large, Math.min(workspaceHeight, (ipc.size?.[1] ?? sourceHeight) / sourceHeight * workspaceHeight))
+    width: bounds.width
+    height: bounds.height
     radius: Tokens.rounding.small
     color: Colours.palette.m3surfaceContainerHigh
     border.width: mouse.containsMouse ? 2 : 1
@@ -64,7 +62,7 @@ Rectangle {
         }
         MaterialIcon {
             anchors.centerIn: parent
-            visible: !appIcon.source || appIcon.status === Image.Error
+            visible: appIcon.status !== Image.Ready
             text: "window"
             color: Colours.palette.m3onSurface
             fontStyle: Tokens.font.icon.large
@@ -110,7 +108,23 @@ Rectangle {
             }
         }
     }
-    ToolTip.visible: mouse.containsMouse && !mouse.pressed
-    ToolTip.text: client.title
-    ToolTip.delay: 700
+    ToolTip {
+        Tokens.screen: root.outputName
+        visible: mouse.containsMouse && !mouse.pressed
+        text: root.client.title
+        delay: 700
+        padding: Tokens.padding.medium
+        contentItem: StyledText {
+            text: root.client.title
+            font: Tokens.font.body.medium
+            color: Colours.palette.m3onSurface
+            elide: Text.ElideRight
+        }
+        background: Rectangle {
+            radius: Tokens.rounding.small
+            color: Colours.palette.m3surfaceContainerHighest
+            border.color: Colours.palette.m3outlineVariant
+            border.width: 1
+        }
+    }
 }
