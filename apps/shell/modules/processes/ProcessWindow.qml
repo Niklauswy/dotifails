@@ -118,6 +118,7 @@ FloatingWindow {
             // The Performance dashboard cards, reused as they are.
             ColumnLayout {
                 Layout.fillWidth: true
+                Layout.fillHeight: false
                 visible: win.showCards
                 spacing: Tokens.spacing.medium
                 RowLayout {
@@ -147,6 +148,9 @@ FloatingWindow {
                 }
                 RowLayout {
                     Layout.fillWidth: true
+                    Layout.fillHeight: false
+                    Layout.preferredHeight: Tokens.sizes.dashboard.perfNetworkCardHeight
+                    Layout.maximumHeight: Tokens.sizes.dashboard.perfNetworkCardHeight
                     spacing: Tokens.spacing.medium
                     StorageCard { Layout.fillWidth: true; Layout.fillHeight: true }
                     NetworkCard { Layout.fillWidth: true; Layout.fillHeight: true }
