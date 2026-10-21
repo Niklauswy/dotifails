@@ -11,6 +11,8 @@ import json
 import os
 from pathlib import Path
 import shutil
+import tarfile
+import urllib.request
 import subprocess
 import sys
 
@@ -108,8 +110,33 @@ class Build:
         self.cmake(self.src / 'm3shapes', self.cache / 'build/m3shapes', self.deps)
         self.save('deps', [sources['libcava'], sources['m3shapes']])
 
+    def protocols(self):
+        """Quickshell needs newer Wayland protocol XML than Debian 13 ships; keep it in the runtime prefix."""
+        spec = self.manifest['sources']['wayland_protocols']
+        pc = self.deps / 'lib/pkgconfig/wayland-protocols.pc'
+        if pc.exists() and self.stamp.get('wayland_protocols') == spec:
+            return
+        archive = self.cache / 'wayland-protocols.tar.gz'
+        archive.parent.mkdir(parents=True, exist_ok=True)
+        urllib.request.urlretrieve(spec['url'], archive)
+        if hashlib.sha256(archive.read_bytes()).hexdigest() != spec['sha256']:
+            raise RuntimeError('wayland-protocols: suma de verificación distinta de la fijada')
+        data = self.deps / 'share/wayland-protocols'
+        shutil.rmtree(data, ignore_errors=True)
+        with tarfile.open(archive) as tar:
+            members = [m for m in tar.getmembers() if m.name.split('/')[1:2] and m.name.split('/')[1] in ('stable', 'staging', 'unstable')]
+            tar.extractall(self.cache / 'wp-extract', members=members, filter='data')
+        for kind in ('stable', 'staging', 'unstable'):
+            shutil.copytree(self.cache / 'wp-extract' / ('wayland-protocols-' + spec['version']) / kind, data / kind)
+        pc.parent.mkdir(parents=True, exist_ok=True)
+        pc.write_text('prefix=%s\npkgdatadir=${prefix}/share/wayland-protocols\nName: Wayland Protocols\n'
+                      'Description: Wayland protocol definitions pinned for the Wysun runtime\nVersion: %s\n'
+                      % (self.deps, spec['version']))
+        self.save('wayland_protocols', spec)
+
     def quickshell_step(self):
         spec = self.manifest['sources']['quickshell']
+        self.protocols()
         if self.stamp.get('quickshell') == spec and (self.prefix / 'quickshell/bin/quickshell').exists():
             return
         src = self.src / 'quickshell'
