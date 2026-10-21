@@ -153,29 +153,33 @@ Con un catálogo real de 43.045 archivos, la preparación de la lista pasó de 1
 
 Copia anterior a esta versión: `~/.local/share/orbit-v4-backup-20260925-032042/source/`.
 
-## Gestor del entorno · Wysun Ajustes
+## Wysun Settings
 
-**Super + Alt + coma** abre el gestor. También está en el menú de aplicaciones como **Wysun Ajustes**, y se puede abrir con `wysun settings`. Usa `wysun settings shortcuts`, `wysun settings displays` o `wysun settings wallpaper` para entrar directamente en una sección. Ctrl + F busca una sección; Ctrl + Enter aplica sus cambios.
+`wysun settings` abre Nexus, el gestor nativo del shell. La interfaz está en inglés.
+`wysun settings displays`, `wysun settings workspaces` y `wysun settings wallpaper`
+abren directamente Displays, Workspaces y Wallpaper & style.
 
-Las diez secciones reúnen:
+- **Displays**: esquema visual de los monitores; selección y arrastre con ajuste junto a otra pantalla,
+  arriba o abajo. Permite cambiar resolución, escala, refresco, rotación y pantalla principal.
+  **Test layout** aplica una prueba de 15 segundos; **Keep changes** guarda el perfil de la combinación
+  de monitores, y **Revert** recupera la disposición anterior. Un watchdog independiente también
+  restaura la configuración cuando la ventana se cierra o deja de responder.
+- **Workspaces**: grupos por monitor con recuentos y estado activo, asignación persistente de los
+  números 1–10, traslado entre pantallas y retirada de asignaciones vacías. Workspace 10 aparece
+  como 0 en la barra y usa Super+0. **Reset assignments** pide confirmación antes de restablecer.
+- Wallpaper & style, Network, Connected devices, Audio, Panels, Apps, Services, Language & region
+  y About conservan sus páginas nativas. Las preferencias del shell viven en
+  `~/.config/wysun/shell/shell.json`; los perfiles de monitores y workspaces en
+  `~/.config/orbit/environment.json` y los fragmentos `hypr-monitors.lua` / `hypr-workspaces.lua`.
 
-- Resumen con accesos a conexiones, sonido y sesión.
-- Pantallas: posición mediante arrastre o coordenadas, resolución, frecuencia, rotación y pantalla preferida. La prueba requiere confirmación en 15 segundos; un proceso independiente recupera la disposición anterior si Ajustes se cierra o deja de responder. Se guardan perfiles según las pantallas conectadas.
-- Escritorios: nombre y número de ventanas de cada espacio de trabajo de Hyprland, creación, traslado y eliminación de escritorios vacíos. Nunca elimina un escritorio ocupado ni el último de una pantalla.
-- Tema: Tokyo, Severance y Space Black con paleta, fondos y respaldo previo. Incluye la barra de Quickshell: pantallas donde aparece, altura, separación, esquinas, opacidad, colores y orden de módulos.
-- Atajos: combinaciones activas de Hyprland, alta/edición/eliminación, captura real del teclado, detección de conflictos y edición individual. Las combinaciones de Ghostty, Wysun, Conexiones y Neovim se muestran con su contexto y acceso a la configuración en Vim.
-- Reglas de ventanas: clase, estado, monitor, centrado y borde, aplicadas a ventanas nuevas.
-- Efectos y animaciones: opacidad, reducción de movimiento y animaciones del compositor.
-- Terminal: fuente, tamaño, colores, márgenes, opacidad e historial de Ghostty. En terminales abiertas, Ctrl + Shift + coma recarga la configuración.
-- Inicio y aplicaciones: aplicaciones disponibles, activación explícita para esta sesión, aplicaciones propias y estado de los servicios. La activación se aplica al siguiente inicio de sesión; no abre aplicaciones al marcar una fila.
-- Archivos y copias: configuración en Neovim, inspección de versiones anteriores y restauración de atajos o ajustes.
+Se retiraron la sección Escritorio y las páginas Terminal, Notificaciones, Inicio, Archivos y copias,
+Efectos, Ventanas y reglas, Atajos, SSH y Processes. Sus antiguas rutas de Settings ya no abren páginas.
+`wysun processes` pertenece al widget independiente de procesos.
 
-Los cambios se aplican con el botón correspondiente. Los atajos se guardan desde su diálogo; las aplicaciones de inicio y carpetas del fondo se guardan al editarlas. `Recargar` descarta las ediciones pendientes. Las preferencias adicionales están en `~/.config/orbit/environment.json`; Quickshell las recarga con `wysun shell reload-preferences`. Las aplicaciones de inicio activadas desde el gestor se ejecutan una vez por sesión, sin activar automáticamente todas las entradas XDG del sistema.
-
-Copias: `~/.local/share/orbit/settings-backups/`. Copia previa a esta ampliación: `~/.local/share/orbit/settings-upgrade-backups/20260925-131042/`. Las capturas de pantalla usadas para las pruebas no forman parte de la configuración.
-
-Verificación: `QT_QPA_PLATFORM=offscreen python3 -m unittest tests.wysun_app.test_native_settings tests.wysun_app.test_desktop_utilities`. Las pruebas de configuración usan directorios temporales; comprueban reversión de pantallas, confirmación, desconexión, persistencia, conflictos, conservación de archivos y fondos por monitor. Además se comprueba la captura de teclado y se revisan las secciones en la sesión Wysun / Hyprland real.
-
+Verificación: `python3 -m unittest discover -s tests -v`,
+`QT_QPA_PLATFORM=offscreen python3 tests/utility_ui.py` y `python3 tests/check_manifest.py`.
+Las pruebas de distribución utilizan HOME temporales; las comprobaciones de escritorio y medios
+se serializan con los bloqueos compartidos del proyecto.
 
 ## Utilidades nativas
 
@@ -207,7 +211,7 @@ En **Ajustes → Tema** se elige Tokyo, Severance o Space Black. Tokyo combina n
 
 Antes de escribir se guarda un respaldo en `~/.local/state/orbit/theme-backups/`. Si falla la validación de Ghostty o la aplicación principal, se restauran los archivos anteriores. No se reemplazan fuentes, tamaños, atajos, conexiones, notas o historial. Los antiguos nombres de instalación `azul` y `morado` siguen siendo alias de `severance` y `tokyo`.
 
-Las notificaciones mantienen una apariencia neutra en todos los temas: grafito translúcido, texto claro y borde gris. Sus colores no cambian con el tema. Ajustes conserva Pantallas, Escritorios, Tema y barra, Atajos, Reglas, Efectos, Terminal, Inicio y Archivos.
+Las notificaciones mantienen una apariencia neutra en todos los temas: grafito translúcido, texto claro y borde gris. Sus colores no cambian con el tema. Settings ofrece Displays y Workspaces como entradas principales, junto con las preferencias nativas de Nexus.
 
 ## Música local
 
