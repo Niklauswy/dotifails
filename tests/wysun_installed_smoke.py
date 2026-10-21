@@ -21,7 +21,9 @@ def main():
     args = parser.parse_args()
     with tempfile.TemporaryDirectory(prefix='wysun-installed-') as temporary:
         home = Path(temporary)
-        env = dict(os.environ, HOME=str(home), QT_QPA_PLATFORM='offscreen', PYTHONDONTWRITEBYTECODE='1')
+        # Runtime construction has its own clean-container test; this checks deployment/dispatch only.
+        env = dict(os.environ, HOME=str(home), QT_QPA_PLATFORM='offscreen',
+                   PYTHONDONTWRITEBYTECODE='1', WYSUN_SKIP_RUNTIME='1')
         for variable, relative in (('XDG_CONFIG_HOME', '.xdg/config'), ('XDG_DATA_HOME', '.xdg/data'),
                                    ('XDG_STATE_HOME', '.xdg/state'), ('XDG_CACHE_HOME', '.xdg/cache'),
                                    ('XDG_RUNTIME_DIR', 'runtime')):
