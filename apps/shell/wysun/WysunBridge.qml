@@ -2,6 +2,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import Wysun.Config
 import qs.services
 import qs.utils
 import qs.modules.nexus
@@ -14,7 +15,7 @@ Scope {
     Processes { id: processes }
     function current() { return ShellState.forActive(); }
     function available(kind, state) {
-        return kind !== 'launcher' || !!ShellState.componentsFor(state.modelData)?.panels?.launcher?.available;
+        return kind !== 'launcher' || Config.launcher.enabled;
     }
     function close() {
         processes.close();

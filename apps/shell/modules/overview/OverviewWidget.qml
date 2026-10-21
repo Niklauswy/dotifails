@@ -69,8 +69,7 @@ Item {
         }
     }
     function search(text) {
-        const panels = ShellState.componentsFor(screen)?.panels;
-        if (!panels?.launcher?.available) return;
+        if (!Config.launcher.enabled) return;
         close();
         screenState.launcherQuery = text;
         screenState.launcher = true;

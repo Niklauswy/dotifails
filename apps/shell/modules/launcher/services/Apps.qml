@@ -1,17 +1,26 @@
 pragma Singleton
 
+import QtQuick
 import Quickshell
 import Wysun.Config
 import Wysun.Models
 import qs.utils
 
-Searcher {
+// Application index, built once from the desktop entries and kept as plain JS rows so that
+// filtering is an in-memory scan. Frequencies come from the AppDb (sqlite) usage counters.
+Singleton {
     id: root
 
-    function launch(entry: DesktopEntry): void {
-        appDb.incrementFrequency(entry.id);
+    property var rows: []
 
-        if (entry.runInTerminal)
+    function launch(row: var): void {
+        appDb.incrementFrequency(row.id);
+        row.freq = (row.freq || 0) + 1;
+        run(row.entry, row.runInTerminal);
+    }
+
+    function run(entry: var, inTerminal: bool): void {
+        if (inTerminal)
             Quickshell.execDetached({
                 command: [...GlobalConfig.general.apps.terminal, `${Quickshell.shellDir}/assets/wrap_term_launch.sh`, ...entry.command],
                 workingDirectory: entry.workingDirectory
@@ -20,50 +29,23 @@ Searcher {
             entry.execute();
     }
 
-    function search(search: string): var {
-        const prefix = GlobalConfig.launcher.specialPrefix;
-
-        if (search.startsWith(`${prefix}i `)) {
-            keys = ["id", "name"];
-            weights = [0.9, 0.1];
-        } else if (search.startsWith(`${prefix}c `)) {
-            keys = ["categories", "name"];
-            weights = [0.9, 0.1];
-        } else if (search.startsWith(`${prefix}d `)) {
-            keys = ["comment", "name"];
-            weights = [0.9, 0.1];
-        } else if (search.startsWith(`${prefix}e `)) {
-            keys = ["execString", "name"];
-            weights = [0.9, 0.1];
-        } else if (search.startsWith(`${prefix}w `)) {
-            keys = ["startupClass", "name"];
-            weights = [0.9, 0.1];
-        } else if (search.startsWith(`${prefix}g `)) {
-            keys = ["genericName", "name"];
-            weights = [0.9, 0.1];
-        } else if (search.startsWith(`${prefix}k `)) {
-            keys = ["keywords", "name"];
-            weights = [0.9, 0.1];
-        } else {
-            keys = ["name"];
-            weights = [1];
-
-            if (!search.startsWith(`${prefix}t `))
-                return query(search).map(e => e.entry);
+    function rebuild(): void {
+        const out = [];
+        const apps = appDb.apps;
+        for (let i = 0; i < apps.length; i++) {
+            const a = apps[i];
+            const name = a.name || a.id;
+            out.push({
+                kind: "app", key: "app:" + a.id, id: a.id, title: name,
+                subtitle: a.comment || a.genericName || "Application",
+                icon: a.entry?.icon ?? "", type: "Application",
+                l: name.toLowerCase(),
+                a: [a.genericName, a.keywords, a.comment, a.categories, a.startupClass, a.id].join(" ").toLowerCase(),
+                freq: a.frequency, entry: a.entry, runInTerminal: a.entry?.runInTerminal ?? false
+            });
         }
-
-        const results = query(search.slice(prefix.length + 2)).map(e => e.entry);
-        if (search.startsWith(`${prefix}t `))
-            return results.filter(a => a.runInTerminal);
-        return results;
+        rows = out;
     }
-
-    function selector(item: var): string {
-        return keys.map(k => item[k]).join(" ");
-    }
-
-    list: appDb.apps
-    useFuzzy: GlobalConfig.launcher.useFuzzy.apps
 
     AppDb {
         id: appDb
@@ -71,5 +53,15 @@ Searcher {
         path: `${Paths.state}/apps.sqlite`
         favouriteApps: GlobalConfig.launcher.favouriteApps
         entries: DesktopEntries.applications.values.filter(a => !Strings.testRegexList(GlobalConfig.launcher.hiddenApps, a.id))
+        onAppsChanged: rebuildTimer.restart()
     }
+
+    Timer {
+        id: rebuildTimer
+
+        interval: 40
+        onTriggered: root.rebuild()
+    }
+
+    Component.onCompleted: rebuild()
 }

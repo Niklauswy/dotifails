@@ -104,17 +104,17 @@ class ProviderTests(unittest.TestCase):
 
 
 class WiringTests(unittest.TestCase):
-    def test_categories_and_emoji_are_separate_without_prefix_modes(self):
-        catalog = (LAUNCHER / 'services/Catalog.js').read_text()
-        for mode in ('all', 'apps', 'files', 'clip', 'snippets', 'calc', 'windows', 'commands'):
-            self.assertIn(f'id: "{mode}"', catalog)
-        content = (LAUNCHER / 'Content.qml').read_text()
-        self.assertNotIn('actionPrefix', content)
-        self.assertNotIn('>run', content)
-        self.assertIn('Catalog.categories()', content)
-        self.assertIn('FilePreview', content)
+    def test_single_floating_panel_without_tabs_or_prefixes(self):
+        panel = (LAUNCHER / 'LauncherPanel.qml').read_text()
+        self.assertIn('Search apps, files, commands...', panel)
+        for gone in ('actionPrefix', 'specialPrefix', 'Catalog.categories'):
+            self.assertNotIn(gone, panel)
+        self.assertFalse((LAUNCHER / 'Content.qml').exists())
+        self.assertFalse((LAUNCHER / 'Wrapper.qml').exists())
+        window = (LAUNCHER / 'Launcher.qml').read_text()
+        self.assertIn('anchors.top: true', window)
+        self.assertIn('WlrLayer.Overlay', window)
         emoji = (LAUNCHER / 'EmojiPicker.qml').read_text()
-        self.assertIn('anchors.top: true', emoji)
         self.assertIn('mode: "emoji"', emoji)
         self.assertIn('GridView', emoji)
 
@@ -125,10 +125,22 @@ class WiringTests(unittest.TestCase):
         wysun = (ROOT / 'bin/wysun').read_text()
         self.assertNotIn("WYSUN_LAUNCHER", wysun)
 
-    def test_shortcuts_row_actions_exist(self):
-        content = (LAUNCHER / 'Content.qml').read_text()
-        for needle in ('Qt.Key_Delete', 'openFolder', 'copyPath', 'webRow', 'LauncherData.paste'):
-            self.assertIn(needle, content)
+    def test_keyboard_actions_and_views_exist(self):
+        panel = (LAUNCHER / 'LauncherPanel.qml').read_text()
+        for needle in ('Qt.Key_K', 'Qt.Key_Delete', 'Qt.Key_Backspace', 'Qt.Key_Tab', 'Qt.Key_1', 'Qt.Key_Escape',
+                       'function push', 'function pop', 'LauncherData.paste'):
+            self.assertIn(needle, panel)
+        actions = (LAUNCHER / 'services/Actions.js').read_text()
+        for needle in ('Show in Folder', 'Copy Path', 'Open With', 'Close Window', 'Pin to Favorites', 'Paste to Previous Window'):
+            self.assertIn(needle, actions)
+
+    def test_no_synchronous_process_per_keystroke(self):
+        index = (LAUNCHER / 'services/LauncherIndex.qml').read_text()
+        self.assertIn('SplitParser', index)  # streaming file search
+        panel = (LAUNCHER / 'LauncherPanel.qml').read_text()
+        self.assertIn('interval: 120', panel)  # debounce
+        self.assertNotIn('python3', panel)
+        self.assertIn('reuseItems: true', panel)
 
 
 if __name__ == '__main__':

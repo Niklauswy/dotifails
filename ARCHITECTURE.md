@@ -160,10 +160,16 @@ Nunca reiniciar Hyprland ni el login para actualizar un panel.
 
 - **Atajos**: `config/.config/wysun/hyprland.lua` (Hyprland 0.55, Lua). Atajos privados en `~/.config/wysun/local.lua`.
   Los de captura apuntan a `wysun screenshot …` / `wysun recorder …`. `apps/shell/daemons/Shortcuts.qml` está disponible si se decide mover atajos al shell.
-- **Lanzador**: `wysun` abre el widget inferior del shell (`apps/shell/modules/launcher`); no existe lanzador Qt ni
-  alternativo: si el shell no responde, el comando falla con un mensaje. Modos con `>`: `clip`, `files`, `snip`, `win`,
-  `emoji`, `hist`, `run`; datos en `apps/wysun/launcher_data.py` (mismo almacén que el residente). `wysun clipboard|snippets|
-  emoji|calculator` abren esos modos; `wysun windows|power|audio|notifications|calendar|system` abren las superficies del
+- **Lanzador** (estilo Raycast): `wysun` abre un único panel flotante (`apps/shell/modules/launcher`: `Launcher.qml` ventana
+  overlay, `LauncherPanel.qml` lógica y vistas, `services/LauncherIndex.qml` índices en memoria). No existe lanzador Qt ni
+  alternativo: si el shell no responde, el comando falla con un mensaje. Sin pestañas ni prefijos: una lista agrupada
+  (Suggestions, Applications, Files, Commands, Windows, Clipboard, Snippets) filtrada en JS (`Search.js`, `Results.js`,
+  `Calc.js` para la calculadora en línea) sobre datos precalculados; archivos por `find` asíncrono en streaming con
+  debounce de 120 ms; portapapeles y snippets se cargan una vez al abrir con `apps/wysun/launcher_data.py` (mismo
+  almacén que el residente). Las «vistas» (Clipboard History, Snippets, Windows, Files, Applications, System…) se
+  apilan con push/pop (Escape o Backspace con la búsqueda vacía vuelven). Ctrl+K abre las acciones del elemento
+  (`Actions.js`), Ctrl+1..9 selecciona, Tab enfoca la vista previa. `wysun clipboard|snippets|windows|calculator` abren la
+  vista correspondiente y `emoji` el cajón de emojis; `power|audio|notifications|calendar|system` abren las superficies del
   shell. El residente Qt (`orbit.py`) ya no muestra menús: aloja utilidades (Notas, Música, Herramientas…) y registra el
   historial del portapapeles.
 - **Panel de sesión**: `Super+X` alterna el panel lateral de sesión (salir, apagar, suspender, reiniciar) en el monitor

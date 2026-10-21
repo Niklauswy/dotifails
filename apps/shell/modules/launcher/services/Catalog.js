@@ -1,51 +1,68 @@
 .pragma library
 
-function categories() {
+// Commands the launcher can run. `view` pushes a launcher view, `emoji` opens the emoji drawer,
+// `argv` is executed detached. Rows are plain data so they can be filtered in JS per keystroke.
+
+function make(id, title, subtitle, icon, extra, aux) {
+    return Object.assign({kind: "cmd", key: "cmd:" + id, id, title, subtitle, icon, type: "Command", l: title.toLowerCase(), a: ((aux || "") + " " + subtitle).toLowerCase()}, extra);
+}
+
+function views() {
     return [
-        {id: "all", title: "Discover", icon: "explore"},
-        {id: "apps", title: "Applications", icon: "apps"},
-        {id: "files", title: "Files", icon: "folder_open"},
-        {id: "clip", title: "Clipboard", icon: "content_paste"},
-        {id: "snippets", title: "Snippets", icon: "data_object"},
-        {id: "calc", title: "Calculator", icon: "calculate"},
-        {id: "windows", title: "Windows", icon: "view_carousel"},
-        {id: "commands", title: "Commands", icon: "terminal"}
+        make("clipboard", "Clipboard History", "Text, images, colours and links you copied", "content_paste", {view: "clipboard"}, "paste copy history"),
+        make("snippets", "Snippets", "Saved phrases and abbreviations", "data_object", {view: "snippets"}, "text expand abbreviation"),
+        make("windows", "Windows", "Switch to an open window", "web_asset", {view: "windows"}, "switch focus apps"),
+        make("files", "Search Files", "Find files and folders in your home", "folder_open", {view: "files"}, "documents find"),
+        make("apps", "All Applications", "Everything installed", "apps", {view: "apps"}, "launch programs"),
+        make("calc-history", "Calculator History", "Results you copied from the calculator", "calculate", {view: "calc-history"}, "math"),
+        make("system", "System", "Lock, sleep, log out, restart, shut down", "power_settings_new", {view: "system"}, "power session"),
+        make("emoji", "Emoji", "Open the emoji picker", "emoji_emotions", {emoji: true}, "smiley symbols")
     ];
 }
 
-function actions(query, configured, enableDangerous) {
-    const defaults = [
-        ["Clipboard", "Search copied text, images, colours and links", "content_paste", ["autocomplete", "clip"]],
-        ["Snippets", "Saved phrases and abbreviations", "data_object", ["autocomplete", "snippets"]],
-        ["Calculator", "Arithmetic, percentages, conversions and history", "calculate", ["autocomplete", "calc"]],
-        ["Windows", "Find and switch to an open window", "view_carousel", ["autocomplete", "windows"]],
-        ["Wysun Music Mini", "Compact playback controls", "album", ["wysun", "music-mini"]],
-        ["Wysun Tools", "Projects, diagnostics and local files", "terminal", ["wysun", "tools"]],
-        ["Calendar", "Dates and your desktop overview", "calendar_month", ["wysun", "calendar"]],
-        ["System", "Memory, load and battery", "monitoring", ["wysun", "system"]],
-        ["Wallpaper & style", "Personalise your Wysun desktop", "wallpaper", ["wysun", "settings", "wallpaper"]],
-        ["Wysun Settings", "Displays, workspaces and desktop preferences", "settings", ["wysun", "settings"]],
-        ["Wysun Files", "Browse folders and preview documents", "folder", ["wysun", "files"]],
-        ["Wysun Music", "Your music library and playback", "music_note", ["wysun", "music"]],
-        ["Wysun Notes", "Write and find your local notes", "notes", ["wysun", "notes"]],
-        ["Wysun Colors", "Pick, convert and save colours", "colorize", ["wysun", "colors"]],
-        ["Wysun Recorder", "Record your screen or open the library", "videocam", ["wysun", "recorder"]],
-        ["Wysun Screenshot", "Capture your screen or open the library", "screenshot", ["wysun", "screenshot"]],
-        ["Connections", "Wi-Fi, Ethernet, Bluetooth and VPN", "wifi", ["wysun", "connections"]],
-        ["Processes", "Inspect running apps and resource usage", "memory", ["wysun", "processes"]],
-        ["Sound", "Volume and audio devices", "volume_up", ["wysun", "audio"]],
-        ["Notifications", "History and focus mode", "notifications", ["wysun", "notifications"]],
-        ["Emoji", "Open the emoji drop-down · Super+Ctrl+Period", "emoji_emotions", ["wysun", "emoji"]],
-        ["Session & power", "Lock, suspend, sign out or shut down", "power_settings_new", ["wysun", "power"]],
-        ["Lock screen", "Lock your Wysun session", "lock", ["wysun", "lock"]],
-        ["Terminal", "Open your configured terminal", "terminal", ["wysun-terminal"]]
+function system(session) {
+    const power = (id, title, subtitle, icon, argv, aux) => make(id, title, subtitle, icon, {argv, confirm: true, type: "System"}, aux);
+    return [
+        make("lock", "Lock Screen", "Lock your Wysun session", "lock", {argv: ["wysun", "lock"], type: "System"}, "secure"),
+        make("sleep", "Sleep", "Suspend the computer", "bedtime", {argv: ["systemctl", "suspend"], type: "System"}, "suspend"),
+        power("logout", "Log Out", "End this session", "logout", session.logout, "sign out"),
+        power("hibernate", "Hibernate", "Save to disk and power off", "ac_unit", session.hibernate, "suspend"),
+        power("reboot", "Restart", "Restart the computer", "restart_alt", session.reboot, "reboot"),
+        power("shutdown", "Shut Down", "Power off the computer", "power_settings_new", session.shutdown, "poweroff turn off")
     ];
-    const user = (configured || []).map(a => ({name: a.name, description: a.description, icon: a.icon, command: Array.from(a.command || []), enabled: a.enabled, dangerous: a.dangerous}));
-    const keys = user.map(a => JSON.stringify(a.command));
-    const entries = user.concat(defaults.filter(e => !keys.includes(JSON.stringify(e[3]))).map(e => ({name: e[0], description: e[1], icon: e[2], command: e[3], enabled: true})))
-        .filter(a => a.enabled !== false && (!a.dangerous || enableDangerous) && JSON.stringify(a.command) !== '["wysun","wallpaper","-r"]')
-        .map(a => [a.name || "Custom action", a.description || "Desktop action", a.icon || "bolt", a.command]);
-    const words = query.toLowerCase().trim().split(/\s+/).filter(Boolean);
-    return entries.filter(e => words.every(w => (e[0] + " " + e[1]).toLowerCase().includes(w)))
-        .map(e => ({kind: "action", title: e[0], subtitle: e[1], icon: e[2], argv: e[3], section: "Desktop actions"}));
+}
+
+function tools(configured, session) {
+    const w = (id, title, subtitle, icon, argv, aux) => make(id, title, subtitle, icon, {argv}, aux);
+    const builtin = [
+        w("wallpaper", "Wallpaper & Style", "Personalise your Wysun desktop", "wallpaper", ["wysun", "settings", "wallpaper"], "theme background"),
+        w("settings", "Wysun Settings", "Displays, workspaces and desktop preferences", "settings", ["wysun", "settings"], "preferences"),
+        w("files-app", "Wysun Files", "Browse folders and preview documents", "folder", ["wysun", "files"], "file manager"),
+        w("music", "Wysun Music", "Your music library and playback", "music_note", ["wysun", "music"], "player"),
+        w("music-mini", "Wysun Music Mini", "Compact playback controls", "album", ["wysun", "music-mini"], "player"),
+        w("notes", "Wysun Notes", "Write and find your local notes", "notes", ["wysun", "notes"], ""),
+        w("colors", "Wysun Colors", "Pick, convert and save colours", "colorize", ["wysun", "colors"], "picker"),
+        w("recorder", "Wysun Recorder", "Record your screen or open the library", "videocam", ["wysun", "recorder"], "screen record"),
+        w("screenshot", "Wysun Screenshot", "Capture your screen or open the library", "screenshot", ["wysun", "screenshot"], "capture"),
+        w("connections", "Connections", "Wi-Fi, Ethernet, Bluetooth and VPN", "wifi", ["wysun", "connections"], "network bluetooth"),
+        w("processes", "Processes", "Inspect running apps and resource usage", "memory", ["wysun", "processes"], "task manager cpu"),
+        w("sound", "Sound", "Volume and audio devices", "volume_up", ["wysun", "audio"], "audio"),
+        w("notifications", "Notifications", "History and focus mode", "notifications", ["wysun", "notifications"], "do not disturb"),
+        w("calendar", "Calendar", "Dates and your desktop overview", "calendar_month", ["wysun", "calendar"], ""),
+        w("terminal", "Terminal", "Open your configured terminal", "terminal", ["wysun-terminal"], "shell console"),
+        w("tools", "Wysun Tools", "Projects, diagnostics and local files", "build", ["wysun", "tools"], "")
+    ];
+    const known = {};
+    for (const c of builtin.concat(system(session)))
+        if (c.argv) known[JSON.stringify(c.argv)] = true;
+    const custom = [];
+    for (const a of configured) {
+        const cmd = Array.from(a.command || []);
+        if (a.enabled === false || !a.name || !cmd.length || cmd[0] === "autocomplete" || known[JSON.stringify(cmd)])
+            continue;
+        if (cmd.join(" ") === "wysun wallpaper -r")
+            continue;
+        custom.push(make("custom:" + a.name, a.name, a.description || "Custom action", a.icon || "bolt", {argv: cmd, confirm: !!a.dangerous}, ""));
+    }
+    return builtin.concat(custom);
 }

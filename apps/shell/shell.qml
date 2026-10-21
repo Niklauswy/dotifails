@@ -53,6 +53,7 @@ ShellRoot {
     AreaPicker {}
     Overview {}
     WysunBridge {}
+    Launcher {}
     EmojiPicker {}
     Cheatsheet {}
 

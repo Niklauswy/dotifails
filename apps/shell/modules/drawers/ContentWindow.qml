@@ -37,7 +37,7 @@ StyledWindow {
 
     // Explicitly invoked panels need a visible, interactive surface even when
     // passive shell elements are hidden over a fullscreen application.
-    readonly property bool interactivePanelOpen: screenState.launcher || screenState.session || screenState.sidebar || screenState.dashboard || screenState.utilities
+    readonly property bool interactivePanelOpen: screenState.session || screenState.sidebar || screenState.dashboard || screenState.utilities
 
     property real fsTransitionProg: hasFullscreen ? 1 : 0
     readonly property real sdfBorderOffset: 2 * fsTransitionProg // SDFs joins are not exact, so offset by 2px to ensure nothing shows
@@ -56,7 +56,7 @@ StyledWindow {
             return 0;
 
         const thresholds = [];
-        for (const panel of ["dashboard", "launcher", "session", "sidebar"])
+        for (const panel of ["dashboard", "session", "sidebar"])
             if (contentItem.Config[panel].enabled)
                 thresholds.push(contentItem.Config[panel].dragThreshold);
         return Math.max(...thresholds);
@@ -74,7 +74,7 @@ StyledWindow {
     name: "drawers"
     WlrLayershell.exclusionMode: ExclusionMode.Ignore
     WlrLayershell.layer: (hasFullscreen && interactivePanelOpen) || (fsTransitionProg > 0 && contentItem.Config.general.showOverFullscreen) || (hasSpecialWorkspace && hasFullscreenOnNormalWs) ? WlrLayer.Overlay : WlrLayer.Top
-    WlrLayershell.keyboardFocus: screenState.launcher || screenState.session || screenState.sidebar ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: screenState.session || screenState.sidebar ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
 
     mask: hasFullscreen && !interactivePanelOpen ? emptyRegion : regions
 
@@ -121,7 +121,7 @@ StyledWindow {
         active: {
             const s = root.screenState;
             const conf = root.contentItem.Config;
-            if ((s.launcher && conf.launcher.enabled) || (s.session && conf.session.enabled) || (s.sidebar && conf.sidebar.enabled))
+            if ((s.session && conf.session.enabled) || (s.sidebar && conf.sidebar.enabled))
                 return true;
             if (!conf.dashboard.showOnHover && s.dashboard && conf.dashboard.enabled)
                 return true;
@@ -131,7 +131,6 @@ StyledWindow {
         }
         windows: [root]
         onCleared: {
-            root.screenState.launcher = false;
             root.screenState.session = false;
             root.screenState.sidebar = false;
             root.screenState.dashboard = false;
@@ -184,13 +183,6 @@ StyledWindow {
             id: dashBg
 
             panel: panels.dashboard
-            deformAmount: 0.1
-        }
-
-        PanelBg {
-            id: launcherBg
-
-            panel: panels.launcher
             deformAmount: 0.1
         }
 
@@ -278,9 +270,6 @@ StyledWindow {
 
             dashboard.transform: Matrix4x4 {
                 matrix: dashBg.deformMatrix
-            }
-            launcher.transform: Matrix4x4 {
-                matrix: launcherBg.deformMatrix
             }
             session.transform: Matrix4x4 {
                 matrix: sessionBg.deformMatrix

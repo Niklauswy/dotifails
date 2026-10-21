@@ -4,7 +4,6 @@ import Wysun.Config
 import qs.components
 import qs.modules.bar as Bar
 import qs.modules.dashboard as Dashboard
-import qs.modules.launcher as Launcher
 import qs.modules.notifications as Notifications
 import qs.modules.osd as Osd
 import qs.modules.session as Session
@@ -26,7 +25,6 @@ Item {
     readonly property alias notifications: notifications
     readonly property alias session: session
     readonly property alias sessionWrapper: sessionWrapper
-    readonly property alias launcher: launcher
     readonly property alias dashboard: dashboard
     readonly property alias popouts: popoutsWrapper.content
     readonly property alias popoutsWrapper: popoutsWrapper
@@ -94,17 +92,6 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             anchors.right: parent.right
         }
-    }
-
-    Launcher.Wrapper {
-        id: launcher
-
-        screen: root.screen
-        screenState: root.screenState
-        panels: root
-
-        anchors.horizontalCenter: parent.horizontalCenter
-        anchors.bottom: parent.bottom
     }
 
     Dashboard.Wrapper {

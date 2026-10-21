@@ -36,7 +36,7 @@ def clip_rows(store, text):
         kind = r['kind']
         title = 'Image' if kind == 'image' else (r['text'].split('\n')[0][:110] or '—')
         rows.append(row('clip', title, dt.datetime.fromtimestamp(r['stamp']).strftime('%d %b · %H:%M') + f'  ·  {kind}',
-                        CLIP_ICONS.get(kind, 'description'), id=r['id'], clip_kind=kind, value=r['text'],
+                        CLIP_ICONS.get(kind, 'description'), id=r['id'], clip_kind=kind, value=r['text'], stamp=r['stamp'],
                         swatch=r['text'] if kind == 'color' else ''))
     return rows[:LIMIT]
 
@@ -281,6 +281,21 @@ def main(argv):
             print(json.dumps({'image': 'data:image/png;base64,' + base64.b64encode(blob).decode()} if blob else {}))
         finally:
             store.db.close()
+        return 0
+    if len(argv) == 2 and argv[0] == 'clip-file':
+        # Image clips are exported once to the runtime dir so the shell can load them lazily by path.
+        store = Store()
+        try:
+            blob = store.blob(int(argv[1]))
+        finally:
+            store.db.close()
+        if blob:
+            folder = Path(os.environ.get('XDG_RUNTIME_DIR') or tempfile.gettempdir()) / 'wysun-launcher'
+            folder.mkdir(mode=0o700, exist_ok=True)
+            target = folder / f'clip-{int(argv[1])}.png'
+            if not target.exists():
+                target.write_bytes(blob)
+            print(target)
         return 0
     if len(argv) == 2 and argv[0] == 'preview':
         print(json.dumps(preview(argv[1]), ensure_ascii=False))
