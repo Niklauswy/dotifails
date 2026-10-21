@@ -69,6 +69,32 @@ var clips = view('clipboard', '', {clips: [{kind: 'clip', key: 'clip:1', stamp: 
 check(clips[0].section === 'Today', 'clipboard grouped by day');
 """)
 
+    def test_suggestions_keep_their_order_while_sources_update(self):
+        self.run_js("""
+function check(v, why) { if (!v) throw Error(why); }
+function app(name, freq) { return {kind: 'app', key: 'app:' + name, title: name, l: name.toLowerCase(), a: '', freq: freq}; }
+var names = ['Zed', 'Alpha', 'Beta', 'Gamma', 'Delta', 'Eps', 'Firefox', 'Foot', 'Gimp', 'Hexchat', 'Inkscape'];
+function ctxFor(step) {
+    // Sources reorder and tick on every update: shuffled index, equal frequencies, new entries.
+    var apps = names.map((n, i) => app(n, 3 + (i % 2))).sort((a, b) => ((a.title.charCodeAt(0) * (step + 3)) % 7) - ((b.title.charCodeAt(0) * (step + 3)) % 7));
+    if (step > 3) apps.push(app('Late' + step, 9));
+    return {apps: apps, commands: [], windows: [], clips: [], snippets: [], files: [], recentFiles: [], calcHistory: [], pins: [], recents: [], maxApps: 6, systemCommands: []};
+}
+var snapshot = root('', ctxFor(0));
+check(snapshot.length >= 5, 'suggestions present');
+var first = JSON.stringify(snapshot.map(r => r.key));
+for (var n = 1; n <= 50; n++) {
+    var live = ctxFor(n);
+    // Sometimes a source briefly lacks entries, sometimes it adds new ones.
+    var apps = n % 3 === 0 ? live.apps.slice(0, 3) : live.apps;
+    var seen = keepOrder(snapshot, apps).map(r => r.key);
+    check(JSON.stringify(seen) === first, 'visible order changed at update ' + n);
+}
+// Ties are broken by name, deterministically.
+var a = root('', ctxFor(1)).map(r => r.key), b = root('', ctxFor(2)).map(r => r.key);
+check(JSON.stringify(a.filter(k => k.indexOf('Late') < 0)) === JSON.stringify(b.filter(k => k.indexOf('Late') < 0)), 'stable tie-break');
+""")
+
 
 if __name__ == '__main__':
     unittest.main()

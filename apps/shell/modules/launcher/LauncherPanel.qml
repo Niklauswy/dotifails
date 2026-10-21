@@ -61,7 +61,8 @@ Item {
     property bool hlOn
     readonly property string query: search.text
 
-    readonly property var results: current.id === "root" ? Results.root(query, LauncherIndex.context) : current.id === "snippet-form" ? [] : Results.view(current.id, query, LauncherIndex.context, current.target, filter)
+    property var suggestSnapshot: []
+    readonly property var results: current.id === "root" ? (query.trim() === "" ? Results.keepOrder(suggestSnapshot, LauncherIndex.context.apps.concat(LauncherIndex.context.commands)) : Results.root(query, LauncherIndex.context)) : current.id === "snippet-form" ? [] : Results.view(current.id, query, LauncherIndex.context, current.target, filter)
     readonly property var items: flatten(results)
     readonly property var row: items[selected] ?? null
     readonly property bool formOpen: current.id === "snippet-form"
@@ -104,6 +105,7 @@ Item {
         pointerX = -1;
         stack = [{id: "root"}];
         search.clear();
+        suggestSnapshot = Results.root("", LauncherIndex.context);
         actionsOpen = false;
         previewFocus = false;
         confirmKey = "";

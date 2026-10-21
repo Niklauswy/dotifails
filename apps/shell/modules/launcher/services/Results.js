@@ -14,6 +14,20 @@ function appBoost(r) {
     return Math.min(Math.log(1 + (r.freq || 0)) * 25, 120);
 }
 
+// Deterministic order: frequency, then name, then key.
+function byFrequency(a, b) {
+    return (b.freq || 0) - (a.freq || 0) || (a.l < b.l ? -1 : a.l > b.l ? 1 : 0) || (a.key < b.key ? -1 : 1);
+}
+
+// Suggestions are frozen while the launcher is open: `snapshot` is the list taken on open.
+// Entries are refreshed from live data when still present, but never reordered, added or
+// dropped, so transient source updates cannot move what is on screen.
+function keepOrder(snapshot, live) {
+    const byKey = {};
+    live.forEach(r => byKey[r.key] = r);
+    return snapshot.map(r => byKey[r.key] ? Object.assign({}, byKey[r.key], {section: "Suggestions", pinned: r.pinned}) : r);
+}
+
 function suggestions(ctx) {
     const out = [], seen = {};
     const add = (r, pinned) => {
@@ -23,7 +37,7 @@ function suggestions(ctx) {
         }
     };
     ctx.pins.forEach(r => add(r, true));
-    ctx.apps.filter(r => r.freq > 0).sort((a, b) => b.freq - a.freq).slice(0, ctx.maxApps).forEach(r => add(r));
+    ctx.apps.filter(r => r.freq > 0).sort(byFrequency).slice(0, ctx.maxApps).forEach(r => add(r));
     ctx.recents.forEach(r => add(r));
     if (out.length < 6) {
         const wanted = ["cmd:clipboard", "cmd:emoji", "cmd:windows", "cmd:wallpaper", "cmd:files", "cmd:system"];
