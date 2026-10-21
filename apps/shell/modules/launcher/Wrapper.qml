@@ -13,7 +13,8 @@ Item {
     required property ScreenState screenState
     required property var panels
 
-    readonly property bool shouldBeActive: screenState.launcher && Config.launcher.enabled
+    readonly property bool available: Config.launcher.enabled
+    readonly property bool shouldBeActive: screenState.launcher && available
 
     readonly property real maxHeight: {
         let max = screen.height - Config.border.thickness * 2 + Tokens.padding.extraLarge;
@@ -34,7 +35,7 @@ Item {
     visible: offsetScale < 1
     anchors.bottomMargin: (-implicitHeight - 5) * offsetScale
     implicitHeight: content.implicitHeight
-    implicitWidth: content.implicitWidth || 630 // Hard coded fallback for first open
+    implicitWidth: content.implicitWidth || Tokens.sizes.launcher.itemWidth + Tokens.padding.large * 2
     opacity: 1 - offsetScale
 
     Component.onCompleted: Qt.callLater(() => Apps) // Load apps on init

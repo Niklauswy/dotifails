@@ -7,24 +7,38 @@ import sys
 
 
 def shell_launcher():
-    """Try the opt-in QML launcher; return True only when the shell accepted it.
+    """True: accepted, False: unavailable, None: delivery was not confirmed.
 
-    Unset by default: `wysun` keeps the existing Qt launcher path, every mode,
-    argv and ORBIT_THEME. If the shell is not running, the caller falls through
-    to the Qt launcher instead of leaving the user without a launcher.
+    The native drawer is the Wayland default. WYSUN_LAUNCHER=qt explicitly
+    selects the compatible Qt palette. An ambiguous delivery must never open
+    a second launcher; only absence or an explicit rejection permits fallback.
     """
-    if os.environ.get('WYSUN_LAUNCHER', '').strip().lower() not in ('qml', 'shell', 'quickshell', '1', 'true', 'yes'):
+    choice = os.environ.get('WYSUN_LAUNCHER', '').strip().lower()
+    if choice in ('qt', 'python', 'orbit', '0', 'false', 'no'):
+        return False
+    if choice not in ('qml', 'shell', 'quickshell', '1', 'true', 'yes') and not (
+            os.environ.get('WAYLAND_DISPLAY') or os.environ.get('HYPRLAND_INSTANCE_SIGNATURE')
+            or os.environ.get('XDG_SESSION_TYPE') == 'wayland'):
         return False
     helper = Path(__file__).resolve().parent / 'wysun-shell'
     if not helper.is_file():
         return False
     try:
         result = subprocess.run([str(helper), 'launcher'], timeout=2,
-                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                                check=False)
-    except (OSError, subprocess.SubprocessError):
+                                capture_output=True, text=True, check=False)
+    except subprocess.TimeoutExpired:
+        print('Wysun: el shell no confirmó la apertura; no se abrió otro lanzador. '
+              'Reintenta o usa WYSUN_LAUNCHER=qt.', file=sys.stderr)
+        return None
+    except OSError:
         return False
-    return result.returncode == 0
+    if result.returncode != 0 or result.stdout.strip() == 'false':
+        return False
+    if result.stdout.strip() == 'true':
+        return True
+    print('Wysun: respuesta de apertura desconocida; no se abrió otro lanzador. '
+          'Usa WYSUN_LAUNCHER=qt para abrir el alternativo.', file=sys.stderr)
+    return None
 
 
 def main():
@@ -34,8 +48,8 @@ def main():
               'Uso: wysun [scheme|wallpaper|shell|recover|lock|session-check|doctor|audio|calendar|recorder|screenshot|music|music-mini|files|settings|tools|notes|processes|colors|connections|power] [opciones]\n'
               'Sin argumentos abre el lanzador. Recorder y Screenshot abren su biblioteca;\n'
               'wysun recorder --quick-record abre la barra de preparación sin grabar.\n'
-              'Con WYSUN_LAUNCHER=qml se intenta primero el lanzador del shell Quickshell;\n'
-              'si la shell no responde se abre el lanzador Qt de siempre.')
+              'En Wayland se abre el widget inferior del shell; si no está disponible\n'
+              'se usa Qt. WYSUN_LAUNCHER=qt selecciona Qt explícitamente.')
         return 0
     command = args.pop(0) if args else 'toggle'
     command = {'launcher': 'toggle', 'colors': 'color', 'connections': 'network'}.get(command, command)
@@ -48,8 +62,10 @@ def main():
         sys.path.insert(0, str(app))
         import wysun_scheme
         return (wysun_scheme.wallpaper_main if command == 'wallpaper' else wysun_scheme.main)(args)
-    if command == 'toggle' and not args and shell_launcher():
-        return 0
+    if command == 'toggle' and not args:
+        accepted = shell_launcher()
+        if accepted is not False:
+            return 0 if accepted else 1
     commands = {'doctor': 'dotifails', 'shell': 'wysun-shell', 'lock': 'wysun-lock', 'recover': 'wysun-recover', 'session-check': 'wysun-session', 'recorder': 'wysun-recorder', 'screenshot': 'wysun-screenshot',
                 'files': 'orbit-files', 'tools-cli': 'orbit-tools'}
     executable = Path(__file__).resolve().parent / commands.get(command, 'orbit')
