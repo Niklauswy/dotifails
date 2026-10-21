@@ -1,4 +1,4 @@
-"""Wysun Ajustes: Hyprland window behaviour and global bindings."""
+"""Wysun Settings: Hyprland window behaviour and global bindings."""
 
 from theme_tokens import apply_style, color
 import json, subprocess
@@ -26,7 +26,7 @@ class ShortcutEditor(QDialog):
 
 class SettingsWindow(Surface):
     def __init__(self,test=False):
-        super().__init__('Wysun Ajustes','Hyprland · ventanas, comportamiento y atajos',960,670);self.test=test;self.backend=DesktopSettings();self.shortcuts=ShortcutFile();self.widgets={};self.rules=json.loads(json.dumps(self.backend.saved.get('rules',[])))
+        super().__init__('Wysun Settings','Hyprland · ventanas, comportamiento y atajos',960,670);self.test=test;self.backend=DesktopSettings();self.shortcuts=ShortcutFile();self.widgets={};self.rules=json.loads(json.dumps(self.backend.saved.get('rules',[])))
         middle=QHBoxLayout();middle.setSpacing(24);self.nav=QListWidget();self.nav.setFixedWidth(190);self.nav.setIconSize(QSize(18,18));self.nav.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff);self.pages=QStackedWidget();middle.addWidget(self.nav);middle.addWidget(self.pages,1);self.outer.addLayout(middle,1)
         for title,symbol in [('Apariencia','palette'),('Comportamiento','mouse-pointer-2'),('Atajos','keyboard'),('Ventanas','panels-top-left'),('Archivos y copias','files')]:
             from PySide6.QtWidgets import QListWidgetItem

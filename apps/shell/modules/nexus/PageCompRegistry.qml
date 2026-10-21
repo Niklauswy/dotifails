@@ -183,6 +183,13 @@ QtObject {
                     AboutPage {}
                 }
             }
+        },
+        Component {
+            StackPage {
+                Component {
+                    DesktopPage {}
+                }
+            }
         }
     ]
 

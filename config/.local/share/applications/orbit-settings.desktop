@@ -1,6 +1,6 @@
 [Desktop Entry]
 Type=Application
-Name=Wysun Ajustes
+Name=Wysun Settings
 GenericName=Configuración del escritorio
 Comment=Pantallas, fondos, barra, ventanas y atajos
 Exec=wysun settings
