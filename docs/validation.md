@@ -154,3 +154,23 @@ La máscara heredada vacía en fullscreen podía mantener foco sobre un panel
 inaccesible. `88210e18` utiliza la región interactiva y capa overlay cuando
 hay un panel invocado, y cierra los estados de lateral/utilidades al cambiar
 fullscreen. No se modificó ni reconstruyó el plugin C++.
+
+
+## Cierre de dependencia Debian · 21 de octubre de 2026
+
+El journal conservado del contenedor `wysun-p2b51-clean-disk`
+(`5834d751d442`) confirma `RUNTIME_OK /root/rt` y Quickshell 0.3.2,
+revision `2b4501a282689792b62e94f3fb30d8f512324fe6`. La construcción original
+desde Debian 13 terminó; su verificación final falló porque faltaba
+`libpulse.so.0` al enlazar los plugins multimedia.
+
+`715d74fb` añade `libpulse0` al manifiesto consumido por el constructor y el
+plan de instalación. Sobre el mismo contenedor y el mismo artefacto se
+comprobaron los cinco sellos y el hash del plugin antes de continuar. Se
+instalaron únicamente `libpulse0` y su dependencia `libasyncns0`, sin paquetes
+del host y sin recompilar. La verificación posterior pasó: versión ejecutable,
+`ldd` de todos los plugins y segunda ejecución sin comandos de build ni cambios
+en los sellos. Resultado `WYSUN_RUNTIME_CONTAINER_OK`, contenedor `exited 0`.
+No es una construcción fría completa repetida después de corregir el manifiesto;
+es la corrección de dependencias y validación del artefacto original conservado.
+No quedaron procesos propios de validación consumiendo CPU.

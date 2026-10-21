@@ -101,7 +101,7 @@ $XDG_DATA_HOME/wysun/runtime/            (por defecto ~/.local/share/wysun/runti
 - **Cambiar el plugin C++**: editar `apps/shell/plugin`, `python3 installer/runtime_build.py` (o `./instalar.sh --orbit-only`),
   reiniciar el shell (sección 5).
 - **Otra máquina**: `./instalar.sh` (componente `wayland`) instala paquetes de build, ejecuta `runtime_build.py` y despliega el
-  shell. La validación limpia Debian 13 del runtime sigue pendiente (ver `docs/validation.md`).
+  shell. La construcción limpia Debian 13 terminó; el artefacto se revalidó tras corregir `libpulse0` (alcance en `docs/validation.md`).
 
 ## 4. Instalador (`instalar.sh` → `installer/main.py`)
 
