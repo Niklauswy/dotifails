@@ -166,9 +166,10 @@ Nunca reiniciar Hyprland ni el login para actualizar un panel.
   `WYSUN_LAUNCHER=qt` elige la paleta Qt; si el shell rechaza o no está disponible se usa ese alternativo. Una respuesta
   ambigua o un timeout no abre un segundo lanzador. Sus acciones por defecto en `plugin/src/Wysun/Config/launcherconfig.hpp` llaman a comandos
   que ya no existen como `wysun wallpaper -r`: revisar al migrar el lanzador.
-- **Lateral**: `Ctrl+X` alterna el panel en el monitor enfocado y Escape lo cierra. La combinación se intercepta
-  globalmente, también en editores: las acciones Cortar y sus atajos alternativos siguen disponibles. Los paneles invocados
-  explícitamente conservan máscara interactiva y capa overlay sobre fullscreen; no dejan un foco invisible.
+- **Panel de sesión**: `Super+X` alterna el panel lateral de sesión (salir, apagar, suspender, reiniciar) en el monitor
+  enfocado y Escape lo cierra. `Ctrl+X` no está asignado: vuelve a ser Cortar en las aplicaciones. El menú Qt de energía
+  queda en `Super+Shift+X` (respaldo). Los paneles invocados explícitamente conservan máscara interactiva y capa overlay
+  sobre fullscreen; no dejan un foco invisible.
 - **Ajustes**: dos superficies conviven — Wysun Settings Qt (`apps/wysun/settings_*`) y el panel “nexus” del shell
   (`apps/shell/modules/nexus`, configuración en `~/.config/wysun/shell/shell.json`). `settings_hub.py`/`hypr_settings.py` escriben
   `~/.config/orbit/hypr-*.lua`, que `hyprland.lua` carga.

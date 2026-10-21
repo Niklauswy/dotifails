@@ -6,15 +6,21 @@ import Wysun.Config
 import Wysun.I18n
 import qs.components
 import qs.services
+import qs.modules.launcher.services
 
 Item {
     id: root
 
     required property var list
-    readonly property string math: list.search.text.slice(`${GlobalConfig.launcher.actionPrefix}calc `.length)
+    readonly property string math: {
+        const prefixed = `${GlobalConfig.launcher.actionPrefix}calc `;
+        const text = list.search.text;
+        return text.startsWith(prefixed) ? text.slice(prefixed.length) : text;
+    }
 
     function onClicked(): void {
         Quickshell.execDetached(["wl-copy", Qalculator.rawResult]);
+        LauncherData.run(["record-calc", root.math, Qalculator.rawResult]);
         root.list.screenState.launcher = false;
     }
 

@@ -4,6 +4,13 @@
 // These are argv arrays, never shell strings, and never replace user actions.
 function utilities() {
     return [
+        ["Portapapeles aquí", "Historial en el lanzador: > clip, filtra por texto, imagen, color o enlace", "content_paste_search", ["autocomplete", "clip"]],
+        ["Archivos aquí", "Buscar archivos por nombre o ruta en el lanzador", "folder_open", ["autocomplete", "files"]],
+        ["Snippets aquí", "Fragmentos de texto y abreviaturas en el lanzador", "data_object", ["autocomplete", "snip"]],
+        ["Ventanas aquí", "Cambiar de ventana desde el lanzador", "select_window", ["autocomplete", "win"]],
+        ["Emoji aquí", "Buscar y copiar un emoji desde el lanzador", "add_reaction", ["autocomplete", "emoji"]],
+        ["Historial de cálculos", "Resultados anteriores de la calculadora", "history", ["autocomplete", "hist"]],
+        ["Ejecutar comando", "Ejecutar un comando en la terminal: > run <comando>", "terminal", ["autocomplete", "run"]],
         ["Portapapeles", "Historial, favoritos, OCR y opciones del historial", "content_paste", ["wysun", "clipboard"]],
         ["Archivos", "Carpetas, pestañas y búsqueda de archivos", "folder", ["wysun", "files"]],
         ["Snippets", "Fragmentos de texto y abreviaturas", "code", ["wysun", "snippets"]],
@@ -28,7 +35,7 @@ function utilities() {
         ["Fondo y estilo", "Cambiar el fondo y las preferencias de color", "wallpaper", ["wysun", "settings", "wallpaper"]],
         ["Efectos y animaciones", "Sombras, desenfoque y velocidad", "animation", ["wysun", "settings", "effects"]],
         ["Terminal", "Abrir la terminal configurada", "terminal", ["wysun-terminal"]],
-        ["Barra lateral", "Abrir o cerrar el lateral", "dock_to_right", ["wysun", "shell", "sidebar"]]
+        ["Sesión (lateral)", "Salir, apagar, suspender o reiniciar", "power_settings_new", ["wysun", "shell", "session"]]
     ].map(function(item) {
         return {name: item[0], description: item[1], icon: item[2], command: item[3], enabled: true, dangerous: false};
     });

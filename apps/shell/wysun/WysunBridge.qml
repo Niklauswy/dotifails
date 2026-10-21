@@ -8,7 +8,7 @@ import qs.utils
 Scope {
     id: root
     readonly property var surfaces: ({ dashboard: 'dashboard', test: 'dashboard', windows: 'dashboard',
-        launcher: 'launcher', menu: 'utilities', quicksettings: 'utilities', notifications: 'sidebar', sidebar: 'sidebar', session: 'session' })
+        launcher: 'launcher', menu: 'utilities', quicksettings: 'utilities', notifications: 'sidebar', session: 'session' })
     function current() { return ShellState.forActive(); }
     function available(kind, state) {
         return kind !== 'launcher' || !!ShellState.componentsFor(state.modelData)?.panels?.launcher?.available;

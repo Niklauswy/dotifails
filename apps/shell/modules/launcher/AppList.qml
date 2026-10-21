@@ -28,6 +28,12 @@ StyledListView {
 
     function stateForText(text: string): string {
         const prefix = GlobalConfig.launcher.actionPrefix;
+        if (text.startsWith(`${prefix}run `))
+            return "run";
+        if (LauncherData.parse(text, prefix))
+            return "data";
+        if (!text.startsWith(prefix) && /^[\d\s().,+\-*\/^%×÷]+$/.test(text) && /\d/.test(text) && /[+\-*\/^%×÷]/.test(text.replace(/^\s*-/, "")))
+            return "calc";
         if (text.startsWith(prefix)) {
             for (const action of ["calc", "scheme", "variant"])
                 if (text.startsWith(`${prefix}${action} `))
@@ -39,12 +45,21 @@ StyledListView {
         return "apps";
     }
 
+    readonly property var dataQuery: LauncherData.parse(displayText, GlobalConfig.launcher.actionPrefix) ?? {
+        mode: "",
+        text: ""
+    }
+
     function resultsForText(text: string): var {
         switch (stateForText(text)) {
         case "actions":
             return Actions.query(text);
         case "calc":
             return [0];
+        case "run":
+            return [LauncherData.runRow(text.slice(GlobalConfig.launcher.actionPrefix.length + 4).trim())];
+        case "data":
+            return LauncherData.rowsMode === dataQuery.mode ? LauncherData.rows : [];
         case "scheme":
             return Schemes.query(text);
         case "variant":
@@ -89,6 +104,11 @@ StyledListView {
             Schemes.reload();
     }
 
+    onDataQueryChanged: {
+        if (dataQuery.mode)
+            LauncherData.request(dataQuery.mode, dataQuery.text);
+    }
+
     Component.onCompleted: displayText = search.text
 
     states: [
@@ -125,6 +145,20 @@ StyledListView {
 
             PropertyChanges {
                 root.delegate: variantItem
+            }
+        },
+        State {
+            name: "data"
+
+            PropertyChanges {
+                root.delegate: dataItem
+            }
+        },
+        State {
+            name: "run"
+
+            PropertyChanges {
+                root.delegate: dataItem
             }
         }
     ]
@@ -275,6 +309,14 @@ StyledListView {
         id: schemeItem
 
         SchemeItem {
+            list: root
+        }
+    }
+
+    Component {
+        id: dataItem
+
+        DataItem {
             list: root
         }
     }

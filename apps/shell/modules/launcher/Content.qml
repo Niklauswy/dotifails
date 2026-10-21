@@ -59,25 +59,30 @@ Item {
         topPadding: Math.round((Tokens.padding.medium + Tokens.padding.large) / 2)
         bottomPadding: Math.round((Tokens.padding.medium + Tokens.padding.large) / 2)
 
-        placeholderText: Tr.tr("Type \"%1\" for commands").arg(GlobalConfig.launcher.actionPrefix)
+        placeholderText: Tr.tr("Type \"%1\" for commands, clip, files, snip, win, emoji or run").arg(GlobalConfig.launcher.actionPrefix)
 
         onAccepted: {
             const currentItem = list.currentList?.currentItem;
-            if (currentItem) {
-                if (list.showWallpapers) {
-                    if (Colours.scheme === "dynamic" && currentItem.modelData.path !== Wallpapers.actualCurrent)
-                        Wallpapers.previewColourLock = true;
-                    Wallpapers.setWallpaper(currentItem.modelData.path);
+            const prefix = GlobalConfig.launcher.actionPrefix;
+            if (!currentItem) {
+                // No match: like the Qt palette, fall back to a web search.
+                const query = text.trim();
+                if (query && !text.startsWith(prefix) && LauncherData.activate(LauncherData.webRow(query)))
                     root.screenState.launcher = false;
-                } else if (text.startsWith(GlobalConfig.launcher.actionPrefix)) {
-                    if (text.startsWith(`${GlobalConfig.launcher.actionPrefix}calc `))
-                        currentItem.onClicked();
-                    else
-                        currentItem.modelData.onClicked(list.currentList);
-                } else {
-                    Apps.launch(currentItem.modelData);
-                    root.screenState.launcher = false;
-                }
+                return;
+            }
+            if (list.showWallpapers) {
+                if (Colours.scheme === "dynamic" && currentItem.modelData.path !== Wallpapers.actualCurrent)
+                    Wallpapers.previewColourLock = true;
+                Wallpapers.setWallpaper(currentItem.modelData.path);
+                root.screenState.launcher = false;
+            } else if (list.displayState === "data" || list.displayState === "run" || list.displayState === "calc") {
+                currentItem.onClicked();
+            } else if (text.startsWith(prefix)) {
+                currentItem.modelData.onClicked(list.currentList);
+            } else {
+                Apps.launch(currentItem.modelData);
+                root.screenState.launcher = false;
             }
         }
 
@@ -87,6 +92,28 @@ Item {
         Keys.onEscapePressed: root.screenState.launcher = false
 
         Keys.onPressed: event => {
+            const row = list.displayState === "data" ? list.currentList?.currentItem?.modelData : null;
+            if (row) {
+                // Row actions: Ctrl+Delete removes history/snippets, Shift+Enter opens the
+                // containing folder, Ctrl+Enter copies a file path.
+                if ((event.modifiers & Qt.ControlModifier) && event.key === Qt.Key_Delete && LauncherData.remove(row)) {
+                    event.accepted = true;
+                    return;
+                }
+                if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+                    if ((event.modifiers & Qt.ShiftModifier) && LauncherData.openFolder(row)) {
+                        root.screenState.launcher = false;
+                        event.accepted = true;
+                        return;
+                    }
+                    if ((event.modifiers & Qt.ControlModifier) && LauncherData.copyPath(row)) {
+                        root.screenState.launcher = false;
+                        event.accepted = true;
+                        return;
+                    }
+                }
+            }
+
             if (!GlobalConfig.launcher.vimKeybinds)
                 return;
 

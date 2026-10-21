@@ -34,13 +34,11 @@ hl.window_rule({ name = "wysun-screenshot-pending", match = { class = "^wybie-sc
 -- The consent provider is a native MainWindow, but behaves as a dialog.
 hl.window_rule({ name = "wysun-portal-picker", match = { class = "^hyprland-share-picker$", title = "^Select what to share$" }, float = true, center = true })
 -- BEGIN AUDITED DAILY SHORTCUTS
--- Ctrl+X is reserved globally for the sidebar, including in text editors.
--- Application Cut actions and their other shortcuts remain available.
-hl.bind("CTRL + X", hl.dsp.exec_cmd("wysun shell sidebar"), {description="Wysun | sidebar | Abrir o cerrar la barra lateral"})
 hl.bind("SUPER + Return", hl.dsp.exec_cmd("wysun-terminal"), {description="Wysun | equivalent | Abrir wysun-terminal"})
 hl.bind("SUPER + D", hl.dsp.exec_cmd("wysun"), {description="Wysun | equivalent | Abrir wysun"})
 hl.bind("SUPER + space", hl.dsp.exec_cmd("wysun"), {description="Wysun | equivalent | Abrir wysun"})
-hl.bind("SUPER + X", hl.dsp.exec_cmd("wysun power"), {description="Wysun | equivalent | Abrir wysun power"})
+hl.bind("SUPER + X", hl.dsp.exec_cmd("wysun shell session"), {description="Wysun | session | Abrir o cerrar el panel lateral de sesión"})
+hl.bind("SUPER + SHIFT + X", hl.dsp.exec_cmd("wysun power"), {description="Wysun | equivalent | Abrir wysun power (menú Qt de respaldo)"})
 hl.bind("ALT + Tab", hl.dsp.exec_cmd("wysun windows"), {description="Wysun | equivalent | Abrir wysun windows"})
 hl.bind("SUPER + V", hl.dsp.exec_cmd("wysun clipboard"), {description="Wysun | equivalent | Abrir wysun clipboard"})
 hl.bind("SUPER + C", hl.dsp.exec_cmd("wysun calculator"), {description="Wysun | equivalent | Abrir wysun calculator"})

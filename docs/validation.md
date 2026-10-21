@@ -146,9 +146,8 @@ con Escape en eDP-1, DP-1 y DP-2. Al limpiar, la dirección y PID de la terminal
 de prueba ya no existían: no se cerró ninguna otra ventana. Recovery siguió
 respondiendo correctamente y Hyprland no se reinició.
 
-Ctrl+X queda reservado globalmente para la lateral, incluso dentro de editores.
-Esto intercepta esa combinación de Cortar; se conservan las acciones Cortar y
-sus atajos alternativos. No se eliminaron acciones de ninguna aplicación.
+Corrección posterior: Ctrl+X ya no está asignado globalmente (vuelve a ser Cortar). Super+X abre o cierra el panel
+lateral de sesión; el menú Qt de energía pasó a Super+Shift+X.
 
 La máscara heredada vacía en fullscreen podía mantener foco sobre un panel
 inaccesible. `88210e18` utiliza la región interactiva y capa overlay cuando
