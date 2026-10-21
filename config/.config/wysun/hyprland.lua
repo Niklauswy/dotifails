@@ -42,6 +42,7 @@ hl.bind("ALT + Tab", hl.dsp.exec_cmd("wysun windows"), {description="Wysun | equ
 hl.bind("SUPER + V", hl.dsp.exec_cmd("wysun clipboard"), {description="Wysun | equivalent | Abrir wysun clipboard"})
 hl.bind("SUPER + C", hl.dsp.exec_cmd("wysun calculator"), {description="Wysun | equivalent | Abrir wysun calculator"})
 hl.bind("SUPER + L", hl.dsp.exec_cmd("wysun emoji"), {description="Wysun | equivalent | Abrir wysun emoji"})
+hl.bind("SUPER + CTRL + period", hl.dsp.exec_cmd("wysun emoji"), {description="Wysun | emoji | Open emoji drop-down"})
 hl.bind("SUPER + SHIFT + K", hl.dsp.exec_cmd("wysun processes"), {description="Wysun | equivalent | Abrir wysun processes"})
 hl.bind("SUPER + N", hl.dsp.exec_cmd("wysun connections"), {description="Wysun | equivalent | Abrir wysun connections"})
 hl.bind("SUPER + SHIFT + N", hl.dsp.exec_cmd("wysun notes"), {description="Wysun | equivalent | Abrir wysun notes"})

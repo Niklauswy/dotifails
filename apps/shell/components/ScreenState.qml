@@ -11,6 +11,8 @@ PersistentProperties {
     property bool dashboard
     property bool utilities
     property bool sidebar
+    property string launcherCategory
+    property bool emoji
     property string launcherQuery
 
     // Dashboard state

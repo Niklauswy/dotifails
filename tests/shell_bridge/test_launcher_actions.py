@@ -17,27 +17,27 @@ class LauncherActionsTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_utility_catalogue_preserves_modes_and_user_preferences(self):
-        source = (ROOT / 'apps/shell/modules/launcher/services/WysunActions.js').read_text().replace('.pragma library', '')
+        source = (ROOT / 'apps/shell/modules/launcher/services/Catalog.js').read_text().replace('.pragma library', '')
         self.run_js(source + """
 function check(v, why) { if (!v) throw Error(why); }
-var commands = utilities().map(a => a.command.join(' '));
-for (var mode of ['clipboard', 'files', 'snippets', 'calculator', 'emoji', 'windows',
-                  'music', 'music-mini', 'notes', 'colors', 'processes', 'tools',
-                  'connections', 'audio', 'notifications', 'calendar', 'system',
-                  'power', 'recorder', 'screenshot', 'settings'])
+var commands = actions('', [], false).map(a => a.argv.join(' '));
+for (var mode of ['files', 'emoji', 'music', 'music-mini', 'notes', 'colors', 'processes', 'tools',
+                  'connections', 'audio', 'notifications', 'calendar', 'system', 'power', 'recorder', 'screenshot', 'settings'])
     check(commands.includes('wysun ' + mode), 'lost utility: ' + mode);
+for (var mode of ['clip', 'snippets', 'calc', 'windows'])
+    check(commands.includes('autocomplete ' + mode), 'lost category: ' + mode);
 var custom = {name: 'Custom Settings', command: ['wysun', 'settings'], enabled: false};
 var dangerous = {command: ['poweroff'], enabled: true, dangerous: true};
 var invalid = {command: ['wysun', 'wallpaper', '-r'], enabled: true};
 var original = JSON.stringify([custom, dangerous, invalid]);
-var items = entries([custom, dangerous, invalid], false);
-check(!items.some(a => a.command.join(' ') === 'wysun settings'), 'disabled user action re-added');
-check(!items.some(a => a.command[0] === 'poweroff'), 'dangerous action enabled');
-check(!items.some(a => a.command.join(' ') === 'wysun wallpaper -r'), 'obsolete argv retained');
-check(entries([dangerous], true).includes(dangerous), 'explicit dangerous setting lost');
+var items = actions('', [custom, dangerous, invalid], false);
+check(!items.some(a => a.argv.join(' ') === 'wysun settings'), 'disabled user action re-added');
+check(!items.some(a => a.argv[0] === 'poweroff'), 'dangerous action enabled');
+check(!items.some(a => a.argv.join(' ') === 'wysun wallpaper -r'), 'obsolete argv retained');
+check(actions('', [dangerous], true).some(a => a.argv[0] === 'poweroff'), 'explicit dangerous setting lost');
 check(JSON.stringify([custom, dangerous, invalid]) === original, 'user config mutated');
 var aliases = [{command: ['custom'], enabled: true}, {command: ['custom'], enabled: true}];
-check(entries(aliases, false).filter(a => a.command[0] === 'custom').length === 2, 'user aliases removed');
+check(actions('', aliases, false).filter(a => a.argv[0] === 'custom').length === 2, 'user aliases removed');
 """)
 
     def test_apps_keep_desktop_entry_execution_and_terminal_working_directory(self):
