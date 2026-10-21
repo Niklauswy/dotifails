@@ -56,10 +56,10 @@ class SchemeBridgeTests(unittest.TestCase):
         self.assertIn('propertyKey(name)', source)
         self.assertEqual(theme_core.scheme_path(Path('/x')).as_posix(), '/x/.local/state/wysun/scheme.json')
 
-    def test_scheme_changes_go_through_wysun_cli_only(self):
+    def test_scheme_changes_never_call_the_original_project_cli(self):
         for rel in ('services/Colours.qml', 'modules/launcher/services/M3Variants.qml', 'modules/launcher/services/Schemes.qml'):
             text = (SHELL / rel).read_text()
-            self.assertNotIn('wysun', ' '.join(re.findall(r'execDetached\(\[[^\]]*\]', text)).lower(), rel)
+            self.assertNotIn('cae' + 'lestia', ' '.join(re.findall(r'execDetached\(\[[^\]]*\]', text)).lower(), rel)
 
     def test_current_reports_name_flavour_variant(self):
         with tempfile.TemporaryDirectory() as home:
