@@ -11,7 +11,7 @@ SHELL_ROUTES = {
     'toggle': ['launcher'], 'launcher': ['launcher'],
     'clipboard': ['category', 'clip'], 'snippets': ['category', 'snippets'], 'emoji': ['emoji'],
     'calculator': ['category', 'calc'], 'windows': ['category', 'windows'], 'power': ['session'],
-    'processes': ['open', 'processes'],
+    'processes': ['open', 'processes'], 'cheatsheet': ['cheatsheet'],
     'audio': ['open', 'quicksettings'], 'notifications': ['open', 'notifications'],
     'calendar': ['open', 'dashboard'], 'system': ['open', 'dashboard'],
 }

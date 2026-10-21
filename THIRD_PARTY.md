@@ -164,3 +164,9 @@ Upstream files have no individual copyright header; no notices were removed.
 - License: GPL-3.0; full text in [LICENSES/GPL-3.0.txt](LICENSES/GPL-3.0.txt).
 - `apps/shell/modules/overview/{Overview,OverviewWidget,OverviewWindow}.qml` and `OverviewGeometry.js` adapt the layer surface, two-row workspace grid, live `ScreencopyView` thumbnails, app icon overlays and drag/drop interactions from `dots/.config/quickshell/ii/modules/ii/overview/{Overview,OverviewWidget,OverviewWindow}.qml` (the former `modules/overview/` location). Each adapted file retains an origin/license header.
 - Wysun uses its own Hypr, Colours, Tokens and ShellState services and delegates search to its existing launcher. No upstream config or service is imported. Workspace thumbnails use the source output's logical geometry; the overview opens across enabled outputs with keyboard focus on the invoking output, and includes workspaces from all outputs. The diagnostic openOn route can target a single output.
+
+## end-4 cheat sheet
+
+- Repository: [end-4/dots-hyprland](https://github.com/end-4/dots-hyprland), source commit `2f2a376fdb2ad738bf55f693dd0b474b64bb0ab8`.
+- License: GPL-3.0; full text in [LICENSES/GPL-3.0.txt](LICENSES/GPL-3.0.txt).
+- `apps/shell/modules/cheatsheet/Cheatsheet.qml` adapts the keycap rendering and per-category columns of `dots/.config/quickshell/ii/modules/ii/cheatsheet/`. The content is not upstream's: `backend.py` is Wysun code that reads the active `hyprland.lua` and lists its real binds in English, grouped by category and without the binds that have no Wysun equivalent.

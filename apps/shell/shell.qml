@@ -11,6 +11,7 @@ import Wysun.Config
 import qs.services
 import qs.wysun
 import qs.modules.overview
+import qs.modules.cheatsheet
 import qs.modules.areapicker
 import qs.modules.background
 import qs.modules.drawers
@@ -53,6 +54,7 @@ ShellRoot {
     Overview {}
     WysunBridge {}
     EmojiPicker {}
+    Cheatsheet {}
 
     // Daemons
     BatteryMonitor {}
