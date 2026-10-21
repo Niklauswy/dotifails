@@ -9,6 +9,7 @@ PersistentProperties {
     property bool session
     property bool launcher
     property bool overview
+    property bool overviewKeyboard
     property bool dashboard
     property bool utilities
     property bool sidebar

@@ -18,7 +18,12 @@ Rectangle {
     readonly property real tileWidth: (grid.width - gap * 4) / 5
     readonly property real tileHeight: Math.min(tileWidth * screen.height / screen.width, (height * 0.62 - gap) / 2)
     color: Colours.palette.m3surface
-    function close() { screenState.overview = false; }
+    function close() {
+        for (const output of Quickshell.screens) {
+            const state = ShellState.forScreen(output);
+            if (state) { state.overview = false; state.overviewKeyboard = false; }
+        }
+    }
     function search(text) {
         const panels = ShellState.componentsFor(screen)?.panels;
         if (!panels?.launcher?.available) return;

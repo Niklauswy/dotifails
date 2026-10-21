@@ -21,7 +21,7 @@ Scope {
                 anchors { top: true; bottom: true; left: true; right: true }
                 WlrLayershell.layer: WlrLayer.Overlay
                 WlrLayershell.exclusionMode: ExclusionMode.Ignore
-                WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
+                WlrLayershell.keyboardFocus: loader.state?.overviewKeyboard ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
                 OverviewWidget { anchors.fill: parent; screen: loader.modelData; screenState: loader.state }
             }
         }
