@@ -36,7 +36,7 @@ class RecoveryTests(unittest.TestCase):
                 result = subprocess.check_output([sys.executable, '-c', script], env=env, text=True)
                 self.assertEqual(result.strip(), '(0, 0)')
                 owner.recover_capture.assert_not_called()
-                for response, expected in ((True, '(1, 0)'), (False, '(0, 0)'), (RuntimeError('cannot save'), '(0, 1)')):
+                for response, expected in ((True, '(1, 0)'), (False, '(0, 0)'), ('pending', '(0, 1)'), (RuntimeError('cannot save'), '(0, 1)')):
                     owner.recover_capture.side_effect = response if isinstance(response, Exception) else None
                     owner.recover_capture.return_value = response
                     process = subprocess.Popen([sys.executable, '-c', script], stdout=subprocess.PIPE, text=True)
@@ -52,6 +52,12 @@ class RecoveryTests(unittest.TestCase):
                 server.close()
                 self.app._wybieshot_window = None
             self.assertFalse(server.path.exists())
+
+    def test_pending_portal_cancellation_does_not_claim_closed(self):
+        from types import SimpleNamespace
+        owner = SimpleNamespace(busy=True, overlay=None, cancel_capture=Mock())
+        self.assertEqual(Window.recover_capture(owner), 'pending')
+        owner.cancel_capture.assert_called_once_with()
 
     def test_rejects_shared_runtime_directory(self):
         with tempfile.TemporaryDirectory(prefix='wr-') as directory, patch.dict(os.environ, XDG_RUNTIME_DIR=directory):

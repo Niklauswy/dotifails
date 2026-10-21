@@ -590,7 +590,8 @@ class Window(QMainWindow):
             document = getattr(overlay, 'document', None)
             if document is not None:self.storage.save(document)
         self.cancel_capture()
-        return True
+        # Portal cancellation retains the lease until the worker finishes.
+        return 'pending' if self.busy else True
 
     def cancel_capture(self):
         if self.defer_capture_cancel():return

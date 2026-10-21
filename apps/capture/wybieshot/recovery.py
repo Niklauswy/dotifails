@@ -53,7 +53,7 @@ class RecoveryServer:
         window = getattr(self.app, '_wybieshot_window', None)
         try:
             result = window.recover_capture() if window is not None else False
-            reply = b'closed' if result else b'idle'
+            reply = b'pending' if result == 'pending' else (b'closed' if result else b'idle')
         except Exception:
             # Leave the document/overlay available if persistence failed.
             reply = b'error'

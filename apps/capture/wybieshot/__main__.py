@@ -27,7 +27,7 @@ def main(argv=None):
     if args.cancel_selection:
         from .recovery import request_recovery
         closed, failed = request_recovery()
-        print(f'Wysun Screenshot: {closed} selección(es) cerrada(s); {failed} sin respuesta o sin guardar')
+        print(f'Wysun Screenshot: {closed} selección(es) cerrada(s); {failed} pendiente(s), sin respuesta o sin guardar')
         return 1 if failed else 0
     direct=args.region or args.accept_on_select or args.clipboard or args.path is not None or args.delay is not None
     if args.library and direct:parser.error('--library no admite acciones de captura')
