@@ -4,7 +4,7 @@ from theme_tokens import apply_style, color, paint_color
 
 import argparse, os, re, socket, subprocess, sys
 from pathlib import Path
-from PySide6.QtCore import Qt, QTimer, QThread, Signal
+from PySide6.QtCore import Qt, QObject, QTimer, QThread, Signal
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication, QLabel, QFrame
 
@@ -26,7 +26,7 @@ def label(text='',name=''):
     if name:x.setObjectName(name)
     return x
 
-class OrbitDaemon:
+class OrbitDaemon(QObject):
     """Headless resident: hosts the Qt utility windows and records clipboard history.
 
     The launcher itself is the shell widget (apps/shell/modules/launcher); no
@@ -34,6 +34,7 @@ class OrbitDaemon:
     """
     UTILITIES=('network','notes','processes','color','tools','music','settings')
     def __init__(self,store=None,test=False):
+        super().__init__()
         from data_v2 import StoreV2
         self.store=store or StoreV2();self.test=test;self.utilities={};self.ignore_clip=False;self._external_clipboard=None
         self.clipboard=QApplication.clipboard()
@@ -42,7 +43,7 @@ class OrbitDaemon:
         if not test and wayland():
             from wayland_clipboard import ClipboardWatch
             self.wayland_clipboard=ClipboardWatch(self)
-        self.prune_timer=QTimer();self.prune_timer.timeout.connect(self.store.prune);self.prune_timer.start(3600000)
+        self.prune_timer=QTimer(self);self.prune_timer.timeout.connect(self.store.prune);self.prune_timer.start(3600000)
     @property
     def paused(self):return self.store.get('paused')=='1'
     def update_private(self):pass
