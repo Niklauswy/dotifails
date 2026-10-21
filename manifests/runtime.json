@@ -56,6 +56,7 @@
     "libfftw3-dev",
     "libqalculate-dev",
     "libaubio-dev",
-    "libsensors-dev"
+    "libsensors-dev",
+    "libvulkan-dev"
   ]
 }
