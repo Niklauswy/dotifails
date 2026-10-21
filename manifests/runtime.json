@@ -6,7 +6,8 @@
     "modules": [
       "qt5compat",
       "qtimageformats",
-      "qtmultimedia"
+      "qtmultimedia",
+      "qtshadertools"
     ],
     "aqtinstall": "3.3.0"
   },
