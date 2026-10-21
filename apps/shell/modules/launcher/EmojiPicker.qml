@@ -65,7 +65,7 @@ Scope {
             screen: modelData
             visible: state.emoji || reveal > 0.001
             anchors.bottom: true
-            margins.bottom: Config.border.thickness
+            margins.bottom: Tokens.padding.large
             implicitWidth: Math.min(screen.width - Tokens.padding.extraExtraLarge * 2, Tokens.sizes.launcher.itemWidth * 1.6)
             implicitHeight: Math.min(screen.height - Tokens.padding.extraExtraLarge * 2, Tokens.sizes.launcher.itemHeight * 10 + Tokens.padding.extraLarge * 3)
             exclusionMode: ExclusionMode.Ignore
@@ -117,7 +117,7 @@ Scope {
                 radius: Tokens.rounding.large
                 color: Colours.tPalette.m3surface
                 opacity: Math.max(0, Math.min(1, win.reveal))
-                y: (1 - win.reveal) * (height + Config.border.thickness)
+                y: (1 - win.reveal) * (height + Tokens.padding.large)
 
                 ColumnLayout {
                     anchors.fill: parent
