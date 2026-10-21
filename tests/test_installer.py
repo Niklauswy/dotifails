@@ -49,7 +49,7 @@ class InstallerTests(unittest.TestCase):
    home=Path(tmp);nvim=home/'.config/nvim/init.lua';nvim.parent.mkdir(parents=True);nvim.write_text('my editor')
    note=home/'.local/share/orbit/notes/private.md';note.parent.mkdir(parents=True);note.write_text('private')
    self.assertEqual(m.main(['install','--source',str(source),'--target-home',tmp,'--orbit-only']),0)
-   self.assertEqual(nvim.read_text(),'my editor');self.assertEqual(note.read_text(),'private');self.assertTrue((home/'.local/share/orbit/app/notes_window.py').is_file());self.assertFalse((home/'.config/sxhkd').exists());self.assertTrue((home/'.local/bin/musika').is_file());self.assertTrue((home/'.local/share/icons/hicolor/scalable/apps/musika.svg').is_file());self.assertIn('Name=Wysun Music',(home/'.local/share/applications/orbit-music.desktop').read_text())
+   self.assertEqual(nvim.read_text(),'my editor');self.assertEqual(note.read_text(),'private');self.assertTrue((home/'.local/share/orbit/app/notes_window.py').is_file());self.assertFalse((home/'.config/sxhkd').exists());self.assertTrue((home/'.local/share/icons/hicolor/scalable/apps/musika.svg').is_file());self.assertIn('Name=Wysun Music',(home/'.local/share/applications/orbit-music.desktop').read_text())
    self.assertEqual(m.main(['install','--source',str(source),'--target-home',tmp,'--orbit-only']),0)
    backup=json.loads((home/'.local/state/dotifails/installed.json').read_text())['last_backup'];journal=json.loads((home/'.local/state/dotifails/backups'/backup/'journal.json').read_text());self.assertEqual(journal['operations'],[])
  def setUp(self):

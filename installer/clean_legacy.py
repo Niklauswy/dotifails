@@ -23,6 +23,8 @@ CANDIDATES = (
     ('.local/share/orbit-v?-backup-*', 'copias de versiones antiguas de Orbit'),
     ('.local/share/orbit-desktop-backup', 'marcador de copia antigua de Orbit'),
     ('.local/bin/orbit-notification-status', 'script de la barra X11 (polybar), ya sin uso'),
+    ('.local/bin/musica', 'alias antiguo de `wysun music`'),
+    ('.local/bin/musika', 'alias antiguo de `wysun music`'),
     ('.cache/quickshell/qmlcache', 'caché QML compilada (se regenera con el runtime nuevo)'),
 )
 

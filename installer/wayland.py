@@ -70,7 +70,7 @@ def configure(deployment):
     migrate_legacy_names(d)
     ensure_runtime(d)
     d.deploy(d.source / 'config/.local/bin/orbit', Path('.local/bin/orbit'))
-    for name in ('orbit-files', 'orbit-tools', 'musica', 'musika', 'wysun-shell',
+    for name in ('orbit-files', 'orbit-tools', 'wysun-shell',
                  'wysun-session', 'wysun-session-services', 'wysun-lock', 'wysun-wm', 'wysun-control', 'wysun-workspaces', 'wysun-share-picker'):
         _publish(d, (d.source / 'bin' / name).read_text(), '.local/bin/' + name, executable=True)
     # A terminal must remain reachable even without the optional terminal component.

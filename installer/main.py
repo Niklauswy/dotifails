@@ -192,8 +192,6 @@ class Deployment:
             if wallpaper.is_file():self.deploy(wallpaper,Path('.local/share/backgrounds')/wallpaper.name)
         self.deploy(self.source/'config/.local/bin/orbit',Path('.local/bin/orbit'))
         if 'wayland' not in self.receipt.get('components',[]):self.configure_files()
-        if (self.source/'bin/musica').is_file():self.deploy(self.source/'bin/musica',Path('.local/bin/musica'))
-        if (self.source/'bin/musika').is_file():self.deploy(self.source/'bin/musika',Path('.local/bin/musika'))
         if (self.source/'config/.local/share/icons/hicolor/scalable/apps/musika.svg').is_file():self.deploy(self.source/'config/.local/share/icons/hicolor/scalable/apps/musika.svg',Path('.local/share/icons/hicolor/scalable/apps/musika.svg'))
         if (self.source/'config/.local/share/applications/orbit-music.desktop').is_file():self.deploy(self.source/'config/.local/share/applications/orbit-music.desktop',Path('.local/share/applications/orbit-music.desktop'))
         self.configure_wysun()
@@ -310,8 +308,6 @@ class Deployment:
             for item in sorted((self.source/'assets/icons').iterdir()):self.deploy(item,Path('.local/share/icons')/item.name)
             for item in sorted((self.source/'assets/backgrounds').iterdir()):self.deploy(item,Path('.local/share/backgrounds')/item.name)
             # Ship the same music entry points as an orbit-only update.
-            for name in ('musica','musika'):
-                if (self.source/'bin'/name).is_file():self.deploy(self.source/'bin'/name,Path('.local/bin')/name)
             for rel in ('.local/share/applications/orbit-music.desktop','.local/share/icons/hicolor/scalable/apps/musika.svg'):
                 if (self.source/'config'/rel).is_file():self.deploy(self.source/'config'/rel,Path(rel))
         if selected & {'desktop','terminal'}:self.deploy(self.source/'assets/fonts',Path('.local/share/fonts/dotifails'))
