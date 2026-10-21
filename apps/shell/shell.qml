@@ -14,6 +14,7 @@ import qs.modules.areapicker
 import qs.modules.background
 import qs.modules.drawers
 import qs.modules.lock
+import qs.modules.launcher
 import qs.daemons
 
 ShellRoot {
@@ -49,6 +50,7 @@ ShellRoot {
     Drawers {}
     AreaPicker {}
     WysunBridge {}
+    EmojiPicker {}
 
     // Daemons
     BatteryMonitor {}

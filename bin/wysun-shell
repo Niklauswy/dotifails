@@ -6,7 +6,9 @@ runtime="$config/wysun/runtime.sh"
 case "${1:-}" in
     reload-preferences) shift; exec "$runtime" ipc call wysunShell reloadPreferences "$@" ;;
     brightness) shift; exec "$runtime" ipc call wysunShell brightness "${1:-}" ;;
+    category) shift; exec "$runtime" ipc call wysunShell category "${1:-all}" ;;
     search) shift; exec "$runtime" ipc call wysunShell search "${1:-}" ;;
+    emoji) exec "$runtime" ipc call wysunShell toggle emoji ;;
     launcher) exec "$runtime" ipc call wysunShell toggle launcher ;;
     menu|windows|session|sidebar) kind="$1"; shift; exec "$runtime" ipc call wysunShell toggle "$kind" "$@" ;;
     toggle|open)
@@ -14,7 +16,7 @@ case "${1:-}" in
         surface="${1:-}"
         if [ $# -gt 0 ]; then shift; fi
         case "$surface" in
-            test|dashboard|launcher|menu|quicksettings|notifications|windows|session|sidebar) ;;
+            test|dashboard|launcher|emoji|menu|quicksettings|notifications|windows|session|sidebar) ;;
             *) echo "wysun-shell: superficie desconocida: ${surface:-<vacía>}" >&2; exit 2 ;;
         esac
         exec "$runtime" ipc call wysunShell "$action" "$surface" "$@" ;;

@@ -56,6 +56,7 @@ Item {
             screenState: root.screenState
             panels: root.panels
             maxHeight: root.maxHeight
+            maxWidth: root.screen.width - Tokens.padding.extraExtraLarge * 2
         }
     }
 }

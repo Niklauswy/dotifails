@@ -18,7 +18,7 @@ class ProviderTests(unittest.TestCase):
         self.addCleanup(self.home.cleanup)
         (Path(self.home.name) / 'Downloads').mkdir()
         (Path(self.home.name) / 'Downloads/informe-final.txt').write_text('x')
-        self.env = dict(os.environ, HOME=self.home.name)
+        self.env = dict(os.environ, HOME=self.home.name, XDG_DATA_HOME=str(Path(self.home.name) / '.local/share'), XDG_CONFIG_HOME=str(Path(self.home.name) / '.config'), XDG_STATE_HOME=str(Path(self.home.name) / '.local/state'))
         sys.path.insert(0, str(ROOT / 'apps/wysun'))
 
     def run_cli(self, *args):
@@ -70,6 +70,32 @@ class ProviderTests(unittest.TestCase):
                                 capture_output=True, text=True, timeout=30)
         self.assertEqual(result.returncode, 1)
 
+    def test_discover_includes_math_conversions_and_files_without_prefix(self):
+        result = self.run_cli('query', 'all', '15% of 80')
+        self.assertEqual((result[0]['kind'], result[0]['value'], result[0]['section']), ('calc', '12', 'Calculator'))
+        result = self.run_cli('query', 'all', '10 km to mi')
+        self.assertEqual(result[0]['value'], '6.21371192237 mi')
+        self.assertEqual(self.run_cli('query', 'all', 'informe')[0]['kind'], 'file')
+
+    def test_recent_documents_use_xdg_history_and_ignore_remote_and_missing_files(self):
+        data = Path(self.home.name) / 'xdg-data'
+        data.mkdir()
+        doc = Path(self.home.name) / 'Downloads/informe-final.txt'
+        (data / 'recently-used.xbel').write_text(f'''<xbel>
+          <bookmark href="{doc.as_uri()}" visited="2026-10-21T12:00:00Z"/>
+          <bookmark href="file://remote/private.txt" visited="2026-10-21T13:00:00Z"/>
+          <bookmark href="file:///missing.txt" visited="2026-10-21T14:00:00Z"/>
+        </xbel>''')
+        self.env['XDG_DATA_HOME'] = str(data)
+        self.assertEqual([r['path'] for r in self.run_cli('query', 'files', '')], [str(doc)])
+
+    def test_emoji_has_categories_and_supports_english_and_spanish_search(self):
+        for query in ('rocket', 'cohete', '🚀'):
+            rows = self.run_cli('query', 'emoji', query)
+            self.assertEqual(rows[0]['value'], '🚀')
+            self.assertEqual(rows[0]['category'], 'Travel')
+        self.assertGreater(len(self.run_cli('query', 'emoji', '')), 1000)
+
     def test_unknown_mode_and_action_fail_safely(self):
         self.assertEqual(self.run_cli('query', 'nope', '')[0]['kind'], 'error')
         result = subprocess.run([sys.executable, '-I', str(SCRIPT), 'act', 'rm-rf'], env=self.env,
@@ -78,17 +104,19 @@ class ProviderTests(unittest.TestCase):
 
 
 class WiringTests(unittest.TestCase):
-    def test_every_mode_is_reachable_from_the_launcher(self):
-        service = (LAUNCHER / 'services/LauncherData.qml').read_text()
-        actions = (LAUNCHER / 'services/WysunActions.js').read_text()
-        for mode, alias in [('clip', 'clip'), ('files', 'files'), ('snippets', 'snip'),
-                            ('windows', 'win'), ('emoji', 'emoji'), ('calc', 'hist')]:
-            self.assertRegex(service, rf'\b{mode}: \[[^\]]*"{alias}"')
-            self.assertIn(f'["autocomplete", "{alias}"]', actions)
-        self.assertIn('["autocomplete", "run"]', actions)
-        applist = (LAUNCHER / 'AppList.qml').read_text()
-        for needle in ('name: "data"', 'name: "run"', 'return "calc"', 'LauncherData.parse'):
-            self.assertIn(needle, applist)
+    def test_categories_and_emoji_are_separate_without_prefix_modes(self):
+        catalog = (LAUNCHER / 'services/Catalog.js').read_text()
+        for mode in ('all', 'apps', 'files', 'clip', 'snippets', 'calc', 'windows', 'commands'):
+            self.assertIn(f'id: "{mode}"', catalog)
+        content = (LAUNCHER / 'Content.qml').read_text()
+        self.assertNotIn('actionPrefix', content)
+        self.assertNotIn('>run', content)
+        self.assertIn('Catalog.categories()', content)
+        self.assertIn('FilePreview', content)
+        emoji = (LAUNCHER / 'EmojiPicker.qml').read_text()
+        self.assertIn('anchors.top: true', emoji)
+        self.assertIn('mode: "emoji"', emoji)
+        self.assertIn('GridView', emoji)
 
     def test_provider_runs_argv_without_a_shell_and_has_no_qt_fallback(self):
         service = (LAUNCHER / 'services/LauncherData.qml').read_text()

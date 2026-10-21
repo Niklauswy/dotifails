@@ -9,8 +9,8 @@ import sys
 SHELL_ROUTES = {
     # Former Qt menus, now served by the shell: command -> wysun-shell arguments.
     'toggle': ['launcher'], 'launcher': ['launcher'],
-    'clipboard': ['search', '>clip '], 'snippets': ['search', '>snip '], 'emoji': ['search', '>emoji '],
-    'calculator': ['search', '>calc '], 'windows': ['windows'], 'power': ['session'],
+    'clipboard': ['category', 'clip'], 'snippets': ['category', 'snippets'], 'emoji': ['emoji'],
+    'calculator': ['category', 'calc'], 'windows': ['category', 'windows'], 'power': ['session'],
     'audio': ['open', 'quicksettings'], 'notifications': ['open', 'notifications'],
     'calendar': ['open', 'dashboard'], 'system': ['open', 'dashboard'],
 }

@@ -2,7 +2,7 @@
 // Base: 6c70d5cb0cbf31413d300699540c858ad28c1539; véanse LICENSE y UPSTREAM.json.
 pragma Singleton
 
-import ".."
+
 import QtQuick
 import Quickshell
 import Wysun.Config
@@ -80,7 +80,7 @@ Searcher {
         required property string name
         required property string description
 
-        function onClicked(list: AppList): void {
+        function onClicked(list: var): void {
             list.screenState.launcher = false;
             Quickshell.execDetached(["wysun", "scheme", "set", "--dynamic", "--variant", variant]);
         }

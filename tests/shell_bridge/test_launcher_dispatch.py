@@ -37,8 +37,8 @@ class LauncherDispatchTests(unittest.TestCase):
 
     def test_former_qt_menus_are_served_by_the_shell(self):
         expected = {
-            'clipboard': ['search', '>clip '], 'snippets': ['search', '>snip '], 'emoji': ['search', '>emoji '],
-            'calculator': ['search', '>calc '], 'windows': ['windows'], 'power': ['session'],
+            'clipboard': ['category', 'clip'], 'snippets': ['category', 'snippets'], 'emoji': ['emoji'],
+            'calculator': ['category', 'calc'], 'windows': ['category', 'windows'], 'power': ['session'],
             'audio': ['open', 'quicksettings'], 'notifications': ['open', 'notifications'],
             'calendar': ['open', 'dashboard'], 'system': ['open', 'dashboard']}
         for command, route in expected.items():
