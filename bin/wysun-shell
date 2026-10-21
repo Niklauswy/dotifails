@@ -8,19 +8,20 @@ case "${1:-}" in
     brightness) shift; exec "$runtime" ipc call wysunShell brightness "${1:-}" ;;
     search) shift; exec "$runtime" ipc call wysunShell search "${1:-}" ;;
     launcher) exec "$runtime" ipc call wysunShell toggle launcher ;;
-    menu|windows|session) kind="$1"; shift; exec "$runtime" ipc call wysunShell toggle "$kind" "$@" ;;
+    menu|windows|session|sidebar) kind="$1"; shift; exec "$runtime" ipc call wysunShell toggle "$kind" "$@" ;;
     toggle|open)
         action="$1"; shift
         surface="${1:-}"
         if [ $# -gt 0 ]; then shift; fi
         case "$surface" in
-            test|dashboard|launcher|menu|quicksettings|notifications|windows|session) ;;
+            test|dashboard|launcher|menu|quicksettings|notifications|windows|session|sidebar) ;;
             *) echo "wysun-shell: superficie desconocida: ${surface:-<vacía>}" >&2; exit 2 ;;
         esac
         exec "$runtime" ipc call wysunShell "$action" "$surface" "$@" ;;
     theme) shift; exec "$runtime" ipc call wysunShell theme "$@" ;;
     theme-settings) shift; exec "$runtime" ipc call wysunShell openThemeSettings "$@" ;;
     close|status) action="$1"; shift; exec "$runtime" ipc call wysunShell "$action" "$@" ;;
+    nexus) shift; exec "$runtime" ipc call wysunShell openRoute "${1:-home}" ;;
     picker) shift; exec "$runtime" ipc call picker "${1:-close}" ;;
     *) exec "$runtime" --no-duplicate "$@" ;;
 esac

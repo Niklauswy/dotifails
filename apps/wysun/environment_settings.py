@@ -1,5 +1,4 @@
 """Local Hyprland settings, display trials and lossless component configuration."""
-from theme_tokens import apply_style
 
 import configparser
 import contextlib
@@ -100,6 +99,7 @@ class DisplayTrial:
         self.folder = Path(tempfile.mkdtemp(dir=folder))
         self.done=False
         atomic_write(self.folder/'trial.json',json.dumps({'old':self.old,'deadline':time.time()+35}))
+        atomic_write(self.folder/'meta.json',json.dumps({'plan':plan,'key':self.key}))
         self.process = subprocess.Popen([sys.executable,str(ROOT/'settings_runtime.py'),'guard',str(self.folder)],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,start_new_session=True)
         try:
             backend.runner(command)
@@ -108,6 +108,20 @@ class DisplayTrial:
         except Exception:
             self.reject()
             raise
+
+    @classmethod
+    def resume(cls, backend, folder):
+        """Rebuild a running trial from its folder so another process can settle it."""
+        folder = Path(folder)
+        if folder.parent != backend.home/'.cache/orbit/display-trials' or not (folder/'meta.json').is_file():
+            raise ValueError('Prueba de pantallas desconocida.')
+        trial = cls.__new__(cls)
+        meta = read_json(folder/'meta.json')
+        trial.backend, trial.folder, trial.plan, trial.key = backend, folder, meta['plan'], meta['key']
+        trial.old = read_json(folder/'trial.json')['old']
+        trial.done = (folder/'accepted').exists() or (folder/'reverted').exists()
+        trial.process = None
+        return trial
 
     def accept(self):
         if self.done:
@@ -618,7 +632,8 @@ class EnvironmentSettings:
         self.save_section('autostart',{'entries':[*self.section('autostart').get('entries',[]),ident]})
 
 def render_wallpaper(values, outputs, home=None, runner=run):
-    from PySide6.QtGui import QImageReader
+    try:from PySide6.QtGui import QImageReader
+    except ImportError:QImageReader=None  # shell bridge runs without Qt; the shell validates the image itself
     home=Path(home or Path.home())
     active=[o for o in outputs if o['connected'] and o['enabled']]
     if not active:raise ValueError('No se encontraron pantallas activas.')
@@ -628,8 +643,9 @@ def render_wallpaper(values, outputs, home=None, runner=run):
         path=Path(selected.get('path') or values.get('default','')).expanduser()
         if not path.is_file():raise ValueError('Elige un fondo para '+output['name'])
         if (selected.get('mode') or values.get('mode','fill')) not in ('fill','fit','stretch','center'):raise ValueError('Modo de fondo inválido')
-        reader=QImageReader(str(path));size=reader.size()
-        if not size.isValid() or size.width()*size.height()>70_000_000:raise ValueError('Imagen no disponible o demasiado grande')
+        if QImageReader:
+            size=QImageReader(str(path)).size()
+            if not size.isValid() or size.width()*size.height()>70_000_000:raise ValueError('Imagen no disponible o demasiado grande')
         selected_paths.append(path)
     # Quickshell owns wallpaper surfaces; publish validated preferences.
     from hypr_settings import config_dir

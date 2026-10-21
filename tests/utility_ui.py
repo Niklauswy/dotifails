@@ -7,7 +7,7 @@ import time
 def wait(ms):
  end=time.monotonic()+ms/1000
  while time.monotonic()<end:QApplication.processEvents();time.sleep(.005)
-from utilities import NotesWindow,ColorWindow,ProcessesWindow
+from utilities import NotesWindow,ColorWindow
 class UtilityUITests(unittest.TestCase):
  @classmethod
  def setUpClass(cls):cls.app=QApplication.instance() or QApplication([])
@@ -52,6 +52,4 @@ class UtilityUITests(unittest.TestCase):
  def test_color_copy(self):
   with tempfile.TemporaryDirectory() as tmp:
    w=ColorWindow(Path(tmp)/'colors.json');w.present();w.entry.setText('#123456');w.formats.setCurrentIndex(1);w.copy();self.assertEqual(self.app.clipboard().text(),'rgb(18, 52, 86)');w.favorite();self.assertEqual(w.recent.count(),1);w.close()
- def test_process_scan(self):
-  w=ProcessesWindow();w.present();wait(700);self.assertTrue(w.rows);w.search.setText(str(os.getpid()));self.assertGreater(w.tree.topLevelItemCount(),0);w.close();self.assertFalse(w.timer.isActive());w.worker.wait(3000)
 if __name__=='__main__':unittest.main()

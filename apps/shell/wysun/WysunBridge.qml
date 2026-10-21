@@ -4,11 +4,12 @@ import Quickshell
 import Quickshell.Io
 import qs.services
 import qs.utils
+import qs.modules.nexus
 
 Scope {
     id: root
     readonly property var surfaces: ({ dashboard: 'dashboard', test: 'dashboard', windows: 'dashboard',
-        launcher: 'launcher', menu: 'utilities', quicksettings: 'utilities', notifications: 'sidebar', session: 'session' })
+        launcher: 'launcher', menu: 'utilities', quicksettings: 'utilities', notifications: 'sidebar', sidebar: 'sidebar', session: 'session' })
     function current() { return ShellState.forActive(); }
     function available(kind, state) {
         return kind !== 'launcher' || !!ShellState.componentsFor(state.modelData)?.panels?.launcher?.available;
@@ -54,6 +55,8 @@ Scope {
         }
         function close(): void { root.close(); }
         function reloadPreferences(): void { environment.reload(); }
+        // Settings, connections and processes are Nexus pages (displays, shortcuts, processes, ...).
+        function openRoute(route: string): bool { return WindowFactory.createRoute(route); }
         function openThemeSettings(): bool { Quickshell.execDetached(['wysun', 'settings', 'theme']); return true; }
         function theme(): string { return JSON.stringify({ name: Colours.scheme, variant: Colours.flavour }); }
         function status(): string {

@@ -32,7 +32,7 @@ class OrbitDaemon(QObject):
     The launcher itself is the shell widget (apps/shell/modules/launcher); no
     Qt launcher palette exists any more.
     """
-    UTILITIES=('network','notes','processes','color','tools','music','settings')
+    UTILITIES=('notes','color','tools','music')
     def __init__(self,store=None,test=False):
         super().__init__()
         from data_v2 import StoreV2
@@ -73,7 +73,7 @@ class OrbitDaemon(QObject):
             kind='color' if color_value(text) else 'url' if re.fullmatch(r'https?://\S+',text.strip()) else 'text'
             self.store.clip(kind,text,blob=rich,source=source,meta={'mime_envelope':True})
     def show_utility(self,mode):
-        if mode in ('settings','music') and not self.test:
+        if mode=='music' and not self.test:
             run([str(Path(__file__).with_name('orbit-client')),mode]);return
         if mode not in self.utilities:
             if mode=='tools':
@@ -82,20 +82,13 @@ class OrbitDaemon(QObject):
             elif mode=='music':
                 from music_app_window import MusicAppWindow
                 window=MusicAppWindow(test=self.test)
-            elif mode=='settings':
-                from settings_hub import SettingsHub
-                window=SettingsHub(test=self.test)
-            elif mode in ('notes','processes','color'):
-                from utilities import NotesWindow,ProcessesWindow,ColorWindow
-                window={'notes':NotesWindow,'processes':ProcessesWindow,'color':ColorWindow}[mode]()
             else:
-                from connections_window import ConnectionsWindow
-                window=ConnectionsWindow()
+                from utilities import NotesWindow,ColorWindow
+                window={'notes':NotesWindow,'color':ColorWindow}[mode]()
             self.utilities[mode]=window
         window=self.utilities[mode]
         if window.isVisible() and not getattr(window,'_motion_exiting',False):window.close();return
         window.present()
-        if mode=='network':window.load()
     def show_mode(self,mode='home'):
         if mode=='power':run([str(HOME/'.local/bin/wysun-shell'),'session']);return
         if mode in self.UTILITIES:self.show_utility(mode);return

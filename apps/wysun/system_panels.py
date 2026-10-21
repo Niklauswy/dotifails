@@ -30,11 +30,6 @@ class NetworkScan(QThread):
   rows.append(dict(kind='network_action',title='Volver a buscar redes',subtitle='Actualizar redes Wi-Fi cercanas',action=['nmcli','device','wifi','rescan'],icon='search'))
   self.done.emit(rows)
 
-def power_rows():
- uptime=Path('/proc/uptime').read_text().split()[0];hours=int(float(uptime)//3600)
- rows=[('lock','Bloquear pantalla','Protege tu sesión sin cerrar aplicaciones'),('suspend','Suspender','Pausar el equipo y conservar la sesión'),('logout','Cerrar sesión','Cerrar la sesión gráfica y volver al inicio de sesión'),('reboot','Reiniciar','Reiniciar el equipo'),('shutdown','Apagar','Apagar el equipo de forma segura')]
- return [dict(kind='power',action=k,title=t,subtitle=s,icon='lock' if k=='lock' else 'power',detail=f'{t}\n\n{s}.\n\nEquipo encendido: {hours} h\nSe pedirá confirmación antes de salir de la sesión.') for k,t,s in rows]
-
 class StatusScan(QThread):
  done=Signal(object,object)
  def __init__(self,mode):super().__init__();self.mode=mode

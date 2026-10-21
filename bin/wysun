@@ -38,6 +38,25 @@ def shell_command(command, args):
     return 0
 
 
+# Settings, connections and processes live in the shell (Nexus); these are the pages they open.
+NEXUS_DEFAULTS = {'settings': 'home', 'connections': 'network', 'network': 'network', 'processes': 'processes'}
+
+
+def open_nexus(command, args):
+    """Ask the running shell to show a Nexus page; there is no separate window to fall back to."""
+    route = command.removeprefix('settings-') if command.startswith('settings-') else (args[0] if args else NEXUS_DEFAULTS[command])
+    helper = Path(__file__).resolve().parent / 'wysun-shell'
+    try:
+        result = subprocess.run([str(helper), 'nexus', route], timeout=4, capture_output=True, text=True, check=False)
+    except (OSError, subprocess.TimeoutExpired):
+        print('Wysun: el shell no responde; inicia la sesión Wysun para abrir esta página.', file=sys.stderr)
+        return 1
+    if result.returncode != 0 or result.stdout.strip() != 'true':
+        print('Wysun: página desconocida o shell no disponible: ' + route, file=sys.stderr)
+        return 1
+    return 0
+
+
 def main():
     args = sys.argv[1:]
     if args and args[0] in ('--help', '-h', 'help'):
@@ -49,7 +68,9 @@ def main():
               'falla de forma visible (sin lanzador Qt alternativo).')
         return 0
     command = args.pop(0) if args else 'toggle'
-    command = {'colors': 'color', 'connections': 'network'}.get(command, command)
+    if command in NEXUS_DEFAULTS or command.startswith('settings-'):
+        return open_nexus(command, args)
+    command = {'colors': 'color'}.get(command, command)
     if command in ('scheme', 'wallpaper'):
         root = Path(__file__).resolve().parents[1]
         app = root / 'apps/wysun'
