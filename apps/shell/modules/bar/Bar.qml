@@ -5,7 +5,7 @@ import "components/workspaces"
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
-import Caelestia.Config
+import Wysun.Config
 import qs.components
 import qs.services
 import qs.modules.bar.popouts as BarPopouts

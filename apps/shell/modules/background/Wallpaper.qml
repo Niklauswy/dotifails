@@ -4,12 +4,12 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell
-import Caelestia
-import Caelestia.Config
-import Caelestia.I18n
-import Caelestia.Multimedia
-import Caelestia.Shaders
-import Caelestia.State
+import Wysun
+import Wysun.Config
+import Wysun.I18n
+import Wysun.Multimedia
+import Wysun.Shaders
+import Wysun.State
 import qs.components
 import qs.components.filedialog
 import qs.services

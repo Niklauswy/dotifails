@@ -363,7 +363,7 @@ def write_selection_preserving(style, variant, home=None):
 
 
 def write_scheme(scheme, home=None):
-    """Atomically publish a valid Caelestia-shaped scheme contract."""
+    """Atomically publish a valid Material-role scheme contract."""
     if not _valid_scheme(scheme):
         raise ValueError('El esquema contiene roles Material inválidos.')
     path = scheme_path(home)

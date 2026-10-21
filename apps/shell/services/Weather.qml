@@ -3,9 +3,9 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
-import Caelestia
-import Caelestia.Config
-import Caelestia.I18n
+import Wysun
+import Wysun.Config
+import Wysun.I18n
 import qs.utils
 
 Singleton {
@@ -180,7 +180,7 @@ Singleton {
 
         const nominatimUrl = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=geocodejson&accept-language=${lang}`;
         const nominatimHeaders = {
-            "User-Agent": `caelestia-shell/${CUtils.version} (+https://github.com/caelestia-dots/shell)`
+            "User-Agent": `wysun-shell/${CUtils.version}`
         };
 
         Requests.get(nominatimUrl, text => {
@@ -414,7 +414,7 @@ Singleton {
     LoggingCategory {
         id: lc
 
-        name: "caelestia.qml.services.weather"
+        name: "wysun.qml.services.weather"
         defaultLogLevel: LoggingCategory.Info
     }
 }

@@ -2,9 +2,9 @@ import "performance"
 import QtQuick
 import QtQuick.Layouts
 import Quickshell.Services.UPower
-import Caelestia.Config
-import Caelestia.I18n
-import Caelestia.Services
+import Wysun.Config
+import Wysun.I18n
+import Wysun.Services
 import qs.components
 import qs.services
 

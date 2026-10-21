@@ -6,7 +6,7 @@ import ".."
 import QtQuick
 import Quickshell
 import Quickshell.Io
-import Caelestia.Config
+import Wysun.Config
 import qs.utils
 
 Searcher {

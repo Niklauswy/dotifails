@@ -4,7 +4,7 @@ A literal colour (#rgb/#rrggbb/#aarrggbb, rgb()/rgba(), QColor with numbers or a
 hex string, Qt.white/Qt.black...) is allowed only when justified on the same
 line (``# theme-exception: reason`` / ``// theme-exception: reason``) or inside a
 ``theme-exception-begin: reason`` ... ``theme-exception-end`` block. ``Qt.transparent``
-is not a colour. The imported Caelestia tree (apps/shell, except its wysun/ bridge) takes every colour from
+is not a colour. The imported shell tree (apps/shell, except its wysun/ bridge) takes every colour from
 Colours.palette, which the single Wysun scheme producer fills; its own literals are upstream design.
 Whole files that are not themed UI are listed in FILE_EXCEPTIONS.
 """

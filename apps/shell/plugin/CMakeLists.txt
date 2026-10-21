@@ -16,8 +16,8 @@ include(cmake/pch.cmake)
 include(cmake/qml-module.cmake)
 
 # Header only helpers
-add_library(caelestia-util INTERFACE)
-target_include_directories(caelestia-util INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/include")
+add_library(wysun-util INTERFACE)
+target_include_directories(wysun-util INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
 add_subdirectory(3rdparty/rgbcx)
-add_subdirectory(src/Caelestia)
+add_subdirectory(src/Wysun)

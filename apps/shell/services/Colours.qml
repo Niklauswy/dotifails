@@ -6,8 +6,8 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Io
-import Caelestia.Config
-import Caelestia.Images
+import Wysun.Config
+import Wysun.Images
 import qs.services
 import qs.utils
 
@@ -61,7 +61,7 @@ Singleton {
         return Qt.hsla(c.hslHue, c.hslSaturation, 0.1, 1);
     }
 
-    // Wysun's producer writes camelCase palette keys; Caelestia declares them as primary_paletteKeyColor.
+    // Wysun's producer writes camelCase palette keys; Wysun declares them as primary_paletteKeyColor.
     function propertyKey(name: string): string {
         const match = /^(neutralVariant|neutral|primary|secondary|tertiary|error)PaletteKeyColor$/.exec(name);
         if (!match) return name;

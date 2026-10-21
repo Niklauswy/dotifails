@@ -4,10 +4,10 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import Quickshell.Services.Pipewire
-import Caelestia
-import Caelestia.Config
-import Caelestia.I18n
-import Caelestia.Services
+import Wysun
+import Wysun.Config
+import Wysun.I18n
+import Wysun.Services
 
 Singleton {
     id: root

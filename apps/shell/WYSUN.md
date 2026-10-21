@@ -1,4 +1,4 @@
-# Wysun sobre Caelestia
+# Wysun sobre Wysun
 
 Derivado de caelestia-dots/shell (GPL-3.0), modificado para Wysun.
 
@@ -10,8 +10,8 @@ está desplegada. Las adaptaciones y requisitos de ejecución se registran aquí
 ## Runtime paralelo
 
 `wysun/runtime.sh` arranca el Quickshell compilado contra Qt 6.9.3 desde
-`$XDG_DATA_HOME/wysun/caelestia-runtime` (o `WYSUN_CAEL_RUNTIME`), con el plugin
-Caelestia en `caelestia/lib/qt6/qml`. No reemplaza Qt ni el Quickshell activo.
+`$XDG_DATA_HOME/wysun/wysun-runtime` (o `WYSUN_CAEL_RUNTIME`), con el plugin
+Wysun en `wysun/lib/qt6/qml`. No reemplaza Qt ni el Quickshell activo.
 
 Compatibilidad con Qt 6.9: `StyledSpinBox` implementa su propio `DoubleSpinBox`
 (Qt 6.9 no lo trae) y `Elevation` acepta radios por esquina pero usa un único

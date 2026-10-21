@@ -1,4 +1,4 @@
-// Wysun integration; original Caelestia components and motion remain authoritative.
+// Wysun integration; original Wysun components and motion remain authoritative.
 import QtQuick
 import Quickshell
 import Quickshell.Io
@@ -44,7 +44,7 @@ Scope {
         function theme(): string { return JSON.stringify({ name: Colours.scheme, variant: Colours.flavour }); }
         function status(): string {
             const state = root.current();
-            return JSON.stringify({ implementation: 'caelestia', revision: '6c70d5cb',
+            return JSON.stringify({ implementation: 'wysun', revision: '6c70d5cb',
                 screens: Quickshell.screens.map(s => s.name), focused: Hypr.focusedMonitor?.name ?? '',
                 open: state ? Object.keys(root.surfaces).filter(k => state[root.surfaces[k]]) : [],
                 scheme: Colours.scheme });

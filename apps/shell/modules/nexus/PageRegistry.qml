@@ -1,7 +1,7 @@
 pragma Singleton
 
 import QtQuick
-import Caelestia.I18n
+import Wysun.I18n
 
 QtObject {
     id: root

@@ -1,4 +1,4 @@
-"""Native presentation translated from Caelestia's shell widgets.
+"""Native presentation derived from the shell widgets (see THIRD_PARTY.md).
 
 Derivado de caelestia-dots/shell (GPL-3.0), modificado para Wysun.
 Source: 507d66285e9d9fde9330adc64159cfdebb28c19a, modules/nexus/NavPane.qml,

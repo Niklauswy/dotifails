@@ -10,7 +10,7 @@ Errors, which break the string for translators:
   - an .arg() given several args, of which only the first is substituted
   - mark() args passed as a string instead of a list
   - qsTr() and the other Qt helpers, which are not extracted
-  - QML using Tr without importing Caelestia.I18n
+  - QML using Tr without importing Wysun.I18n
 
 Warnings, which are merely suspicious:
   - an empty context, which is the same as having none
@@ -43,7 +43,7 @@ RESET = "\033[0m"
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 # The helpers implementing the marking themselves, whose own signatures look like calls
-SKIPPED = ("plugin/src/Caelestia/I18n", "plugin/include/util/i18n.hpp")
+SKIPPED = ("plugin/src/Wysun/I18n", "plugin/include/util/i18n.hpp")
 
 ERROR = "error"
 WARNING = "warning"
@@ -79,7 +79,7 @@ SPEC: dict[str, dict[str, int]] = {
 CALL_RE = re.compile(r"((?:\w+[.:]{1,2})*)(" + "|".join(ARITY) + r")\s*\(")
 FOREIGN_RE = re.compile(r"(?<![\w.])(qsTr|qsTranslate|qsTrId|QT_TR_NOOP|QT_TRANSLATE_NOOP)\s*\(")
 USES_TR_RE = re.compile(r"(?<![\w.])Tr\.\w")
-IMPORT_RE = re.compile(r"^\s*import\s+Caelestia\.I18n\b", re.MULTILINE)
+IMPORT_RE = re.compile(r"^\s*import\s+Wysun\.I18n\b", re.MULTILINE)
 TRANSLATORS_RE = re.compile(r"^([^\n]*?)(?://|/\*)\s*TRANSLATORS:[^\n]*\n(\s*\n)?", re.MULTILINE)
 ARG_CALL_RE = re.compile(r"\s*(\.arg\s*\()")
 PLACEHOLDER_RE = re.compile(r"%L?(\d{1,2})")
@@ -374,7 +374,7 @@ class FileChecker:
         use = USES_TR_RE.search(self.masked)
         if use and not IMPORT_RE.search(self.src):
             self.report(
-                (use.start(), use.end()), ERROR, "missing-import", "uses Tr but is missing `import Caelestia.I18n`"
+                (use.start(), use.end()), ERROR, "missing-import", "uses Tr but is missing `import Wysun.I18n`"
             )
 
         for m in FOREIGN_RE.finditer(self.masked):

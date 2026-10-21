@@ -1,5 +1,5 @@
 import QtQuick
-import Caelestia.Components
+import Wysun.Components
 
 Item {
     id: root

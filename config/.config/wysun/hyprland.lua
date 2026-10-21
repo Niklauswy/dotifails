@@ -11,7 +11,7 @@ hl.config({
 })
 -- Wysun shell surfaces use explicit layer namespaces; shell motion owns their
 -- transitions, so compositor layer-open animations stay disabled.
-hl.layer_rule({ name = "wysun-shell-layer", match = { namespace = "^caelestia-.*$" }, no_anim = true })
+hl.layer_rule({ name = "wysun-shell-layer", match = { namespace = "^wysun-.*$" }, no_anim = true })
 hl.on("hyprland.start", function () hl.exec_cmd("wysun-session-services") end)
 -- Fixed workspaces per output: rules need the outputs to exist, so the saved
 -- (or automatic 1-5 / 6-9 / 10) layout is pinned at login and on hotplug.

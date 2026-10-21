@@ -5,8 +5,8 @@ import QtQuick.Layouts
 import Quickshell
 import Quickshell.Hyprland
 import M3Shapes
-import Caelestia.Components
-import Caelestia.Config
+import Wysun.Components
+import Wysun.Config
 import qs.components
 import qs.services
 import qs.utils

@@ -1,7 +1,7 @@
 pragma Singleton
 
 import Quickshell
-import Caelestia.Config
+import Wysun.Config
 
 Singleton {
     id: root

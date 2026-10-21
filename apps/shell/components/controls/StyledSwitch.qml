@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Shapes
 import QtQuick.Templates
-import Caelestia.Config
+import Wysun.Config
 import qs.components
 import qs.services
 

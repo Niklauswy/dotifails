@@ -1,7 +1,7 @@
 import QtQuick
-import Caelestia.Config
-import Caelestia.Models
-import Caelestia.Multimedia
+import Wysun.Config
+import Wysun.Models
+import Wysun.Multimedia
 import qs.components
 import qs.components.effects
 import qs.services

@@ -4,8 +4,8 @@ import QtQuick
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Widgets
-import Caelestia.Config
-import Caelestia.I18n
+import Wysun.Config
+import Wysun.I18n
 import qs.components
 import qs.components.containers
 import qs.components.effects

@@ -42,8 +42,8 @@ print(json.dumps(seen))
         self.assertEqual(len({row[1] for row in seen.values()}), 5, 'caption names every variant')
 
 
-class CaelestiaPalettes(unittest.TestCase):
-    """The Caelestia shell paints from the Wysun scheme producer: five distinct palettes."""
+class ShellPalettes(unittest.TestCase):
+    """The Wysun shell paints from the Wysun scheme producer: five distinct palettes."""
     def test_bridge_exposes_a_distinct_surface_for_each_variant(self):
         with tempfile.TemporaryDirectory(prefix='wysun-qs-') as home:
             env = dict(os.environ, HOME=home, XDG_CONFIG_HOME=home + '/config', XDG_STATE_HOME=home + '/state')

@@ -1,10 +1,10 @@
 import QtQuick
 import Quickshell
 import Quickshell.Services.UPower
-import Caelestia
-import Caelestia.Config
-import Caelestia.I18n
-import Caelestia.Services
+import Wysun
+import Wysun.Config
+import Wysun.I18n
+import Wysun.Services
 
 Scope {
     id: root

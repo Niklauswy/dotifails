@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Bounded Wysun adapters for the original Caelestia widgets (no Qt imports)."""
+"""Bounded Wysun adapters for the original Wysun widgets (no Qt imports)."""
 import argparse
 import json
 import os

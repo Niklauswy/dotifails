@@ -59,7 +59,7 @@ class SchemeBridgeTests(unittest.TestCase):
     def test_scheme_changes_go_through_wysun_cli_only(self):
         for rel in ('services/Colours.qml', 'modules/launcher/services/M3Variants.qml', 'modules/launcher/services/Schemes.qml'):
             text = (SHELL / rel).read_text()
-            self.assertNotIn('caelestia', ' '.join(re.findall(r'execDetached\(\[[^\]]*\]', text)).lower(), rel)
+            self.assertNotIn('wysun', ' '.join(re.findall(r'execDetached\(\[[^\]]*\]', text)).lower(), rel)
 
     def test_current_reports_name_flavour_variant(self):
         with tempfile.TemporaryDirectory() as home:
@@ -104,7 +104,7 @@ class DunstTests(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 self.run_dnd(state, [])
 
-    def test_caelestia_never_owns_the_notification_bus(self):
+    def test_wysun_never_owns_the_notification_bus(self):
         for path in SHELL.rglob('*.qml'):
             if 'plugin' in path.relative_to(SHELL).parts:
                 continue

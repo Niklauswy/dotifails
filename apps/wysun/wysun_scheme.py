@@ -346,7 +346,7 @@ def quantize_pixels(pixels, maximum=128):
 
 
 def score_colors(colors_to_population):
-    """Caelestia's Material hue-proportion/chroma scoring, over pure-Python bins."""
+    """Material hue-proportion/chroma scoring, over pure-Python bins."""
     if not colors_to_population:
         raise ValueError('El fondo no contiene colores que se puedan cuantizar.')
     colours = [(Hct.from_int(rgb), population) for rgb, population in colors_to_population.items()]
@@ -399,7 +399,7 @@ def _file_hash(path):
 
 
 def generate_dynamic(image_path, mode=None, variant=None):
-    """Generate a Caelestia-shaped scheme without retaining source image data."""
+    """Generate a Material-role scheme without retaining source image data."""
     image_path = Path(image_path).expanduser()
     if mode is not None and mode not in ('light', 'dark'):
         raise ValueError('--mode debe ser light o dark.')

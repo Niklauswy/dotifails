@@ -1,7 +1,7 @@
 import "center"
 import QtQuick
 import QtQuick.Layouts
-import Caelestia.Config
+import Wysun.Config
 import qs.components
 import qs.services
 

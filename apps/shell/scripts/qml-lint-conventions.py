@@ -132,7 +132,7 @@ def import_group(module: str) -> tuple[int, int] | None:
         return (3, depth)
     if is_module("M3Shapes"):
         return (4, depth)
-    if is_module("Caelestia"):
+    if is_module("Wysun"):
         return (5, depth)
     if is_module("qs.components"):
         return (6, depth)

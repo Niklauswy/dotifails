@@ -84,7 +84,7 @@ class SchemeGeneratorTests(unittest.TestCase):
         theme_tokens.invalidate()
         self.folder.cleanup()
 
-    def test_same_image_generates_identical_caelestia_scheme(self):
+    def test_same_image_generates_identical_scheme(self):
         first = wysun_scheme.generate_dynamic(self.red, 'dark', 'tonalspot')
         second = wysun_scheme.generate_dynamic(self.red, 'dark', 'tonalspot')
         self.assertEqual(first, second)
@@ -143,7 +143,7 @@ class SchemeGeneratorTests(unittest.TestCase):
             self.assertEqual(theme_core.key(selection['style'], selection['variant']), theme_core.key(*theme_core.parse(preset)))
             self.assertEqual(selection['private'], 'keep')
 
-    def test_all_caelestia_variants_generate_for_light_and_dark(self):
+    def test_all_variants_generate_for_light_and_dark(self):
         failures = []
         for wallpaper in (self.red, self.blue):
             for variant in wysun_scheme.VARIANTS:

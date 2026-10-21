@@ -4,7 +4,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Io
-import Caelestia.I18n
+import Wysun.I18n
 
 Singleton {
     id: root
@@ -1725,7 +1725,7 @@ Singleton {
     LoggingCategory {
         id: lc
 
-        name: "caelestia.qml.services.nmcli"
+        name: "wysun.qml.services.nmcli"
         defaultLogLevel: LoggingCategory.Info
     }
 

@@ -1,6 +1,6 @@
 import "weather"
 import QtQuick
-import Caelestia.Config
+import Wysun.Config
 import qs.components
 import qs.services
 

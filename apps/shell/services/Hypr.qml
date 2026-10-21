@@ -6,8 +6,8 @@ import QtQuick
 import Quickshell
 import Quickshell.Hyprland
 import Quickshell.Io
-import Caelestia.I18n
-import Caelestia.Services
+import Wysun.I18n
+import Wysun.Services
 import qs.components.misc
 
 Singleton {
@@ -160,7 +160,7 @@ Singleton {
     FileView {
         id: kbLayoutFile
 
-        path: Quickshell.env("CAELESTIA_XKB_RULES_PATH") || "/usr/share/X11/xkb/rules/base.lst"
+        path: Quickshell.env("WYSUN_XKB_RULES_PATH") || "/usr/share/X11/xkb/rules/base.lst"
         onLoaded: {
             const layoutMatch = text().match(/! layout\n([\s\S]*?)\n\n/);
             if (layoutMatch) {

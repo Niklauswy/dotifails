@@ -3,8 +3,8 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Widgets
-import Caelestia
-import Caelestia.Config
+import Wysun
+import Wysun.Config
 import qs.components
 import qs.components.containers
 import qs.components.widgets

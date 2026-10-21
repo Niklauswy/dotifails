@@ -1,8 +1,8 @@
 pragma Singleton
 
 import Quickshell
-import Caelestia.Config
-import Caelestia.Models
+import Wysun.Config
+import Wysun.Models
 import qs.utils
 
 Searcher {

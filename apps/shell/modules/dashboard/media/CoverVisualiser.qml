@@ -4,9 +4,9 @@ import QtQuick
 import QtQuick.Shapes
 import Quickshell
 import M3Shapes
-import Caelestia
-import Caelestia.Config
-import Caelestia.Services
+import Wysun
+import Wysun.Config
+import Wysun.Services
 import qs.components
 import qs.components.widgets
 import qs.services
