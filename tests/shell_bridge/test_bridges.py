@@ -132,6 +132,13 @@ class DispatcherTests(unittest.TestCase):
         self.assertEqual(self.dispatch('reload-preferences')[1], ['ipc', 'call', 'wysunShell', 'reloadPreferences'])
         self.assertEqual(self.dispatch('open', 'notifications')[1], ['ipc', 'call', 'wysunShell', 'open', 'notifications'])
 
+    def test_sidebar_alias_open_and_repeated_toggle_reach_the_same_ipc(self):
+        for _ in range(3):
+            self.assertEqual(self.dispatch('sidebar')[:2],
+                             (0, ['ipc', 'call', 'wysunShell', 'toggle', 'sidebar']))
+        self.assertEqual(self.dispatch('open', 'sidebar')[:2],
+                         (0, ['ipc', 'call', 'wysunShell', 'open', 'sidebar']))
+
     def test_unknown_surface_is_rejected(self):
         code, out, err = self.dispatch('toggle', 'rm')
         self.assertEqual(code, 2); self.assertEqual(out, [])
@@ -146,7 +153,7 @@ class DispatcherTests(unittest.TestCase):
     def test_hyprland_shell_bindings_use_dispatcher_commands(self):
         lua = (ROOT / 'config/.config/wysun/hyprland.lua').read_text()
         for sub in re.findall(r'wysun shell (\S+?)"', lua):
-            self.assertIn(sub, ('menu', 'launcher', 'reload-preferences', 'windows', 'session', 'close', 'status'))
+            self.assertIn(sub, ('menu', 'launcher', 'reload-preferences', 'windows', 'session', 'sidebar', 'close', 'status'))
 
 
 if __name__ == '__main__':
