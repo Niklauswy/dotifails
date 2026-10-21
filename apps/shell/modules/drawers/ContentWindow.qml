@@ -35,6 +35,10 @@ StyledWindow {
         return hasFullscreenOnNormalWs;
     }
 
+    // Explicitly invoked panels need a visible, interactive surface even when
+    // passive shell elements are hidden over a fullscreen application.
+    readonly property bool interactivePanelOpen: screenState.launcher || screenState.session || screenState.sidebar || screenState.dashboard || screenState.utilities
+
     property real fsTransitionProg: hasFullscreen ? 1 : 0
     readonly property real sdfBorderOffset: 2 * fsTransitionProg // SDFs joins are not exact, so offset by 2px to ensure nothing shows
     readonly property real borderThickness: contentItem.Config.border.thickness * (1 - fsTransitionProg)
@@ -62,15 +66,17 @@ StyledWindow {
         screenState.launcher = false;
         screenState.session = false;
         screenState.dashboard = false;
+        screenState.sidebar = false;
+        screenState.utilities = false;
         panels.popouts.close();
     }
 
     name: "drawers"
     WlrLayershell.exclusionMode: ExclusionMode.Ignore
-    WlrLayershell.layer: (fsTransitionProg > 0 && contentItem.Config.general.showOverFullscreen) || (hasSpecialWorkspace && hasFullscreenOnNormalWs) ? WlrLayer.Overlay : WlrLayer.Top
+    WlrLayershell.layer: (hasFullscreen && interactivePanelOpen) || (fsTransitionProg > 0 && contentItem.Config.general.showOverFullscreen) || (hasSpecialWorkspace && hasFullscreenOnNormalWs) ? WlrLayer.Overlay : WlrLayer.Top
     WlrLayershell.keyboardFocus: screenState.launcher || screenState.session || screenState.sidebar ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
 
-    mask: hasFullscreen ? emptyRegion : regions
+    mask: hasFullscreen && !interactivePanelOpen ? emptyRegion : regions
 
     anchors.top: true
     anchors.bottom: true
