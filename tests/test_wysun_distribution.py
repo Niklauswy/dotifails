@@ -44,7 +44,7 @@ class WysunDistributionTests(unittest.TestCase):
         entries = self.home / '.local/share/applications'
         self.assertEqual(len(list(entries.glob('*.desktop'))), 5)
         self.assertIn('Name=Wysun Recorder', (entries / 'loomrec.desktop').read_text())
-        self.assertIn('Name=Wysun Ajustes', (entries / 'orbit-settings.desktop').read_text())
+        self.assertIn('Name=Wysun Settings', (entries / 'orbit-settings.desktop').read_text())
         self.assertIn('Name=Wysun Conexiones', (entries / 'orbit-connections.desktop').read_text())
         self.assertNotIn('Órbita', (entries / 'orbit-settings.desktop').read_text())
         self.assertFalse((entries / 'wysun-recorder.desktop').exists())
