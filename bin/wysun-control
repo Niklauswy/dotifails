@@ -1,7 +1,20 @@
-#!/usr/bin/env python3
-"""One-shot volume/brightness/media keys from the installed Wysun shell assets."""
-import os
-from pathlib import Path
-import sys
-path=Path(__file__).resolve().parent.parent/'share/wysun/quickshell/controls.py'
-os.execv('/usr/bin/python3',['/usr/bin/python3','-P',str(path),*sys.argv[1:]])
+#!/bin/sh
+# One-shot volume/brightness/media keys. The shell OSD follows Pipewire and
+# backlight changes, so no helper process is needed. Fails visibly if a tool is missing.
+set -eu
+sink='@DEFAULT_AUDIO_SINK@'
+source='@DEFAULT_AUDIO_SOURCE@'
+need() { command -v "$1" >/dev/null 2>&1 || { echo "wysun-control: falta $1" >&2; exit 127; }; }
+case "${1:-}" in
+    volume-up) need wpctl; exec wpctl set-volume -l 1.0 "$sink" 5%+ ;;
+    volume-down) need wpctl; exec wpctl set-volume "$sink" 5%- ;;
+    volume-mute) need wpctl; exec wpctl set-mute "$sink" toggle ;;
+    mic-mute) need wpctl; exec wpctl set-mute "$source" toggle ;;
+    brightness-up) need brightnessctl; exec brightnessctl -q set 5%+ ;;
+    brightness-down) need brightnessctl; exec brightnessctl -q set 5%- ;;
+    media-next) need playerctl; exec playerctl next ;;
+    media-previous) need playerctl; exec playerctl previous ;;
+    media-play-pause) need playerctl; exec playerctl play-pause ;;
+    media-stop) need playerctl; exec playerctl stop ;;
+    *) echo "uso: wysun-control volume-up|volume-down|volume-mute|mic-mute|brightness-up|brightness-down|media-next|media-previous|media-play-pause|media-stop" >&2; exit 2 ;;
+esac

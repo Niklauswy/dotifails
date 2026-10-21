@@ -11,6 +11,7 @@ PersistentProperties {
     property bool dashboard
     property bool utilities
     property bool sidebar
+    property string launcherQuery
 
     // Dashboard state
     property int dashboardTab

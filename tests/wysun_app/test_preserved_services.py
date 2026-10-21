@@ -60,10 +60,5 @@ class PreservedServicesTests(unittest.TestCase):
             with patch.object(panels,'Path') as paths,patch.object(panels.os,'getloadavg',return_value=(.1,.2,.3)),patch('shutil.disk_usage',return_value=disk):
                 paths.side_effect=path;paths.home.return_value=root;scan.run()
             self.assertEqual(len(rows),5);self.assertEqual(rows[0]['subtitle'],'4.0 / 8.0 GB');self.assertIn('42%',rows[3]['subtitle'])
-    def test_suspend_routes_only_through_lock_acquire_wrapper(self):
-        from enhanced import OrbitV2
-        owner=Mock()
-        with patch.dict(os.environ,{'WAYLAND_DISPLAY':'fixture'}),patch('screen_lock.start_lock',return_value=True) as lock,patch('enhanced.run') as run:
-            self.assertTrue(OrbitV2.power_action(owner,{'action':'suspend'}));lock.assert_called_once_with(owner,suspend=True);run.assert_not_called()
 
 if __name__=='__main__':unittest.main()

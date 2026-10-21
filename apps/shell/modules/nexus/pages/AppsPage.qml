@@ -133,10 +133,9 @@ PageBase {
                         anchors.margins: Tokens.padding.medium
                         spacing: Tokens.spacing.medium
 
-                        IconImage {
-                            asynchronous: true
-                            implicitSize: Math.round(Tokens.font.icon.large.pointSize * 1.8)
-                            source: Quickshell.iconPath(appItem.modelData.icon, "image-missing")
+                        AppIcon {
+                            name: appItem.modelData.icon
+                            size: Math.round(Tokens.font.icon.large.pointSize * 1.8)
                         }
 
                         ColumnLayout {

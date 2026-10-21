@@ -41,6 +41,12 @@ Scope {
         function toggle(surface: string): bool { return root.show(surface, true); }
         function open(surface: string): bool { return root.show(surface, false); }
         function openOn(output: string, surface: string): bool { return root.showOn(output, surface); }
+        // Open the launcher with a prefilled query, e.g. ">clip " for the clipboard history.
+        function search(text: string): bool {
+            if (!root.show('launcher', false)) return false;
+            root.current().launcherQuery = text;
+            return true;
+        }
         function close(): void { root.close(); }
         function reloadPreferences(): void { environment.reload(); }
         function openThemeSettings(): bool { Quickshell.execDetached(['wysun', 'settings', 'theme']); return true; }

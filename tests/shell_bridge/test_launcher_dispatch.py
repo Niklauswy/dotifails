@@ -27,7 +27,7 @@ class LauncherDispatchTests(unittest.TestCase):
             status = wysun.main()
         return status, run, execute
 
-    def test_wayland_default_accepts_native_once_without_qt(self):
+    def test_launcher_commands_reach_the_shell_once_without_qt(self):
         for args in ((), ('launcher',), ('toggle',)):
             status, run, execute = self.invoke(args)
             self.assertEqual(status, 0)
@@ -35,40 +35,41 @@ class LauncherDispatchTests(unittest.TestCase):
             self.assertEqual(run.call_args.args[0], [str(ROOT / 'bin/wysun-shell'), 'launcher'])
             execute.assert_not_called()
 
-    def test_unavailable_or_rejected_shell_falls_back_once(self):
-        for kwargs in ({'response': 'false\n'}, {'code': 1}, {'error': FileNotFoundError()}):
-            _, run, execute = self.invoke(**kwargs)
-            self.assertEqual(run.call_count, 1)
-            execute.assert_called_once_with(str(ROOT / 'bin/orbit'), [str(ROOT / 'bin/orbit'), 'toggle'])
+    def test_former_qt_menus_are_served_by_the_shell(self):
+        expected = {
+            'clipboard': ['search', '>clip '], 'snippets': ['search', '>snip '], 'emoji': ['search', '>emoji '],
+            'calculator': ['search', '>calc '], 'windows': ['windows'], 'power': ['session'],
+            'audio': ['open', 'quicksettings'], 'notifications': ['open', 'notifications'],
+            'calendar': ['open', 'dashboard'], 'system': ['open', 'dashboard']}
+        for command, route in expected.items():
+            status, run, execute = self.invoke((command,))
+            self.assertEqual(status, 0, command)
+            self.assertEqual(run.call_args.args[0], [str(ROOT / 'bin/wysun-shell'), *route])
+            execute.assert_not_called()
 
-    def test_ambiguous_delivery_never_opens_a_second_launcher(self):
-        for kwargs in ({'error': subprocess.TimeoutExpired('ipc', 2)}, {'response': ''}, {'response': 'unknown'}):
+    def test_unavailable_rejected_or_silent_shell_fails_visibly_without_qt(self):
+        for kwargs in ({'response': 'false\n'}, {'code': 1}, {'error': FileNotFoundError()},
+                       {'error': subprocess.TimeoutExpired('ipc', 3)}):
             status, run, execute = self.invoke(**kwargs)
             self.assertEqual(status, 1)
             self.assertEqual(run.call_count, 1)
             execute.assert_not_called()
 
-    def test_explicit_qt_and_non_wayland_do_not_contact_shell(self):
-        for env in ({'WAYLAND_DISPLAY': 'synthetic', 'WYSUN_LAUNCHER': 'qt'},
-                    {'DISPLAY': ':synthetic'}, {'WAYLAND_DISPLAY': 'synthetic', 'WYSUN_LAUNCHER': 'false'}):
-            _, run, execute = self.invoke(env=env)
-            run.assert_not_called()
-            execute.assert_called_once()
+    def test_no_qt_launcher_override_remains(self):
+        text = (ROOT / 'bin/wysun').read_text()
+        self.assertNotIn('WYSUN_LAUNCHER', text)
+        for env in ({'WAYLAND_DISPLAY': 'synthetic', 'WYSUN_LAUNCHER': 'qt'}, {'DISPLAY': ':synthetic'}):
+            status, run, execute = self.invoke(env=env)
+            self.assertEqual(status, 0)
+            run.assert_called_once()
+            execute.assert_not_called()
 
-    def test_explicit_qml_can_opt_in_without_wayland_environment(self):
-        status, run, execute = self.invoke(env={'WYSUN_LAUNCHER': 'qml'})
-        self.assertEqual(status, 0)
-        run.assert_called_once()
-        execute.assert_not_called()
-
-    def test_other_modes_and_arguments_never_toggle_launcher(self):
+    def test_other_modes_never_toggle_launcher(self):
         for args, executable, forwarded in (
                 (('notes',), 'orbit', ['notes']),
                 (('settings', 'displays'), 'orbit', ['settings', 'displays']),
-                (('clipboard',), 'orbit', ['clipboard']),
                 (('recover', '--help'), 'wysun-recover', ['--help']),
                 (('files', '/tmp/example'), 'orbit-files', ['/tmp/example']),
-                (('launcher', 'query'), 'orbit', ['toggle', 'query']),
                 (('recorder', '--quick-record'), 'wysun-recorder', ['--quick-record'])):
             _, run, execute = self.invoke(args)
             run.assert_not_called()

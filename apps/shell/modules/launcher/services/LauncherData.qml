@@ -100,6 +100,15 @@ Singleton {
             run(["record-calc", row.query, row.value]);
     }
 
+    // Copy, then paste into the window that was focused before the launcher.
+    function paste(row: var): bool {
+        if (["clip", "snippet", "emoji", "calc"].indexOf(row.kind) < 0)
+            return false;
+        copy(row);
+        run(["paste"]);
+        return true;
+    }
+
     function remove(row: var): bool {
         if (row.kind === "clip")
             run(["delete-clip", String(row.id)]);
@@ -125,6 +134,9 @@ Singleton {
             return true;
         case "window":
             run(["focus-window", row.wid]);
+            return true;
+        case "snippet-new":
+            run(["save-snippet", ...row.args]);
             return true;
         case "run":
             Quickshell.execDetached([...GlobalConfig.general.apps.terminal, `${Quickshell.shellDir}/assets/wrap_term_launch.sh`, "sh", "-c", row.command]);

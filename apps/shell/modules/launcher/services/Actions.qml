@@ -45,7 +45,10 @@ Searcher {
                 return;
 
             if (command[0] === "autocomplete" && command.length > 1) {
-                list.search.text = `${GlobalConfig.launcher.actionPrefix}${command[1]} `;
+                list.search.text = `${GlobalConfig.launcher.actionPrefix}${command[1]} ${command[2] ?? ""}`;
+            } else if (command[0] === "launcherData" && command.length > 1) {
+                list.screenState.launcher = false;
+                LauncherData.run(command.slice(1));
             } else if (command[0] === "setMode" && command.length > 1) {
                 list.screenState.launcher = false;
                 Colours.setMode(command[1]);

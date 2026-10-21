@@ -106,7 +106,7 @@ Item {
                         event.accepted = true;
                         return;
                     }
-                    if ((event.modifiers & Qt.ControlModifier) && LauncherData.copyPath(row)) {
+                    if ((event.modifiers & Qt.ControlModifier) && (LauncherData.paste(row) || LauncherData.copyPath(row))) {
                         root.screenState.launcher = false;
                         event.accepted = true;
                         return;
@@ -134,12 +134,26 @@ Item {
             }
         }
 
-        Component.onCompleted: forceActiveFocus()
+        Component.onCompleted: {
+            forceActiveFocus();
+            if (root.screenState.launcherQuery) {
+                text = root.screenState.launcherQuery;
+                root.screenState.launcherQuery = "";
+            }
+        }
 
         Connections {
             function onLauncherChanged(): void {
                 if (!root.screenState.launcher)
                     search.text = "";
+            }
+
+            function onLauncherQueryChanged(): void {
+                if (root.screenState.launcherQuery) {
+                    search.text = root.screenState.launcherQuery;
+                    root.screenState.launcherQuery = "";
+                    search.forceActiveFocus();
+                }
             }
 
             function onSessionChanged(): void {

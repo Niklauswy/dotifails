@@ -147,7 +147,7 @@ de prueba ya no existían: no se cerró ninguna otra ventana. Recovery siguió
 respondiendo correctamente y Hyprland no se reinició.
 
 Corrección posterior: Ctrl+X ya no está asignado globalmente (vuelve a ser Cortar). Super+X abre o cierra el panel
-lateral de sesión; el menú Qt de energía pasó a Super+Shift+X.
+lateral de sesión.
 
 La máscara heredada vacía en fullscreen podía mantener foco sobre un panel
 inaccesible. `88210e18` utiliza la región interactiva y capa overlay cuando

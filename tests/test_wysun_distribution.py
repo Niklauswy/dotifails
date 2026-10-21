@@ -129,7 +129,7 @@ class WysunDistributionTests(unittest.TestCase):
         self.assertNotEqual((self.home / '.local/bin/loomrec').read_text(), old_launcher)
         self.assertIn(str(first), (self.home / '.local/bin/loomrec').read_text())
 
-    def test_public_dispatch_preserves_arguments_and_legacy_fallback(self):
+    def test_public_dispatch_preserves_arguments(self):
         import shutil
         directory = self.home / 'bin'
         directory.mkdir()
@@ -139,7 +139,6 @@ class WysunDistributionTests(unittest.TestCase):
             path.write_text('#!/usr/bin/python3\nimport json,sys\nprint(json.dumps(sys.argv))\n')
             path.chmod(0o755)
         for args, executable, forwarded in (
-            ([], 'orbit', ['toggle']),
             (['music'], 'orbit', ['music']),
             (['files', '/tmp/a file'], 'orbit-files', ['/tmp/a file']),
             (['recorder', '--quick-record'], 'wysun-recorder', ['--quick-record']),

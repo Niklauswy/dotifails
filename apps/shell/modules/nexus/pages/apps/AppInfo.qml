@@ -46,10 +46,9 @@ PageBase {
             Layout.bottomMargin: Tokens.spacing.large
             spacing: Tokens.spacing.large
 
-            IconImage {
-                asynchronous: true
-                implicitSize: Math.round(Tokens.font.icon.large.pointSize * 3)
-                source: Quickshell.iconPath(root.app?.icon, "image-missing")
+            AppIcon {
+                name: root.app?.icon ?? ""
+                size: Math.round(Tokens.font.icon.large.pointSize * 3)
             }
 
             ColumnLayout {

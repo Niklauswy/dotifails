@@ -42,27 +42,6 @@ class ClipboardLibraryTests(unittest.TestCase):
   a=self.store.clip('text','Solo')
   with self.assertRaises(ValueError):self.lib.combine([a])
   ident=self.store.clip('url','javascript:alert(1)');self.assertNotIn('href="javascript:',self.lib.mime([ident]).html())
- def test_ocr_retries_failed_images_without_busy_loop(self):
-  from enhanced import OrbitV2
-  from types import SimpleNamespace,MethodType
-  from unittest.mock import MagicMock,patch
-  import json,time
-  ident=self.store.clip('image','Imagen fallida',b'fixture')
-  self.store.save_media(ident,'',{'ocr_status':'no disponible','ocr_attempts':1,'ocr_retry_after':0},None)
-  owner=SimpleNamespace(test=False,ocr_job=None,store=self.store,ocr_retry_timer=MagicMock(),ocr_finished=MagicMock(),ocr_cleanup=MagicMock())
-  owner.next_ocr=MethodType(OrbitV2.next_ocr,owner)
-  with patch('enhanced.OCRJob') as job:
-   owner.next_ocr();job.assert_called_once_with(ident,b'fixture');job.return_value.start.assert_called_once()
-  owner.ocr_job=None;self.store.save_media(ident,'',{'ocr_status':'no disponible','ocr_engine':2,'ocr_attempts':3,'ocr_retry_after':0},None)
-  with patch('enhanced.OCRJob') as job:owner.next_ocr();job.assert_not_called()
-  owner.ocr_retry_timer.start.assert_called_with(60000)
- def test_old_exhausted_ocr_is_recovered_once(self):
-  from enhanced import OrbitV2
-  from types import SimpleNamespace,MethodType
-  from unittest.mock import MagicMock,patch
-  ident=self.store.clip('image','Imagen anterior',b'fixture');self.store.save_media(ident,'',{'ocr_status':'no disponible','ocr_attempts':3},None)
-  owner=SimpleNamespace(test=False,ocr_job=None,store=self.store,ocr_retry_timer=MagicMock(),ocr_finished=MagicMock(),ocr_cleanup=MagicMock());owner.next_ocr=MethodType(OrbitV2.next_ocr,owner)
-  with patch('enhanced.OCRJob') as job:owner.next_ocr();job.assert_called_once_with(ident,b'fixture')
  def test_actual_tesseract_image_search(self):
   import shutil
   if not shutil.which('tesseract'):self.skipTest('Tesseract no está instalado')

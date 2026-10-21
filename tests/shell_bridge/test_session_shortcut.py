@@ -21,8 +21,7 @@ class SessionShortcutTests(unittest.TestCase):
         super_x = [body for key, body in binds if normalize(key) == normalize('SUPER + X')]
         self.assertEqual(len(super_x), 1)
         self.assertIn('wysun shell session', super_x[0])
-        power = [body for key, body in binds if normalize(key) == normalize('SUPER + SHIFT + X')]
-        self.assertIn('wysun power', power[0])
+        self.assertEqual([b for k, b in binds if 'wysun power' in b], [], 'Qt power menu bind must be gone')
         inherited = [body for key, body in binds if normalize(key) == normalize('SUPER + CTRL + X')]
         self.assertEqual(len(inherited), 1)
         self.assertNotIn('wysun shell', inherited[0])

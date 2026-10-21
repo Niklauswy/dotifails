@@ -42,6 +42,13 @@ def clip_rows(store, text):
 
 
 def snippet_rows(store, text):
+    if text.startswith('+'):
+        parts = [x.strip() for x in text[1:].split('|', 2)] + ['', '']
+        title, shortcut, body = parts[0], parts[1], parts[2]
+        if title and body:
+            return [row('snippet-new', f'Crear snippet «{title}»', f'Abreviatura: {shortcut or "—"} · {len(body)} caracteres', 'add',
+                        args=[title, shortcut, body])]
+        return [row('hint', 'Nuevo snippet', 'Escribe: +título | abreviatura | texto  (variables {date}, {time}, {datetime})', 'add')]
     fold = text.casefold()
     return [row('snippet', s['title'], s['shortcut'] or 'Fragmento de texto', 'code', id=s['id'], value=expand_snippet(s['body']))
             for s in store.snippets() if fold in (s['title'] + ' ' + s['shortcut'] + ' ' + s['body']).casefold()][:LIMIT]
@@ -155,6 +162,18 @@ def act(action, args):
             Desktop().activate(args[0])
         elif action == 'toggle-capture':
             store.set('paused', '0' if store.get('paused') == '1' else '1')
+        elif action == 'save-snippet':
+            if not args[0].strip() or not args[2].strip():
+                raise ValueError('el snippet necesita nombre y texto')
+            store.save_snippet(args[0].strip(), args[1].strip(), args[2])
+        elif action == 'paste':
+            # The launcher is a layer surface: the previously focused window is still the active one.
+            from desktop_backend import Desktop
+            from wayland_clipboard import paste_to
+            time.sleep(0.15)
+            ok, message = paste_to(Desktop().focused())
+            if not ok:
+                raise RuntimeError(message)
         elif action == 'use':
             store.use(args[0])
         else:

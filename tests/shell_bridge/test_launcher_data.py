@@ -60,6 +60,16 @@ class ProviderTests(unittest.TestCase):
         self.run_cli('act', 'delete-snippet', str(snippet['id']))
         self.assertEqual(self.run_cli('query', 'snippets', ''), [])
 
+    def test_snippet_creation_from_the_launcher(self):
+        self.assertEqual(self.run_cli('query', 'snippets', '+')[0]['kind'], 'hint')
+        create = self.run_cli('query', 'snippets', '+Saludo | hola | Hola mundo')[0]
+        self.assertEqual((create['kind'], create['args']), ('snippet-new', ['Saludo', 'hola', 'Hola mundo']))
+        self.run_cli('act', 'save-snippet', *create['args'])
+        self.assertEqual(self.run_cli('query', 'snippets', 'hola')[0]['value'], 'Hola mundo')
+        result = subprocess.run([sys.executable, '-I', str(SCRIPT), 'act', 'save-snippet', ' ', '', 'x'], env=self.env,
+                                capture_output=True, text=True, timeout=30)
+        self.assertEqual(result.returncode, 1)
+
     def test_unknown_mode_and_action_fail_safely(self):
         self.assertEqual(self.run_cli('query', 'nope', '')[0]['kind'], 'error')
         result = subprocess.run([sys.executable, '-I', str(SCRIPT), 'act', 'rm-rf'], env=self.env,
@@ -80,17 +90,16 @@ class WiringTests(unittest.TestCase):
         for needle in ('name: "data"', 'name: "run"', 'return "calc"', 'LauncherData.parse'):
             self.assertIn(needle, applist)
 
-    def test_provider_runs_argv_without_a_shell_and_keeps_qt_fallback(self):
+    def test_provider_runs_argv_without_a_shell_and_has_no_qt_fallback(self):
         service = (LAUNCHER / 'services/LauncherData.qml').read_text()
         self.assertNotIn('"sh", "-c", script', service)
         self.assertIn('"python3", "-I", script', service)
         wysun = (ROOT / 'bin/wysun').read_text()
-        self.assertIn("WYSUN_LAUNCHER=qt", wysun)
-        self.assertIn("os.execv(str(executable)", wysun)
+        self.assertNotIn("WYSUN_LAUNCHER", wysun)
 
     def test_shortcuts_row_actions_exist(self):
         content = (LAUNCHER / 'Content.qml').read_text()
-        for needle in ('Qt.Key_Delete', 'openFolder', 'copyPath', 'webRow'):
+        for needle in ('Qt.Key_Delete', 'openFolder', 'copyPath', 'webRow', 'LauncherData.paste'):
             self.assertIn(needle, content)
 
 

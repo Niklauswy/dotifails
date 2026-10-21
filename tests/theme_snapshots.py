@@ -69,17 +69,6 @@ def render(out, source, theme):
         orbit.apply_style(app, orbit.STYLE)
     except Exception as error:
         print('fail app-style', error)
-    from desktop_v3 import OrbitV3
-    launcher = OrbitV3(test=True)
-    for mode in ('home', 'emoji', 'snippets', 'clipboard'):
-        try:
-            launcher.show_mode(mode)
-            settle(200)
-            launcher.grab().save(str(out / ('launcher-' + mode + '.png')))
-            print('ok launcher', mode)
-        except Exception as error:
-            print('fail launcher', mode, error)
-    launcher.hide()
     from settings_hub import SettingsHub
     settings = attempt('settings-home', lambda: SettingsHub(test=True, home=home))
     if settings:
@@ -96,7 +85,7 @@ def render(out, source, theme):
     attempt('colors', lambda: ColorWindow(home / 'colors.json'))
     from connections_window import ConnectionsWindow, PowerWindow
     attempt('connections', ConnectionsWindow)
-    attempt('power', lambda: PowerWindow(launcher))
+    attempt('power', lambda: PowerWindow(None))
     from tools_window import ToolsWindow
     attempt('tools', lambda: ToolsWindow(test=True))
     from music_app_window import MusicAppWindow
@@ -105,8 +94,6 @@ def render(out, source, theme):
     (home / 'Documentos/nota.txt').write_text('hola')
     from files_window import FilesWindow
     attempt('files', lambda: FilesWindow([str(home / 'Documentos')]))
-    from clipboard_window import ClipboardWindow
-    attempt('clipboard', lambda: ClipboardWindow(launcher, test=True))
     settle(100)
 
 

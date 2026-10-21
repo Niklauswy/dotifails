@@ -32,12 +32,11 @@ Item {
         anchors.rightMargin: Tokens.padding.medium
         anchors.margins: Tokens.padding.small
 
-        IconImage {
+        AppIcon {
             id: icon
 
-            asynchronous: true
-            source: Quickshell.iconPath(root.modelData?.icon, "image-missing")
-            implicitSize: parent.height * 0.8
+            name: root.modelData?.icon ?? ""
+            size: parent.height * 0.8
 
             anchors.verticalCenter: parent.verticalCenter
         }

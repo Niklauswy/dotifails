@@ -162,13 +162,14 @@ Nunca reiniciar Hyprland ni el login para actualizar un panel.
 - **Atajos**: `config/.config/wysun/hyprland.lua` (Hyprland 0.55, Lua). Atajos privados en `~/.config/wysun/local.lua`.
   Los de captura apuntan a `wysun screenshot …` / `wysun recorder …`. `apps/wysun/settings_shortcuts.py` y `shortcut_capture.py`
   los editan desde Ajustes. `apps/shell/daemons/Shortcuts.qml` está disponible si se decide mover atajos al shell.
-- **Lanzador**: en Wayland `wysun` abre por defecto el widget inferior del shell (`apps/shell/modules/launcher`).
-  `WYSUN_LAUNCHER=qt` elige la paleta Qt; si el shell rechaza o no está disponible se usa ese alternativo. Una respuesta
-  ambigua o un timeout no abre un segundo lanzador. Sus acciones por defecto en `plugin/src/Wysun/Config/launcherconfig.hpp` llaman a comandos
-  que ya no existen como `wysun wallpaper -r`: revisar al migrar el lanzador.
+- **Lanzador**: `wysun` abre el widget inferior del shell (`apps/shell/modules/launcher`); no existe lanzador Qt ni
+  alternativo: si el shell no responde, el comando falla con un mensaje. Modos con `>`: `clip`, `files`, `snip`, `win`,
+  `emoji`, `hist`, `run`; datos en `apps/wysun/launcher_data.py` (mismo almacén que el residente). `wysun clipboard|snippets|
+  emoji|calculator` abren esos modos; `wysun windows|power|audio|notifications|calendar|system` abren las superficies del
+  shell. El residente Qt (`orbit.py`) ya no muestra menús: aloja utilidades (Notas, Música, Herramientas…) y registra el
+  historial del portapapeles.
 - **Panel de sesión**: `Super+X` alterna el panel lateral de sesión (salir, apagar, suspender, reiniciar) en el monitor
-  enfocado y Escape lo cierra. `Ctrl+X` no está asignado: vuelve a ser Cortar en las aplicaciones. El menú Qt de energía
-  queda en `Super+Shift+X` (respaldo). Los paneles invocados explícitamente conservan máscara interactiva y capa overlay
+  enfocado y Escape lo cierra. `Ctrl+X` no está asignado: vuelve a ser Cortar en las aplicaciones. Los paneles invocados explícitamente conservan máscara interactiva y capa overlay
   sobre fullscreen; no dejan un foco invisible.
 - **Ajustes**: dos superficies conviven — Wysun Settings Qt (`apps/wysun/settings_*`) y el panel “nexus” del shell
   (`apps/shell/modules/nexus`, configuración en `~/.config/wysun/shell/shell.json`). `settings_hub.py`/`hypr_settings.py` escriben
