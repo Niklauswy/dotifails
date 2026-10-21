@@ -160,7 +160,7 @@ PageBase {
 
             IconTextButton {
                 icon: "palette"
-                text: Tr.tr("Colours")
+                text: "Temas y colores"
                 font: Tokens.font.body.large
                 isRound: true
                 shapeMorph: true

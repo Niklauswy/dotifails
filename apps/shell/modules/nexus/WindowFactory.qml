@@ -27,7 +27,7 @@ Singleton {
             return false;
         if (!routed || !routed.visible)
             routed = nexusComp.createObject(dummy, {});
-        routed.go(idx, section ? section.sub : -1, section?.kind ?? "");
+        routed.go(idx, section ? section.sub : (DesktopSections.pageSubs[route] ?? -1), section?.kind ?? "");
         return true;
     }
 

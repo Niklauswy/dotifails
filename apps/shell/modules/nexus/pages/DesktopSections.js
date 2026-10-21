@@ -31,6 +31,9 @@ var pageRoutes = {
     desktop: "desktop"
 };
 
+// Routes that open a sub-page of their page.
+var pageSubs = {theme: 3};
+
 function section(route) {
     return sections.find(function(s) { return s.route === route; }) || null;
 }
