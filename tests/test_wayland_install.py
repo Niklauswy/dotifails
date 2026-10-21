@@ -249,10 +249,35 @@ class WaylandInstallTests(unittest.TestCase):
         (binary / 'systemctl').write_text('#!/bin/sh\nprintf called > "$WYSUN_TEST_LOG"\n')
         for path in binary.iterdir(): path.chmod(0o755)
         env = dict(os.environ, PATH=str(binary) + ':' + os.environ['PATH'], HOME=str(self.home),
-                   WAYLAND_DISPLAY='fixture', XDG_SESSION_TYPE='wayland', WYSUN_TEST_LOG=str(log))
+                   WAYLAND_DISPLAY='fixture', XDG_SESSION_TYPE='wayland', WYSUN_TEST_LOG=str(log), WYSUN_LOCK_BACKEND='swaylock')
         result = subprocess.run([str(ROOT / 'bin/wysun-lock'), '--suspend'], env=env, capture_output=True)
         self.assertNotEqual(result.returncode, 0)
         self.assertFalse(log.exists())
+
+    def test_qml_lock_suspends_only_after_the_compositor_confirms(self):
+        shell = self.root / 'shell'; (shell / 'wysun').mkdir(parents=True)
+        (shell / 'lock.qml').write_text('// fixture\n')
+        launcher = shell / 'wysun/runtime.sh'
+        binary = self.root / 'bin2'; binary.mkdir()
+        (binary / 'systemctl').write_text('#!/bin/sh\nprintf "$@" >> "$WYSUN_TEST_LOG"\n')
+        (binary / 'swaylock').write_text('#!/bin/sh\nexit 1\n')
+        for path in binary.iterdir(): path.chmod(0o755)
+        runtime = self.root / 'run'; runtime.mkdir()
+        base = dict(os.environ, PATH=str(binary) + ':' + os.environ['PATH'], HOME=str(self.home), XDG_RUNTIME_DIR=str(runtime),
+                    WAYLAND_DISPLAY='fixture', XDG_SESSION_TYPE='wayland', WYSUN_SHELL_ROOT=str(shell), WYSUN_LOCK_WAIT='5')
+        for confirms in (True, False):
+            log = self.root / f'called-{confirms}'
+            launcher.write_text('#!/bin/sh\n' + ('printf locked > "$WYSUN_LOCK_READY"\nexec sleep 3\n' if confirms else 'exit 1\n'))
+            launcher.chmod(0o755)
+            env = dict(base, WYSUN_TEST_LOG=str(log))
+            result = subprocess.run([str(ROOT / 'bin/wysun-lock'), '--suspend'], env=env, capture_output=True, timeout=60)
+            subprocess.run(['sh', '-c', 'kill $(cat "$XDG_RUNTIME_DIR/wysun-lock.pid" 2>/dev/null) 2>/dev/null; true'], env=env)
+            if confirms:
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(log.read_text(), 'suspend')
+            else:
+                self.assertNotEqual(result.returncode, 0)
+                self.assertFalse(log.exists())
 
     def test_session_imports_environment_before_clients_and_fails_closed(self):
         services = runpy.run_path(str(ROOT / 'bin/wysun-session-services'))

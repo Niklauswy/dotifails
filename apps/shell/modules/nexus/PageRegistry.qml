@@ -55,6 +55,13 @@ QtObject {
             description: Tr.tr("Workspace assignments by display"),
             category: "shell"
         },
+        {
+            key: "lock",
+            label: Tr.tr("Lock & Idle"),
+            icon: "lock_clock",
+            description: Tr.tr("Auto-lock, display sleep, lock before sleep"),
+            category: "system"
+        },
         // System
         {
             key: "updates",

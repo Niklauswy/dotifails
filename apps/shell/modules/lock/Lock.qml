@@ -4,18 +4,45 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
-import qs.components.misc
+import qs.services
+import qs.utils
 
+// Standalone session lock (lock.qml, run by wysun-lock). The only path that
+// releases the lock is a successful PAM conversation (Pam.authenticated). The
+// process never unlocks on IPC, signals or timeouts: if it dies the compositor
+// stays locked and wysun-lock relaunches it.
 Scope {
-    property alias lock: lock
+    id: root
+
+    // Screen that shows the password form: follows the last input, starts on the focused output.
+    property string activeScreen: Hypr.focusedMonitor?.name ?? Quickshell.screens[0]?.name ?? ""
+    property bool unlocking
+    property string displayName: Quickshell.env("USER") ?? ""
+    readonly property string userName: Quickshell.env("USER") ?? ""
+
+    function finish(): void {
+        // Release the lock only after the exit animation; the timer is a cap, not a bypass.
+        unlocking = true;
+        releaseTimer.start();
+    }
 
     WlSessionLock {
         id: lock
 
-        signal unlock
+        locked: true
+
+        // Last-resort exit codes: 0 only after authentication, 1 if the compositor ended the lock.
+        onLockedChanged: {
+            if (!locked)
+                Qt.exit(root.unlocking ? 0 : 1);
+        }
+        onSecureChanged: {
+            if (secure)
+                ready.running = true;
+        }
 
         LockSurface {
-            lock: lock
+            lock: root
             pam: pam
         }
     }
@@ -24,51 +51,44 @@ Scope {
         id: pam
 
         lock: lock
+        onAuthenticated: root.finish()
     }
 
-    Loader {
-        asynchronous: true
-        active: true
-        onLoaded: active = false
+    Timer {
+        id: releaseTimer
 
-        // Force a load of a screencopy so the one in the lock works
-        // My guess is the ICC backend loads async on first request, which if the lock is
-        // the first request it fails to capture (because it's async and the compositor
-        // refuses capture when locked)
-        sourceComponent: ScreencopyView {
-            captureSource: Quickshell.screens[0]
+        interval: 520
+        onTriggered: lock.locked = false
+    }
+
+    // Tell wysun-lock the compositor confirmed the lock (the marker only exists on the first launch).
+    Process {
+        id: ready
+
+        command: ["sh", "-c", "[ -n \"$WYSUN_LOCK_READY\" ] && [ -e \"$WYSUN_LOCK_READY\" ] && printf locked > \"$WYSUN_LOCK_READY\"; exit 0"]
+    }
+
+    FileView {
+        path: (Quickshell.env("XDG_CONFIG_HOME") || Paths.home + "/.config") + "/orbit/environment.json"
+        watchChanges: true
+        printErrors: false
+        onFileChanged: reload()
+        onLoaded: {
+            try {
+                Wallpapers.wysunWallpaper = JSON.parse(text()).wallpaper || {};
+            } catch (error) {}
         }
     }
 
-    // qmllint disable unresolved-type
-    CustomShortcut {
-        // qmllint enable unresolved-type
-        name: "lock"
-        description: "Lock the current session"
-        onPressed: lock.locked = true
-    }
-
-    // qmllint disable unresolved-type
-    CustomShortcut {
-        // qmllint enable unresolved-type
-        name: "unlock"
-        description: "Unlock the current session"
-        onPressed: lock.unlock()
-    }
-
-    IpcHandler {
-        function lock(): void {
-            lock.locked = true;
+    Process {
+        running: true
+        command: ["sh", "-c", "getent passwd \"$(id -un)\" | cut -d: -f5 | cut -d, -f1"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const name = text.trim();
+                if (name)
+                    root.displayName = name;
+            }
         }
-
-        function unlock(): void {
-            lock.unlock();
-        }
-
-        function isLocked(): bool {
-            return lock.locked;
-        }
-
-        target: "lock"
     }
 }

@@ -10,7 +10,7 @@ hl.config({
     -- Opening/activating an app must always be visible: activation requests focus
     -- the window (switching workspace), a focus under a fullscreen window leaves
     -- that fullscreen, and launched apps open on the workspace that launched them.
-    misc = { disable_hyprland_logo = true, force_default_wallpaper = 0, focus_on_activate = true, on_focus_under_fullscreen = 2, initial_workspace_tracking = 1 },
+    misc = { allow_session_lock_restore = true, disable_hyprland_logo = true, force_default_wallpaper = 0, focus_on_activate = true, on_focus_under_fullscreen = 2, initial_workspace_tracking = 1 },
 })
 -- Wysun shell surfaces use explicit layer namespaces; shell motion owns their
 -- transitions, so compositor layer-open animations stay disabled.

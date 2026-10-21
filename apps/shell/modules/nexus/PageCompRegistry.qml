@@ -95,6 +95,7 @@ QtObject {
 
         Component { StackPage { Component { DisplaysPage {} } } },
         Component { StackPage { Component { WorkspacesPage {} } } },
+        Component { StackPage { Component { LockPage {} } } },
 
         // System
         Component {
