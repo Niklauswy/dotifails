@@ -19,6 +19,15 @@ from process_data import Processes, matched  # noqa: E402
 STATES = {'R': 'Running', 'S': 'Sleeping', 'D': 'I/O wait', 'T': 'Stopped', 't': 'Tracing', 'Z': 'Zombie', 'I': 'Idle', 'X': 'Exited'}
 
 
+def application_group(cgroup, fallback):
+    match = re.search(r'(?:^|/)app-([^/\n]+)\.(?:scope|service)', cgroup)
+    if not match:
+        return fallback
+    name = re.sub(r'-(?:[0-9]+|[0-9a-f]{8,})$', '', match[1])
+    name = re.sub(r'^(?:gnome|kde|dbus|flatpak)-', '', name, flags=re.I)
+    return name.replace('\\x2d', '-') or fallback
+
+
 def view(rows, control):
     selected = [r for r in rows if (control.get('owner') != 'mine' or r['uid'] == os.getuid())
                 and matched(r, re.sub(r'state:(running|sleeping|stopped|idle|zombie)',
@@ -169,9 +178,7 @@ class Telemetry:
             row['app'] = row['name']
             try:
                 cgroup = (Path('/proc')/str(row['pid'])/'cgroup').read_text()
-                app = re.search(r'app-(?:[^/]*?-)?([^/]+?)(?:-[0-9a-f]+)?\.(?:scope|service)', cgroup)
-                if app:
-                    row['app'] = app[1].replace('\\x2d', '-')
+                row['app'] = application_group(cgroup, row['name'])
             except OSError:
                 pass
             reason = self.model.action_reason(row)

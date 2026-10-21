@@ -19,6 +19,12 @@ def row(pid, ppid=0, name='app', cpu=1, memory=100):
 
 
 class ProcessWidgetTests(unittest.TestCase):
+    def test_application_group_keeps_app_name_and_removes_instance(self):
+        self.assertEqual(backend.application_group('0::/app.slice/app-brave-2059.scope', 'brave'), 'brave')
+        self.assertEqual(backend.application_group('0::/app.slice/app-gnome-org.mozilla.firefox-abcdef123456.scope', 'firefox'), 'org.mozilla.firefox')
+        self.assertEqual(backend.application_group(r'0::/app.slice/app-agent\x2dorchestrator-6895.scope', 'ao'), 'agent-orchestrator')
+        self.assertEqual(backend.application_group('0::/user.slice/session.scope', 'editor'), 'editor')
+
     def test_app_totals_and_collapse(self):
         rows = [row(2, name='browser', cpu=3), row(3, name='browser', cpu=4), row(4, name='editor')]
         result, count = backend.view(rows, dict(mode='apps', sort='cpu', collapsed=['browser']))
