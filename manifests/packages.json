@@ -159,7 +159,6 @@
   },
   "wayland_backports": [
     "hyprland",
-    "quickshell",
     "xdg-desktop-portal-hyprland",
     "libxkbcommon0",
     "libxkbcommon-x11-0",

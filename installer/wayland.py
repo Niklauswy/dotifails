@@ -1,8 +1,10 @@
 """Wayland deployment for Wysun / Hyprland; owned paths are updated in place."""
 import json
+import os
 from pathlib import Path
 import re
 import subprocess
+import sys
 
 
 RELEASES = {'debian': 'trixie-backports', 'parrot': 'echo-backports'}
@@ -31,7 +33,7 @@ def check_repository(source, fields):
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=30)
         if result.returncode or not result.stdout.strip():
             raise RuntimeError('Falta ' + spec + '. Consulta docs/wayland.md; no se añadirán repositorios automáticamente.')
-        supported = {'hyprland': '0.55', 'quickshell': '0.3', 'xdg-desktop-portal-hyprland': '1.4', 'hyprpicker': '0.4'}
+        supported = {'hyprland': '0.55', 'xdg-desktop-portal-hyprland': '1.4', 'hyprpicker': '0.4'}
         name = spec.split('/')[0]
         if name in supported:
             versions = re.findall(r'^Version: (.+)$', result.stdout, re.M)
@@ -65,6 +67,8 @@ def configure(deployment):
         _publish_asset(d, d.source / source, target)
     if any(p in d.conflicts for p in ('.local/share/orbit/app', '.local/share/wysun/quickshell')):
         return
+    migrate_legacy_names(d)
+    ensure_runtime(d)
     d.deploy(d.source / 'config/.local/bin/orbit', Path('.local/bin/orbit'))
     for name in ('orbit-files', 'orbit-tools', 'musica', 'musika', 'wysun-shell',
                  'wysun-session', 'wysun-session-services', 'wysun-lock', 'wysun-wm', 'wysun-control', 'wysun-workspaces', 'wysun-share-picker'):
@@ -113,6 +117,28 @@ def _publish_asset(deployment, source, relative):
     d.deploy(source, Path(relative))
 
 
+def migrate_legacy_names(deployment):
+    """Copy (never move) state stored under the former Caelestia names; the old copies are left for `dotifails clean`."""
+    import shutil
+    d = deployment
+    old, new = d.home / '.config/wysun/caelestia', d.home / '.config/wysun/shell'
+    if old.is_dir() and not new.exists():
+        shutil.copytree(old, new, symlinks=True)
+        print('Wysun: configuración del shell copiada de ' + str(old) + ' a ' + str(new))
+
+
+def ensure_runtime(deployment):
+    """Build or refresh the private Qt/Quickshell/plugin runtime (idempotent, stamped, no system changes)."""
+    d = deployment
+    if os.environ.get('WYSUN_SKIP_RUNTIME') == '1':
+        return
+    from main import run
+    prefix = d.home / '.local/share/wysun/runtime'
+    env = dict(os.environ, HOME=str(d.home))
+    d.stage('Runtime del shell Wysun (Qt, Quickshell, plugin)')
+    run([sys.executable, d.source / 'installer/runtime_build.py', '--prefix', prefix], env=env)
+
+
 def update_runtime(deployment):
     """Application-only update when the optional shell is already managed."""
     d = deployment
@@ -120,6 +146,9 @@ def update_runtime(deployment):
         return
     from capture_distribution import _publish
     d.deploy(d.source / 'apps/shell', Path('.local/share/wysun/quickshell'))
+    if not d.conflicts:
+        migrate_legacy_names(d)
+        ensure_runtime(d)
     for name in ('wysun-shell', 'wysun-session', 'wysun-session-services', 'wysun-lock', 'wysun-wm', 'wysun-control', 'wysun-workspaces', 'wysun-share-picker'):
         _publish(d, (d.source / 'bin' / name).read_text(), '.local/bin/' + name, executable=True)
 

@@ -37,8 +37,13 @@ def main():
     config = Path(os.environ.get('XDG_CONFIG_HOME', str(Path.home() / '.config'))) / 'wysun/hyprland.lua'
     if not config.is_file():
         config = Path.home() / '.config/wysun/hyprland.lua'
-    missing = [name for name in ('Hyprland', 'start-hyprland', 'hyprctl', 'quickshell', 'swaylock', 'swayidle',
+    runtime = Path(os.environ.get('WYSUN_RUNTIME') or
+                   Path(os.environ.get('XDG_DATA_HOME', str(Path.home() / '.local/share'))) / 'wysun/runtime')
+    quickshell = runtime / 'quickshell/bin/quickshell'
+    missing = [name for name in ('Hyprland', 'start-hyprland', 'hyprctl', 'swaylock', 'swayidle',
                                  'dbus-update-activation-environment', 'hyprpicker') if not shutil.which(name)]
+    if not quickshell.is_file():
+        missing.append(str(quickshell))
     if missing or not config.is_file():
         print('Wysun: faltan ' + ', '.join(missing + ([] if config.is_file() else [str(config)])), file=sys.stderr)
         return 1
@@ -46,9 +51,9 @@ def main():
     if version.returncode or not re.search(r'\b0\.55\.\d+', version.stdout):
         print('Wysun: esta configuración requiere Hyprland 0.55.x.', file=sys.stderr)
         return 1
-    shell = subprocess.run(['quickshell', '--version'], capture_output=True, text=True)
+    shell = subprocess.run([str(quickshell), '--version'], capture_output=True, text=True)
     if shell.returncode or not re.search(r'\b0\.3\.\d+', shell.stdout + shell.stderr):
-        print('Wysun: esta interfaz requiere Quickshell 0.3.x; prueba el nuevo runtime antes de actualizar.', file=sys.stderr)
+        print('Wysun: el runtime del shell no responde como Quickshell 0.3.x; reconstrúyelo con installer/runtime_build.py.', file=sys.stderr)
         return 1
     if sys.argv[1:] == ['--check']:
         if os.environ.get('XDG_SESSION_TYPE') == 'wayland' and not portal_preflight():

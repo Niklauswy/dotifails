@@ -86,6 +86,7 @@ def package_names(source, components, extras=(), boot_components=None):
     if 'wayland' in components:
         from wayland import package_specs
         names.extend(package_specs(source, read_os_release()))
+        names.extend(load_json(Path(source) / 'manifests/runtime.json', {}).get('build_packages', []))
     return list(dict.fromkeys(names))
 
 

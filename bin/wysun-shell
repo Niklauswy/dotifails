@@ -1,18 +1,8 @@
 #!/bin/sh
+# Control the Wysun shell (Quickshell): start it, toggle surfaces and send IPC calls.
 set -eu
-config="${XDG_DATA_HOME:-$HOME/.local/share}/wysun/quickshell"
-[ -f "$config/shell.qml" ] || config="$HOME/.local/share/wysun/quickshell"
-config="${WYSUN_SHELL_CONFIG:-$config}"
-if [ -f "$config/UPSTREAM.json" ]; then
-    runtime="$config/wysun/runtime.sh"
-else
-    case "${1:-}" in
-        reload-preferences) shift; exec quickshell ipc -p "$config" call wysunShell reloadPreferences "$@" ;;
-        launcher|menu|windows|session) kind="$1"; shift; exec quickshell ipc -p "$config" call wysunShell toggle "$kind" "$@" ;;
-        close|status) action="$1"; shift; exec quickshell ipc -p "$config" call wysunShell "$action" "$@" ;;
-        *) exec quickshell --no-duplicate -p "$config" "$@" ;;
-    esac
-fi
+config="${WYSUN_SHELL_CONFIG:-${XDG_DATA_HOME:-$HOME/.local/share}/wysun/quickshell}"
+runtime="$config/wysun/runtime.sh"
 case "${1:-}" in
     reload-preferences) shift; exec "$runtime" ipc call wysunShell reloadPreferences "$@" ;;
     launcher) exec "$runtime" ipc call wysunShell toggle launcher ;;
