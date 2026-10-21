@@ -10,6 +10,9 @@ Scope {
     readonly property var surfaces: ({ dashboard: 'dashboard', test: 'dashboard', windows: 'dashboard',
         launcher: 'launcher', menu: 'utilities', quicksettings: 'utilities', notifications: 'sidebar', sidebar: 'sidebar', session: 'session' })
     function current() { return ShellState.forActive(); }
+    function available(kind, state) {
+        return kind !== 'launcher' || !!ShellState.componentsFor(state.modelData)?.panels?.launcher?.available;
+    }
     function close() {
         for (const screen of Quickshell.screens) {
             const state = ShellState.forScreen(screen);
@@ -18,7 +21,7 @@ Scope {
     }
     function show(kind, toggle) {
         const state = current(), field = surfaces[kind];
-        if (!state || !field) return false;
+        if (!state || !field || !available(kind, state)) return false;
         const value = toggle ? !state[field] : true;
         close(); state[field] = value;
         if (kind === 'windows') state.dashboardTab = 3;
@@ -29,7 +32,7 @@ Scope {
         const field = surfaces[kind];
         const screen = Quickshell.screens.find(s => s.name === name);
         const state = screen ? ShellState.forScreen(screen) : null;
-        if (!state || !field) return false;
+        if (!state || !field || !available(kind, state)) return false;
         close(); state[field] = true;
         return true;
     }

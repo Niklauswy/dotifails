@@ -35,8 +35,10 @@ var active = 0;
 var Quickshell = {screens: screens};
 var ShellState = {
     forActive: function() { return active < 0 ? null : states[active]; },
-    forScreen: function(screen) { return states[screens.indexOf(screen)]; }
+    forScreen: function(screen) { return states[screens.indexOf(screen)]; },
+    componentsFor: function(screen) { return {panels: {launcher: {available: launcherAvailable}}}; }
 };
+var launcherAvailable = false;
 var root = {surfaces: SURFACES};
 var surfaces = root.surfaces;
 FUNCTIONS
@@ -57,6 +59,10 @@ active = -1;
 check(!show('sidebar', true), 'missing focus must reject');
 check(!show('unknown', true), 'unknown surface must reject');
 close(); check(!states[0].sidebar && !states[1].sidebar, 'close failed');
+active = 0;
+check(!show('launcher', true), 'disabled launcher must reject for fallback');
+launcherAvailable = true;
+check(show('launcher', true) && states[0].launcher, 'native launcher not accepted');
 """.replace('SURFACES', surfaces).replace('FUNCTIONS', functions)
         # Run the bridge JS without a compositor, IPC server or widgets.
         runner = """
