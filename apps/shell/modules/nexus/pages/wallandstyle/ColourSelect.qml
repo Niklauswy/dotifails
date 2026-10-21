@@ -60,19 +60,6 @@ PageBase {
     isSubPage: true
     Component.onCompleted: Schemes.reload()
 
-    Process {
-        id: run
-
-        stderr: StdioCollector {
-            id: errors
-        }
-        onExited: code => {
-            root.failed = code !== 0;
-            root.status = code === 0 ? "Tema aplicado." : (errors.text.trim() || "No se pudo aplicar el tema.");
-            Schemes.reload();
-        }
-    }
-
     ColumnLayout {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.top: parent.top
@@ -229,6 +216,19 @@ PageBase {
         StatusLine {
             text: root.status
             error: root.failed
+        }
+
+        Process {
+            id: run
+
+            stderr: StdioCollector {
+                id: errors
+            }
+            onExited: code => {
+                root.failed = code !== 0;
+                root.status = code === 0 ? "Tema aplicado." : (errors.text.trim() || "No se pudo aplicar el tema.");
+                Schemes.reload();
+            }
         }
     }
 }
