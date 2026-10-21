@@ -7,7 +7,10 @@ hl.config({
     decoration = { rounding = 10, blur = { enabled = false } },
     animations = { enabled = true },
     input = { kb_layout = "us", touchpad = { natural_scroll = false } },
-    misc = { disable_hyprland_logo = true, force_default_wallpaper = 0 },
+    -- Opening/activating an app must always be visible: activation requests focus
+    -- the window (switching workspace), a focus under a fullscreen window leaves
+    -- that fullscreen, and launched apps open on the workspace that launched them.
+    misc = { disable_hyprland_logo = true, force_default_wallpaper = 0, focus_on_activate = true, on_focus_under_fullscreen = 2, initial_workspace_tracking = 1 },
 })
 -- Wysun shell surfaces use explicit layer namespaces; shell motion owns their
 -- transitions, so compositor layer-open animations stay disabled.
@@ -79,7 +82,7 @@ hl.bind("SUPER + slash", hl.dsp.exec_cmd("wysun cheatsheet"), {description="Wysu
 hl.bind("SUPER + O", hl.dsp.exec_cmd("wysun-wm history-older"), {description="Wysun | adapted | Recorrer historial anterior en snapshot nativo validado por address/PID"})
 hl.bind("SUPER + I", hl.dsp.exec_cmd("wysun-wm history-newer"), {description="Wysun | adapted | Recorrer historial siguiente del snapshot nativo"})
 hl.bind("SUPER + CTRL + Y", hl.dsp.exec_cmd("wysun-wm pin"), {description="Wysun | adapted | Sticky/pin nativo requiere ventana flotante; se explica si no lo es"})
-hl.bind("SUPER + Escape", hl.dsp.exec_cmd("hyprctl reload"), {description="Wysun | adapted | Recargar configuración Wayland, sin reiniciar compositor"})
+hl.bind("SUPER + Escape", hl.dsp.exec_cmd("sh -c 'wysun recover; hyprctl reload'"), {description="Wysun | session | Recover desktop: relaunch shell and reload Hyprland"})
 hl.bind("SUPER + ALT + Q", hl.dsp.exit(), {description="Wysun | equivalent | Salir de la sesión por acción explícita del usuario; NO ejecutado en pruebas"})
 hl.bind("SUPER + ALT + P", hl.dsp.exec_cmd("wysun shell reload-preferences"), {description="Wysun | adapted | Recargar preferencias del shell nativo sin reiniciar otras aplicaciones"})
 hl.bind("SUPER + Left", hl.dsp.focus({direction="left"}), {description="Wysun | equivalent | Enfocar dirección left"})

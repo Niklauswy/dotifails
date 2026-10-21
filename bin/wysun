@@ -62,7 +62,7 @@ def main():
     args = sys.argv[1:]
     if args and args[0] in ('--help', '-h', 'help'):
         print('Wysun · aplicaciones del escritorio\n'
-              'Uso: wysun [scheme|wallpaper|shell|recover|lock|session-check|doctor|audio|calendar|recorder|screenshot|music|music-mini|files|settings|tools|notes|processes|colors|connections|power] [opciones]\n'
+              'Uso: wysun [scheme|wallpaper|shell|recover|lock|session-check|doctor|audio|calendar|recorder|screenshot|music|music-mini|files|settings|tools|notes|processes|colors|connections|power|activate CLASE] [opciones]\n'
               'Sin argumentos abre el lanzador. Recorder y Screenshot abren su biblioteca;\n'
               'wysun recorder --quick-record abre la barra de preparación sin grabar.\n'
               'El lanzador es el widget inferior del shell; si el shell no responde,\n'
@@ -83,6 +83,8 @@ def main():
         return (wysun_scheme.wallpaper_main if command == 'wallpaper' else wysun_scheme.main)(args)
     if command in SHELL_ROUTES and (command != 'toggle' or not args):
         return shell_command(command, args)
+    if command == 'activate':
+        os.execv(str(Path(__file__).resolve().parent / 'wysun-wm'), ['wysun-wm', 'activate', *args])
     commands = {'doctor': 'dotifails', 'shell': 'wysun-shell', 'lock': 'wysun-lock', 'recover': 'wysun-recover', 'session-check': 'wysun-session', 'recorder': 'wysun-recorder', 'screenshot': 'wysun-screenshot',
                 'files': 'orbit-files', 'tools-cli': 'orbit-tools'}
     executable = Path(__file__).resolve().parent / commands.get(command, 'orbit')

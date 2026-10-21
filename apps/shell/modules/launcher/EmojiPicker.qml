@@ -13,20 +13,11 @@ import qs.components.controls
 import qs.services
 import qs.modules.launcher.services
 
-// Emoji drawer: same surface, radii, nav rail and motion as the launcher.
+// Emoji drawer: search, one row of recents and a roomy grid; same surface, radii and motion as the launcher.
 Scope {
     id: root
 
-    readonly property var categories: [
-        {id: "Recent", icon: "history"},
-        {id: "All", icon: "emoji_emotions"},
-        {id: "Smileys", icon: "mood"},
-        {id: "People", icon: "waving_hand"},
-        {id: "Nature", icon: "eco"},
-        {id: "Food", icon: "restaurant"},
-        {id: "Travel", icon: "flight"},
-        {id: "Objects & symbols", icon: "category"}
-    ]
+    readonly property int columns: 9
     property var recents: []
     readonly property string recentsPath: `${Quickshell.env("HOME")}/.local/state/wysun/emoji-recent.json`
 
@@ -43,20 +34,54 @@ Scope {
         onLoadFailed: root.recents = []
     }
 
+    // One emoji cell: the selection fades in behind it and the glyph grows a little.
+    component EmojiCell: Item {
+        id: cell
+        required property string value
+        property bool current
+        property bool copied
+        signal chosen()
+        signal hovered()
+
+        Rectangle {
+            anchors.fill: parent
+            anchors.margins: Tokens.spacing.extraSmall
+            radius: Tokens.rounding.large
+            color: Colours.palette.m3secondaryContainer
+            opacity: cell.current ? 1 : area.containsMouse ? 0.45 : 0
+            Behavior on opacity { Anim { type: Anim.FastEffects } }
+        }
+        StyledText {
+            anchors.centerIn: parent
+            text: cell.value
+            font: Tokens.font.headline.large
+            scale: cell.copied ? 1.45 : cell.current ? 1.2 : area.containsMouse ? 1.08 : 1
+            Behavior on scale { Anim { type: Anim.FastSpatial } }
+        }
+        MouseArea {
+            id: area
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onPositionChanged: cell.hovered()
+            onClicked: cell.chosen()
+        }
+    }
+
     Variants {
         model: Quickshell.screens
         delegate: StyledWindow {
             id: win
             required property ShellScreen modelData
             readonly property ScreenState state: ShellState.forScreen(modelData)
-            property string category: "All"
             property string copied
+            property string zone: "grid"
+            property int recentIndex: 0
             readonly property string needle: search.text.trim().toLowerCase()
-            readonly property var filtered: {
-                if (!needle && category === "Recent")
-                    return root.recents;
-                return source.rows.filter(r => (category === "All" || category === "Recent" || r.category === category) && (!needle || (r.keywords + " " + r.value).toLowerCase().includes(needle)));
-            }
+            readonly property var filtered: needle ? source.rows.filter(r => (r.keywords + " " + r.value).toLowerCase().includes(needle)) : source.rows
+            readonly property var recentRows: root.recents.slice(0, root.columns)
+            readonly property bool showRecents: !needle && recentRows.length > 0
+            readonly property var selected: showRecents && zone === "recent" ? recentRows[recentIndex] : filtered[grid.currentIndex]
             property real reveal: state.emoji ? 1 : 0
             Behavior on reveal { Anim {} }
 
@@ -66,20 +91,12 @@ Scope {
             visible: state.emoji || reveal > 0.001
             anchors.bottom: true
             margins.bottom: Tokens.padding.large
-            implicitWidth: Math.min(screen.width - Tokens.padding.extraExtraLarge * 2, Tokens.sizes.launcher.itemWidth * 1.6)
+            implicitWidth: Math.min(screen.width - Tokens.padding.extraExtraLarge * 2, Tokens.sizes.launcher.itemWidth * 1.15)
             implicitHeight: Math.min(screen.height - Tokens.padding.extraExtraLarge * 2, Tokens.sizes.launcher.itemHeight * 10 + Tokens.padding.extraLarge * 3)
             exclusionMode: ExclusionMode.Ignore
             WlrLayershell.layer: WlrLayer.Overlay
             WlrLayershell.keyboardFocus: state.emoji ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
 
-            function choose(id: string): void {
-                category = id;
-                search.forceActiveFocus();
-            }
-            function cycle(step: int): void {
-                const index = root.categories.findIndex(c => c.id === category);
-                choose(root.categories[(index + step + root.categories.length) % root.categories.length].id);
-            }
             function pick(row: var, paste: bool): void {
                 if (!row) return;
                 root.remember(row);
@@ -92,17 +109,32 @@ Scope {
                     closeTimer.restart();
                 }
             }
+            function step(dx: int, dy: int): void {
+                if (showRecents && zone === "recent") {
+                    if (dy > 0) { zone = "grid"; grid.currentIndex = Math.min(recentIndex, Math.max(0, filtered.length - 1)); }
+                    else recentIndex = Math.max(0, Math.min(recentRows.length - 1, recentIndex + dx));
+                } else if (dy < 0 && showRecents && grid.currentIndex < root.columns) {
+                    zone = "recent";
+                    recentIndex = Math.min(grid.currentIndex, recentRows.length - 1);
+                } else if (dy) {
+                    dy < 0 ? grid.moveCurrentIndexUp() : grid.moveCurrentIndexDown();
+                } else {
+                    dx < 0 ? grid.moveCurrentIndexLeft() : grid.moveCurrentIndexRight();
+                }
+            }
             onVisibleChanged: {
                 if (visible) {
                     copied = "";
-                    category = root.recents.length ? "Recent" : "All";
+                    zone = "grid";
+                    recentIndex = 0;
                     search.clear();
+                    grid.currentIndex = 0;
                     source.refresh();
                     Qt.callLater(() => search.forceActiveFocus());
                 }
             }
 
-            Timer { id: closeTimer; interval: 420; onTriggered: win.state.emoji = false }
+            Timer { id: closeTimer; interval: 480; onTriggered: win.state.emoji = false }
             HyprlandFocusGrab {
                 active: win.state.emoji
                 windows: [win]
@@ -122,137 +154,106 @@ Scope {
                 ColumnLayout {
                     anchors.fill: parent
                     anchors.margins: Tokens.padding.large
-                    spacing: Tokens.spacing.large
-
-                    RowLayout {
-                        spacing: Tokens.spacing.medium
-                        MaterialIcon { text: "emoji_emotions"; color: Colours.palette.m3primary; fontStyle: Tokens.font.icon.large }
-                        StyledText { text: "Emoji"; font: Tokens.font.title.medium }
-                        StyledText { text: "Pick one to copy it"; color: Colours.palette.m3onSurfaceVariant; font: Tokens.font.body.small; Layout.fillWidth: true }
-                        StyledText { text: "Super + Ctrl + ."; color: Colours.palette.m3outline; font: Tokens.font.label.small }
-                        IconButton { icon: "close"; type: IconButton.Text; onClicked: win.state.emoji = false }
-                    }
+                    spacing: Tokens.spacing.medium
 
                     SearchBar {
                         id: search
                         objectName: "emojiSearch"
                         Layout.fillWidth: true
                         font: Tokens.font.body.large
-                        placeholderText: "Search emoji by name or feeling…"
-                        onAccepted: win.pick(grid.currentItem?.modelData, false)
+                        placeholderText: "Search emoji"
+                        onAccepted: win.pick(win.selected, false)
+                        onTextChanged: win.zone = "grid"
                         Keys.onEscapePressed: win.state.emoji = false
-                        Keys.onUpPressed: grid.moveCurrentIndexUp()
-                        Keys.onDownPressed: grid.moveCurrentIndexDown()
-                        Keys.onLeftPressed: event => { if (!text) { grid.moveCurrentIndexLeft(); event.accepted = true; } else event.accepted = false; }
-                        Keys.onRightPressed: event => { if (!text) { grid.moveCurrentIndexRight(); event.accepted = true; } else event.accepted = false; }
+                        Keys.onUpPressed: win.step(0, -1)
+                        Keys.onDownPressed: win.step(0, 1)
+                        Keys.onLeftPressed: event => { if (!text) { win.step(-1, 0); event.accepted = true; } else event.accepted = false; }
+                        Keys.onRightPressed: event => { if (!text) { win.step(1, 0); event.accepted = true; } else event.accepted = false; }
                         Keys.onPressed: event => {
-                            if ((event.modifiers & Qt.AltModifier) && event.key >= Qt.Key_1 && event.key <= Qt.Key_8) {
-                                win.choose(root.categories[event.key - Qt.Key_1].id); event.accepted = true;
-                            } else if (event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab) {
-                                win.cycle((event.modifiers & Qt.ShiftModifier) || event.key === Qt.Key_Backtab ? -1 : 1); event.accepted = true;
+                            if (event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab) {
+                                const back = (event.modifiers & Qt.ShiftModifier) || event.key === Qt.Key_Backtab;
+                                win.zone = "grid";
+                                back ? grid.moveCurrentIndexLeft() : grid.moveCurrentIndexRight();
+                                event.accepted = true;
                             } else if ((event.modifiers & Qt.ControlModifier) && (event.key === Qt.Key_Return || event.key === Qt.Key_Enter)) {
-                                win.pick(grid.currentItem?.modelData, true); event.accepted = true;
+                                win.pick(win.selected, true); event.accepted = true;
                             }
                         }
                     }
 
-                    RowLayout {
+                    ColumnLayout {
                         Layout.fillWidth: true
-                        Layout.fillHeight: true
-                        spacing: Tokens.spacing.large
-
-                        ColumnLayout {
-                            Layout.preferredWidth: Tokens.sizes.launcher.itemWidth / 4
-                            Layout.maximumWidth: Tokens.sizes.launcher.itemWidth / 4
-                            Layout.alignment: Qt.AlignTop
-                            spacing: Tokens.spacing.extraSmall
-                            Repeater {
-                                model: root.categories
-                                delegate: Rectangle {
-                                    id: nav
-                                    required property var modelData
-                                    readonly property bool active: win.category === modelData.id
-                                    Layout.fillWidth: true
-                                    implicitHeight: Tokens.sizes.launcher.itemHeight * 0.72
-                                    radius: Tokens.rounding.medium
-                                    color: active ? Colours.palette.m3secondaryContainer : "transparent"
-                                    StateLayer { radius: nav.radius; onClicked: win.choose(nav.modelData.id) }
-                                    RowLayout {
-                                        anchors.fill: parent
-                                        anchors.margins: Tokens.padding.small
-                                        spacing: Tokens.spacing.small
-                                        MaterialIcon { text: nav.modelData.icon; fontStyle: Tokens.font.icon.small; color: nav.active ? Colours.palette.m3onSecondaryContainer : Colours.palette.m3onSurfaceVariant }
-                                        StyledText { text: nav.modelData.id; font: Tokens.font.label.medium; color: nav.active ? Colours.palette.m3onSecondaryContainer : Colours.palette.m3onSurface; elide: Text.ElideRight; Layout.fillWidth: true }
-                                    }
-                                }
-                            }
-                            Item { Layout.fillHeight: true }
-                            StyledText { text: "Tab to browse\nAlt + 1–8 to jump"; font: Tokens.font.label.small; color: Colours.palette.m3outline; lineHeight: 1.5 }
-                        }
-
-                        ColumnLayout {
+                        visible: win.showRecents
+                        spacing: Tokens.spacing.extraSmall
+                        StyledText { text: "Recent"; font: Tokens.font.label.medium; color: Colours.palette.m3onSurfaceVariant; Layout.leftMargin: Tokens.padding.small }
+                        Row {
                             Layout.fillWidth: true
-                            Layout.fillHeight: true
-                            spacing: Tokens.spacing.small
-                            RowLayout {
-                                Layout.fillWidth: true
-                                StyledText { text: win.needle ? "Results" : win.category === "Recent" ? "Recently used" : win.category; font: Tokens.font.title.small; Layout.fillWidth: true }
-                                StyledText { text: source.loading ? "Searching…" : grid.count + " emoji"; font: Tokens.font.label.small; color: Colours.palette.m3onSurfaceVariant }
-                            }
-                            GridView {
-                                id: grid
-                                objectName: "emojiGrid"
-                                Layout.fillWidth: true
-                                Layout.fillHeight: true
-                                clip: true
-                                cellWidth: width / 9
-                                cellHeight: cellWidth
-                                currentIndex: 0
-                                model: ScriptModel { values: win.filtered; onValuesChanged: grid.currentIndex = 0 }
-                                highlightMoveDuration: Tokens.anim.durations.expressiveFastEffects
-                                delegate: Rectangle {
-                                    id: emoji
+                            Repeater {
+                                model: win.recentRows
+                                delegate: EmojiCell {
                                     required property var modelData
                                     required property int index
-                                    width: grid.cellWidth - Tokens.spacing.extraSmall
-                                    height: grid.cellHeight - Tokens.spacing.extraSmall
-                                    radius: Tokens.rounding.medium
-                                    color: GridView.isCurrentItem ? Colours.palette.m3secondaryContainer : "transparent"
-                                    StyledText { anchors.centerIn: parent; text: emoji.modelData.value; font: Tokens.font.headline.medium }
-                                    StateLayer {
-                                        radius: emoji.radius
-                                        onContainsMouseChanged: { if (containsMouse) grid.currentIndex = emoji.index; }
-                                        onClicked: win.pick(emoji.modelData, false)
-                                    }
-                                }
-                                StyledText {
-                                    anchors.centerIn: parent
-                                    visible: !grid.count
-                                    text: source.loading ? "Loading emoji…" : win.category === "Recent" && !win.needle ? "Emoji you copy will show up here" : "No emoji found. Try another word."
-                                    color: Colours.palette.m3onSurfaceVariant
-                                    font: Tokens.font.body.medium
+                                    width: grid.cellWidth
+                                    height: grid.cellHeight
+                                    value: modelData.value
+                                    current: win.zone === "recent" && win.recentIndex === index
+                                    copied: current && win.copied === value
+                                    onHovered: { win.zone = "recent"; win.recentIndex = index; }
+                                    onChosen: win.pick(modelData, false)
                                 }
                             }
                         }
                     }
 
+                    GridView {
+                        id: grid
+                        objectName: "emojiGrid"
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        clip: true
+                        cellWidth: Math.floor(width / root.columns)
+                        cellHeight: cellWidth
+                        currentIndex: 0
+                        boundsBehavior: Flickable.StopAtBounds
+                        model: ScriptModel { values: win.filtered; onValuesChanged: grid.currentIndex = 0 }
+                        delegate: EmojiCell {
+                            required property var modelData
+                            required property int index
+                            width: grid.cellWidth
+                            height: grid.cellHeight
+                            value: modelData.value
+                            current: win.zone === "grid" && grid.currentIndex === index
+                            copied: current && win.copied === value
+                            onHovered: { win.zone = "grid"; grid.currentIndex = index; }
+                            onChosen: win.pick(modelData, false)
+                        }
+                        StyledText {
+                            anchors.centerIn: parent
+                            visible: !grid.count
+                            text: source.loading ? "Loading emoji…" : "No emoji found"
+                            color: Colours.palette.m3onSurfaceVariant
+                            font: Tokens.font.body.medium
+                        }
+                    }
+
                     RowLayout {
                         Layout.fillWidth: true
+                        Layout.leftMargin: Tokens.padding.small
                         spacing: Tokens.spacing.small
                         MaterialIcon {
-                            visible: !!win.copied
+                            opacity: win.copied ? 1 : 0
                             text: "check_circle"
                             color: Colours.palette.m3primary
                             fontStyle: Tokens.font.icon.small
+                            Behavior on opacity { Anim { type: Anim.FastEffects } }
                         }
                         StyledText {
-                            text: win.copied ? `Copied ${win.copied}` : (grid.currentItem?.modelData.title ?? "Pick an emoji")
-                            color: win.copied ? Colours.palette.m3primary : Colours.palette.m3onSurface
+                            text: win.copied ? "Copied" : (win.selected?.title ?? "")
+                            color: win.copied ? Colours.palette.m3primary : Colours.palette.m3onSurfaceVariant
                             font: Tokens.font.body.small
                             elide: Text.ElideRight
                             Layout.fillWidth: true
                         }
-                        StyledText { text: "↵ Copy   Ctrl + ↵ Paste   Esc Close"; color: Colours.palette.m3outline; font: Tokens.font.label.small }
                     }
                 }
             }

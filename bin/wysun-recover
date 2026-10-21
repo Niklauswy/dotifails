@@ -5,7 +5,7 @@ Closes whatever may be covering the screen (capture selection overlays, the
 shell's area picker and panels) and relaunches the shell when it is not
 running. Capture recovery is cooperative and scoped to this compositor; it
 preserves annotations and leaves libraries, clipboard owners and Recorder alone.
-Bound to Super+Ctrl+Alt+Escape in hyprland.lua; also `wysun recover`.
+Bound to Super+Escape (followed by a Hyprland reload) and Super+Ctrl+Alt+Escape in hyprland.lua; also `wysun recover`.
 """
 from pathlib import Path
 import subprocess

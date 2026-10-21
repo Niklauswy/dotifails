@@ -5,7 +5,7 @@ import Wysun.Config
 import qs.components
 import qs.services
 
-Rectangle {
+StyledRect {
     id: root
     required property string label
     required property string value
@@ -13,8 +13,8 @@ Rectangle {
     property var samples: []
     property real ceiling: 100
     property color tone: Colours.palette.m3primary
-    color: Colours.tPalette.m3surfaceContainer
-    radius: Tokens.rounding.medium
+    color: Colours.tPalette.m3surfaceContainerHigh
+    radius: Tokens.rounding.large
     implicitHeight: Tokens.spacing.extraExtraLarge * 3
     ColumnLayout {
         anchors.fill: parent

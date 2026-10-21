@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 import re
 import subprocess
+import sys
 import tempfile
 
 
@@ -52,13 +53,50 @@ def action_plan(action,active,clients,state=None):
     raise ValueError('Acción desconocida')
 
 
+def activation_plan(clients,wanted):
+    """Dispatchers that make a window visible: leave a fullscreen cover, then focus it.
+
+    `wanted` is a window address or an app class; focusing already switches to the
+    window's workspace. Returns (dispatchers, target) or ([], None) when no window matches.
+    """
+    live=[c for c in clients if c.get('mapped',True)]
+    if re.fullmatch(r'0x[0-9a-fA-F]+',wanted):found=[c for c in live if c.get('address')==wanted]
+    else:
+        key=wanted.lower()
+        found=[c for c in live if key in (c.get('class','').lower(),c.get('initialClass','').lower())]
+    if not found:return [],None
+    target=min(found,key=lambda c:c.get('focusHistoryID',999999))
+    plan=[]
+    for other in live:
+        same=other.get('workspace',{}).get('id')==target.get('workspace',{}).get('id')
+        if same and other.get('address')!=target.get('address') and other.get('fullscreen',0) and not target.get('fullscreen',0):
+            plan.append('hl.dsp.window.fullscreen_state({window='+json.dumps('address:'+address(other))+',internal=0,client=0,action="set"})')
+    plan.append('hl.dsp.focus({window='+json.dumps('address:'+address(target))+'})')
+    return plan,target
+
+
 def query(name):
     result=subprocess.run(['hyprctl','-j',name],capture_output=True,text=True,timeout=3,check=True)
     if len(result.stdout)>8_000_000:raise ValueError('Respuesta de compositor demasiado grande')
     return json.loads(result.stdout)
 
 
+def activate(wanted,dry_run=False):
+    if not os.environ.get('HYPRLAND_INSTANCE_SIGNATURE'):raise ValueError('Esta acción requiere la sesión Hyprland activa')
+    plan,target=activation_plan(query('clients'),wanted)
+    if target is None:return 1
+    for dispatcher in plan:
+        if dry_run:print(dispatcher);continue
+        result=subprocess.run(['hyprctl','dispatch',dispatcher],capture_output=True,text=True,timeout=3,check=True)
+        if result.stdout.strip()!='ok':raise RuntimeError('El compositor rechazó la activación')
+    return 0
+
+
 def main():
+    if len(sys.argv)>1 and sys.argv[1]=='activate':
+        q=argparse.ArgumentParser(prog='wysun-wm activate',description='Show a window: switch workspace, leave a covering fullscreen and focus it.')
+        q.add_argument('window',help='window address (0x...) or app class');q.add_argument('--dry-run',action='store_true')
+        a=q.parse_args(sys.argv[2:]);return activate(a.window,a.dry_run)
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('action',choices=['biggest-swap','history-older','history-newer','pin',*[v+'-'+d for v in ('move','resize') for d in ('left','right','up','down')]])
     p.add_argument('--dry-run',action='store_true');args=p.parse_args()
     signature=os.environ.get('HYPRLAND_INSTANCE_SIGNATURE','')

@@ -115,6 +115,7 @@ class WiringTests(unittest.TestCase):
         self.assertIn('anchors.top: true', window)
         self.assertIn('WlrLayer.Overlay', window)
         emoji = (LAUNCHER / 'EmojiPicker.qml').read_text()
+        self.assertIn('anchors.bottom: true', emoji)
         self.assertIn('mode: "emoji"', emoji)
         self.assertIn('GridView', emoji)
 
