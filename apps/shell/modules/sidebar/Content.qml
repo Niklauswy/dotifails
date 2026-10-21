@@ -10,6 +10,18 @@ Item {
     required property Props props
     required property ScreenState screenState
 
+    focus: true
+    Component.onCompleted: forceActiveFocus()
+    Keys.onEscapePressed: root.screenState.sidebar = false
+
+    Connections {
+        target: root.screenState
+        function onSidebarChanged(): void {
+            if (root.screenState.sidebar)
+                root.forceActiveFocus();
+        }
+    }
+
     ColumnLayout {
         id: layout
 

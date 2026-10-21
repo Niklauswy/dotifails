@@ -6,13 +6,13 @@ runtime="$config/wysun/runtime.sh"
 case "${1:-}" in
     reload-preferences) shift; exec "$runtime" ipc call wysunShell reloadPreferences "$@" ;;
     launcher) exec "$runtime" ipc call wysunShell toggle launcher ;;
-    menu|windows|session) kind="$1"; shift; exec "$runtime" ipc call wysunShell toggle "$kind" "$@" ;;
+    menu|windows|session|sidebar) kind="$1"; shift; exec "$runtime" ipc call wysunShell toggle "$kind" "$@" ;;
     toggle|open)
         action="$1"; shift
         surface="${1:-}"
         if [ $# -gt 0 ]; then shift; fi
         case "$surface" in
-            test|dashboard|launcher|menu|quicksettings|notifications|windows|session) ;;
+            test|dashboard|launcher|menu|quicksettings|notifications|windows|session|sidebar) ;;
             *) echo "wysun-shell: superficie desconocida: ${surface:-<vacía>}" >&2; exit 2 ;;
         esac
         exec "$runtime" ipc call wysunShell "$action" "$surface" "$@" ;;

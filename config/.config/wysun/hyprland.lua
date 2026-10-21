@@ -34,7 +34,9 @@ hl.window_rule({ name = "wysun-screenshot-pending", match = { class = "^wybie-sc
 -- The consent provider is a native MainWindow, but behaves as a dialog.
 hl.window_rule({ name = "wysun-portal-picker", match = { class = "^hyprland-share-picker$", title = "^Select what to share$" }, float = true, center = true })
 -- BEGIN AUDITED DAILY SHORTCUTS
--- Explicit records correspond to manifests/wayland-shortcuts.json.
+-- Ctrl+X is reserved globally for the sidebar, including in text editors.
+-- Application Cut actions and their other shortcuts remain available.
+hl.bind("CTRL + X", hl.dsp.exec_cmd("wysun shell sidebar"), {description="Wysun | sidebar | Abrir o cerrar la barra lateral"})
 hl.bind("SUPER + Return", hl.dsp.exec_cmd("wysun-terminal"), {description="Wysun | equivalent | Abrir wysun-terminal"})
 hl.bind("SUPER + D", hl.dsp.exec_cmd("wysun"), {description="Wysun | equivalent | Abrir wysun"})
 hl.bind("SUPER + space", hl.dsp.exec_cmd("wysun"), {description="Wysun | equivalent | Abrir wysun"})
