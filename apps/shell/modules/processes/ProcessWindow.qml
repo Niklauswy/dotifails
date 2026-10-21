@@ -40,8 +40,14 @@ FloatingWindow {
     property bool descending: true
     property var collapsed: []
     property int interval: 2
+    onQueryChanged: table.positionViewAtBeginning()
+    onModeChanged: table.positionViewAtBeginning()
+    onOwnerChanged: table.positionViewAtBeginning()
+    onSortChanged: table.positionViewAtBeginning()
+    onDescendingChanged: table.positionViewAtBeginning()
     property var pending: null
     property bool busy: false
+    readonly property bool canAct: !!selected?.actionable && !exited && !busy
     readonly property string script: Quickshell.shellPath('modules/processes/backend.py')
     readonly property var control: ({query: query, owner: owner, mode: mode, sort: sort, descending: descending,
         collapsed: collapsed, selected: selectedKey, interval: interval})
@@ -122,7 +128,7 @@ FloatingWindow {
                         required property string modelData
                         text: ({list: 'List', tree: 'Tree', apps: 'Applications'})[modelData]
                         isToggle: true; checked: win.mode === modelData
-                        onClicked: { win.mode = modelData; win.collapsed = []; }
+                        onClicked: { win.mode = modelData; internalChecked = true; win.collapsed = []; }
                     }
                 }
             }
@@ -179,10 +185,15 @@ FloatingWindow {
                                             anchors.rightMargin: Tokens.padding.small
                                             spacing: Tokens.spacing.extraSmall
                                             Item { width: Math.min(entry.modelData.depth ?? 0, 6) * Tokens.spacing.medium; Layout.fillHeight: true }
-                                            StyledText {
-                                                text: entry.modelData.group || entry.modelData.hasChildren ? (win.collapsed.includes(entry.modelData.group ? entry.modelData.app : entry.modelData.pid) ? '▸' : '▾') : '·'
-                                                color: Colours.palette.m3primary
-                                                MouseArea { anchors.fill: parent; anchors.margins: -Tokens.padding.extraSmall; enabled: !!entry.modelData.hasChildren || !!entry.modelData.group; onClicked: win.fold(entry.modelData.group ? entry.modelData.app : entry.modelData.pid) }
+                                            Item {
+                                                Layout.preferredWidth: Tokens.spacing.large
+                                                Layout.fillHeight: true
+                                                StyledText {
+                                                    anchors.centerIn: parent
+                                                    text: entry.modelData.group || entry.modelData.hasChildren ? (win.collapsed.includes(entry.modelData.group ? entry.modelData.app : entry.modelData.pid) ? '▸' : '▾') : '·'
+                                                    color: Colours.palette.m3primary
+                                                }
+                                                MouseArea { anchors.fill: parent; enabled: !!entry.modelData.hasChildren || !!entry.modelData.group; cursorShape: Qt.PointingHandCursor; onClicked: win.fold(entry.modelData.group ? entry.modelData.app : entry.modelData.pid) }
                                             }
                                             ColumnLayout {
                                                 Layout.fillWidth: true; spacing: 0
@@ -219,11 +230,11 @@ FloatingWindow {
                         StyledText { visible: !!win.selected; text: win.selected?.reason || 'Actions affect only the selected process.'; Layout.fillWidth: true; wrapMode: Text.Wrap; color: Colours.palette.m3onSurfaceVariant; font: Tokens.font.label.small }
                         Flow {
                             visible: !!win.selected; Layout.fillWidth: true; Layout.preferredHeight: childrenRect.height; spacing: Tokens.spacing.extraSmall
-                            enabled: !!win.selected?.actionable && !win.exited && !win.busy
-                            TextButton { text: 'End process'; onClicked: win.ask('terminate', 0) }
-                            TextButton { text: 'Force kill'; onClicked: win.ask('kill', 0) }
-                            TextButton { text: win.selected?.state === 'T' ? 'Resume' : 'Suspend'; onClicked: win.ask(win.selected?.state === 'T' ? 'resume' : 'pause', 0) }
-                            TextButton { text: 'Priority'; onClicked: win.ask('priority', win.selected.nice) }
+                            enabled: win.canAct
+                            TextButton { disabled: !win.canAct; text: 'End process'; onClicked: win.ask('terminate', 0) }
+                            TextButton { disabled: !win.canAct; text: 'Force kill'; onClicked: win.ask('kill', 0) }
+                            TextButton { disabled: !win.canAct; text: (win.selected?.state === 'T' || win.selected?.state === 't') ? 'Resume' : 'Suspend'; onClicked: win.ask((win.selected?.state === 'T' || win.selected?.state === 't') ? 'resume' : 'pause', 0) }
+                            TextButton { disabled: !win.canAct; text: 'Priority'; onClicked: win.ask('priority', win.selected.nice) }
                         }
                         StyledText { visible: !!win.message; text: win.message; color: Colours.palette.m3primary; Layout.fillWidth: true; wrapMode: Text.Wrap }
                         TextButton { visible: !!win.selected && !win.exited; text: 'Refresh details'; onClicked: win.refreshDetails() }
@@ -250,8 +261,8 @@ FloatingWindow {
                 ColumnLayout {
                     id: confirmation
                     anchors.fill: parent; anchors.margins: Tokens.padding.extraLarge; spacing: Tokens.spacing.large
-                    StyledText { text: win.pending?.action === 'priority' ? 'Change process priority' : win.pending?.action === 'kill' ? 'Force kill process?' : 'Confirm process action'; font: Tokens.font.title.large; Layout.fillWidth: true; wrapMode: Text.Wrap }
-                    StyledText { text: (win.pending?.row.name ?? '') + ' · PID ' + (win.pending?.row.pid ?? '') + '\n\n' + (win.pending?.action === 'kill' ? 'The process will stop immediately. Unsaved work may be lost.' : win.pending?.action === 'priority' ? 'Nice ranges from −20 (highest priority) to 19 (lowest). Raising priority may require administrator privileges.' : 'Send ' + ({terminate:'a termination request', pause:'a suspend signal', resume:'a resume signal'})[win.pending?.action] + ' to this process?'); Layout.fillWidth: true; wrapMode: Text.Wrap }
+                    StyledText { text: win.pending?.action === 'priority' ? 'Change process priority' : win.pending?.action === 'kill' ? 'Force kill process?' : 'Confirm process action'; font: Tokens.font.title.large; Layout.fillWidth: true; Layout.maximumWidth: confirmation.width; wrapMode: Text.Wrap }
+                    StyledText { text: (win.pending?.row.name ?? '') + ' · PID ' + (win.pending?.row.pid ?? '') + '\n\n' + (win.pending?.action === 'kill' ? 'The process will stop immediately. Unsaved work may be lost.' : win.pending?.action === 'priority' ? 'Nice ranges from −20 (highest priority) to 19 (lowest). Raising priority may require administrator privileges.' : 'Send ' + ({terminate:'a termination request', pause:'a suspend signal', resume:'a resume signal'})[win.pending?.action] + ' to this process?'); Layout.fillWidth: true; Layout.maximumWidth: confirmation.width; wrapMode: Text.Wrap }
                     RowLayout {
                         visible: win.pending?.action === 'priority'
                         TextButton { text: '−'; onClicked: win.pending = Object.assign({}, win.pending, {nice: Math.max(-20, win.pending.nice - 1)}) }
@@ -280,7 +291,10 @@ FloatingWindow {
                     const data = JSON.parse(line);
                     if (data.ok === false) { win.failure = data.error; return; }
                     if (win.frozen) return;
-                    win.rows = data.rows; win.summary = data.summary; win.matched = data.matched;
+                    const scroll = table.contentY;
+                    win.rows = data.rows;
+                    Qt.callLater(() => { table.contentY = Math.max(0, Math.min(scroll, table.contentHeight - table.height)); });
+                    win.summary = data.summary; win.matched = data.matched;
                     if (win.selectedKey) { win.exited = !data.selected; if (data.selected) win.selected = data.selected; }
                     if (!data.redraw) {
                         const h = Object.assign({}, win.history);
