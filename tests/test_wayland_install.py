@@ -23,6 +23,7 @@ import wayland
 
 class WaylandInstallTests(unittest.TestCase):
     def setUp(self):
+        self.enterContext(patch.dict(os.environ, {'WYSUN_SKIP_RUNTIME': '1'}))
         self.tmp = tempfile.TemporaryDirectory(prefix='wysun-install-')
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name)
@@ -154,11 +155,31 @@ class WaylandInstallTests(unittest.TestCase):
                 installer.main(['install', '--source', str(self.source), '--components', 'wayland'])
         self.assertEqual(list(self.home.iterdir()), [])
 
+    def test_runtime_is_built_into_the_private_prefix_and_legacy_config_is_copied(self):
+        old = self.home / '.config/wysun/caelestia'
+        old.mkdir(parents=True); (old / 'shell.json').write_text('{"a": 1}')
+
+        class Deployment:
+            home = self.home
+            source = ROOT
+            def stage(self, name): pass
+        calls = []
+        with patch.dict(os.environ, {'WYSUN_SKIP_RUNTIME': '0'}), \
+             patch('main.run', side_effect=lambda argv, env=None: calls.append((list(map(str, argv)), env))):
+            wayland.migrate_legacy_names(Deployment())
+            wayland.ensure_runtime(Deployment())
+        self.assertEqual((self.home / '.config/wysun/shell/shell.json').read_text(), '{"a": 1}')
+        self.assertTrue(old.exists(), 'the legacy copy stays until an explicit clean')
+        argv, env = calls[0]
+        self.assertTrue(argv[1].endswith('installer/runtime_build.py'))
+        self.assertEqual(argv[-1], str(self.home / '.local/share/wysun/runtime'))
+        self.assertEqual(env['HOME'], str(self.home))
+
     def test_unverified_shell_release_fails_repository_preflight(self):
-        newer = subprocess.CompletedProcess([], 0, 'Version: 0.4.0-1\n', '')
-        with patch.object(wayland, 'package_specs', return_value=['quickshell/trixie-backports']), \
+        newer = subprocess.CompletedProcess([], 0, 'Version: 0.56.0-1\n', '')
+        with patch.object(wayland, 'package_specs', return_value=['hyprland/trixie-backports']), \
              patch.object(wayland.subprocess, 'run', return_value=newer):
-            with self.assertRaisesRegex(RuntimeError, 'serie comprobada 0.3'):
+            with self.assertRaisesRegex(RuntimeError, 'serie comprobada 0.55'):
                 wayland.check_repository(ROOT, {'ID': 'debian'})
 
     def test_cli_dry_run_resolves_exact_packages_without_creating_journal(self):
@@ -166,27 +187,28 @@ class WaylandInstallTests(unittest.TestCase):
               '--components','wayland','--dry-run']
         output=io.StringIO()
         with patch.object(installer,'host_supported',return_value={'ID':'debian'}), \
-             patch.object(installer,'package_names',return_value=['quickshell/trixie-backports']), \
+             patch.object(installer,'package_names',return_value=['hyprland/trixie-backports']), \
              patch.object(wayland,'simulate_packages',return_value='APT exact fixture plan') as simulate, \
              contextlib.redirect_stdout(output):
             self.assertEqual(installer.main(args),0)
         self.assertIn('APT exact fixture plan',output.getvalue())
-        self.assertEqual(simulate.call_args.kwargs['wanted'],['quickshell/trixie-backports'])
+        self.assertEqual(simulate.call_args.kwargs['wanted'],['hyprland/trixie-backports'])
         self.assertEqual(list(self.home.iterdir()),[])
 
     def test_code_launchers_resolve_managed_code_with_separate_xdg_data(self):
         code = self.home / '.local/share/orbit/app/orbit-client'
         code.parent.mkdir(parents=True); code.write_text('#!/bin/sh\nprintf managed-client\n'); code.chmod(0o755)
         shell = self.home / '.local/share/wysun/quickshell'
-        shell.mkdir(parents=True); (shell / 'shell.qml').write_text('// fixture\n')
-        binary = self.root / 'test-bin'; binary.mkdir()
-        qs = binary / 'quickshell'
+        (shell / 'wysun').mkdir(parents=True); (shell / 'shell.qml').write_text('// fixture\n')
+        shutil.copy2(ROOT / 'apps/shell/wysun/runtime.sh', shell / 'wysun/runtime.sh')
+        data = self.root / 'separate-data'
+        qs = data / 'wysun/runtime/quickshell/bin/quickshell'; qs.parent.mkdir(parents=True)
         qs.write_text('#!/usr/bin/python3\nimport json,sys\nprint(json.dumps(sys.argv[1:]))\n'); qs.chmod(0o755)
-        env = dict(os.environ, HOME=str(self.home), XDG_DATA_HOME=str(self.root / 'separate-data'),
-                   PATH=str(binary) + ':/usr/bin:/bin')
+        env = dict(os.environ, HOME=str(self.home), XDG_DATA_HOME=str(data), WYSUN_SHELL_CONFIG=str(shell),
+                   PATH='/usr/bin:/bin')
         self.assertEqual(subprocess.check_output([ROOT / 'config/.local/bin/orbit'], env=env, text=True), 'managed-client')
         args = json.loads(subprocess.check_output([ROOT / 'bin/wysun-shell', 'status'], env=env, text=True))
-        self.assertEqual(args, ['ipc', '-p', str(shell), 'call', 'wysunShell', 'status'])
+        self.assertEqual(args, ['-p', str(shell), 'ipc', 'call', 'wysunShell', 'status'])
 
     def test_unowned_system_files_and_linked_parents_preserved(self):
         root = self.root / 'system'; root.mkdir()
