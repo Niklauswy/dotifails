@@ -148,10 +148,10 @@ PageBase {
                     required property var modelData
                     readonly property bool isSelected: modelData.name === root.selected
 
-                    x: Tokens.padding.large + modelData.x * canvas.factor
-                    y: Tokens.padding.large + modelData.y * canvas.factor
-                    width: modelData.w * canvas.factor
-                    height: modelData.h * canvas.factor
+                    x: Tokens.padding.large + modelData.x * (canvas?.factor ?? 0)
+                    y: Tokens.padding.large + modelData.y * (canvas?.factor ?? 0)
+                    width: modelData.w * (canvas?.factor ?? 0)
+                    height: modelData.h * (canvas?.factor ?? 0)
                     radius: Tokens.rounding.small
                     opacity: modelData.enabled ? 1 : 0.4
                     color: isSelected ? Colours.palette.m3secondaryContainer : Colours.palette.m3surfaceContainerHigh

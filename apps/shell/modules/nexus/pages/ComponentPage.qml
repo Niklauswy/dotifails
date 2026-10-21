@@ -156,7 +156,7 @@ PageBase {
                 first: (parent as Loader).isFirst
                 last: (parent as Loader).isLast
                 label: cfg.label
-                subtext: cfg.suffix.trim()
+                subtext: cfg.type === "float" && cfg.high <= 1 ? "%" : cfg.suffix.trim()
                 from: cfg.type === "float" && cfg.high <= 1 ? Math.round(cfg.low * 100) : cfg.low
                 to: cfg.type === "float" && cfg.high <= 1 ? Math.round(cfg.high * 100) : cfg.high
                 stepSize: cfg.type === "float" ? (cfg.high <= 1 ? 5 : 1) : (cfg.high > 1000 ? 1000 : 1)
