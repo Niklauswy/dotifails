@@ -16,7 +16,7 @@ function termScore(t, s, fuzzy) {
     const at = s.indexOf(t);
     if (at >= 0)
         return 400 - Math.min(at, 100) * 0.5;
-    if (!fuzzy || t.length < 2)
+    if (!fuzzy || t.length < 2 || s.length > 48)
         return 0;
     // Subsequence: every char of t in order; reward word starts and tight runs.
     let si = 0, gaps = 0, bonus = 0, prev = -2;
