@@ -171,9 +171,11 @@ MouseArea {
         if (!selecting)
             return;
         if (dragging) {
+            // Read the region before ending the drag: it is derived from `dragging`.
+            const drawn = region;
             dragging = false;
-            if (region.width >= minSize && region.height >= minSize)
-                choose(region);
+            if (drawn.width >= minSize && drawn.height >= minSize)
+                choose(drawn);
         } else {
             // A click takes the window under the pointer, or the whole output.
             const w = windowAt(event.x, event.y);
