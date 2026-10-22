@@ -2,27 +2,23 @@
 
 No compositor, network, audio device, installer or installed application is used.
 Run through test_music_material.py for isolation, or supply an isolated environment
-and MUSIC_SNAPSHOT_DIR to retain seven labelled synthetic screenshots.
+and MUSIC_SNAPSHOT_DIR to keep labelled synthetic screenshots per scheme.
 """
 import json
 import os
 from pathlib import Path
 import sys
 import time
-from unittest.mock import patch
 import wave
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'apps/wysun'))
-from PySide6.QtCore import Qt, QPoint
-from PySide6.QtGui import QImage, QColor, QFont, QRawFont, QTextLayout
-from PySide6.QtWidgets import QApplication, QWidget
+from PySide6.QtCore import QPoint
+from PySide6.QtGui import QColor, QFont, QImage, QRawFont, QTextLayout
+from PySide6.QtWidgets import QApplication
 import music_data as music
 import theme_core
+from music_material import display_family, ligature_available, load_fonts, symbol_family
 from theme_tokens import tokens, watch_theme
-from music_material import (SYMBOLS, display_family, ligature_available,
-                            load_fonts, material_icon, symbol_family)
-from music_app_window import MusicAppWindow
-from music_mini import MiniPlayer
 from wysun_scheme import fixed_scheme, generate_dynamic
 
 app = QApplication([])
@@ -43,49 +39,42 @@ selection.write_text(json.dumps({'style': 'fluent', 'variant': 'dark'}))
 scheme_path = theme_core.scheme_path()
 scheme_path.parent.mkdir(parents=True, exist_ok=True)
 watch_theme()
-window = MusicAppWindow(test=True)
+
+from wysun_music.app import build  # noqa: E402  (after the isolated theme exists)
+
+music_app = build(persist=True, network=False, publish=False)
+window, player, library, covers = music_app.window, music_app.player, music_app.library, music_app.covers
 window.show()
 app.processEvents()
-keys = window.all_keys()
+keys = library.all_keys()
 assert len(keys) == 2
-window.covers[keys[0]] = str(cover)
-window.current_key = keys[0]
-window.current_audio = window.playable(keys[0])
-window.show_current()
-mini = MiniPlayer(window)
-mini.show()
-mini.sync()
+covers._paths[keys[0]] = str(cover)  # synthetic artwork, as a finished lookup would leave it
+
+# Offline fonts: Rubik text, Material Symbols ligatures rendered as single glyphs.
 assert 'Rubik' in load_fonts() and 'Material Symbols Rounded' in load_fonts()
 assert display_family() == 'Rubik' and symbol_family() == 'Material Symbols Rounded'
-assert window.now_title.font().family() == 'Rubik'
+assert window.font().family() == 'Rubik' and window.bar.title.font().family() == 'Rubik'
 raw = QRawFont.fromFont(QFont('Rubik'))
 assert raw.supportsCharacter(ord('ñ')) and raw.supportsCharacter(ord('ú'))
-# Offline subset must render its bundled ligature as one glyph, and every
-# requested symbol must still yield a visible icon through the Lucide fallback.
 layout = QTextLayout('volume_up', QFont('Material Symbols Rounded'))
 layout.beginLayout(); layout.createLine(); layout.endLayout()
 assert sum(len(run.glyphIndexes()) for run in layout.glyphRuns()) == 1
-assert ligature_available('volume_up')
-assert not ligature_available('definitely_not_a_material_ligature')
-for symbol in SYMBOLS:
-    assert not material_icon(symbol).isNull(), symbol
-assert not window.play_button.icon().isNull()
-assert not window.nav.item(0).icon().isNull()
+assert ligature_available('volume_up') and not ligature_available('definitely_not_a_material_ligature')
 
+# Browsing never touches the queue or the download manifest.
 before_library = (music.DATA / 'library.json').read_bytes()
-window.order.start(keys, keys[0], True)
-window.queue = window.order.keys.copy()
-queue = window.order.export()
-window.favorite(keys[0])
-window.go('favorites')
-assert window.tree.topLevelItemCount() == 1
+player.play_collection(keys, keys[0], 'all')
+player.engine.quit()  # no audio device needed for presentation checks
+queue = player.queue.export()
+library.toggle_favorite(keys[0])
+window.navigate(('collection', 'favorites'))
+assert window.collection.tracks.keys == [keys[0]]
 window.search.setText('Segunda')
-assert window.tree.topLevelItemCount() == 1
-assert window.tree.topLevelItem(0).data(0, Qt.UserRole) == keys[1]
-assert window.order.export() == queue
-window.search.clear()
-window.go('home')
-assert window.pages.currentWidget() is window.tree
+window.search_page.set_query('Segunda')
+assert window.search_page.songs.keys == [keys[1]]
+assert player.queue.export() == queue
+window.navigate(('home',))
+assert window.pages.currentWidget() is window.home
 
 snapshots = os.environ.get('MUSIC_SNAPSHOT_DIR')
 if snapshots:
@@ -106,70 +95,67 @@ schemes = [(f'{style}-{variant}', {'style': style, 'variant': variant}, fixed_sc
            for style, variant in (('space-black', 'space-black'), ('space-black', 'tokyo'),
                                   ('space-black', 'severance'), ('fluent', 'light'), ('fluent', 'dark'))]
 for mode in ('light', 'dark'):
-    # The scheme file is the dynamic colour authority; the selection still
-    # chooses a known preset geometry until theme_core exposes "dynamic" itself.
-    schemes.append(('material-you-' + mode, {'style': 'fluent', 'variant': mode},
-                    generate_dynamic(cover, mode=mode)))
+    schemes.append(('material-you-' + mode, {'style': 'fluent', 'variant': mode}, generate_dynamic(cover, mode=mode)))
 for name, chosen, scheme in schemes:
-    # Same contract/atomic replace as the existing producer; no second authority.
     selection.write_text(json.dumps(chosen))
     temporary = scheme_path.with_suffix('.tmp')
     temporary.write_text(json.dumps(scheme))
     temporary.replace(scheme_path)
-    # onSurfaceVariant maps to ``muted`` and has no later role overriding it;
-    # ``canvas`` intentionally takes the strongest surface container instead.
     wait_for(lambda: tokens()['muted'].lower().lstrip('#') == scheme['colours']['onSurfaceVariant'].lower(),
              f'{name}: tokens did not adopt scheme onSurfaceVariant ({tokens()["muted"]})')
-    wait_for(lambda: tokens()['text'].lower() in window.styleSheet().lower(),
-             f'{name}: window stylesheet did not re-render')
-    assert window.order.export() == queue
-    assert window.favorite_keys == {keys[0]}
-    for width, height in ((1180, 760), (900, 660), (820, 600)):
-        window.resize(width, height)
-        app.processEvents()
-        assert window.width() == width, (name, 'unexpected minimum width', window.width())
-        art = window.hero_cover.mapTo(window, QPoint())
-        tracks = window.tree.mapTo(window, QPoint())
-        navigation = window.sidebar.mapTo(window, QPoint())
-        transport = window.player_panel.mapTo(window, QPoint())
-        assert navigation.x() < art.x() < tracks.x()
-        assert art.y() < tracks.y() + window.tree.height()
-        assert window.hero_cover.width() >= 200
-        assert transport.y() >= window.center.geometry().bottom()
-        assert window.tree.viewport().width() >= 200
-        assert window.tree.horizontalScrollBar().maximum() == 0
-        assert window.play_button.isEnabled()
-        for control in (window.play_button, window.previous_button, window.next_button, window.volume):
-            point = control.mapTo(window, QPoint())
-            assert window.rect().contains(point) and window.rect().contains(point + control.rect().bottomRight())
-        if snapshots and width == 1180:
-            assert window.grab().save(str(Path(snapshots) / (name + '.png')))
-    # Empty and gallery routes remain reachable without modifying queue or library.
-    window.go('albums'); assert window.pages.currentIndex() == 3
-    window.search.setText('sin coincidencias'); assert window.pages.currentIndex() == 5
-    window.go('home')
+    wait_for(lambda: tokens()['text'].lower() in window.styleSheet().lower(), f'{name}: window stylesheet did not re-render')
+    assert player.queue.export() == queue and library.favorites == {keys[0]}
+    for route in (('home',), ('collection', 'all'), ('search', ''), ('downloads',), ('artists',), ('albums',)):
+        window.navigate(route)
+        for width, height in ((1280, 820), (1000, 680), (900, 600)):
+            window.resize(width, height)
+            app.processEvents()
+            assert window.width() == width, (name, 'unexpected minimum width', window.width())
+            sidebar = window.sidebar.mapTo(window, QPoint())
+            main = window.main.mapTo(window, QPoint())
+            bar = window.bar.mapTo(window, QPoint())
+            assert sidebar.x() < main.x() and window.main.width() >= 400, (name, route, width)
+            assert bar.y() >= main.y() + window.main.height(), (name, route, 'player bar overlaps content')
+            for control in (window.bar.play, window.bar.previous, window.bar.next, window.bar.volume, window.search):
+                point = control.mapTo(window, QPoint())
+                assert window.rect().contains(point) and window.rect().contains(point + control.rect().bottomRight()), \
+                    (name, route, width, control.accessibleName())
+            if route == ('collection', 'all'):
+                assert window.collection.tracks.horizontalScrollBar().maximum() == 0
+            if snapshots and width == 1280:
+                assert window.grab().save(str(Path(snapshots) / f'{name}-{route[0]}.png'))
 
-window.show_lyrics({'synced': '[00:00]Primera línea\n[00:01]Segunda línea'})
-assert window.lyric_list.count() == 2
-window.lyrics_panel.show();window.adapt_lyrics();app.processEvents()
-assert window.lyrics_panel.isVisible()
-window.lyrics_panel.hide();window.adapt_lyrics()
-window.status.setText('Aviso de prueba');assert window.status.isVisible()
-window.current_position = 1.25
-window.volume.setValue(37)
-window.repeat.setChecked(True)
-window.test = False
-window.save_session()
-window.test = True
-saved = window.store.get('session')
-assert saved['position'] == 1.25 and saved['volume'] == 37
-assert saved['order'] == queue and saved['repeat'] is True
+# Side panel and lyrics fit next to the content without hiding the player bar.
+window.resize(1280, 820)
+window.toggle_panel('lyrics')
+window.side.lyrics.set_lyrics({'synced': '[00:00]Primera línea\n[00:01]Segunda línea'})
+app.processEvents()
+assert window.side.isVisible() and len(window.side.lyrics.rows) == 2
+window.toggle_panel('lyrics')
+assert not window.side.isVisible()
+
+# A song without lyrics shows what comes next instead of an empty column, and
+# the lyrics tab returns on its own once a later song has them.
+window.toggle_panel('now')
+window.side.lyric_key = 'synthetic'
+window.side._metadata_ready('lyrics', 'synthetic', {'unavailable': True})
+assert window.side.current_tab() == 'queue' and window.side.queue.note.text()
+window.side._metadata_ready('lyrics', 'synthetic', {'synced': '[00:00]Vuelve la letra'})
+assert window.side.current_tab() == 'lyrics' and not window.side.queue.note.text()
+window.toggle_panel(None)
+
+# Session: position, volume, repeat and queue survive a restart; nothing autoplays.
+player.position = 1.25
+player.engine.volume = 37
+player.set_repeat('all')
+queue = player.queue.export()
+player.save()
 assert (music.DATA / 'library.json').read_bytes() == before_library
-window.shutdown_jobs();window.store.close();window.hide()
-restored = MusicAppWindow(test=True)
-assert restored.current_key == keys[0] and restored.current_position == 1.25
-assert restored.volume.value() == 37 and restored.repeat.isChecked()
-assert restored.order.export() == queue and restored.favorite_keys == {keys[0]}
-restored.shutdown_jobs();restored.store.close()
-mini.timer.stop();mini.hide()
-print('MUSIC_MATERIAL_OK: seven schemes, live watcher, offline fonts, three sizes, queue, favorites, lyrics, session restoration')
+music_app.shutdown()
+restored = build(persist=True, network=False, publish=False)
+assert restored.player.current == keys[0] and restored.player.position == 1.25
+assert restored.player.volume == 37 and restored.player.repeat == 'all'
+assert restored.player.queue.export() == queue and restored.library.favorites == {keys[0]}
+assert not restored.player.engine.running, 'Restoration unexpectedly started audio'
+restored.shutdown()
+print('MUSIC_MATERIAL_OK: seven schemes, live watcher, offline fonts, six routes × three sizes, full player, session restoration')

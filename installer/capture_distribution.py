@@ -2,6 +2,8 @@
 
 Immutable releases keep a running Recorder worker's imports available. User media,
 preferences, old releases and the original standalone manifests are never changed.
+Screenshots live in the shell now: the former Screenshot commands stay as thin
+redirects and its menu entry and icon are retired when this installer owns them.
 """
 import hashlib
 import json
@@ -46,12 +48,12 @@ def configure(deployment):
     source = deployment.source / 'apps/capture'
     if not source.is_dir():
         return
-    deployment.stage('Actualizar Wysun Recorder y Wysun Screenshot')
+    deployment.stage('Actualizar Wysun Recorder')
     runtime = deployment.backup / 'generated/capture-release'
     runtime.mkdir(parents=True)
     # Copy only distributable source, never a user's libraries or recording files.
     import shutil
-    for package in ('loomrec', 'wybieshot', 'assets'):
+    for package in ('loomrec', 'assets'):
         shutil.copytree(source / package, runtime / package,
                         ignore=shutil.ignore_patterns('__pycache__', '*.pyc'))
     for name in ('README.md', 'UPSTREAM.md'):
@@ -68,7 +70,6 @@ def configure(deployment):
     root = deployment.home / relative
     for command, module, old, manifest in (
         ('wysun-recorder', 'loomrec', 'loomrec', '.local/share/loomrec/install-manifest.json'),
-        ('wysun-screenshot', 'wybieshot', 'wybie-screenshot', '.local/share/wybie-screenshot/install-manifest.json'),
     ):
         launcher = ('#!/bin/sh\nunset __PYVENV_LAUNCHER__\n'
                     'export PYTHONDONTWRITEBYTECODE=1\n'
@@ -79,22 +80,38 @@ def configure(deployment):
         # Preserve old keyboard bindings, scripts and desktop IDs without
         # overwriting custom launchers that no previous installer owns.
         _publish(deployment, launcher, '.local/bin/' + old, executable=True,
-                 legacy=(manifest, 'launcher' if module == 'loomrec' else None))
-        title = 'Wysun Recorder' if module == 'loomrec' else 'Wysun Screenshot'
-        category = 'AudioVideo;Recorder;' if module == 'loomrec' else 'Graphics;Photography;'
-        comment = 'Graba y edita videos localmente' if module == 'loomrec' else 'Captura y edita imágenes localmente'
+                 legacy=(manifest, 'launcher'))
+        title = 'Wysun Recorder'
         desktop = ('[Desktop Entry]\nType=Application\nName=' + title + '\nName[es]=' + title +
-                   '\nComment=' + comment + '\nExec=wysun ' + ('recorder' if module == 'loomrec' else 'screenshot') +
-                   '\nIcon=' + old + '\nTerminal=false\nCategories=' + category +
+                   '\nComment=Graba y edita videos localmente\nExec=wysun recorder' +
+                   '\nIcon=' + old + '\nTerminal=false\nCategories=AudioVideo;Recorder;' +
                    '\nKeywords=Wysun;' + old + ';\n')
-        if module == 'wybieshot':
-            desktop += 'StartupWMClass=wybie-screenshot\n'
-        _publish(deployment, desktop, '.local/share/applications/' + old + '.desktop',
-                 legacy=(manifest, 'desktop' if module == 'loomrec' else None))
-        icon = ((source / 'assets/wybie-screenshot.svg').read_text() if module == 'wybieshot' else
-                '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">'
+        _publish(deployment, desktop, '.local/share/applications/' + old + '.desktop', legacy=(manifest, 'desktop'))
+        icon = ('<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">'
                 '<rect width="64" height="64" rx="16" fill="#19242d"/>'  # theme-exception: icono de aplicacion
                 '<circle cx="32" cy="32" r="18" fill="#dc695b"/>'  # theme-exception: icono de aplicacion
                 '<circle cx="32" cy="32" r="7" fill="#f5f0df"/></svg>\n')  # theme-exception: icono de aplicacion
-        _publish(deployment, icon, '.local/share/icons/hicolor/scalable/apps/' + old + '.svg',
-                 legacy=(manifest, 'icon' if module == 'loomrec' else None))
+        _publish(deployment, icon, '.local/share/icons/hicolor/scalable/apps/' + old + '.svg', legacy=(manifest, 'icon'))
+    retire_screenshot(deployment)
+
+
+def retire_screenshot(deployment):
+    """The screenshot tool is part of the shell; keep its commands as redirects only.
+
+    Launchers this installer (or the former standalone installer, by its manifest)
+    wrote become redirects; its menu entry and icon are retired. Anything else is
+    left alone and reported, like any other unowned file.
+    """
+    legacy = '.local/share/wybie-screenshot/install-manifest.json'
+    redirect = '#!/bin/sh\n# Screenshots are taken by the Wysun shell.\nexec "$(dirname "$0")/wysun" screenshot "$@"\n'
+    _publish(deployment, redirect, '.local/bin/wysun-screenshot', executable=True)
+    _publish(deployment, redirect, '.local/bin/wybie-screenshot', executable=True, legacy=(legacy, None))
+    for relative in ('.local/share/applications/wybie-screenshot.desktop',
+                     '.local/share/icons/hicolor/scalable/apps/wybie-screenshot.svg'):
+        relative = Path(relative)
+        if not deployment.destination(relative).exists():
+            continue
+        if str(relative) in deployment.receipt['files']:
+            deployment.retire(relative)
+        elif _legacy_owned(deployment, relative, legacy, None):
+            deployment.retire(relative, private=True)

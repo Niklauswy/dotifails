@@ -40,7 +40,8 @@ El instalador conserva su propio diario de recuperación para los archivos despl
 - Ctrl+T/Ctrl+W: abrir/cerrar pestaña. Ctrl+L: escribir una ruta. Alt+flechas: historial y carpeta superior.
 - Ctrl+F filtra nombres en la carpeta actual; no es una búsqueda recursiva.
 - Ctrl+H muestra ocultos. Ctrl+C/X/V copia, corta y pega desde las vistas de archivos.
-- F2 cambia el nombre; Supr envía a la papelera tras confirmación; Espacio muestra el panel de vista previa.
+- F2 cambia el nombre; Supr envía a la papelera tras confirmación. El panel de vista previa se abre solo (a la mitad del área) para archivos con algo que mostrar —imágenes, PDF, vídeo, audio, Markdown, código y texto— y se cierra para carpetas y archivos sin vista; Espacio la amplía a toda el área.
+- Alt+K abre las opciones del elemento actual; escribir filtra; Retroceso o ← sube de carpeta (y deja seleccionada la carpeta de la que vienes); Ctrl+Tab cambia de pestaña; F1 lista todos los atajos.
 - Las operaciones se ejecutan en segundo plano, una a la vez. Se rechazan colisiones en lugar de reemplazar archivos existentes. Una operación por lotes puede completarse parcialmente: el mensaje identifica los destinos ya procesados.
 - Favoritos y preferencias se guardan mediante QSettings fuera del código.
 

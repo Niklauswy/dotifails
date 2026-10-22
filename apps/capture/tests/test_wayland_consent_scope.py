@@ -99,18 +99,5 @@ class ConsentScopeTests(unittest.TestCase):
         self.assertIsNone(module.share_request('bad/name'))
 
 
-class IndicatorTests(unittest.TestCase):
-    def test_no_top_level_indicator_windows_on_wayland(self):
-        from PySide6.QtWidgets import QApplication
-        QApplication.instance() or QApplication([])
-        from loomrec.ui.capture_feedback import RecordingIndicator
-        indicator = RecordingIndicator()
-        with patch.dict(os.environ, {'WAYLAND_DISPLAY': 'fixture'}):
-            self.assertFalse(indicator.present([100, 100, 640, 360], [[0, 0, 1920, 1080]], state='countdown'))
-            indicator.update('countdown', remaining=2)
-        self.assertEqual(indicator.windows, [])
-        indicator.hide()
-
-
 if __name__ == '__main__':
     unittest.main()

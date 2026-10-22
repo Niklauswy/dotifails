@@ -12,7 +12,6 @@ from utility_data import Notes,Colors,Processes,digest
 def shortcut(window,key,fn):QShortcut(QKeySequence(key),window).activated.connect(fn)
 
 
-from notes_window import NotesWindow
 
 
 

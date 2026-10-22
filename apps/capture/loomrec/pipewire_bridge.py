@@ -7,7 +7,9 @@ import json
 import math
 import os
 import sys
+import queue
 import signal
+import threading
 import time
 
 
@@ -147,17 +149,40 @@ def stream(fd,node,metadata,fps,rect=None,synthetic=False,even=True,cursor_trace
     else:configure_pipewire_source(src,fd,node,metadata)
     # Only raw video formats are offered to PipeWire, never audio or DMA-BUF.
     video_only=Gst.ElementFactory.make('capsfilter','video-only');video_only.set_property('caps',Gst.Caps.from_string('video/x-raw'))
-    convert=Gst.ElementFactory.make('videoconvert');rate=Gst.ElementFactory.make('videorate');caps=Gst.ElementFactory.make('capsfilter')
-    # The compositor may emit one damage frame and remain silent (0/1 fps).
-    # Do not retain it waiting for a second frame; this bridge owns repetition.
-    rate.set_property('drop-only',True)
-    caps.set_property('caps',Gst.Caps.from_string(f'video/x-raw,format=BGRA,framerate={int(fps)}/1'))
+    convert=Gst.ElementFactory.make('videoconvert');caps=Gst.ElementFactory.make('capsfilter')
+    # No videorate and no framerate in the caps: constraining the rate makes
+    # PipeWire 1.4 renegotiate ~1 s after PLAYING and the stream dies with
+    # "unhandled format". The compositor's own cadence is kept and this
+    # bridge drops/repeats frames to the requested rate below.
+    caps.set_property('caps',Gst.Caps.from_string('video/x-raw,format=BGRA'))
     sink=Gst.ElementFactory.make('appsink');sink.set_property('max-buffers',2);sink.set_property('drop',True);sink.set_property('sync',False)
-    for item in (src,video_only,convert,rate,caps,sink):
+    for item in (src,video_only,convert,caps,sink):
         if item is None:raise RuntimeError('Faltan plugins básicos de vídeo GStreamer')
         pipeline.add(item)
-    for a,b in zip((src,video_only,convert,rate,caps),(video_only,convert,rate,caps,sink)):
+    for a,b in zip((src,video_only,convert,caps),(video_only,convert,caps,sink)):
         if not a.link(b):raise RuntimeError('No se pudo conectar el flujo PipeWire')
+    interval=1./int(fps);due=0.
+    # FFmpeg may fall behind (high quality, 1080p+). Writing from this loop would
+    # hold the PipeWire buffer being copied, starve XDPH ("Out of buffers") and
+    # make it renegotiate until the stream dies. A writer thread takes bounded,
+    # newest-first frames instead, so buffers are always returned at once.
+    pending=queue.Queue(maxsize=2);broken=threading.Event();write_error=[]
+    def put(frame):
+        try:pending.put_nowait(frame)
+        except queue.Full:
+            try:pending.get_nowait()
+            except queue.Empty:pass
+            try:pending.put_nowait(frame)
+            except queue.Full:pass
+    def write_frames():
+        try:
+            while True:
+                frame=pending.get()
+                if frame is None:return
+                sys.stdout.buffer.write(frame);sys.stdout.buffer.flush()
+        except BaseException as exc:write_error.append(exc);broken.set()
+    writer=threading.Thread(target=write_frames,daemon=True)
+    held=None
     geometry=None;last_frame=None;bus=pipeline.get_bus();effects=None;stopping=False
     def stop(*_):
         nonlocal stopping
@@ -168,16 +193,28 @@ def stream(fd,node,metadata,fps,rect=None,synthetic=False,even=True,cursor_trace
             start_hyprland_pipeline(pipeline,Gst,lambda:stopping)
         elif pipeline.set_state(Gst.State.PLAYING)==Gst.StateChangeReturn.FAILURE:
             raise RuntimeError('No se pudo iniciar el flujo de vídeo')
+        writer.start()
         while not stopping:
-            sample=sink.emit('try-pull-sample',Gst.SECOND//int(fps) if last_frame is not None else Gst.SECOND*10)
+            if broken.is_set():raise write_error[0]
+            wait=Gst.SECOND//int(fps) if last_frame is not None else Gst.SECOND*10
+            if held is not None:wait=max(0,int((due-time.monotonic())*Gst.SECOND))
+            sample=sink.emit('try-pull-sample',wait)
+            if sample is not None and last_frame is not None and time.monotonic()<due:
+                held=sample;continue  # too soon for this rate: the newest one is kept for when it is due
+            if sample is None and held is not None:
+                if time.monotonic()<due-.001:continue
+                sample,held=held,None
+            elif sample is not None:held=None
             if sample is None:
                 message=bus.pop_filtered(Gst.MessageType.ERROR|Gst.MessageType.EOS)
                 if message and message.type==Gst.MessageType.EOS:return
                 if message:
-                    error,debug=message.parse_error();raise RuntimeError(str(error))
+                    error,debug=message.parse_error();raise RuntimeError(str(error)+(' ['+debug.splitlines()[0]+']' if debug else ''))
                 if last_frame is None:
-                    raise RuntimeError('PipeWire no entregó el primer fotograma durante 10 segundos. Los segmentos finalizados se conservan; vuelve a seleccionar la fuente. Diagnóstico de inicio: '+startup_diagnostic(src,rate,sink))
-                sys.stdout.buffer.write(effects.render(last_frame) if effects else last_frame);sys.stdout.buffer.flush();continue
+                    raise RuntimeError('PipeWire no entregó el primer fotograma durante 10 segundos. Los segmentos finalizados se conservan; vuelve a seleccionar la fuente. Diagnóstico de inicio: '+startup_diagnostic(src,None,sink))
+                due=time.monotonic()+interval
+                if pending.empty():put(effects.render(last_frame) if effects else last_frame)
+                continue
             info=GstVideo.VideoInfo.new_from_caps(sample.get_caps())
             current=source_geometry(info.width,info.height,metadata)
             if geometry is not None and geometry!=current:raise RuntimeError('La fuente cambió de tamaño; finaliza el segmento y selecciona de nuevo')
@@ -191,9 +228,12 @@ def stream(fd,node,metadata,fps,rect=None,synthetic=False,even=True,cursor_trace
             if not success:raise RuntimeError('No se pudo leer un fotograma PipeWire')
             try:frame=source_frame(mapped.data,info.stride[0],info.width,info.height,metadata,crop)
             finally:buffer.unmap(mapped)
-            last_frame=frame
-            sys.stdout.buffer.write(effects.render(frame) if effects else frame);sys.stdout.buffer.flush()
+            sample=buffer=None  # hand the PipeWire buffer back before the slow part
+            last_frame=frame;due=time.monotonic()+interval*.9
+            put(effects.render(frame) if effects else frame)
     finally:
+        if writer.is_alive():
+            put(None);writer.join(2)
         if effects:effects.close()
         pipeline.set_state(Gst.State.NULL);signal.signal(signal.SIGTERM,previous)
 

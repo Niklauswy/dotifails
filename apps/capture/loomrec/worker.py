@@ -14,6 +14,10 @@ from .capture import CaptureConfig, append_segment, trim_tail
 from .schema import Project, atomic_json, save_project
 
 
+class StopRequested(RuntimeError):
+    """A stop arrived while the portal or PipeWire was still (re)starting."""
+
+
 def capture_command(config, root, stem, origin=None, pipewire=None):
     from .devices import resolve_system_audio
     from .cursor import effect_settings
@@ -105,6 +109,8 @@ def main(root):
     segment_config = config
     wayland_capture = None
     mouse_effects = None
+    stream_drops = []
+    segment_started = None
     def stop_signal(*_):
         nonlocal stop_requested
         stop_requested = True
@@ -113,9 +119,9 @@ def main(root):
     def status():
         usage=resource.getrusage(resource.RUSAGE_CHILDREN)
         atomic_json(root/'status.json', dict(state=state, error=error, pid=os.getpid(),
-                    heartbeat=time.time(), auto_finalize=config.auto_finalize, finalization_expected=bool(config.auto_finalize and explicit_stop and not discard and not (root/'discard.json').exists()), project_path=str(root/'project.json'), duration=project.duration, cursor_warning=cursor_warning, child_cpu_s=round(usage.ru_utime+usage.ru_stime,3), child_peak_rss_kib=usage.ru_maxrss))
+                    heartbeat=time.time(), elapsed=round(project.duration+(time.time()-segment_started if state=='recording' and segment_started else 0),3), auto_finalize=config.auto_finalize, finalization_expected=bool(config.auto_finalize and explicit_stop and not discard and not (root/'discard.json').exists()), project_path=str(root/'project.json'), duration=project.duration, cursor_warning=cursor_warning, child_cpu_s=round(usage.ru_utime+usage.ru_stime,3), child_peak_rss_kib=usage.ru_maxrss))
     def begin():
-        nonlocal process, stem, logfile, state,cursor_recorder,cursor_helper,cursor_warning,live_failed,segment_config,mouse_effects
+        nonlocal segment_started, process, stem, logfile, state,cursor_recorder,cursor_helper,cursor_warning,live_failed,segment_config,mouse_effects
         from .devices import clamp_rect, display_bounds
         if config.selected_backend()=='x11' and clamp_rect(config.rect, display_bounds(config.display)) != config.rect:
             raise RuntimeError('Display geometry changed; start a new recording with a valid area')
@@ -141,7 +147,7 @@ def main(root):
         if wayland_capture and mouse_effects and config.cursor_live and not native_live_failed:
             live_options=dict(cursor_trace_path=str(root/(stem+'.cursor.jsonl')),cursor_effects=config.cursor_effects,cursor_marker=str(root/(stem+'.cursor-live.json')))
         pipewire=wayland_capture.begin(logfile,live_effects=live_options) if wayland_capture else None
-        origin=time.time()
+        origin=time.time();segment_started=origin
         process = subprocess.Popen(capture_command(segment_config, root, stem,origin=origin,pipewire=pipewire), stdin=subprocess.PIPE,
                                    pass_fds=(pipewire[0],) if pipewire else (),
                                    stdout=subprocess.DEVNULL, stderr=logfile, preexec_fn=child_parent_guard)
@@ -209,7 +215,7 @@ def main(root):
                 status()
                 if mouse_effects:mouse_effects.ping()
                 if stop_requested or any(json.loads(p.read_text()).get('command')=='stop' for p in root.glob('command-*.json')):
-                    raise RuntimeError('Selección del portal cancelada')
+                    raise StopRequested('Selección del portal cancelada')
             from .cursor import effect_settings
             if config.cursor and effect_settings(config.cursor_effects) and config.source_type in ('monitor','region'):
                 from .wayland_pointer import MouseEffects,PositionEffects
@@ -229,7 +235,17 @@ def main(root):
                     cursor_warning='Se revocaron los efectos del ratón; el cursor nativo permanece. '+str(exc)
                     mouse_effects.close();mouse_effects=None
             if wayland_capture:
-                wayland_capture.check()
+                try:wayland_capture.check()
+                except RuntimeError as exc:
+                    # The compositor/PipeWire may drop a stream (renegotiation, "unhandled
+                    # format"). Close the segment that exists and reopen the same consent
+                    # a few times before giving up, instead of ending the recording.
+                    now=time.monotonic();stream_drops=[t for t in stream_drops if now-t<60]+[now]
+                    if len(stream_drops)>3:raise
+                    cursor_warning='La fuente PipeWire se reinició ('+str(exc).splitlines()[0]+').'
+                    try:finish()
+                    except Exception:pass
+                    if state=='recording':begin()
                 marker=root/(stem+'.cursor-live.json')
                 if state=='recording' and not native_live_failed and marker.is_file():
                     live_error=json.loads(marker.read_text()).get('error') or (cursor_recorder.error if cursor_recorder else None)
@@ -275,6 +291,9 @@ def main(root):
         try: finish()
         except Exception as final_exc: error += '\n'+str(final_exc)
         state = 'error'
+        if (isinstance(exc, StopRequested) or isinstance(exc.__cause__, StopRequested)) and project.clips:
+            # Stopped while resuming: what was recorded so far is the recording.
+            state = 'stopped';error = None;explicit_stop = True
     finally:
         if logfile is not None and not logfile.closed: logfile.close()
         if state!='stopped':status()

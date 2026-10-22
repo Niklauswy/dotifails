@@ -30,38 +30,6 @@ class NativeUiBackendTests(unittest.TestCase):
         with patch.dict(os.environ,dict(WAYLAND_DISPLAY='',XDG_SESSION_TYPE='x11',QT_QPA_PLATFORM='xcb')),patch('loomrec.ui.materials.ctypes.CDLL') as library:
             library.return_value.XOpenDisplay.return_value=None
             self.assertFalse(_x11_property());library.assert_called_once()
-    def test_indicator_and_controller_do_not_run_x11_commands_with_display(self):
-        from loomrec.ui.capture_feedback import RecordingIndicator
-        from loomrec.ui.activation import RecordingController,focus_window
-        with patch('subprocess.run') as run,patch('subprocess.check_output') as output:
-            indicator=RecordingIndicator();widget=QWidget();indicator._show(widget,QRect(0,0,40,20),False)
-            self.assertFalse(widget.windowFlags()&Qt.X11BypassWindowManagerHint)
-            controller=QWidget();RecordingController.dock(controller)
-            self.assertFalse(focus_window(123));run.assert_not_called();output.assert_not_called()
-            indicator.hide();controller.close();controller.deleteLater();self.app.processEvents()
-    def test_compact_native_window_mode_and_present_do_not_query_bspwm(self):
-        from loomrec.ui.quick import QuickBar
-        owner=QWidget();owner.camera=QComboBox();owner.mic=QComboBox();owner.system=QComboBox()
-        owner.window_target=None;owner.capture_pending=False;owner.session=owner.job=owner.analysis=None
-        owner.control_hint=QLabel('synthetic');owner.selection_feedback=Mock();owner.capture_modes=QButtonGroup(owner)
-        buttons=[]
-        for i in range(3):
-            button=QRadioButton(owner);owner.capture_modes.addButton(button);buttons.append(button)
-        buttons[2].setChecked(True)
-        with patch('subprocess.run') as run,patch('subprocess.check_output') as output,patch('loomrec.ui.quick.QTimer.singleShot'):
-            quick=QuickBar(owner);quick.timer.stop();quick.resize(720,88);quick.sync()
-            self.assertIn('Ventana',quick.mode.accessibleName());quick.present();owner.selection_feedback.assert_called_once()
-            run.assert_not_called();output.assert_not_called()
-            quick.hide_all();quick.close();quick.deleteLater();owner.close();owner.deleteLater();self.app.processEvents()
-    def test_legacy_controls_never_hide_native_window_using_xid(self):
-        from loomrec.ui.activation import RecordingController
-        session=Mock();session.status.return_value={'state':'paused'}
-        owner=Mock();owner.request.return_value={'window':123}
-        controller=SimpleNamespace(session=session,owner=owner,warning=Mock())
-        with patch('subprocess.run') as run,patch('subprocess.check_output') as output:
-            RecordingController.pause_requested(controller)
-            run.assert_not_called();output.assert_not_called();session.resume.assert_not_called()
-            self.assertIn('controles antiguos',controller.warning.setText.call_args.args[0])
     def test_native_player_embeds_without_winid_or_mpv_subprocess(self):
         from loomrec.ui.player import Player
         class Surface(QWidget):

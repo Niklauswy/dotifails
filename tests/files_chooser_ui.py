@@ -54,9 +54,9 @@ class ChooserTests(unittest.TestCase):
   w=self.chooser();self.select(w,['first.png']);(self.base/'first.png').unlink();w.accept_selection();self.assertFalse(w.result_uris);self.assertTrue(w.error.text())
  def test_save_is_nonwriting_and_confirms_overwrite(self):
   w=self.chooser('save',current_name='first.png')
-  with patch.object(QMessageBox,'question',return_value=QMessageBox.No):w.accept_selection()
+  w.accept_selection();self.assertTrue(w.sheet.isVisible());w.sheet.dismiss()      # «Cancelar» keeps the file untouched
   self.assertFalse(w.result_uris)
-  with patch.object(QMessageBox,'question',return_value=QMessageBox.Yes):w.accept_selection()
+  w.accept_selection();w.sheet.accept_callback()                                    # «Reemplazar»
   self.assertEqual(w.result_uris,[(self.base/'first.png').as_uri()]);self.assertEqual((self.base/'first.png').read_bytes(),b'fixture')
  def test_save_rejects_path_escape(self):
   w=self.chooser('save',current_name='../escape');w.accept_selection();self.assertFalse(w.result_uris)

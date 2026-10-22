@@ -14,6 +14,7 @@ import qs.modules.overview
 import qs.modules.cheatsheet
 import qs.modules.wallpaperpicker
 import qs.modules.areapicker
+import qs.modules.recorder
 import qs.modules.background
 import qs.modules.drawers
 import qs.modules.lock
@@ -52,6 +53,9 @@ ShellRoot {
     Background {}
     Drawers {}
     AreaPicker {}
+    RecordingHud {}
+    RecordingBorder {}
+    LiveAnnotations {}
     Overview {}
     WysunBridge {}
     Launcher {}

@@ -156,6 +156,15 @@ ColumnLayout {
                 }
             }
             DelegateChoice {
+                roleValue: "aiUsage"
+                delegate: EntryWrapper {
+                    AiUsageIndicator {
+                        objectName: "taskbarAiUsage"
+                        screenState: root.screenState
+                    }
+                }
+            }
+            DelegateChoice {
                 roleValue: "clock"
                 delegate: EntryWrapper {
                     Clock {

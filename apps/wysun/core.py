@@ -1,6 +1,6 @@
 """Local data and search for Wysun. No network services or shell evaluation."""
 from pathlib import Path
-import ast, configparser, datetime as dt, hashlib, math, operator, os, re, sqlite3, time
+import ast, configparser, hashlib, math, operator, os, re, sqlite3, time
 
 HOME = Path.home()
 STATE = HOME / '.local/share/orbit'
@@ -52,7 +52,6 @@ class Store:
         self.db.row_factory = sqlite3.Row
         self.db.executescript('''PRAGMA secure_delete=ON;
         CREATE TABLE IF NOT EXISTS clips(id INTEGER PRIMARY KEY, digest TEXT UNIQUE, kind TEXT, text TEXT, blob BLOB, stamp REAL);
-        CREATE TABLE IF NOT EXISTS snippets(id INTEGER PRIMARY KEY, title TEXT, shortcut TEXT, body TEXT);
         CREATE TABLE IF NOT EXISTS history(query TEXT PRIMARY KEY, result TEXT, stamp REAL);
         CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY, value TEXT);
         CREATE TABLE IF NOT EXISTS usage(key TEXT PRIMARY KEY, count INTEGER);
@@ -72,12 +71,6 @@ class Store:
         r=self.db.execute('SELECT blob FROM clips WHERE id=?',(ident,)).fetchone();return r[0] if r else None
     def delete_clip(self, ident): self.db.execute('DELETE FROM clips WHERE id=?',(ident,));self.db.commit()
     def clear_clips(self): self.db.execute('DELETE FROM clips');self.db.commit();self.db.execute('VACUUM')
-    def snippets(self): return [dict(r) for r in self.db.execute('SELECT * FROM snippets ORDER BY title COLLATE NOCASE')]
-    def save_snippet(self, title, shortcut, body, ident=None):
-        if ident: self.db.execute('UPDATE snippets SET title=?,shortcut=?,body=? WHERE id=?',(title,shortcut,body,ident))
-        else: self.db.execute('INSERT INTO snippets(title,shortcut,body) VALUES(?,?,?)',(title,shortcut,body))
-        self.db.commit()
-    def delete_snippet(self, ident): self.db.execute('DELETE FROM snippets WHERE id=?',(ident,));self.db.commit()
     def get(self,key,default=''):
         r=self.db.execute('SELECT value FROM settings WHERE key=?',(key,)).fetchone();return r[0] if r else default
     def set(self,key,value): self.db.execute('INSERT OR REPLACE INTO settings VALUES(?,?)',(key,str(value)));self.db.commit()
@@ -86,11 +79,6 @@ class Store:
     def calcs(self): return [dict(r) for r in self.db.execute('SELECT * FROM history ORDER BY stamp DESC')]
     def use(self,key): self.db.execute('INSERT INTO usage VALUES(?,1) ON CONFLICT(key) DO UPDATE SET count=count+1',(key,));self.db.commit()
     def usages(self): return dict(self.db.execute('SELECT * FROM usage'))
-
-def expand_snippet(text):
-    now=dt.datetime.now()
-    for key,value in {'date':now.strftime('%Y-%m-%d'),'time':now.strftime('%H:%M'),'datetime':now.strftime('%Y-%m-%d %H:%M')}.items(): text=text.replace('{'+key+'}',value)
-    return text
 
 def applications():
     result=[];seen=set()

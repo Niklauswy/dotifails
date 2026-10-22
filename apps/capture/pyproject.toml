@@ -9,14 +9,9 @@ description = "Local Linux screen recorder and non-destructive editor"
 requires-python = ">=3.11"
 dependencies = ["PySide6>=6.8,<7"]
 
-[project.optional-dependencies]
-screenshot-x11 = ["python-xlib>=0.33"]
-
 [project.scripts]
 wysun-recorder = "loomrec.__main__:main"
 loomrec = "loomrec.__main__:main"
-wysun-screenshot = "wybieshot.__main__:main"
-wybie-screenshot = "wybieshot.__main__:main"
 
 [tool.setuptools.packages.find]
-include = ["loomrec*", "wybieshot*"]
+include = ["loomrec*"]

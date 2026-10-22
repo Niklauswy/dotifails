@@ -5,7 +5,7 @@ from PySide6.QtGui import QPixmap,QPainter,QPen,QColor,QFont,QIcon
 
 ASSETS=Path(__file__).parent/'assets/lucide'
 ALIASES={
- 'home':'search','files':'folder-open','file':'file-text','text':'file-text','snippet':'code','snippets':'code','calc':'calculator',
+ 'home':'search','files':'folder-open','file':'file-text','text':'file-text','calc':'calculator',
  'windows':'panels-top-left','window':'panels-top-left','emoji':'smile','settings':'settings-2','system':'cpu',
  'network':'wifi','wifi':'wifi','vpn':'shield-check','ssh':'server','url':'globe','web':'globe',
  'audio':'volume-2','notifications':'bell','notification':'bell','back':'arrow-left','favorite':'pin','clock':'calendar',
@@ -17,10 +17,10 @@ ALIASES={
  'audio-volume-high':'volume-2','audio-volume-muted':'volume-x','preferences-desktop-notification':'bell',
  'preferences-desktop':'sliders-horizontal','action':'arrow-right','info':'circle-help','command':'terminal',
  'notes':'file-text','wallpaper':'image','compositor':'sliders-horizontal','mute':'volume-x','screenshot':'camera',
- 'network_action':'wifi','network_device':'cable','status_action':'sliders-horizontal','snippet-edit':'pencil'
+ 'network_action':'wifi','network_device':'cable','status_action':'sliders-horizontal'
 }
 # Category hues are theme tokens: graphite in Space Black, darker in Fluent light.
-ACCENTS={'clipboard':'cat_orange','files':'cat_blue','file':'cat_blue','snippets':'cat_purple','snippet':'cat_purple','calculator':'cat_green','calc':'cat_green','emoji':'cat_yellow','windows':'cat_indigo','network':'cat_cyan','bluetooth':'cat_periwinkle','settings':'cat_lavender','power':'cat_rose','terminal':'cat_slate'}
+ACCENTS={'clipboard':'cat_orange','files':'cat_blue','file':'cat_blue','calculator':'cat_green','calc':'cat_green','emoji':'cat_yellow','windows':'cat_indigo','network':'cat_cyan','bluetooth':'cat_periwinkle','settings':'cat_lavender','power':'cat_rose','terminal':'cat_slate'}
 
 def tint(color):
  """Icon colour: a theme token name, or an explicit '#rrggbb' (user colours, previews)."""

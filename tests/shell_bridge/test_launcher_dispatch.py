@@ -37,8 +37,8 @@ class LauncherDispatchTests(unittest.TestCase):
 
     def test_former_qt_menus_are_served_by_the_shell(self):
         expected = {
-            'clipboard': ['category', 'clip'], 'snippets': ['category', 'snippets'], 'emoji': ['emoji'],
-            'calculator': ['category', 'calc'], 'windows': ['category', 'windows'], 'power': ['session'],
+            'clipboard': ['category', 'clip'], 'emoji': ['emoji'],
+            'calculator': ['category', 'calc'], 'power': ['session'],
             'audio': ['open', 'quicksettings'], 'notifications': ['open', 'notifications'],
             'calendar': ['open', 'dashboard'], 'system': ['open', 'dashboard']}
         for command, route in expected.items():
@@ -66,7 +66,6 @@ class LauncherDispatchTests(unittest.TestCase):
 
     def test_other_modes_never_toggle_launcher(self):
         for args, executable, forwarded in (
-                (('notes',), 'orbit', ['notes']),
                 (('recover', '--help'), 'wysun-recover', ['--help']),
                 (('files', '/tmp/example'), 'orbit-files', ['/tmp/example']),
                 (('recorder', '--quick-record'), 'wysun-recorder', ['--quick-record'])):
@@ -75,10 +74,10 @@ class LauncherDispatchTests(unittest.TestCase):
             target = str(ROOT / 'bin' / executable)
             execute.assert_called_once_with(target, [target, *forwarded])
 
-    def test_settings_and_connections_open_native_pages(self):
+    def test_settings_and_network_open_native_pages(self):
         helper = str(ROOT / 'bin/wysun-shell')
         for args, route in ((('settings',), 'home'), (('settings', 'displays'), 'displays'),
-                            (('connections',), 'network'),
+                            (('network',), 'network'),
                             (('settings-workspaces',), 'workspaces')):
             status, run, execute = self.invoke(args)
             self.assertEqual(status, 0, args)

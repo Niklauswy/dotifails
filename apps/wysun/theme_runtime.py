@@ -69,14 +69,6 @@ def theme_files(home,key):
         if 'editor_tint' not in theme:return text
         return re.sub(r'#[\da-fA-F]{6}(?![\da-fA-F])',lambda m:editor_tint(m[0],theme['editor_tint']),text)
     put('.config/nvim/lua/chadrc.lua',editor)
-    def notices(text):
-        # Dunst treats unquoted # as a comment and silently falls back to blue.
-        quoted=lambda value:'"'+value+'"';colours=theme['notices']
-        text=set_ini(text,'global',{'frame_color':quoted(colours['frame']),'highlight':quoted(colours['highlight']),'transparency':10,'corner_radius':16,'frame_width':1})
-        for section in ('urgency_low','urgency_normal','urgency_critical'):text=set_ini(text,section,{'background':quoted(colours['background']),'foreground':quoted(colours['foreground']),'frame_color':quoted(colours['frame'])})
-        return re.sub(r'\n{3,}','\n\n',text)
-    dunst=config/'wysun/dunstrc'
-    if dunst.is_file():files[dunst]=notices(dunst.read_text())
     # The bundled GTK themes are dark: only dark variants redefine window colours.
     gtk={'accent_color':theme['accent'],'accent_bg_color':theme['accent'],'accent_fg_color':theme['background']}
     if theme.get('gtk_dark',True):gtk={'theme_bg_color':theme['background'],'theme_fg_color':theme['foreground'],'theme_selected_bg_color':theme['accent'],'theme_selected_fg_color':theme['background'],**gtk}
@@ -150,7 +142,7 @@ def apply_theme(home,key,runner=run):
         except Exception:pass
         invalidate();raise
     invalidate();warnings=[]
-    commands=[['wysun','shell','reload-preferences'],['dunstctl','reload'],['gdbus','call','--session','--dest','com.mitchellh.ghostty','--object-path','/com/mitchellh/ghostty','--method','org.gtk.Actions.Activate','reload-config','[]','{}']]
+    commands=[['wysun','shell','reload-preferences'],['gdbus','call','--session','--dest','com.mitchellh.ghostty','--object-path','/com/mitchellh/ghostty','--method','org.gtk.Actions.Activate','reload-config','[]','{}']]
     for command in commands:
         try:runner(command)
         except Exception:warnings.append(command[0])

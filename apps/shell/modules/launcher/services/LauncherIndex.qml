@@ -21,14 +21,7 @@ Singleton {
     readonly property int maxApps: Math.max(4, Math.min(GlobalConfig.launcher.maxShown, 12))
 
     // Commands
-    readonly property var session: ({
-            logout: Array.from(GlobalConfig.session.commands.logout),
-            hibernate: Array.from(GlobalConfig.session.commands.hibernate),
-            reboot: Array.from(GlobalConfig.session.commands.reboot),
-            shutdown: Array.from(GlobalConfig.session.commands.shutdown)
-        })
-    readonly property var systemCommands: Catalog.system(session)
-    readonly property var commands: Catalog.views().concat(systemCommands, Catalog.tools(Array.from(GlobalConfig.launcher.actions.values), session))
+    readonly property var commands: Catalog.views().concat(Catalog.tools(Array.from(GlobalConfig.launcher.actions.values)))
 
     // Usage: pinned and recent items, persisted in the state dir
     property var pinned: []
@@ -38,10 +31,13 @@ Singleton {
 
     // Loaded on demand
     property var clips: []
-    property var snippets: []
     property var recentFiles: []
+    // Folder browsing (Files tab): the entries of `browsePath` and the usual places in home.
+    property var browse: []
+    property string browsePath
+    property bool browseBusy
+    property var places: []
     property var calcHistory: []
-    property var windows: []
     property bool capturePaused
 
     // Streaming file search
@@ -52,7 +48,7 @@ Singleton {
     property var pending: []
 
     readonly property var context: ({
-            apps: Apps.rows, commands, systemCommands, windows, clips, snippets, files, recentFiles, calcHistory,
+            apps: Apps.rows, commands, clips, files, recentFiles, calcHistory, browse, places,
             pins, recents, maxApps
         })
 
@@ -98,11 +94,8 @@ Singleton {
     // Async data sources -----------------------------------------------------------------------
 
     function refresh(): void {
-        refreshWindows();
         clipProc.running = false;
         clipProc.running = true;
-        snippetProc.running = false;
-        snippetProc.running = true;
     }
 
     // An open window of this app, if any (matched on the Wayland class).
@@ -116,27 +109,36 @@ Singleton {
         return null;
     }
 
-    function refreshWindows(): void {
-        const out = [];
-        for (const t of Hypr.toplevels.values) {
-            const ipc = t.lastIpcObject;
-            const cls = ipc?.class ?? "";
-            if (!t.title && !cls)
-                continue;
-            const title = t.title || cls;
-            const entry = cls ? DesktopEntries.heuristicLookup(cls) : null;
-            out.push({
-                kind: "window", key: "win:" + t.address, address: t.address, title,
-                subtitle: (entry?.name || cls) + (ipc?.workspace ? " · Workspace " + ipc.workspace.name : ""),
-                icon: entry?.icon || cls.toLowerCase(), type: "Window", l: title.toLowerCase(), a: cls.toLowerCase()
-            });
-        }
-        windows = out;
-    }
-
     function loadRecentFiles(): void {
         recentProc.running = false;
         recentProc.running = true;
+    }
+
+    // Lists one folder (hidden entries skipped; %Y follows symlinks so linked folders open too).
+    function listDir(path: string): void {
+        browsePath = path;
+        browse = [];
+        browseBusy = true;
+        dirProc.running = false;
+        dirProc.command = ["find", path, "-mindepth", "1", "-maxdepth", "1", "-not", "-name", ".*", "-printf", "%Y\t%p\n"];
+        dirProc.running = true;
+    }
+
+    // Home plus the XDG folders that exist, in a familiar order.
+    readonly property var placeNames: [["Desktop", "Escritorio"], ["Documents", "Documentos"], ["Downloads", "Descargas"],
+        ["Pictures", "Imágenes"], ["Music", "Música"], ["Videos", "Vídeos"], ["Projects", "Proyectos"]]
+    readonly property var placeIcons: ({Desktop: "desktop_windows", Escritorio: "desktop_windows", Documents: "description",
+            Documentos: "description", Downloads: "download", Descargas: "download", Pictures: "image", "Imágenes": "image",
+            Music: "music_note", "Música": "music_note", Videos: "movie", "Vídeos": "movie", Projects: "code", Proyectos: "code"})
+
+    function loadPlaces(): void {
+        placesProc.running = false;
+        placesProc.command = ["find", home, "-mindepth", "1", "-maxdepth", "1", "-type", "d", "-printf", "%f\n"];
+        placesProc.running = true;
+    }
+
+    function placeRow(path: string, title: string, icon: string): var {
+        return Object.assign(Files.row(path, true, home), {title, icon, type: "Place", key: "place:" + path});
     }
 
     function loadCalcHistory(): void {
@@ -270,14 +272,36 @@ Singleton {
     }
 
     Process {
-        id: snippetProc
+        id: dirProc
 
-        command: ["python3", "-I", LauncherData.script, "query", "snippets", ""]
         stdout: StdioCollector {
             onStreamFinished: {
-                try {
-                    root.snippets = JSON.parse(text).filter(r => r.kind === "snippet").map(r => Object.assign(r, {key: "snippet:" + r.id, type: "Snippet", l: (r.title + " " + r.shortcut).toLowerCase(), a: r.body.toLowerCase().slice(0, 400)}));
-                } catch (e) { root.snippets = []; }
+                const rows = [];
+                for (const line of text.split("\n")) {
+                    const tab = line.indexOf("\t");
+                    if (tab > 0)
+                        rows.push(Files.row(line.slice(tab + 1), line.slice(0, tab) === "d", root.home));
+                }
+                rows.sort((a, b) => (b.isDir - a.isDir) || a.l.localeCompare(b.l));
+                root.browse = rows.slice(0, 800);
+                root.browseBusy = false;
+            }
+        }
+    }
+
+    Process {
+        id: placesProc
+
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const present = text.split("\n");
+                const rows = [root.placeRow(root.home, "Home", "home")];
+                for (const pair of root.placeNames) {
+                    const name = pair.find(n => present.includes(n));
+                    if (name)
+                        rows.push(root.placeRow(root.home + "/" + name, name, root.placeIcons[name] ?? "folder"));
+                }
+                root.places = rows;
             }
         }
     }
@@ -322,7 +346,6 @@ Singleton {
 
         onExited: {
             clipProc.running = true;
-            snippetProc.running = true;
             root.loadStatus();
         }
     }

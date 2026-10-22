@@ -41,8 +41,8 @@ class ResidentTests(unittest.TestCase):
             self.assertEqual(run.call_args.args[0][1], 'session')
         with patch.object(self.daemon, 'show_utility') as utility:
             self.daemon.show_mode('clipboard')
-            self.daemon.show_mode('notes')
-            utility.assert_called_once_with('notes')
+            self.daemon.show_mode('color')
+            utility.assert_called_once_with('color')
 
 
 if __name__ == '__main__':

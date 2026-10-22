@@ -174,7 +174,8 @@ Item {
 
         playing: Players.active?.isPlaying ?? false
         speed: Audio.beatTracker.bpm / Config.general.mediaGifSpeedAdjustment
-        source: Paths.absolutePath(Config.paths.mediaGif)
+        // Pink sprout mascot with headphones; its bounce follows the beat tracker speed.
+        source: Paths.absolutePath("root:/assets/mascot-media.gif")
         asynchronous: true
         fillMode: AnimatedImage.PreserveAspectFit
     }

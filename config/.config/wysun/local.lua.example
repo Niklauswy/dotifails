@@ -7,4 +7,4 @@
 -- hl.monitor({ output = "eDP-1", mode = "1920x1080@60", position = "0x0", scale = 1.0 })
 
 -- Atajos personales (se cargan después de los generales):
--- hl.bind("SUPER + SHIFT + S", hl.dsp.exec_cmd("wysun screenshot --region --path ~/Pictures/Screenshots"))
+-- hl.bind("SUPER + SHIFT + S", hl.dsp.exec_cmd("wysun-shell screenshot --path ~/Pictures/Screenshots"))

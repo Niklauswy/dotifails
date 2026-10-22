@@ -7,6 +7,7 @@ import Wysun.Config
 import Wysun.I18n
 import qs.components
 import qs.components.filedialog
+import qs.services
 import qs.utils
 
 Item {
@@ -32,6 +33,30 @@ Item {
     property real offsetScale: shouldBeActive ? 0 : 1
 
     visible: offsetScale < 1
+
+    // Keyboard mode (e.g. Wysun Music's shortcut): Esc closes, the media keys
+    // drive the active player and ↑/↓ the output volume.
+    readonly property bool keyboardMode: shouldBeActive && screenState.dashboardKeyboard
+    focus: keyboardMode
+    onKeyboardModeChanged: if (keyboardMode) Qt.callLater(forceActiveFocus)
+    Keys.onPressed: event => {
+        const player = Players.active;
+        if (event.key === Qt.Key_Escape)
+            screenState.dashboard = false;
+        else if ((event.key === Qt.Key_Space || event.key === Qt.Key_K || event.key === Qt.Key_MediaPlay) && player?.canTogglePlaying)
+            player.togglePlaying();
+        else if (event.key === Qt.Key_Right && player?.canGoNext)
+            player.next();
+        else if (event.key === Qt.Key_Left && player?.canGoPrevious)
+            player.previous();
+        else if (event.key === Qt.Key_Up)
+            Audio.incrementVolume();
+        else if (event.key === Qt.Key_Down)
+            Audio.decrementVolume();
+        else
+            return;
+        event.accepted = true;
+    }
     anchors.topMargin: (-implicitHeight - 5) * offsetScale
     implicitHeight: content.implicitHeight
     implicitWidth: content.implicitWidth || 854 // Hard coded fallback for first open

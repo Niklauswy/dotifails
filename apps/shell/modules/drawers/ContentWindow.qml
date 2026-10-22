@@ -37,7 +37,7 @@ StyledWindow {
 
     // Explicitly invoked panels need a visible, interactive surface even when
     // passive shell elements are hidden over a fullscreen application.
-    readonly property bool interactivePanelOpen: screenState.session || screenState.sidebar || screenState.dashboard || screenState.utilities
+    readonly property bool interactivePanelOpen: screenState.session || screenState.sidebar || screenState.dashboard || screenState.utilities || screenState.aiUsage
 
     property real fsTransitionProg: hasFullscreen ? 1 : 0
     readonly property real sdfBorderOffset: 2 * fsTransitionProg // SDFs joins are not exact, so offset by 2px to ensure nothing shows
@@ -68,13 +68,14 @@ StyledWindow {
         screenState.dashboard = false;
         screenState.sidebar = false;
         screenState.utilities = false;
+        screenState.aiUsage = false;
         panels.popouts.close();
     }
 
     name: "drawers"
     WlrLayershell.exclusionMode: ExclusionMode.Ignore
     WlrLayershell.layer: (hasFullscreen && interactivePanelOpen) || (fsTransitionProg > 0 && contentItem.Config.general.showOverFullscreen) || (hasSpecialWorkspace && hasFullscreenOnNormalWs) ? WlrLayer.Overlay : WlrLayer.Top
-    WlrLayershell.keyboardFocus: screenState.session || screenState.sidebar ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: screenState.session || screenState.sidebar || screenState.aiUsage || (screenState.dashboard && screenState.dashboardKeyboard) ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
 
     mask: hasFullscreen && !interactivePanelOpen ? emptyRegion : regions
 
@@ -121,9 +122,9 @@ StyledWindow {
         active: {
             const s = root.screenState;
             const conf = root.contentItem.Config;
-            if ((s.session && conf.session.enabled) || (s.sidebar && conf.sidebar.enabled))
+            if ((s.session && conf.session.enabled) || (s.sidebar && conf.sidebar.enabled) || s.aiUsage)
                 return true;
-            if (!conf.dashboard.showOnHover && s.dashboard && conf.dashboard.enabled)
+            if ((!conf.dashboard.showOnHover || s.dashboardKeyboard) && s.dashboard && conf.dashboard.enabled)
                 return true;
             if (panels.popouts.currentName.startsWith("traymenu") && (panels.popouts.current as StackView)?.depth > 1)
                 return true;
@@ -134,6 +135,7 @@ StyledWindow {
             root.screenState.session = false;
             root.screenState.sidebar = false;
             root.screenState.dashboard = false;
+            root.screenState.aiUsage = false;
             panels.popouts.hasCurrent = false;
             bar.closeTray();
         }
@@ -215,6 +217,13 @@ StyledWindow {
         }
 
         PanelBg {
+            id: aiUsageBg
+
+            panel: panels.aiUsage
+            deformAmount: 0.1
+        }
+
+        PanelBg {
             id: notifsBg
 
             panel: panels.notifications
@@ -279,6 +288,9 @@ StyledWindow {
             }
             osd.transform: Matrix4x4 {
                 matrix: osdBg.deformMatrix
+            }
+            aiUsage.transform: Matrix4x4 {
+                matrix: aiUsageBg.deformMatrix
             }
             notifications.transform: Matrix4x4 {
                 matrix: notifsBg.deformMatrix

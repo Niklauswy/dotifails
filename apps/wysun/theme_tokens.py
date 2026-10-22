@@ -10,6 +10,7 @@ other caches can register with ``on_theme_changed``.
 """
 import os
 import re
+import time
 from functools import lru_cache
 from pathlib import Path
 
@@ -28,8 +29,20 @@ def theme_id(home=None):
     return theme_core.key(*theme_core.selection(home))
 
 
+# Painters call color() hundreds of times per frame; resolving reads the
+# environment and stats scheme.json each time. Reuse the result briefly: the
+# selection itself is already cached for 250 ms and the watcher invalidates.
+_MEMO_SECONDS = .1
+_memo = [0.0, None]
+
+
 def tokens(home=None):
-    return theme_core.resolve_active(*theme_core.selection(home), home)
+    if home is not None:
+        return theme_core.resolve_active(*theme_core.selection(home), home)
+    now = time.monotonic()
+    if _memo[1] is None or now - _memo[0] > _MEMO_SECONDS:
+        _memo[:] = [now, theme_core.resolve_active(*theme_core.selection(home), home)]
+    return _memo[1]
 
 
 @lru_cache(maxsize=8)
@@ -38,6 +51,7 @@ def _resolved(style, variant):
 
 
 def invalidate():
+    _memo[1] = None
     theme_core.invalidate()
 
 

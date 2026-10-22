@@ -450,11 +450,9 @@ class EnvironmentSettings:
         if component=='effects':
             from hypr_settings import effects_state
             return effects_state(self.runner)[0]
-        paths = {'terminal':'ghostty/config','notifications':'wysun/dunstrc'}
+        paths = {'terminal':'ghostty/config'}
         path = self.config/paths[component]
         text = path.read_text() if path.exists() else ''
-        if component == 'notifications':
-            return {key:ini_value(text,'global',key,default).strip('"') for key,default in [('origin','top-right'),('font','Inter 10'),('transparency','5'),('corner_radius','12'),('notification_limit','4'),('padding','18'),('gap_size','10')]} | {'timeout':ini_value(text,'urgency_normal','timeout','6')}
         return kv_values(text)
 
     def apply_component(self, component, values):
@@ -480,19 +478,6 @@ class EnvironmentSettings:
                 latest['hypr-effects']=values
                 apply_fragment(self.runner,{path:text,self.path:json.dumps(latest,ensure_ascii=False,indent=2)+'\n'},text,rollback)
                 self.data['hypr-effects']=copy.deepcopy(values)
-        elif component == 'notifications':
-            path = self.config/'wysun/dunstrc'
-            if values['origin'] not in ('top-left','top-center','top-right','bottom-left','bottom-center','bottom-right'):
-                raise ValueError('Posición de notificaciones inválida.')
-            clean = {'origin':values['origin']}
-            for key,lo,hi in [('transparency',0,60),('corner_radius',0,30),('notification_limit',1,12),('padding',4,40),('gap_size',0,30)]:
-                clean[key] = bounded(values[key],lo,hi,True)
-            if '\n' in values['font'] or '"' in values['font']:
-                raise ValueError('Fuente inválida.')
-            clean['font'] = values['font']
-            text = set_ini(path.read_text(),'global',clean)
-            text = set_ini(text,'urgency_normal',{'timeout':bounded(values['timeout'],1,60,True)})
-            self.edit_file(path,text,lambda:self.runner(['dunstctl','reload',str(path)]))
         else:
             raise ValueError('Componente desconocido.')
 

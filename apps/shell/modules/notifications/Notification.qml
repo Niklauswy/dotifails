@@ -4,6 +4,7 @@ import QtQuick
 import QtQuick.Shapes
 import Quickshell
 import Quickshell.Services.Notifications
+import M3Shapes
 import Wysun.Components
 import Wysun.Config
 import qs.components
@@ -16,14 +17,26 @@ StyledRect {
     id: root
 
     required property NotifData modelData
-    readonly property bool hasImage: modelData.image.length > 0
+    readonly property string imageUrl: Icons.usableImage(modelData.image)
+    readonly property bool hasImage: imageUrl.length > 0
     readonly property bool hasAppIcon: modelData.appIcon.length > 0
+    readonly property bool critical: modelData.urgency === NotificationUrgency.Critical
+    readonly property bool low: modelData.urgency === NotificationUrgency.Low
+    // Icon-theme glyphs often do not exist; then the card draws a Material symbol chosen from the app, icon name and summary.
+    readonly property string themeIcon: Icons.appIconPath(modelData.appIcon, modelData.appName, modelData.hints)
+    readonly property string symbol: Icons.notifSymbol(modelData.appIcon, modelData.appName, modelData.summary, modelData.urgency)
+    readonly property bool hasProgress: modelData.hints?.value !== undefined && modelData.hints?.value !== null
+    readonly property real progress: Math.max(0, Math.min(100, Number(modelData.hints?.value ?? 0))) / 100
+    readonly property color toneColour: critical ? Colours.palette.m3error : low ? Colours.palette.m3secondaryContainer : Colours.palette.m3primaryContainer
+    readonly property color onToneColour: critical ? Colours.palette.m3onError : low ? Colours.palette.m3onSecondaryContainer : Colours.palette.m3onPrimaryContainer
+    readonly property color textColour: critical ? Colours.palette.m3onErrorContainer : Colours.palette.m3onSurface
+    readonly property color subtleColour: critical ? Colours.palette.m3onErrorContainer : Colours.palette.m3onSurfaceVariant
     readonly property int bodyTextFormat: /[<*_`#\[\]]/.test(modelData.body) ? Text.MarkdownText : Text.PlainText
-    readonly property int nonAnimHeight: summary.implicitHeight + (root.expanded ? Tokens.spacing.extraSmall * 2 + appName.height + body.height + actions.height + actions.anchors.topMargin : bodyPreview.height) + inner.anchors.margins * 2
-    property bool expanded: Config.notifs.openExpanded
+    readonly property int nonAnimHeight: summary.implicitHeight + (root.expanded ? Tokens.spacing.extraSmall * 2 + appName.height + body.height + actions.height + actions.anchors.topMargin : bodyPreview.height) + (hasProgress ? progressBar.implicitHeight + Tokens.spacing.small : 0) + inner.anchors.margins * 2
+    property bool expanded: Config.notifs.openExpanded || modelData.actions.length > 0
 
-    color: root.modelData.urgency === NotificationUrgency.Critical ? Colours.palette.m3secondaryContainer : Colours.tPalette.m3surfaceContainer
-    radius: Tokens.rounding.large
+    color: critical ? Colours.palette.m3errorContainer : low ? Colours.tPalette.m3surfaceContainer : Colours.tPalette.m3surfaceContainerHigh
+    radius: Tokens.rounding.extraLarge
 
     implicitHeight: inner.implicitHeight
 
@@ -103,6 +116,7 @@ StyledRect {
                 Anim {}
             }
 
+            // Photo/avatar sent with the notification, clipped to a soft squircle.
             Loader {
                 id: image
 
@@ -113,17 +127,17 @@ StyledRect {
                 anchors.top: parent.top
                 width: TokenConfig.sizes.notifs.image
                 height: TokenConfig.sizes.notifs.image
-                visible: root.hasImage || root.hasAppIcon
+                visible: true
 
                 sourceComponent: ClipRect {
-                    radius: Tokens.rounding.full
-                    color: root.modelData.urgency === NotificationUrgency.Critical ? Colours.palette.m3error : root.modelData.urgency === NotificationUrgency.Low ? Colours.layer(Colours.palette.m3surfaceContainerHighest, 2) : Colours.palette.m3secondaryContainer
+                    radius: Tokens.rounding.largeIncreased
+                    color: root.toneColour
                     implicitWidth: TokenConfig.sizes.notifs.image
                     implicitHeight: TokenConfig.sizes.notifs.image
 
                     Image {
                         anchors.fill: parent
-                        source: Qt.resolvedUrl(root.modelData.image)
+                        source: Qt.resolvedUrl(root.imageUrl)
                         fillMode: Image.PreserveAspectCrop
                         sourceSize: {
                             const size = TokenConfig.sizes.notifs.image * ((QsWindow.window as QsWindow)?.devicePixelRatio ?? 1);
@@ -135,90 +149,105 @@ StyledRect {
                 }
             }
 
-            Loader {
+            // Tonal expressive badge: cookie for normal, soft burst for critical, circle for low priority.
+            Item {
                 id: appIcon
 
-                asynchronous: true
-                active: root.hasAppIcon || !root.hasImage
+                readonly property int size: root.hasImage ? Tokens.sizes.notifs.badge : TokenConfig.sizes.notifs.image
 
                 anchors.horizontalCenter: root.hasImage ? undefined : image.horizontalCenter
                 anchors.verticalCenter: root.hasImage ? undefined : image.verticalCenter
                 anchors.right: root.hasImage ? image.right : undefined
                 anchors.bottom: root.hasImage ? image.bottom : undefined
+                anchors.left: root.hasImage ? undefined : parent.left
+                anchors.top: root.hasImage ? undefined : parent.top
+                implicitWidth: size
+                implicitHeight: size
+                width: size
+                height: size
 
-                sourceComponent: StyledRect {
-                    radius: Tokens.rounding.full
-                    color: root.modelData.urgency === NotificationUrgency.Critical ? Colours.palette.m3error : root.modelData.urgency === NotificationUrgency.Low ? Colours.layer(Colours.palette.m3surfaceContainerHighest, 2) : Colours.palette.m3secondaryContainer
-                    implicitWidth: root.hasImage ? Tokens.sizes.notifs.badge : TokenConfig.sizes.notifs.image
-                    implicitHeight: root.hasImage ? Tokens.sizes.notifs.badge : TokenConfig.sizes.notifs.image
+                MaterialShape {
+                    anchors.centerIn: parent
+                    implicitSize: appIcon.size * (root.critical ? 0.96 : 0.92)
+                    color: root.themeIcon.length > 0 ? Colours.palette.m3surfaceContainerHighest : root.toneColour
+                    shape: root.themeIcon.length > 0 ? MaterialShape.Circle : root.critical ? MaterialShape.SoftBurst : root.low ? MaterialShape.Circle : MaterialShape.Cookie9Sided
 
-                    Loader {
-                        id: icon
-
-                        asynchronous: true
-                        active: root.hasAppIcon
-
-                        anchors.centerIn: parent
-
-                        width: Math.round(parent.width * 0.6)
-                        height: Math.round(parent.width * 0.6)
-
-                        sourceComponent: ColouredIcon {
-                            anchors.fill: parent
-                            source: Quickshell.iconPath(root.modelData.appIcon)
-                            colour: root.modelData.urgency === NotificationUrgency.Critical ? Colours.palette.m3onError : root.modelData.urgency === NotificationUrgency.Low ? Colours.palette.m3onSurface : Colours.palette.m3onSecondaryContainer
-                            layer.enabled: root.modelData.appIcon.endsWith("symbolic")
-                        }
+                    Behavior on color {
+                        CAnim {}
                     }
+                }
 
-                    Loader {
-                        asynchronous: true
-                        active: !root.hasAppIcon
-                        anchors.centerIn: parent
-                        anchors.verticalCenterOffset: 1
+                // Real app icons keep their own colours; only monochrome (symbolic) ones are tinted.
+                Loader {
+                    anchors.centerIn: parent
+                    asynchronous: true
+                    active: root.themeIcon.length > 0
 
-                        sourceComponent: MaterialIcon {
-                            text: Icons.getNotifIcon(root.modelData.summary, root.modelData.urgency)
-                            color: root.modelData.urgency === NotificationUrgency.Critical ? Colours.palette.m3onError : root.modelData.urgency === NotificationUrgency.Low ? Colours.palette.m3onSurface : Colours.palette.m3onSecondaryContainer
-                            fontStyle: Tokens.font.icon.medium
-                        }
+                    width: Math.round(appIcon.size * 0.66)
+                    height: width
+
+                    sourceComponent: root.themeIcon.includes("symbolic") ? tintedIcon : plainIcon
+                }
+
+                Component {
+                    id: tintedIcon
+
+                    ColouredIcon {
+                        anchors.fill: parent
+                        source: root.themeIcon
+                        colour: root.onToneColour
+                        layer.enabled: true
                     }
+                }
+
+                Component {
+                    id: plainIcon
+
+                    Image {
+                        anchors.fill: parent
+                        source: Qt.resolvedUrl(root.themeIcon)
+                        sourceSize: Qt.size(width * ((QsWindow.window as QsWindow)?.devicePixelRatio ?? 1), height * ((QsWindow.window as QsWindow)?.devicePixelRatio ?? 1))
+                        fillMode: Image.PreserveAspectFit
+                        smooth: true
+                        asynchronous: true
+                    }
+                }
+
+                StyledText {
+                    anchors.centerIn: parent
+                    visible: root.themeIcon.length === 0 && root.symbol.length === 0
+                    text: (root.modelData.appName || "?").charAt(0).toUpperCase()
+                    color: root.onToneColour
+                    font: root.hasImage ? Tokens.font.label.medium : Tokens.font.title.medium
+                }
+
+                MaterialIcon {
+                    anchors.centerIn: parent
+                    anchors.verticalCenterOffset: 1
+                    visible: root.themeIcon.length === 0 && root.symbol.length > 0
+                    text: root.symbol
+                    color: root.onToneColour
+                    fontStyle: root.hasImage ? Tokens.font.icon.small : Tokens.font.icon.large
+                    fill: 1
                 }
             }
 
-            Shape {
-                id: progressIndicator
+            StyledProgressBar {
+                id: progressBar
 
-                anchors.centerIn: appIcon
-                width: appIcon.implicitWidth + progressShape.strokeWidth * 2
-                height: appIcon.implicitHeight + progressShape.strokeWidth * 2
-                preferredRendererType: Shape.CurveRenderer
+                visible: root.hasProgress
+                anchors.left: summary.left
+                anchors.right: expandBtn.left
+                anchors.rightMargin: Tokens.spacing.small
+                // Sits under whichever text block is showing (preview when collapsed, full body when expanded).
+                y: (root.expanded ? body.y + body.height : bodyPreview.y + bodyPreview.height) + Tokens.spacing.small
+                implicitHeight: Tokens.padding.small
+                value: root.progress
+                fgColour: root.critical ? Colours.palette.m3onErrorContainer : Colours.palette.m3primary
+                bgColour: root.critical ? Colours.palette.m3error : Colours.palette.m3secondaryContainer
 
-                ShapePath {
-                    id: progressShape
-
-                    capStyle: ShapePath.RoundCap
-                    fillColor: "transparent"
-                    strokeWidth: 2
-                    strokeColor: Colours.palette.m3primary
-
-                    PathAngleArc {
-                        id: progressArc
-
-                        radiusX: progressIndicator.width / 2 - root.Tokens.padding.extraSmall / 2
-                        centerX: progressIndicator.width / 2
-                        radiusY: progressIndicator.height / 2 - root.Tokens.padding.extraSmall / 2
-                        centerY: progressIndicator.height / 2
-
-                        startAngle: -90
-                        sweepAngle: ((root.modelData.hints.value ?? 0) / 100) * 360
-
-                        Behavior on sweepAngle {
-                            Anim {
-                                easing: Tokens.anim.emphasizedDecel
-                            }
-                        }
-                    }
+                Behavior on y {
+                    Anim {}
                 }
             }
 
@@ -232,7 +261,7 @@ StyledRect {
                 animate: true
                 text: appNameMetrics.elidedText
                 maximumLineCount: 1
-                color: Colours.palette.m3onSurfaceVariant
+                color: root.subtleColour
                 font: Tokens.font.label.medium
 
                 opacity: root.expanded ? 1 : 0
@@ -264,6 +293,8 @@ StyledRect {
                 text: summaryMetrics.elidedText
                 maximumLineCount: 1
                 height: implicitHeight
+                color: root.textColour
+                font: Tokens.font.title.small
 
                 states: State {
                     name: "expanded"
@@ -315,7 +346,7 @@ StyledRect {
                 anchors.leftMargin: Tokens.spacing.small
 
                 text: "•"
-                color: Colours.palette.m3onSurfaceVariant
+                color: root.subtleColour
                 font: Tokens.font.body.small
 
                 states: State {
@@ -343,7 +374,7 @@ StyledRect {
                 animate: true
                 horizontalAlignment: Text.AlignLeft
                 text: root.modelData.timeStr
-                color: Colours.palette.m3onSurfaceVariant
+                color: root.subtleColour
                 font: Tokens.font.body.small
             }
 
@@ -359,7 +390,7 @@ StyledRect {
 
                 StateLayer {
                     radius: Tokens.rounding.full
-                    color: root.modelData.urgency === NotificationUrgency.Critical ? Colours.palette.m3onSecondaryContainer : Colours.palette.m3onSurface
+                    color: root.textColour
                     onClicked: root.expanded = !root.expanded
                 }
 
@@ -393,7 +424,7 @@ StyledRect {
                 animate: true
                 textFormat: root.bodyTextFormat
                 text: bodyPreviewMetrics.elidedText
-                color: Colours.palette.m3onSurfaceVariant
+                color: root.subtleColour
                 font: Tokens.font.body.small
 
                 opacity: root.expanded ? 0 : 1
@@ -425,7 +456,7 @@ StyledRect {
                 animate: true
                 textFormat: root.bodyTextFormat
                 text: root.modelData.body
-                color: Colours.palette.m3onSurfaceVariant
+                color: root.subtleColour
                 font: Tokens.font.body.small
                 wrapMode: Text.WrapAtWordBoundaryOrAnywhere
                 height: text ? implicitHeight : 0
@@ -468,8 +499,8 @@ StyledRect {
                     isRound: true
                     shapeMorph: true
                     fillWidth: root.modelData.actions.length === 0
-                    inactiveColour: root.modelData.urgency === NotificationUrgency.Critical ? Colours.palette.m3secondary : Colours.layer(Colours.palette.m3surfaceContainerHighest, 2)
-                    inactiveOnColour: root.modelData.urgency === NotificationUrgency.Critical ? Colours.palette.m3onSecondary : Colours.palette.m3onSurfaceVariant
+                    inactiveColour: root.critical ? Colours.palette.m3error : Colours.palette.m3secondaryContainer
+                    inactiveOnColour: root.critical ? Colours.palette.m3onError : Colours.palette.m3onSecondaryContainer
                     icon: "close"
                     padding: Tokens.padding.extraSmall
                     onClicked: root.modelData.close()
@@ -484,8 +515,8 @@ StyledRect {
                         isRound: true
                         shapeMorph: true
                         fillWidth: true
-                        inactiveColour: root.modelData.urgency === NotificationUrgency.Critical ? Colours.palette.m3secondary : Colours.layer(Colours.palette.m3surfaceContainerHighest, 2)
-                        inactiveOnColour: root.modelData.urgency === NotificationUrgency.Critical ? Colours.palette.m3onSecondary : Colours.palette.m3onSurfaceVariant
+                        inactiveColour: root.critical ? Colours.palette.m3error : Colours.palette.m3secondaryContainer
+                        inactiveOnColour: root.critical ? Colours.palette.m3onError : Colours.palette.m3onSecondaryContainer
                         text: modelData.text
                         onClicked: modelData.invoke()
 
@@ -500,11 +531,12 @@ StyledRect {
                 }
 
                 IconButton {
+                    visible: root.modelData.actions.length < 2
                     isRound: true
                     shapeMorph: true
                     fillWidth: root.modelData.actions.length === 0
-                    inactiveColour: root.modelData.urgency === NotificationUrgency.Critical ? Colours.palette.m3secondary : Colours.layer(Colours.palette.m3surfaceContainerHighest, 2)
-                    inactiveOnColour: root.modelData.urgency === NotificationUrgency.Critical ? Colours.palette.m3onSecondary : Colours.palette.m3onSurfaceVariant
+                    inactiveColour: root.critical ? Colours.palette.m3error : Colours.palette.m3secondaryContainer
+                    inactiveOnColour: root.critical ? Colours.palette.m3onError : Colours.palette.m3onSecondaryContainer
                     icon: copyTimer.running ? "inventory" : "content_copy"
                     padding: Tokens.padding.extraSmall
                     onClicked: {

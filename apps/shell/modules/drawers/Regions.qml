@@ -50,6 +50,12 @@ Region {
     }
 
     R {
+        panel: root.panels.aiUsage
+        y: 0
+        height: panel.height * (1 - root.panels.aiUsage.offsetScale) + root.borderThickness
+    }
+
+    R {
         panel: root.panels.notifications
         y: 0
         height: panel.height + root.borderThickness

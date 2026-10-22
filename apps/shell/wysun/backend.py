@@ -24,29 +24,6 @@ def run(argv):
     return result.stdout
 
 
-def history():
-    value = json.loads(run(['dunstctl', 'history']))
-    groups = value.get('data', [])
-    rows = groups[0] if groups and isinstance(groups[0], list) else groups
-    result = []
-    for row in rows[:100]:
-        if not isinstance(row, dict):
-            continue
-        def field(key, fallback=''):
-            item = row.get(key, fallback)
-            return item.get('data', fallback) if isinstance(item, dict) else item
-        identifier = str(field('id'))
-        if not identifier.isdecimal():
-            continue
-        urgency = str(field('urgency', 'normal')).lower()
-        result.append(dict(notificationId=identifier, summary=str(field('summary'))[:512],
-                           body=str(field('body'))[:4096], appName=str(field('appname'))[:128],
-                           appIcon=str(field('icon_path'))[:1024],
-                           urgency={'low': 0, 'normal': 1, 'critical': 2}.get(urgency, 1),
-                           popup=False, actions=[]))
-    return result
-
-
 def active_recordings():
     found = []
     for child in Path('/proc').glob('[0-9]*'):
@@ -68,7 +45,7 @@ def active_recordings():
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('action', choices=('history', 'dismiss', 'launch', 'schemes', 'current', 'preview', 'record-status', 'record-stop', 'record-pause', 'dnd'))
+    parser.add_argument('action', choices=('launch', 'schemes', 'current', 'preview', 'record-status', 'record-stop', 'record-pause'))
     parser.add_argument('value', nargs='?')
     args = parser.parse_args()
     if args.action.startswith('record-'):
@@ -76,32 +53,19 @@ def main():
         if args.action == 'record-status':
             status = recordings[0][1] if len(recordings) == 1 else {}
             print(json.dumps(dict(running=bool(recordings), paused=status.get('state') == 'paused',
-                                  elapsed=status.get('duration', 0), ambiguous=len(recordings) > 1)))
+                                  elapsed=status.get('elapsed', status.get('duration', 0)), ambiguous=len(recordings) > 1)))
         elif len(recordings) != 1:
             raise RuntimeError('Abre Wysun Recorder para elegir la grabación.')
         else:
             project, status = recordings[0]
             action = 'stop' if args.action == 'record-stop' else ('resume' if status.get('state') == 'paused' else 'pause')
             print(run(['wysun', 'recorder', '--' + action, str(project)]))
-    elif args.action == 'dnd':
-        import fcntl
-        state = Path(os.environ.get('XDG_STATE_HOME', str(Path.home() / '.local/state'))) / 'loomrec'
-        state.mkdir(parents=True, exist_ok=True, mode=0o700)
-        with (state / 'concentration.lock').open('a') as lock:
-            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-            if (state / 'concentration.json').exists():
-                raise RuntimeError('Recorder controla temporalmente No molestar.')
-            run(['dunstctl', 'set-paused', 'toggle'])
-            print(json.dumps({'paused': run(['dunstctl', 'is-paused']).strip() == 'true'}))
-    elif args.action == 'history':
-        print(json.dumps(history()))
-    elif args.action == 'dismiss':
-        if not (args.value or '').isdecimal():
-            parser.error('Identificador Dunst inválido')
-        run(['dunstctl', 'history-rm', args.value])
+            if action == 'stop':
+                # Detached: says where the MP4 ended up once it is ready.
+                subprocess.Popen(['wysun', 'recorder', '--notify-when-ready', str(project)], start_new_session=True,
+                                 stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     elif args.action == 'launch':
-        if args.value not in ('music', 'files', 'settings', 'notes', 'colors', 'connections',
-                               'processes', 'tools', 'power', 'recorder', 'screenshot', 'lock'):
+        if args.value not in ('music', 'files', 'settings', 'colors', 'processes', 'power', 'recorder', 'screenshot', 'lock'):
             parser.error('Acción no permitida')
         os.execvpe('wysun', ['wysun', args.value], environment())
     else:

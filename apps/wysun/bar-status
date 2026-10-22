@@ -20,4 +20,4 @@ elif mode=='battery':
  if batteries:
   p=batteries[0];capacity=(p/'capacity').read_text().strip();charging=(p/'status').read_text().strip()=='Charging';print('%{T2}'+('󰂄' if charging else '󰁹')+'%{T-} '+capacity+'%')
 elif mode=='notifications':
- paused=cmd(['dunstctl','is-paused'])=='true';count=cmd(['dunstctl','count','waiting']);print('%{T2}'+('󰂛' if paused else '󰂚')+'%{T-}'+(' '+count if count not in ('','0') else ''))
+ import json;state=json.loads(cmd([str(Path.home()/'.local/bin/wysun-shell'),'dnd','status']) or '{}');count=str(state.get('count',0));print('%{T2}'+('󰂛' if state.get('dnd') else '󰂚')+'%{T-}'+(' '+count if count not in ('','0') else ''))

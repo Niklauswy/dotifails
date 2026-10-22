@@ -1,4 +1,4 @@
-import colorsys,datetime as dt,hashlib,json,re,time
+import colorsys,hashlib,json,re,time
 from core import Store,sensitive
 
 def color_value(text):
@@ -24,16 +24,10 @@ def color_formats(text):
  r,g,b=[int(c[i:i+2],16) for i in (1,3,5)];h,l,s=colorsys.rgb_to_hls(r/255,g/255,b/255)
  return {'HEX':c,'RGB':f'rgb({r}, {g}, {b})','HSL':f'hsl({round(h*360)}, {round(s*100)}%, {round(l*100)}%)'}  # theme-exception: formatos de color para copiar
 
-def template(text,clipboard=''):
- now=dt.datetime.now()
- text=re.sub(r'\{date([+-]\d+)\}',lambda m:(now+dt.timedelta(days=int(m[1]))).strftime('%Y-%m-%d'),text)
- for k,v in {'date':now.strftime('%Y-%m-%d'),'time':now.strftime('%H:%M'),'datetime':now.strftime('%Y-%m-%d %H:%M'),'week':now.strftime('%V'),'clipboard':clipboard}.items():text=text.replace('{'+k+'}',v)
- return text
-
 class StoreV2(Store):
  def __init__(self,*args,**kwargs):
   super().__init__(*args,**kwargs)
-  for table,columns in {'clips':{'source':"TEXT DEFAULT ''",'meta':"TEXT DEFAULT '{}'",'ocr':"TEXT DEFAULT ''",'ocr_done':'INTEGER DEFAULT 0','pinned':'INTEGER DEFAULT 0','thumb':'BLOB'},'snippets':{'icon':"TEXT DEFAULT 'snippet'",'html':"TEXT DEFAULT ''",'created':'REAL DEFAULT 0','modified':'REAL DEFAULT 0','uses':'INTEGER DEFAULT 0','lastused':'REAL DEFAULT 0'}}.items():
+  for table,columns in {'clips':{'source':"TEXT DEFAULT ''",'meta':"TEXT DEFAULT '{}'",'ocr':"TEXT DEFAULT ''",'ocr_done':'INTEGER DEFAULT 0','pinned':'INTEGER DEFAULT 0','thumb':'BLOB'}}.items():
    existing={x[1] for x in self.db.execute(f'PRAGMA table_info({table})')}
    for name,decl in columns.items():
     if name not in existing:self.db.execute(f'ALTER TABLE {table} ADD COLUMN {name} {decl}')
@@ -63,9 +57,3 @@ class StoreV2(Store):
  def save_media(self,ident,ocr,meta,thumb):
   if sensitive(ocr):ocr=''
   self.db.execute('UPDATE clips SET ocr=?,ocr_done=1,meta=?,thumb=? WHERE id=?',(ocr,json.dumps(meta),thumb,ident));self.db.commit()
- def rich_snippet(self,title,shortcut,body,html,icon,ident=None):
-  now=time.time()
-  if ident:self.db.execute('UPDATE snippets SET title=?,shortcut=?,body=?,html=?,icon=?,modified=? WHERE id=?',(title,shortcut,body,html,icon,now,ident))
-  else:self.db.execute('INSERT INTO snippets(title,shortcut,body,html,icon,created,modified) VALUES(?,?,?,?,?,?,?)',(title,shortcut,body,html,icon,now,now))
-  self.db.commit()
- def used_snippet(self,ident):self.db.execute('UPDATE snippets SET uses=uses+1,lastused=? WHERE id=?',(time.time(),ident));self.db.commit()

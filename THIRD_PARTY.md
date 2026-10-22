@@ -55,7 +55,7 @@ Marked in every file as "Derivado de caelestia-dots/shell (GPL-3.0), modificado 
 | `services/Nmcli.qml` | `services/Nmcli.qml`, `services/desktop_controls.py` (one-shot `nmcli`) |
 | `services/NotifData.qml`, `services/Notifs.qml` | `services/NotifData.qml`, `services/Notifs.qml` (presentation model only) |
 
-Not ported: `NotificationServer` (Dunst stays the only D-Bus owner and keeps its toasts), `utilities/cards/Record*.qml` and the screen recorder (Wysun Recorder and its portals are used unchanged).
+Not ported: `NotificationServer` was ported later: the shell owns the notification bus and there is no separate daemon, `utilities/cards/Record*.qml` and the screen recorder (Wysun Recorder and its portals are used unchanged).
 
 **Update (Wysun part 2, rebranding).** `apps/shell/` now holds the complete adapted shell, renamed to Wysun (QML modules `Wysun.*`, C++ namespace `wysun`, runtime paths and IPC). It includes the adapted C++ plugin under `apps/shell/plugin/` (GPL-3.0, base revision recorded in `apps/shell/UPSTREAM.json`, which keeps the per-file hashes of the imported tree; `apps/shell/LICENSE` is the original licence text). The runtime builder (`installer/runtime_build.py`, versions in `manifests/runtime.json`) downloads and compiles, at install time and without redistributing their source here: Quickshell (LGPL-3.0, git.outfoxxed.me/quickshell), `libcava`/cavacore (MIT, github.com/LukashonakV/cava), `m3shapes` (Apache-2.0, github.com/soramanew/m3shapes) and the wayland-protocols 1.47 XML (MIT), plus Qt 6.9.3 (LGPL-3.0) via aqtinstall. Google Sans Flex ships under its own licence in `apps/shell/assets/google-sans-flex/LICENSE`.
 
@@ -86,6 +86,12 @@ Not ported: `NotificationServer` (Dunst stays the only D-Bus owner and keeps its
 - License: SIL Open Font License 1.1; text in [`LICENSES/OFL-Rubik.txt`](LICENSES/OFL-Rubik.txt).
 - Bundled font: `apps/wysun/assets/fonts/Rubik-Variable.ttf`.
 - SHA-256: `1b3a7437ba2af80e465e773ed60c5036d1ba6ace492d89046dbcf18fb31e4e88`.
+
+## Lobe Icons (AI brand marks)
+
+- Source: [lobehub/lobe-icons](https://github.com/lobehub/lobe-icons), npm `@lobehub/icons-static-svg` 1.97.0.
+- License: MIT; text in [`LICENSES/MIT-lobe-icons.txt`](LICENSES/MIT-lobe-icons.txt).
+- `apps/shell/modules/aiusage/Logos.js` keeps the 24×24 path data of the Claude, Anthropic, Codex, OpenAI, Gemini, GitHub Copilot, Cursor, DeepSeek, Mistral and Grok marks, drawn in the theme colour by the AI usage panel. The marks are trademarks of their owners and only identify each provider's account.
 
 ## Scope
 
@@ -147,9 +153,8 @@ Upstream files have no individual copyright header; no notices were removed.
 - `modules/nexus/NavPane.qml`, `modules/dashboard/Media.qml`,
   `modules/dashboard/media/Details.qml`, `components/widgets/CoverArt.qml` and
   `components/{StyledRect,StyledText,StateLayer}.qml` inform
-  `apps/capture/loomrec/ui/{material,layouts,components,settings}.py` and
-  `apps/capture/wybieshot/ui/main.py`. Library artwork/navigation, editor tool
-  grouping and playback hierarchy change; capture/portal/media contracts stay
+  `apps/capture/loomrec/ui/{material,layouts,components,settings}.py`. Library
+  artwork/navigation and playback hierarchy change; capture/portal/media contracts stay
   in the existing backends. This is not an upstream full-screen music app.
 - Files/utilities package Rubik and complete Material Symbols fallback resources
   in `apps/wysun/assets/utils-material/`, with OFL and Apache-2.0 notices.

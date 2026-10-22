@@ -14,9 +14,6 @@ for name in ('ORBIT_THEME','WYSUN_THEME'):os.environ.pop(name,None)
 from PySide6.QtWidgets import QApplication
 from loomrec.ui import theme_core
 from loomrec.ui.tokens import apply_theme,color,tokens,refresh
-from wybieshot.document import Document
-from wybieshot.storage import Storage
-from wybieshot.ui.main import Window
 from PySide6.QtGui import QImage,QColor
 
 VARIANTS=[('space-black','space-black'),('space-black','tokyo'),('space-black','severance'),('fluent','light'),('fluent','dark')]
@@ -85,19 +82,4 @@ class CaptureTheme(unittest.TestCase):
         self.assertEqual(theme_core.selection(),('fluent','light'))
         write('space-black','nope');settle(self.app)
         self.assertEqual(theme_core.selection(),('space-black','space-black'))
-    def test_screenshot_window_restyles_in_every_variant(self):
-        temp=tempfile.TemporaryDirectory();storage=Storage(Path(temp.name)/'library');storage.set_output(Path(temp.name)/'out')
-        window=Window(storage);image=QImage(320,180,QImage.Format_ARGB32);image.fill(QColor('#F3F6FB'));window.set_document(Document(image,'Fixture'))
-        window.show();seen=set()
-        try:
-            for style,variant in VARIANTS:
-                write(style,variant);settle(self.app)
-                grabbed=window.grab().toImage();seen.add(grabbed.pixelColor(2,grabbed.height()//2).name())
-                window.notice('Error de prueba',True)
-                self.assertIn(color('danger').name().lower(),window.statusBar().styleSheet().lower())
-            self.assertGreaterEqual(len(seen),4,'window must look different across variants')
-        finally:
-            window._closing=True;window.thumbnail_timer.stop();window.quick.close();window.close();window.deleteLater();temp.cleanup()
-
-
 if __name__=='__main__':unittest.main()

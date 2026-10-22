@@ -1,4 +1,4 @@
-"""Installed native Music/mini with generated files and a private null sink.
+"""Installed native Music/full player with generated files and a private null sink.
 
 Invoked only by the guarded portal runner; never reads a personal library.
 The child uses actual installed widgets and Qt input, without replacing methods.
@@ -23,9 +23,8 @@ app=QApplication([]);app.setQuitOnLastWindowClosed(False)
 import music_data as music
 assert music.DATA.is_relative_to(home)
 music.import_files([run/'Synthetic tone A.wav',run/'Synthetic tone B.wav'])
-from music_app_window import MusicAppWindow
-from music_mini import MiniPlayer
-player=MusicAppWindow();mini=None
+from wysun_music.app import build
+music_app=build(publish=False);player=music_app.player;library=music_app.library;window=music_app.window
 def spin(predicate,description,timeout=12):
  end=time.monotonic()+timeout
  while time.monotonic()<end:
@@ -36,48 +35,48 @@ def delay(seconds):
  end=time.monotonic()+seconds
  while time.monotonic()<end:app.processEvents();time.sleep(.025)
 try:
- player.present()
+ window.present()
  def native():
   clients=json.loads(subprocess.check_output(['hyprctl','-j','clients'],text=True))
   return next((c for c in clients if c['pid']==os.getpid() and c['mapped'] and not c['xwayland']),None)
- spin(native,'Music native window');keys=player.all_keys();assert len(keys)==2,keys
- player.go('tracks');player.play_key(keys[0]);spin(lambda:player.current_position>.4,'Music actual playback')
- mpv_pid=int(player.process.processId());assert mpv_pid>0
- QTest.mouseClick(player.play_button,Qt.LeftButton);spin(lambda:player.paused,'pause button')
- before=player.current_position;delay(.5);assert abs(player.current_position-before)<.25
- player.seek_to(3);spin(lambda:abs(player.current_position-3)<.35,'paused seek')
- QTest.mouseClick(player.play_button,Qt.LeftButton);spin(lambda:not player.paused,'resume button')
- QTest.mouseClick(player.favorite_button,Qt.LeftButton);assert keys[0] in player.store.favorites()
- player.hide();before=player.current_position;delay(.7)
- assert player.current_position>before+.3,'Panel hiding stopped music'
- mini=MiniPlayer(player);mini.present();spin(lambda:mini.isVisible(),'native mini')
- QTest.mouseClick(mini.next,Qt.LeftButton);spin(lambda:player.current_key==keys[1] and player.current_position>.2,'mini next')
- assert int(player.process.processId())==mpv_pid,'Mini started duplicate audio player'
- QTest.mouseClick(mini.play,Qt.LeftButton);spin(lambda:player.paused,'mini pause')
- mini.close();player.present();spin(native,'Music reopen')
- QTest.mouseClick(player.play_button,Qt.LeftButton);spin(lambda:not player.paused,'resume for PCM')
+ spin(native,'Music native window');keys=library.all_keys();assert len(keys)==2,keys
+ window.navigate(('collection','all'));player.play_collection(keys,keys[0],'all');spin(lambda:player.position>.4,'Music actual playback')
+ mpv_pid=int(player.engine.process.processId());assert mpv_pid>0
+ QTest.mouseClick(window.bar.play,Qt.LeftButton);spin(lambda:player.paused,'pause button')
+ before=player.position;delay(.5);assert abs(player.position-before)<.25
+ player.seek(3);spin(lambda:abs(player.position-3)<.35,'paused seek')
+ QTest.mouseClick(window.bar.play,Qt.LeftButton);spin(lambda:not player.paused,'resume button')
+ QTest.mouseClick(window.bar.favorite,Qt.LeftButton);assert keys[0] in library.store.favorites()
+ window.hide();before=player.position;delay(.7)
+ assert player.position>before+.3,'Panel hiding stopped music'
+ window.present();spin(native,'Music reopen');window.toggle_panel('now');spin(lambda:window.side.isVisible(),'full player')
+ QTest.mouseClick(window.side.next,Qt.LeftButton);spin(lambda:player.current==keys[1] and player.position>.2,'full player next')
+ assert int(player.engine.process.processId())==mpv_pid,'Full player started duplicate audio player'
+ QTest.mouseClick(window.side.play,Qt.LeftButton);spin(lambda:player.paused,'full player pause')
+ window.toggle_panel(None)
+ QTest.mouseClick(window.bar.play,Qt.LeftButton);spin(lambda:not player.paused,'resume for PCM')
  raw=subprocess.check_output(['ffmpeg','-v','error','-f','pulse','-i',os.environ['PULSE_SINK']+'.monitor',
   '-t','0.6','-ac','1','-ar','48000','-f','s16le','-'],timeout=8)
  samples=array.array('h',raw);assert samples and max(map(abs,samples))>100,'Private sink has no decoded tone'
- player.save_session();saved=player.store.get('session');assert saved['track']==keys[1]
+ player.save();saved=library.store.get('session');assert saved['track']==keys[1]
  inputs=json.loads(subprocess.check_output(['pactl','-f','json','list','sink-inputs'],text=True))
  assert inputs,'No private Pulse playback stream'
- player.shutdown_jobs();player.hide()
- restored=MusicAppWindow()
+ music_app.shutdown();window.hide()
+ restored=build(publish=False)
  try:
-  assert restored.current_key==saved['track']
-  assert keys[0] in restored.store.favorites()
-  assert int(restored.process.processId())==0,'Restoration unexpectedly autoplayed'
- finally:restored.shutdown_jobs();restored.hide()
+  assert restored.player.current==saved['track']
+  assert keys[0] in restored.library.favorites
+  assert not restored.player.engine.running,'Restoration unexpectedly autoplayed'
+ finally:restored.shutdown();restored.window.hide()
  result=dict(result='WYSUN_NATIVE_MUSIC_OK',scope='actual installed classes, native window, Qt button input; no public CLI assertion',
   native_window=True,generated_tracks=2,pause_seek_resume=True,hidden_playback_continues=True,
-  mini_next_pause_same_mpv=True,favorite_and_session_restored=True,restoration_autoplay=False,
+  full_player_next_pause_same_mpv=True,favorite_and_session_restored=True,restoration_autoplay=False,
   private_sink_pcm_peak=max(map(abs,samples)),private_sink_pcm_samples=len(samples))
  (run/'native-music-results.json').write_text(json.dumps(result,indent=2)+'\n')
  print(json.dumps(result),flush=True)
 finally:
- if mini:mini.close()
- player.shutdown_jobs();player.hide()
+ if player.engine.running:player.shutdown()
+ window.hide()
 '''
 
 

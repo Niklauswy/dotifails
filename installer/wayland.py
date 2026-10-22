@@ -83,7 +83,7 @@ def configure(deployment):
     _publish(d, '[preferred]\ndefault=hyprland;gtk;\n'
              'org.freedesktop.impl.portal.ScreenCast=hyprland;\n'
              'org.freedesktop.impl.portal.Screenshot=hyprland;\n'
-             'org.freedesktop.impl.portal.FileChooser=gtk;\n',
+             'org.freedesktop.impl.portal.FileChooser=orbit;gtk;\n',
              '.config/xdg-desktop-portal/wysun-portals.conf')
     for relative in ('.local/share/applications/orbit-music.desktop',
                      '.local/share/icons/hicolor/scalable/apps/musika.svg',

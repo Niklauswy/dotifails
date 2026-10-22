@@ -20,25 +20,29 @@ class LauncherActionsTests(unittest.TestCase):
         source = (ROOT / 'apps/shell/modules/launcher/services/Catalog.js').read_text().replace('.pragma library', '')
         self.run_js(source + """
 function check(v, why) { if (!v) throw Error(why); }
-var session = {logout: ['logout'], hibernate: ['hibernate'], reboot: ['reboot'], shutdown: ['poweroff']};
-var commands = globalThis.tools([], session).map(a => a.argv.join(' '));
-for (var mode of ['files', 'music', 'music-mini', 'notes', 'colors', 'processes', 'tools',
-                  'connections', 'audio', 'notifications', 'calendar', 'recorder', 'screenshot', 'settings'])
+var commands = globalThis.tools([]).map(a => a.argv.join(' '));
+for (var mode of ['files', 'music', 'music-mini', 'colors', 'processes',
+                  'audio', 'notifications', 'calendar', 'recorder', 'settings'])
     check(commands.includes('wysun ' + mode), 'lost utility: ' + mode);
+// Screenshots open in the shell once the launcher has closed.
+check(commands.some(c => c.includes('exec wysun-shell screenshot')), 'lost utility: screenshot');
+for (var gone of ['notes', 'tools', 'connections'])
+    check(!commands.includes('wysun ' + gone), 'removed utility is back: ' + gone);
 var views = globalThis.views();
-for (var view of ['clipboard', 'snippets', 'windows', 'files', 'apps', 'calc-history', 'system'])
+for (var view of ['clipboard', 'files', 'apps', 'calc-history'])
     check(views.some(v => v.view === view), 'lost view: ' + view);
+// Snippets, open windows and power commands are no longer part of the launcher.
+for (var gone of ['snippets', 'windows', 'system'])
+    check(!views.some(v => v.view === gone), 'removed view is back: ' + gone);
+check(typeof globalThis.system === 'undefined', 'power commands are back in the launcher');
 check(views.some(v => v.emoji), 'emoji command lost');
-var power = globalThis.system(session);
-check(power.every(c => c.argv && c.argv.length), 'system command without argv');
-check(power.filter(c => c.confirm).length === 4, 'destructive system commands must ask for confirmation');
 var custom = {name: 'Custom Settings', command: ['wysun', 'settings'], enabled: false};
 var dangerous = {name: 'Danger', command: ['poweroff-now'], enabled: true, dangerous: true};
 var invalid = {name: 'Random', command: ['wysun', 'wallpaper', '-r'], enabled: true};
 var legacy = {name: 'Scheme', command: ['autocomplete', 'scheme'], enabled: true};
-var duplicate = {name: 'Shutdown', command: ['poweroff'], enabled: true};
+var duplicate = {name: 'Shutdown', command: ['wysun', 'settings'], enabled: true};
 var original = JSON.stringify([custom, dangerous, invalid, legacy, duplicate]);
-var items = globalThis.tools([custom, dangerous, invalid, legacy, duplicate], session);
+var items = globalThis.tools([custom, dangerous, invalid, legacy, duplicate]);
 check(!items.some(a => a.title === 'Custom Settings'), 'disabled user action re-added');
 check(items.find(a => a.title === 'Danger').confirm === true, 'dangerous action must be confirmed');
 check(!items.some(a => a.argv.join(' ') === 'wysun wallpaper -r'), 'obsolete argv retained');

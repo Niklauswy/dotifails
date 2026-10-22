@@ -282,12 +282,8 @@ def section_label(text):
 class MaterialSurface(Surface):
     """Compact app bar plus a domain workspace, keeping the native lifecycle."""
 
-    ICONS = {'Wysun Notes': 'notes', 'Wysun Colors': 'palette',
-             'Wysun Processes': 'processes', 'Wysun Power': 'power',
-             'Wysun Tools': 'tools'}
-    TITLES = {'Wysun Notes': 'Wysun Notas', 'Wysun Colors': 'Wysun Colores',
-              'Wysun Processes': 'Wysun Procesos', 'Wysun Power': 'Wysun Energía',
-              'Wysun Tools': 'Wysun Herramientas'}
+    ICONS = {'Wysun Colors': 'palette', 'Wysun Processes': 'processes', 'Wysun Power': 'power'}
+    TITLES = {'Wysun Colors': 'Wysun Colores', 'Wysun Processes': 'Wysun Procesos', 'Wysun Power': 'Wysun Energía'}
 
     def __init__(self, title, subtitle='', width=760, height=530, parent=None):
         title = self.TITLES.get(title, title)

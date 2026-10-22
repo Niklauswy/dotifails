@@ -33,6 +33,8 @@ Item {
     property ShaderEffectSource currentCapture: capture1
     property real transitionProgress: 1
     property bool completed
+    readonly property var motion: TokenConfig.appearance.wallpaperMotion
+    readonly property bool cinematicZoom: shader.url.toString() === Shaders.zoomBlurPull.url.toString()
 
     onSourceChanged: {
         transitionAnim.stop();
@@ -123,7 +125,7 @@ Item {
         id: transitionAnim
 
         running: false
-        duration: root.shader.duration * Tokens.anim.durations.scale
+        duration: (root.cinematicZoom ? root.motion.duration : root.shader.duration) * Tokens.anim.durations.scale
         easing: root.shader.easing
         to: 1
     }
@@ -178,6 +180,11 @@ Item {
         property Item from
         property Item to: live
         property real progress: root.transitionProgress
+        property real outgoingZoom: root.motion.outgoingZoom
+        property real incomingZoom: root.motion.incomingZoom
+        property real blurStrength: root.motion.blurStrength
+        property real revealStart: root.motion.revealStart
+        property real revealEnd: root.motion.revealEnd
 
         anchors.fill: parent
         visible: root.transitionProgress < 1

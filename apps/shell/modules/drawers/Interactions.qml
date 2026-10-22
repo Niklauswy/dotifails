@@ -4,6 +4,7 @@ import Quickshell
 import Wysun.Config
 import qs.components
 import qs.components.controls
+import qs.services
 import qs.modules.bar as Bar
 import qs.modules.bar.popouts as BarPopouts
 
@@ -22,6 +23,7 @@ CustomMouseArea {
     property bool dashboardShortcutActive
     property bool osdShortcutActive
     property bool utilitiesShortcutActive
+    property bool aiUsageShortcutActive
 
     function withinPanelHeight(panel: Item, x: real, y: real): bool {
         const panelY = root.borderThickness + panel.y;
@@ -78,6 +80,9 @@ CustomMouseArea {
             if (!utilitiesShortcutActive)
                 screenState.utilities = false;
 
+            if (!aiUsageShortcutActive)
+                screenState.aiUsage = false;
+
             if (!popouts.currentName.startsWith("traymenu") || ((popouts.current as StackView)?.depth ?? 0) <= 1) {
                 popouts.hasCurrent = false;
                 bar.closeTray();
@@ -92,7 +97,7 @@ CustomMouseArea {
     }
 
     onPositionChanged: event => {
-        if (popouts.isDetached)
+        if (popouts.isDetached || ShellState.capturing)
             return;
 
         const x = event.x;
@@ -215,6 +220,17 @@ CustomMouseArea {
                 screenState.dashboard = false;
         }
 
+        // Show the AI usage panel from the top-right corner; keep it while hovered
+        const zone = Tokens.sizes.aiUsage.hoverZone;
+        const inAiCorner = x > width - zone && y < zone;
+        const showAiUsage = inAiCorner || (screenState.aiUsage && inTopPanel(panels.aiUsage, x, y));
+
+        if (!aiUsageShortcutActive) {
+            screenState.aiUsage = showAiUsage;
+        } else if (showAiUsage) {
+            aiUsageShortcutActive = false;
+        }
+
         // Show utilities on hover
         const showUtilities = inBottomPanel(panels.utilities, x, y, true);
 
@@ -281,6 +297,16 @@ CustomMouseArea {
             } else {
                 // OSD hidden, clear shortcut flag
                 root.osdShortcutActive = false;
+            }
+        }
+
+        function onAiUsageChanged() {
+            if (root.screenState.aiUsage) {
+                const inAiArea = root.inTopPanel(root.panels.aiUsage, root.mouseX, root.mouseY);
+                if (!inAiArea)
+                    root.aiUsageShortcutActive = true;
+            } else {
+                root.aiUsageShortcutActive = false;
             }
         }
 

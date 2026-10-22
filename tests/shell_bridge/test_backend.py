@@ -13,15 +13,6 @@ spec=importlib.util.spec_from_file_location('wysun_cael_backend',SOURCE)
 backend=importlib.util.module_from_spec(spec);spec.loader.exec_module(backend)
 
 class AdapterTests(unittest.TestCase):
-    def test_dunst_history_keeps_real_ids_and_disables_unavailable_actions(self):
-        row={k:{'data':v} for k,v in {'id':9,'summary':'Fixture','body':'Texto','urgency':'CRITICAL','appname':'Correo'}.items()}
-        with patch.object(backend,'run',return_value=json.dumps({'data':[[row]]})):
-            result=backend.history()
-        self.assertEqual(result[0]['notificationId'],'9')
-        self.assertEqual(result[0]['urgency'],2)
-        self.assertEqual(result[0]['actions'],[])
-        self.assertFalse(result[0]['popup'])
-
     def test_apps_do_not_inherit_parallel_qt_environment(self):
         with patch.dict(os.environ,{'LD_LIBRARY_PATH':'sdk','QML_IMPORT_PATH':'sdk','QT_PLUGIN_PATH':'sdk','DISPLAY':':91'}):
             env=backend.environment()
@@ -30,7 +21,7 @@ class AdapterTests(unittest.TestCase):
         self.assertEqual(env['DISPLAY'],':91')
 
     def test_invalid_actions_and_ids_never_dispatch(self):
-        for argv in [('launch','sh'),('dismiss','9;touch /tmp/no')]:
+        for argv in [('launch','sh'),('history',),('dnd',)]:
             result=subprocess.run(['/usr/bin/python3',str(SOURCE),*argv],capture_output=True)
             self.assertEqual(result.returncode,2)
 

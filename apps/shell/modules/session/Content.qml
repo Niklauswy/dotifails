@@ -19,34 +19,35 @@ Column {
     rightPadding: CUtils.clamp(padding - Config.border.thickness, 0, padding)
     spacing: Tokens.spacing.large
 
-    SessionButton {
-        id: logout
-
-        icon: Config.session.icons.logout
-        command: Config.session.commands.logout
-
-        KeyNavigation.down: shutdown
-
-        Component.onCompleted: forceActiveFocus()
-
-        Connections {
-            function onLauncherChanged(): void {
-                if (!root.screenState.launcher)
-                    logout.forceActiveFocus();
-            }
-
-            target: root.screenState
-        }
-    }
-
+    // Power, lock, restart and suspend: no logout or hibernate. Focus starts on the safest one.
     SessionButton {
         id: shutdown
 
         icon: Config.session.icons.shutdown
         command: Config.session.commands.shutdown
 
-        KeyNavigation.up: logout
-        KeyNavigation.down: hibernate
+        KeyNavigation.down: lock
+    }
+
+    SessionButton {
+        id: lock
+
+        icon: "lock"
+        command: ["wysun-lock"]
+
+        KeyNavigation.up: shutdown
+        KeyNavigation.down: reboot
+
+        Component.onCompleted: forceActiveFocus()
+
+        Connections {
+            function onLauncherChanged(): void {
+                if (!root.screenState.launcher)
+                    lock.forceActiveFocus();
+            }
+
+            target: root.screenState
+        }
     }
 
     AnimatedImage {
@@ -56,19 +57,10 @@ Column {
 
         playing: visible
         asynchronous: true
-        speed: Config.general.sessionGifSpeed
-        source: Paths.absolutePath(Config.paths.sessionGif)
+        speed: 1
+        // Original sprout mascot with a 22 s story (waves, naps, wakes up).
+        source: Paths.absolutePath("root:/assets/mascot-session.gif")
         fillMode: AnimatedImage.PreserveAspectFit
-    }
-
-    SessionButton {
-        id: hibernate
-
-        icon: Config.session.icons.hibernate
-        command: Config.session.commands.hibernate
-
-        KeyNavigation.up: shutdown
-        KeyNavigation.down: reboot
     }
 
     SessionButton {
@@ -77,7 +69,17 @@ Column {
         icon: Config.session.icons.reboot
         command: Config.session.commands.reboot
 
-        KeyNavigation.up: hibernate
+        KeyNavigation.up: lock
+        KeyNavigation.down: suspend
+    }
+
+    SessionButton {
+        id: suspend
+
+        icon: "bedtime"
+        command: ["systemctl", "suspend"]
+
+        KeyNavigation.up: reboot
     }
 
     component SessionButton: IconButton {

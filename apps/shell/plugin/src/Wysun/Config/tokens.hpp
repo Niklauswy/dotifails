@@ -93,6 +93,18 @@ class AnimDurationTokens : public settings::ObjectNode {
     CONFIG_GLOBAL_PROPERTY(int, expressiveSlowEffects, 300)
 };
 
+// Wallpapers need their own rhythm, independent of control/panel animations.
+class WallpaperMotionTokens : public settings::ObjectNode {
+    CONFIG_NODE(WallpaperMotionTokens, settings::ObjectNode)
+
+    CONFIG_GLOBAL_PROPERTY(int, duration, 1400)
+    CONFIG_GLOBAL_PROPERTY(qreal, outgoingZoom, 1.08)
+    CONFIG_GLOBAL_PROPERTY(qreal, incomingZoom, 1.055)
+    CONFIG_GLOBAL_PROPERTY(qreal, blurStrength, 0.018)
+    CONFIG_GLOBAL_PROPERTY(qreal, revealStart, 0.16)
+    CONFIG_GLOBAL_PROPERTY(qreal, revealEnd, 0.82)
+};
+
 class AppearanceTokens : public settings::ObjectNode {
     CONFIG_NODE(AppearanceTokens, settings::ObjectNode)
 
@@ -102,6 +114,7 @@ class AppearanceTokens : public settings::ObjectNode {
     CONFIG_SUBOBJECT(PaddingTokens, padding)
     CONFIG_SUBOBJECT(FontSizeTokens, fontSize)
     CONFIG_SUBOBJECT(AnimDurationTokens, animDurations)
+    CONFIG_SUBOBJECT(WallpaperMotionTokens, wallpaperMotion)
 };
 
 class BarTokens : public settings::ObjectNode {
@@ -181,6 +194,48 @@ class SidebarTokens : public settings::ObjectNode {
     CONFIG_PROPERTY(int, width, 430)
 };
 
+class AiUsageTokens : public settings::ObjectNode {
+    CONFIG_NODE(AiUsageTokens, settings::ObjectNode)
+
+    CONFIG_PROPERTY(int, width, 580)
+    CONFIG_PROPERTY(int, hoverZone, 24)
+    CONFIG_PROPERTY(int, limitBarHeight, 22)
+    CONFIG_PROPERTY(int, hatchSpacing, 6)
+    CONFIG_PROPERTY(int, chartHeight, 150)
+    CONFIG_PROPERTY(int, chartLineWidth, 2)
+    CONFIG_PROPERTY(int, modelBarHeight, 4)
+    CONFIG_PROPERTY(int, typeBarHeight, 6)
+    CONFIG_PROPERTY(int, maxModels, 7)
+    CONFIG_PROPERTY(int, refreshInterval, 60000)
+    // Limits are still checked while the panel is closed, for low-limit notifications.
+    CONFIG_PROPERTY(int, backgroundInterval, 300000)
+    // Remaining percent at or below which a limit notifies once per window.
+    CONFIG_PROPERTY(int, alertThreshold, 10)
+    CONFIG_PROPERTY(int, maxProjects, 6)
+    CONFIG_PROPERTY(int, barIndicatorSize, 22)
+};
+
+// Screenshot picker: a node hanging from strings tied to the output corners.
+class ScreenshotTokens : public settings::ObjectNode {
+    CONFIG_NODE(ScreenshotTokens, settings::ObjectNode)
+
+    CONFIG_PROPERTY(int, nodeSize, 30)
+    CONFIG_PROPERTY(int, stringWidth, 4)
+    CONFIG_PROPERTY(int, outlineWidth, 3)
+    CONFIG_PROPERTY(int, handleHitSize, 36)
+    CONFIG_PROPERTY(int, minSelection, 6)
+    CONFIG_PROPERTY(qreal, dimOpacity, 0.6)
+    // Nodes follow the pointer on a stiff spring; the string bends on a looser one.
+    CONFIG_PROPERTY(qreal, nodeSpring, 6.5)
+    CONFIG_PROPERTY(qreal, nodeDamping, 0.42)
+    CONFIG_PROPERTY(qreal, stringSpring, 2.6)
+    CONFIG_PROPERTY(qreal, stringDamping, 0.18)
+    CONFIG_PROPERTY(qreal, stringSag, 0.55)
+    CONFIG_PROPERTY(int, toolbarGap, 14)
+    CONFIG_PROPERTY(int, ocrWidth, 420)
+    CONFIG_PROPERTY(int, ocrHeight, 260)
+};
+
 class UtilitiesTokens : public settings::ObjectNode {
     CONFIG_NODE(UtilitiesTokens, settings::ObjectNode)
 
@@ -242,6 +297,8 @@ class SizeTokens : public settings::ObjectNode {
     CONFIG_SUBOBJECT(SessionTokens, session)
     CONFIG_SUBOBJECT(SidebarTokens, sidebar)
     CONFIG_SUBOBJECT(UtilitiesTokens, utilities)
+    CONFIG_SUBOBJECT(AiUsageTokens, aiUsage)
+    CONFIG_SUBOBJECT(ScreenshotTokens, screenshot)
     CONFIG_SUBOBJECT(LockTokens, lock)
     CONFIG_SUBOBJECT(WInfoTokens, winfo)
     CONFIG_SUBOBJECT(NexusTokens, nexus)

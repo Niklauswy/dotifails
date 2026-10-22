@@ -44,7 +44,7 @@ run('/usr/bin/python3',str(source_path/'installer/main.py'),'install','--source'
 check()
 assert Path('/usr/share/wayland-sessions/wysun-hyprland.desktop').is_file()
 run('wysun','session-check')
-run('wysun','recorder','--version');run('wysun','screenshot','--version')
+run('wysun','recorder','--version')
 run('/usr/bin/python3',str(source_path/'installer/main.py'),'install','--source',str(source_path),'--components','wayland','--config-only')
 check()
 receipt=json.loads((home/'.local/state/dotifails/installed.json').read_text())

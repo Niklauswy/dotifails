@@ -21,8 +21,10 @@ StyledRect {
     readonly property list<var> notifs: Notifs.list.filter(n => n.appName === modelData)
     readonly property list<var> activeNotifs: notifs.filter(n => !n.closed)
     readonly property int notifCount: activeNotifs.length
-    readonly property string image: activeNotifs.find(n => n.image.length > 0)?.image ?? ""
+    readonly property string image: Icons.usableImage(activeNotifs.find(n => n.image.length > 0)?.image ?? "")
     readonly property string appIcon: activeNotifs.find(n => n.appIcon.length > 0)?.appIcon ?? ""
+    readonly property string iconFile: Icons.appIconPath(appIcon, modelData, null)
+    readonly property bool hasThemeIcon: iconFile.length > 0
     readonly property int urgency: {
         if (activeNotifs.find(n => n.urgency === NotificationUrgency.Critical))
             return NotificationUrgency.Critical;
@@ -101,9 +103,9 @@ StyledRect {
 
                 ColouredIcon {
                     implicitSize: Math.round(TokenConfig.sizes.notifs.image * 0.6)
-                    source: Quickshell.iconPath(root.appIcon)
-                    colour: root.urgency === NotificationUrgency.Critical ? Colours.palette.m3onError : root.urgency === NotificationUrgency.Low ? Colours.palette.m3onSurface : Colours.palette.m3onSecondaryContainer
-                    layer.enabled: root.appIcon.endsWith("symbolic")
+                    source: root.iconFile
+                    colour: root.urgency === NotificationUrgency.Critical ? Colours.palette.m3onError : root.urgency === NotificationUrgency.Low ? Colours.palette.m3onSurface : Colours.palette.m3onPrimaryContainer
+                    layer.enabled: root.iconFile.includes("symbolic")
                 }
             }
 
@@ -111,22 +113,22 @@ StyledRect {
                 id: materialIconComp
 
                 MaterialIcon {
-                    text: Icons.getNotifIcon(root.activeNotifs[0]?.summary, root.urgency)
-                    color: root.urgency === NotificationUrgency.Critical ? Colours.palette.m3onError : root.urgency === NotificationUrgency.Low ? Colours.palette.m3onSurface : Colours.palette.m3onSecondaryContainer
+                    text: Icons.notifSymbol(root.appIcon, root.modelData, root.activeNotifs[0]?.summary ?? "", root.urgency)
+                    color: root.urgency === NotificationUrgency.Critical ? Colours.palette.m3onError : root.urgency === NotificationUrgency.Low ? Colours.palette.m3onSurface : Colours.palette.m3onPrimaryContainer
                     fontStyle: Tokens.font.icon.medium
                 }
             }
 
             ClipRect {
                 anchors.fill: parent
-                color: root.urgency === NotificationUrgency.Critical ? Colours.palette.m3error : root.urgency === NotificationUrgency.Low ? Colours.layer(Colours.palette.m3surfaceContainerHigh, 3) : Colours.palette.m3secondaryContainer
-                radius: Tokens.rounding.full
+                color: root.urgency === NotificationUrgency.Critical ? Colours.palette.m3error : root.urgency === NotificationUrgency.Low ? Colours.layer(Colours.palette.m3surfaceContainerHigh, 3) : Colours.palette.m3primaryContainer
+                radius: Tokens.rounding.largeIncreased
 
                 Loader {
                     asynchronous: true
                     anchors.centerIn: parent
                     anchors.verticalCenterOffset: sourceComponent === materialIconComp ? 1 : 0
-                    sourceComponent: root.image ? imageComp : root.appIcon ? appIconComp : materialIconComp
+                    sourceComponent: root.image ? imageComp : root.hasThemeIcon ? appIconComp : materialIconComp
                 }
             }
 
@@ -134,7 +136,7 @@ StyledRect {
                 asynchronous: true
                 anchors.right: parent.right
                 anchors.bottom: parent.bottom
-                active: root.appIcon && root.image
+                active: root.hasThemeIcon && root.image
 
                 sourceComponent: StyledRect {
                     implicitWidth: Tokens.sizes.notifs.badge
@@ -146,9 +148,9 @@ StyledRect {
                     ColouredIcon {
                         anchors.centerIn: parent
                         implicitSize: Math.round(Tokens.sizes.notifs.badge * 0.6)
-                        source: Quickshell.iconPath(root.appIcon)
-                        colour: root.urgency === NotificationUrgency.Critical ? Colours.palette.m3onError : root.urgency === NotificationUrgency.Low ? Colours.palette.m3onSurface : Colours.palette.m3onSecondaryContainer
-                        layer.enabled: root.appIcon.endsWith("symbolic")
+                        source: root.iconFile
+                        colour: root.urgency === NotificationUrgency.Critical ? Colours.palette.m3onError : root.urgency === NotificationUrgency.Low ? Colours.palette.m3onSurface : Colours.palette.m3onPrimaryContainer
+                        layer.enabled: root.iconFile.includes("symbolic")
                     }
                 }
             }

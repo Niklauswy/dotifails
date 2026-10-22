@@ -120,7 +120,9 @@ function evaluate(query) {
     let q = query.trim().toLowerCase().replace(/×/g, "*").replace(/÷/g, "/").replace(/−/g, "-");
     if (!q || q.length > 160)
         return null;
-    q = q.replace(/(?<=[\d)])\s*x\s*(?=[\d(])/g, "*").replace(/(?<=\d),(?=\d)/g, ".");
+    // No lookbehind: QML's JavaScript engine does not support it, so the preceding character
+    // is captured and put back ("2x2x2" -> "2*2*2", "1,5" -> "1.5").
+    q = q.replace(/([\d)])\s*x\s*(?=[\d(])/g, "$1*").replace(/(\d),(?=\d)/g, "$1.");
 
     const conv = q.match(/^([-+]?\d+(?:\.\d+)?)\s*([a-z°]+)\s+(?:to|in|a|en)\s+([a-z°]+)$/);
     if (conv) {

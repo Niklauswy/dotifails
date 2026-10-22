@@ -6,25 +6,35 @@ import Wysun.Config
 import qs.services
 import qs.utils
 import qs.modules.nexus
+import qs.modules.colors
 import qs.modules.processes
 
 Scope {
     id: root
     readonly property var surfaces: ({ dashboard: 'dashboard', test: 'dashboard', windows: 'dashboard',
-        overview: 'overview', cheatsheet: 'cheatsheet', wallpapers: 'wallpapers', launcher: 'launcher', emoji: 'emoji', menu: 'utilities', quicksettings: 'utilities', notifications: 'sidebar', sidebar: 'sidebar', session: 'session' })
+        overview: 'overview', cheatsheet: 'cheatsheet', wallpapers: 'wallpapers', launcher: 'launcher', emoji: 'emoji', menu: 'utilities', quicksettings: 'utilities', notifications: 'sidebar', sidebar: 'sidebar', session: 'session', ai: 'aiUsage' })
     Processes { id: processes }
+    Colors { id: colors }
     function current() { return ShellState.forActive(); }
     function available(kind, state) {
         return kind !== 'launcher' || Config.launcher.enabled;
     }
     function close() {
         processes.close();
+        colors.close();
         for (const screen of Quickshell.screens) {
             const state = ShellState.forScreen(screen);
             if (state) for (const name of Object.values(surfaces)) state[name] = false;
         }
     }
     function show(kind, toggle) {
+        if (kind === "colors") {
+            for (const screen of Quickshell.screens) {
+                const state = ShellState.forScreen(screen);
+                if (state) for (const name of Object.values(surfaces)) state[name] = false;
+            }
+            return colors.open(toggle);
+        }
         if (kind === "processes") return processes.open(toggle);
         const state = current(), field = surfaces[kind];
         if (!state || !field || !available(kind, state)) return false;
@@ -39,6 +49,38 @@ Scope {
         if (kind === 'launcher' && value) state.launcherCategory = 'all';
         if (kind === 'windows') state.dashboardTab = 3;
         return true;
+    }
+    // Media tab of the dashboard with one player chosen (e.g. Wysun Music from its shortcut).
+    // A player that is still starting registers on MPRIS a moment later: keep trying briefly.
+    property string pendingPlayer: ''
+    function playerNamed(identity) {
+        return Players.list.find(p => p.identity === identity || Players.getIdentity(p) === identity) ?? null;
+    }
+    function showMedia(identity) {
+        const state = current();
+        if (!state || !Config.dashboard.showMedia) return false;
+        const tab = Config.dashboard.showDashboard ? 1 : 0;
+        if (state.dashboard && state.dashboardTab === tab) {  // the shortcut again closes it
+            state.dashboard = false;
+            return true;
+        }
+        const player = identity ? playerNamed(identity) : null;
+        if (player) Players.manualActive = player;
+        pendingPlayer = identity && !player ? identity : '';
+        if (pendingPlayer) pendingTimer.restart();
+        close(); state.dashboardTab = tab; state.dashboard = true; state.dashboardKeyboard = true;
+        return true;
+    }
+    Timer {
+        id: pendingTimer
+        interval: 250
+        repeat: true
+        property int tries: 0
+        onTriggered: {
+            const player = root.pendingPlayer ? root.playerNamed(root.pendingPlayer) : null;
+            if (player) Players.manualActive = player;
+            if (player || !root.pendingPlayer || ++tries > 24) { root.pendingPlayer = ''; tries = 0; stop(); }
+        }
     }
     // Diagnostic: open a surface on a named output (e.g. when the focused one has a fullscreen app).
     function showOn(name, kind) {
@@ -56,7 +98,7 @@ Scope {
         function open(surface: string): bool { return root.show(surface, false); }
         function openOn(output: string, surface: string): bool { return root.showOn(output, surface); }
         function category(mode: string): bool {
-            if (!["all", "apps", "files", "clip", "snippets", "calc", "windows", "commands"].includes(mode)) return false;
+            if (!["all", "apps", "files", "clip", "calc"].includes(mode)) return false;
             if (!root.show('launcher', false)) return false;
             root.current().launcherCategory = mode;
             return true;
@@ -72,6 +114,9 @@ Scope {
             if (direction === 'up') Brightness.increaseBrightness(); else if (direction === 'down') Brightness.decreaseBrightness(); else return false;
             return true;
         }
+        function media(identity: string): bool { return root.showMedia(identity); }
+        // Eyedropper without the Colors panel (Super+Shift+C).
+        function pickColor(): bool { return colors.pick(); }
         function close(): void { root.close(); }
         function reloadPreferences(): void { environment.reload(); }
         // Preserve legacy process routes while opening the independent module.
@@ -82,7 +127,7 @@ Scope {
             const state = root.current();
             return JSON.stringify({ implementation: 'wysun', revision: '6c70d5cb',
                 screens: Quickshell.screens.map(s => s.name), focused: Hypr.focusedMonitor?.name ?? '',
-                open: (state ? Object.keys(root.surfaces).filter(k => state[root.surfaces[k]]) : []).concat(processes.window ? ['processes'] : []),
+                open: (state ? Object.keys(root.surfaces).filter(k => state[root.surfaces[k]]) : []).concat(processes.window ? ['processes'] : [], colors.window ? ['colors'] : []),
                 scheme: Colours.scheme });
         }
     }

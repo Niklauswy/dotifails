@@ -9,7 +9,8 @@ import qs.components
 import qs.components.containers
 import qs.services
 
-// Raycast-style launcher: one floating panel in the upper third of the focused screen.
+// Raycast-style launcher in Material 3 Expressive: one floating panel in the upper
+// third of the focused screen that springs open and settles.
 Scope {
     id: root
 
@@ -26,13 +27,13 @@ Scope {
             required property ShellScreen modelData
             readonly property ScreenState state: ShellState.forScreen(modelData)
             readonly property bool active: state.launcher && Config.launcher.enabled
+            // 0 → 1 on open with an expressive spring (it overshoots slightly), a quick fade on close.
             property real reveal: active ? 1 : 0
-            readonly property real pad: 40
+            readonly property real pad: 48
 
             Behavior on reveal {
-                NumberAnimation {
-                    duration: Tokens.anim.durations.small * 0.9
-                                        easing: Tokens.anim.standard
+                Anim {
+                    type: win.active ? Anim.DefaultSpatial : Anim.FastEffects
                 }
             }
 
@@ -41,7 +42,7 @@ Scope {
             screen: modelData
             visible: active || reveal > 0.001
             anchors.top: true
-            margins.top: Math.max(8, modelData.height * 0.13 - pad)
+            margins.top: Math.max(8, modelData.height * 0.12 - pad)
             implicitWidth: panel.panelWidth + pad * 2
             implicitHeight: panel.panelHeight + pad * 2
             exclusionMode: ExclusionMode.Ignore

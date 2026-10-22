@@ -13,7 +13,7 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SCANNED = ['apps/wysun', 'apps/capture/loomrec/ui', 'apps/capture/wybieshot/ui', 'apps/shell/wysun', 'installer', 'bin']
+SCANNED = ['apps/wysun', 'apps/capture/loomrec/ui', 'apps/shell/wysun', 'installer', 'bin']
 SUFFIXES = {'.py', '.qml', '.js'}
 # path -> justification. These files never render themed UI.
 FILE_EXCEPTIONS = {
