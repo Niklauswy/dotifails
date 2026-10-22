@@ -95,6 +95,12 @@ Singleton {
         return Hyprland.monitorFor(screen);
     }
 
+    // True when the workspace shown on this screen holds a fullscreen window.
+    function fullscreenOn(screen: string): bool {
+        const monitor = monitors.values.find(m => m.name === screen);
+        return monitor?.activeWorkspace?.lastIpcObject?.hasfullscreen ?? false;
+    }
+
     function trimWsName(name: string): string {
         return name.startsWith("special:") ? name.slice("special:".length) : name;
     }
@@ -137,7 +143,10 @@ Singleton {
                 Hyprland.refreshMonitors();
             } else if (n.includes("workspace")) {
                 Hyprland.refreshWorkspaces();
-            } else if (n.includes("window") || n.includes("group") || ["pin", "fullscreen", "changefloatingmode", "minimize"].includes(n)) {
+            } else if (n === "fullscreen") {
+                Hyprland.refreshToplevels();
+                Hyprland.refreshWorkspaces();
+            } else if (n.includes("window") || n.includes("group") || ["pin", "changefloatingmode", "minimize"].includes(n)) {
                 Hyprland.refreshToplevels();
             }
         }

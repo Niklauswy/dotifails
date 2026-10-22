@@ -391,11 +391,8 @@ def automatic_variant(image):
 
 
 def _file_hash(path):
-    digest = hashlib.sha256()
-    with Path(path).open('rb') as stream:
-        for chunk in iter(lambda: stream.read(1024 * 1024), b''):
-            digest.update(chunk)
-    return digest.hexdigest()
+    import wallpaper_media
+    return wallpaper_media.content_hash(path)
 
 
 def generate_dynamic(image_path, mode=None, variant=None):
@@ -406,7 +403,10 @@ def generate_dynamic(image_path, mode=None, variant=None):
     if variant is not None and variant not in VARIANTS:
         raise ValueError('Variante Material desconocida: ' + str(variant))
     try:
-        with Image.open(image_path) as source:
+        import wallpaper_media
+        # Video/GIF wallpapers: the colours come from one representative frame.
+        still = wallpaper_media.scheme_frame(image_path)
+        with Image.open(still) as source:
             image = source.convert('RGB')
             image.thumbnail((128, 128), Image.Resampling.NEAREST)
             pixels = list(image.getdata())
@@ -657,9 +657,13 @@ def set_wallpaper(path, home=None, runner=None, mode=None):
     path = Path(path).expanduser().resolve()
     if not path.is_file():
         raise ValueError('El fondo no existe: ' + str(path))
+    import wallpaper_media
     try:
-        with Image.open(path) as image:
-            image.verify()
+        if wallpaper_media.is_animated(path):
+            wallpaper_media.validate_animated(path)
+        else:
+            with Image.open(path) as image:
+                image.verify()
     except (OSError, ValueError, Image.DecompressionBombError) as error:
         raise ValueError('No se pudo leer el fondo seleccionado.') from error
     environment = EnvironmentSettings(home)
@@ -695,9 +699,15 @@ def wallpaper_main(argv=None):
     parser = argparse.ArgumentParser(prog='wysun wallpaper', description='Fondo de escritorio de Wysun')
     subparsers = parser.add_subparsers(dest='action', required=True)
     command = subparsers.add_parser('set', help='guardar el fondo global y actualizar el color dinámico')
-    command.add_argument('path', help='imagen PNG, JPEG, WebP o BMP')
+    command.add_argument('path', help='imagen PNG, JPEG, WebP o BMP, o vídeo MP4, WebM, MKV o GIF')
     command.add_argument('--mode', choices=('fill', 'fit', 'stretch', 'center'), help='ajuste de la imagen')
+    listing = subparsers.add_parser('list', help='listar fondos (JSON) de las carpetas indicadas')
+    listing.add_argument('directories', nargs='*')
+    subparsers.add_parser('thumbs', help='generar miniaturas: lee rutas por stdin y escribe "ruta<TAB>miniatura"')
     args = parser.parse_args(argv)
+    if args.action in ('list', 'thumbs'):
+        import wallpaper_media
+        return wallpaper_media.main([args.action, *getattr(args, 'directories', [])] if args.action == 'list' else ['serve'])
     try:
         print(set_wallpaper(args.path, mode=args.mode))
     except (OSError, ValueError, RuntimeError) as error:

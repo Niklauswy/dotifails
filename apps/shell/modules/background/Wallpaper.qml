@@ -28,7 +28,8 @@ Item {
         return Shaders[transition] ?? Shaders.crossfade;
     }
 
-    property string source: Wallpapers.forOutput((QsWindow.window as QsWindow)?.screen?.name || "")
+    readonly property string screenName: (QsWindow.window as QsWindow)?.screen?.name || ""
+    property string source: Wallpapers.forOutput(screenName)
     property ShaderEffectSource currentCapture: capture1
     property real transitionProgress: 1
     property bool completed
@@ -157,11 +158,11 @@ Item {
         }
     }
 
-    Visual {
+    WallpaperVisual {
         id: live
 
         anchors.fill: parent
-        playing: PersistentState.wallpaperPlaying
+        playing: PersistentState.wallpaperPlaying && !Wallpapers.suspendedOn(root.screenName)
         animate: false
         layer.enabled: true
 

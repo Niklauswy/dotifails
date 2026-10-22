@@ -5,6 +5,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import Quickshell.Services.UPower
 import Wysun.Config
 import Wysun.Models
 import qs.services
@@ -16,6 +17,18 @@ Searcher {
     readonly property string currentNamePath: `${Paths.state}/wallpaper/path.txt`
     readonly property list<string> smartArg: GlobalConfig.services.smartScheme ? [] : ["--no-smart"]
     readonly property string fallback: Quickshell.shellPath("assets/wallpaper.webp")
+
+    // Animated wallpapers stop below this charge while on battery, and under a fullscreen window.
+    readonly property real lowBatteryLevel: 0.3
+    readonly property bool lowBattery: UPower.displayDevice.ready && UPower.onBattery && UPower.displayDevice.percentage <= lowBatteryLevel
+
+    function isAnimated(path: string): bool {
+        return /\.(mp4|webm|mkv|mov|gif)$/i.test(path);
+    }
+
+    function suspendedOn(screen: string): bool {
+        return lowBattery || Hypr.fullscreenOn(screen);
+    }
 
     property var wysunWallpaper: ({})
     function forOutput(name: string): string {

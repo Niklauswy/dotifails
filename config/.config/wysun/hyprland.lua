@@ -79,6 +79,7 @@ hl.bind("SUPER + bracketright", hl.dsp.focus({workspace="+1"}), {description="Wy
 hl.bind("SUPER + grave", hl.dsp.focus({last=true}), {description="Wysun | equivalent | Enfocar última ventana"})
 hl.bind("SUPER + Tab", hl.dsp.exec_cmd("wysun shell overview"), {description="Wysun | overview | Window overview"})
 hl.bind("SUPER + slash", hl.dsp.exec_cmd("wysun cheatsheet"), {description="Wysun | cheatsheet | Keyboard shortcut cheat sheet"})
+hl.bind("SUPER + SHIFT + W", hl.dsp.exec_cmd("wysun shell wallpapers"), {description="Wysun | Shell | Wallpaper carousel"})
 hl.bind("SUPER + O", hl.dsp.exec_cmd("wysun-wm history-older"), {description="Wysun | adapted | Recorrer historial anterior en snapshot nativo validado por address/PID"})
 hl.bind("SUPER + I", hl.dsp.exec_cmd("wysun-wm history-newer"), {description="Wysun | adapted | Recorrer historial siguiente del snapshot nativo"})
 hl.bind("SUPER + CTRL + Y", hl.dsp.exec_cmd("wysun-wm pin"), {description="Wysun | adapted | Sticky/pin nativo requiere ventana flotante; se explica si no lo es"})

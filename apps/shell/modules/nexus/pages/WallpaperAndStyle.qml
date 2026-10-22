@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Layouts
+import Quickshell
 import Wysun.Components
 import Wysun.Config
 import Wysun.I18n
@@ -156,6 +157,19 @@ PageBase {
                 verticalPadding: Tokens.padding.medium
                 disabled: !Config.background.wallpaperEnabled
                 onClicked: root.nState.openSubPage(1) // Wallpaper page
+            }
+
+            IconTextButton {
+                icon: "view_carousel"
+                text: Tr.tr("Carousel")
+                font: Tokens.font.body.large
+                isRound: true
+                shapeMorph: true
+                type: IconTextButton.Tonal
+                horizontalPadding: Tokens.padding.extraLarge
+                verticalPadding: Tokens.padding.medium
+                disabled: !Config.background.wallpaperEnabled
+                onClicked: Quickshell.execDetached(["wysun", "shell", "wallpapers"])
             }
 
             IconTextButton {

@@ -293,8 +293,12 @@ class EnvironmentSettings:
             if changed_wallpaper:
                 path = Path(wallpaper).expanduser()
                 from PIL import Image
-                with Image.open(path) as image:
-                    image.verify()
+                import wallpaper_media
+                if wallpaper_media.is_animated(path):
+                    wallpaper_media.validate_animated(path)
+                else:
+                    with Image.open(path) as image:
+                        image.verify()
                 draft = copy.deepcopy(old_wallpaper)
                 draft['default'] = str(path)
                 # Save and render once; set_scheme below handles generation.
@@ -632,6 +636,7 @@ class EnvironmentSettings:
         self.save_section('autostart',{'entries':[*self.section('autostart').get('entries',[]),ident]})
 
 def render_wallpaper(values, outputs, home=None, runner=run):
+    from wallpaper_media import is_animated
     try:from PySide6.QtGui import QImageReader
     except ImportError:QImageReader=None  # shell bridge runs without Qt; the shell validates the image itself
     home=Path(home or Path.home())
@@ -643,7 +648,7 @@ def render_wallpaper(values, outputs, home=None, runner=run):
         path=Path(selected.get('path') or values.get('default','')).expanduser()
         if not path.is_file():raise ValueError('Elige un fondo para '+output['name'])
         if (selected.get('mode') or values.get('mode','fill')) not in ('fill','fit','stretch','center'):raise ValueError('Modo de fondo inválido')
-        if QImageReader:
+        if QImageReader and not is_animated(path):
             size=QImageReader(str(path)).size()
             if not size.isValid() or size.width()*size.height()>70_000_000:raise ValueError('Imagen no disponible o demasiado grande')
         selected_paths.append(path)

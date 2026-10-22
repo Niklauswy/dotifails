@@ -166,7 +166,7 @@ class DispatcherTests(unittest.TestCase):
     def test_hyprland_shell_bindings_use_dispatcher_commands(self):
         lua = (ROOT / 'config/.config/wysun/hyprland.lua').read_text()
         for sub in re.findall(r'wysun shell (\S+?)"', lua):
-            self.assertIn(sub, ('menu', 'launcher', 'reload-preferences', 'windows', 'session', 'overview', 'close', 'status'))
+            self.assertIn(sub, ('menu', 'launcher', 'reload-preferences', 'windows', 'session', 'overview', 'wallpapers', 'close', 'status'))
 
 
 if __name__ == '__main__':
