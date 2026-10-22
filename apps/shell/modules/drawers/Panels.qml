@@ -2,6 +2,7 @@ import QtQuick
 import Quickshell
 import Wysun.Config
 import qs.components
+import qs.modules.aiusage as AiUsage
 import qs.modules.bar as Bar
 import qs.modules.dashboard as Dashboard
 import qs.modules.notifications as Notifications
@@ -31,6 +32,7 @@ Item {
     readonly property alias utilities: utilities
     readonly property alias toasts: toasts
     readonly property alias sidebar: sidebar
+    readonly property alias aiUsage: aiUsage
 
     anchors.fill: parent
     anchors.margins: borderThickness
@@ -127,6 +129,16 @@ Item {
         anchors.bottom: sidebar.visible ? parent.bottom : utilities.top
         anchors.right: sidebar.left
         anchors.margins: Tokens.padding.medium
+    }
+
+    AiUsage.Wrapper {
+        id: aiUsage
+
+        screenState: root.screenState
+        maxHeight: root.height - Tokens.padding.large
+
+        anchors.top: parent.top
+        anchors.right: parent.right
     }
 
     Sidebar.Wrapper {

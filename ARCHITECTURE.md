@@ -59,6 +59,21 @@ viven en `hyprland.lua`.
 - **Configuración del shell** (dato del usuario): `~/.config/wysun/shell/shell.json`, `shell-tokens.json` y
   `monitors/<salida>/…` (por pantalla). Antes `~/.config/wysun/caelestia` (el instalador la copia; la antigua se retira con
   `installer/clean_legacy.py`).
+- **Uso de IA** (`modules/aiusage`, servicio `services/AiUsage.qml`): panel que baja de la esquina superior derecha al pasar
+  el ratón (o `wysun-shell toggle ai`). Pestañas: Resumen y una por cuenta (Alt+1…9, Ctrl+Tab, Ctrl+R refresca, Esc cierra;
+  mientras está abierto toma el teclado con el mismo `HyprlandFocusGrab` que los demás paneles). Cada cuenta muestra plan, límites
+  con su ritmo y tokens/coste estimado de 24 h, 7, 30 y 90 días. `backend.py` no lee credenciales: Codex responde con su propia
+  sesión vía `codex app-server` (`account/read`, `account/rateLimits/read`) y Claude Code deja `rate_limits` en
+  `~/.local/state/wysun/ai-usage/claude[-<dir>].json` desde su statusline; el plan de Claude sale de `oauthAccount` en `.claude.json`.
+  Las sesiones de Codex llevan `creator_account_id`, así que el historial se reparte por cuenta y las cuentas sin sesión iniciada
+  aparecen como pestañas de solo historial. Cuentas extra y etiquetas: `~/.config/wysun/ai-accounts.json`
+  (`{"accounts": [{"provider": "codex", "home": "…"} | {"provider": "codex", "accountId": "…", "label": "…"}]}`).
+  Caché incremental en `~/.cache/wysun/ai-usage`; precios en `modules/aiusage/pricing.json`, ampliables en
+  `~/.config/wysun/ai-pricing.json`; logotipos de lobe-icons (MIT) en `Logos.js`.
+  También hay desglose por proyecto (carpeta de la sesión; los worktrees se suman a su repo) y una entrada `aiUsage` en la barra
+  con el límite más ajustado. Fuera del panel se refresca cada `backgroundInterval` y avisa con `notify-send` una vez por ventana al
+  llegar a `alertThreshold` (10 % por defecto) y otra al reiniciarse; lo ya avisado vive en `~/.local/state/wysun/ai-usage/alerts.json`.
+  La última instantánea se guarda en `~/.cache/wysun/ai-usage/snapshot.json`, así el primer hover tras reiniciar ya tiene datos.
 - **Colores**: `~/.local/state/wysun/scheme.json`, producido por `wysun scheme` (`apps/wysun/wysun_scheme.py`) a partir de los
   tokens de `apps/wysun/wysun_theme.json` (copia idéntica en `apps/capture/loomrec/ui/`; lo comprueba
   `tests/test_theme_tokens.py`). El shell los lee solo desde `scheme.json` (`services/Colours.qml`); `Appearance.qml` ya no existe.

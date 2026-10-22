@@ -13,6 +13,7 @@ PersistentProperties {
     property bool dashboard
     property bool utilities
     property bool sidebar
+    property bool aiUsage
     property string launcherCategory
     property bool emoji
     property bool cheatsheet

@@ -87,6 +87,12 @@ Not ported: `NotificationServer` (Dunst stays the only D-Bus owner and keeps its
 - Bundled font: `apps/wysun/assets/fonts/Rubik-Variable.ttf`.
 - SHA-256: `1b3a7437ba2af80e465e773ed60c5036d1ba6ace492d89046dbcf18fb31e4e88`.
 
+## Lobe Icons (AI brand marks)
+
+- Source: [lobehub/lobe-icons](https://github.com/lobehub/lobe-icons), npm `@lobehub/icons-static-svg` 1.97.0.
+- License: MIT; text in [`LICENSES/MIT-lobe-icons.txt`](LICENSES/MIT-lobe-icons.txt).
+- `apps/shell/modules/aiusage/Logos.js` keeps the 24×24 path data of the Claude, Anthropic, Codex, OpenAI, Gemini, GitHub Copilot, Cursor, DeepSeek, Mistral and Grok marks, drawn in the theme colour by the AI usage panel. The marks are trademarks of their owners and only identify each provider's account.
+
 ## Scope
 
 Derived Caelestia code carries GPL attribution in its source headers and in this file. The vendored Material You implementation retains its MIT copyright notice. Wysun's Python median-cut quantizer is original code and has no native build or install step.

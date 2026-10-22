@@ -181,6 +181,27 @@ class SidebarTokens : public settings::ObjectNode {
     CONFIG_PROPERTY(int, width, 430)
 };
 
+class AiUsageTokens : public settings::ObjectNode {
+    CONFIG_NODE(AiUsageTokens, settings::ObjectNode)
+
+    CONFIG_PROPERTY(int, width, 580)
+    CONFIG_PROPERTY(int, hoverZone, 24)
+    CONFIG_PROPERTY(int, limitBarHeight, 22)
+    CONFIG_PROPERTY(int, hatchSpacing, 6)
+    CONFIG_PROPERTY(int, chartHeight, 150)
+    CONFIG_PROPERTY(int, chartLineWidth, 2)
+    CONFIG_PROPERTY(int, modelBarHeight, 4)
+    CONFIG_PROPERTY(int, typeBarHeight, 6)
+    CONFIG_PROPERTY(int, maxModels, 7)
+    CONFIG_PROPERTY(int, refreshInterval, 60000)
+    // Limits are still checked while the panel is closed, for low-limit notifications.
+    CONFIG_PROPERTY(int, backgroundInterval, 300000)
+    // Remaining percent at or below which a limit notifies once per window.
+    CONFIG_PROPERTY(int, alertThreshold, 10)
+    CONFIG_PROPERTY(int, maxProjects, 6)
+    CONFIG_PROPERTY(int, barIndicatorSize, 22)
+};
+
 class UtilitiesTokens : public settings::ObjectNode {
     CONFIG_NODE(UtilitiesTokens, settings::ObjectNode)
 
@@ -242,6 +263,7 @@ class SizeTokens : public settings::ObjectNode {
     CONFIG_SUBOBJECT(SessionTokens, session)
     CONFIG_SUBOBJECT(SidebarTokens, sidebar)
     CONFIG_SUBOBJECT(UtilitiesTokens, utilities)
+    CONFIG_SUBOBJECT(AiUsageTokens, aiUsage)
     CONFIG_SUBOBJECT(LockTokens, lock)
     CONFIG_SUBOBJECT(WInfoTokens, winfo)
     CONFIG_SUBOBJECT(NexusTokens, nexus)
