@@ -160,19 +160,6 @@ PageBase {
             }
 
             IconTextButton {
-                icon: "view_carousel"
-                text: Tr.tr("Carousel")
-                font: Tokens.font.body.large
-                isRound: true
-                shapeMorph: true
-                type: IconTextButton.Tonal
-                horizontalPadding: Tokens.padding.extraLarge
-                verticalPadding: Tokens.padding.medium
-                disabled: !Config.background.wallpaperEnabled
-                onClicked: Quickshell.execDetached(["wysun", "shell", "wallpapers"])
-            }
-
-            IconTextButton {
                 icon: "palette"
                 text: "Temas y colores"
                 font: Tokens.font.body.large
@@ -182,6 +169,23 @@ PageBase {
                 horizontalPadding: Tokens.padding.extraLarge
                 verticalPadding: Tokens.padding.medium
                 onClicked: root.nState.openSubPage(3) // Colours page
+            }
+        }
+
+        ButtonRow {
+            Layout.alignment: Qt.AlignHCenter
+            spacing: Tokens.spacing.small
+
+            IconTextButton {
+                icon: "view_carousel"
+                text: Tr.tr("Browse as carousel")
+                font: Tokens.font.body.large
+                isRound: true
+                shapeMorph: true
+                horizontalPadding: Tokens.padding.extraLarge
+                verticalPadding: Tokens.padding.medium
+                disabled: !Config.background.wallpaperEnabled
+                onClicked: Quickshell.execDetached(["wysun", "shell", "wallpapers"])
             }
         }
 

@@ -164,7 +164,7 @@ Item {
         anchors.fill: parent
         playing: PersistentState.wallpaperPlaying && !Wallpapers.suspendedOn(root.screenName)
         animate: false
-        layer.enabled: true
+        layer.enabled: root.transitionProgress < 1 || !root.completed
 
         onReadyChanged: {
             if (ready && source === root.source)

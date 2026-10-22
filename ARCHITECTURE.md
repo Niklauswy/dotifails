@@ -167,6 +167,16 @@ Nunca reiniciar Hyprland ni el login para actualizar un panel.
   va en inglés. Las etiquetas de procedencia heredadas (`equivalent`, `adapted`, `extra`, `no-equivalent`, `private`,
   `session`, `overview`, `cheatsheet`, `emoji`) no cuentan como categoría: esos binds conservan la etiqueta
   derivada del dispatcher. Si dos binds usan las mismas teclas, el último gana. Prueba: `tests/shell_bridge/test_cheatsheet.py`.
+- **Wallpapers animados y carrusel** (`Super+Shift+W`, `wysun shell wallpapers`, Settings > Wallpaper & style > Browse as carousel):
+  el fondo puede ser PNG/JPEG/WebP/… o vídeo `mp4`/`webm`/`mkv`/GIF. `modules/background/WallpaperVisual.qml` usa `Visual`
+  (QtMultimedia, decodificación por hardware VAAPI cuando existe) para vídeo y `AnimatedImage` para GIF, en todos los monitores.
+  `Wallpapers.suspendedOn(pantalla)` pausa la reproducción bajo una ventana fullscreen de esa pantalla o con batería baja
+  (≤30 % y descargando). El esquema Material You sale de un fotograma (`wallpaper_media.scheme_frame`, ffmpeg, caché en
+  `~/.cache/wysun/wallpapers/frames`). Las miniaturas del carrusel las genera un worker (`wysun wallpaper thumbs`, caché en
+  `~/.cache/wysun/wallpapers/thumbs`) bajo demanda; `wysun wallpaper list` enumera `~/Pictures/Wallpapers[/Animated]`,
+  `~/.local/share/backgrounds` y `wallpaper.folders` de `environment.json`. El carrusel solo mantiene vivas ±8 tarjetas
+  (`modules/wallpaperpicker`) y reproduce en vivo la tarjeta central animada tras 450 ms de reposo. IPC de diagnóstico:
+  `wysun-shell`'s `ipc call wallpapers go|select|filter|apply|state` (solo con el selector abierto). Pruebas: `tests/test_wallpaper_media.py`.
 - **Lanzador** (estilo Raycast): `wysun` abre un único panel flotante (`apps/shell/modules/launcher`: `Launcher.qml` ventana
   overlay, `LauncherPanel.qml` lógica y vistas, `services/LauncherIndex.qml` índices en memoria). No existe lanzador Qt ni
   alternativo: si el shell no responde, el comando falla con un mensaje. Sin pestañas ni prefijos: una lista agrupada

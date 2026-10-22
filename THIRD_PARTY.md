@@ -170,3 +170,8 @@ Upstream files have no individual copyright header; no notices were removed.
 - Repository: [end-4/dots-hyprland](https://github.com/end-4/dots-hyprland), source commit `2f2a376fdb2ad738bf55f693dd0b474b64bb0ab8`.
 - License: GPL-3.0; full text in [LICENSES/GPL-3.0.txt](LICENSES/GPL-3.0.txt).
 - `apps/shell/modules/cheatsheet/Cheatsheet.qml` adapts the keycap rendering and per-category columns of `dots/.config/quickshell/ii/modules/ii/cheatsheet/`. The content is not upstream's: `backend.py` is Wysun code that reads the active `hyprland.lua` and lists its real binds in English, grouped by category and without the binds that have no Wysun equivalent.
+
+## caelestia-aw animated wallpapers (design reference only)
+
+- Repository: [AdiAmbassador/caelestia-aw](https://github.com/AdiAmbassador/caelestia-aw), commit `aee10ac97e9edae57cbbd1b56d2b03403ccecc09`. It is a dotfiles/patch repository without a LICENSE file in the checked-out tree (the README points to GPL-3.0 for the separate `caelestia-shell-aw` and `caelestia-cli-aw` repositories, which were not used).
+- Only the feature description (video/GIF wallpapers, thumbnails cached by file identity, a representative frame feeding the Material You scheme, pausing under a fullscreen window or on battery) informed the design. No code was copied or adapted: `apps/wysun/wallpaper_media.py`, `apps/shell/services/WallpaperLibrary.qml`, `apps/shell/modules/background/WallpaperVisual.qml` and `apps/shell/modules/wallpaperpicker/` are original Wysun code. The carousel layout follows a visual reference supplied for the task, not upstream code.

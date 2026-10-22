@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell
+import Quickshell.Widgets
 import Wysun.Config
 import qs.components
 import qs.modules.background
@@ -25,8 +26,8 @@ ClippingRectangle {
 
     readonly property real a: Math.abs(t)
     readonly property real sign: t < 0 ? -1 : 1
-    readonly property real spread: 0.58 * cardWidth
-    readonly property real falloff: 0.78
+    readonly property real spread: 0.52 * cardWidth
+    readonly property real falloff: 0.72
     readonly property real near: Math.min(a, 1)
     readonly property string thumb: WallpaperLibrary.thumbFor(entry.path)
 
@@ -50,7 +51,7 @@ ClippingRectangle {
         origin.x: card.width / 2
         origin.y: card.height / 2
         axis { x: 0; y: 1; z: 0 }
-        angle: -card.sign * 52 * card.near
+        angle: -card.sign * 60 * card.near
     }
 
     Component.onCompleted: {

@@ -11,7 +11,20 @@ Item {
     property bool animate: true
     property int fillMode: VisualSource.PreserveAspectCrop
     readonly property bool isGif: source.toLowerCase().endsWith(".gif")
-    readonly property bool ready: isGif ? gif.status === Image.Ready : visual.ready
+    // Visual reports its own readiness; for GIFs it is tracked here. It drops on every source
+    // change and only rises again from a deferred call, because a cached GIF is Ready synchronously
+    // and the wallpaper transition needs to see a false -> true edge.
+    readonly property bool ready: isGif ? gifReady : visual.ready
+    property bool gifReady
+
+    onSourceChanged: {
+        gifReady = false;
+        Qt.callLater(refreshGif);
+    }
+
+    function refreshGif(): void {
+        gifReady = isGif && gif.status === Image.Ready;
+    }
 
     Visual {
         id: visual
@@ -34,5 +47,6 @@ Item {
         asynchronous: true
         cache: false
         fillMode: Image.PreserveAspectCrop
+        onStatusChanged: Qt.callLater(root.refreshGif)
     }
 }

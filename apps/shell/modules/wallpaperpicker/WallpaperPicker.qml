@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell
+import Quickshell.Io
 import Quickshell.Wayland
 import Quickshell.Hyprland
 import Wysun.Config
@@ -44,17 +45,28 @@ Scope {
             }
             color: "transparent"
 
+            function sync(): void {
+                if (state.wallpapers) {
+                    filter.text = "";
+                    WallpaperLibrary.open();
+                    carousel.reset();
+                    Qt.callLater(() => filter.forceActiveFocus());
+                } else {
+                    WallpaperLibrary.close();
+                }
+            }
+
+            // The state survives shell reloads, so a picker left open comes back populated.
+            Component.onCompleted: {
+                if (state.wallpapers)
+                    sync();
+            }
+
             Connections {
                 target: win.state
 
                 function onWallpapersChanged(): void {
-                    if (win.state.wallpapers) {
-                        WallpaperLibrary.open();
-                        carousel.reset();
-                        Qt.callLater(() => filter.forceActiveFocus());
-                    } else {
-                        WallpaperLibrary.close();
-                    }
+                    win.sync();
                 }
             }
 
@@ -64,6 +76,32 @@ Scope {
                 function onEntriesChanged(): void {
                     if (win.state.wallpapers)
                         carousel.reset();
+                }
+            }
+
+            // Scriptable control of the open picker (`wysun-shell` IPC: wallpapers go|select|filter|apply|state).
+            IpcHandler {
+                enabled: win.state.wallpapers
+                target: "wallpapers"
+
+                function go(delta: int): void {
+                    carousel.go(delta);
+                }
+
+                function select(position: int): void {
+                    carousel.move(position);
+                }
+
+                function filter(text: string): void {
+                    filter.text = text;
+                }
+
+                function apply(): void {
+                    carousel.apply();
+                }
+
+                function state(): string {
+                    return JSON.stringify({ settled: carousel.settled, query: filter.text, index: carousel.index, count: carousel.items.length, cards: cards.count, selected: carousel.items[carousel.index]?.path ?? "" });
                 }
             }
 
@@ -94,7 +132,7 @@ Scope {
                 readonly property string query: filter.text.trim().toLowerCase()
                 readonly property var items: {
                     const all = WallpaperLibrary.entries;
-                    return query ? all.filter(e => e.name.toLowerCase().includes(query) || (query === "animated" && e.animated)) : all;
+                    return query ? all.filter(e => e.path.toLowerCase().includes(query) || (query === "animated" && e.animated)) : all;
                 }
                 readonly property string currentPath: Wallpapers.forOutput(win.modelData.name)
                 property int index: 0
@@ -108,6 +146,8 @@ Scope {
                     snap.restart();
                     pos = index;
                     syncWindow();
+                    settled = false;
+                    settle.restart();
                 }
 
                 function go(delta: int): void {
@@ -170,6 +210,8 @@ Scope {
                     index = query ? 0 : Math.min(index, Math.max(items.length - 1, 0));
                     pos = index;
                     syncWindow();
+                    settled = false;
+                    settle.restart();
                 }
 
                 // Spring towards the selected index; `snap` jumps without animating.
