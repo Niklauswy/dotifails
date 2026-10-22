@@ -8,6 +8,8 @@ import qs.services
 
 Singleton {
     property ShellRoot shellRoot
+    // A screenshot is being taken: drawers ignore hover until it closes.
+    property bool capturing
 
     function anySidebarOpen(): bool {
         return states.instances.some(s => s.sidebar);

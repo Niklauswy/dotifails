@@ -83,9 +83,11 @@ def main():
         return (wysun_scheme.wallpaper_main if command == 'wallpaper' else wysun_scheme.main)(args)
     if command in SHELL_ROUTES and (command != 'toggle' or not args):
         return shell_command(command, args)
+    if command == 'screenshot':
+        return screenshot(args)
     if command == 'activate':
         os.execv(str(Path(__file__).resolve().parent / 'wysun-wm'), ['wysun-wm', 'activate', *args])
-    commands = {'doctor': 'dotifails', 'shell': 'wysun-shell', 'lock': 'wysun-lock', 'recover': 'wysun-recover', 'session-check': 'wysun-session', 'recorder': 'wysun-recorder', 'screenshot': 'wysun-screenshot',
+    commands = {'doctor': 'dotifails', 'shell': 'wysun-shell', 'lock': 'wysun-lock', 'recover': 'wysun-recover', 'session-check': 'wysun-session', 'recorder': 'wysun-recorder',
                 'files': 'orbit-files', 'tools-cli': 'orbit-tools'}
     executable = Path(__file__).resolve().parent / commands.get(command, 'orbit')
     if command == 'session-check':forwarded = ['--check', *args]
@@ -93,6 +95,24 @@ def main():
     elif command in commands:forwarded = args
     else:forwarded = [command, *args]
     os.execv(str(executable), [str(executable), *forwarded])
+
+
+def screenshot(args):
+    """Screenshots live in the shell; translate the options of the former app.
+
+    --accept-on-select or --clipboard keep the quick flow (choose, then copy);
+    otherwise the capture opens in the annotation editor. --path saves there.
+    """
+    forwarded = []
+    if '--accept-on-select' not in args and '--clipboard' not in args:
+        forwarded.append('--annotate')
+    if '--path' in args:
+        index = args.index('--path')
+        if index + 1 < len(args):
+            forwarded += ['--path', args[index + 1]]
+    else:
+        forwarded.append('--no-save')
+    os.execv(str(Path(__file__).resolve().parent / 'wysun-shell'), ['wysun-shell', 'screenshot', *forwarded])
 
 
 if __name__ == '__main__':

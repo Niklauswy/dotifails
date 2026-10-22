@@ -24,6 +24,18 @@ case "${1:-}" in
     theme-settings) shift; exec "$runtime" ipc call wysunShell openThemeSettings "$@" ;;
     close|status) action="$1"; shift; exec "$runtime" ipc call wysunShell "$action" "$@" ;;
     nexus) shift; exec "$runtime" ipc call wysunShell openRoute "${1:-home}" ;;
-    picker) shift; exec "$runtime" ipc call picker "${1:-close}" ;;
+    picker) shift; action="${1:-close}"; [ $# -gt 0 ] && shift; exec "$runtime" ipc call picker "$action" "$@" ;;
+    screenshot)
+        # screenshot [--annotate] [--path DIR] [--no-save]
+        shift; mode=actions; dir=""; save=true
+        while [ $# -gt 0 ]; do
+            case "$1" in
+                --annotate) mode=annotate ;;
+                --path) shift; dir="${1:-}" ;;
+                --no-save) save=false ;;
+            esac
+            shift
+        done
+        exec "$runtime" ipc call picker screenshot "$mode" "$dir" "$save" ;;
     *) exec "$runtime" --no-duplicate "$@" ;;
 esac

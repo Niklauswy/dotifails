@@ -9,7 +9,7 @@ Las aplicaciones de `apps/wysun/` siguen siendo Python/PySide6 y se ejecutan en 
 - Debian 13 (trixie) o Parrot 7 (echo), x86_64.
 - El instalador usa el repositorio de la distribución y sus *backports* (`trixie-backports` o `echo-backports`). No añade ni mezcla repositorios externos.
 - Versiones comprobadas: `hyprland` 0.55.x, `xdg-desktop-portal-hyprland` 1.4.x, `hyprpicker` 0.4.x. Quickshell no viene del sistema: se compila en un runtime privado (`installer/runtime_build.py`, versiones en `manifests/runtime.json`) junto con Qt 6.9.3; el plan incluye sus paquetes de compilación y la primera instalación tarda lo que dure esa compilación. El instalador rechaza el plan antes de aplicar cambios si otra serie aparece.
-- `xwayland` y las bibliotecas X11 se conservan para aplicaciones heredadas. XWayland no convierte una captura X11 en una captura nativa: Recorder y Screenshot usan siempre el portal.
+- `xwayland` y las bibliotecas X11 se conservan para aplicaciones heredadas. XWayland no convierte una captura X11 en una captura nativa: Recorder usa siempre el portal.
 
 Puedes ver el plan sin aplicar cambios:
 
@@ -28,7 +28,7 @@ Puedes ver el plan sin aplicar cambios:
 
 - `config/.config/xdg-desktop-portal/wysun-portals.conf` usa `hyprland` para `ScreenCast` y `Screenshot`, y `gtk` para el resto.
 - El instalador registra el portal `orbit-files` para el selector de archivos y lo prefiere en `portals.conf`; conserva las demás preferencias del usuario.
-- Wysun Recorder muestra el diálogo de consentimiento ScreenCast/PipeWire. Wysun Screenshot sin cursor usa el portal Screenshot para congelar la región o el escritorio completo y muestra su propio marco de selección; con cursor, o al capturar una ventana/monitor concreto, usa ScreenCast. Las ventanas ocultas o minimizadas dependen del compositor y pueden no ser capturables: no se promete su captura.
+- Wysun Recorder muestra el diálogo de consentimiento ScreenCast/PipeWire. Las capturas de pantalla las hace el shell con wlr-screencopy (sin portal ni diálogo), congelando cada salida al abrir el selector. Las ventanas ocultas o minimizadas dependen del compositor y pueden no ser capturables: no se promete su captura.
 - Diagnóstico sin reiniciar servicios: `~/.local/bin/wysun-session --check` y `tests/wayland_portal_probe.py`.
 
 ## Actualización y recuperación
@@ -50,5 +50,5 @@ Puedes ver el plan sin aplicar cambios:
 
 - Suites generales: `python3 -m unittest discover -s tests -v`, `QT_QPA_PLATFORM=offscreen python3 tests/utility_ui.py`, `python3 tests/check_manifest.py`.
 - Captura: `python3 apps/capture/run_tests.py` (HOME/XDG temporales y sin sesión gráfica heredada).
-- Sesión y compositor: las sondas `tests/wayland_*_probe.py` usan Hyprland anidado con medios sintéticos. La sonda `tests/wayland_screenshot_route_probe.py` verifica la ruta real de Screenshot en unos 55 segundos.
+- Sesión y compositor: las sondas `tests/wayland_*_probe.py` usan Hyprland anidado con medios sintéticos.
 - Las pruebas de medios y compositor se ejecutan en serie; un bloqueo del sandbox no demuestra un fallo del producto.

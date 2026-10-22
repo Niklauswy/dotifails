@@ -299,7 +299,7 @@ class WaylandInstallTests(unittest.TestCase):
         daemon.terminate.assert_called_once()
         for child in (shell,idle,daemon):child.wait.assert_called_once_with(timeout=2)
 
-    def test_recovery_uses_cooperative_capture_and_exact_shell_ipc(self):
+    def test_recovery_closes_the_shell_picker_with_exact_ipc(self):
         recovery = runpy.run_path(str(ROOT / 'bin/wysun-recover'))
         main = recovery['main']
         calls = []
@@ -310,13 +310,13 @@ class WaylandInstallTests(unittest.TestCase):
             self.assertEqual(main([]), 0)
             kill.assert_not_called();launch.assert_not_called()
         self.assertEqual([command[1:] for command in calls], [
-            ['--cancel-selection'], ['status'], ['close'], ['picker', 'close']])
+            ['status'], ['close'], ['picker', 'close']])
 
-    def test_recovery_reports_unresponsive_capture_without_signalling(self):
+    def test_recovery_reports_an_unclosable_picker_without_signalling(self):
         recovery = runpy.run_path(str(ROOT / 'bin/wysun-recover'))
         main = recovery['main']
         def run(command, **kwargs):
-            return Mock(returncode=1 if '--cancel-selection' in command else 0, stdout='')
+            return Mock(returncode=1 if 'picker' in command else 0, stdout='')
         with patch.dict(main.__globals__, {'run': run}), patch('os.kill') as kill:
             self.assertEqual(main([]), 1)
             kill.assert_not_called()

@@ -4,7 +4,7 @@ Entorno de escritorio personal sobre **Hyprland (Wayland)**: shell en Quickshell
 (PySide6), captura de pantalla/vídeo, instalador reversible y sesión registrada de forma independiente. Este documento es la
 referencia para quien modifique el repositorio (atajos, lanzador, Ajustes, tema).
 
-Nombres visibles: **Wysun**, **Wysun Recorder**, **Wysun Screenshot**, **Wysun Settings**. Las identidades técnicas heredadas de
+Nombres visibles: **Wysun**, **Wysun Recorder**, **Wysun Settings**. Las identidades técnicas heredadas de
 Orbit (`orbit`, `~/.local/share/orbit`, `orbit-files.desktop`, sockets `orbit-*.sock`) se conservan por compatibilidad con datos y
 atajos existentes (sección 7). El código derivado del shell GPL-3.0 de terceros conserva créditos en `THIRD_PARTY.md`,
 `apps/shell/LICENSE` y `apps/shell/UPSTREAM.json`; ningún identificador de ejecución depende ya de ese proyecto.
@@ -15,7 +15,7 @@ atajos existentes (sección 7). El código derivado del shell GPL-3.0 de tercero
 apps/
   shell/        Shell Quickshell (QML) + plugin C++ `Wysun.*`        → ~/.local/share/wysun/quickshell
   wysun/        Lanzador y apps Qt/PySide6 (Music, Files, Settings…) → ~/.local/share/orbit/app
-  capture/      Wysun Recorder (loomrec/) y Screenshot (wybieshot/)  → ~/.local/share/wysun/capture/releases/<hash>
+  capture/      Wysun Recorder (loomrec/)                             → ~/.local/share/wysun/capture/releases/<hash>
   tools/        `orbit-tools` (dev, audit, share, cloud, vpn, resets) → ~/.local/share/orbit/tools
 bin/            Lanzadores públicos (wysun, wysun-shell, wysun-session, wysun-lock, wysun-wm, …) → ~/.local/bin
 config/         Configuración GENERAL (dotfiles): .config/{wysun,ghostty,nvim,gtk-*,…}, .local/{bin,share/applications,icons}
@@ -41,7 +41,7 @@ detectan por huella y se guardan como `incoming/`).
 | Shell (`wysun-shell` → `runtime.sh` → Quickshell) | Barra, dashboard, lanzador QML, menús, notificaciones (vista), OSD, sesión, fondos | supervisor |
 | `wysun daemon` (`orbit.py --daemon`) | Residente Qt: lanzador, portapapeles, Notas, procesos, OCR; socket `$XDG_RUNTIME_DIR/orbit-<uid>.sock` | supervisor |
 | Dunst | Único dueño de D-Bus de notificaciones | supervisor |
-| Apps (Music, Files, Settings, Recorder, Screenshot) | Ventanas Qt bajo demanda (`wysun <modo>`) | usuario |
+| Apps (Music, Files, Settings, Recorder) | Ventanas Qt bajo demanda (`wysun <modo>`) | usuario |
 
 ### Shell (`apps/shell`)
 
@@ -59,6 +59,13 @@ viven en `hyprland.lua`.
 - **Configuración del shell** (dato del usuario): `~/.config/wysun/shell/shell.json`, `shell-tokens.json` y
   `monitors/<salida>/…` (por pantalla). Antes `~/.config/wysun/caelestia` (el instalador la copia; la antigua se retira con
   `installer/clean_legacy.py`).
+- **Captura de pantalla** (`modules/areapicker`): `wysun-shell screenshot [--annotate] [--path DIR] [--no-save]` (IPC
+  `picker screenshot|region|accept|close`). Congela cada salida con wlr-screencopy en el propio shell, sin otro proceso ni ventana:
+  el puntero no se mueve, los cajones ignoran el hover (`ShellState.capturing`) y un atajo repetido no abre otra. La selección
+  cuelga de cuatro hilos atados a las esquinas (física de muelle, tokens `sizes.screenshot`). Clic = ventana, arrastrar =
+  región, Enter = salida completa; luego se ajusta por sus nodos. Barra: copiar y guardar (Enter), anotar (A: lápiz,
+  rotulador, línea, flecha, rectángulo, elipse, texto, numerador y pixelado, con deshacer) o texto por OCR (T, Tesseract
+  `spa+eng`, editable antes de copiar). `wysun screenshot` traduce las opciones de la app anterior.
 - **Uso de IA** (`modules/aiusage`, servicio `services/AiUsage.qml`): panel que baja de la esquina superior derecha al pasar
   el ratón (o `wysun-shell toggle ai`). Pestañas: Resumen y una por cuenta (Alt+1…9, Ctrl+Tab, Ctrl+R refresca, Esc cierra;
   mientras está abierto toma el teclado con el mismo `HyprlandFocusGrab` que los demás paneles). Cada cuenta muestra plan, límites
@@ -87,10 +94,12 @@ usuario viven en `~/.config/orbit/` y `~/.local/share/orbit/` (sección 7).
 
 ### Captura (`apps/capture`)
 
-Paquetes `loomrec` (Recorder) y `wybieshot` (Screenshot). Se instalan por **versiones inmutables** en
-`~/.local/share/wysun/capture/releases/<hash>/` con wrappers `wysun-recorder`/`wysun-screenshot` que fijan `PYTHONPATH` a la
-versión actual; no importan código de `~/.local/share/orbit/app`. Sus datos son independientes (`~/.local/share/loomrec`,
-`~/.local/share/wybie-screenshot`). Tiene su propia suite: `python3 apps/capture/run_tests.py`.
+Paquete `loomrec` (Recorder). Se instala por **versiones inmutables** en
+`~/.local/share/wysun/capture/releases/<hash>/` con el wrapper `wysun-recorder`, que fija `PYTHONPATH` a la versión actual; no
+importa código de `~/.local/share/orbit/app`. Sus datos son independientes (`~/.local/share/loomrec`). Tiene su propia suite:
+`python3 apps/capture/run_tests.py`. La app Qt Wysun Screenshot (`wybieshot`) se retiró: el instalador deja
+`wysun-screenshot`/`wybie-screenshot` como redirecciones a `wysun screenshot`, retira su entrada de menú e icono si son suyos y no
+toca `~/.local/share/wybie-screenshot`.
 
 ## 3. Runtime del shell (Qt / Quickshell / plugin)
 
@@ -174,7 +183,7 @@ Nunca reiniciar Hyprland ni el login para actualizar un panel.
 ## 6. Atajos, tema y ajustes (para las siguientes olas)
 
 - **Atajos**: `config/.config/wysun/hyprland.lua` (Hyprland 0.55, Lua). Atajos privados en `~/.config/wysun/local.lua`.
-  Los de captura apuntan a `wysun screenshot …` / `wysun recorder …`. `apps/shell/daemons/Shortcuts.qml` está disponible si se decide mover atajos al shell.
+  Los de captura apuntan a `wysun-shell screenshot …` / `wysun recorder …`. `apps/shell/daemons/Shortcuts.qml` está disponible si se decide mover atajos al shell.
 - **Cheat sheet** (`Super+/`, `apps/shell/modules/cheatsheet`): `backend.py` vuelve a leer `~/.config/wysun/hyprland.lua`
   en cada apertura, sin caché. Un bind nuevo aparece solo si lleva `description="Wysun | <Categoría> | <texto>"`
   (por ejemplo `{description="Wysun | Notes | Quick note"}`): se lista en esa categoría con ese texto y una categoría
@@ -225,7 +234,7 @@ Nunca reiniciar Hyprland ni el login para actualizar un panel.
 |---|---|
 | `~/.local/share/orbit/{app,tools,music,notes,…}`, `~/.config/orbit/`, `orbit.sqlite3` | Código instalado y datos privados del lanzador/apps |
 | Comando `orbit`, `orbit-files`, `orbit-tools`, sockets `orbit-*.sock`, `orbit-files.desktop` (portal de archivos) | Compatibilidad con atajos, portales y asociaciones MIME |
-| `loomrec`, `wybie-screenshot` (paquetes, wrappers, `~/.local/share/loomrec`) | Identidades de captura y sus datos |
+| `loomrec` (paquete, wrapper, `~/.local/share/loomrec`), `wybie-screenshot` (redirección y datos antiguos) | Identidades de captura y sus datos |
 
 Retirados en esta parte: nombres Caelestia (módulos, plugin, rutas, IPC, namespaces de capa), alias `musica`/`musika`, perfiles
 `profiles/` (ahora `machines/`), módulos Python sin uso (`files_preview`, `service_runtime`, `theme_widgets`), demonios QML sin

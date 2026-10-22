@@ -4,6 +4,7 @@ import Quickshell
 import Wysun.Config
 import qs.components
 import qs.components.controls
+import qs.services
 import qs.modules.bar as Bar
 import qs.modules.bar.popouts as BarPopouts
 
@@ -96,7 +97,7 @@ CustomMouseArea {
     }
 
     onPositionChanged: event => {
-        if (popouts.isDetached)
+        if (popouts.isDetached || ShellState.capturing)
             return;
 
         const x = event.x;

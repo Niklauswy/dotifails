@@ -107,12 +107,6 @@ def main(serial_diagnostic=False, stream_diagnostic=False, case_selector='all'):
         config = Path(env['XDG_CONFIG_HOME'])
         picker = run_dir / 'fixture-picker'
         picker.write_text('#!/usr/bin/python3\nprint(' + repr('[SELECTION]/screen:' + monitor) + ')\n')
-        if case_selector=='screenshot-route':
-            # The real picker has its own /tmp/hypr settings path. The route
-            # case requires a private tmpfs there before starting the process.
-            mounts=Path('/proc/self/mountinfo').read_text().splitlines()
-            assert any(' /tmp/hypr ' in line and ' - tmpfs ' in line for line in mounts)
-            picker.write_text('#!/bin/sh\nexec /usr/bin/hyprland-share-picker "$@"\n')
         picker.chmod(0o700)
         (config / 'hypr').mkdir(parents=True, exist_ok=True)
         (config / 'hypr/xdph.conf').write_text('screencopy {\n  custom_picker_binary = ' + str(picker) + '\n}\n')
@@ -166,7 +160,6 @@ def main(serial_diagnostic=False, stream_diagnostic=False, case_selector='all'):
                  '--target-home', env['HOME'], '--components', 'wayland', '--config-only'], timeout=60)
         public = Path(env['HOME']) / '.local/bin/wysun'
         assert 'Wysun Recorder' in command([public, 'recorder', '--version'])
-        assert 'Wysun Screenshot' in command([public, 'screenshot', '--version'])
         releases = Path(env['HOME']) / '.local/share/wysun/capture/releases'
         release = next(releases.iterdir())
         # Match the public installed launcher's module search environment;
@@ -238,14 +231,6 @@ def main(serial_diagnostic=False, stream_diagnostic=False, case_selector='all'):
             return
         if case_selector == 'color':
             from wayland_color_case import run_case
-            run_case(run_dir,env,command,start,wait_for)
-            return
-        if case_selector == 'screenshot-route':
-            from wayland_screenshot_route_case import run_case
-            run_case(run_dir,env,command,start,wait_for)
-            return
-        if case_selector == 'screenshot-gui':
-            from wayland_screenshot_gui_case import run_case
             run_case(run_dir,env,command,start,wait_for)
             return
         if case_selector == 'previews':

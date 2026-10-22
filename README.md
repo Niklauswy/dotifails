@@ -4,12 +4,12 @@ El escritorio Wysun sobre **Hyprland/Wayland**, preparado para instalarse en **P
 
 ## Familia Wysun
 
-Wysun es el nuevo nombre de Órbita. El lanzador, Music, Files, Recorder y Screenshot se desarrollan y distribuyen desde este repositorio. Recorder y Screenshot están en `apps/capture/`; el lanzador y los paneles siguen en `apps/wysun/`.
+Wysun es el nuevo nombre de Órbita. El lanzador, Music, Files y Recorder se desarrollan y distribuyen desde este repositorio. Recorder está en `apps/capture/` y la captura de pantalla en el shell (`apps/shell/modules/areapicker`); el lanzador y los paneles siguen en `apps/wysun/`.
 
 - `wysun`: lanzador y búsqueda.
 - `wysun music`, `wysun files`, `wysun settings`: aplicaciones y ajustes.
 - `wysun recorder`: biblioteca y editor de vídeo; `wysun recorder --quick-record`: preparar una grabación.
-- `wysun screenshot`: captura y editor; `wysun screenshot --library`: biblioteca.
+- `wysun screenshot` / `wysun-shell screenshot`: selecciona una región para copiar y guardar, anotar o leer su texto.
 - `./instalar.sh --wysun-only`: actualizar la familia completa. `--orbit-only` sigue siendo compatible.
 
 Las rutas privadas, los proyectos y los comandos antiguos se conservan. La actualización no migra datos ni sustituye las grabaciones activas. [Integración, nombres y compatibilidad](docs/wysun.md).

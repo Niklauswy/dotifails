@@ -43,12 +43,8 @@ def main():
         timings = {}
         checks = [(('wysun', '--help'), 'Wysun'),
                   (('wysun', 'recorder', '--version'), 'Wysun Recorder'),
-                  (('wysun', 'screenshot', '--version'), 'Wysun Screenshot'),
                   (('loomrec', '--version'), 'Wysun Recorder'),
-                  (('wybie-screenshot', '--version'), 'Wysun Screenshot'),
                   (('wysun', 'recorder', '--help'), '--quick-record'),
-                  (('wysun', 'screenshot', '--help'), '--cancel-selection'),
-                  (('wysun', 'screenshot', '--cancel-selection'), '0 selección(es)'),
                   (('wysun', 'recover', '--help'), 'Wysun recovery')]
         if args.runtime_root:checks.append((('wysun', 'session-check'), 'WYSUN_SESSION_PREFLIGHT_OK'))
         for argv, expected in checks:

@@ -43,7 +43,8 @@ function tools(configured, session) {
         w("notes", "Wysun Notes", "Write and find your local notes", "notes", ["wysun", "notes"], ""),
         w("colors", "Wysun Colors", "Pick, convert and save colours", "colorize", ["wysun", "colors"], "picker"),
         w("recorder", "Wysun Recorder", "Record your screen or open the library", "videocam", ["wysun", "recorder"], "screen record"),
-        w("screenshot", "Wysun Screenshot", "Capture your screen or open the library", "screenshot", ["wysun", "screenshot"], "capture"),
+        // Waits for the launcher to close so it is not in the frozen frame.
+        w("screenshot", "Screenshot", "Copy, annotate or read the text of a region", "screenshot", ["sh", "-c", "sleep 0.25; exec wysun-shell screenshot"], "capture ocr annotate"),
         w("connections", "Connections", "Wi-Fi, Ethernet, Bluetooth and VPN", "wifi", ["wysun", "connections"], "network bluetooth"),
         w("processes", "Processes", "Inspect running apps and resource usage", "memory", ["wysun", "processes"], "task manager cpu"),
         w("sound", "Sound", "Volume and audio devices", "volume_up", ["wysun", "audio"], "audio"),

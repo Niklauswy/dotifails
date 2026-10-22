@@ -106,23 +106,6 @@ class WaylandImageTests(unittest.TestCase):
     def setUpClass(cls):
         from PySide6.QtWidgets import QApplication
         cls.app=QApplication.instance() or QApplication([])
-    def test_native_region_crops_authorized_image_and_delay_is_validated(self):
-        from PySide6.QtGui import QImage,QColor
-        from wybieshot.capture import CaptureEngine
-        from wybieshot.schema import CaptureRequest,Rect
-        image=QImage(64,48,QImage.Format_ARGB32);image.fill(QColor('red'))
-        with patch.dict(os.environ,{'WAYLAND_DISPLAY':'owned'}),patch('loomrec.portal_image.capture_frame',return_value=image):
-            result=CaptureEngine().capture(CaptureRequest(mode='region',region=Rect(4,6,20,18)))
-            self.assertEqual((result.image.width(),result.image.height()),(20,18))
-            with self.assertRaisesRegex(ValueError,'Freeze'):CaptureEngine().capture(CaptureRequest(mode='region'))
-            with self.assertRaisesRegex(ValueError,'QTimer'):CaptureEngine().capture(CaptureRequest(mode='monitor',delay_ms=10))
-    def test_embedded_cursor_cannot_be_removed_from_frozen_pixels(self):
-        from PySide6.QtGui import QImage
-        from wybieshot.capture import CaptureEngine,FrozenDesktop
-        from wybieshot.schema import CaptureRequest,Rect
-        image=QImage(64,48,QImage.Format_ARGB32);bounds=Rect(0,0,64,48)
-        frozen=FrozenDesktop(image,bounds,(bounds,),image,True)
-        with self.assertRaisesRegex(ValueError,'incrustado'):CaptureEngine().capture(CaptureRequest(mode='region',region=Rect(0,0,32,24)),frozen)
     def test_desktop_uses_full_screenshot_portal_not_single_stream(self):
         from unittest.mock import Mock
         from PySide6.QtGui import QImage,QColor
@@ -134,17 +117,6 @@ class WaylandImageTests(unittest.TestCase):
                 result=capture_frame('desktop',False)
             self.assertEqual((result.width(),result.height()),(128,32));self.assertEqual(result.pixelColor(5,5),QColor('blue'))
             portal.screenshot.assert_called_once_with(interactive=False);portal.close.assert_called_once();stream.assert_not_called();self.assertTrue(path.exists())
-    def test_region_freeze_uses_screenshot_portal_not_screencast_picker(self):
-        from PySide6.QtGui import QImage,QColor
-        from wybieshot.capture import CaptureEngine
-        image=QImage(96,54,QImage.Format_ARGB32);image.fill(QColor('green'))
-        with patch.dict(os.environ,{'WAYLAND_DISPLAY':'owned'}),patch('loomrec.portal_image.capture_frame',return_value=image) as frame:
-            frozen=CaptureEngine().freeze()
-        frame.assert_called_once()
-        self.assertEqual(frame.call_args.args[0],'desktop')
-        self.assertFalse(frame.call_args.args[1])
-        self.assertEqual((frozen.geometry.width,frozen.geometry.height),(96,54))
-        self.assertFalse(frozen.cursor_embedded)
     def test_mpv_numeric_locale_is_normalized_before_creating_handle(self):
         from loomrec.ui import mpv_embed
         with patch('loomrec.ui.mpv_embed.locale.setlocale') as normalize:
@@ -158,12 +130,6 @@ class WaylandImageTests(unittest.TestCase):
         result=compose_frames([(red,dict(position=[-32,0],size=[32,24])),(blue,dict(position=[0,0],size=[32,24]))])
         self.assertEqual((result.width(),result.height()),(128,48));self.assertEqual(result.pixelColor(10,10),QColor('red'));self.assertEqual(result.pixelColor(100,10),QColor('blue'))
         with self.assertRaisesRegex(ValueError,'topología'):compose_frames([(red,{}),(blue,{})])
-    def test_selection_maps_logical_widget_to_original_pixels(self):
-        from PySide6.QtGui import QImage
-        from PySide6.QtCore import QRect
-        from wybieshot.ui.selection import SelectionOverlay
-        image=QImage(400,200,QImage.Format_ARGB32);widget=SelectionOverlay(image,QRect(0,0,200,100));widget.resize(200,100)
-        self.assertEqual(widget.source_rect(QRect(50,20,100,50)),QRect(100,40,200,100));widget.close()
     def test_software_renderer_buffer_alignment_and_image_ownership(self):
         import ctypes as C
         from loomrec.ui.mpv_embed import sw_frame

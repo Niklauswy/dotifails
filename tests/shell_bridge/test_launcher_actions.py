@@ -23,8 +23,10 @@ function check(v, why) { if (!v) throw Error(why); }
 var session = {logout: ['logout'], hibernate: ['hibernate'], reboot: ['reboot'], shutdown: ['poweroff']};
 var commands = globalThis.tools([], session).map(a => a.argv.join(' '));
 for (var mode of ['files', 'music', 'music-mini', 'notes', 'colors', 'processes', 'tools',
-                  'connections', 'audio', 'notifications', 'calendar', 'recorder', 'screenshot', 'settings'])
+                  'connections', 'audio', 'notifications', 'calendar', 'recorder', 'settings'])
     check(commands.includes('wysun ' + mode), 'lost utility: ' + mode);
+// Screenshots open in the shell once the launcher has closed.
+check(commands.some(c => c.includes('exec wysun-shell screenshot')), 'lost utility: screenshot');
 var views = globalThis.views();
 for (var view of ['clipboard', 'snippets', 'windows', 'files', 'apps', 'calc-history', 'system'])
     check(views.some(v => v.view === view), 'lost view: ' + view);

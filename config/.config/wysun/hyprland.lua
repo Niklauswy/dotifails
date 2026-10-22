@@ -30,11 +30,6 @@ hl.window_rule({ name = "wysun-power", match = { class = "^orbit$", title = "^Wy
 hl.window_rule({ name = "wysun-recorder-quick", match = { class = "^python3$", title = "^Wysun Recorder · (Captura rápida|Controles)( — Wysun Recorder)?$" }, float = true, border_size = 0, move = {"(monitor_w-window_w)/2", "monitor_h-window_h-28"}, rounding = 0, no_shadow = true })
 hl.window_rule({ name = "wysun-recorder-countdown", match = { class = "^python3$", title = "^Wysun Recorder · Cuenta atrás( — Wysun Recorder)?$" }, float = true, center = true, border_size = 0, rounding = 0, no_shadow = true })
 hl.window_rule({ name = "wysun-recorder-presenter", match = { class = "^python3$", title = "^Wysun Recorder · Presentación( — Wysun Recorder)?$" }, float = true, pin = true, border_size = 0, rounding = 0, no_shadow = true, no_anim = true, no_blur = true, no_dim = true, no_initial_focus = true })
-hl.window_rule({ name = "wysun-screenshot-quick", match = { class = "^wybie-screenshot$", title = "^Wysun Screenshot · Captura rápida( — Wysun Screenshot)?$" }, float = true, border_size = 0, move = {"(monitor_w-window_w)/2", "monitor_h-window_h-28"}, rounding = 0, no_shadow = true })
-hl.window_rule({ name = "wysun-screenshot-selection", match = { class = "^wybie-screenshot$", title = "^(Recortar imagen autorizada|Seleccionar región) · Wysun Screenshot( — Wysun Screenshot)?$" }, float = true, center = true, border_size = 0, rounding = 0, no_shadow = true })
-hl.window_rule({ name = "wysun-screenshot-countdown", match = { class = "^wybie-screenshot$", title = "^Preparando captura( — Wysun Screenshot)?$" }, float = true, center = true, border_size = 0, rounding = 0, no_shadow = true })
-hl.window_rule({ name = "wysun-screenshot-busy", match = { class = "^wybie-screenshot$", title = "^Wysun Screenshot · Captura en curso( — Wysun Screenshot)?$" }, float = true, center = true, border_size = 0, rounding = 0, no_shadow = true })
-hl.window_rule({ name = "wysun-screenshot-pending", match = { class = "^wybie-screenshot$", title = "^Wysun Screenshot · Preparando selección( — Wysun Screenshot)?$" }, float = true, center = true, border_size = 0, rounding = 0, no_shadow = true })
 -- The consent provider is a native MainWindow, but behaves as a dialog.
 hl.window_rule({ name = "wysun-portal-picker", match = { class = "^hyprland-share-picker$", title = "^Select what to share$" }, float = true, center = true })
 -- BEGIN AUDITED DAILY SHORTCUTS
@@ -60,10 +55,10 @@ hl.bind("SUPER + SHIFT + M", hl.dsp.exec_cmd("wysun music-mini"), {description="
 hl.bind("SUPER + SHIFT + L", hl.dsp.exec_cmd("wysun recorder --quick-record"), {description="Wysun | equivalent | Abrir wysun recorder --quick-record"})
 hl.bind("SUPER + SHIFT + B", hl.dsp.exec_cmd("brave-browser"), {description="Wysun | equivalent | Abrir brave-browser"})
 hl.bind("SUPER + SHIFT + D", hl.dsp.exec_cmd("discord"), {description="Wysun | equivalent | Abrir discord"})
-hl.bind("SUPER + SHIFT + S", hl.dsp.exec_cmd("wysun screenshot --region --delay 0 --accept-on-select --clipboard --path \"$HOME/Screenshots\""), {description="Wysun | private | Captura de región; destino personal migrado como override privado"})
-hl.bind("SUPER + SHIFT + Q", hl.dsp.exec_cmd("wysun screenshot --region --delay 0 --accept-on-select --clipboard --path \"$HOME/Screenshots\""), {description="Wysun | private | Captura de región; destino personal migrado como override privado"})
-hl.bind("Print", hl.dsp.exec_cmd("wysun screenshot --region --delay 0"), {description="Wysun | equivalent | Captura directa de región sin guardar automáticamente"})
-hl.bind("SUPER + SHIFT + A", hl.dsp.exec_cmd("wysun screenshot --region --delay 0"), {description="Wysun | equivalent | Captura directa de región sin guardar automáticamente"})
+hl.bind("SUPER + SHIFT + S", hl.dsp.exec_cmd("wysun-shell screenshot --path \"$HOME/Screenshots\""), {description="Wysun | private | Captura de región: copiar y guardar, anotar o leer texto"})
+hl.bind("SUPER + SHIFT + Q", hl.dsp.exec_cmd("wysun-shell screenshot --path \"$HOME/Screenshots\""), {description="Wysun | private | Captura de región: copiar y guardar, anotar o leer texto"})
+hl.bind("Print", hl.dsp.exec_cmd("wysun-shell screenshot --annotate --no-save"), {description="Wysun | equivalent | Captura de región directa al editor de anotaciones"})
+hl.bind("SUPER + SHIFT + A", hl.dsp.exec_cmd("wysun-shell screenshot --annotate --no-save"), {description="Wysun | equivalent | Captura de región directa al editor de anotaciones"})
 hl.bind("SUPER + W", hl.dsp.window.close(), {description="Wysun | equivalent | Cerrar ventana mediante petición normal; nunca probado contra aplicaciones ajenas"})
 hl.bind("SUPER + CTRL + W", hl.dsp.window.kill(), {description="Wysun | adapted | Forzar cierre del proceso propietario (puede incluir otras ventanas del proceso)"})
 -- Internal fullscreen only: the window covers the bar, but the client is not

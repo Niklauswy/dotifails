@@ -1,6 +1,6 @@
 # Temas de Wysun
 
-Wysun tiene **dos estilos** y **cinco variantes**. Todas las superficies obedecen la misma selección, sin excepciones: lanzador y modos, utilidades, Music, Files, Settings, pantalla de bloqueo, Wysun Recorder, Wysun Screenshot, la barra y los paneles de Quickshell y el instalador.
+Wysun tiene **dos estilos** y **cinco variantes**. Todas las superficies obedecen la misma selección, sin excepciones: lanzador y modos, utilidades, Music, Files, Settings, pantalla de bloqueo, Wysun Recorder, la barra, los paneles y la captura de pantalla de Quickshell y el instalador.
 
 | Estilo | Variantes | Idea |
 |---|---|---|
@@ -35,7 +35,7 @@ Los colores se escriben en orden CSS: `#RRGGBB` o `#RRGGBBAA`.
 | Copia | Ruta |
 |---|---|
 | Fuente | `apps/wysun/wysun_theme.json`, `apps/wysun/theme_core.py` |
-| Recorder / Screenshot | `apps/capture/loomrec/ui/wysun_theme.json`, `apps/capture/loomrec/ui/theme_core.py` |
+| Recorder | `apps/capture/loomrec/ui/wysun_theme.json`, `apps/capture/loomrec/ui/theme_core.py` |
 | Quickshell | `apps/shell/wysun_theme.json` |
 
 `tests/test_theme_tokens.py` comprueba que son idénticas. Al cambiar los tokens, copia el archivo a las tres rutas.
@@ -45,7 +45,7 @@ Los colores se escriben en orden CSS: `#RRGGBB` o `#RRGGBBAA`.
 | Entorno | Módulo | Cómo se usa |
 |---|---|---|
 | Qt (Wysun) | `apps/wysun/theme_tokens.py` | `color()`, `font()`, `apply_style(widget, plantilla)`, `on_theme_changed()` |
-| Recorder / Screenshot | `apps/capture/loomrec/ui/tokens.py` | Mismo contrato; lee la misma selección. |
+| Recorder | `apps/capture/loomrec/ui/tokens.py` | Mismo contrato; lee la misma selección. |
 | Quickshell | `apps/shell/Appearance.qml` (singleton, `qmldir`) | `Appearance.surface`, `Appearance.radiusM`… `Preferences.qml` lo alimenta desde `theme.json`. |
 | Instalador | `installer/visual_widgets.py` | Usa `theme_tokens` del repositorio. |
 
@@ -60,7 +60,7 @@ Las plantillas de hoja de estilo usan `@token`, `@token/alpha` (0-255) y `@svg(n
    p.setBrush(color('accent'))           # al pintar, siempre se pide el color en ese momento
    on_theme_changed(self.refrescar)      # solo si guardas cachés (pixmaps, iconos, texto derivado)
    ```
-2. **Recorder / Screenshot**: lo mismo con `from .tokens import apply_style, color`.
+2. **Recorder**: lo mismo con `from .tokens import apply_style, color`.
 3. **Quickshell**: parte de `apps/shell/ThemeDemo.qml`; añade el tipo a `apps/shell/qmldir`.
    ```qml
    Rectangle { color: Appearance.surface; radius: Appearance.radiusM

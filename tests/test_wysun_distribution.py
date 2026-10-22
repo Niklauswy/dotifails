@@ -36,13 +36,14 @@ class WysunDistributionTests(unittest.TestCase):
         deployment.finish()
         deployment.lock.close()
         launch = self.home / '.local/bin/wysun'
-        for mode, title in (('recorder', 'Wysun Recorder'), ('screenshot', 'Wysun Screenshot')):
-            output = subprocess.check_output([str(launch), mode, '--version'], cwd='/', text=True)
-            self.assertIn(title, output)
-        for old in ('loomrec', 'wybie-screenshot'):
-            self.assertIn('Wysun', subprocess.check_output([str(launch.parent / old), '--version'], cwd='/', text=True))
+        self.assertIn('Wysun Recorder', subprocess.check_output([str(launch), 'recorder', '--version'], cwd='/', text=True))
+        self.assertIn('Wysun', subprocess.check_output([str(launch.parent / 'loomrec'), '--version'], cwd='/', text=True))
+        # Screenshots are taken by the shell; the former commands only redirect there.
+        for old in ('wysun-screenshot', 'wybie-screenshot'):
+            self.assertIn('/wysun" screenshot "$@"', (launch.parent / old).read_text())
         entries = self.home / '.local/share/applications'
-        self.assertEqual(len(list(entries.glob('*.desktop'))), 5)
+        self.assertFalse((entries / 'wybie-screenshot.desktop').exists())
+        self.assertEqual(len(list(entries.glob('*.desktop'))), 4)
         self.assertIn('Name=Wysun Recorder', (entries / 'loomrec.desktop').read_text())
         self.assertIn('Name=Wysun Settings', (entries / 'orbit-settings.desktop').read_text())
         self.assertIn('Name=Wysun Conexiones', (entries / 'orbit-connections.desktop').read_text())
@@ -78,8 +79,11 @@ class WysunDistributionTests(unittest.TestCase):
         self.assertFalse(deployment.conflicts)
         for name in private:
             self.assertEqual((self.home / name).read_bytes(), b'private fixture untouched')
-        for command in ('loomrec', 'wybie-screenshot'):
-            self.assertIn('Wysun', subprocess.check_output([str(self.home / '.local/bin' / command), '--version'], text=True))
+        self.assertIn('Wysun', subprocess.check_output([str(self.home / '.local/bin/loomrec'), '--version'], text=True))
+        # The verified standalone Screenshot install is adopted: redirect, no menu entry or icon.
+        self.assertIn('/wysun" screenshot', (self.home / '.local/bin/wybie-screenshot').read_text())
+        self.assertFalse((self.home / '.local/share/applications/wybie-screenshot.desktop').exists())
+        self.assertFalse((self.home / '.local/share/icons/hicolor/scalable/apps/wybie-screenshot.svg').exists())
 
     def test_unowned_commands_and_modified_legacy_are_kept(self):
         legacy = self.home / '.local/bin/loomrec'
@@ -134,7 +138,7 @@ class WysunDistributionTests(unittest.TestCase):
         directory = self.home / 'bin'
         directory.mkdir()
         shutil.copy2(ROOT / 'bin/wysun', directory / 'wysun')
-        for name in ('orbit', 'wysun-recorder', 'wysun-screenshot', 'orbit-files'):
+        for name in ('orbit', 'wysun-recorder', 'wysun-shell', 'orbit-files'):
             path = directory / name
             path.write_text('#!/usr/bin/python3\nimport json,sys\nprint(json.dumps(sys.argv))\n')
             path.chmod(0o755)
@@ -142,7 +146,9 @@ class WysunDistributionTests(unittest.TestCase):
             (['music'], 'orbit', ['music']),
             (['files', '/tmp/a file'], 'orbit-files', ['/tmp/a file']),
             (['recorder', '--quick-record'], 'wysun-recorder', ['--quick-record']),
-            (['screenshot', '--region', '--delay', '0'], 'wysun-screenshot', ['--region', '--delay', '0']),
+            (['screenshot', '--region', '--delay', '0'], 'wysun-shell', ['screenshot', '--annotate', '--no-save']),
+            (['screenshot', '--region', '--accept-on-select', '--clipboard', '--path', '/tmp/s'], 'wysun-shell',
+             ['screenshot', '--path', '/tmp/s']),
         ):
             output = json.loads(subprocess.check_output([str(directory / 'wysun'), *args], cwd='/', text=True))
             self.assertEqual(output, [str(directory / executable), *forwarded])

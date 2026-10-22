@@ -153,9 +153,8 @@ Upstream files have no individual copyright header; no notices were removed.
 - `modules/nexus/NavPane.qml`, `modules/dashboard/Media.qml`,
   `modules/dashboard/media/Details.qml`, `components/widgets/CoverArt.qml` and
   `components/{StyledRect,StyledText,StateLayer}.qml` inform
-  `apps/capture/loomrec/ui/{material,layouts,components,settings}.py` and
-  `apps/capture/wybieshot/ui/main.py`. Library artwork/navigation, editor tool
-  grouping and playback hierarchy change; capture/portal/media contracts stay
+  `apps/capture/loomrec/ui/{material,layouts,components,settings}.py`. Library
+  artwork/navigation and playback hierarchy change; capture/portal/media contracts stay
   in the existing backends. This is not an upstream full-screen music app.
 - Files/utilities package Rubik and complete Material Symbols fallback resources
   in `apps/wysun/assets/utils-material/`, with OFL and Apache-2.0 notices.

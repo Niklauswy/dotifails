@@ -1,11 +1,12 @@
-# Wysun Recorder y Wysun Screenshot
+# Wysun Recorder
 
-Fuente integrada de ambas aplicaciones dentro de `dotifails`. El instalador común (`./instalar.sh --wysun-only` desde la raíz) actualiza ambas con el resto de Wysun. No ejecutar los instaladores históricos de `scripts/` para actualizar esta distribución.
+Fuente integrada de Wysun Recorder dentro de `dotifails`. El instalador común (`./instalar.sh --wysun-only` desde la raíz) lo actualiza con el resto de Wysun.
 
-Los paquetes `loomrec` y `wybieshot` y sus directorios privados se conservan por compatibilidad. La fuente original de `loom` queda como copia histórica; no es necesaria para instalar o ejecutar Wysun.
+Wysun Screenshot (`wybieshot`) se retiró: las capturas de pantalla las hace el shell (`apps/shell/modules/areapicker`) y `wysun screenshot` redirige allí. Las menciones a Screenshot que quedan más abajo describen la app anterior y son solo históricas. No ejecutar los instaladores históricos de `scripts/` para actualizar esta distribución.
+
+El paquete `loomrec` y su directorio privado se conservan por compatibilidad. La fuente original de `loom` queda como copia histórica; no es necesaria para instalar o ejecutar Wysun.
 
 - `wysun recorder`: biblioteca y editor; `wysun recorder --quick-record`: barra de preparación.
-- `wysun screenshot`: captura y editor; `wysun screenshot --library`: biblioteca.
 - Pruebas de esta carpeta: `python3 run_tests.py` (HOME y XDG temporales).
 
 Las notas siguientes describen la arquitectura y los formatos existentes; sus comandos técnicos antiguos siguen siendo compatibles.

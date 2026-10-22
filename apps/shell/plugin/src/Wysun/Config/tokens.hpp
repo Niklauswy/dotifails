@@ -202,6 +202,27 @@ class AiUsageTokens : public settings::ObjectNode {
     CONFIG_PROPERTY(int, barIndicatorSize, 22)
 };
 
+// Screenshot picker: a node hanging from strings tied to the output corners.
+class ScreenshotTokens : public settings::ObjectNode {
+    CONFIG_NODE(ScreenshotTokens, settings::ObjectNode)
+
+    CONFIG_PROPERTY(int, nodeSize, 14)
+    CONFIG_PROPERTY(int, stringWidth, 2)
+    CONFIG_PROPERTY(int, outlineWidth, 2)
+    CONFIG_PROPERTY(int, handleHitSize, 28)
+    CONFIG_PROPERTY(int, minSelection, 6)
+    CONFIG_PROPERTY(qreal, dimOpacity, 0.6)
+    // Nodes follow the pointer on a stiff spring; the string bends on a looser one.
+    CONFIG_PROPERTY(qreal, nodeSpring, 6.5)
+    CONFIG_PROPERTY(qreal, nodeDamping, 0.42)
+    CONFIG_PROPERTY(qreal, stringSpring, 2.6)
+    CONFIG_PROPERTY(qreal, stringDamping, 0.18)
+    CONFIG_PROPERTY(qreal, stringSag, 0.55)
+    CONFIG_PROPERTY(int, toolbarGap, 14)
+    CONFIG_PROPERTY(int, ocrWidth, 420)
+    CONFIG_PROPERTY(int, ocrHeight, 260)
+};
+
 class UtilitiesTokens : public settings::ObjectNode {
     CONFIG_NODE(UtilitiesTokens, settings::ObjectNode)
 
@@ -264,6 +285,7 @@ class SizeTokens : public settings::ObjectNode {
     CONFIG_SUBOBJECT(SidebarTokens, sidebar)
     CONFIG_SUBOBJECT(UtilitiesTokens, utilities)
     CONFIG_SUBOBJECT(AiUsageTokens, aiUsage)
+    CONFIG_SUBOBJECT(ScreenshotTokens, screenshot)
     CONFIG_SUBOBJECT(LockTokens, lock)
     CONFIG_SUBOBJECT(WInfoTokens, winfo)
     CONFIG_SUBOBJECT(NexusTokens, nexus)

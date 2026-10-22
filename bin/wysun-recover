@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 """Wysun recovery: give the desktop back without restarting the session.
 
-Closes whatever may be covering the screen (capture selection overlays, the
-shell's area picker and panels) and relaunches the shell when it is not
-running. Capture recovery is cooperative and scoped to this compositor; it
-preserves annotations and leaves libraries, clipboard owners and Recorder alone.
+Closes whatever may be covering the screen (the shell's screenshot picker and
+panels) and relaunches the shell when it is not running. It leaves clipboard
+owners and Recorder alone.
 Bound to Super+Escape (followed by a Hyprland reload) and Super+Ctrl+Alt+Escape in hyprland.lua; also `wysun recover`.
 """
 from pathlib import Path
@@ -19,21 +18,13 @@ def run(command, timeout=3):
         return None
 
 
-def close_capture_overlays():
-    helper = Path(__file__).resolve().parent / 'wysun-screenshot'
-    result = run([str(helper), '--cancel-selection'], timeout=5)
-    if result is not None and result.stdout:
-        print(result.stdout.strip())
-    return result is not None and result.returncode == 0
-
-
 def close_shell_overlays():
     here = Path(__file__).resolve().parent
     helper = here / 'wysun-shell'
     if not helper.is_file():
         return
     panels = run([str(helper), 'close'])
-    # The area picker holds exclusive keyboard focus on every output.
+    # The screenshot picker holds exclusive keyboard focus.
     picker = run([str(helper), 'picker', 'close'])
     return all(result is not None and result.returncode == 0 for result in (panels, picker))
 
@@ -54,7 +45,6 @@ def main(argv):
     if argv and argv[0] in ('-h', '--help'):
         print(__doc__.strip())
         return 0
-    capture_ok = close_capture_overlays()
     helper = Path(__file__).resolve().parent / 'wysun-shell'
     status = run([str(helper), 'status'])
     started = False
@@ -68,7 +58,7 @@ def main(argv):
         status = run([str(helper), 'status'])
     shell_ok = status is not None and status.returncode == 0
     print('Wysun recover: shell ' + ('activo' if shell_ok else 'sin respuesta'))
-    return 0 if capture_ok and shell_ok and overlays_ok else 1
+    return 0 if shell_ok and overlays_ok else 1
 
 
 if __name__ == '__main__':
