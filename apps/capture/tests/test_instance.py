@@ -33,19 +33,3 @@ class ActivationTests(unittest.TestCase):
  def setUpClass(cls):
   from PySide6.QtWidgets import QApplication
   cls.app=QApplication.instance() or QApplication([])
- def test_setup_activation_and_recording_activation_stays_hidden(self):
-  from loomrec.ui.main import Window
-  from loomrec.library import Library
-  from loomrec.schema import Project,Source,Clip,save_project
-  with tempfile.TemporaryDirectory() as directory,patch.dict(os.environ,{'XDG_STATE_HOME':directory}):
-   library=Library(directory);path=library.new_directory()/'project.json'
-   save_project(Project(sources=[Source('s','synthetic.mkv',duration=5)],clips=[Clip('s',0,5)]),path)
-   window=Window(library,False);window.timer.stop()
-   try:
-    with patch.object(window,'ensure_keys'):
-     result=window.activate_instance('setup')
-    self.assertTrue(result['setup'])
-    window.session=Mock(root=path.parent);window.session.status.return_value={'state':'recording'};window.hide()
-    result=window.activate_instance('setup')
-    self.assertEqual(result['result'],'capture_kept_hidden');self.assertFalse(window.isVisible());window.session.stop.assert_not_called();window.session.pause.assert_not_called()
-   finally:window.session=None;window.close();window.deleteLater();self.app.processEvents()

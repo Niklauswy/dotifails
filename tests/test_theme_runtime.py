@@ -16,7 +16,6 @@ class CompleteThemeTests(unittest.TestCase):
   file('.config/starship.toml',"format = '$directory$character'\n[character]\nsuccess_symbol = '[➜](green)'\n")
   file('.config/nvim/lua/chadrc.lua','local M = {}\nM.base46 = { theme = "rosepine", transparency = true, hl_override = { Comment = {fg = "#908caa"} } }\nM.ui = {statusline = {theme = "minimal"}}\nreturn M\n')
   file('.config/orbit/environment.json',json.dumps({'wallpaper':{'folders':['/my/library']},'workspaces':{'names':['keep']}}))
-  file('.config/wysun/dunstrc','[global]\nfont = Inter 10\n[urgency_low]\nbackground = "#112233"\n[urgency_normal]\nbackground = "#112233"\n[urgency_critical]\nbackground = "#441122"\n')
   for name in ('tokyo.png','azul.jpg','space-black.png'):file('.local/share/backgrounds/'+name,'fixture')
  def tearDown(self):self.folder.cleanup();invalidate()
  def runner(self,args):
@@ -41,8 +40,7 @@ class CompleteThemeTests(unittest.TestCase):
    self.assertEqual((self.home/'.config/starship.toml').read_text().count('[palettes.orbit]'),1)
    editor=(self.home/'.config/nvim/lua/chadrc.lua').read_text();self.assertIn('transparency = true',editor);self.assertIn('theme = "minimal"',editor)
    self.assertIn('theme = "'+ext['nvim']+'"',editor)
-   notices=(self.home/'.config/wysun/dunstrc').read_text();self.assertEqual(notices.count('background = "'+ext['notices']['background']+'"'),3);self.assertIn('foreground = "'+ext['notices']['foreground']+'"',notices);self.assertIn('font = Inter 10',notices)
-   if key in ('tokyo','severance','space-black'):self.assertEqual(ext['notices']['background'],'#18191d')
+   self.assertFalse((self.home/'.config/wysun/dunstrc').exists())      # notifications follow the shell theme; no separate daemon config
    self.assertTrue(any(ext['accent'][1:] in command for command in self.evaluated))
  def test_theme_generated_bar_colours_are_dropped_but_custom_ones_kept(self):
   bar=self.home/'.config/orbit/hypr-bar.json'

@@ -9,6 +9,8 @@ case "${1:-}" in
     category) shift; exec "$runtime" ipc call wysunShell category "${1:-all}" ;;
     search) shift; exec "$runtime" ipc call wysunShell search "${1:-}" ;;
     emoji) exec "$runtime" ipc call wysunShell toggle emoji ;;
+    media) shift; exec "$runtime" ipc call wysunShell media "${1:-}" ;;
+    color-pick) exec "$runtime" ipc call wysunShell pickColor ;;
     launcher) exec "$runtime" ipc call wysunShell toggle launcher ;;
     overview|cheatsheet|wallpapers|menu|windows|session|sidebar) kind="$1"; shift; exec "$runtime" ipc call wysunShell toggle "$kind" "$@" ;;
     toggle|open)
@@ -16,7 +18,7 @@ case "${1:-}" in
         surface="${1:-}"
         if [ $# -gt 0 ]; then shift; fi
         case "$surface" in
-            test|overview|cheatsheet|wallpapers|dashboard|launcher|emoji|menu|quicksettings|notifications|windows|session|sidebar|processes|ai) ;;
+            test|overview|cheatsheet|wallpapers|dashboard|launcher|emoji|menu|quicksettings|notifications|windows|session|sidebar|processes|ai|colors) ;;
             *) echo "wysun-shell: superficie desconocida: ${surface:-<vacía>}" >&2; exit 2 ;;
         esac
         exec "$runtime" ipc call wysunShell "$action" "$surface" "$@" ;;
@@ -25,12 +27,25 @@ case "${1:-}" in
     close|status) action="$1"; shift; exec "$runtime" ipc call wysunShell "$action" "$@" ;;
     nexus) shift; exec "$runtime" ipc call wysunShell openRoute "${1:-home}" ;;
     picker) shift; action="${1:-close}"; [ $# -gt 0 ] && shift; exec "$runtime" ipc call picker "$action" "$@" ;;
+    dnd)
+        # dnd [on|off|toggle|status]   Do Not Disturb of the shell's notification server
+        shift; action="${1:-status}"
+        case "$action" in
+            on) exec "$runtime" ipc call notifs setDnd true ;;
+            off) exec "$runtime" ipc call notifs setDnd false ;;
+            toggle) exec "$runtime" ipc call notifs toggleDnd ;;
+            status) exec "$runtime" ipc call notifs status ;;
+            clear) exec "$runtime" ipc call notifs clear ;;
+            *) echo "wysun-shell dnd: use on, off, toggle, status o clear" >&2; exit 2 ;;
+        esac ;;
+    record) shift; exec "$runtime" ipc call recorder "${1:-toggle}" ;;
     screenshot)
-        # screenshot [--annotate] [--path DIR] [--no-save]
-        shift; mode=actions; dir=""; save=true
+        # screenshot [--path DIR] [--no-save]   copy (and save) as soon as a region is chosen
+        # screenshot --options                   copy, save as, annotate or read text; never saves by itself
+        shift; mode=quick; dir=""; save=true
         while [ $# -gt 0 ]; do
             case "$1" in
-                --annotate) mode=annotate ;;
+                --options|--annotate) mode=actions; save=false ;;
                 --path) shift; dir="${1:-}" ;;
                 --no-save) save=false ;;
             esac

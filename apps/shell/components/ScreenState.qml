@@ -20,7 +20,11 @@ PersistentProperties {
     property bool wallpapers
     property string launcherQuery
 
-    // Dashboard state
+    // Dashboard state; dashboardKeyboard: opened from a shortcut that wants
+    // the keyboard (Esc closes, media keys act on the active player).
+    property bool dashboardKeyboard
     property int dashboardTab
     property date dashboardDate: new Date()
+
+    onDashboardChanged: if (!dashboard) dashboardKeyboard = false
 }

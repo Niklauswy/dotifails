@@ -75,7 +75,7 @@ StyledWindow {
     name: "drawers"
     WlrLayershell.exclusionMode: ExclusionMode.Ignore
     WlrLayershell.layer: (hasFullscreen && interactivePanelOpen) || (fsTransitionProg > 0 && contentItem.Config.general.showOverFullscreen) || (hasSpecialWorkspace && hasFullscreenOnNormalWs) ? WlrLayer.Overlay : WlrLayer.Top
-    WlrLayershell.keyboardFocus: screenState.session || screenState.sidebar || screenState.aiUsage ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: screenState.session || screenState.sidebar || screenState.aiUsage || (screenState.dashboard && screenState.dashboardKeyboard) ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
 
     mask: hasFullscreen && !interactivePanelOpen ? emptyRegion : regions
 
@@ -124,7 +124,7 @@ StyledWindow {
             const conf = root.contentItem.Config;
             if ((s.session && conf.session.enabled) || (s.sidebar && conf.sidebar.enabled) || s.aiUsage)
                 return true;
-            if (!conf.dashboard.showOnHover && s.dashboard && conf.dashboard.enabled)
+            if ((!conf.dashboard.showOnHover || s.dashboardKeyboard) && s.dashboard && conf.dashboard.enabled)
                 return true;
             if (panels.popouts.currentName.startsWith("traymenu") && (panels.popouts.current as StackView)?.depth > 1)
                 return true;

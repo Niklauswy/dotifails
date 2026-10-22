@@ -1,6 +1,6 @@
 # Créditos y licencias
 
-- BSPWM, SXHKD, Picom, Polybar, Dunst, Ghostty, Neovim, NvChad, Starship y herramientas de lenguaje mantienen sus licencias originales. Se descargan desde sus proyectos o la distribución.
+- BSPWM, SXHKD, Picom, Polybar, Ghostty, Neovim, NvChad, Starship y herramientas de lenguaje mantienen sus licencias originales. Se descargan desde sus proyectos o la distribución.
 - [Lucide](https://github.com/lucide-icons/lucide): iconos SVG de la aplicación; licencia ISC en el directorio de recursos.
 - [Win11 icon theme](https://github.com/yeyushengfan258/Win11-icon-theme): tema Win11-Dark, GPL-3.0, `assets/icons/Win11-Dark/COPYING`. Se ajustó la herencia a temas disponibles en Debian y se eliminaron enlaces rotos.
 - [Fluent icon theme](https://github.com/vinceliuice/Fluent-icon-theme): cursor Fluent, GPL-3.0, `assets/icons/Fluent/COPYING`.

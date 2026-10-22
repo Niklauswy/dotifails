@@ -9,8 +9,9 @@ import sys
 SHELL_ROUTES = {
     # Former Qt menus, now served by the shell: command -> wysun-shell arguments.
     'toggle': ['launcher'], 'launcher': ['launcher'],
-    'clipboard': ['category', 'clip'], 'snippets': ['category', 'snippets'], 'emoji': ['emoji'],
-    'calculator': ['category', 'calc'], 'windows': ['category', 'windows'], 'power': ['session'],
+    'clipboard': ['category', 'clip'], 'emoji': ['emoji'],
+    'calculator': ['category', 'calc'], 'power': ['session'],
+    'color': ['open', 'colors'], 'color-pick': ['color-pick'],
     'processes': ['open', 'processes'], 'cheatsheet': ['cheatsheet'], 'wallpapers': ['wallpapers'],
     'audio': ['open', 'quicksettings'], 'notifications': ['open', 'notifications'],
     'calendar': ['open', 'dashboard'], 'system': ['open', 'dashboard'],
@@ -39,8 +40,8 @@ def shell_command(command, args):
     return 0
 
 
-# Settings and connections use Nexus; Processes has its own shell module.
-NEXUS_DEFAULTS = {'settings': 'home', 'connections': 'network', 'network': 'network'}
+# Settings and the network page use Nexus; Processes has its own shell module.
+NEXUS_DEFAULTS = {'settings': 'home', 'network': 'network'}
 
 
 def open_nexus(command, args):
@@ -62,7 +63,7 @@ def main():
     args = sys.argv[1:]
     if args and args[0] in ('--help', '-h', 'help'):
         print('Wysun · aplicaciones del escritorio\n'
-              'Uso: wysun [scheme|wallpaper|shell|recover|lock|session-check|doctor|audio|calendar|recorder|screenshot|music|music-mini|files|settings|tools|notes|processes|colors|connections|power|activate CLASE] [opciones]\n'
+              'Uso: wysun [scheme|wallpaper|shell|recover|lock|session-check|doctor|audio|calendar|recorder|screenshot|music|music-mini|files|settings|processes|colors|color-pick|power|activate CLASE] [opciones]\n'
               'Sin argumentos abre el lanzador. Recorder y Screenshot abren su biblioteca;\n'
               'wysun recorder --quick-record abre la barra de preparación sin grabar.\n'
               'El lanzador es el widget inferior del shell; si el shell no responde,\n'
@@ -100,12 +101,13 @@ def main():
 def screenshot(args):
     """Screenshots live in the shell; translate the options of the former app.
 
-    --accept-on-select or --clipboard keep the quick flow (choose, then copy);
-    otherwise the capture opens in the annotation editor. --path saves there.
+    --accept-on-select or --clipboard keep the quick flow (copy, and save to
+    --path, as soon as a region is chosen); otherwise the region offers copy,
+    save as, annotate and text.
     """
     forwarded = []
     if '--accept-on-select' not in args and '--clipboard' not in args:
-        forwarded.append('--annotate')
+        forwarded.append('--options')
     if '--path' in args:
         index = args.index('--path')
         if index + 1 < len(args):

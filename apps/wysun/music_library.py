@@ -4,6 +4,7 @@ from pathlib import Path
 import random
 import re
 import sqlite3
+import time
 import unicodedata
 
 
@@ -86,7 +87,11 @@ class MusicStore:
         CREATE TABLE IF NOT EXISTS preferences (key TEXT PRIMARY KEY, value TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS references_meta (track TEXT PRIMARY KEY, duration REAL, album TEXT, spotify TEXT);
         CREATE TABLE IF NOT EXISTS variants (track TEXT PRIMARY KEY, preferred TEXT);
-        PRAGMA user_version=1;
+        CREATE TABLE IF NOT EXISTS playlists (id TEXT PRIMARY KEY, title TEXT NOT NULL, created REAL DEFAULT (unixepoch()));
+        CREATE TABLE IF NOT EXISTS playlist_tracks (playlist TEXT NOT NULL, track TEXT NOT NULL, position INTEGER NOT NULL,
+            PRIMARY KEY (playlist, track));
+        CREATE TABLE IF NOT EXISTS history (track TEXT PRIMARY KEY, played REAL NOT NULL, plays INTEGER DEFAULT 1);
+        PRAGMA user_version=2;
         ''')
 
     def favorites(self):
@@ -122,6 +127,14 @@ class MusicStore:
                     (track['id'], track.get('duration'), album, 'https://open.spotify.com/track/'+track['id']))
         self.db.commit()
 
+    def references(self):
+        """Every reference at once: one query instead of one per row."""
+        return {row[0]: dict(duration=row[1], album=row[2], spotify=row[3])
+                for row in self.db.execute('SELECT track,duration,album,spotify FROM references_meta')}
+
+    def variants(self):
+        return dict(self.db.execute('SELECT track,preferred FROM variants').fetchall())
+
     def reference(self, key):
         row = self.db.execute('SELECT duration,album,spotify FROM references_meta WHERE track=?', (key,)).fetchone()
         return dict(duration=row[0], album=row[1], spotify=row[2]) if row else {}
@@ -133,6 +146,51 @@ class MusicStore:
     def set_preferred(self, key, preferred):
         self.db.execute('INSERT OR REPLACE INTO variants VALUES(?,?)', (key, preferred))
         self.db.commit()
+
+    # User playlists live here, never in the download manifest (library.json).
+    def playlists(self):
+        rows = self.db.execute('SELECT id,title FROM playlists ORDER BY created').fetchall()
+        return [dict(id=key, title=title, tracks=self.playlist_tracks(key)) for key, title in rows]
+
+    def playlist_tracks(self, key):
+        return [row[0] for row in self.db.execute(
+            'SELECT track FROM playlist_tracks WHERE playlist=? ORDER BY position', (key,))]
+
+    def create_playlist(self, title):
+        key = 'user-' + str(int(time.time() * 1000))
+        self.db.execute('INSERT INTO playlists(id,title) VALUES(?,?)', (key, title))
+        self.db.commit()
+        return key
+
+    def rename_playlist(self, key, title):
+        self.db.execute('UPDATE playlists SET title=? WHERE id=?', (title, key))
+        self.db.commit()
+
+    def delete_playlist(self, key):
+        self.db.execute('DELETE FROM playlist_tracks WHERE playlist=?', (key,))
+        self.db.execute('DELETE FROM playlists WHERE id=?', (key,))
+        self.db.commit()
+
+    def add_to_playlist(self, key, tracks):
+        start = self.db.execute('SELECT COALESCE(MAX(position),-1)+1 FROM playlist_tracks WHERE playlist=?', (key,)).fetchone()[0]
+        self.db.executemany('INSERT OR IGNORE INTO playlist_tracks VALUES(?,?,?)',
+                            [(key, track, start + i) for i, track in enumerate(tracks)])
+        self.db.commit()
+
+    def remove_from_playlist(self, key, tracks):
+        self.db.executemany('DELETE FROM playlist_tracks WHERE playlist=? AND track=?', [(key, t) for t in tracks])
+        self.db.commit()
+
+    def record_play(self, track):
+        self.db.execute('''INSERT INTO history(track,played) VALUES(?,?)
+            ON CONFLICT(track) DO UPDATE SET played=excluded.played, plays=history.plays+1''', (track, time.time()))
+        self.db.commit()
+
+    def recent(self, limit=20):
+        return [row[0] for row in self.db.execute('SELECT track FROM history ORDER BY played DESC LIMIT ?', (limit,))]
+
+    def most_played(self, limit=20):
+        return [row[0] for row in self.db.execute('SELECT track FROM history ORDER BY plays DESC, played DESC LIMIT ?', (limit,))]
 
     def close(self):
         self.db.close()

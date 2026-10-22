@@ -37,10 +37,10 @@ detectan por huella y se guardan como `incoming/`).
 | Componente | Qué es | Arranca |
 |---|---|---|
 | Hyprland 0.55.x | Compositor, configuración Lua `~/.config/wysun/hyprland.lua` (de `config/.config/wysun/hyprland.lua`) | `wysun-session` (sesión “Wysun / Hyprland”) |
-| `wysun-session-services` | Supervisor: `wysun-shell`, `wysun-idle` (swayidle configurable: bloqueo/pantalla), `wysun daemon`, `dunst`, polkit | Hyprland `exec` |
+| `wysun-session-services` | Supervisor: `wysun-shell`, `wysun-idle` (swayidle configurable: bloqueo/pantalla), `wysun daemon`, polkit | Hyprland `exec` |
 | Shell (`wysun-shell` → `runtime.sh` → Quickshell) | Barra, dashboard, lanzador QML, menús, notificaciones (vista), OSD, sesión, fondos | supervisor |
 | `wysun daemon` (`orbit.py --daemon`) | Residente Qt: lanzador, portapapeles, Notas, procesos, OCR; socket `$XDG_RUNTIME_DIR/orbit-<uid>.sock` | supervisor |
-| Dunst | Único dueño de D-Bus de notificaciones | supervisor |
+| Shell (Quickshell) | Único dueño de D-Bus de notificaciones (`NotificationServer` en `apps/shell/services/Notifs.qml`); No molestar: `wysun-shell dnd on\|off\|toggle\|status` | supervisor |
 | Apps (Music, Files, Settings, Recorder) | Ventanas Qt bajo demanda (`wysun <modo>`) | usuario |
 
 ### Shell (`apps/shell`)
@@ -59,6 +59,12 @@ viven en `hyprland.lua`.
 - **Configuración del shell** (dato del usuario): `~/.config/wysun/shell/shell.json`, `shell-tokens.json` y
   `monitors/<salida>/…` (por pantalla). Antes `~/.config/wysun/caelestia` (el instalador la copia; la antigua se retira con
   `installer/clean_legacy.py`).
+- **Transición de fondos**: `background.wallpaperTransition = "ZoomBlurPull"` usa un acercamiento gradual del fondo
+  anterior, fundido con la imagen nueva nítida y un asentamiento final. Sus parámetros viven en
+  `appearance.wallpaperMotion` de los tokens nativos (`plugin/src/Wysun/Config/tokens.hpp`), con duración propia de
+  1400 ms, multiplicada por la escala de animaciones del usuario. Se pueden ajustar desde `shell-tokens.json`.
+  El desenfoque solo muestrea cinco veces la imagen saliente; la entrante conserva su nitidez. Los demás efectos
+  mantienen su duración y curva. Funciona con el mismo compositor de transición para imágenes, GIF y vídeo.
 - **Captura de pantalla** (`modules/areapicker`): `wysun-shell screenshot [--annotate] [--path DIR] [--no-save]` (IPC
   `picker screenshot|region|accept|close`). Congela cada salida con wlr-screencopy en el propio shell, sin otro proceso ni ventana:
   el puntero no se mueve, los cajones ignoran el hover (`ShellState.capturing`) y un atajo repetido no abre otra. La selección
@@ -100,6 +106,12 @@ importa código de `~/.local/share/orbit/app`. Sus datos son independientes (`~/
 `python3 apps/capture/run_tests.py`. La app Qt Wysun Screenshot (`wybieshot`) se retiró: el instalador deja
 `wysun-screenshot`/`wybie-screenshot` como redirecciones a `wysun screenshot`, retira su entrada de menú e icono si son suyos y no
 toca `~/.local/share/wybie-screenshot`.
+
+**Grabación de pantalla**: la elección (ventana/región/pantalla), la cuenta atrás y el HUD viven en el shell
+(`wysun-shell record [start|toggle|pause|stop]`, IPC `recorder`; `modules/areapicker` en modo `record` + `modules/recorder`);
+el worker independiente de `loomrec` hace la captura y `wysun recorder --start JSON` lo arranca sin ventana. La ventana Qt
+`wysun recorder` es solo biblioteca, reproductor básico y ajustes (`loomrec/ui/app_*.py`, patrón de Music/Files). Atajos:
+`Super+Shift+L`/`R` alternan (elegir y grabar / terminar), `Ctrl+Shift+R` pausa, `Ctrl+Shift+S` termina.
 
 ## 3. Runtime del shell (Qt / Quickshell / plugin)
 
@@ -203,16 +215,31 @@ Nunca reiniciar Hyprland ni el login para actualizar un panel.
   `wysun-shell`'s `ipc call wallpapers go|select|filter|apply|state` (solo con el selector abierto). Pruebas: `tests/test_wallpaper_media.py`.
 - **Lanzador** (estilo Raycast): `wysun` abre un único panel flotante (`apps/shell/modules/launcher`: `Launcher.qml` ventana
   overlay, `LauncherPanel.qml` lógica y vistas, `services/LauncherIndex.qml` índices en memoria). No existe lanzador Qt ni
-  alternativo: si el shell no responde, el comando falla con un mensaje. Sin pestañas ni prefijos: una lista agrupada
-  (Suggestions, Applications, Files, Commands, Windows, Clipboard, Snippets) filtrada en JS (`Search.js`, `Results.js`,
-  `Calc.js` para la calculadora en línea) sobre datos precalculados; archivos por `find` asíncrono en streaming con
-  debounce de 120 ms; portapapeles y snippets se cargan una vez al abrir con `apps/wysun/launcher_data.py` (mismo
-  almacén que el residente). Las «vistas» (Clipboard History, Snippets, Windows, Files, Applications, System…) se
-  apilan con push/pop (Escape o Backspace con la búsqueda vacía vuelven). Ctrl+K abre las acciones del elemento
-  (`Actions.js`), Ctrl+1..9 selecciona, Tab enfoca la vista previa. `wysun clipboard|snippets|windows|calculator` abren la
-  vista correspondiente y `emoji` el cajón de emojis; `power|audio|notifications|calendar|system` abren las superficies del
+  alternativo: si el shell no responde, el comando falla con un mensaje. Diseño Material 3 Expressive (superficie sólida,
+  cápsula de búsqueda con forma M3 que se transforma, filas con selección tonal y entrada escalonada). Pestañas All, Apps,
+  Files y Clipboard (Ctrl+Tab las recorre); «All» es una lista agrupada (Suggestions, Applications, Commands, Files,
+  Clipboard) filtrada en JS (`Search.js`, `Results.js`, `Calc.js` para la calculadora en línea; el JS de QML no admite
+  lookbehind en expresiones regulares) sobre datos precalculados; archivos por `find` asíncrono en streaming con debounce de
+  120 ms; el portapapeles se carga una vez al abrir con `apps/wysun/launcher_data.py` (mismo almacén que el residente). Las
+  vistas (Clipboard History, Files, Applications, Calculator History, Open With) se apilan con push/pop (Escape o Backspace
+  con la búsqueda vacía vuelven). La vista previa (`PreviewPane.qml`) cambia según el tipo: imagen sobre su copia difuminada,
+  vídeo en bucle y sin sonido, primera página de PDF, código con números de línea, Markdown renderizado, contenido de
+  carpetas, colores y enlaces. Alt+K abre las acciones del elemento (`Actions.js`; Alt+Enter para la secundaria y Alt+Supr para borrar), Ctrl+1..9 selecciona, Tab enfoca la
+  vista previa. Flecha derecha o clic en la imagen/vídeo amplía la vista dentro del lanzador; Escape/izquierda vuelve.
+  Los emojis y números tienen composición ampliada; los enlaces muestran una cabecera de imagen con título y descripción.
+  `launcher_web.py` entrega metadatos antes de la imagen, limita las descargas y guarda hasta 32 previews en
+  `~/.cache/wysun/link-previews` (una hora; fallos, un minuto). El highlight lo posiciona el propio ListView para seguir el scroll. No hay snippets, vista de ventanas ni comandos de energía en el lanzador (Alt+Tab abre el overview).
+  `wysun clipboard|calculator` abren la vista correspondiente y `emoji` el cajón de emojis; `power|audio|notifications|calendar|system` abren las superficies del
   shell. El residente Qt (`orbit.py`) ya no muestra menús: aloja utilidades (Notas, Música, Herramientas…) y registra el
   historial del portapapeles.
+- **Colores** (`wysun colors`, `wysun color`, `orbit color`): panel nativo de Quickshell en
+  `apps/shell/modules/colors/`, capa overlay `wysun-colors` en la pantalla enfocada. Usa los controles,
+  tipografía, radios y paleta M3 del shell. Incluye plano HSV con teclado, formatos HEX/RGB/HSL,
+  contraste de texto, recientes y favoritos. `backend.py` serializa las operaciones en el almacén
+  existente `~/.local/share/orbit/colors.json`; el parser compartido vive en `apps/wysun/color_data.py`.
+  La captura oculta el panel y llama a `wysun recorder --pick-color`; vuelve tanto al elegir como al
+  cancelar. Escape o pérdida de foco cierran el panel; Ctrl+P captura y Ctrl+C copia HEX fuera del
+  campo de edición. No se abre la antigua ventana Qt Widgets desde los comandos públicos.
 - **Panel de sesión**: `Super+X` alterna el panel lateral de sesión (salir, apagar, suspender, reiniciar) en el monitor
   enfocado y Escape lo cierra. `Ctrl+X` no está asignado: vuelve a ser Cortar en las aplicaciones. Los paneles invocados explícitamente conservan máscara interactiva y capa overlay
   sobre fullscreen; no dejan un foco invisible.

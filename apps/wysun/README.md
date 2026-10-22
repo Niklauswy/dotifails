@@ -9,7 +9,6 @@ No es Raycast ni incluye su tienda de extensiones, IA de pago o integración con
 - **Super + V**: historial del portapapeles con texto, imágenes, colores y enlaces.
 - **Super + C**: calculadora con historial y conversiones (por ejemplo `10 km a mi`, `15% de 80`).
 - **Super + Alt + F**: archivos y vistas previas de imágenes, texto, PDF y vídeo.
-- **Super + Alt + S**: snippets. Crear con Ctrl + N y editar desde Ctrl + K.
 - **Super + L**: emoji.
 - **Alt + 1 … 5**: cambiar de sección dentro del lanzador.
 - **Enter**: abrir o copiar; **Ctrl + Enter**: copiar y pegar en la ventana anterior si sigue enfocada.
@@ -17,7 +16,6 @@ No es Raycast ni incluye su tienda de extensiones, IA de pago o integración con
 - **Ctrl + Espacio**: vista ampliada de archivos e imágenes del historial; reproductor para vídeo y audio.
 - **Escape**: limpiar búsqueda, volver al inicio, cerrar.
 
-Los snippets se buscan por nombre o abreviatura. Admiten `{date}`, `{time}` y `{datetime}`.
 No expanden texto globalmente mientras escribes en otras aplicaciones.
 
 ## Datos y privacidad
@@ -52,7 +50,7 @@ Usa `dotifails restore` para listar respaldos y `dotifails restore ID` para recu
 
 ## Validación
 
-`python3 -m unittest tests.wysun_app.test_launcher_core` ejecuta las pruebas de cálculo seguro, retención, snippets, búsqueda, navegación, copiado de texto e imágenes y vista previa de archivos. Usa datos temporales y el backend offscreen.
+`python3 -m unittest tests.wysun_app.test_launcher_core` ejecuta las pruebas de cálculo seguro, retención, búsqueda, navegación, copiado de texto e imágenes y vista previa de archivos. Usa datos temporales y el backend offscreen.
 
 ## Versión 2 · medios y controles
 
@@ -63,15 +61,14 @@ Usa `dotifails restore` para listar respaldos y `dotifails restore ID` para recu
 - Metadatos: aplicación de origen para las nuevas copias, dimensiones, tamaño y fecha. Los orígenes anteriores no se inventan.
 - OCR local Tesseract 5.5, español e inglés, un trabajo a la vez. El texto reconocido se incluye en la búsqueda. Imágenes sin texto o ilegibles pueden no producir resultados. Las capturas anteriores se procesan automáticamente.
 - Acciones contextuales compactas: copiar, pegar, fijar, guardar imágenes, abrir con otra aplicación y eliminar. OCR se utiliza en la búsqueda; no ocupa el menú de imágenes. La administración general del historial tiene su propio menú.
-- Los snippets conservan formato enriquecido, icono, contador de usos y fecha de último uso. Variables adicionales: `{clipboard}`, `{date+4}` y `{week}`.
 - **Super + N**: panel nativo de Wi-Fi, interfaces y conexiones VPN. La contraseña, cuando se necesita, se solicita en un campo oculto y no se guarda en el historial de Wysun.
 - **Super + X**: panel compacto de sesión y energía, con hora local, fecha en español y tiempo encendido del equipo (días, horas y minutos). Se actualiza mientras está abierto. Flechas o Tab seleccionan; Enter (también numérico) o Espacio activan la opción enfocada. Reiniciar, apagar, suspender y cerrar sesión requieren confirmación en la interfaz. Esc cancela o cierra.
 
 El botón **Bloquear** usa `i3lock`, incluido en las dependencias del instalador. El fondo de Wysun se genera para los monitores conectados, sin capturar contenido del escritorio. El instalador compila una variante nativa de i3lock 2.15 para Wysun: fondo sin rótulos, entrada suave, pulso por tecla, señal ámbar al borrar, reacción al error y salida con un visto bueno y fundido de 280 ms. La salida se activa después de autenticar y mantiene el teclado y ratón bloqueados hasta el último fotograma. Respeta la preferencia de reducir movimiento. Escribe la contraseña de tu cuenta y pulsa Enter para desbloquear; la autenticación y el bloqueo de teclado y ratón los realiza i3lock. El panel solo se cierra cuando el bloqueador confirma que adquirió la sesión. Si falta el ejecutable o falla el inicio, muestra el error y permanece abierto. Las dependencias de compilación están en el manifiesto del instalador. La actualización `--orbit-only` compila con las dependencias ya instaladas, pero no instala paquetes: en un escritorio existente que aún no tenga el bloqueador, instala `sudo apt install i3lock` antes de usarlo.
-- Alt + Tab usa el selector de ventanas de Wysun.
+- Alt + Tab abre el overview de escritorios (igual que Super + Tab).
 - Barra flotante en tres secciones. Recursos abre información de sistema; red abre conexiones; clic derecho en volumen abre las salidas de audio; fecha abre calendario; campana abre notificaciones y clic derecho pausa los avisos.
 
-`python3 -m unittest tests.wysun_app.test_launcher_enhanced` valida además migración, colores sin prefijo, OCR real, cuadrícula de emojis a color, filtros, acciones, snippets enriquecidos y cancelación de apagado. Las pruebas de red son de consulta; no desconectan el equipo. Las conexiones nuevas y el bloqueo/suspensión dependen de NetworkManager, Polkit y el bloqueador del sistema.
+`python3 -m unittest tests.wysun_app.test_launcher_enhanced` valida además migración, colores sin prefijo, OCR real, cuadrícula de emojis a color, filtros, acciones y cancelación de apagado. Las pruebas de red son de consulta; no desconectan el equipo. Las conexiones nuevas y el bloqueo/suspensión dependen de NetworkManager, Polkit y el bloqueador del sistema.
 
 Los archivos de imagen que abres desde el historial se materializan en `~/.cache/orbit/opened/`, con permisos privados; los temporales de más de un día se limpian al volver a abrir una imagen.
 
@@ -86,7 +83,7 @@ Los archivos de imagen que abres desde el historial se materializan en `~/.cache
 | Super + X | Sesión, en un panel compacto e independiente |
 | Super + Alt + coma | Wysun Ajustes |
 | Alt + K o Ctrl + K | Acciones del elemento seleccionado |
-| Ctrl + E | Editar en Vim un archivo de texto o una copia de texto/snippet |
+| Ctrl + E | Editar en Vim un archivo de texto o una copia de texto |
 
 También puedes buscar «Ajustes del escritorio» y «Centro de conexiones» en Wysun. Ajustes tiene su propio proceso ligero; Conexiones comparte el proceso del lanzador. Esc cierra sus ventanas.
 
@@ -107,7 +104,7 @@ Las operaciones se ejecutan únicamente al activarlas desde la interfaz. Las pru
 
 ### Vim
 
-Archivos de texto y código seleccionados en Wysun se abren con Neovim (Vim como alternativa) en Ghostty. «Abrir con la aplicación predeterminada» sigue disponible en Acciones. Las rutas se pasan como argumentos separados, incluyendo espacios y caracteres especiales. El texto del historial o un snippet se abre como copia privada en `~/.cache/orbit/editor/`; editar esa copia no modifica el historial ni el snippet original. Estos archivos de trabajo se conservan hasta que los elimines.
+Archivos de texto y código seleccionados en Wysun se abren con Neovim (Vim como alternativa) en Ghostty. «Abrir con la aplicación predeterminada» sigue disponible en Acciones. Las rutas se pasan como argumentos separados, incluyendo espacios y caracteres especiales. El texto del historial se abre como copia privada en `~/.cache/orbit/editor/`; editar esa copia no modifica el historial original. Estos archivos de trabajo se conservan hasta que los elimines.
 
 ### Ajustes del escritorio
 
@@ -207,7 +204,7 @@ Validación adicional: `QT_QPA_PLATFORM=offscreen python3 -m unittest tests.wysu
 
 ## Temas
 
-En **Ajustes → Tema** se elige Tokyo, Severance o Space Black. Tokyo combina negro ciruela, violeta y movimiento suave; Severance (antes Azul), azul petróleo y cian; Space Black, grafito y plata con movimiento sutil. Cada perfil aplica el fondo, la paleta ANSI y el cursor/selección de Ghostty, el prompt de Starship, Neovim, Wysun y sus paneles, la barra de Quickshell, los bordes de Hyprland, Dunst, colores GTK y el bloqueo animado. Las preferencias de opacidad y reducción de movimiento se conservan. Las ventanas abiertas detectan los cambios de tema y actualizan estilos e iconos. Neovim toma su paleta al volver a abrirlo.
+En **Ajustes → Tema** se elige Tokyo, Severance o Space Black. Tokyo combina negro ciruela, violeta y movimiento suave; Severance (antes Azul), azul petróleo y cian; Space Black, grafito y plata con movimiento sutil. Cada perfil aplica el fondo, la paleta ANSI y el cursor/selección de Ghostty, el prompt de Starship, Neovim, Wysun y sus paneles, la barra de Quickshell, los bordes de Hyprland, las notificaciones del shell, colores GTK y el bloqueo animado. Las preferencias de opacidad y reducción de movimiento se conservan. Las ventanas abiertas detectan los cambios de tema y actualizan estilos e iconos. Neovim toma su paleta al volver a abrirlo.
 
 Antes de escribir se guarda un respaldo en `~/.local/state/orbit/theme-backups/`. Si falla la validación de Ghostty o la aplicación principal, se restauran los archivos anteriores. No se reemplazan fuentes, tamaños, atajos, conexiones, notas o historial. Los antiguos nombres de instalación `azul` y `morado` siguen siendo alias de `severance` y `tokyo`.
 

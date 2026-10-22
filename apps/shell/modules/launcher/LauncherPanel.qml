@@ -1,9 +1,9 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import QtQuick.Effects
 import QtQuick.Layouts
 import Quickshell
+import M3Shapes
 import Wysun
 import Wysun.Config
 import Wysun.Services
@@ -16,8 +16,9 @@ import "services/Actions.js" as Actions
 import "services/Files.js" as Files
 import "services/Results.js" as Results
 
-// Raycast-style command palette: search, grouped results, optional preview, actions popover
-// and a push/pop view stack. Result lists are rebuilt from in-memory indexes on every keystroke.
+// Raycast-style command palette in Material 3 Expressive: a search pill, category chips with
+// a sliding indicator, grouped results, a type-aware preview, an actions popover and a
+// push/pop view stack. Result lists are rebuilt from in-memory indexes on every keystroke.
 Item {
     id: root
 
@@ -26,8 +27,8 @@ Item {
     required property real reveal
 
     readonly property real scale: Math.max(0.85, Math.min(1.5, screen.height / 1080))
-    readonly property real panelWidth: Math.min(760 * scale, screen.width - Tokens.padding.extraExtraLarge * 2)
-    readonly property real panelHeight: Math.min(500 * scale, screen.height - Tokens.padding.extraExtraLarge * 2)
+    readonly property real panelWidth: Math.min(880 * scale, screen.width - Tokens.padding.extraExtraLarge * 2)
+    readonly property real panelHeight: Math.min(580 * scale, screen.height - Tokens.padding.extraExtraLarge * 2)
     readonly property real maxPanelHeight: panelHeight
     readonly property font fontBody: Tokens.font.body.builders.medium.size(10.5 * scale).build()
     readonly property font fontSmall: Tokens.font.body.builders.small.size(9 * scale).build()
@@ -39,7 +40,8 @@ Item {
     property string actionFilter
     readonly property var filterOptions: ({
             clipboard: [["all", "All Types"], ["text", "Text Only"], ["image", "Images Only"], ["url", "Links Only"], ["color", "Colors Only"]],
-            files: [["all", "All Files"], ["image", "Images Only"], ["folder", "Folders Only"]]
+            files: [["all", "All Files"], ["image", "Images Only"], ["folder", "Folders Only"]],
+            browse: [["all", "All Files"], ["image", "Images Only"], ["folder", "Folders Only"]]
         })
     readonly property var filters: filterOptions[current.id] ?? null
     readonly property string filterLabel: (filters?.find(f => f[0] === filter) ?? ["", ""])[1]
@@ -50,39 +52,52 @@ Item {
     property int selected: -1
     property bool autoFirst: true
     property bool actionsOpen
+    property bool expandedPreview: false
+    readonly property string previewKey: row?.key ?? ""
+    onPreviewKeyChanged: expandedPreview = false
     property bool previewFocus
     property bool ctrlHeld
     property string confirmKey
     property string selKey
     property real pointerX: -1
     property real pointerY: -1
-    property real hlY
-    property real hlH
-    property bool hlOn
+    // Bumped on open and on every view change: rows replay their staggered entrance.
+    property int entrance
+
+    // Category chips under the search pill; each one is a view (root = everything).
+    readonly property var categories: [
+        {id: "root", title: "All", icon: "search"}, {id: "apps", title: "Apps", icon: "apps"},
+        {id: "files", title: "Files", icon: "folder_open"}, {id: "clipboard", title: "Clipboard", icon: "content_paste"}
+    ]
+    readonly property int categoryIndex: {
+        const id = stack.length > 1 ? stack[1].id : "root";
+        return categories.findIndex(c => c.id === (id === "browse" ? "files" : id));
+    }
+    // Folder browsing: +1 when going deeper (the list slides in from the right), -1 going up.
+    property int navDir: 1
+    property bool altHeld
+    readonly property string browsePath: current.id === "browse" ? current.target : ""
     readonly property string query: search.text
 
     property var suggestSnapshot: []
-    readonly property var results: current.id === "root" ? (query.trim() === "" ? Results.keepOrder(suggestSnapshot, LauncherIndex.context.apps.concat(LauncherIndex.context.commands)) : Results.root(query, LauncherIndex.context)) : current.id === "snippet-form" ? [] : Results.view(current.id, query, LauncherIndex.context, current.target, filter)
+    readonly property var results: current.id === "root" ? (query.trim() === "" ? Results.keepOrder(suggestSnapshot, LauncherIndex.context.apps.concat(LauncherIndex.context.commands)) : Results.root(query, LauncherIndex.context)) : Results.view(current.id, query, LauncherIndex.context, current.target, filter)
     readonly property var items: flatten(results)
     readonly property var row: items[selected] ?? null
-    readonly property bool formOpen: current.id === "snippet-form"
-    readonly property bool previewOn: !!row && ["file", "clip", "snippet"].includes(row.kind) && !formOpen
-    readonly property bool busy: LauncherIndex.filesBusy && (current.id === "root" || current.id === "files") && query.trim() !== ""
+    readonly property bool previewOn: !!row && ["file", "clip"].includes(row.kind)
+    readonly property bool busy: (LauncherIndex.filesBusy && (current.id === "root" || current.id === "files") && query.trim() !== "") || (current.id === "browse" && LauncherIndex.browseBusy)
 
     readonly property var placeholders: ({
             root: "Search apps, files, commands...",
             clipboard: "Search clipboard history...",
-            snippets: "Search snippets...",
-            windows: "Search open windows...",
             files: "Search files and folders...",
+            browse: "Filter this folder...",
             apps: "Search applications...",
-            system: "Search system commands...",
             "calc-history": "Search calculator history...",
             openwith: "Choose an application..."
         })
     readonly property var titles: ({
-            clipboard: "Clipboard History", snippets: "Snippets", windows: "Windows", files: "Files", apps: "Applications",
-            system: "System", "calc-history": "Calculator History", openwith: "Open With", "snippet-form": "Snippet"
+            clipboard: "Clipboard History", files: "Files", apps: "Applications",
+            "calc-history": "Calculator History", openwith: "Open With"
         })
 
     function flatten(list: var): var {
@@ -108,13 +123,68 @@ Item {
         suggestSnapshot = Results.root("", LauncherIndex.context);
         actionsOpen = false;
         previewFocus = false;
+        expandedPreview = false;
         confirmKey = "";
         autoFirst = true;
         LauncherIndex.searchFiles("");
         LauncherIndex.refresh();
+        entrance++;
+    }
+
+    function showCategory(id: string): void {
+        if (id === (stack.length > 1 ? stack[1].id : "root") && stack.length < 3)
+            return;
+        if (id === "root") {
+            stack = [stack[0], stack[1]];
+            pop();
+        } else {
+            stack = [{id: "root"}];
+            push({id: id});
+        }
+    }
+
+    function cycleCategory(step: int): void {
+        const i = (Math.max(0, categoryIndex) + step + categories.length) % categories.length;
+        showCategory(categories[i].id);
+    }
+
+    // Folder navigation ---------------------------------------------------------------------------
+    function enterFolder(path: string): void {
+        navDir = 1;
+        push({id: "browse", target: path});
+    }
+
+    // Up one level: back through the stack when we came from there, otherwise replace in place.
+    function upFolder(): void {
+        if (current.id !== "browse" || browsePath === "/")
+            return;
+        const parent = dirname(browsePath);
+        const previous = stack[stack.length - 2];
+        if (previous?.id === "browse" && previous.target === parent)
+            pop();
+        else
+            goTo(parent, -1);
+    }
+
+    // Jump to any folder (breadcrumbs), keeping a single browse level on the stack.
+    function goTo(path: string, direction: int): void {
+        if (path === browsePath)
+            return;
+        navDir = direction;
+        const base = stack.filter(v => v.id !== "browse");
+        filter = "all";
+        search.clear();
+        stack = base.concat([{id: "browse", target: path}]);
+        autoFirst = true;
+        LauncherIndex.listDir(path);
+        viewAnim.restart();
+        entrance++;
+        search.forceActiveFocus();
     }
 
     function push(view: var): void {
+        if (view.id !== "browse")
+            navDir = 1;
         filter = "all";
         filterOpen = false;
         search.clear();
@@ -123,19 +193,17 @@ Item {
         confirmKey = "";
         autoFirst = true;
         LauncherIndex.searchFiles("");
-        if (view.id === "files")
+        if (view.id === "files") {
             LauncherIndex.loadRecentFiles();
+            LauncherIndex.loadPlaces();
+        } else if (view.id === "browse")
+            LauncherIndex.listDir(view.target);
         else if (view.id === "calc-history")
             LauncherIndex.loadCalcHistory();
         else if (view.id === "clipboard")
             LauncherIndex.loadStatus();
-        else if (view.id === "windows")
-            LauncherIndex.refreshWindows();
-        else if (view.id === "snippet-form") {
-            form.load(view.snippet ?? null);
-            return;
-        }
         viewAnim.restart();
+        entrance++;
         search.forceActiveFocus();
     }
 
@@ -150,7 +218,11 @@ Item {
         confirmKey = "";
         autoFirst = true;
         LauncherIndex.searchFiles("");
+        if (current.id === "browse")
+            LauncherIndex.listDir(current.target);
+        navDir = -1;
         viewAnim.restart();
+        entrance++;
         search.forceActiveFocus();
     }
 
@@ -188,9 +260,13 @@ Item {
             i = firstSelectable();
         selected = i;
         selKey = items[i]?.key ?? "";
+        // A fresh view/query starts at the top even when the index did not change (no selected signal).
+        if (autoFirst)
+            Qt.callLater(() => list.positionViewAtBeginning());
     }
 
     onItemsChanged: syncSelection()
+    onEntranceChanged: Qt.callLater(() => list.positionViewAtBeginning())
     onSelectedChanged: {
         if (selected >= 0)
             list.positionViewAtIndex(items[selected - 1]?.header ? selected - 1 : selected, ListView.Contain);
@@ -228,12 +304,6 @@ Item {
         Quickshell.execDetached(["wysun", "activate", address.startsWith("0x") ? address : "0x" + address]);
     }
 
-    function dispatchWindow(verb: string, address: string): void {
-        const addr = address.startsWith("0x") ? address : "0x" + address;
-        const lua = {focus: `hl.dsp.focus({ window = "address:${addr}" })`, close: `hl.dsp.window.close({ window = "address:${addr}" })`};
-        Hypr.dispatch(Hypr.usingLua ? lua[verb] : (verb === "focus" ? "focuswindow" : "closewindow") + ` address:${addr}`);
-    }
-
     function activate(r: var): void {
         if (!r || r.header)
             return;
@@ -253,10 +323,6 @@ Item {
                 push({id: r.view});
                 return;
             }
-            if (r.form) {
-                push({id: "snippet-form"});
-                return;
-            }
             if (r.emoji) {
                 close();
                 state.emoji = true;
@@ -271,12 +337,12 @@ Item {
             close();
             return;
         case "file":
+            if (r.isDir) {
+                enterFolder(r.path);
+                return;
+            }
             LauncherIndex.remember(r);
             xdg(r.path);
-            close();
-            return;
-        case "window":
-            showWindow(r.address);
             close();
             return;
         case "web":
@@ -292,7 +358,6 @@ Item {
             close();
             return;
         case "clip":
-        case "snippet":
         case "calc":
         case "history":
             LauncherData.copy(r);
@@ -302,7 +367,7 @@ Item {
     }
 
     function secondaryOf(r: var): var {
-        return Actions.actionsFor(r, false, []).find(a => a.shortcut === "Ctrl ↵") ?? null;
+        return Actions.actionsFor(r, false, []).find(a => a.shortcut === "Alt ↵") ?? null;
     }
 
     function desktopActionsOf(r: var): var {
@@ -313,7 +378,7 @@ Item {
         const r = row;
         if (!r || !a)
             return;
-        const stay = ["pin", "delete", "capture", "clear", "edit", "openwith"].includes(a.id);
+        const stay = ["pin", "delete", "capture", "clear", "openwith"].includes(a.id);
         if (a.danger && actionMenu.confirmId !== a.id) {
             actionMenu.confirmId = a.id;
             return;
@@ -329,16 +394,16 @@ Item {
             case "folder": xdg(dirname(r.path)); break;
             case "openwith": actionsOpen = false; push({id: "openwith", target: r.path}); return;
             case "copy-path": copyText(r.path); break;
+            case "open-app": LauncherIndex.remember(r); xdg(r.path); break;
             case "copy-file": Quickshell.execDetached(["wl-copy", "--type", "text/uri-list", "--", "file://" + r.path + "\r\n"]); break;
             case "copy": LauncherData.copy(r); break;
             case "paste": LauncherData.paste(r); break;
             case "copy-expression": copyText(r.expression); break;
+            case "open-link": xdg(r.value.trim()); break;
             case "open-image": LauncherIndex.exportClip(r.id, path => xdg(path)); break;
-            case "delete": LauncherIndex.mutate([r.kind === "clip" ? "delete-clip" : "delete-snippet", String(r.id)]); break;
-            case "edit": actionsOpen = false; push({id: "snippet-form", snippet: r}); return;
+            case "delete": LauncherIndex.mutate(["delete-clip", String(r.id)]); break;
             case "capture": LauncherIndex.mutate(["toggle-capture"]); break;
             case "clear": LauncherIndex.mutate(["clear-clips"]); break;
-            case "close-window": dispatchWindow("close", r.address); break;
             }
         actionsOpen = false;
         if (!stay)
@@ -352,30 +417,52 @@ Item {
         actionsOpen = true;
     }
 
-    function saveSnippet(): void {
-        const args = ["save-snippet", form.title, form.shortcut, form.body];
-        if (form.snippetId >= 0)
-            args.push(String(form.snippetId));
-        LauncherIndex.mutate(args);
-        pop();
-    }
-
     function handleKey(e: var): void {
         const ctrl = (e.modifiers & Qt.ControlModifier) !== 0;
+        const alt = (e.modifiers & Qt.AltModifier) !== 0;
         e.accepted = true;
         if (e.key === Qt.Key_Control) {
             ctrlHeld = true;
             e.accepted = false;
             return;
         }
+        if (e.key === Qt.Key_Alt) {
+            altHeld = true;
+            e.accepted = false;
+            return;
+        }
+        // Alt+1…4: tabs.
+        if ((e.modifiers & Qt.AltModifier) && e.key >= Qt.Key_1 && e.key < Qt.Key_1 + categories.length) {
+            showCategory(categories[e.key - Qt.Key_1].id);
+            return;
+        }
         if (actionsOpen) {
             if (e.key === Qt.Key_Backspace && actionFilter) actionFilter = actionFilter.slice(0, -1);
-            else if (!ctrl && e.text.length === 1 && e.text >= " " && e.key !== Qt.Key_Escape) actionFilter += e.text;
+            else if (!ctrl && !alt && e.text.length === 1 && e.text >= " " && e.key !== Qt.Key_Escape) actionFilter += e.text;
             else if (e.key === Qt.Key_Up) actionMenu.move(-1);
             else if (e.key === Qt.Key_Down) actionMenu.move(1);
             else if (e.key === Qt.Key_Return || e.key === Qt.Key_Enter) runAction(actionMenu.actions[actionMenu.current]);
-            else if (e.key === Qt.Key_Escape || (ctrl && e.key === Qt.Key_K)) actionsOpen = false;
+            else if (e.key === Qt.Key_Escape || (alt && e.key === Qt.Key_K)) actionsOpen = false;
             else e.accepted = false;
+            return;
+        }
+        if (alt && e.key === Qt.Key_K) {
+            if (row) openActions();
+            return;
+        }
+        if (expandedPreview) {
+            if (e.key === Qt.Key_Escape || e.key === Qt.Key_Left) {
+                expandedPreview = false;
+                previewFocus = false;
+                preview.resetZoom();
+            } else if (e.key === Qt.Key_Space) preview.togglePlayback();
+            else if (e.key === Qt.Key_Plus || e.key === Qt.Key_Equal) preview.zoomBy(1.25);
+            else if (e.key === Qt.Key_Minus) preview.zoomBy(0.8);
+            else if (e.key === Qt.Key_0) preview.resetZoom();
+            return;
+        }
+        if (e.key === Qt.Key_Right && previewOn && preview.expandable && search.cursorPosition === search.text.length) {
+            expandedPreview = true;
             return;
         }
         if (previewFocus) {
@@ -383,6 +470,9 @@ Item {
             else if (e.key === Qt.Key_Down) preview.scrollBy(60);
             else if (e.key === Qt.Key_PageUp) preview.scrollBy(-240);
             else if (e.key === Qt.Key_PageDown) preview.scrollBy(240);
+            else if (e.key === Qt.Key_Plus || e.key === Qt.Key_Equal) preview.zoomBy(1.25);
+            else if (e.key === Qt.Key_Minus) preview.zoomBy(0.8);
+            else if (e.key === Qt.Key_0) preview.resetZoom();
             else if (e.key === Qt.Key_Tab || e.key === Qt.Key_Backtab || e.key === Qt.Key_Escape || e.key === Qt.Key_Left) previewFocus = false;
             else e.accepted = false;
             return;
@@ -394,15 +484,22 @@ Item {
         else if (e.key === Qt.Key_PageUp) move(-6);
         else if (e.key === Qt.Key_PageDown) move(6);
         else if (e.key === Qt.Key_Return || e.key === Qt.Key_Enter) {
-            const second = ctrl && row ? secondaryOf(row) : null;
+            const second = alt && row ? secondaryOf(row) : null;
             if (second) runAction(second); else activate(row);
+        } else if (ctrl && (e.key === Qt.Key_Tab || e.key === Qt.Key_Backtab)) {
+            cycleCategory(e.key === Qt.Key_Backtab || (e.modifiers & Qt.ShiftModifier) ? -1 : 1);
         } else if (e.key === Qt.Key_Tab) {
             if (previewOn) previewFocus = true;
+        } else if (e.key === Qt.Key_Right && row?.kind === "file" && row.isDir && search.cursorPosition === search.text.length) {
+            enterFolder(row.path);
+        } else if (e.key === Qt.Key_Left && current.id === "browse" && search.text === "") {
+            upFolder();
         } else if (e.key === Qt.Key_Backspace && search.text === "" && stack.length > 1) pop();
-        else if (ctrl && e.key === Qt.Key_K) {
+        else if (ctrl && e.key === Qt.Key_Space && previewOn) preview.togglePlayback();
+        else if (alt && e.key === Qt.Key_K) {
             if (row) openActions();
-        } else if (ctrl && e.key === Qt.Key_Delete) {
-            const del = Actions.actionsFor(row, false, []).find(a => a.shortcut === "Ctrl Del");
+        } else if (alt && e.key === Qt.Key_Delete) {
+            const del = Actions.actionsFor(row, false, []).find(a => a.shortcut === "Alt Del");
             if (del) runAction(del);
         } else if (ctrl && e.key >= Qt.Key_1 && e.key <= Qt.Key_9) {
             const target = items.find(r => r.n === e.key - Qt.Key_1);
@@ -435,7 +532,7 @@ Item {
     function adoptRoute(): void {
         if (!state.launcher)
             return;
-        const views = {clip: "clipboard", snippets: "snippets", windows: "windows", files: "files", apps: "apps", calc: "calc-history", commands: "system"};
+        const views = {clip: "clipboard", files: "files", apps: "apps", calc: "calc-history"};
         const cat = state.launcherCategory;
         if (cat && views[cat]) {
             state.launcherCategory = "";
@@ -451,113 +548,97 @@ Item {
 
     // Visuals ------------------------------------------------------------------------------------
 
-    readonly property color hairline: Qt.alpha(Colours.palette.m3onSurface, 0.1)
-    readonly property real rowRadius: Tokens.rounding.small
+    readonly property real rowRadius: Tokens.rounding.large
+    readonly property real gutter: Tokens.padding.large
 
     implicitWidth: panelWidth
     implicitHeight: panelHeight
 
-    Elevation {
-        anchors.fill: surface
-        radius: surface.radius
-        level: 5
-        opacity: surface.opacity
-        scale: surface.scale
-    }
-
-    Rectangle {
-        id: surface
+    // The panel springs in from a little above and slightly small; the overshoot of the
+    // reveal curve gives it a soft landing. Shadow and surface move together.
+    Item {
+        id: stage
 
         width: root.panelWidth
         height: root.panelHeight
-        radius: Tokens.rounding.medium
-        color: "transparent"
-        opacity: root.reveal
-        scale: 0.96 + 0.04 * root.reveal
-
-        // Frosted material: the wallpaper, blurred and tinted, under a translucent surface.
-        Item {
-            id: material
-
-            anchors.fill: parent
-            layer.enabled: true
-            layer.effect: MultiEffect {
-                maskEnabled: true
-                maskSource: maskShape
-                maskThresholdMin: 0.5
-                maskSpreadAtMin: 1
-            }
-
-            Image {
-                id: wall
-
-                x: -(root.originX + root.x + surface.x)
-                y: -(root.originY + root.y + surface.y)
-                width: root.screen.width
-                height: root.screen.height
-                source: Wallpapers.current ? "file://" + Wallpapers.current : ""
-                sourceSize: Qt.size(root.screen.width / 4, root.screen.height / 4)
-                fillMode: Image.PreserveAspectCrop
-                asynchronous: true
-                cache: true
-                layer.enabled: true
-                layer.effect: MultiEffect {
-                    blurEnabled: true
-                    blurMax: 48
-                    blur: 1
-                    saturation: 0.2
-                }
-            }
-            Rectangle {
-                anchors.fill: parent
-                color: Qt.alpha(Colours.palette.m3surface, Colours.light ? 0.82 : 0.78)
-            }
+        opacity: Math.min(1, root.reveal * 1.6)
+        scale: 0.92 + 0.08 * root.reveal
+        transformOrigin: Item.Top
+        transform: Translate {
+            y: (1 - root.reveal) * -18 * root.scale
         }
-        Item {
-            id: maskShape
 
-            anchors.fill: parent
-            visible: false
-            layer.enabled: true
-
-            Rectangle {
-                anchors.fill: parent
-                radius: surface.radius
-            }
-        }
-        Rectangle {
-            anchors.fill: parent
+        Elevation {
+            anchors.fill: surface
             radius: surface.radius
-            color: "transparent"
-            border.width: 1
-            border.color: Qt.alpha(Colours.palette.m3onSurface, 0.14)
+            level: 4
         }
 
-        // Header -------------------------------------------------------------------------------
+    // Solid Material surface, like the dashboard and the other drawers.
+    Rectangle {
+        id: surface
+
+        anchors.fill: parent
+        radius: Tokens.rounding.extraLarge
+        color: Colours.palette.m3surfaceContainer
+        clip: true
+
+        // Header: search pill -------------------------------------------------------------------
         Item {
             id: head
 
             anchors.top: parent.top
             anchors.left: parent.left
             anchors.right: parent.right
+            anchors.margins: root.gutter
             height: 56 * root.scale
 
             Rectangle {
+                id: pill
+
+                anchors.fill: parent
+                radius: height / 2
+                color: Colours.palette.m3surfaceContainerHighest
+                border.width: search.activeFocus && !root.actionsOpen ? 2 : 0
+                border.color: Colours.palette.m3primary
+
+                Behavior on border.width {
+                    Anim {
+                        type: Anim.FastEffects
+                    }
+                }
+            }
+
+            // Leading shape: a cookie with the search glyph at the root, a circle with an arrow
+            // inside a category. The polygon morphs between the two.
+            Item {
                 id: lead
 
                 anchors.left: parent.left
-                anchors.leftMargin: Tokens.padding.medium
+                anchors.leftMargin: Tokens.padding.small
                 anchors.verticalCenter: parent.verticalCenter
-                width: 28 * root.scale
+                width: 40 * root.scale
                 height: width
-                radius: width / 2
-                color: root.stack.length > 1 ? Qt.alpha(Colours.palette.m3onSurface, 0.1) : "transparent"
 
+                MaterialShape {
+                    anchors.centerIn: parent
+                    implicitSize: parent.width
+                    shape: root.stack.length > 1 ? MaterialShape.Circle : MaterialShape.Cookie9Sided
+                    color: root.stack.length > 1 ? Colours.palette.m3secondaryContainer : Colours.palette.m3primaryContainer
+                    animationEasing: Tokens.anim.expressiveDefaultSpatial
+                    animationDuration: Tokens.anim.durations.expressiveDefaultSpatial
+                    rotation: root.stack.length > 1 ? 0 : -20 + 20 * root.reveal
+
+                    Behavior on color {
+                        CAnim {}
+                    }
+                }
                 MaterialIcon {
                     anchors.centerIn: parent
                     text: root.stack.length > 1 ? "arrow_back" : "search"
-                    color: root.stack.length > 1 ? Colours.palette.m3onSurface : Colours.palette.m3onSurfaceVariant
-                    fontStyle: Tokens.font.icon.builders.medium.scale(root.scale * 0.9).build()
+                    color: root.stack.length > 1 ? Colours.palette.m3onSecondaryContainer : Colours.palette.m3onPrimaryContainer
+                    fontStyle: Tokens.font.icon.builders.medium.scale(root.scale).build()
+                    animate: true
                 }
                 MouseArea {
                     anchors.fill: parent
@@ -571,15 +652,14 @@ Item {
                 id: search
 
                 anchors.left: lead.right
-                anchors.leftMargin: Tokens.spacing.small
-                anchors.right: filterBox.visible ? filterBox.left : busy.left
+                anchors.leftMargin: Tokens.spacing.medium
+                anchors.right: trailing.left
                 anchors.rightMargin: Tokens.spacing.medium
                 anchors.verticalCenter: parent.verticalCenter
-                visible: !root.formOpen
                 background: null
                 leftPadding: 0
                 rightPadding: 0
-                font: Tokens.font.body.builders.large.size(12.75 * root.scale).build()
+                font: Tokens.font.body.builders.large.size(13.5 * root.scale).build()
                 focus: true
                 placeholderText: ""
                 onTextChanged: root.previewFocus = false
@@ -587,6 +667,8 @@ Item {
                 Keys.onReleased: event => {
                     if (event.key === Qt.Key_Control)
                         root.ctrlHeld = false;
+                    if (event.key === Qt.Key_Alt)
+                        root.altHeld = false;
                 }
 
                 StyledText {
@@ -598,105 +680,336 @@ Item {
                 }
             }
 
-            LoadingIndicator {
-                id: busy
+            Row {
+                id: trailing
 
                 anchors.right: parent.right
-                anchors.rightMargin: Tokens.padding.large
+                anchors.rightMargin: Tokens.padding.small
                 anchors.verticalCenter: parent.verticalCenter
-                width: 18 * root.scale
-                height: width
-                visible: root.busy && !filterBox.visible
-            }
+                spacing: Tokens.spacing.small
 
-            // Compact filter dropdown (clipboard, files)
-            Rectangle {
-                id: filterBox
+                LoadingIndicator {
+                    anchors.verticalCenter: parent.verticalCenter
+                    implicitSize: 26 * root.scale
+                    visible: root.busy
+                }
 
-                anchors.right: parent.right
-                anchors.rightMargin: Tokens.padding.medium
-                anchors.verticalCenter: parent.verticalCenter
-                visible: !!root.filters && !root.formOpen
-                width: filterRow.implicitWidth + Tokens.padding.large
-                height: 30 * root.scale
-                radius: Tokens.rounding.small
-                color: filterMouse.containsMouse ? Qt.alpha(Colours.palette.m3onSurface, 0.1) : "transparent"
-                border.width: 1
-                border.color: Qt.alpha(Colours.palette.m3onSurface, 0.16)
+                // Compact filter (clipboard, files): a tonal chip that opens a small menu.
+                Rectangle {
+                    id: filterBox
 
-                Row {
-                    id: filterRow
+                    anchors.verticalCenter: parent.verticalCenter
+                    visible: !!root.filters
+                    width: filterRow.implicitWidth + Tokens.padding.large * 1.5
+                    height: 36 * root.scale
+                    radius: height / 2
+                    color: root.filterOpen ? Colours.palette.m3secondaryContainer : Colours.palette.m3surfaceContainerHigh
 
-                    anchors.centerIn: parent
-                    spacing: Tokens.spacing.medium
-
-                    StyledText {
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: root.filterLabel
-                        font: root.fontStrong
+                    Behavior on color {
+                        CAnim {}
                     }
-                    MaterialIcon {
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: "keyboard_arrow_down"
-                        fontStyle: Tokens.font.icon.small
-                        color: Colours.palette.m3onSurface
+
+                    Row {
+                        id: filterRow
+
+                        anchors.centerIn: parent
+                        spacing: Tokens.spacing.small
+
+                        MaterialIcon {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "filter_list"
+                            fontStyle: Tokens.font.icon.small
+                            color: Colours.palette.m3onSecondaryContainer
+                        }
+                        StyledText {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: root.filterLabel
+                            font: root.fontStrong
+                            color: Colours.palette.m3onSecondaryContainer
+                        }
+                    }
+                    StateLayer {
+                        radius: filterBox.radius
+                        color: Colours.palette.m3onSecondaryContainer
+                        onClicked: root.filterOpen = !root.filterOpen
                     }
                 }
-                MouseArea {
-                    id: filterMouse
-
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: root.filterOpen = !root.filterOpen
-                }
-            }
-
-            Rectangle {
-                anchors.bottom: parent.bottom
-                anchors.left: parent.left
-                anchors.right: parent.right
-                height: 1
-                color: root.hairline
             }
         }
 
-        // Body ---------------------------------------------------------------------------------
+        // Category chips with a sliding indicator ------------------------------------------------
+        Item {
+            id: chips
+
+            anchors.top: head.bottom
+            anchors.topMargin: Tokens.spacing.medium
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.leftMargin: root.gutter
+            anchors.rightMargin: root.gutter
+            height: 34 * root.scale
+
+            // Re-evaluated when the chips exist and when their row is laid out.
+            readonly property Item currentChip: chipRow.width > 0 && chipRepeater.count > 0 ? chipRepeater.itemAt(root.categoryIndex) : null
+
+            Rectangle {
+                id: indicator
+
+                x: chips.currentChip?.x ?? 0
+                y: 0
+                width: chips.currentChip?.width ?? 0
+                height: parent.height
+                radius: height / 2
+                color: Colours.palette.m3secondaryContainer
+                opacity: root.categoryIndex >= 0 ? 1 : 0
+
+                Behavior on x {
+                    Anim {
+                        type: Anim.FastSpatial
+                    }
+                }
+                Behavior on width {
+                    Anim {
+                        type: Anim.FastSpatial
+                    }
+                }
+                Behavior on opacity {
+                    Anim {
+                        type: Anim.FastEffects
+                    }
+                }
+            }
+
+            Row {
+                id: chipRow
+
+                height: parent.height
+                spacing: Tokens.spacing.extraSmall
+
+                Repeater {
+                    id: chipRepeater
+
+                    model: root.categories
+
+                    Item {
+                        id: chip
+
+                        required property var modelData
+                        required property int index
+                        readonly property bool on: root.categoryIndex === index
+
+                        width: chipLabel.implicitWidth + chipIcon.width + Tokens.spacing.small + Tokens.padding.large * 1.4
+                        height: chipRow.height
+
+                        Row {
+                            anchors.centerIn: parent
+                            spacing: Tokens.spacing.small
+
+                            MaterialIcon {
+                                id: chipIcon
+
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: chip.modelData.icon
+                                fill: chip.on ? 1 : 0
+                                color: chip.on ? Colours.palette.m3onSecondaryContainer : Colours.palette.m3onSurfaceVariant
+                                fontStyle: Tokens.font.icon.builders.small.scale(root.scale).build()
+                            }
+                            StyledText {
+                                id: chipLabel
+
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: chip.modelData.title
+                                font: root.fontStrong
+                                color: chip.on ? Colours.palette.m3onSecondaryContainer : Colours.palette.m3onSurfaceVariant
+                            }
+                        }
+                        StateLayer {
+                            radius: chip.height / 2
+                            color: Colours.palette.m3onSurface
+                            onClicked: root.showCategory(chip.modelData.id)
+                        }
+                        // Alt held: each tab shows the number that selects it.
+                        Rectangle {
+                            anchors.right: parent.right
+                            anchors.top: parent.top
+                            anchors.margins: -2
+                            width: height
+                            height: 18 * root.scale
+                            radius: height / 2
+                            color: Colours.palette.m3primary
+                            scale: root.altHeld ? 1 : 0
+                            opacity: scale
+
+                            Behavior on scale {
+                                Anim {
+                                    type: Anim.FastSpatial
+                                }
+                            }
+
+                            StyledText {
+                                anchors.centerIn: parent
+                                text: chip.index + 1
+                                font: root.fontStrong
+                                color: Colours.palette.m3onPrimary
+                            }
+                        }
+                    }
+                }
+            }
+
+            Keycaps {
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                visible: chipRow.width + width + Tokens.spacing.large < parent.width
+                keys: ["Alt", "1–" + root.categories.length]
+                opacity: 0.8
+            }
+        }
+
+        // Body ------------------------------------------------------------------------------------
         Item {
             id: body
 
-            anchors.top: head.bottom
+            anchors.top: chips.bottom
+            anchors.topMargin: Tokens.spacing.medium
             anchors.bottom: foot.top
             anchors.left: parent.left
             anchors.right: parent.right
+            anchors.leftMargin: root.gutter - Tokens.padding.small
+            anchors.rightMargin: root.gutter
 
-            property real listWidth: root.previewOn ? width * 0.4 : width
+            property real listWidth: root.expandedPreview ? 0 : root.previewOn ? width * 0.42 : width
 
             Behavior on listWidth {
-                NumberAnimation {
-                    duration: Tokens.anim.durations.small * 0.8
-                    easing: Tokens.anim.standard
+                Anim {
+                    type: Anim.DefaultSpatial
+                }
+            }
+
+            // Breadcrumbs while browsing a folder: each step is a chip; the current one is filled.
+            Item {
+                id: crumbs
+
+                width: body.listWidth
+                height: root.current.id === "browse" ? 40 * root.scale : 0
+                visible: height > 0 && !root.expandedPreview
+                clip: true
+
+                readonly property var steps: {
+                    const path = root.browsePath, home = LauncherIndex.home;
+                    if (!path)
+                        return [];
+                    const inHome = path === home || path.startsWith(home + "/");
+                    const rest = (inHome ? path.slice(home.length) : path).split("/").filter(Boolean);
+                    const out = [{title: inHome ? "Home" : "/", path: inHome ? home : "/", icon: inHome ? "home" : "storage"}];
+                    let acc = inHome ? home : "";
+                    for (const part of rest) {
+                        acc += "/" + part;
+                        out.push({title: part, path: acc, icon: ""});
+                    }
+                    return out;
+                }
+
+                Behavior on height {
+                    Anim {
+                        type: Anim.FastSpatial
+                    }
+                }
+
+                ListView {
+                    id: crumbList
+
+                    anchors.fill: parent
+                    anchors.leftMargin: Tokens.padding.small
+                    anchors.bottomMargin: Tokens.spacing.small
+                    orientation: ListView.Horizontal
+                    spacing: Tokens.spacing.extraSmall
+                    boundsBehavior: Flickable.StopAtBounds
+                    model: crumbs.steps
+                    onCountChanged: Qt.callLater(() => crumbList.positionViewAtEnd())
+
+                    delegate: Row {
+                        id: crumb
+
+                        required property var modelData
+                        required property int index
+                        readonly property bool last: index === crumbs.steps.length - 1
+
+                        height: crumbList.height
+                        spacing: Tokens.spacing.extraSmall
+
+                        MaterialIcon {
+                            anchors.verticalCenter: parent.verticalCenter
+                            visible: crumb.index > 0
+                            text: "chevron_right"
+                            color: Colours.palette.m3outline
+                            fontStyle: Tokens.font.icon.small
+                        }
+                        Rectangle {
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: crumbRow.implicitWidth + Tokens.padding.medium * 1.6
+                            height: 30 * root.scale
+                            radius: height / 2
+                            color: crumb.last ? Colours.palette.m3secondaryContainer : Colours.palette.m3surfaceContainerHigh
+
+                            Row {
+                                id: crumbRow
+
+                                anchors.centerIn: parent
+                                spacing: Tokens.spacing.extraSmall
+
+                                MaterialIcon {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    visible: crumb.modelData.icon !== ""
+                                    text: crumb.modelData.icon
+                                    fill: crumb.last ? 1 : 0
+                                    color: crumb.last ? Colours.palette.m3onSecondaryContainer : Colours.palette.m3onSurfaceVariant
+                                    fontStyle: Tokens.font.icon.small
+                                }
+                                StyledText {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    text: crumb.modelData.title
+                                    font: root.fontStrong
+                                    color: crumb.last ? Colours.palette.m3onSecondaryContainer : Colours.palette.m3onSurfaceVariant
+                                }
+                            }
+                            StateLayer {
+                                radius: parent.radius
+                                color: Colours.palette.m3onSurface
+                                disabled: crumb.last
+                                onClicked: root.goTo(crumb.modelData.path, -1)
+                            }
+                        }
+                    }
                 }
             }
 
             Item {
                 id: listBox
 
+                visible: !root.expandedPreview
+
+                y: crumbs.height
                 width: body.listWidth
-                height: parent.height
-                visible: !root.formOpen
+                height: parent.height - crumbs.height
 
                 ListView {
                     id: list
 
                     anchors.fill: parent
-                    anchors.margins: Tokens.padding.small
+                    anchors.leftMargin: Tokens.padding.small
+                    anchors.rightMargin: Tokens.padding.small
                     clip: true
                     reuseItems: true
                     cacheBuffer: 400
                     boundsBehavior: Flickable.StopAtBounds
                     currentIndex: root.selected
-                    highlightFollowsCurrentItem: false
+                    objectName: "launcherResults"
+                    highlightFollowsCurrentItem: true
+                    highlightMoveVelocity: -1
+                    highlightResizeVelocity: -1
+                    highlightMoveDuration: Tokens.anim.durations.expressiveFastEffects
+                    highlightResizeDuration: Tokens.anim.durations.expressiveFastEffects
                     model: ScriptModel {
                         values: root.items
                         objectProp: "key"
@@ -705,65 +1018,66 @@ Item {
                         panel: root
                     }
 
-                    // Selection pill: slides between rows; rows report their geometry when current.
-                    Rectangle {
-                        x: 0
-                        y: root.hlY
-                        z: -1
-                        width: list.width
-                        height: root.hlH
+                    // Let ListView own highlight coordinates and delegate lifecycle. A separate
+                    // rectangle uses viewport coordinates and drifts when contentY changes.
+                    highlight: Rectangle {
                         radius: root.rowRadius
-                        color: Qt.alpha(Colours.palette.m3onSurface, 0.1)
-                        opacity: root.hlOn && root.items.length > 0 ? 1 : 0
-
-                        Behavior on y {
-                            enabled: root.hlOn
-                            NumberAnimation {
-                                duration: Tokens.anim.durations.small * 0.7
-                                easing: Tokens.anim.standard
-                            }
-                        }
-                        Behavior on height {
-                            NumberAnimation {
-                                duration: Tokens.anim.durations.small * 0.5
-                                easing: Tokens.anim.standard
-                            }
-                        }
+                        color: Colours.palette.m3secondaryContainer
+                        visible: root.selected >= 0 && !root.items[root.selected]?.header
                     }
                 }
 
-                StyledText {
+
+                // Empty state: a soft shape with the view's glyph and a sentence.
+                Column {
                     anchors.centerIn: parent
                     width: parent.width - Tokens.padding.extraLarge * 2
-                    visible: root.items.length === 0 && !root.formOpen && !root.busy
-                    horizontalAlignment: Text.AlignHCenter
-                    wrapMode: Text.WordWrap
-                    text: Results.emptyText(root.current.id, root.query)
-                    font: root.fontBody
-                    color: Colours.palette.m3onSurfaceVariant
-                }
-            }
+                    spacing: Tokens.spacing.large
+                    visible: root.items.length === 0 && !root.busy
 
-            Rectangle {
-                x: body.listWidth
-                width: 1
-                height: parent.height
-                color: root.hairline
-                opacity: root.previewOn ? 1 : 0
+                    MaterialShape {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        implicitSize: 72 * root.scale
+                        shape: MaterialShape.Cookie7Sided
+                        color: Colours.palette.m3surfaceContainerHighest
+
+                        MaterialIcon {
+                            anchors.centerIn: parent
+                            text: root.viewIcons[root.current.id] ?? "search_off"
+                            color: Colours.palette.m3onSurfaceVariant
+                            fontStyle: Tokens.font.icon.builders.large.scale(root.scale).build()
+                        }
+                    }
+                    StyledText {
+                        width: parent.width
+                        horizontalAlignment: Text.AlignHCenter
+                        wrapMode: Text.WordWrap
+                        text: Results.emptyText(root.current.id, root.query)
+                        font: root.fontBody
+                        color: Colours.palette.m3onSurfaceVariant
+                    }
+                }
             }
 
             PreviewPane {
                 id: preview
 
-                x: body.listWidth + 1
-                width: body.width - body.listWidth - 1
-                height: parent.height
+                x: body.listWidth + (root.expandedPreview ? 0 : Tokens.spacing.medium)
+                width: body.width - x
+                height: parent.height - Tokens.padding.small
                 opacity: root.previewOn ? 1 : 0
                 visible: opacity > 0.01
                 scale: root.scale
                 row: root.previewOn ? root.row : null
                 focusedPane: root.previewFocus
-                decodeSize: Qt.size(root.panelWidth * 0.6 * 2, 200 * root.scale * 2)
+                expanded: root.expandedPreview
+                onExpandRequested: root.expandedPreview = true
+                onCollapseRequested: { root.expandedPreview = false; root.previewFocus = false; resetZoom(); }
+                decodeSize: Qt.size(root.panelWidth * 2, root.panelHeight * 2)
+
+                transform: Translate {
+                    x: (1 - preview.opacity) * 24 * root.scale
+                }
 
                 Behavior on opacity {
                     Anim {
@@ -771,107 +1085,151 @@ Item {
                     }
                 }
             }
-
-            SnippetForm {
-                id: form
-
-                anchors.fill: parent
-                visible: root.formOpen
-                onSubmit: root.saveSnippet()
-                onCancel: root.pop()
-            }
         }
 
-        // Footer -------------------------------------------------------------------------------
+        // Footer: context on the left, primary action and the actions menu on the right ------------
         Item {
             id: foot
 
             anchors.bottom: parent.bottom
             anchors.left: parent.left
             anchors.right: parent.right
-            height: 40 * root.scale
-
-            Rectangle {
-                anchors.top: parent.top
-                anchors.left: parent.left
-                anchors.right: parent.right
-                height: 1
-                color: root.hairline
-            }
+            anchors.leftMargin: root.gutter
+            anchors.rightMargin: root.gutter - Tokens.padding.small
+            height: 56 * root.scale
 
             Row {
                 anchors.left: parent.left
-                anchors.leftMargin: Tokens.padding.medium
                 anchors.verticalCenter: parent.verticalCenter
-                spacing: Tokens.spacing.small
+                spacing: Tokens.spacing.medium
 
-                readonly property bool appIcon: !!root.row && !root.formOpen && root.stack.length === 1 && (root.row.kind === "app" || root.row.kind === "window")
+                readonly property bool appIcon: !!root.row && root.stack.length === 1 && root.row.kind === "app"
 
-                AppIcon {
+                Item {
                     anchors.verticalCenter: parent.verticalCenter
-                    visible: parent.appIcon
-                    name: parent.appIcon ? root.row.icon : ""
-                    size: 20 * root.scale
-                }
-                // The extension icon carries the only accent colour.
-                Rectangle {
-                    anchors.verticalCenter: parent.verticalCenter
-                    visible: !parent.appIcon
-                    width: 20 * root.scale
+                    width: 30 * root.scale
                     height: width
-                    radius: Tokens.rounding.extraSmall + 1
-                    color: Colours.palette.m3primary
 
+                    MaterialShape {
+                        anchors.centerIn: parent
+                        implicitSize: parent.width
+                        visible: !parent.parent.appIcon
+                        shape: MaterialShape.Cookie4Sided
+                        color: Colours.palette.m3tertiaryContainer
+                    }
                     MaterialIcon {
                         anchors.centerIn: parent
-                        text: root.stack.length > 1 ? root.viewIcons[root.current.id] ?? "bolt" : root.row && !root.formOpen ? root.row.icon || "bolt" : "search"
-                        color: Colours.palette.m3onPrimary
-                        fontStyle: Tokens.font.icon.builders.small.scale(root.scale * 0.8).build()
+                        visible: !parent.parent.appIcon
+                        text: root.stack.length > 1 ? root.viewIcons[root.current.id] ?? "bolt" : root.row ? root.row.icon || "bolt" : "bolt"
+                        color: Colours.palette.m3onTertiaryContainer
+                        fontStyle: Tokens.font.icon.builders.small.scale(root.scale).build()
+                    }
+                    AppIcon {
+                        anchors.fill: parent
+                        visible: parent.parent.appIcon
+                        name: visible ? root.row.icon : ""
+                        size: parent.width
                     }
                 }
                 StyledText {
                     anchors.verticalCenter: parent.verticalCenter
-                    text: root.formOpen ? "New Snippet" : root.stack.length > 1 ? root.titles[root.current.id] ?? "" : root.row ? root.row.title : "Wysun"
+                    text: root.current.id === "browse" ? root.browsePath.replace(LauncherIndex.home, "~") : root.stack.length > 1 ? root.titles[root.current.id] ?? "" : root.row ? root.row.title : "Wysun"
                     font: root.fontStrong
                     color: Colours.palette.m3onSurfaceVariant
                     elide: Text.ElideRight
-                    width: Math.min(implicitWidth, root.panelWidth * 0.4)
+                    width: Math.min(implicitWidth, root.panelWidth * (root.current.id === "browse" ? 0.25 : 0.4))
+                }
+                // Folder navigation hints: arrows move through the tree.
+                Row {
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: Tokens.spacing.small
+                    visible: root.current.id === "browse" || (root.row?.kind === "file" && root.row.isDir)
+
+                    Keycaps {
+                        anchors.verticalCenter: parent.verticalCenter
+                        visible: root.current.id === "browse"
+                        keys: ["←"]
+                    }
+                    StyledText {
+                        anchors.verticalCenter: parent.verticalCenter
+                        visible: root.current.id === "browse"
+                        text: "Up"
+                        font: root.fontSmall
+                        color: Colours.palette.m3onSurfaceVariant
+                    }
+                    Keycaps {
+                        anchors.verticalCenter: parent.verticalCenter
+                        visible: root.row?.kind === "file" && root.row.isDir
+                        keys: ["→"]
+                    }
+                    StyledText {
+                        anchors.verticalCenter: parent.verticalCenter
+                        visible: root.row?.kind === "file" && root.row.isDir
+                        text: "Open folder"
+                        font: root.fontSmall
+                        color: Colours.palette.m3onSurfaceVariant
+                    }
                 }
             }
 
             Row {
                 anchors.right: parent.right
-                anchors.rightMargin: Tokens.padding.small
                 anchors.verticalCenter: parent.verticalCenter
-                spacing: Tokens.spacing.medium
-                visible: !root.formOpen
+                spacing: Tokens.spacing.small
 
-                Row {
-                    spacing: Tokens.spacing.small
+                // Primary action: filled tonal pill.
+                Rectangle {
+                    id: primary
+
                     anchors.verticalCenter: parent.verticalCenter
+                    width: primaryRow.implicitWidth + Tokens.padding.large * 1.6
+                    height: 38 * root.scale
+                    radius: height / 2
+                    color: Colours.palette.m3primary
+                    opacity: root.row ? 1 : 0.5
 
-                    StyledText {
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: Actions.primaryLabel(root.row)
-                        font: root.fontStrong
+                    Row {
+                        id: primaryRow
+
+                        anchors.centerIn: parent
+                        spacing: Tokens.spacing.small
+
+                        StyledText {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: Actions.primaryLabel(root.row)
+                            font: root.fontStrong
+                            color: Colours.palette.m3onPrimary
+                        }
+                        Keycaps {
+                            anchors.verticalCenter: parent.verticalCenter
+                            keys: ["↵"]
+                            onPrimary: true
+                        }
                     }
-                    Keycaps {
-                        anchors.verticalCenter: parent.verticalCenter
-                        keys: ["↵"]
+                    StateLayer {
+                        radius: primary.radius
+                        color: Colours.palette.m3onPrimary
+                        onClicked: root.activate(root.row)
                     }
                 }
+
                 Rectangle {
+                    id: actionsButton
+
                     anchors.verticalCenter: parent.verticalCenter
-                    width: 1
-                    height: 16 * root.scale
-                    color: root.hairline
-                }
-                Rectangle {
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: actionsHint.implicitWidth + Tokens.padding.medium
-                    height: 28 * root.scale
-                    radius: Tokens.rounding.small
-                    color: actionsMouse.containsMouse || root.actionsOpen ? Qt.alpha(Colours.palette.m3onSurface, 0.1) : "transparent"
+                    width: actionsHint.implicitWidth + Tokens.padding.large * 1.6
+                    height: 38 * root.scale
+                    radius: root.actionsOpen ? Tokens.rounding.medium : height / 2
+                    color: root.actionsOpen ? Colours.palette.m3secondaryContainer : Colours.palette.m3surfaceContainerHighest
+
+                    Behavior on radius {
+                        Anim {
+                            type: Anim.FastSpatial
+                        }
+                    }
+                    Behavior on color {
+                        CAnim {}
+                    }
 
                     Row {
                         id: actionsHint
@@ -883,19 +1241,16 @@ Item {
                             anchors.verticalCenter: parent.verticalCenter
                             text: "Actions"
                             font: root.fontStrong
-                            color: Colours.palette.m3onSurfaceVariant
+                            color: Colours.palette.m3onSurface
                         }
                         Keycaps {
                             anchors.verticalCenter: parent.verticalCenter
-                            keys: ["Ctrl", "K"]
+                            keys: ["Alt", "K"]
                         }
                     }
-                    MouseArea {
-                        id: actionsMouse
-
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
+                    StateLayer {
+                        radius: actionsButton.radius
+                        color: Colours.palette.m3onSurface
                         onClicked: {
                             if (!root.row)
                                 return;
@@ -909,20 +1264,43 @@ Item {
             }
         }
 
-        // Filter dropdown menu
+        // Filter menu (clipboard, files)
         Rectangle {
-            visible: root.filterOpen && !!root.filters
+            id: filterMenu
+
+            readonly property bool shown: root.filterOpen && !!root.filters
+
             anchors.right: parent.right
-            anchors.rightMargin: Tokens.padding.medium
+            anchors.rightMargin: root.gutter
             anchors.top: head.bottom
-            anchors.topMargin: -Tokens.padding.extraSmall
-            width: 180 * root.scale
+            anchors.topMargin: Tokens.spacing.small
+            width: 200 * root.scale
             height: filterList.implicitHeight + Tokens.padding.small * 2
-            radius: Tokens.rounding.small
-            color: Qt.alpha(Colours.palette.m3surfaceContainerHigh, 0.97)
-            border.width: 1
-            border.color: Qt.alpha(Colours.palette.m3onSurface, 0.16)
+            radius: Tokens.rounding.large
+            color: Colours.palette.m3surfaceContainerHigh
             z: 5
+            visible: opacity > 0.01
+            opacity: shown ? 1 : 0
+            scale: shown ? 1 : 0.9
+            transformOrigin: Item.TopRight
+
+            Behavior on opacity {
+                Anim {
+                    type: Anim.FastEffects
+                }
+            }
+            Behavior on scale {
+                Anim {
+                    type: Anim.FastSpatial
+                }
+            }
+
+            Elevation {
+                anchors.fill: parent
+                radius: parent.radius
+                level: 2
+                z: -1
+            }
 
             Column {
                 id: filterList
@@ -939,35 +1317,33 @@ Item {
                         required property var modelData
 
                         width: filterList.width
-                        height: 30 * root.scale
-                        radius: Tokens.rounding.extraSmall
-                        color: optMouse.containsMouse ? Qt.alpha(Colours.palette.m3onSurface, 0.1) : "transparent"
+                        height: 36 * root.scale
+                        radius: height / 2
+                        color: root.filter === opt.modelData[0] ? Colours.palette.m3secondaryContainer : "transparent"
 
                         StyledText {
                             anchors.left: parent.left
-                            anchors.leftMargin: Tokens.padding.small
+                            anchors.leftMargin: Tokens.padding.medium
                             anchors.verticalCenter: parent.verticalCenter
                             text: opt.modelData[1]
                             font: root.fontStrong
                         }
                         MaterialIcon {
                             anchors.right: parent.right
-                            anchors.rightMargin: Tokens.padding.small
+                            anchors.rightMargin: Tokens.padding.medium
                             anchors.verticalCenter: parent.verticalCenter
                             visible: root.filter === opt.modelData[0]
                             text: "check"
                             fontStyle: Tokens.font.icon.small
                         }
-                        MouseArea {
-                            id: optMouse
-
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
+                        StateLayer {
+                            radius: opt.radius
+                            color: Colours.palette.m3onSurface
                             onClicked: {
                                 root.filter = opt.modelData[0];
                                 root.filterOpen = false;
                                 root.autoFirst = true;
+                                root.entrance++;
                                 search.forceActiveFocus();
                             }
                         }
@@ -976,27 +1352,19 @@ Item {
             }
         }
 
-        // Actions popover
+        // Actions popover: grows out of the Actions button.
         ActionsMenu {
             id: actionMenu
 
             anchors.right: parent.right
-            anchors.rightMargin: Tokens.padding.small
+            anchors.rightMargin: root.gutter - Tokens.padding.small
             anchors.bottom: foot.top
             anchors.bottomMargin: Tokens.padding.extraSmall
             scale: root.scale
             source: Actions.actionsFor(root.row, root.row ? LauncherIndex.isPinned(root.row) : false, root.desktopActionsOf(root.row))
             filterText: root.actionFilter
-            visible: opacity > 0.01
-            opacity: root.actionsOpen ? 1 : 0
-            transformOrigin: Item.BottomRight
+            open: root.actionsOpen
             onTriggered: a => root.runAction(a)
-
-            Behavior on opacity {
-                Anim {
-                    type: Anim.FastEffects
-                }
-            }
         }
 
         MouseArea {
@@ -1008,8 +1376,9 @@ Item {
             }
         }
     }
+    }
 
-    // View change: the list slides in a few pixels while fading.
+    // View change: the list slides in a few pixels while fading; rows add their own stagger.
     ParallelAnimation {
         id: viewAnim
 
@@ -1018,22 +1387,22 @@ Item {
             property: "opacity"
             from: 0
             to: 1
-            duration: Tokens.anim.durations.expressiveFastEffects
-            easing: Tokens.anim.standard
+            duration: Tokens.anim.durations.expressiveDefaultEffects
+            easing: Tokens.anim.expressiveDefaultEffects
         }
         NumberAnimation {
             target: listBox
             property: "x"
-            from: Tokens.padding.large
+            from: Tokens.padding.extraLarge * 1.6 * root.navDir
             to: 0
-            duration: Tokens.anim.durations.expressiveFastEffects
-            easing: Tokens.anim.standard
+            duration: Tokens.anim.durations.expressiveDefaultSpatial
+            easing: Tokens.anim.expressiveDefaultSpatial
         }
     }
 
     readonly property var viewIcons: ({
-            clipboard: "content_paste", snippets: "data_object", windows: "web_asset", files: "folder_open", apps: "apps",
-            system: "power_settings_new", "calc-history": "calculate", openwith: "apps", "snippet-form": "data_object"
+            root: "search_off", clipboard: "content_paste", files: "folder_open", apps: "apps",
+            "calc-history": "calculate", openwith: "apps", browse: "folder_open"
         })
 
     function focusSearch(): void {

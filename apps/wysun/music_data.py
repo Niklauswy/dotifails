@@ -264,16 +264,41 @@ def start_worker():
                          stdout=log, stderr=log, start_new_session=True)
 
 
+def audio_files(paths):
+    """Files and, recursively, the audio inside folders, in a stable order."""
+    for path in paths:
+        path = Path(path).expanduser().resolve()
+        candidates = sorted(path.rglob('*')) if path.is_dir() else [path]
+        for candidate in candidates:
+            if candidate.is_file() and candidate.suffix.lower() in SUFFIXES:
+                yield candidate
+
+
+def tags(path):
+    """Embedded title/artist/album, when the file carries them."""
+    try:
+        result = subprocess.run(['ffprobe', '-v', 'error', '-show_entries', 'format_tags:stream_tags',
+                                 '-of', 'json', str(path)], capture_output=True, text=True, timeout=15, check=True)
+        data = json.loads(result.stdout)
+        # Ogg/Opus keep Vorbis comments on the stream, MP3/M4A on the container.
+        sources = [s.get('tags', {}) for s in data.get('streams', [])] + [data.get('format', {}).get('tags', {})]
+        found = {k.lower(): v.strip() for source in sources for k, v in source.items() if isinstance(v, str)}
+    except (OSError, ValueError, subprocess.SubprocessError):
+        return {}
+    return {k: found[k] for k in ('title', 'artist', 'album') if found.get(k)}
+
+
 def import_files(paths):
     import hashlib
+    entries = {}
+    for path in audio_files(paths):
+        key = 'local-'+hashlib.sha256(str(path).encode()).hexdigest()[:22]
+        entries[key] = dict(dict(id=key, title=path.stem, artist='Archivo local', path=str(path),
+                                 status='ready', progress='', error='', **probe(path)), **tags(path))
+    # Probe outside the lock: a large folder must not block the download worker.
     with edit_state() as state:
-        for path in paths:
-            path = Path(path).expanduser().resolve()
-            if not path.is_file() or path.suffix.lower() not in SUFFIXES:
-                continue
-            key = 'local-'+hashlib.sha256(str(path).encode()).hexdigest()[:22]
-            state['tracks'][key] = dict(id=key, title=path.stem, artist='Archivo local', path=str(path),
-                status='ready', progress='', error='', **probe(path))
+        state['tracks'].update(entries)
+    return list(entries)
 
 
 def main():

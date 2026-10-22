@@ -32,7 +32,7 @@ class OrbitDaemon(QObject):
     The launcher itself is the shell widget (apps/shell/modules/launcher); no
     Qt launcher palette exists any more.
     """
-    UTILITIES=('notes','color','tools','music')
+    UTILITIES=('color','music')
     def __init__(self,store=None,test=False):
         super().__init__()
         from data_v2 import StoreV2
@@ -73,18 +73,17 @@ class OrbitDaemon(QObject):
             kind='color' if color_value(text) else 'url' if re.fullmatch(r'https?://\S+',text.strip()) else 'text'
             self.store.clip(kind,text,blob=rich,source=source,meta={'mime_envelope':True})
     def show_utility(self,mode):
+        if mode == 'color' and not self.test:
+            run([str(HOME/'.local/bin/wysun'), 'colors']);return
         if mode=='music' and not self.test:
             run([str(Path(__file__).with_name('orbit-client')),mode]);return
         if mode not in self.utilities:
-            if mode=='tools':
-                from tools_window import ToolsWindow
-                window=ToolsWindow(test=self.test)
-            elif mode=='music':
-                from music_app_window import MusicAppWindow
-                window=MusicAppWindow(test=self.test)
+            if mode=='music':
+                from wysun_music.app import build
+                window=build(test=self.test).window
             else:
-                from utilities import NotesWindow,ColorWindow
-                window={'notes':NotesWindow,'color':ColorWindow}[mode]()
+                from utilities import ColorWindow
+                window=ColorWindow()
             self.utilities[mode]=window
         window=self.utilities[mode]
         if window.isVisible() and not getattr(window,'_motion_exiting',False):window.close();return

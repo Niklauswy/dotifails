@@ -41,6 +41,7 @@ var ShellState = {
     componentsFor: function(screen) { return {}; }
 };
 var Config = {launcher: {enabled: false}};
+var colors = { close: function() {}, open: function() { return true; } };
 var processes = { close: function() {}, open: function() { return true; } };
 var root = {surfaces: SURFACES};
 var surfaces = root.surfaces;

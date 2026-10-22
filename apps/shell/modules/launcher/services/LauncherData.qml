@@ -23,7 +23,7 @@ Singleton {
 
     // Copy, then paste into the window that was focused before the launcher.
     function paste(row: var): bool {
-        if (["clip", "snippet", "emoji", "calc", "history"].indexOf(row.kind) < 0)
+        if (["clip", "emoji", "calc", "history"].indexOf(row.kind) < 0)
             return false;
         copy(row);
         run(["paste"]);

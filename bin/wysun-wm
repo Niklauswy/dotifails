@@ -140,6 +140,6 @@ if __name__=='__main__':
     try:raise SystemExit(main())
     except (ValueError,RuntimeError,OSError,subprocess.SubprocessError) as error:
         text=str(error)
-        try:subprocess.run(['dunstify','-a','Wysun','-u','low','Wysun · Ventanas',text],capture_output=True,timeout=2)
+        try:subprocess.run(['notify-send','-a','Wysun','-u','low','Wysun · Ventanas',text],capture_output=True,timeout=2)
         except (OSError,subprocess.SubprocessError):pass
         raise SystemExit(text)

@@ -21,10 +21,10 @@ KEYS = {'Return': 'Enter', 'space': 'Space', 'period': '.', 'comma': ',', 'grave
         'XF86AudioPlay': 'Play', 'XF86AudioStop': 'Stop', 'XF86MonBrightnessUp': 'Bright +',
         'XF86MonBrightnessDown': 'Bright −', 'Left': '←', 'Right': '→', 'Up': '↑', 'Down': '↓'}
 WYSUN = {'launcher': 'Open the launcher', 'toggle': 'Open the launcher', 'clipboard': 'Clipboard history',
-         'calculator': 'Calculator', 'emoji': 'Emoji picker', 'processes': 'Processes', 'connections': 'Connections',
-         'notes': 'Notes', 'colors': 'Colors', 'settings': 'Settings', 'files': 'Files', 'snippets': 'Snippets',
-         'tools': 'Tools', 'music-mini': 'Mini music player', 'lock': 'Lock the screen', 'recover': 'Recover the shell',
-         'windows': 'Window switcher', 'cheatsheet': 'This cheat sheet'}
+         'calculator': 'Calculator', 'emoji': 'Emoji picker', 'processes': 'Processes',
+         'colors': 'Colors', 'settings': 'Settings', 'files': 'Files',
+         'music-mini': 'Wysun Music in the media widget', 'lock': 'Lock the screen', 'recover': 'Recover the shell',
+         'cheatsheet': 'This cheat sheet'}
 SHELL = {'overview': 'Workspace overview', 'session': 'Session panel', 'menu': 'Quick menu',
          'cheatsheet': 'This cheat sheet', 'reload-preferences': 'Reload shell preferences'}
 # Provenance tags used by the stock config; they say where a bind came from, not how to list it.
@@ -34,7 +34,7 @@ APPS = {'wysun-terminal': 'Terminal', 'brave-browser': 'Browser', 'discord': 'Di
 
 def describe(action):
     """Returns (category, label) for a dispatcher expression, or None to hide it."""
-    if 'Atajo sin equivalente' in action or 'dunstify' in action:
+    if 'Atajo sin equivalente' in action or 'notify-send' in action:
         return None
     m = re.match(r'hl\.dsp\.exec_cmd\("(.*)"\)$', action)
     if m:
@@ -51,7 +51,7 @@ def describe(action):
             if cmd[1] == 'screenshot':
                 return ('Capture', 'Screenshot' if '--accept-on-select' not in m.group(1) else 'Screenshot to clipboard')
             if cmd[1] in WYSUN:
-                return ('Shell' if cmd[1] in ('windows', 'recover', 'cheatsheet', 'lock') else 'Apps', WYSUN[cmd[1]])
+                return ('Shell' if cmd[1] in ('recover', 'cheatsheet', 'lock') else 'Apps', WYSUN[cmd[1]])
         if cmd[0] == 'wysun-terminal':
             return ('Apps', 'Terminal')
         if cmd[0] in APPS:

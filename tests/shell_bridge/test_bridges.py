@@ -1,4 +1,4 @@
-"""Wysun bridge contracts: scheme/Colours keys, single Dunst, dispatcher. Synthetic data only."""
+"""Wysun bridge contracts: scheme/Colours keys, shell-owned notifications, dispatcher. Synthetic data only."""
 import importlib.util
 import json
 import os
@@ -78,41 +78,34 @@ class SchemeBridgeTests(unittest.TestCase):
         self.assertIn('"wysun", "wallpaper", "set"', wall)
 
 
-class DunstTests(unittest.TestCase):
-    def run_dnd(self, state_home, answers):
-        calls = []
-        def fake(argv):
-            calls.append(argv); return answers.pop(0)
-        with patch.dict(os.environ, {'XDG_STATE_HOME': state_home}), patch.object(backend, 'run', fake), \
-                patch.object(sys, 'argv', ['backend', 'dnd']):
-            import io, contextlib
-            out = io.StringIO()
-            with contextlib.redirect_stdout(out):
-                backend.main()
-        return calls, json.loads(out.getvalue())
+class NotificationOwnershipTests(unittest.TestCase):
+    """The shell is the only notification server: no dunst anywhere, Do Not Disturb lives in the shell."""
 
-    def test_dnd_toggles_the_single_dunst(self):
-        with tempfile.TemporaryDirectory() as state:
-            calls, result = self.run_dnd(state, ['', 'true\n'])
-            self.assertEqual(calls, [['dunstctl', 'set-paused', 'toggle'], ['dunstctl', 'is-paused']])
-            self.assertEqual(result, {'paused': True})
-
-    def test_dnd_yields_to_recorder_concentration(self):
-        with tempfile.TemporaryDirectory() as state:
-            Path(state, 'loomrec').mkdir()
-            Path(state, 'loomrec/concentration.json').write_text('{}')
-            with self.assertRaises(RuntimeError):
-                self.run_dnd(state, [])
-
-    def test_wysun_never_owns_the_notification_bus(self):
-        for path in SHELL.rglob('*.qml'):
-            if 'plugin' in path.relative_to(SHELL).parts:
-                continue
-            self.assertNotIn('NotificationServer', path.read_text(), path)
+    def test_shell_owns_the_notification_bus(self):
         notifs = (SHELL / 'services/Notifs.qml').read_text()
-        self.assertIn('shouldShowPopup(): bool { return false; }', notifs)
-        self.assertIn('readonly property list<NotifData> popups: []', notifs)
-        self.assertFalse(list(SHELL.glob('plugin/**/*notificationserver*')))
+        self.assertIn('NotificationServer', notifs)
+        self.assertIn('toggleDnd', notifs)
+        self.assertIn('target: "notifs"', notifs)
+        servers = [p for p in SHELL.rglob('*.qml') if 'plugin' not in p.relative_to(SHELL).parts
+                   and 'NotificationServer {' in p.read_text()]
+        self.assertEqual(servers, [SHELL / 'services/Notifs.qml'])
+
+    def test_no_dunst_is_started_or_called(self):
+        root = SHELL.parents[1]
+        for relative in ('bin/wysun-session-services', 'apps/shell/wysun/backend.py', 'apps/wysun/theme_runtime.py',
+                         'apps/capture/loomrec/integration.py', 'config/.config/wysun/hyprland.lua'):
+            self.assertNotIn('dunst', (root / relative).read_text().lower(), relative)
+
+    def test_dnd_command_reaches_the_shell_ipc(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            config = Path(tmp, 'shell'); (config / 'wysun').mkdir(parents=True)
+            runtime = config / 'wysun/runtime.sh'
+            runtime.write_text('#!/bin/sh\nprintf "%s\\n" "$@"\n'); runtime.chmod(0o755)
+            env = dict(os.environ, WYSUN_SHELL_CONFIG=str(config))
+            for action, expected in (('on', ['ipc', 'call', 'notifs', 'setDnd', 'true']), ('off', ['ipc', 'call', 'notifs', 'setDnd', 'false']),
+                                     ('toggle', ['ipc', 'call', 'notifs', 'toggleDnd']), ('status', ['ipc', 'call', 'notifs', 'status'])):
+                out = subprocess.run([str(SHELL.parents[1] / 'bin/wysun-shell'), 'dnd', action], env=env, capture_output=True, text=True)
+                self.assertEqual(out.stdout.split(), expected, action)
 
 
 class DispatcherTests(unittest.TestCase):
@@ -158,8 +151,9 @@ class DispatcherTests(unittest.TestCase):
         script = (ROOT / 'bin/wysun-shell').read_text()
         names = re.search(r'test\|([\w|]+)\) ;;', script)[1].split('|') + ['test']
         for name in set(names):
-            if name == 'processes':
-                self.assertIn('if (kind === "processes") return processes.open(toggle)', qml)
+            if name in ('processes', 'colors'):
+                self.assertIn(f'if (kind === "{name}")', qml)
+                self.assertIn(f'return {name}.open(toggle)', qml)
             else:
                 self.assertRegex(qml, rf'\b{name}:')
 

@@ -27,6 +27,22 @@ def concentration_lock(method):
     return guarded
 
 
+def shell_command():
+    """The shell's Do Not Disturb switch (the shell owns notifications; there is no separate daemon)."""
+    import shutil
+    return shutil.which('wysun-shell') or str(Path.home()/'.local/bin/wysun-shell')
+
+
+def dnd_state():
+    """'true' or 'false', the same strings the lease file has always stored."""
+    answer=json.loads(subprocess.check_output([shell_command(),'dnd','status'],text=True,timeout=3))
+    return 'true' if answer.get('dnd') else 'false'
+
+
+def set_dnd(value):
+    subprocess.run([shell_command(),'dnd','on' if value=='true' else 'off'],check=True,timeout=3,capture_output=True)
+
+
 class Concentration:
     """Restore exactly the prior pause state, without desktop reloads."""
     def __init__(self): self.previous = None; self.lease = None; self.token = None
@@ -34,7 +50,7 @@ class Concentration:
     def begin(self, project_dir=None):
         if self.previous is not None: return
         try:
-            value = subprocess.check_output(['dunstctl','is-paused'],text=True,timeout=2).strip()
+            value = dnd_state()
             if value not in ('true','false'): return
             if project_dir is not None:
                 import uuid,time
@@ -43,8 +59,8 @@ class Concentration:
                 if self.lease.exists():
                     existing=json.loads(self.lease.read_text())
                     if self.active(existing):raise RuntimeError('Otra grabación controla el modo concentración')
-                    if existing.get('previous') not in ('true','false'):raise ValueError('Estado de Dunst inválido')
-                    subprocess.run(['dunstctl','set-paused',existing['previous']],check=True,timeout=2,capture_output=True)
+                    if existing.get('previous') not in ('true','false'):raise ValueError('Estado de No molestar inválido')
+                    set_dnd(existing['previous'])
                     self.lease.unlink()
                     value=existing['previous']
                 self.token=uuid.uuid4().hex
@@ -52,7 +68,7 @@ class Concentration:
                 atomic_json(self.lease,{'previous':value,'project_dir':str(project_dir),'pid':os.getpid(),'created':time.time(),'token':self.token})
                 self.lease.chmod(0o600)
             self.previous = value
-            subprocess.run(['dunstctl','set-paused','true'],check=True,timeout=2,capture_output=True)
+            set_dnd('true')
         except (OSError, subprocess.SubprocessError): pass
     @concentration_lock
     def restore(self):
@@ -61,7 +77,7 @@ class Concentration:
             if not self.lease.exists() or json.loads(self.lease.read_text()).get('token')!=self.token:
                 self.previous=None;return
         value = self.previous
-        subprocess.run(['dunstctl','set-paused',value],check=True,timeout=2,capture_output=True)
+        set_dnd(value)
         self.previous = None
         if self.lease and self.lease.exists():
             data=json.loads(self.lease.read_text())
@@ -87,8 +103,8 @@ class Concentration:
         if not path.exists():return False
         data=json.loads(path.read_text())
         if self.active(data):return False
-        if data.get('previous') not in ('true','false'):raise ValueError('Estado de Dunst inválido')
-        subprocess.run(['dunstctl','set-paused',data['previous']],check=True,timeout=2,capture_output=True)
+        if data.get('previous') not in ('true','false'):raise ValueError('Estado de No molestar inválido')
+        set_dnd(data['previous'])
         path.unlink();return True
 
     def watch(self):

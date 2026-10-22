@@ -78,10 +78,7 @@ def main():
     subprocess.run(['dbus-update-activation-environment', '--systemd',
                     *(name for name in variables if name in os.environ)], check=True)
     commands = [list(SHELL_COMMAND), ['wysun-idle', 'run'], ['wysun', 'daemon']]
-    # Both notification/polkit agents are scoped to this newly selected login.
-    if shutil.which('dunst'):
-        config = Path.home() / '.config/wysun/dunstrc'
-        commands.append(['dunst', '--config', str(config)] if config.is_file() else ['dunst'])
+    # The shell owns org.freedesktop.Notifications; only the polkit agent is scoped to this login.
     for agent in ('/usr/lib/policykit-1-mate/polkit-mate-authentication-agent-1',
                   '/usr/libexec/polkit-mate-authentication-agent-1'):
         if Path(agent).is_file():

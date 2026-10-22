@@ -53,18 +53,4 @@ class CameraBubbleTests(unittest.TestCase):
             self.assertEqual(result.returncode,0,result.stderr)
 
 
-class WatchOnlyTests(unittest.TestCase):
-    def test_viewer_has_no_editing_controls(self):
-        from loomrec.ui.main import Window
-        from loomrec.library import Library
-        with tempfile.TemporaryDirectory() as root,patch.dict(os.environ,{'XDG_CONFIG_HOME':root,'XDG_STATE_HOME':root}):
-            w=Window(Library(root),False);w.timer.stop()
-            for name in ('enter_editor','edit_selected','refresh_editor','annotation_dialog','analysis_dialog','inspector','waveform','export_button'):
-                self.assertFalse(hasattr(w,name),name)
-            actions=[a.text() for a in w.library_more.menu().actions()]
-            self.assertNotIn('Editar video',actions)
-            self.assertIsInstance(w.seek,SeekBar)
-            w.close();w.deleteLater()
-
-
 if __name__=='__main__':unittest.main()

@@ -13,7 +13,8 @@ StyledRect {
     id: root
 
     required property Annotations annotations
-    property bool saves: true
+    // Drawing over a recording instead of a capture: no pixelate, no copy or save, but clear and done.
+    property bool live
 
     // Theme swatches for marks; they follow the active scheme.
     readonly property var swatches: [Colours.palette.m3error, Colours.palette.m3primary, Colours.palette.m3tertiary, Colours.palette.m3secondary, Colours.palette.m3onSurface, Colours.palette.m3surface]
@@ -32,6 +33,7 @@ StyledRect {
     signal copy
     signal save
     signal cancel
+    signal clear
 
     implicitWidth: row.implicitWidth + Tokens.padding.small * 2
     implicitHeight: row.implicitHeight + Tokens.padding.small * 2
@@ -54,7 +56,7 @@ StyledRect {
         spacing: Tokens.spacing.extraSmall
 
         Repeater {
-            model: root.tools
+            model: root.live ? root.tools.filter(t => t.id !== "pixelate") : root.tools
 
             Tool {
                 required property var modelData
@@ -137,12 +139,22 @@ StyledRect {
         Separator {}
 
         Tool {
-            icon: "save"
-            hint: Tr.tr("Save · Ctrl+S")
+            visible: !root.live
+            icon: "save_as"
+            hint: Tr.tr("Save as… · Ctrl+S")
             onClicked: root.save()
         }
 
+        Tool {
+            visible: root.live
+            icon: "delete_sweep"
+            hint: Tr.tr("Clear all")
+            enabled: root.annotations.marks.length > 0
+            onClicked: root.clear()
+        }
+
         StyledRect {
+            visible: !root.live
             implicitWidth: copyRow.implicitWidth + Tokens.padding.medium * 2
             implicitHeight: copyRow.implicitHeight + Tokens.padding.small * 2
             radius: Tokens.rounding.full
@@ -167,7 +179,7 @@ StyledRect {
                 }
 
                 StyledText {
-                    text: root.saves ? Tr.tr("Copy & save") : Tr.tr("Copy")
+                    text: Tr.tr("Copy")
                     font: Tokens.font.label.builders.large.weight(Font.Medium).build()
                     color: Colours.palette.m3onPrimary
                 }
@@ -175,8 +187,8 @@ StyledRect {
         }
 
         Tool {
-            icon: "close"
-            hint: Tr.tr("Cancel · Esc")
+            icon: root.live ? "check" : "close"
+            hint: root.live ? Tr.tr("Done · Esc") : Tr.tr("Cancel · Esc")
             onClicked: root.cancel()
         }
     }

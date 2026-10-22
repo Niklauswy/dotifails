@@ -85,11 +85,7 @@ def main():
         wait_for(lambda:status()['surface']=='menu','secondary Centro public IPC')
         shot('wysun-desktop-center');key('-k','Escape');wait_for(lambda:status()['surface']=='','Centro Escape closes')
         cmd([public,'shell','menu']);wait_for(lambda:status()['surface']=='menu','secondary public IPC')
-        key('Notas');shot('wysun-center-notes-filter');key('-k','Return')
-        try:
-            wait_for(lambda:any(w.get('pid')==launcher_pid and w.get('title','').startswith('Wysun Notes') and not w.get('xwayland',True) for w in hypr('clients')),'secondary Notes action enters preserved Python')
-        except RuntimeError:
-            report['notes_failure']={'status':status(),'clients':hypr('clients')};raise
+        key('-k','Escape')
         assert status()['surface']==''
         report['phases'].append({'name':'secondary_center','trigger':'SUPERshiftspace and public IPC','notes_route':'real installed Python','images':['wysun-desktop-center.png','wysun-center-notes-filter.png']})
         report['font_inter']=cmd(['fc-match','Inter'])

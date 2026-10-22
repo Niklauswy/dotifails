@@ -38,8 +38,10 @@ StyledRect {
             urgency: hasCritical ? "critical" : hasNormal ? "normal" : "low"
         };
     }
-    readonly property string image: props.img
+    readonly property string image: Icons.usableImage(props.img)
     readonly property string appIcon: props.icon
+    readonly property string iconFile: Icons.appIconPath(appIcon, modelData, null)
+    readonly property bool hasThemeIcon: iconFile.length > 0
     readonly property string urgency: props.urgency
 
     property bool expanded
@@ -89,9 +91,9 @@ StyledRect {
 
                 ColouredIcon {
                     implicitSize: Math.round(TokenConfig.sizes.notifs.image * 0.6)
-                    source: Quickshell.iconPath(root.appIcon)
+                    source: root.iconFile
                     colour: root.urgency === "critical" ? Colours.palette.m3onError : root.urgency === "low" ? Colours.palette.m3onSurface : Colours.palette.m3onSecondaryContainer
-                    layer.enabled: root.appIcon.endsWith("symbolic")
+                    layer.enabled: root.iconFile.includes("symbolic")
                 }
             }
 
@@ -99,21 +101,21 @@ StyledRect {
                 id: materialIconComp
 
                 MaterialIcon {
-                    text: Icons.getNotifIcon(root.notifs[0]?.summary, root.urgency)
-                    color: root.urgency === "critical" ? Colours.palette.m3onError : root.urgency === "low" ? Colours.palette.m3onSurface : Colours.palette.m3onSecondaryContainer
+                    text: Icons.notifSymbol(root.appIcon, root.modelData, root.notifs[0]?.summary ?? "", root.urgency === "critical" ? NotificationUrgency.Critical : root.urgency === "low" ? NotificationUrgency.Low : NotificationUrgency.Normal)
+                    color: root.urgency === "critical" ? Colours.palette.m3onError : root.urgency === "low" ? Colours.palette.m3onSurface : Colours.palette.m3onPrimaryContainer
                     fontStyle: Tokens.font.icon.large
                 }
             }
 
             ClipRect {
                 anchors.fill: parent
-                color: root.urgency === "critical" ? Colours.palette.m3error : root.urgency === "low" ? Colours.layer(Colours.palette.m3surfaceContainerHighest, 3) : Colours.palette.m3secondaryContainer
-                radius: Tokens.rounding.full
+                color: root.urgency === "critical" ? Colours.palette.m3error : root.urgency === "low" ? Colours.layer(Colours.palette.m3surfaceContainerHighest, 3) : Colours.palette.m3primaryContainer
+                radius: Tokens.rounding.largeIncreased
 
                 Loader {
                     asynchronous: true
                     anchors.centerIn: parent
-                    sourceComponent: root.image ? imageComp : root.appIcon ? appIconComp : materialIconComp
+                    sourceComponent: root.image ? imageComp : root.hasThemeIcon ? appIconComp : materialIconComp
                 }
             }
 
@@ -121,7 +123,7 @@ StyledRect {
                 asynchronous: true
                 anchors.right: parent.right
                 anchors.bottom: parent.bottom
-                active: root.appIcon && root.image
+                active: root.hasThemeIcon && root.image
 
                 sourceComponent: StyledRect {
                     implicitWidth: Tokens.sizes.notifs.badge
@@ -133,9 +135,9 @@ StyledRect {
                     ColouredIcon {
                         anchors.centerIn: parent
                         implicitSize: Math.round(Tokens.sizes.notifs.badge * 0.6)
-                        source: Quickshell.iconPath(root.appIcon)
+                        source: root.iconFile
                         colour: root.urgency === "critical" ? Colours.palette.m3onError : root.urgency === "low" ? Colours.palette.m3onSurface : Colours.palette.m3onSecondaryContainer
-                        layer.enabled: root.appIcon.endsWith("symbolic")
+                        layer.enabled: root.iconFile.includes("symbolic")
                     }
                 }
             }

@@ -12,13 +12,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'apps/wysun'))
 class PreservedServicesTests(unittest.TestCase):
     def test_audio_and_notification_history_generate_actions_only(self):
         import system_panels as panels
-        answers={'get-default-sink':'own-sink','get-sink-volume':'Volume: 32768 / 50%', 'sinks':json.dumps([dict(name='own-sink',description='Synthetic sink')]),'is-paused':'true','history':json.dumps({'data':[[dict(summary={'data':'Own notice'},appname={'data':'Own app'},body={'data':'<b>Fixture</b>'},id={'data':42})]]})}
-        def cmd(args):return answers['sinks' if args[-1]=='sinks' else args[1]]
+        answers={'get-default-sink':'own-sink','get-sink-volume':'Volume: 32768 / 50%', 'sinks':json.dumps([dict(name='own-sink',description='Synthetic sink')]),'status':'{"dnd": true, "count": 0}','history_unused':json.dumps({'data':[[dict(summary={'data':'Own notice'},appname={'data':'Own app'},body={'data':'<b>Fixture</b>'},id={'data':42})]]})}
+        def cmd(args):return answers['sinks' if args[-1]=='sinks' else 'status' if args[-1]=='status' else args[1]]
         with patch.object(panels,'cmd',side_effect=cmd):
             scan=panels.StatusScan('audio');audio=[];scan.done.connect(lambda rows,extra:audio.append((rows,extra)));scan.run()
             self.assertEqual(audio[0][1]['volume'],50);self.assertEqual(audio[0][0][1]['action'],['pactl','set-default-sink','own-sink'])
             scan=panels.StatusScan('notifications');notices=[];scan.done.connect(lambda rows,extra:notices.extend(rows));scan.run()
-            self.assertEqual(notices[0]['title'],'Reanudar notificaciones');self.assertEqual(notices[1]['detail'],'Fixture');self.assertEqual(notices[1]['action'],['dunstctl','history-pop','42'])
+            self.assertEqual(notices[0]['title'],'Reanudar notificaciones');self.assertEqual(notices[0]['action'][1:],['dnd','toggle']);self.assertEqual(len(notices),1)
     def test_battery_and_resource_values_from_temporary_files(self):
         import system_panels as panels
         from energy_data import battery_snapshot

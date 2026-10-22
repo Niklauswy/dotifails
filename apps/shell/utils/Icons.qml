@@ -188,6 +188,81 @@ Singleton {
         return weatherIcons[code] ?? "air";
     }
 
+    readonly property var notifSymbolRules: [
+        [["mail", "email", "correo", "inbox", "gmail", "thunderbird"], "mail"],
+        [["battery", "bater", "charger", "charging", "cargador", "low power"], "battery_alert"],
+        [["download", "descarg"], "download"],
+        [["upload", "subid", "subiendo"], "upload"],
+        [["music", "audio", "player", "spotify", "reprodu", "sound", "volume", "podcast"], "music_note"],
+        [["video", "movie", "film", "camera", "webcam"], "movie"],
+        [["screenshot", "captura", "record", "grab"], "screenshot"],
+        [["terminal", "compil", "build", "shell", "console", "git"], "terminal"],
+        [["calendar", "appointment", "reuni", "event", "agenda", "cita"], "event"],
+        [["update", "actualiz", "upgrade", "install", "package", "apt"], "system_update"],
+        [["wifi", "network", "red ", "ethernet", "vpn", "connection", "conexi"], "wifi"],
+        [["bluetooth"], "bluetooth"],
+        [["usb", "disk", "drive", "mount", "storage", "disco"], "usb"],
+        [["folder", "file", "archivo", "carpeta", "document"], "folder"],
+        [["chat", "message", "mensaje", "telegram", "whatsapp", "discord", "signal", "slack", "sms"], "chat"],
+        [["weather", "clima", "rain", "lluvia"], "partly_cloudy_day"],
+        [["timer", "alarm", "reloj", "clock", "recordatorio", "reminder"], "alarm"],
+        [["error", "fail", "fallo", "falló", "crash", "denied"], "error"],
+        [["warning", "alert", "alerta", "aviso", "cuidado"], "warning"],
+        [["done", "listo", "complet", "success", "éxito", "exito", "ok "], "check_circle"],
+        [["info", "tip", "help", "ayuda"], "info"]
+    ]
+
+    // Icon names for apps whose notifications use a different name than their desktop entry.
+    readonly property var appIconAliases: ({
+            "claude": "claude-desktop",
+            "brave": "brave-browser",
+            "chrome": "google-chrome",
+            "firefox": "firefox",
+            "telegram": "org.telegram.desktop",
+            "ghostty": "com.mitchellh.ghostty"
+        })
+
+    // Real icon file of an app: the notification's own icon, its desktop entry (hint or heuristic name match), or a known alias.
+    function appIconPath(icon: string, app: string, hints: var): string {
+        const names = [icon];
+        const entryId = hints?.["desktop-entry"];
+        if (entryId)
+            names.push(DesktopEntries.byId(entryId)?.icon ?? "");
+        if (app)
+            names.push(DesktopEntries.heuristicLookup(app)?.icon ?? "");
+        const lowered = (app ?? "").toLowerCase();
+        for (const key of Object.keys(appIconAliases))
+            if (lowered.includes(key))
+                names.push(appIconAliases[key]);
+        for (const name of names) {
+            if (!name)
+                continue;
+            if (name.startsWith("/") || name.startsWith("file:"))
+                return name;
+            const path = Quickshell.iconPath(name, true);
+            if (path)
+                return path;
+        }
+        return "";
+    }
+
+    // Notification pictures may point at an icon the theme lacks (drawn as a magenta checkerboard): drop those.
+    function usableImage(url: string): string {
+        if (url && url.startsWith("image://icon/") && !Quickshell.iconPath(url.slice(13), true))
+            return "";
+        return url ?? "";
+    }
+
+    // One Material symbol for a notification: looks at the app's icon name, its app name and the summary.
+    function notifSymbol(icon: string, app: string, summary: string, urgency: int): string {
+        const text = `${icon} ${app} ${summary}`.toLowerCase();
+        for (const [needles, symbol] of notifSymbolRules)
+            if (needles.some(n => text.includes(n)))
+                return symbol;
+        // Unknown apps get no symbol: the card shows their initial instead of a generic bell.
+        return urgency === NotificationUrgency.Critical ? "priority_high" : "";
+    }
+
     function getNotifIcon(summary: string, urgency: int): string {
         const fallback = urgency === NotificationUrgency.Critical ? "release_alert" : "chat";
         return matchIcon(summary.toLowerCase(), notifIconRules, fallback);

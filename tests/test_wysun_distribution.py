@@ -43,10 +43,10 @@ class WysunDistributionTests(unittest.TestCase):
             self.assertIn('/wysun" screenshot "$@"', (launch.parent / old).read_text())
         entries = self.home / '.local/share/applications'
         self.assertFalse((entries / 'wybie-screenshot.desktop').exists())
-        self.assertEqual(len(list(entries.glob('*.desktop'))), 4)
+        self.assertEqual(len(list(entries.glob('*.desktop'))), 3)
         self.assertIn('Name=Wysun Recorder', (entries / 'loomrec.desktop').read_text())
         self.assertIn('Name=Wysun Settings', (entries / 'orbit-settings.desktop').read_text())
-        self.assertIn('Name=Wysun Conexiones', (entries / 'orbit-connections.desktop').read_text())
+        self.assertFalse((entries / 'orbit-connections.desktop').exists())
         self.assertNotIn('Órbita', (entries / 'orbit-settings.desktop').read_text())
         self.assertFalse((entries / 'wysun-recorder.desktop').exists())
         update = self.deploy()
@@ -146,7 +146,7 @@ class WysunDistributionTests(unittest.TestCase):
             (['music'], 'orbit', ['music']),
             (['files', '/tmp/a file'], 'orbit-files', ['/tmp/a file']),
             (['recorder', '--quick-record'], 'wysun-recorder', ['--quick-record']),
-            (['screenshot', '--region', '--delay', '0'], 'wysun-shell', ['screenshot', '--annotate', '--no-save']),
+            (['screenshot', '--region', '--delay', '0'], 'wysun-shell', ['screenshot', '--options', '--no-save']),
             (['screenshot', '--region', '--accept-on-select', '--clipboard', '--path', '/tmp/s'], 'wysun-shell',
              ['screenshot', '--path', '/tmp/s']),
         ):

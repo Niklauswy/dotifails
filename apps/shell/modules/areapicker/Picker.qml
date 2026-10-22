@@ -4,6 +4,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Wayland
 import Wysun.Config
+import Wysun.I18n
 import qs.components
 import qs.services
 
@@ -28,6 +29,8 @@ MouseArea {
     property point pressAt
     property bool dragging
     property string grab // "", "move", "tl", "tr", "bl", "br"
+    // Holding Ctrl works as the left button: press, move, release.
+    property bool keyDrag
     property rect grabStart
     property rect hovered: Qt.rect(0, 0, 0, 0)
 
@@ -69,16 +72,106 @@ MouseArea {
         return Qt.rect(0, 0, 0, 0);
     }
 
+    // Recording picks one kind of target; the screenshot picker takes any.
+    readonly property bool drawsAreas: !session.pick || session.pick === "area"
+
+    function hoverTarget(x: real, y: real): rect {
+        if (session.pick === "area")
+            return Qt.rect(0, 0, 0, 0);
+        if (session.pick === "screen")
+            return Qt.rect(0, 0, width, height);
+        return windowAt(x, y);
+    }
+
+    function chooseMode(what: string): void {
+        session.pick = what;
+        session.phase = "select";
+        hovered = hoverTarget(pointer.x, pointer.y);
+        forceActiveFocus();
+    }
+
     function choose(r: rect): void {
         session.selection = Qt.rect(Math.round(r.x), Math.round(r.y), Math.round(r.width), Math.round(r.height));
-        session.phase = session.mode === "annotate" ? "edit" : "actions";
+        if (session.mode === "quick") {
+            // Take it at once: copy, save and close.
+            session.phase = "done";
+            root.deliver(session.autoSave);
+            return;
+        }
+        session.phase = session.mode === "record" ? "record" : "actions";
         forceActiveFocus();
+    }
+
+    function startRecording(): void {
+        const r = session.selection;
+        session.startRecording(screen, r.x <= 0 && r.y <= 0 && r.width >= width && r.height >= height);
+    }
+
+    function beginDrag(x: real, y: real): void {
+        pressAt = Qt.point(x, y);
+        if (phase === "actions" || phase === "record") {
+            grab = cornerAt(x, y);
+            const r = session.selection;
+            grabStart = Qt.rect(r.x, r.y, r.width, r.height);
+            if (!grab) {
+                // Outside the region: draw a new one.
+                session.phase = "select";
+                hovered = Qt.rect(0, 0, 0, 0);
+            }
+        }
+    }
+
+    function moveDrag(x: real, y: real, held: bool): void {
+        pointer = Qt.point(x, y);
+        if ((selecting || phase === "mode") && !session.busy && session.screenName !== screen.name && !dragging) {
+            session.screenName = screen.name;
+            strings.settle();
+        }
+        if (selecting) {
+            if (held && !dragging && drawsAreas && Math.hypot(x - pressAt.x, y - pressAt.y) > minSize)
+                dragging = true;
+            if (!dragging)
+                hovered = hoverTarget(x, y);
+        } else if (held && grab && (phase === "actions" || phase === "record")) {
+            adjust(x, y);
+        }
+    }
+
+    function endDrag(x: real, y: real): void {
+        if (phase === "actions" || phase === "record") {
+            grab = "";
+            return;
+        }
+        if (!selecting)
+            return;
+        if (dragging) {
+            // Copy the region before ending the drag: it is derived from `dragging`,
+            // and a plain read would stay a live reference to the property.
+            const drawn = Qt.rect(region.x, region.y, region.width, region.height);
+            dragging = false;
+            if (drawn.width >= minSize && drawn.height >= minSize)
+                choose(drawn);
+        } else {
+            // A click takes the window under the pointer, or the whole output;
+            // when recording, only what the chosen mode allows.
+            const w = windowAt(x, y);
+            if (session.pick === "screen" || (!session.pick && w.width <= 0))
+                choose(Qt.rect(0, 0, width, height));
+            else if (session.pick !== "area" && w.width > 0)
+                choose(w);
+        }
     }
 
     function deliver(save: bool): void {
         if (annotations.editingText)
             annotations.commitText();
         session.deliver(frame, save);
+    }
+
+    function saveAs(): void {
+        if (annotations.editingText)
+            annotations.commitText();
+        session.saveAs(frame);
     }
 
     function cornerAt(x: real, y: real): string {
@@ -127,75 +220,53 @@ MouseArea {
 
     anchors.fill: parent
     hoverEnabled: true
-    cursorShape: phase === "actions" ? (grab ? Qt.ClosedHandCursor : Qt.ArrowCursor) : Qt.CrossCursor
+    cursorShape: phase === "mode" ? Qt.ArrowCursor : phase === "actions" || phase === "record" ? (grab ? Qt.ClosedHandCursor : Qt.ArrowCursor) : Qt.BlankCursor
     focus: active
     opacity: ready ? 1 : 0
 
     onActiveChanged: if (active)
         forceActiveFocus()
 
-    onPositionChanged: event => {
-        pointer = Qt.point(event.x, event.y);
-        if (selecting && !session.busy && session.screenName !== screen.name && !dragging) {
-            session.screenName = screen.name;
-            strings.settle();
-        }
-        if (selecting) {
-            if (pressed && !dragging && Math.hypot(event.x - pressAt.x, event.y - pressAt.y) > minSize)
-                dragging = true;
-            if (!dragging)
-                hovered = windowAt(event.x, event.y);
-        } else if (pressed && grab && phase === "actions") {
-            adjust(event.x, event.y);
-        }
-    }
-
-    onPressed: event => {
-        pressAt = Qt.point(event.x, event.y);
-        if (phase === "actions") {
-            grab = cornerAt(event.x, event.y);
-            grabStart = session.selection;
-            if (!grab) {
-                // Outside the region: draw a new one.
-                session.phase = "select";
-                hovered = Qt.rect(0, 0, 0, 0);
-            }
-        }
-    }
-
-    onReleased: event => {
-        if (phase === "actions") {
-            grab = "";
-            return;
-        }
-        if (!selecting)
-            return;
-        if (dragging) {
-            // Read the region before ending the drag: it is derived from `dragging`.
-            const drawn = region;
-            dragging = false;
-            if (drawn.width >= minSize && drawn.height >= minSize)
-                choose(drawn);
-        } else {
-            // A click takes the window under the pointer, or the whole output.
-            const w = windowAt(event.x, event.y);
-            choose(w.width > 0 ? w : Qt.rect(0, 0, width, height));
-        }
-    }
+    onPositionChanged: event => moveDrag(event.x, event.y, pressed || keyDrag)
+    onPressed: event => beginDrag(event.x, event.y)
+    onReleased: event => endDrag(event.x, event.y)
 
     Keys.onPressed: event => {
         const ctrl = event.modifiers & Qt.ControlModifier;
         const shift = event.modifiers & Qt.ShiftModifier;
         const enter = event.key === Qt.Key_Return || event.key === Qt.Key_Enter;
-        if (event.key === Qt.Key_Escape) {
+        if (event.key === Qt.Key_Control && !event.isAutoRepeat && selecting && !pressed) {
+            keyDrag = true;
+            beginDrag(pointer.x, pointer.y);
+        } else if (event.key === Qt.Key_Escape) {
             if (phase === "edit" && annotations.editingText)
                 annotations.commitText();
-            else
+            else if (session.mode === "record" && session.pick && (selecting || phase === "record")) {
+                // One step back: from the target (or the options) to the choice of what to record.
+                session.selection = Qt.rect(0, 0, 0, 0);
+                session.pick = "";
+                dragging = false;
+                session.phase = "mode";
+            } else
                 session.finished();
-        } else if (selecting && enter) {
+        } else if (phase === "mode" && event.key >= Qt.Key_1 && event.key <= Qt.Key_3) {
+            chooseMode(["screen", "window", "area"][event.key - Qt.Key_1]);
+        } else if (selecting && enter && (!session.pick || session.pick === "screen")) {
             choose(Qt.rect(0, 0, width, height));
+        } else if (phase === "record" && enter) {
+            startRecording();
+        } else if (phase === "record" && event.key === Qt.Key_M) {
+            Recorder.setPref("record_mic", !Recorder.mic);
+        } else if (phase === "record" && event.key === Qt.Key_S) {
+            Recorder.setPref("record_system", !Recorder.system);
+        } else if (phase === "record" && event.key === Qt.Key_V && Recorder.cameras.length > 0) {
+            Recorder.setPref("record_camera", !Recorder.camera);
+        } else if (phase === "record" && event.key === Qt.Key_C) {
+            Recorder.setPref("record_cursor", !Recorder.cursor);
         } else if (phase === "actions" && (enter || (ctrl && event.key === Qt.Key_C))) {
             root.deliver(root.session.autoSave);
+        } else if (phase === "actions" && event.key === Qt.Key_S) {
+            root.saveAs();
         } else if (phase === "actions" && event.key === Qt.Key_A) {
             session.phase = "edit";
         } else if (phase === "actions" && event.key === Qt.Key_T) {
@@ -207,7 +278,7 @@ MouseArea {
             else if (ctrl && event.key === Qt.Key_Y)
                 annotations.redo();
             else if (ctrl && event.key === Qt.Key_S)
-                root.deliver(true);
+                root.saveAs();
             else if (enter || (ctrl && event.key === Qt.Key_C))
                 root.deliver(root.session.autoSave);
             else if (!ctrl && event.key >= Qt.Key_1 && event.key <= Qt.Key_9)
@@ -218,6 +289,14 @@ MouseArea {
             return;
         }
         event.accepted = true;
+    }
+
+    Keys.onReleased: event => {
+        if (event.key === Qt.Key_Control && !event.isAutoRepeat && keyDrag) {
+            keyDrag = false;
+            endDrag(pointer.x, pointer.y);
+            event.accepted = true;
+        }
     }
 
     Behavior on opacity {
@@ -308,7 +387,7 @@ MouseArea {
         id: strings
 
         anchors.fill: parent
-        visible: root.active && root.ready
+        visible: root.active && root.ready && root.phase !== "mode"
         single: !root.hasRegion
         tl: root.hasRegion ? Qt.point(root.region.x, root.region.y) : root.pointer
         tr: root.hasRegion ? Qt.point(root.region.x + root.region.width, root.region.y) : root.pointer
@@ -324,13 +403,64 @@ MouseArea {
         x: at.x
         y: at.y
         visible: root.active && root.phase === "actions" && !root.grab
-        saves: root.session.autoSave
         onCopy: root.deliver(root.session.autoSave)
+        onSaveAs: root.saveAs()
         onAnnotate: root.session.phase = "edit"
         onReadText: {
             root.session.recognise(frame);
             Qt.callLater(() => ocrPanel.focusText());
         }
+        onCancel: root.session.finished()
+    }
+
+    ModeBar {
+        id: modeBar
+
+        x: Math.round((root.width - width) / 2)
+        y: Math.round(root.height * 0.72)
+        visible: root.active && root.phase === "mode"
+        onChosen: what => root.chooseMode(what)
+        onCancel: root.session.finished()
+    }
+
+    // What to do next, while choosing a target to record.
+    StyledRect {
+        visible: root.active && root.selecting && root.session.mode === "record" && !root.dragging
+        x: Math.round((root.width - width) / 2)
+        y: Tokens.sizes.screenshot.toolbarGap * 2
+        implicitWidth: hint.implicitWidth + Tokens.padding.large * 2
+        implicitHeight: hint.implicitHeight + Tokens.padding.small * 2
+        radius: Tokens.rounding.full
+        color: Colours.palette.m3surfaceContainer
+        border.width: 1
+        border.color: Qt.alpha(Colours.palette.m3outlineVariant, 0.6)
+
+        StyledText {
+            id: hint
+
+            anchors.centerIn: parent
+            text: root.session.pick === "screen" ? Tr.tr("Click the screen to record · Esc to go back") : root.session.pick === "window" ? Tr.tr("Click a window to record · Esc to go back") : Tr.tr("Drag to choose the area · Esc to go back")
+            font: Tokens.font.label.builders.large.weight(Font.Medium).build()
+        }
+    }
+
+    RecordBar {
+        id: recordBar
+
+        readonly property point at: root.place(this)
+
+        x: at.x
+        y: at.y
+        visible: root.active && root.phase === "record" && !root.grab
+        mic: Recorder.mic
+        system: Recorder.system
+        cursor: Recorder.cursor
+        camera: Recorder.camera
+        onStart: root.startRecording()
+        onToggleMic: Recorder.setPref("record_mic", !Recorder.mic)
+        onToggleSystem: Recorder.setPref("record_system", !Recorder.system)
+        onToggleCursor: Recorder.setPref("record_cursor", !Recorder.cursor)
+        onToggleCamera: Recorder.setPref("record_camera", !Recorder.camera)
         onCancel: root.session.finished()
     }
 
@@ -357,9 +487,8 @@ MouseArea {
         y: at.y
         visible: root.active && root.phase === "edit"
         annotations: annotations
-        saves: root.session.autoSave
         onCopy: root.deliver(root.session.autoSave)
-        onSave: root.deliver(true)
+        onSave: root.saveAs()
         onCancel: root.session.finished()
     }
 

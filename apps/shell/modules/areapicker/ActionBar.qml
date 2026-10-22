@@ -8,13 +8,12 @@ import qs.components
 import qs.components.effects
 import qs.services
 
-// What to do with a selected region: copy, annotate, read its text or cancel.
+// What to do with a selected region: copy, save as, annotate, read its text or cancel.
 StyledRect {
     id: root
 
-    property bool saves: true
-
     signal copy
+    signal saveAs
     signal annotate
     signal readText
     signal cancel
@@ -42,9 +41,16 @@ StyledRect {
         Action {
             primary: true
             icon: "content_copy"
-            text: root.saves ? Tr.tr("Copy & save") : Tr.tr("Copy")
+            text: Tr.tr("Copy")
             key: "↵"
             onClicked: root.copy()
+        }
+
+        Action {
+            icon: "save_as"
+            text: Tr.tr("Save as…")
+            key: "S"
+            onClicked: root.saveAs()
         }
 
         Action {

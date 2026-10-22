@@ -55,7 +55,7 @@ Marked in every file as "Derivado de caelestia-dots/shell (GPL-3.0), modificado 
 | `services/Nmcli.qml` | `services/Nmcli.qml`, `services/desktop_controls.py` (one-shot `nmcli`) |
 | `services/NotifData.qml`, `services/Notifs.qml` | `services/NotifData.qml`, `services/Notifs.qml` (presentation model only) |
 
-Not ported: `NotificationServer` (Dunst stays the only D-Bus owner and keeps its toasts), `utilities/cards/Record*.qml` and the screen recorder (Wysun Recorder and its portals are used unchanged).
+Not ported: `NotificationServer` was ported later: the shell owns the notification bus and there is no separate daemon, `utilities/cards/Record*.qml` and the screen recorder (Wysun Recorder and its portals are used unchanged).
 
 **Update (Wysun part 2, rebranding).** `apps/shell/` now holds the complete adapted shell, renamed to Wysun (QML modules `Wysun.*`, C++ namespace `wysun`, runtime paths and IPC). It includes the adapted C++ plugin under `apps/shell/plugin/` (GPL-3.0, base revision recorded in `apps/shell/UPSTREAM.json`, which keeps the per-file hashes of the imported tree; `apps/shell/LICENSE` is the original licence text). The runtime builder (`installer/runtime_build.py`, versions in `manifests/runtime.json`) downloads and compiles, at install time and without redistributing their source here: Quickshell (LGPL-3.0, git.outfoxxed.me/quickshell), `libcava`/cavacore (MIT, github.com/LukashonakV/cava), `m3shapes` (Apache-2.0, github.com/soramanew/m3shapes) and the wayland-protocols 1.47 XML (MIT), plus Qt 6.9.3 (LGPL-3.0) via aqtinstall. Google Sans Flex ships under its own licence in `apps/shell/assets/google-sans-flex/LICENSE`.
 

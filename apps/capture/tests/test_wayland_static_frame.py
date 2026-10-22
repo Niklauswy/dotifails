@@ -16,20 +16,11 @@ class StaticFrameTests(unittest.TestCase):
             from gi.repository import Gst
         except (ImportError,ValueError):raise unittest.SkipTest('GStreamer GI unavailable')
         Gst.init(None);cls.Gst=Gst
-        if any(not Gst.ElementFactory.find(name) for name in ('appsrc','videorate','videoconvert','appsink')):raise unittest.SkipTest('GStreamer base plugins unavailable')
+        if any(not Gst.ElementFactory.find(name) for name in ('appsrc','videoconvert','appsink')):raise unittest.SkipTest('GStreamer base plugins unavailable')
     def frame(self,pts):
         buffer=self.Gst.Buffer.new_allocate(None,32*24*4,None)
         buffer.fill(0,bytes([255,0,0,255])*32*24);buffer.pts=pts;buffer.duration=self.Gst.CLOCK_TIME_NONE
         return buffer
-    def test_default_rate_retains_single_variable_fps_buffer_without_eos(self):
-        Gst=self.Gst
-        pipeline=Gst.parse_launch('appsrc name=source is-live=true format=time caps="video/x-raw,format=BGRA,width=32,height=24,framerate=0/1,max-framerate=120/1" ! videorate name=rate ! video/x-raw,framerate=15/1 ! appsink name=sink sync=false')
-        try:
-            pipeline.set_state(Gst.State.PLAYING)
-            self.assertEqual(pipeline.get_by_name('source').emit('push-buffer',self.frame(75846442223914)),Gst.FlowReturn.OK)
-            self.assertIsNone(pipeline.get_by_name('sink').emit('try-pull-sample',100*Gst.MSECOND))
-            rate=pipeline.get_by_name('rate');self.assertEqual(rate.get_property('in'),1);self.assertEqual(rate.get_property('out'),0)
-        finally:pipeline.set_state(Gst.State.NULL)
     def bridge_frames(self,pts,update_after=None):
         from loomrec.pipewire_bridge import stream
         Gst=self.Gst;factory=Gst.ElementFactory.make
@@ -43,13 +34,11 @@ class StaticFrameTests(unittest.TestCase):
                     if len(self.frames)==8:raise FinishedFixture()
                 return len(data)
             def flush(self):pass
-        output=Output();sent=[];rates=[];timers=[]
+        output=Output();sent=[];timers=[]
         def make(name,*args):
-            item=factory('appsrc' if name=='pipewiresrc' else name,*args)
-            if name=='videorate':rates.append(item)
-            return item
+            return factory('appsrc' if name=='pipewiresrc' else name,*args)
         def configure(source,fd,node,metadata):
-            # Only the remote source is replaced. Actual product convert/rate/
+            # Only the remote source is replaced. Actual product convert/
             # caps/appsink/packing/repetition and shutdown run unchanged.
             source.set_property('is-live',True);source.set_property('format',Gst.Format.TIME)
             source.set_property('caps',Gst.Caps.from_string('video/x-raw,format=BGRA,width=32,height=24,framerate=0/1,max-framerate=120/1'))
@@ -67,7 +56,6 @@ class StaticFrameTests(unittest.TestCase):
                 with self.assertRaises(FinishedFixture):stream(-1,42,{},15)
         finally:
             for timer in timers:timer.cancel();timer.join(timeout=1)
-        self.assertTrue(rates[0].get_property('drop-only'))
         self.assertEqual((output.header['width'],output.header['height']),(32,24));self.assertEqual(len(output.frames),8)
         self.assertGreaterEqual(output.times[-1]-output.times[0],.35)
         self.assertTrue(all(b>a for a,b in zip(output.times,output.times[1:])))

@@ -29,8 +29,7 @@ class ProviderTests(unittest.TestCase):
 
     def seed(self):
         code = ('import sys; sys.path.insert(0, %r); from core import Store; s = Store();'
-                's.clip("text", "hola mundo"); s.clip("color", "#ff8800"); s.clip("url", "https://example.org");'
-                's.save_snippet("Saludo", "hola", "Hola {date}")') % str(ROOT / 'apps/wysun')
+                's.clip("text", "hola mundo"); s.clip("color", "#ff8800"); s.clip("url", "https://example.org")') % str(ROOT / 'apps/wysun')
         subprocess.run([sys.executable, '-I', '-c', code], env=self.env, check=True, timeout=30)
 
     def test_calculator_emoji_and_files(self):
@@ -55,20 +54,10 @@ class ProviderTests(unittest.TestCase):
         self.assertEqual([r['value'] for r in text], ['hola mundo'])
         self.run_cli('act', 'delete-clip', str(text[0]['id']))
         self.assertEqual(self.run_cli('query', 'clip', 'texto'), [])
-        snippet = self.run_cli('query', 'snippets', 'hola')[0]
-        self.assertNotIn('{date}', snippet['value'])
-        self.run_cli('act', 'delete-snippet', str(snippet['id']))
-        self.assertEqual(self.run_cli('query', 'snippets', ''), [])
 
-    def test_snippet_creation_from_the_launcher(self):
-        self.assertEqual(self.run_cli('query', 'snippets', '+')[0]['kind'], 'hint')
-        create = self.run_cli('query', 'snippets', '+Saludo | hola | Hola mundo')[0]
-        self.assertEqual((create['kind'], create['args']), ('snippet-new', ['Saludo', 'hola', 'Hola mundo']))
-        self.run_cli('act', 'save-snippet', *create['args'])
-        self.assertEqual(self.run_cli('query', 'snippets', 'hola')[0]['value'], 'Hola mundo')
-        result = subprocess.run([sys.executable, '-I', str(SCRIPT), 'act', 'save-snippet', ' ', '', 'x'], env=self.env,
-                                capture_output=True, text=True, timeout=30)
-        self.assertEqual(result.returncode, 1)
+    def test_removed_snippet_and_window_modes_are_rejected(self):
+        for mode in ('snippets', 'windows'):
+            self.assertEqual(self.run_cli('query', mode, '')[0]['kind'], 'error', mode)
 
     def test_discover_includes_math_conversions_and_files_without_prefix(self):
         result = self.run_cli('query', 'all', '15% of 80')
@@ -132,8 +121,10 @@ class WiringTests(unittest.TestCase):
                        'function push', 'function pop', 'LauncherData.paste'):
             self.assertIn(needle, panel)
         actions = (LAUNCHER / 'services/Actions.js').read_text()
-        for needle in ('Show in Folder', 'Copy Path', 'Open With', 'Close Window', 'Pin to Favorites', 'Paste to Previous Window'):
+        for needle in ('Show in Folder', 'Copy Path', 'Open With', 'Pin to Favorites', 'Paste to Previous Window'):
             self.assertIn(needle, actions)
+        for gone in ('Close Window', 'Snippet'):
+            self.assertNotIn(gone, actions)
 
     def test_no_synchronous_process_per_keystroke(self):
         index = (LAUNCHER / 'services/LauncherIndex.qml').read_text()

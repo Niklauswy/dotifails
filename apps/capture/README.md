@@ -6,10 +6,13 @@ Wysun Screenshot (`wybieshot`) se retiró: las capturas de pantalla las hace el 
 
 El paquete `loomrec` y su directorio privado se conservan por compatibilidad. La fuente original de `loom` queda como copia histórica; no es necesaria para instalar o ejecutar Wysun.
 
-- `wysun recorder`: biblioteca y editor; `wysun recorder --quick-record`: barra de preparación.
+- **Grabar** es cosa del shell: `wysun-shell record [start|toggle|pause|stop]` abre el selector de `apps/shell/modules/areapicker` (modo `record`: ventana, región o pantalla, con el mismo nodo y cuerdas que la captura), la barra de opciones (micrófono, audio del sistema, cursor; se recuerdan), la cuenta atrás y el HUD de `apps/shell/modules/recorder` (tiempo, pausa y stop, siempre fuera del área grabada). El estado y los controles llegan al panel de utilidades por `services/Recorder.qml`.
+- `wysun recorder`: ventana de **biblioteca, reproductor básico y ajustes** (`loomrec/ui/app_*.py`, mismo patrón que Music y Files: ventana de cristal sin marco, navegación a la izquierda y un panel elevado). `--quick-record` y `--record` solo llaman a `wysun-shell record start`. El editor se retiró.
+- Sin ventana: `wysun recorder --start JSON` (arranca el worker y devuelve la carpeta del proyecto), `--prefs`, `--set-pref CLAVE VALOR`, `--status|--pause|--resume|--stop DIR`, `--notify-when-ready DIR`.
+- El puente PipeWire (`pipewire_bridge.py`) no pone framerate en las caps (PipeWire 1.4 renegocia al segundo y el stream muere con `unhandled format`) y escribe a FFmpeg desde un hilo con una cola corta, para devolver siempre los búferes a XDPH aunque FFmpeg vaya lento. El worker reabre la fuente si aun así cae (máx. 3 veces por minuto).
 - Pruebas de esta carpeta: `python3 run_tests.py` (HOME y XDG temporales).
 
-Las notas siguientes describen la arquitectura y los formatos existentes; sus comandos técnicos antiguos siguen siendo compatibles.
+Las notas siguientes describen la arquitectura y los formatos existentes; sus comandos técnicos antiguos siguen siendo compatibles. Lo que cuentan del editor, la barra rápida, la cuenta atrás Qt, el indicador y el selector de región Qt describe la interfaz anterior (retirada): solo el backend de captura sigue vigente.
 
 ## Backend Wayland y límites de verificación
 

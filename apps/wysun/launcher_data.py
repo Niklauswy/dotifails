@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Data provider for the native Wysun launcher (apps/shell/modules/launcher).
 
-Same sources as the Qt palette (orbit.py): clipboard history, snippets, files,
-windows, emoji and calculator history. Commands are argv arrays and results are
+Same sources as the Qt palette (orbit.py): clipboard history, files, emoji and
+calculator history. Commands are argv arrays and results are
 JSON; nothing is evaluated by a shell. Private data stays in ~/.local/share/orbit.
 """
 import datetime as dt, json, os, subprocess, sys, tempfile, time
@@ -10,9 +10,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
-from core import Store, STATE, HOME, calculate, expand_snippet, file_index  # noqa: E402
+from core import Store, STATE, HOME, calculate, file_index  # noqa: E402
 
-MODES = ('status', 'all', 'clip', 'files', 'snippets', 'windows', 'emoji', 'calc')
+MODES = ('status', 'all', 'clip', 'files', 'emoji', 'calc')
 LIMIT = 150
 CLIP_KINDS = {'texto': 'text', 'text': 'text', 'imagen': 'image', 'image': 'image', 'color': 'color', 'enlace': 'url', 'url': 'url'}
 CLIP_ICONS = {'image': 'image', 'color': 'palette', 'url': 'link', 'text': 'description'}
@@ -70,19 +70,6 @@ def clip_rows(store, text):
                         CLIP_ICONS.get(kind, 'description'), id=r['id'], clip_kind=kind, value=r['text'], stamp=r['stamp'],
                         swatch=r['text'] if kind == 'color' else '', **extra))
     return rows[:LIMIT]
-
-
-def snippet_rows(store, text):
-    if text.startswith('+'):
-        parts = [x.strip() for x in text[1:].split('|', 2)] + ['', '']
-        title, shortcut, body = parts[0], parts[1], parts[2]
-        if title and body:
-            return [row('snippet-new', f'Create snippet “{title}”', f'Abreviatura: {shortcut or "—"} · {len(body)} caracteres', 'add',
-                        args=[title, shortcut, body])]
-        return [row('hint', 'New snippet', 'Escribe: +título | abreviatura | texto  (variables {date}, {time}, {datetime})', 'add')]
-    fold = text.casefold()
-    return [row('snippet', s['title'], s['shortcut'] or 'Text snippet', 'code', id=s['id'], shortcut=s['shortcut'], body=s['body'], value=expand_snippet(s['body']))
-            for s in store.snippets() if fold in (s['title'] + ' ' + s['shortcut'] + ' ' + s['body']).casefold()][:LIMIT]
 
 
 def load_files(rebuild=False):
@@ -164,7 +151,6 @@ def discover_rows(store, text):
         rows.extend(dict(entry, section=section) for entry in entries)
     if text.strip():
         add('Calculator', calc_rows(store, text))
-        add('Snippets', snippet_rows(store, text)[:4])
         add('Files', file_rows(text)[:8])
     else:
         add('Recent files', file_rows('')[:6])
@@ -182,14 +168,6 @@ def preview(path):
         data['image'] = 'data:image/png;base64,' + base64.b64encode(png_bytes(image)).decode()
     data['text'] = data.get('text', '')[:10000]
     return data
-
-
-def window_rows(text):
-    from desktop_backend import Desktop
-    fold = text.casefold()
-    return [row('window', w['title'], w['app'], 'web_asset', wid=w['id'])
-            for w in Desktop().windows()
-            if w.get('pid') != os.getpid() and fold in (w['title'] + ' ' + w['app']).casefold()][:LIMIT]
 
 
 def emoji_category(emoji, name):
@@ -248,11 +226,9 @@ def query(mode, text):
             return discover_rows(store, text)
         if mode == 'clip':
             return clip_rows(store, text)
-        if mode == 'snippets':
-            return snippet_rows(store, text)
         if mode == 'calc':
             return calc_rows(store, text)
-        return {'files': lambda: file_rows(text), 'windows': lambda: window_rows(text), 'emoji': lambda: emoji_rows(text)}[mode]()
+        return {'files': lambda: file_rows(text), 'emoji': lambda: emoji_rows(text)}[mode]()
     finally:
         store.db.close()
 
@@ -264,23 +240,14 @@ def act(action, args):
             store.record_calc(args[0], args[1])
         elif action == 'delete-clip':
             store.delete_clip(int(args[0]))
-        elif action == 'delete-snippet':
-            store.delete_snippet(int(args[0]))
         elif action == 'clear-clips':
             store.clear_clips()
         elif action == 'copy-image':
             blob = store.blob(int(args[0]))
             if blob:
                 subprocess.run(['wl-copy', '--type', 'image/png'], input=blob, check=False, timeout=5)
-        elif action == 'focus-window':
-            from desktop_backend import Desktop
-            Desktop().activate(args[0])
         elif action == 'toggle-capture':
             store.set('paused', '0' if store.get('paused') == '1' else '1')
-        elif action == 'save-snippet':
-            if not args[0].strip() or not args[2].strip():
-                raise ValueError('el snippet necesita nombre y texto')
-            store.save_snippet(args[0].strip(), args[1].strip(), args[2], int(args[3]) if len(args) > 3 else None)
         elif action == 'paste':
             # The launcher is a layer surface: the previously focused window is still the active one.
             from desktop_backend import Desktop
@@ -298,6 +265,12 @@ def act(action, args):
 
 
 def main(argv):
+    if len(argv) == 2 and argv[0] == 'preview-url':
+        from launcher_web import cached_preview
+        def emit(data):
+            print(json.dumps(data, ensure_ascii=False), flush=True)
+        emit(cached_preview(argv[1], emit))
+        return 0
     if len(argv) >= 2 and argv[0] == 'query':
         try:
             print(json.dumps(query(argv[1], argv[2] if len(argv) > 2 else ''), ensure_ascii=False))

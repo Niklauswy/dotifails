@@ -275,15 +275,30 @@ def overlay_material_roles(tokens, scheme):
     result['material_mid'] = result['surface']
     result['material_bottom'] = result['well']
     result['material_edge'] = result['line']
+    # Interactive surfaces the table above does not cover would otherwise keep
+    # the preset's values (white Fluent-light fills over a dark scheme).
+    for token, role in (('fill', 'surfaceContainerHigh'), ('hover', 'surfaceContainerHighest'),
+                        ('row_hover', 'surfaceContainerHigh'), ('row_selected', 'secondaryContainer'),
+                        ('nav_selected', 'secondaryContainer'), ('tint', 'onSurface'),
+                        ('card', 'surfaceContainerLow'), ('tile', 'surfaceContainer'),
+                        ('tile_hover', 'surfaceContainerHigh'), ('chosen_fill', 'secondaryContainer')):
+        if colours.get(role) and token in result:
+            result[token] = '#' + colours[role].lower()
     return result
 
 
 def resolve_active(style=None, variant=None, home=None):
     """Resolve preset geometry with dynamic colours only when explicitly selected."""
     style, variant = normalize(*(selection(home) if style is None else (style, variant)))
+    scheme = read_scheme(home) if environment_override() is None else None
+    if (isinstance(scheme, dict) and scheme.get('name') == 'dynamic'
+            and scheme.get('mode') in styles().get(style, {}).get('variants', {})):
+        # Dynamic colours bring their own light/dark mode: start from the preset
+        # of that mode so tokens the scheme does not define stay coherent.
+        variant = scheme['mode']
     values = resolve(style, variant)
-    if environment_override() is None:
-        values = overlay_material_roles(values, read_scheme(home))
+    if scheme is not None:
+        values = overlay_material_roles(values, scheme)
     return values
 
 

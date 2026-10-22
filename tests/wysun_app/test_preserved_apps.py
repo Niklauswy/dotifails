@@ -37,7 +37,7 @@ class PreservedAppsTests(unittest.TestCase):
     def test_native_session_processes_are_protected_without_signals(self):
         from process_data import Processes
         model=Processes.__new__(Processes);model.protected=set()
-        for name in ('Hyprland','quickshell','pipewire','wireplumber','dunst','xdg-desktop-por','swaylock'):
+        for name in ('Hyprland','quickshell','pipewire','wireplumber','xdg-desktop-por','swaylock'):
             self.assertIn('protegido',model.action_reason(dict(uid=os.getuid(),pid=999999,name=name,state='S')))
         self.assertIsNone(model.action_reason(dict(uid=os.getuid(),pid=999999,name='own-fixture',state='S')))
 

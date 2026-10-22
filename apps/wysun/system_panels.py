@@ -47,11 +47,7 @@ class StatusScan(QThread):
     for sink in json.loads(cmd(['pactl','-f','json','list','sinks']) or '[]'):rows.append(dict(kind='status_action',title=sink.get('description',sink['name']),subtitle='Salida predeterminada' if sink['name']==default else 'Usar como salida predeterminada',detail='Esta selección define la salida para los nuevos flujos de audio.',action=['pactl','set-default-sink',sink['name']],icon='audio'))
    except (ValueError,KeyError):pass
   elif self.mode=='notifications':
-   paused=cmd(['dunstctl','is-paused'])=='true';rows.append(dict(kind='status_action',title='Reanudar notificaciones' if paused else 'Modo concentración',subtitle='Desactivar pausa' if paused else 'Pausar avisos nuevos',action=['dunstctl','set-paused','toggle'],icon='notifications'))
-   try:
-    data=json.loads(cmd(['dunstctl','history']) or '{}').get('data',[[]])[0]
-    for n in data:
-     field=lambda k:n.get(k,{}).get('data','')
-     rows.append(dict(kind='notification',title=str(field('summary')),subtitle=str(field('appname')),detail=re.sub('<[^>]+>','',str(field('body'))),nid=str(field('id')),action=['dunstctl','history-pop',str(field('id'))],icon='notifications'))
-   except (ValueError,TypeError,KeyError,IndexError):pass
+   try:paused=bool(json.loads(cmd([str(Path.home()/'.local/bin/wysun-shell'),'dnd','status']) or '{}').get('dnd'))
+   except (ValueError,TypeError):paused=False
+   rows.append(dict(kind='status_action',title='Reanudar notificaciones' if paused else 'Modo concentración',subtitle='Desactivar pausa' if paused else 'Pausar avisos nuevos',action=[str(Path.home()/'.local/bin/wysun-shell'),'dnd','toggle'],icon='notifications'))
   self.done.emit(rows,extra)

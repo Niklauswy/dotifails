@@ -4,13 +4,15 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
+import Wysun.Config
 import qs.components.containers
 import qs.services
 
 // Wysun's screenshot tool, inside the shell: no extra process, no window to
 // focus, so the pointer stays where it is and a repeated shortcut does nothing.
 // IPC (`wysun-shell screenshot …`):
-//   picker screenshot <mode> <saveDir> <autoSave>   mode: actions | annotate
+//   picker screenshot <mode> <saveDir> <autoSave>   mode: quick | actions
+//   picker record   choose what to record, then start Wysun Recorder
 //   picker region "X,Y WxH"   select a region of the open picker
 //   picker accept             copy (and save) it, as Enter does
 //   picker close
@@ -25,7 +27,13 @@ Scope {
         // Already open: a repeated shortcut is simply ignored.
         if (session || pointer.running)
             return false;
-        pointer.request = { mode: mode === "annotate" ? "annotate" : "actions", saveDir: saveDir, autoSave: autoSave };
+        if (mode === "record") {
+            if (Recorder.active)
+                return false;
+            Recorder.refreshPrefs();
+        }
+        // "annotate" is the former name of the mode with options.
+        pointer.request = { mode: mode === "record" ? "record" : mode === "actions" || mode === "annotate" ? "actions" : "quick", saveDir: saveDir, autoSave: autoSave };
         pointer.running = true;
         return true;
     }
@@ -44,7 +52,8 @@ Scope {
             mode: request.mode,
             saveDir: request.saveDir ?? "",
             autoSave: request.autoSave,
-            screenName: output?.name ?? ""
+            screenName: output?.name ?? "",
+            phase: request.mode === "record" ? "mode" : "select"
         });
         windows.cursor = cursor;
         windows.active = true;
@@ -61,7 +70,7 @@ Scope {
             return false;
         session.screenName = output.name;
         session.selection = Qt.rect(x - output.x, y - output.y, Math.min(w, output.x + output.width - x), Math.min(h, output.y + output.height - y));
-        session.phase = session.mode === "annotate" ? "edit" : "actions";
+        session.phase = session.mode === "record" ? "record" : "actions";
         return true;
     }
 
@@ -75,8 +84,13 @@ Scope {
     function close(): void {
         windows.active = false;
         ShellState.capturing = false;
-        session?.destroy();
-        session = null;
+        // The windows go first; the session they read from goes once they are gone.
+        const finished = session;
+        Qt.callLater(() => {
+            if (session === finished)
+                session = null;
+            finished?.destroy();
+        });
     }
 
     Component {
@@ -122,6 +136,7 @@ Scope {
                 required property ShellScreen modelData
                 readonly property bool owner: root.session?.screenName === modelData.name
 
+                Tokens.screen: modelData.name
                 screen: modelData
                 name: "area-picker"
                 color: "transparent"
@@ -144,7 +159,11 @@ Scope {
 
                 Connections {
                     function onAcceptRequested(): void {
-                        if (picker.active)
+                        if (!picker.active)
+                            return;
+                        if (root.session.mode === "record")
+                            picker.startRecording();
+                        else
                             picker.deliver(root.session.autoSave);
                     }
 
@@ -157,6 +176,20 @@ Scope {
     IpcHandler {
         function screenshot(mode: string, saveDir: string, autoSave: string): bool {
             return root.open(mode, saveDir, autoSave !== "false" && autoSave !== "0");
+        }
+
+        // Region (or output, or window) to record with Wysun Recorder.
+        function record(): bool {
+            return root.open("record", "", false);
+        }
+
+        // Chooses what to record (screen | window | area) in the open recording picker.
+        function mode(what: string): bool {
+            if (!root.session || root.session.mode !== "record" || !["screen", "window", "area"].includes(what))
+                return false;
+            root.session.pick = what;
+            root.session.phase = "select";
+            return true;
         }
 
         // Older entry points.

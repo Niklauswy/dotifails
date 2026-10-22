@@ -21,7 +21,7 @@ Puedes ver el plan sin aplicar cambios:
 
 - `bin/wysun-session` valida el entorno y arranca `start-hyprland` con `config/.config/wysun/hyprland.lua`. `--check` no inicia el compositor ni toca la sesión actual.
 - `installer/session_registration.py` publica solo dos archivos: `usr/local/bin/wysun-session` y `usr/share/wayland-sessions/wysun-hyprland.desktop`. Nunca modifica la sesión predeterminada ni el gestor de acceso; mantiene un diario en `/var/lib/dotifails/wayland-session/` y admite `remove`.
-- `bin/wysun-session-services` prepara D-Bus, polkit, notificaciones (`config/.config/wysun/dunstrc`) y `swayidle`/`swaylock` para el bloqueo.
+- `bin/wysun-session-services` prepara D-Bus, polkit, `swayidle`/`swaylock` (las notificaciones las sirve el propio shell) para el bloqueo.
 - Tras cerrar sesión voluntariamente, elige **Wysun / Hyprland** en el gestor de acceso. Para retirar el registro: `python3 installer/session_registration.py remove --root /`.
 
 ## Portales y captura

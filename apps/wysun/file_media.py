@@ -53,6 +53,10 @@ def preview_file(path,page=1):
             if kind=='video':
                 result=subprocess.run(['ffmpeg','-v','error','-protocol_whitelist','file,pipe,crypto','-ss',str(min(1,data['meta'].get('duration',0)/3)),'-i',str(p),'-frames:v','1','-vf','scale=800:-2','-threads','1','-f','image2pipe','-vcodec','png','-'],capture_output=True,timeout=6)
                 if result.returncode==0:data['image']=QImage.fromData(result.stdout)
+            else:
+                # Embedded cover art (ID3 APIC, FLAC/Opus picture blocks), when the file carries one.
+                result=subprocess.run(['ffmpeg','-v','error','-protocol_whitelist','file,pipe,crypto','-i',str(p),'-an','-frames:v','1','-vf','scale=600:-2','-threads','1','-f','image2pipe','-vcodec','png','-'],capture_output=True,timeout=6)
+                if result.returncode==0 and result.stdout:data['image']=QImage.fromData(result.stdout)
         elif p.suffix.lower()=='.pdf':
             result=subprocess.run(['pdftoppm','-f',str(page),'-l',str(page),'-singlefile','-scale-to','1200','-png',str(p)],capture_output=True,timeout=8)
             if result.returncode==0:data['image']=QImage.fromData(result.stdout)

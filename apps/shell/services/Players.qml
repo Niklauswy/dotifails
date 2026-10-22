@@ -13,8 +13,21 @@ Singleton {
     id: root
 
     readonly property list<MprisPlayer> list: Mpris.players.values
-    readonly property MprisPlayer active: props.manualActive ?? list.find(p => getIdentity(p) === GlobalConfig.services.defaultPlayer) ?? list[0] ?? null
+    // Follow whatever is playing: a manual choice wins only while it plays or nothing else
+    // does, and after a pause the widget stays on the last player heard instead of list[0].
+    readonly property MprisPlayer playing: list.find(p => p.isPlaying) ?? null
+    readonly property MprisPlayer active: {
+        const manual = list.includes(props.manualActive) ? props.manualActive : null;
+        if (manual && (manual.isPlaying || !playing))
+            return manual;
+        return playing ?? (list.includes(props.lastPlaying) ? props.lastPlaying : null) ?? list.find(p => getIdentity(p) === GlobalConfig.services.defaultPlayer) ?? list[0] ?? null;
+    }
     property alias manualActive: props.manualActive
+
+    onPlayingChanged: {
+        if (playing)
+            props.lastPlaying = playing;
+    }
 
     // Dedup key for progressive metadata (e.g. mpv-mpris/yt-dlp player fills title then artist later).
     property string lastNowPlayingKey: ""
@@ -87,6 +100,7 @@ Singleton {
         id: props
 
         property MprisPlayer manualActive
+        property MprisPlayer lastPlaying
 
         reloadableId: "players"
     }

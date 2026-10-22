@@ -22,12 +22,54 @@ class LauncherLogicTests(unittest.TestCase):
         result = subprocess.run([node], input=script, capture_output=True, text=True, timeout=10)
         self.assertEqual(result.returncode, 0, result.stderr)
 
+    def test_clipboard_colours_parse_rgb_and_hsl(self):
+        """Swatches and the colour preview accept the notations clipboard colours come in."""
+        node = shutil.which('node')
+        if not node:
+            self.skipTest('Node JavaScript engine unavailable')
+        text = (SERVICES / 'Colour.js').read_text().replace('.pragma library', '')
+        stub = ('var Qt = {rgba: (r, g, b, a) => ["rgb", r, g, b], hsla: (h, s, l, a) => ["hsl", h, s, l], '
+                'color: v => ["hex", v]};\n')
+        script = stub + text + """
+function check(v, why) { if (!v) throw Error(why); }
+var a = parse('rgb(230, 230, 232)');
+check(a[0] === 'rgb' && Math.abs(a[1] - 230 / 255) < 1e-9 && Math.abs(a[3] - 232 / 255) < 1e-9, 'rgb');
+var b = parse('hsl(240, 4%, 91%)');
+check(b[0] === 'hsl' && Math.abs(b[1] - 240 / 360) < 1e-9 && Math.abs(b[3] - 0.91) < 1e-9, 'hsl');
+check(parse('#70140C')[0] === 'hex', 'hex goes to Qt');
+check(parse('rgba(1 2 3 / 50%)')[0] === 'rgb', 'space separated');
+"""
+        result = subprocess.run([node], input=script, capture_output=True, text=True, timeout=10)
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_folder_browsing_groups_folders_first_and_filters(self):
+        self.run_js("""
+function check(v, why) { if (!v) throw Error(why); }
+var browse = [row('/h/docs', true, '/h'), row('/h/notes.txt', false, '/h'), row('/h/photo.png', false, '/h')];
+var ctx = {browse: browse, places: [], recentFiles: [], files: []};
+var all = view('browse', '', ctx, '', 'all');
+check(all[0].section === 'Folders' && all[0].title === 'docs', 'folders first');
+check(all.filter(r => r.section === 'Files').length === 2, 'files after folders');
+check(view('browse', 'photo', ctx, '', 'all').map(r => r.title).join() === 'photo.png', 'filter inside folder');
+check(view('browse', '', ctx, '', 'image').map(r => r.title).join() === 'photo.png', 'image filter');
+""")
+
+    def test_shell_javascript_avoids_lookbehind(self):
+        """QML's JavaScript engine has no regex lookbehind: such a pattern silently never matches
+        (the launcher calculator ignored "2x2x2" because of one)."""
+        shell = ROOT / 'apps/shell'
+        offenders = [str(path.relative_to(ROOT)) for path in list(shell.rglob('*.js')) + list(shell.rglob('*.qml'))
+                     if '(?<=' in path.read_text() or '(?<!' in path.read_text()]
+        self.assertEqual(offenders, [])
+
     def test_calculator_and_conversions(self):
         self.run_js("""
 function check(v, why) { if (!v) throw Error(why); }
 check(evaluate('2+3*4').value === '14', 'precedence');
 check(evaluate('15% of 80').value === '12', 'percent of');
 check(evaluate('24 x 8 / 16').value === '12', 'x as times');
+check(evaluate('2x2x2').value === '8', 'chained x without spaces');
+check(evaluate('1,5 x 2').value === '3', 'decimal comma');
 check(evaluate('10 km to mi').result.startsWith('6.2137'), 'unit conversion');
 check(evaluate('100 c to f').result === '212 °F', 'temperature');
 check(evaluate('42') === null && evaluate('hola') === null, 'not calculations');

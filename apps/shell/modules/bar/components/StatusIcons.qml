@@ -17,6 +17,9 @@ StyledRect {
 
     readonly property int spacing: Tokens.spacing.medium / 2
 
+    // Indicators the bar no longer shows (lock keys and battery); the session button keeps power actions.
+    readonly property var hiddenEntries: ["lockStatus", "battery"]
+
     // Index of the first/last entry that isn't collapsed, for edge margin gating
     readonly property int firstPresent: {
         const values = model.values;
@@ -61,7 +64,7 @@ StyledRect {
             model: ScriptModel {
                 id: model
 
-                values: root.Config.bar.statusIcons.values.filter(e => e.enabled)
+                values: root.Config.bar.statusIcons.values.filter(e => e.enabled && !root.hiddenEntries.includes(e.id))
             }
 
             DelegateChooser {
