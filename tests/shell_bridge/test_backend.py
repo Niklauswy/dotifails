@@ -25,12 +25,25 @@ class AdapterTests(unittest.TestCase):
             result=subprocess.run(['/usr/bin/python3',str(SOURCE),*argv],capture_output=True)
             self.assertEqual(result.returncode,2)
 
-    def test_fixed_schemes_use_the_existing_producer_with_temporary_data(self):
+    def test_the_retired_scheme_listings_are_gone(self):
+        for action in ('schemes','current'):
+            result=subprocess.run(['/usr/bin/python3',str(SOURCE),action],capture_output=True)
+            self.assertEqual(result.returncode,2,action)
+
+    def test_preview_uses_the_existing_producer_and_the_stored_mode(self):
+        from PIL import Image
         with tempfile.TemporaryDirectory() as home:
+            image=Path(home,'bright.png');Image.new('RGB',(32,32),(245,240,225)).save(image)
             env=dict(os.environ,HOME=home,XDG_CONFIG_HOME=home+'/config',XDG_STATE_HOME=home+'/state')
-            result=subprocess.run(['/usr/bin/python3',str(SOURCE),'schemes'],env=env,capture_output=True,text=True,check=True)
-            schemes=json.loads(result.stdout)
-            self.assertEqual(set(schemes),{'space-black','tokyo','severance','fluent:light','fluent:dark'})
-            self.assertIn('primary',schemes['tokyo']['default'])
+            for key in ('WYSUN_THEME','ORBIT_THEME'):env.pop(key,None)
+            def preview():
+                result=subprocess.run(['/usr/bin/python3',str(SOURCE),'preview',str(image)],env=env,capture_output=True,text=True,check=True)
+                return json.loads(result.stdout)
+            scheme=preview()
+            self.assertEqual((scheme['name'],scheme['mode']),('dynamic','light'),'auto: a bright wallpaper previews light')
+            self.assertIn('primary',scheme['colours'])
+            Path(home,'config/orbit').mkdir(parents=True);Path(home,'config/orbit/theme.json').write_text('{"mode":"dark"}')
+            self.assertEqual(preview()['mode'],'dark')
+            self.assertFalse(Path(home,'state').exists(),'a preview never writes the scheme')
 
 if __name__=='__main__':unittest.main()

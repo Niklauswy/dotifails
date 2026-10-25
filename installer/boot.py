@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""System appearance only. Never installs GRUB or restarts the display manager."""
+"""System appearance only. Never installs GRUB, never restarts or stops the display manager.
+
+The greeter component sets up Wysun's login screen with greetd (the refinement terminal of the lock,
+apps/shell/greeter.qml) and makes greetd the display manager for the next boot; the previous manager
+is recorded in the journal and re-enabled on restore. Nothing is restarted now."""
 import argparse
 import configparser
 import datetime
@@ -9,7 +13,6 @@ import json
 import os
 from pathlib import Path
 import shutil
-import shlex
 import subprocess
 import sys
 import uuid
@@ -57,6 +60,155 @@ def read(path, default):
     return json.loads(path.read_text()) if path.exists() else default
 
 
+GREETER = 'usr/local/share/wysun/greeter'
+GREETER_FILES = ('GreeterRoot.qml', 'LockScene.qml', 'LockPalette.qml', 'WysunMark.qml', 'FounderFilm.qml')
+GREETER_STATE = '/var/lib/greetd/wysun-greeter.json'
+GREETER_LAUNCHER = """#!/bin/sh
+# Wysun greeter (greetd): a minimal Hyprland showing the refinement terminal. If the compositor or
+# the screen fail, fall back to greetd's own text login so the machine is never left without one.
+flag="${XDG_RUNTIME_DIR:-/tmp}/wysun-greeter-failed"
+umask 077
+logdir="${XDG_STATE_HOME:-$HOME/.local/state}/wysun"
+mkdir -p "$logdir" || exit 1
+if [ -f "$logdir/greeter.log" ]; then
+    mv -f "$logdir/greeter.log" "$logdir/greeter.previous.log"
+fi
+rm -f "$flag"
+if Hyprland --config /usr/local/share/wysun/greeter/hyprland.conf >"$logdir/greeter.log" 2>&1 && [ ! -e "$flag" ]; then
+    exit 0
+fi
+rm -f "$flag"
+exec /usr/sbin/agreety --cmd "${SHELL:-/bin/sh}"
+"""
+GREETD_CONFIG = """# Wysun · greetd. Restore the previous display manager with installer/boot.py --restore ID.
+[terminal]
+vt = 7
+
+[default_session]
+command = "/usr/local/libexec/wysun-greeter"
+user = "_greetd"
+"""
+
+
+# GRUB prints "Loading Linux…" / "Loading initial ramdisk…" in its terminal when an entry starts, and that
+# terminal has no background of its own: a black box over the card. This script (after 00_header) gives it
+# the card's own pixels under the box (term_c.png, stretched to the window) and redefines load_video, which
+# Debian's Linux entries call first, to print in the card's blue: the messages vanish into the card. The
+# console and the entry editor keep the normal colours. Verified in QEMU/OVMF with the real theme.
+GRUB_QUIET_SCRIPT = r"""#!/bin/sh
+# Wysun · boot messages print on the card instead of in a black box (written by installer/boot.py).
+set -e
+. "$pkgdatadir/grub-mkconfig_lib"
+theme_dir=/boot/grub/themes/orbit
+[ -f "$theme_dir/term_c.png" ] || exit 0
+card="$(make_system_path_relative_to_its_root "$theme_dir/term_c.png")"
+cat <<EOF
+insmod gfxterm_background
+insmod png
+background_image -m stretch "(\$root)$card"
+function load_video {
+  if [ x\$feature_all_video_module = xy ]; then
+    insmod all_video
+  else
+    insmod efi_gop
+    insmod efi_uga
+    insmod ieee1275_fb
+    insmod vbe
+    insmod vga
+    insmod video_bochs
+    insmod video_cirrus
+  fi
+  set color_normal=blue/black
+}
+EOF
+"""
+
+
+# When Plymouth quits, VT 1 shows the text login prompt (getty) until greetd switches to its VT for the
+# greeter. Switching first, to the empty VT 7 (no cursor: vt.global_cursor_default=0), leaves a dark
+# screen instead. Plymouth has already quit and VT 1 is in text mode, so the switch cannot hang; the
+# timeout and the leading "-" make sure greetd starts whatever happens.
+GREETD_VT_DROPIN = """# Wysun · go to the greeter's VT at once: no text login flashes in between (written by installer/boot.py).
+[Service]
+ExecStartPre=-/usr/bin/timeout 3 /usr/bin/chvt 7
+"""
+# Shutdown and reboot are over in a second or two, too fast to see the farewell. This unit holds the
+# shutdown up to FAREWELL_SECONDS while Plymouth plays it; any key skips the wait. It only waits when
+# Plymouth is actually showing, never longer than its own limit, and the system shuts down normally after.
+FAREWELL_SECONDS = 12
+FAREWELL = rf"""#!/bin/sh
+# Wysun · let the farewell animation play before the machine powers off; any key skips it.
+# (written by installer/boot.py)
+command -v plymouth >/dev/null 2>&1 || exit 0
+plymouth --ping 2>/dev/null || exit 0
+plymouth watch-keystroke >/dev/null 2>&1 &
+watcher=$!
+ticks=0
+while [ "$ticks" -lt {FAREWELL_SECONDS * 10} ] && kill -0 "$watcher" 2>/dev/null; do
+    sleep 0.1
+    ticks=$((ticks + 1))
+done
+kill "$watcher" 2>/dev/null
+exit 0
+"""
+FAREWELL_UNIT = f"""# Wysun · the farewell plays before power-off (written by installer/boot.py).
+[Unit]
+Description=Wysun farewell animation (any key skips it)
+DefaultDependencies=no
+After=plymouth-poweroff.service plymouth-reboot.service plymouth-halt.service plymouth-kexec.service
+Before=shutdown.target umount.target final.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/libexec/wysun-farewell
+TimeoutStartSec={FAREWELL_SECONDS + 8}
+"""
+FAREWELL_WANTS = """# Wysun · play the farewell on the way down (written by installer/boot.py).
+[Unit]
+Wants=wysun-farewell.service
+"""
+
+
+def keyboard(path):
+    """XKB settings from /etc/default/keyboard, so the password is typed in the system's layout."""
+    values = {'XKBLAYOUT': 'us', 'XKBVARIANT': '', 'XKBOPTIONS': ''}
+    if path.is_file():
+        for line in path.read_text().splitlines():
+            key, _, value = line.partition('=')
+            if key.strip() in values:
+                values[key.strip()] = value.strip().strip('"').strip("'")
+    return values
+
+
+def greeter_compositor(layout):
+    return f"""# Wysun greeter compositor (written by installer/boot.py).
+monitor = , preferred, auto, 1
+input {{
+    kb_layout = {layout['XKBLAYOUT']}
+    kb_variant = {layout['XKBVARIANT']}
+    kb_options = {layout['XKBOPTIONS']}
+}}
+misc {{
+    disable_hyprland_logo = true
+    disable_splash_rendering = true
+    force_default_wallpaper = 0
+}}
+animations {{
+    enabled = false
+}}
+ecosystem {{
+    no_update_news = true
+    no_donation_nag = true
+}}
+env = WYSUN_GREETER_STATE,{GREETER_STATE}
+env = WYSUN_GREETER_SCHEME,/{GREETER}/scheme.json
+env = WYSUN_GREETER_MONO,DejaVu Sans Mono
+env = WYSUN_LOCK_SHADERS,/{GREETER}/shaders
+env = QT_QPA_PLATFORM,wayland
+exec-once = sh -c '/usr/bin/quickshell --no-color --log-times -p /{GREETER}/greeter.qml >>"${{XDG_STATE_HOME:-$HOME/.local/state}}/wysun/greeter.log" 2>&1 || touch "$XDG_RUNTIME_DIR/wysun-greeter-failed"; hyprctl dispatch exit'
+"""
+
+
 def merged_ini(path, section, changes):
     # Preserve unrelated options, including input/accessibility preferences.
     config = configparser.ConfigParser(interpolation=None, strict=False)
@@ -78,7 +230,7 @@ class BootDeployment:
         if os.geteuid()==0 or self.root!=Path('/'):
             self.receipt = read(self.state/'installed.json', {})
         self.runner = runner or self.run
-        self.components=set(('grub','plymouth','greeter') if components is None else components)
+        self.components=set(('grub','plymouth') if components is None else components)
         if not self.components or self.components-{'grub','plymouth','greeter'}:raise ValueError('Pantallas de arranque inválidas.')
 
     def path(self, relative):
@@ -101,11 +253,19 @@ class BootDeployment:
             plans.append(('grub','etc/default/grub.d/99-orbit-theme.cfg',
                 'GRUB_THEME="/boot/grub/themes/orbit/theme.txt"\n'
                 'GRUB_BACKGROUND=""\nGRUB_GFXMODE=auto\n'
-                '# Keep kernel flags, encryption, timeout and default entries unchanged.\n'
+                '# The kernel keeps GRUB\'s graphics mode: no mode switch flicker before the splash.\n'
+                'GRUB_GFXPAYLOAD_LINUX=keep\n'
+                '# Keep kernel flags, encryption, timeout and default entries unchanged; only add the\n'
+                '# splash and hide the text cursor when they are missing.\n'
                 'case " $GRUB_CMDLINE_LINUX $GRUB_CMDLINE_LINUX_DEFAULT " in\n'
                 '  *" splash "*) ;;\n'
                 '  *) GRUB_CMDLINE_LINUX_DEFAULT="$GRUB_CMDLINE_LINUX_DEFAULT quiet splash" ;;\n'
+                'esac\n'
+                'case " $GRUB_CMDLINE_LINUX $GRUB_CMDLINE_LINUX_DEFAULT " in\n'
+                '  *" vt.global_cursor_default="*) ;;\n'
+                '  *) GRUB_CMDLINE_LINUX_DEFAULT="$GRUB_CMDLINE_LINUX_DEFAULT vt.global_cursor_default=0" ;;\n'
                 'esac\n'))
+            plans.append(('grub','etc/grub.d/06_wysun',GRUB_QUIET_SCRIPT))
             # A distro may force text output. Leave serial consoles intact.
             configs=[self.path('etc/default/grub'),*self.path('etc/default/grub.d').glob('*.cfg')]
             serial=any('serial' in line for p in configs for line in p.read_text().splitlines()
@@ -114,23 +274,25 @@ class BootDeployment:
         if 'plymouth' in self.components and self.path('usr/share/plymouth/themes').is_dir():
             plans.append(('plymouth','usr/share/plymouth/themes/orbit',self.source/'system/boot/plymouth'))
             config=self.path('etc/plymouth/plymouthd.conf')
-            plans.append(('plymouth','etc/plymouth/plymouthd.conf',merged_ini(config,'Daemon',{'Theme':'orbit'})))
-        manager=self.path('etc/X11/default-display-manager')
-        if 'greeter' in self.components and manager.exists() and Path(manager.read_text().strip()).name=='lightdm':
+            # Show the splash at once instead of after the distribution's delay.
+            plans.append(('plymouth','etc/plymouth/plymouthd.conf',merged_ini(config,'Daemon',{'Theme':'orbit','ShowDelay':'0'})))
+            plans.append(('plymouth','usr/local/libexec/wysun-farewell',FAREWELL))
+            plans.append(('plymouth','etc/systemd/system/wysun-farewell.service',FAREWELL_UNIT))
+            for target in ('poweroff','reboot','halt'):
+                plans.append(('plymouth',f'etc/systemd/system/{target}.target.d/wysun-farewell.conf',FAREWELL_WANTS))
+            # Never `plymouth quit --retain-splash` here: it leaves VT 1 in graphics mode and greetd then waits
+            # forever to switch to its VT (no login screen at all on the first real test).
+        self.skipped=[]
+        if 'greeter' in self.components and not self.path('usr/sbin/greetd').exists():
+            self.skipped.append('Pantalla de acceso omitida: falta greetd. Instálalo con '
+                                '«sudo apt install greetd qt6-shader-baker» y repite ./instalar.sh --boot-only.')
+        if 'greeter' in self.components and self.path('usr/sbin/greetd').exists():
             plans.extend([
-                ('greeter','usr/local/lib/dotifails/blue-crt.so',self.source/'native/blue-crt/blue-crt.c'),
-                ('greeter','usr/share/dotifails/blue-crt',self.source/'system/boot/greeter/assets'),
-                ('greeter','usr/share/xgreeters/blue-crt.desktop','[Desktop Entry]\nName=Blue CRT\nType=Application\nExec=/usr/bin/env GTK_MODULES=/usr/local/lib/dotifails/blue-crt.so /usr/sbin/slick-greeter\nX-Ubuntu-Gettext-Domain=slick-greeter\n'),
-                ('greeter','usr/share/themes/Orbit-Greeter',self.source/'system/boot/greeter/Orbit-Greeter'),
-                ('greeter','usr/share/backgrounds/orbit-login.png',self.source/'system/boot/greeter/background.png'),
-                ('greeter','usr/share/pixmaps/orbit-login.png',self.source/'system/boot/greeter/logo.png'),
-                ('greeter','etc/lightdm/lightdm.conf.d/99-orbit-greeter.conf','[Seat:*]\ngreeter-session=blue-crt\n'),
-                ('greeter','etc/lightdm/slick-greeter.conf',merged_ini(self.path('etc/lightdm/slick-greeter.conf'),'Greeter',{
-                    'background':'/usr/share/backgrounds/orbit-login.png','background-color':'#04047e',  # theme-exception: color del cargador de arranque del sistema, no del escritorio
-                    'draw-user-backgrounds':'false','draw-grid':'false','show-hostname':'false',
-                    'theme-name':'Orbit-Greeter','icon-theme-name':'Adwaita',
-                    'font-name':'DejaVu Sans Mono 11','logo':'/usr/share/pixmaps/orbit-login.png',
-                    'other-monitors-logo':'/usr/share/pixmaps/orbit-login.png','enable-hidpi':'auto'}))])
+                ('greeter',GREETER,('greeter',)),
+                ('greeter','usr/local/libexec/wysun-greeter',GREETER_LAUNCHER),
+                ('greeter','etc/greetd/config.toml',GREETD_CONFIG),
+                ('greeter','etc/systemd/system/greetd.service.d/wysun-vt.conf',GREETD_VT_DROPIN),
+                ('greeter','etc/X11/default-display-manager','/usr/sbin/greetd\n')])
         return [plan for plan in plans if plan[0] in self.components]
 
     def refresh(self, groups, backup=None, journal=None):
@@ -156,22 +318,53 @@ class BootDeployment:
                 if output.exists(): output.unlink()
         if 'plymouth' in groups: self.runner(['update-initramfs','-u','-k','all'])
 
-    def build_module(self, source, target):
-        target.parent.mkdir(parents=True,exist_ok=True)
-        flags=shlex.split(subprocess.check_output(['pkg-config','--cflags','--libs','gtk+-3.0'],text=True))
-        subprocess.run(['cc','-O2','-Wall','-Wextra','-Werror','-shared','-fPIC',str(source),'-o',str(target),*flags,'-lm'],check=True)
-        target.chmod(0o644)
+    def display_manager(self):
+        manager=self.path('etc/X11/default-display-manager')
+        return Path(manager.read_text().strip()).name if manager.is_file() else None
+
+    def systemctl(self, *arguments):
+        command=['systemctl']
+        if self.root!=Path('/'):command.append(f'--root={self.root}')
+        self.runner([*command,*arguments])
+
+    def switch_manager(self, previous, target):
+        """Enable ``target`` as display-manager.service for the next boot; never starts or stops one."""
+        if previous and previous!=target:self.systemctl('disable',f'{previous}.service')
+        self.systemctl('enable','--force',f'{target}.service')
+
+    def build_greeter(self, target):
+        """The login screen: the lock's portable scene, a Severance palette, shaders and its compositor."""
+        shell=self.source/'apps/shell'
+        (target/'modules/lockscreen/shaders').mkdir(parents=True)
+        shutil.copy2(shell/'greeter.qml',target/'greeter.qml')
+        for name in GREETER_FILES:
+            shutil.copy2(shell/'modules/lockscreen'/name,target/'modules/lockscreen'/name)
+        # The founder's film (the reward at 100 %): only its pixel art, not the tool that prepares it.
+        (target/'modules/lockscreen/film').mkdir()
+        for art in sorted((shell/'modules/lockscreen/film').glob('*.png')):
+            shutil.copy2(art,target/'modules/lockscreen/film'/art.name)
+        # The sign-in screen always wears the Severance palette of the lock, whatever the desktop's colours.
+        palette=json.loads((shell/'modules/lockscreen/severance-scheme.json').read_text())
+        (target/'scheme.json').write_text(json.dumps({**palette,'flavour':'greeter'},indent=2)+'\n')
+        (target/'hyprland.conf').write_text(greeter_compositor(keyboard(self.path('etc/default/keyboard'))))
+        # Shaders for the distribution's Qt; without qsb the screen is drawn flat and still works.
+        qsb=self.path('usr/lib/qt6/bin/qsb')
+        shaders=target/'shaders';shaders.mkdir()
+        if qsb.is_file():
+            for source in sorted((shell/'modules/lockscreen/shaders').glob('*.frag')):
+                self.runner([str(qsb),'--glsl','300es,330','-o',str(shaders/(source.name+'.qsb')),str(source)])
 
     def apply(self):
         plans=self.plan()
-        if not plans: raise RuntimeError('No se encontró GRUB, Plymouth ni LightDM compatible.')
+        for notice in self.skipped:print(notice,flush=True)
+        if not plans: raise RuntimeError('No se encontró GRUB, Plymouth ni greetd.')
         conflicts=[rel for _,rel,_ in plans if rel in self.receipt and fingerprint(self.path(rel))!=self.receipt[rel]]
         if conflicts: raise RuntimeError('Se conservaron cambios locales; revisa: '+', '.join(conflicts))
         groups={group for group,_,_ in plans}
         required=[]
         if 'grub' in groups: required+=['grub-mkconfig','grub-script-check']
         if 'plymouth' in groups: required+=['update-initramfs']
-        if 'greeter' in groups: required+=['slick-greeter','cc','pkg-config']
+        if 'greeter' in groups: required+=['greetd','agreety','Hyprland','quickshell','systemctl']
         if self.root==Path('/'):
             for command in required:
                 if not shutil.which(command, path='/usr/sbin:/usr/bin:/sbin:/bin'):
@@ -179,18 +372,25 @@ class BootDeployment:
         ident=datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%SZ')+'-'+uuid.uuid4().hex[:6]
         backup=self.state/'backups'/ident;backup.mkdir(parents=True,mode=0o700)
         journal={'id':ident,'created_at':datetime.datetime.now(datetime.timezone.utc).isoformat(),'status':'running','operations':[],'groups':[], 'receipt_before':self.receipt.copy()}
+        if 'greeter' in groups:journal['display_manager']={'before':self.display_manager(),'after':'greetd'}
         save(backup/'journal.json',journal)
         emit('system_backup',id=ident,path=str(backup))
         try:
             for group,rel,payload in plans:
                 target=self.path(rel);stage=backup/'staged'/rel
-                if isinstance(payload,Path):
+                if isinstance(payload,tuple):
+                    self.build_greeter(stage)
+                    copy(stage,stage.with_name(stage.name+'.normalized'),normalize=True)
+                    remove(stage);stage.with_name(stage.name+'.normalized').rename(stage)
+                elif isinstance(payload,Path):
                     fingerprint(payload)
-                    if payload.suffix=='.c': self.build_module(payload,stage)
-                    else: copy(payload,stage,normalize=True)
+                    copy(payload,stage,normalize=True)
+                    # Templates stay in the repository; the system gets the generated files only.
+                    for template in stage.rglob('*.in') if stage.is_dir() else ():template.unlink()
                 else:
                     stage.parent.mkdir(parents=True,exist_ok=True);stage.write_text(payload)
-                    stage.chmod(target.stat().st_mode & 0o777 if target.exists() else 0o644)
+                    executable=rel.startswith(('usr/local/libexec/','etc/grub.d/'))
+                    stage.chmod(0o755 if executable else target.stat().st_mode & 0o777 if target.exists() else 0o644)
                 before=fingerprint(target);after=fingerprint(stage)
                 if before==after: self.receipt[rel]=after;continue
                 if target.exists(): copy(target,backup/'before'/rel)
@@ -199,6 +399,10 @@ class BootDeployment:
                 save(backup/'journal.json',journal)
                 remove(target);copy(stage,target);self.receipt[rel]=after
             self.refresh(set(journal['groups']),backup,journal)
+            if 'greeter' in journal['groups']:
+                manager=journal['display_manager']
+                self.switch_manager(manager['before'],'greetd')
+                manager['switched']=True;save(backup/'journal.json',journal)
             save(self.state/'installed.json',self.receipt)
             journal['status']='complete';save(backup/'journal.json',journal)
         except BaseException:
@@ -216,6 +420,9 @@ class BootDeployment:
             remove(target)
             before=backup/'before'/op['path']
             if op['before'] is not None: copy(before,target)
+        manager=journal.get('display_manager') or {}
+        if manager.get('switched') and manager.get('before') and manager['before']!='greetd':
+            self.switch_manager('greetd',manager['before'])
         self.receipt=journal['receipt_before'];save(self.state/'installed.json',self.receipt)
         journal['status']='restoring';save(backup/'journal.json',journal)
         # grub.cfg was saved exactly; only the initramfs needs rebuilding.
@@ -257,7 +464,7 @@ def main():
     parser.add_argument('--dry-run',action='store_true')
     parser.add_argument('--restore',metavar='ID')
     parser.add_argument('--verify',action='store_true',help='Comprobar archivos, GRUB e imágenes de arranque')
-    parser.add_argument('--components',default='grub,plymouth,greeter',help='Pantallas que se aplicarán, separadas por comas')
+    parser.add_argument('--components',default='grub,plymouth',help='Pantallas que se aplicarán, separadas por comas')
     parser.add_argument('--list',action='store_true',help='Listar respaldos del arranque')
     parser.add_argument('--events',action='store_true',help=argparse.SUPPRESS)
     args=parser.parse_args()
@@ -265,6 +472,7 @@ def main():
     deployment=BootDeployment(args.source,components=args.components.split(','))
     if args.dry_run:
         for group,rel,_ in deployment.plan():print(f'{group}: /{rel}')
+        for notice in deployment.skipped:print(notice)
         return 0
     if os.geteuid()!=0:raise RuntimeError('Este paso escribe en /boot y /etc. Ejecuta ./instalar.sh --boot-only con sudo disponible.')
     if args.list:

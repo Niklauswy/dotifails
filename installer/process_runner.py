@@ -30,6 +30,7 @@ class InstallerProcess(QObject):
         self.result = {}
         self.log = None
         self.cancel_requested = False
+        self.private_environment = ()
         self._ended = True
 
     @property
@@ -58,6 +59,9 @@ class InstallerProcess(QObject):
         env.insert('DOTIFAILS_CANCEL_FILE', str(self.directory / 'cancel'))
         env.insert('SUDO_ASKPASS', str(Path(__file__).with_name('askpass.py')))
         env.insert('PATH', str(self.home / '.local/bin') + ':' + os.environ.get('PATH', ''))
+        for key in self.private_environment:
+            # The window may preview a theme through its own environment; never pass that on.
+            env.remove(key)
         self.process.setProcessEnvironment(env)
         self.process.setWorkingDirectory(str(source))
         self._ended = False

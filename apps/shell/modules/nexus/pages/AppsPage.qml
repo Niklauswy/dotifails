@@ -53,11 +53,31 @@ PageBase {
         }
 
         DefaultRow {
-            last: true
             icon: "folder"
             label: Tr.trCtx("File manager", "default app category")
             status: GlobalConfig.general.apps.explorer.join(" ")
             onSelected: app => GlobalConfig.general.apps.explorer = app.command
+        }
+
+        DefaultRow {
+            icon: "language"
+            label: Tr.trCtx("Browser", "default app category")
+            status: GlobalConfig.general.apps.browser.join(" ")
+            onSelected: app => GlobalConfig.general.apps.browser = app.command
+        }
+
+        OptionRow {
+            last: true
+            label: Tr.tr("Search engine")
+            options: [
+                {value: "duckduckgo", label: "DuckDuckGo"},
+                {value: "google", label: "Google"},
+                {value: "bing", label: "Bing"},
+                {value: "brave", label: "Brave Search"},
+                {value: "ecosia", label: "Ecosia"}
+            ]
+            current: GlobalConfig.general.apps.searchEngine
+            onPicked: value => GlobalConfig.general.apps.searchEngine = value
         }
 
         // Library

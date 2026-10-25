@@ -17,6 +17,8 @@ Singleton {
     property var thumbs: ({})
     property bool scanning: false
     property bool active: false
+    // One reference per screen showing the picker; the worker lives while any is open.
+    property int users: 0
 
     readonly property var directories: {
         const dirs = [Paths.wallsdir, `${Paths.wallsdir}/Animated`, `${Paths.home}/.local/share/backgrounds`];
@@ -27,12 +29,16 @@ Singleton {
 
     property var _queued: ({})
     property var _pending: []
+    property bool _workerReady: false
 
     function thumbFor(path: string): string {
         return thumbs[path] ?? "";
     }
 
     function open(): void {
+        users++;
+        if (active)
+            return;
         active = true;
         scanning = true;
         scan.running = false;
@@ -41,7 +47,11 @@ Singleton {
     }
 
     function close(): void {
+        users = Math.max(0, users - 1);
+        if (users > 0)
+            return;
         active = false;
+        _workerReady = false;
         worker.running = false;
         _pending = [];
         _queued = ({});
@@ -52,7 +62,7 @@ Singleton {
         if (!active || thumbs[path] || _queued[path])
             return;
         _queued[path] = true;
-        if (worker.running)
+        if (_workerReady)
             worker.write(`${path}\n`);
         else
             _pending.push(path);
@@ -86,10 +96,12 @@ Singleton {
         command: ["wysun", "wallpaper", "thumbs"]
         stdinEnabled: true
         onStarted: {
+            root._workerReady = true;
             for (const path of root._pending)
                 write(`${path}\n`);
             root._pending = [];
         }
+        onExited: root._workerReady = false
         stdout: SplitParser {
             onRead: line => {
                 const cut = line.indexOf("\t");

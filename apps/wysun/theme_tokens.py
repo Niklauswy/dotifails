@@ -20,12 +20,12 @@ import theme_core
 
 ROOT = Path(__file__).resolve().parent
 MARKER = re.compile(r'@svg\(([\w-]+),\s*([a-z][a-z0-9_]*)\)|@([a-z][a-z0-9_]*)(?:/(\d{1,3}))?')
-PIXELS = ('radius_', 'space_', 'font_caption', 'font_small', 'font_body', 'font_heading', 'font_title', 'border', 'focus_width', 'icon_size', 'shadow_')
+PIXELS = ('radius_', 'corner_', 'space_', 'font_caption', 'font_small', 'font_body', 'font_heading', 'font_title', 'border', 'focus_width', 'icon_size', 'shadow_')
 _listeners = []
 
 
 def theme_id(home=None):
-    """Active selection as 'style:variant'."""
+    """Active selection as 'style:variant' (material-you:dark)."""
     return theme_core.key(*theme_core.selection(home))
 
 
@@ -178,17 +178,12 @@ def palette(values=None):
 
 
 def apply_palette(app=None):
-    """Fluent sets a full palette; Space Black keeps the platform palette it always used,
-    unless the app opts in with the ``orbitThemePalette`` property (Files)."""
+    """Every app paints its native parts with the Material You palette."""
     from PySide6.QtWidgets import QApplication
     app = app or QApplication.instance()
     if not app:
         return
-    if app.property('orbitPlatformPalette') is None:
-        app.setProperty('orbitPlatformPalette', QPalette(app.palette()))
-    values = tokens()
-    themed = values['style'] != 'space-black' or bool(app.property('orbitThemePalette'))
-    app.setPalette(palette(values) if themed else app.property('orbitPlatformPalette'))
+    app.setPalette(palette(tokens()))
 
 
 def on_theme_changed(callback):

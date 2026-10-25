@@ -1,70 +1,47 @@
+# Wysun · the training tape. Template: system/boot/render_assets.py writes theme.txt with the Severance
+# tokens and the card's blue. The background is the title card (CardMark through vhs.frag); the boot
+# entries are the programs printed under it, the countdown is the tape about to start.
 title-text: ""
 desktop-image: "background.png"
-desktop-color: "#04047e"
+desktop-color: "#2338d2"
 terminal-font: "DejaVu Sans Mono Regular 16"
-terminal-left: "6%"
-terminal-top: "8%"
-terminal-width: "88%"
-terminal-height: "82%"
-+ image {
-  left = 14%
-  top = 6%
-  width = 144
-  height = 144
-  file = "computer-icon.png"
-}
-+ label {
-  left = 32%
-  top = 14%
-  width = 54%
-  font = "DejaVu Sans Mono Bold 24"
-  color = "#e2f3ff"
-  text = "Selector de arranque"
-}
-+ progress_bar {
-  left = 15%
-  top = 28%
-  width = 70%
-  height = 30
-  font = "DejaVu Sans Mono Regular 16"
-  text_color = "#ffffff"
-  bg_color = "#0b0b77"
-  fg_color = "#0b0b77"
-  border_color = "#a0adcf"
-  text = "Sistema operativo"
-}
+# GRUB's own terminal (boot messages, the console, the entry editor) takes the place of the programs, on
+# the card's own blue: no black box appears when an entry starts. The logo and the title stay above it.
+terminal-box: "term_*.png"
+terminal-left: "18%"
+terminal-top: "46%"
+terminal-width: "64%"
+terminal-height: "44%"
+
 + boot_menu {
-  left = 14%
-  top = 33%
-  width = 72%
-  height = 38%
-  item_font = "DejaVu Sans Mono Regular 20"
-  selected_item_font = "DejaVu Sans Mono Regular 20"
-  item_color = "#14141b"
-  selected_item_color = "#ffffff"
-  item_padding = 5
-  item_spacing = 9
-  menu_pixmap_style = "dialog_*.png"
-  item_height = 34
-  icon_width = 32
-  icon_height = 32
-  item_icon_space = 12
-  selected_item_pixmap_style = "selection_*.png"
+  left = 30%
+  top = 49%
+  width = 40%
+  height = 30%
+  menu_pixmap_style = "menu_*.png"
+  selected_item_pixmap_style = "select_*.png"
+  item_font = "DejaVu Sans Bold 22"
+  selected_item_font = "DejaVu Sans Bold 22"
+  item_color = "#e9f3f6"
+  selected_item_color = "#2338d2"
+  item_height = 48
+  item_padding = 10
+  item_spacing = 8
+  icon_width = 0
+  icon_height = 0
+  item_icon_space = 0
+  scrollbar = false
 }
-+ image { left = 16% top = 78% width = 76 height = 32 file = "key-arrows.png" }
-+ label { left = 16%+83 top = 78%+4 width = 20% font = "DejaVu Sans Mono Regular 16" color = "#cbd9f8" text = "Elegir" }
-+ image { left = 45% top = 78% width = 84 height = 32 file = "key-enter.png" }
-+ label { left = 45%+91 top = 78%+4 width = 22% font = "DejaVu Sans Mono Regular 16" color = "#cbd9f8" text = "Iniciar" }
-+ image { left = 74% top = 78% width = 62 height = 32 file = "key-escape.png" }
+
 + progress_bar {
   id = "__timeout__"
-  left = 16%
-  top = 88%
-  width = 68%
-  height = 24
-  bar_style = "timer_*.png"
-  highlight_style = "timer-fill_*.png"
-  font = "DejaVu Sans Mono Regular 16"
-  text_color = "#ffffff"
-  text = "@TIMEOUT_NOTIFICATION_SHORT@"
+  left = 30%
+  top = 81%
+  width = 40%
+  height = 28
+  bar_style = "bar_*.png"
+  highlight_style = "bar-fill_*.png"
+  font = "DejaVu Sans Bold 16"
+  text_color = "#e9f3f6"
+  text = "THE PROGRAM BEGINS IN %d SECONDS"
 }

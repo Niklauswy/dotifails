@@ -18,9 +18,7 @@ backend = importlib.util.module_from_spec(spec); spec.loader.exec_module(backend
 sys.path.insert(0, str(ROOT / 'apps/wysun'))
 import theme_core  # noqa: E402
 import wysun_scheme  # noqa: E402
-
-STYLES = [('space-black', 'space-black'), ('space-black', 'tokyo'), ('space-black', 'severance'),
-          ('fluent', 'light'), ('fluent', 'dark')]
+from PIL import Image  # noqa: E402
 
 
 def colours_property_names():
@@ -40,35 +38,47 @@ def mapped(name):
 
 
 class SchemeBridgeTests(unittest.TestCase):
-    def test_every_m3_property_is_fed_by_every_fixed_scheme(self):
+    def test_every_m3_property_is_fed_by_the_generated_scheme(self):
         props = {p for p in colours_property_names() if p.startswith(('m3', 'term'))}
-        for style, variant in STYLES:
-            scheme = wysun_scheme.fixed_scheme(style, variant)
-            self.assertEqual(set(scheme) - {'wallpaper_hash'}, {'name', 'flavour', 'mode', 'variant', 'colours'})
-            fed = {mapped(k) for k in scheme['colours']}
-            self.assertEqual(sorted(props - fed), [], (style, variant))
-            for value in scheme['colours'].values():
-                self.assertRegex(value, r'^[0-9a-fA-F]{6}$')
+        with tempfile.TemporaryDirectory() as folder:
+            wallpaper = Path(folder, 'synthetic.png')
+            Image.new('RGB', (64, 48), (25, 82, 224)).save(wallpaper)
+            for mode in ('light', 'dark'):
+                scheme = wysun_scheme.generate_dynamic(wallpaper, mode)
+                self.assertEqual(set(scheme), {'name', 'flavour', 'mode', 'variant', 'colours', 'wallpaper_hash'})
+                fed = {mapped(k) for k in scheme['colours']}
+                self.assertEqual(sorted(props - fed), [], mode)
+                for value in scheme['colours'].values():
+                    self.assertRegex(value, r'^[0-9a-fA-F]{6}$')
 
     def test_colours_reads_the_single_scheme_file(self):
         source = (SHELL / 'services/Colours.qml').read_text()
         self.assertIn('${Paths.state}/scheme.json', source)
         self.assertIn('propertyKey(name)', source)
+        self.assertIn('["wysun", "scheme", "set", mode]', source, 'the mode goes through the single producer')
+        self.assertIn('orbit/theme.json', source, 'the page shows the stored mode, not only the one the wallpaper gave')
         self.assertEqual(theme_core.scheme_path(Path('/x')).as_posix(), '/x/.local/state/wysun/scheme.json')
 
     def test_scheme_changes_never_call_the_original_project_cli(self):
-        for rel in ('services/Colours.qml', 'modules/launcher/services/M3Variants.qml', 'modules/launcher/services/Schemes.qml'):
+        for rel in ('services/Colours.qml', 'modules/nexus/pages/WallpaperAndStyle.qml', 'wysun/backend.py'):
             text = (SHELL / rel).read_text()
             self.assertNotIn('cae' + 'lestia', ' '.join(re.findall(r'execDetached\(\[[^\]]*\]', text)).lower(), rel)
 
-    def test_current_reports_name_flavour_variant(self):
-        with tempfile.TemporaryDirectory() as home:
-            env = dict(os.environ, HOME=home, XDG_CONFIG_HOME=home + '/c', XDG_STATE_HOME=home + '/s')
-            for key in ('WYSUN_THEME', 'ORBIT_THEME'):
-                env.pop(key, None)
-            out = subprocess.run([sys.executable, str(SHELL / 'wysun/backend.py'), 'current'], env=env,
-                                 capture_output=True, text=True, check=True).stdout.split()
-            self.assertEqual(len(out), 3)
+    def test_no_fixed_theme_is_left_in_the_shell(self):
+        for rel in ('modules/launcher/services/M3Variants.qml', 'modules/launcher/services/Schemes.qml',
+                    'modules/nexus/pages/wallandstyle'):
+            self.assertFalse((SHELL / rel).exists(), rel)
+        page = (SHELL / 'modules/nexus/pages/WallpaperAndStyle.qml').read_text()
+        for gone in ('wallpaperEnabled', 'openSubPage', 'Space Black', 'Tokyo', 'Severance', 'Fluent'):
+            self.assertNotIn(gone, page)
+        for mode in ('"auto"', '"light"', '"dark"'):
+            self.assertIn('mode: ' + mode, page)
+        self.assertIn('wysun", "shell", "wallpapers"', page, 'the carousel is the only wallpaper picker')
+
+    def test_the_carousel_can_shuffle_and_add_an_image(self):
+        picker = (SHELL / 'modules/wallpaperpicker/WallpaperPicker.qml').read_text()
+        for needed in ('function random()', 'function add()', 'FileDialog', 'Qt.Key_R', 'icon: "shuffle"', 'icon: "add_photo_alternate"'):
+            self.assertIn(needed, picker)
 
     def test_wallpaper_bridge_reads_environment_json_by_monitor(self):
         qml = (SHELL / 'wysun/WysunBridge.qml').read_text()

@@ -12,7 +12,7 @@ QtObject {
             key: "wallpaper",
             label: Tr.tr("Wallpaper & style"),
             icon: "palette",
-            description: Tr.tr("Wallpaper, fonts, colours"),
+            description: Tr.tr("Wallpaper, colours, light and dark"),
             category: "appearance"
         },
 

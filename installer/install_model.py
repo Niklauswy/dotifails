@@ -7,49 +7,35 @@ import os
 from pathlib import Path
 import platform
 import shutil
+import subprocess
 
 
 COMPONENTS = {
-    'desktop': ('Escritorio Wysun', 'Ventanas, barra, buscador, conexiones y paneles nativos.'),
-    'wayland': ('Sesión Wysun / Hyprland', 'Compositor Hyprland, shell Quickshell y registro de la sesión Wayland.'),
+    'desktop': ('Aplicaciones Wysun', 'Music, Files, Recorder, fuentes, iconos y las utilidades del escritorio.'),
+    'wayland': ('Escritorio y sesión', 'Hyprland, shell, lanzador, Settings, capturas, bloqueo y runtime privado.'),
     'terminal': ('Terminal y shell', 'Ghostty, Zsh, Starship y versiones por proyecto con mise.'),
     'editor': ('Neovim', 'Editor, lenguajes, autocompletado y depuración.'),
     'tools': ('Herramientas personales', 'Utilidades de desarrollo, red y transferencia de archivos.'),
-    'boot': ('Arranque Blue CRT', 'GRUB, animaciones de carga y acceso con Tux.'),
+    'boot': ('Arranque Macrodata', 'GRUB, carga y pantalla de acceso como terminal de refinamiento.'),
 }
 DEFAULT_COMPONENTS = tuple(COMPONENTS)
-BOOT_COMPONENTS = {'grub': 'Menú GRUB', 'plymouth': 'Carga, apagado y reinicio', 'greeter': 'Inicio de sesión'}
+BOOT_COMPONENTS = {'grub': 'Menú GRUB', 'plymouth': 'Carga, apagado y reinicio', 'greeter': 'Pantalla de acceso (greetd)'}
 ARTIFACTS = {
     'desktop': {'yt-dlp'},
     'terminal': {'ghostty', 'starship', 'ohmyzsh', 'zsh-autosuggestions', 'zsh-syntax-highlighting', 'mise', 'nvm', 'node'},
     'editor': {'nvim', 'node'},
     'tools': set(), 'boot': set(), 'wayland': set(),
 }
-THEMES = ('severance', 'tokyo', 'space-black', 'fluent-light', 'fluent-dark')
 WYSUN = Path(__file__).resolve().parents[1] / 'apps/wysun'
 
 
 def theme_core():
     """The shared theme selection rules (apps/wysun/theme_core.py), loaded from the source tree."""
     import sys
-    if str(WYSUN) not in sys.path:
-        sys.path.insert(0, str(WYSUN))
+    from ui_support import prepare_imports
+    prepare_imports()
     import theme_core as module
     return module
-
-
-def theme_selection(key):
-    """(style, variant) for an installer theme id or any accepted alias; None if unknown."""
-    return theme_core().parse(key) if isinstance(key, str) else None
-
-
-def installer_theme(data, fallback='severance'):
-    """Installer id ('tokyo', 'fluent-dark'...) for a theme.json object, new or legacy format."""
-    core = theme_core()
-    style, variant, _legacy = core.from_object(data if isinstance(data, dict) else {})
-    if not (isinstance(data, dict) and ('style' in data or 'variant' in data or 'id' in data or 'name' in data)):
-        style, variant = theme_selection(fallback) or core.default()
-    return 'fluent-' + variant if style == 'fluent' else variant
 
 
 def load_json(path, default=None):
@@ -71,13 +57,13 @@ def normalize_components(values=None):
     return tuple(key for key in COMPONENTS if key in selected)
 
 
-def package_names(source, components, extras=(), boot_components=None):
+def package_names(source, components, extras=(), boot_components=None, inspect_installed=True):
     manifest = load_json(Path(source) / 'manifests/packages.json', {})
     groups = manifest.get('components', {})
     names = list(groups.get('base', manifest.get('development', [])))
     for key in normalize_components(components):
         if key=='boot' and manifest.get('boot_components'):
-            for screen in (BOOT_COMPONENTS if boot_components is None else boot_components):
+            for screen in (('grub', 'plymouth') if boot_components is None else boot_components):
                 names.extend(manifest['boot_components'][screen])
         else:
             names.extend(groups.get(key, manifest.get(key, [])))
@@ -85,7 +71,12 @@ def package_names(source, components, extras=(), boot_components=None):
         names.append('flatpak')
     if 'wayland' in components:
         from wayland import package_specs
-        names.extend(package_specs(source, read_os_release()))
+        if inspect_installed:
+            names.extend(package_specs(source, read_os_release()))
+        else:
+            from wayland import RELEASES
+            suite = RELEASES.get(read_os_release().get('ID'), 'trixie-backports')
+            names.extend(name + '/' + suite for name in manifest.get('wayland_backports', []))
         names.extend(load_json(Path(source) / 'manifests/runtime.json', {}).get('build_packages', []))
     return list(dict.fromkeys(names))
 
@@ -95,19 +86,19 @@ class InstallOptions:
     source: Path
     home: Path = field(default_factory=Path.home)
     components: tuple = field(default_factory=lambda: DEFAULT_COMPONENTS)
-    theme: str | None = None
     extras: tuple = ()
-    boot_components: tuple = field(default_factory=lambda: tuple(BOOT_COMPONENTS))
+    # The greetd login screen is experimental: only with an explicit request (never by default).
+    boot_components: tuple = field(default_factory=lambda: ('grub', 'plymouth'))
     config_only: bool = False
     skip_nvim_tools: bool = False
     profile: str | None = None
+    upgrade_system: bool = False
+    prepare_repositories: bool = False
 
     def validate(self):
         self.source = Path(self.source).expanduser().resolve()
         self.home = Path(self.home).expanduser().absolute()
         self.components = normalize_components(self.components)
-        if self.theme and self.theme not in THEMES:
-            raise ValueError('Tema desconocido.')
         if set(self.extras) - {'brave', 'discord', 'obsidian'}:
             raise ValueError('Aplicación opcional desconocida.')
         if set(self.boot_components) - BOOT_COMPONENTS.keys():
@@ -118,6 +109,8 @@ class InstallOptions:
             raise ValueError('El modo de configuración no modifica el arranque.')
         if self.config_only and self.extras:
             raise ValueError('El modo de configuración no instala aplicaciones.')
+        if self.config_only and (self.upgrade_system or self.prepare_repositories):
+            raise ValueError('El modo de configuración no actualiza el sistema ni los repositorios.')
         if not self.config_only and self.home != Path.home():
             raise ValueError('La instalación del sistema utiliza tu hogar actual.')
         if self.profile and (self.profile != 'samsung-touchscreen' or 'desktop' not in self.components):
@@ -128,8 +121,6 @@ class InstallOptions:
         self.validate()
         args = ['install', '--source', str(self.source), '--target-home', str(self.home),
                 '--components', ','.join(self.components)]
-        if self.theme:
-            args += ['--theme', self.theme]
         if self.extras:
             args += ['--extras', ','.join(self.extras)]
         if 'boot' in self.components:
@@ -140,18 +131,23 @@ class InstallOptions:
             args += ['--skip-nvim-tools']
         if self.profile:
             args += ['--profile', self.profile]
+        if self.upgrade_system:
+            args += ['--upgrade-system']
+        if self.prepare_repositories:
+            args += ['--prepare-repositories']
         return args
 
-    def summary(self):
+    def summary(self, preview=False):
         self.validate()
         artifacts = load_json(self.source / 'manifests/artifacts.json', {})
         included = set().union(*(ARTIFACTS[key] for key in self.components))
         return {
             'source': str(self.source), 'home': str(self.home),
-            'components': list(self.components), 'theme': self.theme,
+            'components': list(self.components),
             'extras': list(self.extras), 'boot_components': list(self.boot_components) if 'boot' in self.components else [],
             'config_only': self.config_only, 'skip_nvim_tools': self.skip_nvim_tools, 'profile': self.profile,
-            'packages': [] if self.config_only else package_names(self.source, self.components, self.extras, self.boot_components),
+            'upgrade_system': self.upgrade_system, 'prepare_repositories': self.prepare_repositories,
+            'packages': [] if self.config_only else package_names(self.source, self.components, self.extras, self.boot_components, inspect_installed=not preview),
             'artifacts': {} if self.config_only else {k: v['version'] for k, v in artifacts.items() if k in included},
             'command': self.argv(),
             'apt_backports_suite': (__import__('wayland').RELEASES.get(read_os_release().get('ID'))
@@ -184,7 +180,7 @@ def preflight(options):
         platform.machine() + (' · compatible' if supported else ' · requiere Debian 13 o Parrot 7, x86_64'))
     required = ['installer/main.py', 'manifests/packages.json', 'manifests/artifacts.json', 'manifests/themes.json']
     if 'boot' in options.components:
-        required += ['installer/boot.py', 'system/boot/grub/theme.txt', 'system/boot/plymouth/orbit.script', 'native/blue-crt/blue-crt.c']
+        required += ['installer/boot.py', 'system/boot/grub/theme.txt', 'system/boot/plymouth/orbit.script', 'apps/shell/greeter.qml']
     if 'desktop' in options.components:
         required += ['apps/wysun/orbit.py']
     if 'tools' in options.components:
@@ -194,7 +190,13 @@ def preflight(options):
     missing = [name for name in required if not (options.source / name).is_file()]
     add('source', 'error' if missing else 'ok', 'Archivos del instalador',
         'Faltan: ' + ', '.join(missing) if missing else 'Copia local completa para la selección.')
-    if 'wayland' in options.components and not options.config_only and supported:
+    if 'wayland' in options.components and not options.config_only and supported and options.prepare_repositories:
+        from repositories import repository_spec, enabled
+        suite = repository_spec(fields)[0]
+        add('wayland-repository', 'info', 'Repositorio nativo: ' + suite,
+            ('Ya habilitado. ' if enabled(Path('/'), suite) else 'Se habilitará con su clave oficial. ') +
+            'APT actualizará los índices y verificará versiones y dependencias antes de instalar paquetes.')
+    elif 'wayland' in options.components and not options.config_only and supported:
         from wayland import check_repository, simulate_packages
         try:
             specs = check_repository(options.source, fields)
@@ -233,6 +235,24 @@ def preflight(options):
             add('lock', 'error', 'Otra operación está activa', 'Espera a que termine antes de continuar.')
     if not options.config_only:
         add('network', 'info', 'Conexión a Internet necesaria', 'Los repositorios se comprobarán al descargar; esta revisión no hace solicitudes de red.')
+        for command in ('apt-get', 'apt-cache', 'dpkg-query'):
+            add(command, 'ok' if shutil.which(command) else 'error', command,
+                'Disponible para comprobar paquetes.' if shutil.which(command) else 'Falta el gestor de paquetes de Debian.')
+        if supported and shutil.which('dpkg'):
+            try:
+                audit = subprocess.run(['dpkg', '--audit'], text=True, capture_output=True, timeout=15)
+                pending = audit.stdout.strip() or audit.stderr.strip()
+                add('package-health', 'error' if audit.returncode or pending else 'ok', 'Estado de los paquetes',
+                    'Hay una operación de paquetes pendiente. Completa la configuración de APT/dpkg antes de instalar.\n' + pending
+                    if audit.returncode or pending else 'No hay paquetes pendientes de configuración.')
+            except (OSError, subprocess.TimeoutExpired) as error:
+                add('package-health', 'error', 'No se pudo comprobar APT/dpkg', str(error))
+        if 'boot' in options.components:
+            if 'grub' in options.boot_components:
+                active = Path('/etc/default/grub').is_file() and Path('/boot/grub').is_dir()
+                add('grub', 'ok' if active else 'error', 'Arranque GRUB',
+                    'Se aplicará el tema Macrodata y se comprobará la configuración generada.' if active else
+                    'No se detecta una instalación de GRUB. Desmarca GRUB o prepara tu gestor de arranque antes de continuar.')
     return results
 
 

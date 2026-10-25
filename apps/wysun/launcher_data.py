@@ -5,12 +5,12 @@ Same sources as the Qt palette (orbit.py): clipboard history, files, emoji and
 calculator history. Commands are argv arrays and results are
 JSON; nothing is evaluated by a shell. Private data stays in ~/.local/share/orbit.
 """
-import datetime as dt, json, os, subprocess, sys, tempfile, time
+import datetime as dt, fcntl, json, os, re, sqlite3, subprocess, sys, tempfile, time, unicodedata
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
-from core import Store, STATE, HOME, calculate, file_index  # noqa: E402
+from core import Store, STATE, HOME, SKIP, calculate, file_index  # noqa: E402
 
 MODES = ('status', 'all', 'clip', 'files', 'emoji', 'calc')
 LIMIT = 150
@@ -19,6 +19,10 @@ CLIP_ICONS = {'image': 'image', 'color': 'palette', 'url': 'link', 'text': 'desc
 DEFAULT_EMOJI = [('😀', 'sonrisa feliz'), ('😂', 'risa lágrimas'), ('❤️', 'amor corazón'), ('✨', 'brillos magia'), ('👍', 'bien pulgar'), ('🙏', 'gracias manos'), ('🎉', 'fiesta celebración'), ('🔥', 'fuego'), ('🚀', 'cohete lanzar'), ('💡', 'idea luz'), ('✅', 'listo correcto'), ('👀', 'ojos mirar'), ('💻', 'computadora trabajo'), ('☕', 'café'), ('🌙', 'luna noche'), ('🫶', 'corazón manos'), ('🤔', 'pensar duda'), ('😎', 'genial gafas'), ('🥹', 'emoción'), ('💜', 'corazón morado')]
 FILE_CACHE = STATE / 'launcher-files.json'
 FILE_TTL = 300
+# Recursive name index read by the shell launcher: one `d<path>` / `f<path>` line per entry, relative to HOME.
+TREE_INDEX = STATE / 'launcher-files.idx'
+TREE_TTL = 90
+TREE_LIMIT = 400000
 
 
 def row(kind, title, subtitle='', icon='', **extra):
@@ -48,13 +52,32 @@ def clip_image(store, clip_id, folder):
     return str(target), w, h
 
 
+def fold(value):
+    return ''.join(c for c in unicodedata.normalize('NFKD', str(value).casefold()) if not unicodedata.combining(c))
+
+
+def tidy(text):
+    """Sparse-mode OCR separates every fragment with a blank line; keep one fragment per line."""
+    return re.sub(r'[ \t]+', ' ', re.sub(r'\n\s*\n+', '\n', text)).strip()
+
+
+def ocr_texts(store):
+    """Recognized text per image clip (column added by the resident's schema migration)."""
+    try:
+        return {r[0]: tidy(r[1]) for r in store.db.execute("SELECT id, ocr FROM clips WHERE kind='image' AND ocr != ''")}
+    except sqlite3.Error:
+        return {}
+
+
 def clip_rows(store, text):
     words = text.split()
     wanted = CLIP_KINDS.get(words[0].casefold()) if words else None
-    needle = ' '.join(words[1:] if wanted else words).casefold()
-    rows, folder, images = [], clip_folder(), 0
+    needles = fold(' '.join(words[1:] if wanted else words)).split()
+    rows, folder, images, ocr = [], clip_folder(), 0, ocr_texts(store)
     for r in store.clips():
-        if needle not in r['text'].casefold() or (wanted and r['kind'] != wanted):
+        recognized = ocr.get(r['id'], '')
+        haystack = fold(r['text'] + ' ' + recognized) if needles else ''
+        if any(n not in haystack for n in needles) or (wanted and r['kind'] != wanted):
             continue
         kind = r['kind']
         extra = {}
@@ -66,10 +89,43 @@ def clip_rows(store, text):
                 extra = dict(thumb=path, width=w, height=h)
                 if w:
                     title = f'Image ({w} × {h})'
+        if recognized:
+            extra['ocr'] = recognized[:4000]
         rows.append(row('clip', title, dt.datetime.fromtimestamp(r['stamp']).strftime('%d %b · %H:%M') + f'  ·  {kind}',
                         CLIP_ICONS.get(kind, 'description'), id=r['id'], clip_kind=kind, value=r['text'], stamp=r['stamp'],
                         swatch=r['text'] if kind == 'color' else '', **extra))
     return rows[:LIMIT]
+
+
+def recognize_clip(store, clip_id):
+    """Text of an image clip: the stored OCR result, or a fresh Tesseract pass that is then stored."""
+    found = store.db.execute('SELECT ocr, ocr_done, blob FROM clips WHERE id=? AND kind=?', (clip_id, 'image')).fetchone()
+    if not found:
+        return ''
+    if found[0] or found[1] or not found[2]:
+        return tidy(found[0] or '')
+    from PySide6.QtGui import QImage
+    from ocr_engine import recognize
+    text, _ = recognize(QImage.fromData(found[2]))
+    store.db.execute('UPDATE clips SET ocr=?, ocr_done=1 WHERE id=?', (text, clip_id))
+    store.db.commit()
+    return tidy(text)
+
+
+def recognize_pending(store, limit=25):
+    """Backfill for images copied before OCR ran. One worker at a time; prints a line per finished image."""
+    lock = (clip_folder() / 'ocr.lock').open('w')
+    try:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        return
+    try:
+        ids = [r[0] for r in store.db.execute("SELECT id FROM clips WHERE kind='image' AND ocr_done=0 ORDER BY stamp DESC LIMIT ?", (limit,))]
+    except sqlite3.Error:
+        return
+    for clip_id in ids:
+        recognize_clip(store, clip_id)
+        print(clip_id, flush=True)
 
 
 def load_files(rebuild=False):
@@ -96,6 +152,66 @@ def build_index():
     os.chmod(tmp, 0o600)
     os.replace(tmp, FILE_CACHE)
     return files
+
+
+# Hidden entries are listed everywhere (so `.zshrc` or `.env` are found) but only ~/.config is entered, and
+# profile-like folders inside it (browsers, Electron apps) are skipped: they hold tens of thousands of cache files.
+HIDDEN_ROOTS = {'.config'}
+HIDDEN_DEPTH = 4
+PROFILE_MARKERS = {'Local Storage', 'GPUCache', 'Cache', 'Code Cache', 'Cookies', 'Local State', 'Service Worker', 'IndexedDB'}
+
+
+def build_tree_index():
+    """Walk HOME once (noise folders skipped, symlinked folders listed but not entered)."""
+    lines, pending, home = [], [(str(HOME), 0)], str(HOME)
+    root = len(home) + 1
+    while pending and len(lines) < TREE_LIMIT:
+        base, hidden = pending.pop()
+        try:
+            with os.scandir(base) as scan:
+                entries = list(scan)
+        except OSError:
+            continue
+        if hidden and any(e.name in PROFILE_MARKERS for e in entries):
+            continue
+        for entry in entries:
+            name = entry.name
+            if name == '.git' or name.endswith(('.pyc', '.map', '.lock', '~')):
+                continue
+            try:
+                folder = entry.is_dir(follow_symlinks=False)
+                linked = not folder and entry.is_symlink() and entry.is_dir()
+            except OSError:
+                continue
+            if folder and name in SKIP:
+                continue
+            lines.append(('d' if folder or linked else 'f') + entry.path[root:])
+            if not folder:
+                continue
+            if name[0] != '.' and not hidden:
+                pending.append((entry.path, 0))
+            elif hidden and hidden < HIDDEN_DEPTH:
+                pending.append((entry.path, hidden + 1))
+            elif not hidden and base == home and name in HIDDEN_ROOTS:
+                pending.append((entry.path, 1))
+    STATE.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(dir=STATE, prefix='.launcher-idx-')
+    with os.fdopen(fd, 'w', encoding='utf-8', errors='replace') as handle:
+        handle.write('\n'.join(lines))
+    os.chmod(tmp, 0o600)
+    os.replace(tmp, TREE_INDEX)
+
+
+def ensure_tree_index():
+    """Build synchronously when missing; otherwise refresh in a detached process once stale."""
+    try:
+        age = time.time() - TREE_INDEX.stat().st_mtime
+    except OSError:
+        build_tree_index()
+        return
+    if age > TREE_TTL:
+        subprocess.Popen([sys.executable, str(Path(__file__).resolve()), 'reindex-tree'], stdout=subprocess.DEVNULL,
+                         stderr=subprocess.DEVNULL, start_new_session=True)
 
 
 def recent_files():
@@ -168,6 +284,12 @@ def preview(path):
         data['image'] = 'data:image/png;base64,' + base64.b64encode(png_bytes(image)).decode()
     data['text'] = data.get('text', '')[:10000]
     return data
+
+
+def code_preview(path):
+    """First lines of a text file, plus its Neovim-coloured HTML when a Neovim theme is configured (code_preview.py)."""
+    import code_preview as preview
+    return preview.preview(path)
 
 
 def emoji_category(emoji, name):
@@ -246,6 +368,13 @@ def act(action, args):
             blob = store.blob(int(args[0]))
             if blob:
                 subprocess.run(['wl-copy', '--type', 'image/png'], input=blob, check=False, timeout=5)
+        elif action == 'copy-text':
+            text = recognize_clip(store, int(args[0]))
+            if not text:
+                raise RuntimeError('No text found in the image')
+            subprocess.run(['wl-copy', '--', text], check=False, timeout=5)
+        elif action == 'ocr-pending':
+            recognize_pending(store)
         elif action == 'toggle-capture':
             store.set('paused', '0' if store.get('paused') == '1' else '1')
         elif action == 'paste':
@@ -295,11 +424,23 @@ def main(argv):
         if path:
             print(path)
         return 0
+    if len(argv) == 2 and argv[0] == 'code-preview':
+        try:
+            print(json.dumps(code_preview(argv[1]), ensure_ascii=False))
+        except OSError:
+            print('{}')
+        return 0
     if len(argv) == 2 and argv[0] == 'preview':
         print(json.dumps(preview(argv[1]), ensure_ascii=False))
         return 0
     if argv and argv[0] == 'reindex':
         build_index()
+        return 0
+    if argv and argv[0] == 'reindex-tree':
+        build_tree_index()
+        return 0
+    if argv and argv[0] == 'files-index':
+        ensure_tree_index()
         return 0
     if len(argv) >= 2 and argv[0] == 'act':
         try:

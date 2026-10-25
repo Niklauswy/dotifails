@@ -43,7 +43,9 @@ class WysunDistributionTests(unittest.TestCase):
             self.assertIn('/wysun" screenshot "$@"', (launch.parent / old).read_text())
         entries = self.home / '.local/share/applications'
         self.assertFalse((entries / 'wybie-screenshot.desktop').exists())
-        self.assertEqual(len(list(entries.glob('*.desktop'))), 3)
+        self.assertEqual(sorted(path.name for path in entries.glob('*.desktop')),
+                         ['loomrec.desktop', 'orbit-settings.desktop', 'orbit.desktop', 'wysun-player.desktop'])
+        self.assertTrue(os.access(launch.parent / 'wysun-player', os.X_OK))
         self.assertIn('Name=Wysun Recorder', (entries / 'loomrec.desktop').read_text())
         self.assertIn('Name=Wysun Settings', (entries / 'orbit-settings.desktop').read_text())
         self.assertFalse((entries / 'orbit-connections.desktop').exists())
@@ -53,6 +55,47 @@ class WysunDistributionTests(unittest.TestCase):
         update.configure_wysun()
         self.assertFalse(update.conflicts)
         self.assertEqual(update.journal['operations'], [])
+
+    def test_each_release_carries_its_own_player_and_runs_without_the_repository(self):
+        deployment = self.deploy()
+        deployment.configure_wysun()
+        deployment.finish()
+        deployment.lock.close()
+        releases = self.home / '.local/share/wysun/capture/releases'
+        release = next(releases.iterdir())
+        self.assertTrue((release / 'wysun_media/__init__.py').is_file())
+        self.assertFalse((release / 'wysun_media').is_symlink(), 'a release holds a copy, not a link back to the repository')
+        env = dict(os.environ, PYTHONPATH=str(release), HOME=str(self.home), QT_QPA_PLATFORM='offscreen')
+        for variable in ('WAYLAND_DISPLAY', 'DISPLAY'):
+            env.pop(variable, None)
+        code = ('import wysun_media, loomrec.ui.media_host as host; from wysun_media.player import MediaPlayer; '
+                'print(wysun_media.__file__); print(host.__file__)')
+        done = subprocess.run([sys.executable, '-P', '-c', code], cwd='/', env=env, capture_output=True, text=True, timeout=60)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        for line in done.stdout.split():
+            self.assertTrue(line.startswith(str(release)), line)
+
+    def test_a_player_change_makes_a_new_release_and_keeps_the_old_one(self):
+        import shutil
+        first = self.deploy()
+        first.configure_wysun()
+        first.finish()
+        first.lock.close()
+        releases = self.home / '.local/share/wysun/capture/releases'
+        old = next(releases.iterdir())
+        source = self.home / 'source'
+        shutil.copytree(ROOT / 'apps/capture', source / 'apps/capture', ignore=shutil.ignore_patterns('__pycache__', '*.pyc'))
+        (source / 'bin').mkdir()
+        shutil.copy2(ROOT / 'bin/wysun', source / 'bin/wysun')
+        player = source / 'apps/capture/wysun_media/player.py'
+        player.write_text(player.read_text() + '\n# synthetic player change\n')
+        update = installer.Deployment(self.home, source)
+        update.begin()
+        self.addCleanup(update.lock.close)
+        update.configure_wysun()
+        update.finish()
+        self.assertEqual(len(list(releases.iterdir())), 2, 'the shared package is part of the release hash')
+        self.assertNotIn('synthetic player change', (old / 'wysun_media/player.py').read_text())
 
     def test_adopt_verified_legacy_files_and_preserve_all_private_roots(self):
         private = ('.local/share/loomrec/recordings/old/project.json',
@@ -159,7 +202,7 @@ class WysunDistributionTests(unittest.TestCase):
         for iteration in range(2):
             deployment = self.deploy()
             with contextlib.redirect_stdout(io.StringIO()):
-                deployment.configure(theme='space-black', components=('desktop',))
+                deployment.configure(components=('desktop',))
                 deployment.finish()
             self.assertFalse(deployment.conflicts)
             self.assertEqual((self.home / '.local/share/applications/orbit.desktop').read_text(), installer.WYSUN_DESKTOP)

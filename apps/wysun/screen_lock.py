@@ -4,9 +4,9 @@ Derivado de caelestia-dots/shell (GPL-3.0), modificado para Wysun.
 PySide6 only translates the visual hierarchy of modules/lock/Center.qml,
 Content.qml and center/{PasswordInput,StateMessage}.qml (commit
 507d66285e9d9fde9330adc64159cfdebb28c19a) to swaylock options, the default
-backend. The opt-in ``qml`` backend (apps/shell/lock.qml, selected with
-``~/.config/orbit/lock.json``) renders the fuller presentation with
-WlSessionLock and a PamContext client. See THIRD_PARTY.md and
+backend. The default ``qml`` backend (apps/shell/lock.qml) is the Wysun
+refinement lock, with WlSessionLock and a PamContext client; ``swaylock`` stays
+selectable in ``~/.config/orbit/lock.json`` and is its fallback. See THIRD_PARTY.md and
 LICENSES/GPL-3.0.txt. Authentication and readiness never live in Qt widgets:
 no Qt password window or unlocked imitation is created here.
 """
@@ -22,7 +22,7 @@ LOCK_BACKENDS = ('swaylock', 'qml')
 
 
 def lock_settings(home=None, environment=None):
-    """Validated lock preference; the proven swaylock backend is the default.
+    """Validated lock preference; the Wysun (qml) lock is the default.
 
     ``~/.config/orbit/lock.json`` is optional and contains only the backend
     selection and the opt-in media card flag. It never stores credentials,
@@ -32,7 +32,7 @@ def lock_settings(home=None, environment=None):
     env = os.environ if environment is None else environment
     base = Path(env.get('XDG_CONFIG_HOME') or ((Path(home) if home else Path.home()) / '.config'))
     path = base / 'orbit' / 'lock.json'
-    settings = {'backend': 'swaylock', 'media': False}
+    settings = {'backend': 'qml', 'media': False}
     try:
         with path.open('r', encoding='utf-8') as handle:
             data = json.loads(handle.read(65536))

@@ -6,7 +6,12 @@ import Quickshell
 Singleton {
     id: root
 
-    readonly property string script: `${Quickshell.env("WYSUN_APP_DIR") || `${Quickshell.env("HOME")}/.local/share/orbit/app`}/launcher_data.py`
+    readonly property string appDir: Quickshell.env("WYSUN_APP_DIR") || `${Quickshell.env("HOME")}/.local/share/orbit/app`
+    readonly property string script: `${appDir}/launcher_data.py`
+    // Neovim-coloured code previews, cached on disk (code_preview.py): `codePreview(path)` is the argv.
+    function codePreview(path: string): var {
+        return ["python3", "-I", `${appDir}/code_preview.py`, path];
+    }
 
     function run(args: var): void {
         Quickshell.execDetached(["python3", "-I", script, "act", ...args]);

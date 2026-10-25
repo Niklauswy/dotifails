@@ -426,7 +426,7 @@ def section_label(text):
 
 # ---------------------------------------------------------------- surface
 def paint_surface(widget):
-    """Window material. Space Black: tinted glass; Fluent: pearl or mica, opaque."""
+    """Window material. Dark: tinted glass; light: opaque pearl."""
     values = tokens()
     radius = values['radius_l']
     painter = QPainter(widget)

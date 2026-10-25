@@ -470,7 +470,7 @@ class RecorderWindow(QWidget):
         self.activateWindow()
 
     def closeEvent(self, event):
-        self.player.stop()
+        self.player.shutdown()
         event.accept()
         QApplication.instance().quit()
 

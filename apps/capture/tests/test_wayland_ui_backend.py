@@ -31,17 +31,23 @@ class NativeUiBackendTests(unittest.TestCase):
             library.return_value.XOpenDisplay.return_value=None
             self.assertFalse(_x11_property());library.assert_called_once()
     def test_native_player_embeds_without_winid_or_mpv_subprocess(self):
-        from loomrec.ui.player import Player
-        class Surface(QWidget):
-            failed=Signal(str)
-            def start(self,*args):self.started=args
-            def stop(self):pass
-        with patch('loomrec.ui.mpv_embed.MpvSurface',Surface),patch('loomrec.ui.player.QProcess.start') as spawn:
-            player=Player()
-            with tempfile.TemporaryDirectory() as folder:
-                path=Path(folder)/'synthetic-placeholder.mkv';path.write_bytes(b'not media; mocked engine')
-                with patch.object(player.surface,'winId',side_effect=AssertionError('native embedding needs no XID')):player.load(path)
-                self.assertEqual(player.surface.started[0],path);spawn.assert_not_called()
-            player.shutdown();player.deleteLater();self.app.processEvents()
+        import subprocess
+        from PySide6.QtCore import QProcess
+        from wysun_media import mpv
+        from wysun_media.player import MediaPlayer
+        from loomrec.ui import media_host
+        media_host.install()
+        with tempfile.TemporaryDirectory() as folder:
+            path=Path(folder)/'synthetic.mp4'
+            subprocess.run(['ffmpeg','-v','error','-y','-f','lavfi','-i','testsrc2=size=160x90:rate=10:duration=2','-pix_fmt','yuv420p',str(path)],check=True,timeout=60)
+            with patch.dict(os.environ,{'WYSUN_MPV_OPTIONS':'ao=null'}),patch.object(QProcess,'start') as spawn:
+                player=MediaPlayer(mode='embedded',renderer='software');player.resize(320,200);player.show()
+                self.assertTrue(player.open(path))
+                with patch.object(player._video,'winId',side_effect=AssertionError('native embedding needs no XID')):
+                    end=__import__('time').monotonic()+10
+                    while player.session.state!='playing' and __import__('time').monotonic()<end:self.app.processEvents()
+                self.assertEqual(player.session.state,'playing');spawn.assert_not_called()
+                self.assertEqual(player.renderer,'software')
+                player.shutdown();player.deleteLater();self.app.processEvents();mpv.wait_closed()
 
 if __name__=='__main__':unittest.main()

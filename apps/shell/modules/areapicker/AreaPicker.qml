@@ -127,8 +127,10 @@ Scope {
 
         property point cursor
 
+        // Only the output being captured gets an overlay: the selection lives on one
+        // output, and every extra layer window costs a frozen frame and a teardown.
         Variants {
-            model: Screens.screens
+            model: Screens.screens.filter(s => s.name === root.session?.screenName)
 
             StyledWindow {
                 id: win

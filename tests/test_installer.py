@@ -3,33 +3,31 @@ from pathlib import Path
 from unittest.mock import patch
 spec=importlib.util.spec_from_file_location('installer',Path(__file__).parents[1]/'installer/main.py');m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
 class InstallerTests(unittest.TestCase):
- def test_update_keeps_theme_chosen_in_settings(self):
+ def test_the_mode_is_installed_in_the_new_format_and_kept_on_update(self):
   for name in ('config/.config','config/.local/bin','assets/icons','assets/backgrounds','manifests'):(self.source/name).mkdir(parents=True)
   (self.source/'config/.zshrc').write_text('preserved')
-  (self.source/'manifests/themes.json').write_text(json.dumps({'tokyo':{'name':'Tokyo','wallpaper':'tokyo.png'},'severance':{'name':'Severance','wallpaper':'azul.jpg'}}))
-  active=self.home/'.config/orbit/theme.json';active.parent.mkdir(parents=True);active.write_text(json.dumps({'id':'tokyo','name':'Tokyo'}))
-  d=self.deploy();d.receipt['theme']='severance'
-  try:
-   with patch.object(d,'deploy'),patch.object(d,'generated'),patch.object(d,'configure_scripts'):d.configure(components=('desktop',))
-   self.assertEqual(d.receipt['theme'],'tokyo')
-  finally:d.lock.close()
- def test_fluent_theme_is_installed_in_the_new_format_and_kept_on_update(self):
-  for name in ('config/.config','config/.local/bin','assets/icons','assets/backgrounds','manifests'):(self.source/name).mkdir(parents=True)
-  (self.source/'config/.zshrc').write_text('preserved')
-  (self.source/'manifests/themes.json').write_text(json.dumps({'fluent-dark':{'name':'Fluent oscuro','wallpaper':'azul.jpg'},'severance':{'name':'Severance','wallpaper':'azul.jpg'}}))
+  (self.source/'manifests/themes.json').write_text(json.dumps({'material-you':{'name':'Material You','wallpaper':'purple.jpg'}}))
+  # A fresh profile gets the automatic mode and the shipped wallpaper.
   d=self.deploy()
   try:
-   with patch.object(d,'deploy'),patch.object(d,'configure_scripts'),patch.object(d,'generated') as generated:d.configure(theme='fluent-dark',components=('desktop',))
+   with patch.object(d,'deploy'),patch.object(d,'configure_scripts'),patch.object(d,'configure_manager'),patch.object(d,'generated') as generated:d.configure(components=('desktop',))
    written={str(call.args[1]):call.args[0] for call in generated.call_args_list}
-   self.assertEqual(json.loads(written['.config/orbit/theme.json']),{'style':'fluent','variant':'dark'})
-   self.assertEqual(d.receipt['theme'],'fluent-dark')
+   self.assertEqual(json.loads(written['.config/orbit/theme.json']),{'mode':'auto'})
+   self.assertEqual(json.loads(written['.config/orbit/environment.json'])['wallpaper']['default'],str(self.home/'.local/share/backgrounds/purple.jpg'))
+   self.assertEqual(d.receipt['theme'],'material-you')
   finally:d.lock.close()
-  active=self.home/'.config/orbit/theme.json';active.parent.mkdir(parents=True);active.write_text(json.dumps({'style':'fluent','variant':'dark'}))
-  d=self.deploy()
-  try:
-   with patch.object(d,'deploy'),patch.object(d,'generated'),patch.object(d,'configure_scripts'):d.configure(components=('desktop',))
-   self.assertEqual(d.receipt['theme'],'fluent-dark')
-  finally:d.lock.close()
+  # An update keeps the mode and the wallpaper the user picked, and reads the mode out of the old formats.
+  for stored,expected in (({'mode':'light'},'light'),({'style':'fluent','variant':'dark'},'auto'),({'id':'tokyo','name':'Tokyo'},'auto'),
+                          ({'style':'fluent','variant':'dark','dynamic':{'enabled':True,'mode':'dark'}},'dark')):
+   active=self.home/'.config/orbit/theme.json';active.parent.mkdir(parents=True,exist_ok=True);active.write_text(json.dumps(stored))
+   (self.home/'.config/orbit/environment.json').write_text(json.dumps({'wallpaper':{'default':'/mine.jpg','folders':['/library']}}))
+   d=self.deploy()
+   try:
+    with patch.object(d,'deploy'),patch.object(d,'configure_scripts'),patch.object(d,'configure_manager'),patch.object(d,'generated') as generated:d.configure(components=('desktop',))
+    written={str(call.args[1]):call.args[0] for call in generated.call_args_list}
+    self.assertEqual(json.loads(written['.config/orbit/theme.json']),{'mode':expected},stored)
+    self.assertNotIn('.config/orbit/environment.json',written,'the personal wallpaper is left alone')
+   finally:d.lock.close()
  def test_mise_shim_keeps_command_name(self):
   import subprocess,tarfile
   bundle=self.root/'bundle';(bundle/'mise/bin').mkdir(parents=True)

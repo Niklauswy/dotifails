@@ -2,7 +2,7 @@
 
 Original Wysun code. The design (video/GIF wallpapers, thumbnails cached by file
 identity, a representative frame feeding the Material You scheme) follows the
-description in AdiAmbassador/caelestia-aw; no code was copied from it.
+description in the upstream animated-wallpaper project; no code was copied from it.
 
 Everything generated lives under $XDG_CACHE_HOME/wysun/wallpapers, never in the repo.
 """

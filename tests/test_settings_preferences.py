@@ -224,56 +224,55 @@ class ColourPreferenceTests(PreferenceCase):
         Image.new('RGB', (64, 48), (225, 36, 72)).save(self.red)
         Image.new('RGB', (64, 48), (25, 82, 224)).save(self.blue)
 
-    def test_new_profile_reads_as_dynamic_and_fixed_choice_is_preserved(self):
-        self.assertTrue(self.env.colour_values()['dynamic'])
+    def test_new_profile_reads_as_automatic_and_the_old_formats_are_read(self):
+        self.assertEqual(self.env.colour_values(), {'mode': 'auto'})
+        self.write('theme.json', '{"mode":"light","privado":[1,2]}')
+        self.assertEqual(self.env.colour_values(), {'mode': 'light'})
         self.write('theme.json', '{"style":"fluent","variant":"light","privado":[1,2]}')
-        self.assertFalse(self.env.colour_values()['dynamic'])
+        self.assertEqual(self.env.colour_values(), {'mode': 'auto'}, 'a retired fixed theme reads as automatic')
 
-    def test_dynamic_save_with_seed_variant_and_exact_undo(self):
+    def test_mode_save_with_wallpaper_and_exact_undo(self):
         theme = self.write('theme.json', '{"style":"fluent","variant":"dark","privado":{"a":[1,2]}}\r\n')
         environment = self.write('environment.json', json.dumps({'wallpaper': {'default': str(self.red), 'mode': 'fit', 'folders': ['/x']},
                                                                   'other': {'k': 1}}, indent=3) + '\n')
         self.env.reload()
         before = self.state()
         baseline = self.env.colour_values()
-        result = self.env.apply_colour(dict(dynamic=True, selection=baseline['selection'], mode='light', variant='vibrant', seed='#336699'),
-                                       str(self.blue), baseline)
+        result = self.env.apply_colour(dict(mode='light'), str(self.blue), baseline)
         theme_json = json.loads(theme.read_text())
-        self.assertEqual(theme_json['dynamic'], {'enabled': True, 'mode': 'light', 'variant': 'vibrant', 'seed': '#336699'})
-        self.assertEqual(theme_json['privado'], {'a': [1, 2]})
+        self.assertEqual(theme_json, {'privado': {'a': [1, 2]}, 'mode': 'light'})
         saved = json.loads(environment.read_text())
         self.assertEqual((saved['wallpaper']['default'], saved['wallpaper']['mode'], saved['wallpaper']['folders'], saved['other']),
                          (str(self.blue), 'fit', ['/x'], {'k': 1}))
         scheme = json.loads(theme_core.scheme_path(self.home).read_text())
-        self.assertEqual((scheme['name'], scheme['mode'], scheme['variant']), ('dynamic', 'light', 'vibrant'))
+        self.assertEqual((scheme['name'], scheme['mode']), ('dynamic', 'light'))
         self.assertEqual(set(scheme), {'name', 'flavour', 'mode', 'variant', 'colours', 'wallpaper_hash'})
-        self.assertEqual(self.env.colour_values()['seed'], '#336699')
+        self.assertEqual(self.env.colour_values()['mode'], 'light')
         self.env.undo_preferences(result['backup'])
         self.assertEqual(self.state(), before)
 
-    def test_choosing_a_fixed_scheme_keeps_the_mode_and_ends_the_dynamic_intent(self):
-        self.write('environment.json', json.dumps({'wallpaper': {'default': str(self.red)}}))
+    def test_automatic_mode_follows_the_wallpaper_and_an_explicit_one_does_not(self):
+        bright = self.home / 'bright.png'
+        Image.new('RGB', (64, 48), (245, 240, 225)).save(bright)
+        self.write('environment.json', json.dumps({'wallpaper': {'default': str(bright)}}))
         self.env.reload()
-        base = self.env.colour_values()
-        self.env.apply_colour(dict(dynamic=True, selection=base['selection'], mode='dark'), None, base)
-        base = self.env.colour_values()
-        self.env.apply_colour(dict(dynamic=False, selection='tokyo', mode='dark'), None, base)
-        intent = json.loads((self.orbit / 'theme.json').read_text())
-        self.assertEqual(theme_core.key(intent['style'], intent['variant']), 'space-black:tokyo')
-        self.assertFalse(intent['dynamic']['enabled'])
-        self.assertEqual(json.loads(theme_core.scheme_path(self.home).read_text())['name'], 'tokyo')
+        self.env.apply_colour(dict(mode='auto'), None, self.env.colour_values())
+        self.assertEqual(json.loads(theme_core.scheme_path(self.home).read_text())['mode'], 'light')
+        self.env.apply_colour(dict(mode='dark'), None, self.env.colour_values())
+        self.assertEqual(json.loads(theme_core.scheme_path(self.home).read_text())['mode'], 'dark')
+        self.assertEqual(json.loads((self.orbit / 'theme.json').read_text()), {'mode': 'dark'})
 
-    def test_invalid_theme_json_or_seed_blocks_the_save(self):
+    def test_invalid_theme_json_or_mode_blocks_the_save(self):
         theme = self.write('theme.json', '{oops')
         before = self.state()
         with self.assertRaisesRegex(ValueError, 'JSON inválido'):
-            self.env.apply_colour(dict(dynamic=True, selection=('fluent', 'dark'), mode='dark'), None)
+            self.env.apply_colour(dict(mode='dark'), None)
         theme.write_text('{}')
-        for bad in ('#12', 'red'):
+        for bad in ('nope', 'sepia', ''):
             with self.assertRaises(ValueError):
-                self.env.apply_colour(dict(dynamic=True, selection=('fluent', 'dark'), mode='dark', seed=bad), None)
+                self.env.apply_colour(dict(mode=bad), None)
         with self.assertRaises(ValueError):
-            self.env.apply_colour(dict(dynamic=False, selection='nope', mode='dark'), None)
+            self.env.apply_colour(dict(mode='dark'), None, dict(mode='light'))
         theme.write_text('{oops')
         self.assertEqual(self.state()['theme.json'], before['theme.json'])
         self.assertFalse(theme_core.scheme_path(self.home).exists())
@@ -286,7 +285,7 @@ class ColourPreferenceTests(PreferenceCase):
         before = self.state()
         base = self.env.colour_values()
         with self.assertRaises(Exception):
-            self.env.apply_colour(dict(dynamic=True, selection=base['selection'], mode='dark'), str(junk), base)
+            self.env.apply_colour(dict(mode='dark'), str(junk), base)
         self.assertEqual(self.state(), before)
         self.assertEqual(json.loads(environment.read_text())['k'], 2)
 

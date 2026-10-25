@@ -34,6 +34,30 @@ class DisplayTests(BridgeCase):
     PLAN = [dict(name='A', enabled=True, primary=True, mode='1920x1080', rate='60.00', rotation='normal', x=0, y=0, scale=1.0),
             dict(name='B', enabled=True, primary=False, mode='1280x720', rate='60.00', rotation='left', x=5000, y=300, scale=2.0)]
 
+    def test_widget_placement_preserves_profiles_and_other_preferences(self):
+        backend = self.bridge.env()
+        backend.save_section('displays', {'profiles': {'A|B': self.PLAN}})
+        backend.save_section('wallpaper', {'default': 'keep.png'})
+        self.assertEqual(self.bridge.displays_widgets({'mode': 'primary'}), {'mode': 'primary'})
+        backend.reload()
+        self.assertEqual(backend.section('displays')['profiles']['A|B'], self.PLAN)
+        self.assertEqual(backend.section('displays')['widgetScreens'], 'primary')
+        self.assertEqual(backend.section('wallpaper')['default'], 'keep.png')
+        with self.assertRaises(ValueError):
+            self.bridge.displays_widgets({'mode': 'invalid'})
+        self.bridge.displays_widgets({'mode': 'all'})
+        backend.reload()
+        self.assertEqual(backend.section('displays')['widgetScreens'], 'all')
+
+    def test_saved_primary_does_not_follow_keyboard_focus(self):
+        backend = self.bridge.env()
+        backend.save_section('displays', {'profiles': {'A|B': self.PLAN}})
+        outputs = [dict(p, connected=True, primary=p['name'] == 'B',
+                        modes=[dict(name=p['mode'], rates=[p['rate']])]) for p in self.PLAN]
+        with patch.object(self.bridge, 'display_inventory', return_value=outputs):
+            state = self.bridge.displays_state({})
+        self.assertEqual([p['name'] for p in state['plan'] if p['primary']], ['A'])
+
     def test_layout_is_edge_to_edge_and_reports_logical_boxes(self):
         view = self.bridge.displays_normalize({'plan': self.PLAN})
         boxes = {b['name']: b for b in view['boxes']}

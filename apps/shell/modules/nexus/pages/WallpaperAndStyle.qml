@@ -40,45 +40,8 @@ PageBase {
             color: Colours.tPalette.m3surfaceContainer
             radius: Tokens.rounding.large
 
-            Loader {
-                anchors.centerIn: parent
-                opacity: Config.background.wallpaperEnabled ? 0 : 1
-                active: opacity > 0
-
-                sourceComponent: ColumnLayout {
-                    spacing: Tokens.spacing.extraSmall
-
-                    MaterialIcon {
-                        Layout.alignment: Qt.AlignHCenter
-                        text: "hide_image"
-                        color: Colours.palette.m3onSurfaceVariant
-                        fontStyle: Tokens.font.icon.extraLarge
-                    }
-
-                    StyledText {
-                        Layout.alignment: Qt.AlignHCenter
-                        text: Tr.tr("Wallpaper disabled")
-                        color: Colours.palette.m3onSurfaceVariant
-                        font: Tokens.font.body.large
-                    }
-                }
-
-                Behavior on opacity {
-                    Anim {
-                        type: Anim.SlowEffects
-                    }
-                }
-            }
-
             Item {
                 anchors.fill: parent
-                opacity: Config.background.wallpaperEnabled ? 1 : 0
-
-                Behavior on opacity {
-                    Anim {
-                        type: Anim.SlowEffects
-                    }
-                }
 
                 Loader {
                     id: wallIndicatorLoader
@@ -125,7 +88,7 @@ PageBase {
                     id: wallImg
 
                     anchors.fill: parent
-                    source: Wallpapers.current
+                    source: Wallpapers.forOutput(root.nState.screen.name)
                     preventInit: wallIndicatorLoader.opacity > 0
                     fadeOutAnim: Anim.DefaultEffects
                     fadeInAnim: Anim.SlowEffects
@@ -139,80 +102,118 @@ PageBase {
                         }
                     }
                 }
+
+                Row {
+                    id: swatches
+
+                    readonly property real size: Math.round(wallWrapper.implicitHeight * 0.14)
+
+                    anchors.left: parent.left
+                    anchors.bottom: parent.bottom
+                    anchors.margins: Tokens.padding.large
+                    spacing: -Math.round(size * 0.3)
+
+                    Swatch {
+                        size: swatches.size
+                        color: Colours.palette.m3primary
+                    }
+
+                    Swatch {
+                        size: swatches.size
+                        color: Colours.palette.m3secondary
+                    }
+
+                    Swatch {
+                        size: swatches.size
+                        color: Colours.palette.m3tertiary
+                    }
+
+                    Swatch {
+                        size: swatches.size
+                        color: Colours.palette.m3primaryContainer
+                    }
+                }
             }
+        }
+
+        StyledText {
+            Layout.alignment: Qt.AlignHCenter
+            text: Tr.tr("Colours follow your wallpaper")
+            color: Colours.palette.m3onSurfaceVariant
+            font: Tokens.font.body.medium
+        }
+
+        IconTextButton {
+            Layout.alignment: Qt.AlignHCenter
+            icon: "view_carousel"
+            text: Tr.tr("Browse as carousel")
+            font: Tokens.font.body.large
+            isRound: true
+            shapeMorph: true
+            horizontalPadding: Tokens.padding.extraLarge
+            verticalPadding: Tokens.padding.medium
+            onClicked: Quickshell.execDetached(["wysun", "shell", "wallpapers"])
         }
 
         ButtonRow {
             Layout.alignment: Qt.AlignHCenter
-            spacing: Tokens.spacing.small
+            Layout.topMargin: Tokens.spacing.small
+            spacing: Tokens.spacing.extraSmall
 
-            IconTextButton {
-                icon: "wallpaper"
-                text: Tr.tr("Wallpapers")
-                font: Tokens.font.body.large
-                isRound: true
-                shapeMorph: true
-                type: IconTextButton.Tonal
-                horizontalPadding: Tokens.padding.extraLarge
-                verticalPadding: Tokens.padding.medium
-                disabled: !Config.background.wallpaperEnabled
-                onClicked: root.nState.openSubPage(1) // Wallpaper page
+            ModeButton {
+                icon: "brightness_auto"
+                text: Tr.tr("Auto")
+                mode: "auto"
             }
 
-            IconTextButton {
-                icon: "palette"
-                text: "Temas y colores"
-                font: Tokens.font.body.large
-                isRound: true
-                shapeMorph: true
-                type: IconTextButton.Tonal
-                horizontalPadding: Tokens.padding.extraLarge
-                verticalPadding: Tokens.padding.medium
-                onClicked: root.nState.openSubPage(3) // Colours page
+            ModeButton {
+                icon: "light_mode"
+                text: Tr.tr("Light")
+                mode: "light"
             }
-        }
 
-        ButtonRow {
-            Layout.alignment: Qt.AlignHCenter
-            spacing: Tokens.spacing.small
-
-            IconTextButton {
-                icon: "view_carousel"
-                text: Tr.tr("Browse as carousel")
-                font: Tokens.font.body.large
-                isRound: true
-                shapeMorph: true
-                horizontalPadding: Tokens.padding.extraLarge
-                verticalPadding: Tokens.padding.medium
-                disabled: !Config.background.wallpaperEnabled
-                onClicked: Quickshell.execDetached(["wysun", "shell", "wallpapers"])
+            ModeButton {
+                icon: "dark_mode"
+                text: Tr.tr("Dark")
+                mode: "dark"
             }
         }
 
         ToggleRow {
+            Layout.topMargin: Tokens.spacing.small
+
             first: true
-            text: Tr.tr("Display wallpaper")
-            checked: Config.background.wallpaperEnabled
-            onToggled: GlobalConfig.background.wallpaperEnabled = checked
-        }
-
-        ToggleRow {
-            Layout.topMargin: Tokens.spacing.extraSmall / 2 - parent.spacing
-
+            last: true
             text: Tr.tr("Transparency")
             // TRANSLATORS: %1/%2 = opacity values from 0 to 1 for the base surface and layered surfaces
             subtext: Tr.tr("Base %1, layers %2").arg(Colours.transparency.base).arg(Colours.transparency.layers)
             checked: Colours.transparency.enabled
             onToggled: GlobalConfig.appearance.transparency.enabled = checked
         }
+    }
 
-        ToggleRow {
-            Layout.topMargin: Tokens.spacing.extraSmall / 2 - parent.spacing
+    // One option of the colour mode: Auto follows the wallpaper, Light and Dark override it.
+    component ModeButton: IconTextButton {
+        required property string mode
 
-            last: true
-            text: Tr.tr("Dark theme")
-            checked: !Colours.light
-            onToggled: Colours.setMode(checked ? "dark" : "light")
-        }
+        font: Tokens.font.body.large
+        type: IconTextButton.Tonal
+        isRound: true
+        shapeMorph: true
+        horizontalPadding: Tokens.padding.extraLarge
+        verticalPadding: Tokens.padding.medium
+        checked: Colours.modePreference === mode
+        onClicked: Colours.setMode(mode)
+    }
+
+    // A swatch of the Material role that currently follows the wallpaper.
+    component Swatch: StyledRect {
+        required property real size
+
+        implicitWidth: size
+        implicitHeight: size
+        radius: Tokens.rounding.full
+        border.width: 2
+        border.color: Colours.palette.m3surfaceContainer
     }
 }

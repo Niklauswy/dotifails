@@ -8,6 +8,7 @@ import qs.utils
 import qs.modules.nexus
 import qs.modules.colors
 import qs.modules.processes
+import "../services/WidgetScreens.js" as WidgetScreens
 
 Scope {
     id: root
@@ -15,7 +16,11 @@ Scope {
         overview: 'overview', cheatsheet: 'cheatsheet', wallpapers: 'wallpapers', launcher: 'launcher', emoji: 'emoji', menu: 'utilities', quicksettings: 'utilities', notifications: 'sidebar', sidebar: 'sidebar', session: 'session', ai: 'aiUsage' })
     Processes { id: processes }
     Colors { id: colors }
-    function current() { return ShellState.forActive(); }
+    function current(kind) {
+        if (Screens.widgetsOnlyPrimary && WidgetScreens.drawerSurface(kind))
+            return ShellState.forScreen(Screens.widgetScreens[0]);
+        return ShellState.forActive();
+    }
     function available(kind, state) {
         return kind !== 'launcher' || Config.launcher.enabled;
     }
@@ -36,7 +41,7 @@ Scope {
             return colors.open(toggle);
         }
         if (kind === "processes") return processes.open(toggle);
-        const state = current(), field = surfaces[kind];
+        const state = current(kind), field = surfaces[kind];
         if (!state || !field || !available(kind, state)) return false;
         const value = toggle ? !state[field] : true;
         close(); state[field] = value;
@@ -57,7 +62,7 @@ Scope {
         return Players.list.find(p => p.identity === identity || Players.getIdentity(p) === identity) ?? null;
     }
     function showMedia(identity) {
-        const state = current();
+        const state = current('dashboard');
         if (!state || !Config.dashboard.showMedia) return false;
         const tab = Config.dashboard.showDashboard ? 1 : 0;
         if (state.dashboard && state.dashboardTab === tab) {  // the shortcut again closes it
@@ -85,7 +90,9 @@ Scope {
     // Diagnostic: open a surface on a named output (e.g. when the focused one has a fullscreen app).
     function showOn(name, kind) {
         const field = surfaces[kind];
-        const screen = Quickshell.screens.find(s => s.name === name);
+        const requested = Quickshell.screens.find(s => s.name === name);
+        if (!requested) return false;
+        const screen = WidgetScreens.drawerSurface(kind) ? Screens.drawerScreen(requested) : requested;
         const state = screen ? ShellState.forScreen(screen) : null;
         if (!state || !field || !available(kind, state)) return false;
         close(); state[field] = true;
@@ -115,6 +122,8 @@ Scope {
             return true;
         }
         function media(identity: string): bool { return root.showMedia(identity); }
+        // Names every screen for a few seconds (Settings > Displays > Identify).
+        function identify(): bool { DisplayIdentify.show(); return true; }
         // Eyedropper without the Colors panel (Super+Shift+C).
         function pickColor(): bool { return colors.pick(); }
         function close(): void { root.close(); }
@@ -122,11 +131,14 @@ Scope {
         // Preserve legacy process routes while opening the independent module.
         function openRoute(route: string): bool { return route === "processes" ? processes.open(false) : WindowFactory.createRoute(route); }
         function openThemeSettings(): bool { Quickshell.execDetached(['wysun', 'settings', 'theme']); return true; }
-        function theme(): string { return JSON.stringify({ name: Colours.scheme, variant: Colours.flavour }); }
+        function theme(): string { return JSON.stringify({ name: Colours.scheme, variant: Colours.flavour, mode: Colours.modePreference }); }
         function status(): string {
             const state = root.current();
             return JSON.stringify({ implementation: 'wysun', revision: '6c70d5cb',
                 screens: Quickshell.screens.map(s => s.name), focused: Hypr.focusedMonitor?.name ?? '',
+                primaryScreen: Screens.primaryName, widgetScreens: Screens.widgetScreens.map(s => s.name),
+                widgetMode: Screens.widgetsOnlyPrimary ? 'primary' : 'all',
+                openByScreen: Quickshell.screens.map(s => ({screen: s.name, surfaces: Object.keys(root.surfaces).filter(k => ShellState.forScreen(s)?.[root.surfaces[k]])})),
                 open: (state ? Object.keys(root.surfaces).filter(k => state[root.surfaces[k]]) : []).concat(processes.window ? ['processes'] : [], colors.window ? ['colors'] : []),
                 scheme: Colours.scheme });
         }

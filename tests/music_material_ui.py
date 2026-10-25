@@ -19,7 +19,7 @@ import music_data as music
 import theme_core
 from music_material import display_family, ligature_available, load_fonts, symbol_family
 from theme_tokens import tokens, watch_theme
-from wysun_scheme import fixed_scheme, generate_dynamic
+from wysun_scheme import generate_dynamic
 
 app = QApplication([])
 app.setStyle('Fusion')
@@ -35,7 +35,7 @@ for name in ('Primera', 'Segunda'):
 music.import_files([Path.home() / 'Primera.wav', Path.home() / 'Segunda.wav'])
 selection = theme_core.selection_path()
 selection.parent.mkdir(parents=True, exist_ok=True)
-selection.write_text(json.dumps({'style': 'fluent', 'variant': 'dark'}))
+selection.write_text(json.dumps({'mode': 'dark'}))
 scheme_path = theme_core.scheme_path()
 scheme_path.parent.mkdir(parents=True, exist_ok=True)
 watch_theme()
@@ -91,11 +91,7 @@ def wait_for(predicate, detail='Theme observer did not update Music'):
     raise AssertionError(detail)
 
 
-schemes = [(f'{style}-{variant}', {'style': style, 'variant': variant}, fixed_scheme(style, variant))
-           for style, variant in (('space-black', 'space-black'), ('space-black', 'tokyo'),
-                                  ('space-black', 'severance'), ('fluent', 'light'), ('fluent', 'dark'))]
-for mode in ('light', 'dark'):
-    schemes.append(('material-you-' + mode, {'style': 'fluent', 'variant': mode}, generate_dynamic(cover, mode=mode)))
+schemes = [('material-you-' + mode, {'mode': mode}, generate_dynamic(cover, mode=mode)) for mode in ('light', 'dark')]
 for name, chosen, scheme in schemes:
     selection.write_text(json.dumps(chosen))
     temporary = scheme_path.with_suffix('.tmp')

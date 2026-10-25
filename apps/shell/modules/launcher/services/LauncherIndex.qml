@@ -10,7 +10,7 @@ import qs.services
 import qs.utils
 import "Catalog.js" as Catalog
 import "Files.js" as Files
-import "Search.js" as Search
+import "Usage.js" as Usage
 
 // In-memory indexes behind the launcher. Everything the root view filters per keystroke lives
 // here as plain JS rows; slow sources (clipboard, files) are loaded asynchronously.
@@ -22,12 +22,13 @@ Singleton {
 
     // Commands
     readonly property var commands: Catalog.views().concat(Catalog.tools(Array.from(GlobalConfig.launcher.actions.values)))
+    readonly property var settings: Catalog.settings()
 
-    // Usage: pinned and recent items, persisted in the state dir
+    // Pinned items and what the launcher learned from use (Usage.js), persisted in the state dir.
     property var pinned: []
-    property var recent: []
+    property var usage: ({})
+    property var picks: []
     readonly property var pins: pinned.map(resolve).filter(Boolean)
-    readonly property var recents: recent.map(resolve).filter(Boolean).slice(0, 6)
 
     // Loaded on demand
     property var clips: []
@@ -40,21 +41,26 @@ Singleton {
     property var calcHistory: []
     property bool capturePaused
 
-    // Streaming file search
+    // Recursive file search over the tree index written by launcher_data.py (see FileSearch.mjs),
+    // in a worker thread. One search is in flight at a time; keys typed meanwhile collapse into the
+    // latest query, sent when the worker answers.
     property var files: []
-    property bool filesBusy
+    property bool filesBusy: !indexReady
     property string wanted
-    property string started
-    property var pending: []
+    property string wantedScope
+    property bool indexReady
+    property bool searching
+    property bool searchQueued
+    readonly property int maxFileHits: 60
 
     readonly property var context: ({
-            apps: Apps.rows, commands, clips, files, recentFiles, calcHistory, browse, places,
-            pins, recents, maxApps
+            apps: Apps.rows, commands, settings, clips, files, recentFiles, calcHistory, browse, places,
+            pins, usage, picks, maxApps
         })
 
     function snapshot(row: var): var {
         const out = {};
-        for (const k of ["kind", "key", "title", "subtitle", "icon", "type", "path", "isDir", "l", "a"])
+        for (const k of ["kind", "key", "title", "subtitle", "icon", "type", "path", "isDir", "editable", "l", "a"])
             if (row[k] !== undefined)
                 out[k] = row[k];
         return out;
@@ -63,6 +69,8 @@ Singleton {
     function resolve(item: var): var {
         if (item.key.startsWith("app:"))
             return Apps.rows.find(r => r.key === item.key) ?? null;
+        if (item.key.startsWith("cmd:settings:"))
+            return settings.find(r => r.key === item.key) ?? null;
         if (item.key.startsWith("cmd:"))
             return commands.find(r => r.key === item.key) ?? null;
         return item.row ?? null;
@@ -80,15 +88,18 @@ Singleton {
         save();
     }
 
-    function remember(row: var): void {
-        if (row.kind !== "cmd" && row.kind !== "file")
+    // Something was opened from the launcher after typing `query` ("" from the suggestions).
+    function remember(row: var, query: string): void {
+        if (!["app", "cmd", "file"].includes(row.kind))
             return;
-        recent = [{key: row.key, row: snapshot(row)}].concat(recent.filter(r => r.key !== row.key)).slice(0, 20);
+        const next = Usage.record(usage, picks, row.key, query ?? "", Date.now(), row.kind === "file" ? snapshot(row) : null);
+        usage = next.usage;
+        picks = next.picks;
         save();
     }
 
     function save(): void {
-        store.setText(JSON.stringify({pinned, recent}));
+        store.setText(JSON.stringify({pinned, usage, picks}));
     }
 
     // Async data sources -----------------------------------------------------------------------
@@ -146,6 +157,11 @@ Singleton {
         calcProc.running = true;
     }
 
+    // Tesseract pass over screenshots copied before the text was recognized; the list refreshes as each one finishes.
+    function recognizePending(): void {
+        ocrProc.running = true;
+    }
+
     function loadStatus(): void {
         statusProc.running = false;
         statusProc.running = true;
@@ -163,63 +179,39 @@ Singleton {
     }
     property var exportCallback: null
 
-    function searchFiles(query: string): void {
+    // Keeps the index fresh: built on first use, refreshed in the background once it is a minute old.
+    function ensureFileIndex(): void {
+        treeProc.running = false;
+        treeProc.running = true;
+    }
+
+    // `scope` limits the search to one folder (and all of its subfolders), relative to home or absolute.
+    function searchFiles(query: string, scope: string): void {
         wanted = query.trim();
-        if (!wanted) {
-            files = [];
-            pending = [];
-            filesBusy = false;
-            if (finder.running)
-                finder.signal(15);
+        wantedScope = scope ? scope.replace(home + "/", "").replace(/^\/+|\/+$/g, "") : "";
+        if (scope === home)
+            wantedScope = "";
+        if (!wanted || !indexReady) {
+            if (files.length)
+                files = [];
             return;
         }
-        filesBusy = true;
-        if (finder.running)
-            finder.signal(15); // onExited starts the newest wanted query
+        if (searching)
+            searchQueued = true;
         else
-            startFinder();
+            postSearch();
     }
 
-    function startFinder(): void {
-        if (!wanted) {
-            filesBusy = false;
-            return;
-        }
-        started = wanted;
-        files = [];
-        pending = [];
-        const prune = [];
-        for (const n of [".*", "node_modules", "__pycache__", "venv", "go", "snap", "target", "build", "dist", "vendor", "Trash"])
-            prune.push("-name", n, "-o");
-        prune.pop();
-        const names = [];
-        for (const t of Search.terms(started))
-            names.push("-iname", "*" + t.replace(/[\\*?\[\]]/g, "\\$&") + "*");
-        finder.command = ["nice", "-n", "10", "find", home, "-maxdepth", "8", "(", ...prune, ")", "-prune", "-o", "(", "-type", "f", "-o", "-type", "d", ")", ...names, "-printf", "%y%p\\n"];
-        finder.running = true;
-    }
-
-    function onFileLine(line: string): void {
-        if (started !== wanted || line.length < 2)
-            return;
-        pending.push(Files.row(line.slice(1), line[0] === "d", home));
-        if (pending.length >= 400)
-            finder.signal(15);
-        if (!flush.running)
-            flush.start();
-    }
-
-    function publishFiles(): void {
-        const ts = Search.terms(started);
-        const scored = pending.map(r => ({r, s: Search.score(ts, r) - r.a.length * 0.2 - (r.isDir ? 0 : -30)}));
-        scored.sort((x, y) => y.s - x.s);
-        files = scored.slice(0, 40).map(x => x.r);
+    function postSearch(): void {
+        searching = true;
+        searchQueued = false;
+        fileWorker.sendMessage({q: wanted, scope: wantedScope, limit: maxFileHits});
     }
 
     function decorateClips(rows: var): var {
         return rows.filter(r => r.kind === "clip").map(r => Object.assign(r, {
                 key: "clip:" + r.id, type: r.clip_kind,
-                l: (r.clip_kind === "image" ? "image screenshot picture" : r.value.slice(0, 400)).toLowerCase(), a: r.clip_kind
+                l: (r.clip_kind === "image" ? "image screenshot picture " + (r.ocr ?? "").replace(/\s+/g, " ") : r.value.slice(0, 400)).toLowerCase(), a: r.clip_kind
             }));
     }
 
@@ -232,32 +224,66 @@ Singleton {
             try {
                 const d = JSON.parse(text());
                 root.pinned = d.pinned ?? [];
-                root.recent = d.recent ?? [];
+                root.picks = d.picks ?? [];
+                // Older files only had a `recent` list: it seeds what the launcher has learned.
+                root.usage = d.usage ?? Usage.fromRecent(d.recent ?? [], Date.now());
             } catch (e) {}
         }
     }
 
-    Process {
-        id: finder
+    FileView {
+        id: treeFile
 
-        stdout: SplitParser {
-            onRead: line => root.onFileLine(line)
-        }
-        onExited: {
-            if (root.started !== root.wanted)
-                root.startFinder();
-            else {
-                root.publishFiles();
-                root.filesBusy = false;
+        path: `${root.home}/.local/share/orbit/launcher-files.idx`
+        watchChanges: true
+        printErrors: false
+        onFileChanged: reload()
+        onLoaded: fileWorker.sendMessage({index: text()})
+    }
+
+    WorkerScript {
+        id: fileWorker
+
+        source: "FileSearchWorker.mjs"
+        onMessage: m => {
+            if (m.ready) {
+                // A search still in flight was sent after the new index, so it already uses it.
+                root.indexReady = true;
+                if (!root.searching && root.wanted)
+                    root.postSearch();
+                return;
             }
+            root.searching = false;
+            if (root.searchQueued) {
+                root.postSearch();
+                return;
+            }
+            if (m.q === root.wanted && m.scope === root.wantedScope)
+                root.files = m.rows.map(r => Files.row(root.home + "/" + r[0], r[1], root.home));
+        }
+    }
+
+    Process {
+        id: treeProc
+
+        command: ["python3", "-I", LauncherData.script, "files-index"]
+        onExited: if (!root.indexReady) treeFile.reload()
+    }
+
+    Process {
+        id: ocrProc
+
+        command: ["python3", "-I", LauncherData.script, "act", "ocr-pending"]
+        stdout: SplitParser {
+            onRead: ocrRefresh.restart()
         }
     }
 
     Timer {
-        id: flush
+        id: ocrRefresh
 
-        interval: 45
-        onTriggered: root.publishFiles()
+        interval: 400
+        onTriggered: root.refresh()
     }
 
     Process {

@@ -38,16 +38,40 @@ def layout_view(plan):
 
 def displays_state(_args):
     from display_layout import normalize, SCALES
-    outputs = display_inventory(env().runner)
+    backend = env()
+    outputs = display_inventory(backend.runner)
+    from environment_settings import profile_key
+    saved = backend.section('displays').get('profiles', {}).get(profile_key(outputs), [])
+    primary = next((p['name'] for p in saved if p.get('enabled') and p.get('primary')), None)
+    if primary and any(o['name'] == primary and o['enabled'] for o in outputs):
+        for output in outputs:
+            output['primary'] = output['name'] == primary
     modes = {o['name']: [dict(m, rates=list(dict.fromkeys(m['rates']))) for m in o['modes']]
              for o in outputs if o['connected']}
     return dict(layout_view(normalize(display_plan(outputs))), modes=modes, scales=list(SCALES))
 
 
+def displays_widgets(args):
+    mode = args.get('mode')
+    if mode not in ('all', 'primary'):
+        raise ValueError('Widget screens must be all or primary.')
+    backend = env()
+    section = dict(backend.section('displays'))
+    section['widgetScreens'] = mode
+    backend.save_section('displays', section)
+    return dict(mode=mode)
+
+
+def available_modes(backend):
+    """What each connected monitor offers, for the plans that name a mode."""
+    return {o['name']: o['modes'] for o in display_inventory(backend.runner) if o['connected']}
+
+
 def displays_normalize(args):
     """Apply one edit (or a move) to a draft plan and return it normalised."""
-    from display_layout import normalize, move
-    plan = args['plan']
+    from display_layout import normalize, move, fill_modes
+    # A display just switched on still says 0x0: give it a mode before it is laid out.
+    plan = fill_modes(args['plan'], available_modes(env()))
     if args.get('move'):
         plan = move(plan, args['move']['name'], args['move']['direction'])
     else:
@@ -56,8 +80,9 @@ def displays_normalize(args):
 
 
 def displays_try(args):
+    from display_layout import fill_modes
     backend = env()
-    trial = DisplayTrial(backend, args['plan'])
+    trial = DisplayTrial(backend, fill_modes(args['plan'], available_modes(backend)))
     return dict(folder=str(trial.folder))
 
 
@@ -103,6 +128,7 @@ def workspaces_edit(args):
 
 
 ACTIONS = {
+    'displays.widgets': displays_widgets,
     'displays.state': displays_state, 'displays.normalize': displays_normalize,
     'displays.try': displays_try, 'displays.settle': displays_settle,
     'workspaces.state': workspaces_state, 'workspaces.edit': workspaces_edit,

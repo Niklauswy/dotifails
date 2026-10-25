@@ -1,0 +1,16 @@
+{
+  "name": "severance",
+  "flavour": "lock",
+  "mode": "dark",
+  "variant": "tonalspot",
+  "colours": {
+    "surface": "0f1b1e",
+    "primary": "c1e1e9",
+    "error": "f0a6af",
+    "onSurface": "e9f3f6",
+    "onSurfaceVariant": "a3b8bd",
+    "success": "9ccda1",
+    "warning": "e0ae82",
+    "info": "94cbd9"
+  }
+}

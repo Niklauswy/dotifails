@@ -118,10 +118,10 @@ class WaylandImageTests(unittest.TestCase):
             self.assertEqual((result.width(),result.height()),(128,32));self.assertEqual(result.pixelColor(5,5),QColor('blue'))
             portal.screenshot.assert_called_once_with(interactive=False);portal.close.assert_called_once();stream.assert_not_called();self.assertTrue(path.exists())
     def test_mpv_numeric_locale_is_normalized_before_creating_handle(self):
-        from loomrec.ui import mpv_embed
-        with patch('loomrec.ui.mpv_embed.locale.setlocale') as normalize:
-            mpv_embed.normalize_numeric_locale()
-        normalize.assert_called_once_with(mpv_embed.locale.LC_NUMERIC,'C')
+        from wysun_media import mpv
+        with patch('wysun_media.mpv.locale.setlocale') as normalize:
+            mpv.normalize_numeric_locale()
+        normalize.assert_called_once_with(mpv.locale.LC_NUMERIC,'C')
     def test_multimonitor_composition_uses_topology_and_max_scale(self):
         from PySide6.QtGui import QImage,QColor
         from loomrec.portal_image import compose_frames
@@ -132,14 +132,17 @@ class WaylandImageTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'topología'):compose_frames([(red,{}),(blue,{})])
     def test_software_renderer_buffer_alignment_and_image_ownership(self):
         import ctypes as C
-        from loomrec.ui.mpv_embed import sw_frame
+        from wysun_media.video import SoftwareVideoView
         seen=[]
         class Library:
             def mpv_render_context_render(self,context,params):
                 size=C.cast(params[0].data,C.POINTER(C.c_int));stride=C.cast(params[2].data,C.POINTER(C.c_size_t)).contents.value
                 self.address=params[3].data;self.count=stride*size[1];seen.append((self.address%64,stride%64))
-                C.memset(self.address,127,self.count);return 0
-        library=Library();image=sw_frame(library,None,21,19)
+                C.memset(self.address,127,self.count)
+                for offset in range(3,self.count,4):C.c_ubyte.from_address(self.address+offset).value=255      # bgra: opaque
+                return 0
+        library=Library();image=SoftwareVideoView._frame(library,None,21,19)
         self.assertEqual(seen,[(0,0)]);self.assertEqual(image.width(),21);self.assertEqual(image.pixelColor(0,0).red(),127)
+        buffer_owner=bytes(image.constBits());self.assertEqual(buffer_owner[:4],bytes([127,127,127,255]),'the image owns its pixels after the render buffer is gone')
 
 if __name__=='__main__':unittest.main()

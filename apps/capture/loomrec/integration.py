@@ -5,17 +5,6 @@ import os
 import subprocess
 
 
-def theme_id():
-    config = Path(os.environ.get('XDG_CONFIG_HOME', str(Path.home()/'.config')))
-    for name in ('orbit', 'dotifails'):
-        try:
-            data = json.loads((config/name/'theme.json').read_text())
-            return data.get('id', data.get('name', 'space-black'))
-        except (OSError, ValueError): pass
-    return 'space-black'
-
-
-
 def concentration_lock(method):
     def guarded(self,*args,**kwargs):
         import fcntl

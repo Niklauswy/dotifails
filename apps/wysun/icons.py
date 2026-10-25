@@ -19,7 +19,7 @@ ALIASES={
  'notes':'file-text','wallpaper':'image','compositor':'sliders-horizontal','mute':'volume-x','screenshot':'camera',
  'network_action':'wifi','network_device':'cable','status_action':'sliders-horizontal'
 }
-# Category hues are theme tokens: graphite in Space Black, darker in Fluent light.
+# Category hues are theme tokens: graphite in the dark palette, darker in the light one.
 ACCENTS={'clipboard':'cat_orange','files':'cat_blue','file':'cat_blue','calculator':'cat_green','calc':'cat_green','emoji':'cat_yellow','windows':'cat_indigo','network':'cat_cyan','bluetooth':'cat_periwinkle','settings':'cat_lavender','power':'cat_rose','terminal':'cat_slate'}
 
 def tint(color):

@@ -71,20 +71,58 @@ QtObject {
         Quickshell.execDetached(["sh", "-c", 'wl-copy --type image/png < "$1"', "sh", path]);
     }
 
-    function keep(path: string): string {
+    // The copy in flight, so its outcome reaches the caller only once the file really exists.
+    property var pendingSave
+
+    property Process saver: Process {
+        onExited: code => {
+            const pending = root.pendingSave;
+            root.pendingSave = null;
+            if (pending)
+                code === 0 ? pending.done(pending.target) : pending.failed();
+        }
+    }
+
+    // Publishes the scratch PNG in the screenshots folder. done(target) runs after the file is in place;
+    // failed() runs when it could not be written, and nothing may then assume the file exists.
+    function keep(path: string, done: var, failed: var): void {
         const target = `${outputDir}/Screenshot_${stamp()}.png`;
-        Quickshell.execDetached(["sh", "-c", 'mkdir -p "$(dirname "$2")" && cp -n "$1" "$2"', "sh", path, target]);
-        return target;
+        pendingSave = { target: target, done: done, failed: failed };
+        saver.command = ["sh", "-c", 'mkdir -p "$(dirname "$2")" && cp -n -- "$1" "$2" && test -s "$2"', "sh", path, target];
+        saver.running = true;
+    }
+
+    function notifyFailure(): void {
+        Quickshell.execDetached(["notify-send", "-a", "Wysun", "-u", "critical", Tr.tr("Screenshot not saved"), Tr.tr("The file could not be written to %1.").arg(Paths.shortenHome(outputDir))]);
     }
 
     // Copy (and save when the shortcut asks for it), notify and close.
     function deliver(item: Item, save: bool): void {
         render(item, path => {
             copyImage(path);
-            const saved = save ? keep(path) : "";
-            const body = saved ? Tr.tr("Copied to the clipboard and saved to %1").arg(Paths.shortenHome(saved)) : Tr.tr("Copied to the clipboard");
-            Quickshell.execDetached(["notify-send", "-a", "Wysun", "-i", path, Tr.tr("Screenshot taken"), body]);
-            finished();
+            const announce = saved => {
+                const body = saved ? Tr.tr("Copied to the clipboard and saved to %1").arg(Paths.shortenHome(saved)) : Tr.tr("Copied to the clipboard");
+                Quickshell.execDetached(["notify-send", "-a", "Wysun", "-i", path, Tr.tr("Screenshot taken"), body]);
+                finished();
+            };
+            if (!save)
+                return announce("");
+            keep(path, announce, () => {
+                notifyFailure();
+                finished();   // the copy to the clipboard did succeed
+            });
+        });
+    }
+
+    // Copy, save, and open the saved picture in Wysun Player. The viewer is launched only once the file is
+    // published; if saving fails the overlay stays open so the capture can be saved again.
+    function view(item: Item): void {
+        render(item, path => {
+            copyImage(path);
+            keep(path, saved => {
+                Quickshell.execDetached(["wysun", "player", "--", saved]);
+                finished();
+            }, notifyFailure);
         });
     }
 

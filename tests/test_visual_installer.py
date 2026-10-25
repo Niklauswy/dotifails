@@ -54,7 +54,7 @@ class VisualInstallerBackendTests(unittest.TestCase):
         self.assertTrue(backups(self.home)[0]['id'].endswith('aaaaaa'))
 
     def test_plan_matches_backend_arguments_and_selected_packages(self):
-        options = InstallOptions(SOURCE, components=('terminal',), theme='tokyo', extras=('obsidian',))
+        options = InstallOptions(SOURCE, components=('terminal',), extras=('obsidian',))
         plan = options.summary()
         self.assertEqual(plan['command'], options.argv())
         self.assertIn('flatpak', plan['packages'])
@@ -90,7 +90,7 @@ class VisualInstallerBackendTests(unittest.TestCase):
             path = self.home/relative
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(content)
-        self.assertEqual(self.install('terminal', '--theme', 'tokyo'), 0)
+        self.assertEqual(self.install('terminal'), 0)
         for relative, content in originals.items():
             self.assertEqual((self.home/relative).read_text(), content)
         self.assertFalse((self.home/'.local/share/orbit/app').exists())

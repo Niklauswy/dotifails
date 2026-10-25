@@ -101,7 +101,6 @@ class NativeSettingsTests(unittest.TestCase):
             self.assertEqual(json.loads(model.path.read_text())['overrides'],{})
     def test_native_bar_and_theme_with_xdg_outside_home(self):
         from environment_settings import EnvironmentSettings
-        from theme_runtime import apply_theme
         from theme_tokens import theme_id,invalidate
         from ui_appearance import save_appearance,read_appearance
         with tempfile.TemporaryDirectory() as home,tempfile.TemporaryDirectory() as xdg,patch.dict(os.environ,{'HOME':home,'XDG_CONFIG_HOME':xdg,'WAYLAND_DISPLAY':'fixture','ORBIT_THEME':''}):
@@ -116,13 +115,10 @@ class NativeSettingsTests(unittest.TestCase):
             values.update(left=['orbit'],center=['title'],right=['date','tray'],monitors={'DP-1':True},tray_monitor='DP-1')
             model.apply_bar(values);native=Path(xdg)/'orbit/hypr-bar.json'
             self.assertEqual(json.loads(native.read_text())['height'],40)
-            wallpaper=Path(home)/'.local/share/backgrounds/tokyo.png';wallpaper.parent.mkdir(parents=True);image=QImage(32,20,QImage.Format_ARGB32);image.fill(QColor('red'));image.save(str(wallpaper),'PNG')
-            result=apply_theme(Path.home(),'tokyo',runner)
-            self.assertTrue(Path(result['backup']).is_dir())
             # Theme colours are no longer copied into the bar file: the bar follows the theme.
             saved=json.loads(native.read_text());self.assertNotIn('background',saved);self.assertEqual(saved['monitors'],{'DP-1':True})
-            self.assertTrue((Path(xdg)/'orbit/environment.json').exists());self.assertFalse((Path(home)/'.config').exists())
-            invalidate();self.assertEqual(theme_id(Path.home()),'space-black:tokyo')
+            self.assertFalse((Path(home)/'.config').exists())
+            invalidate();self.assertEqual(theme_id(Path.home()),'material-you:dark')
             save_appearance({'opacity':77,'reduced_motion':True},Path.home());self.assertEqual(read_appearance()['opacity'],77)
             self.assertIn(['wysun','shell','reload-preferences'],calls);self.assertFalse(any('bspc' in c or 'desktop-bar' in str(c) for c in calls))
     def test_first_fragment_runtime_error_rolls_back_files_and_partial_bindings(self):
@@ -163,15 +159,15 @@ class NativeSettingsTests(unittest.TestCase):
         def wait(ms):
             loop=QEventLoop();QTimer.singleShot(ms,loop.quit);loop.exec()
         import theme_tokens
-        with tempfile.TemporaryDirectory() as home,patch.dict(os.environ,{'HOME':home,'XDG_CONFIG_HOME':home+'/config','ORBIT_THEME':''}),patch.object(theme_tokens,'refresh_widgets') as refresh:
+        with tempfile.TemporaryDirectory() as home,patch.dict(os.environ,{'HOME':home,'XDG_CONFIG_HOME':home+'/config','XDG_STATE_HOME':home+'/state','ORBIT_THEME':'','WYSUN_THEME':''}),patch.object(theme_tokens,'refresh_widgets') as refresh:
             previous=getattr(APP,'orbitThemeWatcher',None)
             if previous is not None:del APP.orbitThemeWatcher
             theme_tokens.invalidate();theme_tokens.watch_theme();watcher=APP.orbitThemeWatcher
             try:
-                path=Path(home)/'config/orbit/theme.json';path.parent.mkdir(parents=True);path.write_text('{"id":"tokyo"}')
-                wait(120);self.assertEqual(watcher.key,(('space-black','tokyo'),None));self.assertEqual(refresh.call_count,1)
-                alternate=path.with_suffix('.new');alternate.write_text('{"id":"space-black"}');alternate.replace(path)
-                wait(120);self.assertEqual(watcher.key,(('space-black','space-black'),None));self.assertEqual(refresh.call_count,2)
+                path=Path(home)/'config/orbit/theme.json';path.parent.mkdir(parents=True);path.write_text('{"mode":"light"}')
+                wait(120);self.assertEqual(watcher.key,(('material-you','light'),None));self.assertEqual(refresh.call_count,1)
+                alternate=path.with_suffix('.new');alternate.write_text('{"mode":"dark"}');alternate.replace(path)
+                wait(120);self.assertEqual(watcher.key,(('material-you','dark'),None));self.assertEqual(refresh.call_count,2)
                 wait(100);self.assertEqual(refresh.call_count,2);self.assertFalse(watcher.timer.isActive())
             finally:
                 watcher.deleteLater();del APP.orbitThemeWatcher
@@ -192,8 +188,9 @@ class NativeSettingsTests(unittest.TestCase):
         finally:os.close(read)
         with patch.object(clip,'drain_watch_offer') as drain,patch.object(clip.subprocess,'check_output',return_value='text/plain'),patch.object(clip,'read_offer',return_value=b'own fixture'),patch('builtins.print'):
             clip.snapshot();drain.assert_called_once()
-    def test_libmpv_distribution_copies_are_identical(self):
+    def test_player_package_in_recorder_is_the_same_source(self):
         root=Path(__file__).resolve().parents[2]
-        self.assertEqual((root/'apps/wysun/mpv_embed.py').read_bytes(),(root/'apps/capture/loomrec/ui/mpv_embed.py').read_bytes())
+        link=root/'apps/capture/wysun_media'
+        self.assertTrue(link.is_symlink());self.assertEqual(link.resolve(),(root/'apps/wysun/wysun_media').resolve())
 
 if __name__=='__main__':unittest.main()

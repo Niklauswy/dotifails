@@ -56,9 +56,10 @@ GridLayout {
     }
 
     Rect {
+        // The calendar takes the place of the old resource rings (the Performance tab has them).
         Layout.row: 1
         Layout.column: 1
-        Layout.columnSpan: 3
+        Layout.columnSpan: 4
         Layout.fillWidth: true
         Layout.preferredHeight: calendar.implicitHeight
 
@@ -72,29 +73,20 @@ GridLayout {
     }
 
     Rect {
-        Layout.row: 1
-        Layout.column: 4
-        Layout.preferredWidth: resources.implicitWidth
-        Layout.fillHeight: true
-
-        radius: Tokens.rounding.large
-
-        Resources {
-            id: resources
-        }
-    }
-
-    Rect {
         Layout.row: 0
         Layout.column: 5
         Layout.rowSpan: 2
         Layout.preferredWidth: media.implicitWidth
+        // The calendar gives up the width; the player and the waffle keep theirs.
+        Layout.minimumWidth: media.implicitWidth
         Layout.fillHeight: true
 
         radius: Tokens.rounding.extraLarge * 2
 
         Media {
             id: media
+            // Whatever width the dashboard can give it; the waffle's column takes the rest.
+            width: parent.width
         }
     }
 

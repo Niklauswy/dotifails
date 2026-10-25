@@ -129,7 +129,7 @@ Los cambios de Hyprland requieren «Aplicar cambios» y se aplican en vivo media
 - Filtros para imágenes, vídeos, audio, documentos, código y otros archivos; miniaturas de imágenes y coincidencias de OCR identificadas como «Texto en imagen».
 - Acciones agrupadas por tipo y operaciones de archivo. «Copiar imagen» conserva la resolución decodificada; «Copiar archivo» coloca una referencia de archivo para pegarla en un gestor. «Guardar una copia» conserva el original.
 - Botones visibles de vista ampliada y «Abrir con…», también para imágenes del historial. El OCR trabaja en la búsqueda y los metadatos, sin añadir una acción redundante al menú.
-- Vista ampliada con zoom de imágenes, páginas de PDF y texto/código. Vídeo y audio tienen reproducción/pausa, posición, duración y silencio. Espacio reproduce o pausa; cerrar la vista detiene el reproductor.
+- Vista ampliada con zoom de imágenes, páginas de PDF y texto/código. Vídeo, audio e imágenes se muestran con el componente de Wysun Player (`docs/player.md`): el panel de detalles empieza en pausa, `Espacio` reproduce o pausa, y el botón de la barra o abrir el archivo continúa en Wysun Player. Cerrar la vista detiene la reproducción.
 - Metadatos según el formato: tamaño, dimensiones, duración, códec, páginas, modificación y disponibilidad de búsqueda por texto. Los archivos de código, incluido TypeScript `.ts`, conservan la apertura en Vim.
 
 ### Conexiones
@@ -204,9 +204,9 @@ Validación adicional: `QT_QPA_PLATFORM=offscreen python3 -m unittest tests.wysu
 
 ## Temas
 
-En **Ajustes → Tema** se elige Tokyo, Severance o Space Black. Tokyo combina negro ciruela, violeta y movimiento suave; Severance (antes Azul), azul petróleo y cian; Space Black, grafito y plata con movimiento sutil. Cada perfil aplica el fondo, la paleta ANSI y el cursor/selección de Ghostty, el prompt de Starship, Neovim, Wysun y sus paneles, la barra de Quickshell, los bordes de Hyprland, las notificaciones del shell, colores GTK y el bloqueo animado. Las preferencias de opacidad y reducción de movimiento se conservan. Las ventanas abiertas detectan los cambios de tema y actualizan estilos e iconos. Neovim toma su paleta al volver a abrirlo.
+En **Ajustes → Wallpaper & style** se elige el fondo con el carrusel y el modo (automático, claro u oscuro). Los colores salen del wallpaper: Wysun y sus paneles, la barra de Quickshell, las notificaciones del shell y el bloqueo animado los toman al instante. Las preferencias de opacidad y reducción de movimiento se conservan. Las ventanas abiertas detectan los cambios y actualizan estilos e iconos.
 
-Antes de escribir se guarda un respaldo en `~/.local/state/orbit/theme-backups/`. Si falla la validación de Ghostty o la aplicación principal, se restauran los archivos anteriores. No se reemplazan fuentes, tamaños, atajos, conexiones, notas o historial. Los antiguos nombres de instalación `azul` y `morado` siguen siendo alias de `severance` y `tokyo`.
+Antes de escribir se guarda un respaldo en `~/.local/state/orbit/theme-backups/`. Si falla la validación de Ghostty o la aplicación principal, se restauran los archivos anteriores. No se reemplazan fuentes, tamaños, atajos, conexiones, notas o historial. Los nombres de los temas fijos retirados (`tokyo`, `severance`, `azul`…) solo se entienden en `WYSUN_THEME` como `dark`.
 
 Las notificaciones mantienen una apariencia neutra en todos los temas: grafito translúcido, texto claro y borde gris. Sus colores no cambian con el tema. Settings ofrece Displays y Workspaces como entradas principales, junto con las preferencias nativas de Nexus.
 
@@ -249,10 +249,11 @@ dueño del wallpaper: Python guarda preferencias y solicita `wysun shell
 reload-preferences`. Color usa `wysun recorder --pick-color`. El bloqueo y la
 suspensión llaman a wysun-lock, que espera la adquisición del bloqueo.
 
-Files y Recorder conservan vídeo embebido con libmpv SW/QImage/QWidget y sockets
-IPC; Music conserva su motor mpv de audio y persistencia. El render por software
-puede consumir más CPU; las pruebas unitarias/offscreen y el vídeo sintético no
-constituyen validación física del compositor.
+Files y Recorder embeben el componente `wysun_media` (libmpv con render OpenGL y
+decodificación por hardware cuando `python3-pyside6.qtopenglwidgets` está instalado, o render
+por software); Music conserva su motor mpv de audio y persistencia. Los medios se abren en
+Wysun Player (`wysun player`). Las pruebas offscreen usan el render por software: la ruta
+OpenGL se valida con `tests/wayland_media_case.py` sobre el compositor real.
 
 La barra se configura mediante `${XDG_CONFIG_HOME:-$HOME/.config}/orbit/hypr-bar.json`;
 Quickshell la observa y Python solicita `wysun shell reload-preferences`. El tema

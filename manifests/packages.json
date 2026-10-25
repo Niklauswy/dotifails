@@ -42,6 +42,8 @@
       "python3-pyside6.qtgui",
       "python3-pyside6.qtwidgets",
       "python3-pyside6.qtsvg",
+      "python3-pyside6.qtopengl",
+      "python3-pyside6.qtopenglwidgets",
       "python3-dbus",
       "python3-gi",
       "gir1.2-gtk-3.0",
@@ -120,6 +122,8 @@
       "python3-pyside6.qtgui",
       "python3-pyside6.qtwidgets",
       "python3-pyside6.qtsvg",
+      "python3-pyside6.qtopengl",
+      "python3-pyside6.qtopenglwidgets",
       "python3-dbus",
       "python3-gi",
       "poppler-utils",
@@ -149,10 +153,10 @@
       "initramfs-tools"
     ],
     "greeter": [
-      "slick-greeter",
-      "libgtk-3-dev",
-      "gcc",
-      "pkg-config"
+      "greetd",
+      "quickshell",
+      "qt6-shader-baker",
+      "qml6-module-qtquick-shapes"
     ]
   },
   "wayland_backports": [

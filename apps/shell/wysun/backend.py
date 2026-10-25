@@ -45,7 +45,7 @@ def active_recordings():
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('action', choices=('launch', 'schemes', 'current', 'preview', 'record-status', 'record-stop', 'record-pause'))
+    parser.add_argument('action', choices=('launch', 'preview', 'record-status', 'record-stop', 'record-pause'))
     parser.add_argument('value', nargs='?')
     args = parser.parse_args()
     if args.action.startswith('record-'):
@@ -76,19 +76,8 @@ def main():
         sys.path.insert(0, str(source))
         import theme_core
         import wysun_scheme
-        if args.action == 'current':
-            scheme = theme_core.read_scheme() or wysun_scheme.fixed_scheme(*theme_core.selection())
-            print('\n'.join((scheme['name'], scheme['flavour'], scheme['variant'])))
-        elif args.action == 'preview':
-            print(json.dumps(wysun_scheme.generate_dynamic(Path(args.value))))
-        else:
-            result = {}
-            for style, variant in [('space-black', 'space-black'), ('space-black', 'tokyo'),
-                                   ('space-black', 'severance'), ('fluent', 'light'), ('fluent', 'dark')]:
-                scheme = wysun_scheme.fixed_scheme(style, variant)
-                key = 'fluent:' + variant if style == 'fluent' else variant
-                result[key] = {'default': scheme['colours']}
-            print(json.dumps(result))
+        mode = theme_core.read_mode()
+        print(json.dumps(wysun_scheme.generate_dynamic(Path(args.value), None if mode == 'auto' else mode)))
 
 
 if __name__ == '__main__':

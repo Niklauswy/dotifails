@@ -3,6 +3,7 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
 import Wysun.State
+import qs.services
 
 Scope {
     id: root
@@ -16,8 +17,12 @@ Scope {
         target: RuntimeState
     }
 
+    // Wysun Player marks a visible, playing video in its MPRIS metadata (wysun:visibleVideo). That keeps the
+    // screen awake by itself and leaves the manual "keep awake" switch (RuntimeState.inhibitIdle) alone.
+    readonly property bool videoPlaying: Players.list.find(player => player.metadata["wysun:visibleVideo"] === true) !== undefined
+
     IdleInhibitor {
-        enabled: RuntimeState.inhibitIdle
+        enabled: RuntimeState.inhibitIdle || root.videoPlaying
         window: PanelWindow {
             implicitWidth: 0
             implicitHeight: 0
@@ -29,6 +34,11 @@ Scope {
     IpcHandler {
         function isEnabled(): bool {
             return RuntimeState.inhibitIdle;
+        }
+
+        // Whether the screen is being kept awake right now, by the switch or by a playing video.
+        function isInhibiting(): bool {
+            return RuntimeState.inhibitIdle || root.videoPlaying;
         }
 
         function toggle(): void {

@@ -10,7 +10,6 @@ QtObject {
     property list<int> subPageIdxStack
     property bool searchOpen
 
-    property string selectedWallpaperCategory
     property BluetoothDevice selectedBtDevice
     property DesktopEntry selectedApp
     property int editingVpnIndex: -1

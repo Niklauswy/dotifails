@@ -144,9 +144,8 @@ STYLE = _STYLE_TEMPLATE  # theme_tokens.apply_style template
 
 
 def apply_palette(app):
-    """Files always uses the theme palette, independent of the host Qt theme."""
+    """Files uses the theme palette, independent of the host Qt theme."""
     from theme_tokens import apply_palette as themed
-    app.setProperty('orbitThemePalette', True)
     themed(app)
 
 _PATHS = {

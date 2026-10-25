@@ -1,14 +1,20 @@
 """Wysun theme selection and token resolution, without Qt.
 
-The data lives in wysun_theme.json next to this file. Wysun Recorder/Screenshot
-ship byte-identical copies of both files (tests/test_theme_tokens.py), so the
-capture releases never import code from the installed launcher.
+Wysun has one style, Material You. Its colours always come from the wallpaper
+($XDG_STATE_HOME/wysun/scheme.json, written by wysun_scheme); the only thing the
+user chooses is the mode: ``auto`` (follows the wallpaper), ``light`` or ``dark``.
 
-Selection precedence: WYSUN_THEME, ORBIT_THEME, then
-$XDG_CONFIG_HOME/orbit/theme.json as {"style": ..., "variant": ...}. The old
-{"id": ...} format and aliases remain valid. Dynamic Material roles are read
-from $XDG_STATE_HOME/wysun/scheme.json only after an explicit selection.
-Unknown or malformed state falls back without overwriting user data.
+The data lives in wysun_theme.json next to this file. Wysun Recorder ships
+byte-identical copies of both files (tests/test_theme_tokens.py), so the capture
+releases never import code from the installed launcher. The two variants in the
+data (``light``/``dark``) are base palettes: they cover the tokens Material does
+not define and are the fallback while no scheme exists.
+
+Selection precedence: WYSUN_THEME, ORBIT_THEME (``light``/``dark``), then
+$XDG_CONFIG_HOME/orbit/theme.json as {"mode": "auto"|"light"|"dark"}. The older
+formats ({"style", "variant"}, {"id"}, {"dynamic": {...}}) are still read and are
+migrated by ``migrate``. Unknown or malformed state falls back without
+overwriting user data.
 """
 import datetime
 import json
@@ -19,6 +25,8 @@ import time
 from pathlib import Path
 
 DATA_PATH = Path(__file__).with_name('wysun_theme.json')
+MODES = ('auto', 'light', 'dark')
+LEGACY_KEYS = ('id', 'name', 'style', 'variant', 'dynamic')
 _data = None
 _cache = {}
 _scheme_cache = {}
@@ -55,8 +63,13 @@ def default():
     return value['style'], value['variant']
 
 
+def default_wallpaper():
+    """File name of the wallpaper the distribution ships (and the fallback palette is built from)."""
+    return data()['default']['wallpaper']
+
+
 def variant_style(variant):
-    """Style that owns a bare variant id, e.g. tokyo -> space-black."""
+    """Style that owns a bare variant id, e.g. dark -> material-you."""
     for style, spec in styles().items():
         if variant in spec['variants']:
             return style
@@ -64,7 +77,7 @@ def variant_style(variant):
 
 
 def normalize(style=None, variant=None):
-    """Return a valid (style, variant). Mismatched variants use the style default."""
+    """Return a valid (style, variant). Unknown values use the defaults."""
     known = styles()
     if style not in known:
         owner = variant_style(variant) if isinstance(variant, str) else None
@@ -77,7 +90,11 @@ def normalize(style=None, variant=None):
 
 
 def parse(value):
-    """Parse a selection string: alias, variant id, style, 'style:variant' or 'style/variant'."""
+    """Parse a variant string: ``light``, ``dark``, ``material-you[:variant]`` or a retired theme id.
+
+    The retired fixed-theme ids (tokyo, fluent:dark...) only map to light or dark.
+    ``auto`` is not a variant and gives ``None``.
+    """
     if not isinstance(value, str) or not value.strip():
         return None
     value = value.strip()
@@ -96,19 +113,18 @@ def parse(value):
     return None
 
 
-def from_object(obj):
-    """Selection from a theme.json object; (style, variant, legacy_format)."""
+def mode_from_object(obj):
+    """(mode, legacy) for a theme.json object; ``legacy`` is True when it still carries old keys."""
     if not isinstance(obj, dict):
-        return default() + (False,)
-    style, variant = obj.get('style'), obj.get('variant')
-    if isinstance(style, str) and style in styles():
-        return normalize(style, variant) + (False,)
-    if isinstance(style, str) or isinstance(variant, str):
-        parsed = parse(variant) if isinstance(variant, str) else None
-        return (parsed or default()) + (False,)
-    legacy = obj.get('id', obj.get('name'))
-    parsed = parse(legacy) if isinstance(legacy, str) else None
-    return (parsed or default()) + (True,)
+        return 'auto', False
+    legacy = any(key in obj for key in LEGACY_KEYS)
+    if obj.get('mode') in MODES:
+        return obj['mode'], legacy
+    block = obj.get('dynamic')
+    if isinstance(block, dict) and block.get('enabled') is True and block.get('mode') in ('light', 'dark'):
+        return block['mode'], True
+    # A retired fixed theme becomes the automatic mode: the wallpaper decides.
+    return 'auto', legacy
 
 
 def config_root(home=None):
@@ -190,13 +206,30 @@ def environment_override(environ=None):
     return None
 
 
-def read_file(home=None):
-    """Selection stored on disk, ignoring environment overrides."""
+def read_mode(home=None):
+    """Mode stored on disk (``auto``, ``light`` or ``dark``), ignoring environment overrides."""
     try:
         obj = json.loads(selection_path(home).read_text(encoding='utf-8'))
     except (OSError, ValueError, TypeError):
-        return default()
-    return from_object(obj)[:2]
+        return 'auto'
+    return mode_from_object(obj)[0]
+
+
+def mode_variant(mode, home=None):
+    """Base variant for a mode; ``auto`` follows the published scheme, then the default."""
+    style, fallback = default()
+    variants = styles()[style]['variants']
+    if mode in variants:
+        return mode
+    scheme = read_scheme(home)
+    if scheme is not None and scheme['mode'] in variants:
+        return scheme['mode']
+    return fallback
+
+
+def read_file(home=None):
+    """Selection stored on disk as (style, variant), ignoring environment overrides."""
+    return default()[0], mode_variant(read_mode(home), home)
 
 
 def selection(home=None, environ=None):
@@ -235,7 +268,8 @@ def resolve(style=None, variant=None):
         style=style, variant=variant, key=key(style, variant),
         style_name=spec['name'], name=chosen['name'], description=chosen['description'],
         material=chosen.get('material', spec['shape']['material']),
-        wallpaper=chosen['wallpaper'], external=chosen['external'],
+        translucent=chosen.get('translucent', spec['shape']['translucent']),
+        wallpaper=default_wallpaper(), external=chosen['external'],
     )
     return tokens
 
@@ -276,7 +310,7 @@ def overlay_material_roles(tokens, scheme):
     result['material_bottom'] = result['well']
     result['material_edge'] = result['line']
     # Interactive surfaces the table above does not cover would otherwise keep
-    # the preset's values (white Fluent-light fills over a dark scheme).
+    # the base palette's values (white light fills over a dark scheme).
     for token, role in (('fill', 'surfaceContainerHigh'), ('hover', 'surfaceContainerHighest'),
                         ('row_hover', 'surfaceContainerHigh'), ('row_selected', 'secondaryContainer'),
                         ('nav_selected', 'secondaryContainer'), ('tint', 'onSurface'),
@@ -284,16 +318,20 @@ def overlay_material_roles(tokens, scheme):
                         ('tile_hover', 'surfaceContainerHigh'), ('chosen_fill', 'secondaryContainer')):
         if colours.get(role) and token in result:
             result[token] = '#' + colours[role].lower()
+    # Code and terminal colours follow the wallpaper too.
+    terminal = [colours.get(f'term{index}') for index in range(16)]
+    if all(terminal) and isinstance(result.get('external'), dict):
+        result['external'] = dict(result['external'], palette=['#' + value.lower() for value in terminal])
     return result
 
 
 def resolve_active(style=None, variant=None, home=None):
-    """Resolve preset geometry with dynamic colours only when explicitly selected."""
+    """Base palette and shape for the selection, with the wallpaper's colours on top."""
     style, variant = normalize(*(selection(home) if style is None else (style, variant)))
     scheme = read_scheme(home) if environment_override() is None else None
     if (isinstance(scheme, dict) and scheme.get('name') == 'dynamic'
             and scheme.get('mode') in styles().get(style, {}).get('variants', {})):
-        # Dynamic colours bring their own light/dark mode: start from the preset
+        # The scheme brings its own light/dark mode: start from the base palette
         # of that mode so tokens the scheme does not define stay coherent.
         variant = scheme['mode']
     values = resolve(style, variant)
@@ -332,29 +370,20 @@ def _backup(path, home=None):
     return target
 
 
-def serialize(style, variant):
-    style, variant = normalize(style, variant)
-    return json.dumps({'style': style, 'variant': variant}, indent=2) + '\n'
+def serialize(mode='auto'):
+    if mode not in MODES:
+        raise ValueError('Modo desconocido: ' + str(mode))
+    return json.dumps({'mode': mode}, indent=2) + '\n'
 
 
-def write_selection(style, variant, home=None):
-    """Persist a selection atomically with private permissions and a backup."""
-    path = selection_path(home)
-    text = serialize(style, variant)
-    try:
-        if path.read_text(encoding='utf-8') == text:
-            return path
-    except OSError:
-        pass
-    _backup(path, home)
-    _atomic_write(path, text)
-    invalidate()
-    return path
+def write_mode(mode, home=None):
+    """Persist the mode atomically with private permissions and a backup.
 
-
-def write_selection_preserving(style, variant, home=None):
-    """Update only the selection fields and retain unrelated theme.json data."""
-    style, variant = normalize(style, variant)
+    Only the mode changes: unrelated keys of theme.json are kept and the keys of
+    the retired fixed-theme formats are dropped.
+    """
+    if mode not in MODES:
+        raise ValueError('Modo desconocido: ' + str(mode))
     path = selection_path(home)
     try:
         original = path.read_text(encoding='utf-8')
@@ -365,8 +394,8 @@ def write_selection_preserving(style, variant, home=None):
         raise ValueError('No se reemplazó theme.json porque no es un objeto JSON válido.') from error
     if not isinstance(value, dict):
         raise ValueError('No se reemplazó theme.json porque no es un objeto JSON válido.')
-    value = {key: item for key, item in value.items() if key not in ('id', 'name', 'style', 'variant')}
-    value.update(style=style, variant=variant)
+    value = {key: item for key, item in value.items() if key not in LEGACY_KEYS}
+    value['mode'] = mode
     text = json.dumps(value, ensure_ascii=False, indent=2) + '\n'
     if text == original:
         return path
@@ -388,7 +417,7 @@ def write_scheme(scheme, home=None):
 
 
 def migrate(home=None):
-    """Rewrite a legacy {"id": ...} file in the new format. Returns True if changed."""
+    """Rewrite a theme.json in an old format as {"mode": ...}. Returns True if changed."""
     path = selection_path(home)
     try:
         obj = json.loads(path.read_text(encoding='utf-8'))
@@ -396,8 +425,8 @@ def migrate(home=None):
         return False
     if not isinstance(obj, dict):
         return False
-    style, variant, legacy = from_object(obj)
+    mode, legacy = mode_from_object(obj)
     if not legacy:
         return False
-    write_selection(style, variant, home)
+    write_mode(mode, home)
     return True

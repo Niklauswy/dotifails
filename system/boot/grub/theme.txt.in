@@ -1,0 +1,47 @@
+# Wysun · the training tape. Template: system/boot/render_assets.py writes theme.txt with the Severance
+# tokens and the card's blue. The background is the title card (CardMark through vhs.frag); the boot
+# entries are the programs printed under it, the countdown is the tape about to start.
+title-text: ""
+desktop-image: "background.png"
+desktop-color: "@CARD@"
+terminal-font: "DejaVu Sans Mono Regular 16"
+# GRUB's own terminal (boot messages, the console, the entry editor) takes the place of the programs, on
+# the card's own blue: no black box appears when an entry starts. The logo and the title stay above it.
+terminal-box: "term_*.png"
+terminal-left: "18%"
+terminal-top: "46%"
+terminal-width: "64%"
+terminal-height: "44%"
+
++ boot_menu {
+  left = 30%
+  top = 49%
+  width = 40%
+  height = 30%
+  menu_pixmap_style = "menu_*.png"
+  selected_item_pixmap_style = "select_*.png"
+  item_font = "DejaVu Sans Bold 22"
+  selected_item_font = "DejaVu Sans Bold 22"
+  item_color = "@TEXT@"
+  selected_item_color = "@CARD@"
+  item_height = 48
+  item_padding = 10
+  item_spacing = 8
+  icon_width = 0
+  icon_height = 0
+  item_icon_space = 0
+  scrollbar = false
+}
+
++ progress_bar {
+  id = "__timeout__"
+  left = 30%
+  top = 81%
+  width = 40%
+  height = 28
+  bar_style = "bar_*.png"
+  highlight_style = "bar-fill_*.png"
+  font = "DejaVu Sans Bold 16"
+  text_color = "@TEXT@"
+  text = "THE PROGRAM BEGINS IN %d SECONDS"
+}

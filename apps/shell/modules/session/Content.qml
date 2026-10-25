@@ -7,6 +7,7 @@ import Wysun.Config
 import Wysun.Services
 import qs.components
 import qs.components.controls
+import qs.components.widgets
 import qs.services
 import qs.utils
 
@@ -50,17 +51,11 @@ Column {
         }
     }
 
-    AnimatedImage {
+    // The waffle's little story (components/widgets/Waffle.qml), in the theme's colours.
+    Waffle {
         width: Tokens.sizes.session.button
         height: Tokens.sizes.session.button
-        sourceSize.width: width * ((QsWindow.window as QsWindow)?.devicePixelRatio ?? 1)
-
-        playing: visible
-        asynchronous: true
-        speed: 1
-        // Original sprout mascot with a 22 s story (waves, naps, wakes up).
-        source: Paths.absolutePath("root:/assets/mascot-session.gif")
-        fillMode: AnimatedImage.PreserveAspectFit
+        act: "story"
     }
 
     SessionButton {

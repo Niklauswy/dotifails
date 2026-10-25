@@ -58,6 +58,7 @@ private:
     TRANSITION(inkSplash, "ink-splash", large, QEasingCurve::Linear)
     TRANSITION(inkwellDrop, "inkwell-drop", large, QEasingCurve::Linear)
     TRANSITION(iris, "iris", normal, config::AnimTokens::instance()->emphasizedAccel())
+    TRANSITION(liquidRift, "liquid-rift", large, QEasingCurve::Linear)
     TRANSITION(morph, "morph", large, config::AnimTokens::instance()->expressiveSlowEffects())
     TRANSITION(parametricGlitch, "parametric-glitch", large, QEasingCurve::Linear)
     TRANSITION(perlin, "perlin", normal, QEasingCurve::Linear)

@@ -10,6 +10,7 @@ case "${1:-}" in
     search) shift; exec "$runtime" ipc call wysunShell search "${1:-}" ;;
     emoji) exec "$runtime" ipc call wysunShell toggle emoji ;;
     media) shift; exec "$runtime" ipc call wysunShell media "${1:-}" ;;
+    identify) exec "$runtime" ipc call wysunShell identify ;;
     color-pick) exec "$runtime" ipc call wysunShell pickColor ;;
     launcher) exec "$runtime" ipc call wysunShell toggle launcher ;;
     overview|cheatsheet|wallpapers|menu|windows|session|sidebar) kind="$1"; shift; exec "$runtime" ipc call wysunShell toggle "$kind" "$@" ;;

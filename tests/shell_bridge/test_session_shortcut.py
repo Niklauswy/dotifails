@@ -35,6 +35,10 @@ var screens = [{name: 'left'}, {name: 'right'}];
 var states = [{launcher: true}, {session: true}];
 var active = 0;
 var Quickshell = {screens: screens};
+var Screens = {widgetsOnlyPrimary: false, widgetScreens: [screens[1]],
+    drawerScreen: function(screen) { return this.widgetsOnlyPrimary ? this.widgetScreens[0] : screen; }};
+POLICY
+var WidgetScreens = {drawerSurface: drawerSurface};
 var ShellState = {
     forActive: function() { return active < 0 ? null : states[active]; },
     forScreen: function(screen) { return states[screens.indexOf(screen)]; },
@@ -67,7 +71,15 @@ active = 0;
 check(!show('launcher', true), 'disabled launcher must reject for fallback');
 Config.launcher.enabled = true;
 check(show('launcher', true) && states[0].launcher, 'native launcher not accepted');
-""".replace('SURFACES', surfaces).replace('FUNCTIONS', functions)
+Screens.widgetsOnlyPrimary = true;
+check(show('session', false) && states[1].session && !states[0].session, 'drawer must use saved primary');
+check(showOn('left', 'dashboard') && states[1].dashboard, 'explicit drawer route must reach existing surface');
+check(!showOn('missing', 'dashboard'), 'missing output must reject');
+check(show('launcher', false) && states[0].launcher, 'launcher must stay on focused screen');
+active = -1;
+check(show('session', false) && states[1].session, 'primary drawer works without focused output');
+""".replace('SURFACES', surfaces).replace('FUNCTIONS', functions).replace(
+            'POLICY', (ROOT / 'apps/shell/services/WidgetScreens.js').read_text())
         # Run the bridge JS without a compositor, IPC server or widgets.
         runner = """
 import sys

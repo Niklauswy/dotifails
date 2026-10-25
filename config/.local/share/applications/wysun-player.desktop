@@ -1,0 +1,16 @@
+[Desktop Entry]
+Type=Application
+Name=Wysun Player
+Name[es]=Wysun Player
+GenericName=Visor de imágenes, video y audio
+GenericName[es]=Visor de imágenes, video y audio
+Comment=Reproduce video y audio y muestra imágenes
+Comment[es]=Reproduce video y audio y muestra imágenes
+Exec=wysun-player -- %F
+Icon=multimedia-video-player
+Terminal=false
+Categories=AudioVideo;Player;Viewer;
+MimeType=image/jpeg;image/png;image/gif;image/webp;image/bmp;image/tiff;image/x-tga;image/x-portable-pixmap;image/vnd.microsoft.icon;video/mp4;video/x-matroska;video/webm;video/quicktime;video/x-msvideo;video/mpeg;video/ogg;video/x-flv;video/3gpp;video/x-ms-wmv;video/mp2t;audio/mpeg;audio/flac;audio/x-flac;audio/ogg;audio/x-wav;audio/wav;audio/mp4;audio/aac;audio/x-vorbis+ogg;audio/x-opus+ogg;audio/x-ms-wma;audio/x-aiff;audio/x-matroska;
+Keywords=Wysun;reproductor;player;video;audio;imagen;visor;image;viewer;
+StartupWMClass=wysun-player
+StartupNotify=false

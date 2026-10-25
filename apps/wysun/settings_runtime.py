@@ -67,6 +67,23 @@ def restore_workspaces(backend):
             backend.runner(['hyprctl','eval',layouts.live_script(mapping,{})])
     except Exception as exc:print('Escritorios:',str(exc),file=sys.stderr)
 
+def revive_displays(backend,inventory):
+    """Every connected screen is off: switch them all on, so a saved rule can never leave a black desktop.
+
+    This happens when the arrangement saved for other company (say, the laptop panel turned off while
+    two monitors were plugged in) is the only rule left and the monitors are no longer there.
+    """
+    from display_layout import fill_modes,monitors_fragment,normalize
+    connected=[o for o in inventory if o['connected']]
+    if not connected or any(o['enabled'] for o in connected):return False
+    plan=display_plan(inventory)
+    for p in plan:p['enabled']=True
+    plan=normalize(fill_modes(plan,{o['name']:o['modes'] for o in connected}))
+    plan[0]['primary']=True
+    backend.runner(display_command(plan,inventory))
+    atomic_write(backend.config/'orbit/hypr-monitors.lua',monitors_fragment(plan))
+    return True
+
 def restore_displays(backend):
     """Login/hotplug: apply the arrangement confirmed for these screens.
 
@@ -78,7 +95,7 @@ def restore_displays(backend):
         inventory=display_inventory(backend.runner)
         backend.reload()
         plan=backend.section('displays').get('profiles',{}).get(profile_key(inventory))
-        if not plan:return False
+        if not plan:return revive_displays(backend,inventory)
         plan=normalize(plan)
         current={p['name']:p for p in display_plan(inventory)}
         wanted={p['name']:p for p in plan}
@@ -102,6 +119,9 @@ def restore(preserve_workspaces=False):
     plan=backend.section('displays').get('profiles',{}).get(profile_key(inventory))
     if plan:
         try:run(display_command(plan,inventory))
+        except Exception as exc:print('Pantallas:',str(exc),file=sys.stderr)
+    else:
+        try:revive_displays(backend,inventory)
         except Exception as exc:print('Pantallas:',str(exc),file=sys.stderr)
     # Run after the display profile: the compositor may have reordered monitors.
     restore_workspaces(backend)

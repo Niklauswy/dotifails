@@ -1,10 +1,11 @@
 # Wysun · una familia de aplicaciones
 
-Wysun es el nombre público del escritorio y del lanzador antes llamado Órbita. Las aplicaciones se presentan como Wysun Music, Wysun Files, Wysun Recorder, Wysun Notes, Wysun Ajustes, Wysun Conexiones, Wysun Clipboard, Wysun Processes, Wysun Colors y Wysun Tools. Los textos de ayuda y las acciones continúan en español.
+Wysun es el nombre público del escritorio y del lanzador antes llamado Órbita. Las aplicaciones se presentan como Wysun Music, Wysun Files, Wysun Recorder, Wysun Player, Wysun Notes, Wysun Ajustes, Wysun Conexiones, Wysun Clipboard, Wysun Processes, Wysun Colors y Wysun Tools. Los textos de ayuda y las acciones continúan en español.
 
 ## Fuente y distribución
 
 - `apps/wysun/`: lanzador, música, archivos y paneles Python/PySide6.
+- `apps/wysun/wysun_media/`, `player_app.py`: Wysun Player (visor de imágenes, video y audio) y el componente reutilizable que también usan Files y Recorder; ver `docs/player.md`.
 - `apps/capture/loomrec/`: Recorder, editor, biblioteca y trabajadores FFmpeg.
 - `apps/shell/modules/areapicker/`: captura de pantalla del shell (selección, anotación y OCR); sustituye a la app Wysun Screenshot.
 - `installer/main.py` y `installer/capture_distribution.py`: instalación común, respaldos, conflictos y recuperación.
@@ -40,4 +41,4 @@ Esta integración cambia la distribución y los nombres públicos. Conserva las 
 
 ## Temas
 
-Dos estilos (Space Black y Fluent) y cinco variantes se aplican en vivo a todas las superficies de Wysun. Los tokens viven en `apps/wysun/wysun_theme.json`; la guía, los valores de contraste y cómo crear un widget que obedezca el tema están en [themes.md](themes.md).
+Un solo estilo, Material You, con el color del wallpaper y el modo claro/oscuro/automático, se aplica en vivo a todas las superficies de Wysun. Los tokens viven en `apps/wysun/wysun_theme.json`; la guía, los valores de contraste y cómo crear un widget que obedezca el tema están en [themes.md](themes.md).

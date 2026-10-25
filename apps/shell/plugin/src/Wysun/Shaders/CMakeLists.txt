@@ -26,6 +26,7 @@ qt_add_shaders(wysun-shaders "shaders"
         ink-splash.frag
         inkwell-drop.frag
         iris.frag
+        liquid-rift.frag
         morph.frag
         parametric-glitch.frag
         perlin.frag

@@ -11,9 +11,11 @@ from PySide6.QtWidgets import QApplication, QHBoxLayout, QMainWindow, QVBoxLayou
 
 from file_media import human_size
 from files_ops import execute_operation
+from player_client import launch
 from theme_tokens import color, on_theme_changed, tokens
 from ui_motion import WindowMotion, reduced_motion, reveal_content
 from ui_theme import paint_surface
+from wysun_media.source import kind_of as media_kind
 from .chrome import Hero, Segmented, SelectionBar, StatusLine, Surface, TabArea
 from .menu import ActionMenu
 from .kit import IconButton, PillButton, apply_kit_style, metric, text_font
@@ -539,6 +541,8 @@ class FilesWindow(WindowMotion, QMainWindow):
     def open_path(self, path):
         if Path(path).is_dir():
             self.navigate(path)
+        elif media_kind(path):
+            launch([path])                          # Wysun Player: images, video and audio, whatever the system default is
         elif Path(path).suffix.lower() == '.pdf':
             from files_browser import open_pdf
             try:
@@ -553,8 +557,12 @@ class FilesWindow(WindowMotion, QMainWindow):
         if len(paths) > 10:
             self.warn('Selecciona menos archivos', 'Abre hasta 10 archivos a la vez.')
             return
+        media = [path for path in paths if Path(path).is_file() and media_kind(path)]
+        if len(media) > 1:
+            launch(media)                           # one player window for the whole selection, in selection order
         for path in paths:
-            self.open_path(path)
+            if len(media) < 2 or path not in media:
+                self.open_path(path)
 
     def preview(self):
         paths = self.current().selected_paths()

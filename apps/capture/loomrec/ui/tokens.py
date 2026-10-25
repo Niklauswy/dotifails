@@ -1,11 +1,11 @@
-"""Wysun theme for Recorder and Screenshot (Fluent pearl, Fluent mica or Space Black).
+"""Wysun theme for Recorder and Screenshot (Material You).
 
 Capture releases are installed apart from the launcher, so they carry their own
 byte-identical copies of theme_core.py and wysun_theme.json and read the palette
-selection from ~/.config/orbit/theme.json plus the optional Material scheme from
+mode from ~/.config/orbit/theme.json plus the Material scheme from
 $XDG_STATE_HOME/wysun/scheme.json. Stylesheets are templates: ``@token``,
 ``@token/alpha`` (0-255). ``apply_theme`` installs the palette and stylesheet and
-follows later style/variant changes live.
+follows later mode and wallpaper changes live.
 """
 import re
 from collections.abc import Mapping
@@ -15,7 +15,7 @@ from PySide6.QtGui import QColor, QPalette, QFont, QFontDatabase
 from . import theme_core
 
 MARKER = re.compile(r'@([a-z][a-z0-9_]*)(?:/(\d{1,3}))?')
-PIXELS = ('radius_', 'space_', 'font_caption', 'font_small', 'font_body', 'font_heading', 'font_title', 'border', 'focus_width', 'icon_size')
+PIXELS = ('radius_', 'corner_', 'space_', 'font_caption', 'font_small', 'font_body', 'font_heading', 'font_title', 'border', 'focus_width', 'icon_size')
 # Historic Recorder names kept for callers; values come from the active theme.
 LEGACY = {'blue': 'accent', 'blue_hover': 'accent_hover'}
 _listeners = []

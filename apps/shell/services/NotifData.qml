@@ -67,12 +67,16 @@ QtObject {
         return monitor?.activeWorkspace?.toplevels.values.some(t => t.lastIpcObject.fullscreen > 1) ?? false;
     }
 
+    // Stays on screen until it is clicked (or swiped away): the sender asks with the "x-wysun-sticky" hint,
+    // as the launcher's timers do. It still goes to the history when dismissed.
+    readonly property bool sticky: Number(hints?.["x-wysun-sticky"]) === 1
+
     readonly property Timer timer: Timer {
         running: true
         interval: notif.expireTimeout > 0 ? notif.expireTimeout : notif.hasFullscreen ? GlobalConfig.notifs.fullscreenExpireTimeout : GlobalConfig.notifs.defaultExpireTimeout
         onTriggered: {
             // Always expire if the active workspace has a fullscreen window
-            if (GlobalConfig.notifs.expire || notif.hasFullscreen)
+            if (!notif.sticky && (GlobalConfig.notifs.expire || notif.hasFullscreen))
                 notif.popup = false;
         }
     }

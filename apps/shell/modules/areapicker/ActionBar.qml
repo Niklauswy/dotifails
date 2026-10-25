@@ -14,6 +14,7 @@ StyledRect {
 
     signal copy
     signal saveAs
+    signal view
     signal annotate
     signal readText
     signal cancel
@@ -51,6 +52,13 @@ StyledRect {
             text: Tr.tr("Save as…")
             key: "S"
             onClicked: root.saveAs()
+        }
+
+        Action {
+            icon: "visibility"
+            text: Tr.tr("Save and view")
+            key: "V"
+            onClicked: root.view()
         }
 
         Action {

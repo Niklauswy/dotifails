@@ -63,15 +63,15 @@ class LockSettingsTests(unittest.TestCase):
             if content is not None:
                 (Path(tmp)/'orbit').mkdir();(Path(tmp)/'orbit/lock.json').write_bytes(content if isinstance(content,bytes) else content.encode())
             return screen_lock.lock_settings(environment={'XDG_CONFIG_HOME':tmp,**(environment or {})})
-    def test_default_is_swaylock_without_media(self):
-        self.assertEqual(self.settings(),{'backend':'swaylock','media':False})
-    def test_explicit_qml_and_media_are_opt_in(self):
+    def test_default_is_the_wysun_lock_without_media(self):
+        self.assertEqual(self.settings(),{'backend':'qml','media':False})
+    def test_swaylock_and_media_are_explicit(self):
+        self.assertEqual(self.settings('{"backend":"swaylock"}'),{'backend':'swaylock','media':False})
         self.assertEqual(self.settings('{"backend":"qml","media":true}'),{'backend':'qml','media':True})
-        self.assertEqual(self.settings('{"backend":"qml"}'),{'backend':'qml','media':False})
-    def test_invalid_values_never_enable_qml_or_media(self):
+    def test_invalid_values_keep_the_default_and_never_enable_media(self):
         for content in ('{"backend":"Qml"}','{"backend":["qml"]}','{"backend":"x","media":"true"}','{"media":1}','[]','null','not json',b'\xff\xfe','{"backend":"qml"'+' '*70000+'}'):
             result=self.settings(content)
-            self.assertEqual(result['backend'],'swaylock',content if len(str(content))<80 else 'oversized');self.assertFalse(result['media'])
+            self.assertEqual(result['backend'],'qml',content if len(str(content))<80 else 'oversized');self.assertFalse(result['media'])
     def test_never_reads_credentials_or_other_keys(self):
         result=self.settings('{"backend":"qml","password":"secret","monitors":["DP-1"],"media":true}')
         self.assertEqual(set(result),{'backend','media'})

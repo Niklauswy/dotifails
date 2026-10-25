@@ -9,6 +9,7 @@ from install_events import InstallationCancelled, checkpoint, emit
 VERSION='1.1.0'
 REPOSITORY='https://github.com/Niklauswy/dotifails.git'
 WYSUN_DESKTOP='[Desktop Entry]\nType=Application\nName=Wysun\nComment=Aplicaciones y herramientas del escritorio\nExec=wysun\nIcon=system-search\nCategories=Utility;\nKeywords=Wysun;lanzador;launcher;aplicaciones;\nStartupWMClass=Orbit\n'
+PLAYER_DESKTOP='wysun-player.desktop'
 EXTRAS={'brave':'com.brave.Browser','discord':'com.discordapp.Discord','obsidian':'md.obsidian.Obsidian'}
 
 
@@ -142,7 +143,13 @@ class Deployment:
         write(self.state/'installed.json',self.receipt)
     def generated(self,text,relative,executable=False):
         temp=self.backup/'generated'/relative;temp.parent.mkdir(parents=True,exist_ok=True);temp.write_text(text);temp.chmod(0o755 if executable else 0o644);self.deploy(temp,relative)
-    def configure_files(self):
+    def player_mime_types(self):
+        """The types Wysun Player declares: the single source for its default associations."""
+        entry=self.source/'config/.local/share/applications'/PLAYER_DESKTOP
+        for line in entry.read_text().splitlines() if entry.is_file() else ():
+            if line.startswith('MimeType='):return [name for name in line[9:].split(';') if name]
+        return []
+    def configure_files(self,player=False):
         # The desktop profile owns folder opening, portal selection and reveal actions.
         self.deploy(self.source/'bin/orbit-files',Path('.local/bin/orbit-files'))
         self.deploy(self.source/'config/.local/share/applications/orbit-files.desktop',Path('.local/share/applications/orbit-files.desktop'))
@@ -163,6 +170,7 @@ class Deployment:
         if mime.has_option('Removed Associations','inode/directory'):
             removed=[name for name in mime.get('Removed Associations','inode/directory').split(';') if name and name!='orbit-files.desktop']
             mime.set('Removed Associations','inode/directory',';'.join(removed)+(';' if removed else ''))
+        if player:self.associate_player(mime)
         import io
         output=io.StringIO();mime.write(output,space_around_delimiters=False);self.generated(output.getvalue(),relative)
         service='orbit-files-integration.service'
@@ -182,6 +190,21 @@ class Deployment:
         output=io.StringIO();parser.write(output);self.generated(output.getvalue(),relative)
         self.generated('GTK_USE_PORTAL=1\n',Path('.config/environment.d/60-orbit-files.conf'))
 
+    def associate_player(self,mime):
+        """Make Wysun Player the default for its image, video and audio types.
+
+        Whatever was the default stays on as an alternative ("Open with"). This runs only in the
+        full installation: updating Wysun alone never changes what the user opens files with.
+        """
+        for mimetype in self.player_mime_types():
+            previous=mime.get('Default Applications',mimetype,fallback='')
+            alternatives=[name for name in previous.split(';') if name and name!=PLAYER_DESKTOP]
+            mime.set('Default Applications',mimetype,PLAYER_DESKTOP+';')
+            added=[name for name in mime.get('Added Associations',mimetype,fallback='').split(';') if name and name!=PLAYER_DESKTOP and name not in alternatives]
+            mime.set('Added Associations',mimetype,';'.join([PLAYER_DESKTOP]+alternatives+added)+';')
+            if mime.has_option('Removed Associations',mimetype):
+                removed=[name for name in mime.get('Removed Associations',mimetype).split(';') if name and name!=PLAYER_DESKTOP]
+                mime.set('Removed Associations',mimetype,';'.join(removed)+(';' if removed else ''))
     def configure_orbit(self):
         self.stage('Actualizar solo Wysun (código y lanzador)')
         self.deploy(self.source/'apps/wysun',Path('.local/share/orbit/app'))
@@ -205,8 +228,10 @@ class Deployment:
         if not _publish(self,launcher.read_text(),'.local/bin/wysun',executable=True):return
         for name,mode in (('wysun-music','music'),('wysun-files','files')):
             _publish(self,'#!/bin/sh\nexec "$HOME/.local/bin/wysun" '+mode+' "$@"\n','.local/bin/'+name,executable=True)
+        player=self.source/'bin/wysun-player'
+        if player.is_file():_publish(self,player.read_text(),'.local/bin/wysun-player',executable=True)
         self.generated(WYSUN_DESKTOP,Path('.local/share/applications/orbit.desktop'))
-        for name in ('orbit-settings.desktop',):
+        for name in ('orbit-settings.desktop',PLAYER_DESKTOP):
             source=self.source/'config/.local/share/applications'/name
             if source.is_file():self.deploy(source,Path('.local/share/applications')/name)
         configure(self)
@@ -243,12 +268,21 @@ class Deployment:
         if '.local/share/dotifails/toolbox' in self.receipt['files']:
             self.retire(Path('.local/share/dotifails/toolbox'))
     def configure_manager(self):
-        self.deploy(self.source/'installer',Path('.local/share/dotifails/installer'))
+        from ui_support import package_runtime
+        manager=self.backup/'generated/manager'
+        shutil.copytree(self.source/'installer',manager,ignore=shutil.ignore_patterns('__pycache__','*.pyc','ui_runtime'))
+        package_runtime(self.source,manager/'ui_runtime')
+        self.deploy(manager,Path('.local/share/dotifails/installer'))
         self.deploy(self.source/'manifests',Path('.local/share/dotifails/manifests'))
         self.generated('#!/bin/sh\nexec python3 "$HOME/.local/share/dotifails/installer/main.py" "$@"\n',Path('.local/bin/dotifails'),True)
-        self.generated('[Desktop Entry]\nType=Application\nName=Instalador de Wysun\nComment=Instalar, actualizar y recuperar tu escritorio\nExec=dotifails gui\nIcon=preferences-desktop\nCategories=System;Settings;\nTerminal=false\nStartupWMClass=dotifails-installer\n',Path('.local/share/applications/dotifails-installer.desktop'))
+        self.generated('#!/bin/sh\nexec /usr/bin/python3 "$HOME/.local/share/dotifails/installer/main.py" gui "$@"\n',Path('.local/bin/wysun-installer'),True)
+        for preview in (False,True):
+            name='Vista previa del instalador de Wysun' if preview else 'Instalador de Wysun'
+            suffix=' --preview' if preview else ''
+            filename='wysun-installer-preview.desktop' if preview else 'dotifails-installer.desktop'
+            self.generated('[Desktop Entry]\nType=Application\nName='+name+'\nComment=Instalar, actualizar y recuperar tu entorno Wysun\nExec=wysun-installer'+suffix+'\nIcon=system-software-install\nCategories=System;Settings;\nKeywords=Wysun;instalador;installer;dotfiles;\nTerminal=false\nStartupWMClass=wysun-installer\n',Path('.local/share/applications')/filename)
 
-    def configure(self,profile=None,theme=None,components=None):
+    def configure(self,profile=None,components=None):
         selected=set(normalize_components(components))
         if 'wayland' in selected:
             from wayland import configure
@@ -258,19 +292,14 @@ class Deployment:
                 return
         if 'tools' in selected:self.configure_scripts()
         self.stage('Configuraciones y aplicaciones')
-        requested_theme=theme
-        from install_model import installer_theme,theme_selection
-        theme=theme_selection(theme) and installer_theme({'id':theme}) or installer_theme(read(self.home/'.config/orbit/theme.json',{}),self.receipt.get('theme') or 'severance')
-        selection=theme_selection(theme)
+        theme='material-you'
         appearance=read(self.source/'manifests/themes.json')[theme]
         home_source=self.backup/'generated/theme-home'
         shutil.copytree(self.source/'config',home_source)
-        if appearance.get('overlay'):
-            shutil.copytree(self.source/appearance['overlay'],home_source,dirs_exist_ok=True)
         if (self.source/'apps/wysun/theme_runtime.py').exists():
             sys.path.insert(0,str(self.source/'apps/wysun'))
             from theme_runtime import theme_files
-            themed,_=theme_files(home_source,selection)
+            themed=theme_files(home_source)
             for path,text in themed.items():
                 path.parent.mkdir(parents=True,exist_ok=True)
                 path.write_text(text)
@@ -303,7 +332,7 @@ class Deployment:
         if 'desktop' in selected:
             self.deploy(self.source/'apps/wysun',Path('.local/share/orbit/app'))
             if '.local/share/orbit/app' not in self.conflicts:
-                self.configure_files()
+                self.configure_files(player=True)
                 self.configure_wysun()
             for item in sorted((self.source/'assets/icons').iterdir()):self.deploy(item,Path('.local/share/icons')/item.name)
             for item in sorted((self.source/'assets/backgrounds').iterdir()):self.deploy(item,Path('.local/share/backgrounds')/item.name)
@@ -311,19 +340,13 @@ class Deployment:
             for rel in ('.local/share/applications/orbit-music.desktop','.local/share/icons/hicolor/scalable/apps/musika.svg'):
                 if (self.source/'config'/rel).is_file():self.deploy(self.source/'config'/rel,Path(rel))
         if selected & {'desktop','terminal'}:self.deploy(self.source/'assets/fonts',Path('.local/share/fonts/dotifails'))
-        if 'desktop' in selected and appearance.get('archive'):
-            archive=self.source/appearance['archive']
-            if hashlib.sha256(archive.read_bytes()).hexdigest()!=appearance['sha256']:raise RuntimeError('El paquete del tema no coincide con su SHA-256.')
-            with tempfile.TemporaryDirectory(prefix='dotifails-theme-') as temporary:
-                root=Path(temporary)
-                with tarfile.open(archive) as bundle:bundle.extractall(root,filter='data')
-                for group in ('icons','themes'):
-                    for item in sorted((root/group).iterdir()):self.deploy(item,Path('.local/share')/group/item.name)
         if 'desktop' in selected:
             from install_model import theme_core
-            self.generated(theme_core().serialize(*selection),Path('.config/orbit/theme.json'))
+            core=theme_core()
+            # The mode is the only choice: keep the user's, and read it out of any older theme.json.
+            self.generated(core.serialize(core.mode_from_object(read(self.home/'.config/orbit/theme.json',{}))[0]),Path('.config/orbit/theme.json'))
             preferences=read(self.home/'.config/orbit/environment.json',{})
-            if requested_theme or not preferences.get('wallpaper',{}).get('default'):
+            if not preferences.get('wallpaper',{}).get('default'):
                 preferences['wallpaper']=dict(default=str(self.home/'.local/share/backgrounds'/appearance['wallpaper']),mode='fill',monitors={},folders=preferences.get('wallpaper',{}).get('folders',[]))
                 self.generated(json.dumps(preferences,indent=2)+'\n',Path('.config/orbit/environment.json'))
             if not self.conflicts:self.receipt['theme']=theme
@@ -400,14 +423,37 @@ def install_tools(deployment,components=None):
         link=d.backup/'links'/('plugin-'+name);link.symlink_to('../../tools/'+name);d.deploy(link,Path('.local/share/dotifails/zsh-custom/plugins')/name)
 
 
-def packages(source,extras,components=None,boot_components=None):
+def packages(source,extras,components=None,boot_components=None,refresh=True):
     fields=host_supported();wanted=package_names(source,normalize_components(components),extras,boot_components)
     prefix=[] if os.geteuid()==0 else ['sudo']
-    run(prefix+['env','DEBIAN_FRONTEND=noninteractive','apt-get','update'])
+    if refresh:run(prefix+['env','DEBIAN_FRONTEND=noninteractive','apt-get','-o','APT::Update::Error-Mode=any','update'])
     if components and 'wayland' in components:
         from wayland import simulate_packages
         print(simulate_packages(source,fields,wanted))
     run(prefix+['env','DEBIAN_FRONTEND=noninteractive','apt-get','-o','Dpkg::Options::=--force-confold','install','--yes','--no-remove','--no-install-recommends']+wanted)
+
+
+def refresh_package_plan(source,extras,components,boot_components):
+    fields=host_supported();wanted=package_names(source,components,extras,boot_components)
+    prefix=[] if os.geteuid()==0 else ['sudo']
+    run(prefix+['env','DEBIAN_FRONTEND=noninteractive','apt-get','-o','APT::Update::Error-Mode=any','update'])
+    if 'wayland' in components:
+        from wayland import simulate_packages
+        print(simulate_packages(source,fields,wanted))
+    else:
+        run(['apt-get','--simulate','--no-remove','install','--no-install-recommends',*wanted])
+
+
+def upgrade_system(refresh=True):
+    prefix=[] if os.geteuid()==0 else ['sudo']
+    base=prefix+['env','DEBIAN_FRONTEND=noninteractive','apt-get','-o','Dpkg::Options::=--force-confold']
+    if refresh:run(base+['-o','APT::Update::Error-Mode=any','update'])
+    run(base+['upgrade','--with-new-pkgs','--yes','--no-remove'])
+
+
+def prepare_repositories(source):
+    prefix=[] if os.geteuid()==0 else ['sudo']
+    run(prefix+[sys.executable,str(source/'installer/repositories.py')])
 
 
 def wayland_session(source):
@@ -474,8 +520,13 @@ def doctor(home,components=None):
         except (OSError,subprocess.TimeoutExpired):ok=False
         print(('OK  ' if ok else 'FAIL ')+label)
         if not ok:failed.append(label)
+    if selected & {'desktop','wayland'}:
+        try:opengl=subprocess.run(['/usr/bin/python3','-c','from PySide6 import QtOpenGL,QtOpenGLWidgets'],env=env,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,timeout=25).returncode==0
+        except (OSError,subprocess.TimeoutExpired):opengl=False
+        # Not a failure: Wysun Player falls back to software rendering, which works but uses more CPU.
+        print('OK  Wysun Player (OpenGL)' if opengl else 'AVISO Wysun Player usa renderizado por software: instala python3-pyside6.qtopengl y python3-pyside6.qtopenglwidgets')
     required=[]
-    if 'desktop' in selected:required += ['.config/wysun/hyprland.lua','.local/share/orbit/app/orbit.py','.local/share/wysun/quickshell/shell.qml','.local/share/backgrounds/tokyo.png']
+    if 'desktop' in selected:required += ['.config/wysun/hyprland.lua','.local/share/orbit/app/orbit.py','.local/share/wysun/quickshell/shell.qml','.local/share/backgrounds/'+read(home/'.local/share/orbit/app/wysun_theme.json',{}).get('default',{}).get('wallpaper','')]
     for rel in required:
         ok=(home/rel).is_file();print(('OK  ' if ok else 'FAIL ')+rel)
         if not ok:failed.append(rel)
@@ -543,27 +594,30 @@ def main(argv=None):
         p.add_argument('--orbit-only','--wysun-only',dest='orbit_only',action='store_true',help='Solo código y lanzador de Wysun; conserva el resto del escritorio y los datos privados')
         p.add_argument('--boot-only',action='store_true',help='Solo GRUB, Plymouth e inicio de sesión; conserva la sesión abierta y respalda /etc y /boot')
         p.add_argument('--installer-only',action='store_true',help='Actualizar solo el instalador visual, la CLI y sus manifiestos')
-        p.add_argument('--theme',choices=['severance','tokyo','space-black','fluent-light','fluent-dark','azul','morado'],help='Perfil visual; Severance en instalaciones nuevas, conserva el elegido al actualizar')
         p.add_argument('--components',help='Componentes separados por comas: desktop,wayland,terminal,editor,tools,boot')
-        p.add_argument('--boot-components',default='grub,plymouth,greeter',help='Pantallas de arranque: grub,plymouth,greeter')
+        p.add_argument('--boot-components',default='grub,plymouth',help='Pantallas de arranque: grub,plymouth,greeter')
         p.add_argument('--plan',action='store_true',help='Mostrar el plan exacto en JSON, sin aplicar cambios')
+        p.add_argument('--upgrade-system',action='store_true',help='Actualizar los paquetes existentes sin retirar paquetes ni cambiar de distribución')
+        p.add_argument('--prepare-repositories',action='store_true',help='Habilitar solo los backports oficiales de esta distribución, si faltan')
     p=sub.add_parser('doctor');p.add_argument('--target-home',type=Path,default=Path.home())
     p=sub.add_parser('restore');p.add_argument('id',nargs='?');p.add_argument('--target-home',type=Path,default=Path.home())
-    p=sub.add_parser('gui');p.add_argument('--source',type=Path);p.add_argument('--target-home',type=Path,default=Path.home())
+    p=sub.add_parser('gui');p.add_argument('--source',type=Path);p.add_argument('--target-home',type=Path,default=Path.home());p.add_argument('--preview',action='store_true',help='Recorrido completo con operaciones simuladas, sin escrituras ni privilegios')
     args=parser.parse_args(argv)
     if args.command=='gui':
         from gui import launch
-        return launch(args.source,args.target_home)
+        return launch(args.source,args.target_home,preview=args.preview)
     if args.command=='doctor':return doctor(args.target_home)
     if args.command=='restore':return restore(args.target_home,args.id)
     if args.components and (args.boot_only or args.orbit_only or args.scripts_only or args.installer_only):raise ValueError('--components no se combina con los modos --only.')
     if args.plan and (args.boot_only or args.orbit_only or args.scripts_only or args.installer_only):raise ValueError('Los modos --only admiten --dry-run; usa --components para un plan detallado.')
     if sum((args.boot_only,args.orbit_only,args.scripts_only,args.installer_only))>1:raise ValueError('Elige un solo modo --only.')
     if args.installer_only:
-        if args.extras or args.profile or args.theme:raise ValueError('--installer-only se usa sin extras, perfiles ni temas.')
+        if args.extras or args.profile:raise ValueError('--installer-only se usa sin extras ni perfiles.')
         args.config_only=True
+    if (args.upgrade_system or args.prepare_repositories) and (args.config_only or args.orbit_only or args.scripts_only or args.installer_only or args.boot_only):
+        raise ValueError('La preparación del sistema requiere una instalación completa; no se combina con modos --only o --config-only.')
     if args.boot_only:
-        if args.orbit_only or args.scripts_only or args.config_only or args.extras or args.profile or args.theme:
+        if args.orbit_only or args.scripts_only or args.config_only or args.extras or args.profile:
             raise ValueError('--boot-only se usa por separado.')
         if args.target_home!=Path.home():raise ValueError('--boot-only modifica el sistema, no otro hogar.')
         previous=read(args.target_home/'.local/state/dotifails/installed.json',{}).get('source')
@@ -573,22 +627,21 @@ def main(argv=None):
         boot_appearance(source,args.dry_run,args.boot_components.split(','));return 0
     if args.orbit_only and args.scripts_only:raise ValueError('Elige --orbit-only o --scripts-only.')
     if args.scripts_only:
-        if args.extras or args.profile or args.theme:raise ValueError('--scripts-only no admite extras, perfiles ni temas.')
+        if args.extras or args.profile:raise ValueError('--scripts-only no admite extras ni perfiles.')
         args.config_only=True
     if args.orbit_only:
-        if args.extras or args.profile or args.theme:raise ValueError('--orbit-only no admite extras ni perfiles del sistema o temas.')
+        if args.extras or args.profile:raise ValueError('--orbit-only no admite extras ni perfiles del sistema.')
         args.config_only=True
     selected=normalize_components(args.components.split(',') if args.components else None)
     if args.config_only and not args.components:selected=tuple(key for key in selected if key!='boot')
     if args.scripts_only:selected=('tools',)
     if args.orbit_only:selected=('desktop',)
     if args.installer_only:selected=()
-    if args.theme:args.theme={'azul':'severance','morado':'tokyo'}.get(args.theme,args.theme)
     if args.plan:
         if args.command=='update' and not args.source:raise ValueError('Para revisar un plan exacto de actualización, indica la copia local con --source.')
         previous=read(args.target_home/'.local/state/dotifails/installed.json',{}).get('source')
         source=(args.source or (Path(previous) if previous else Path(__file__).resolve().parent.parent))
-        options=InstallOptions(source,args.target_home,selected,args.theme,tuple(filter(None,args.extras.split(','))),tuple(args.boot_components.split(',')),args.config_only,args.skip_nvim_tools,args.profile)
+        options=InstallOptions(source,args.target_home,selected,tuple(filter(None,args.extras.split(','))),tuple(args.boot_components.split(',')),args.config_only,args.skip_nvim_tools,args.profile,args.upgrade_system,args.prepare_repositories)
         print(json.dumps(options.summary(),ensure_ascii=False,indent=2));return 0
     if args.dry_run:
         if args.installer_only:print('Plan: respaldar y actualizar solo el instalador, sus manifiestos y el acceso en el menú de aplicaciones.');return 0
@@ -619,10 +672,11 @@ def main(argv=None):
         if args.orbit_only:command+=['--orbit-only']
         if args.scripts_only:command+=['--scripts-only']
         if args.installer_only:command+=['--installer-only']
+        if args.upgrade_system:command+=['--upgrade-system']
+        if args.prepare_repositories:command+=['--prepare-repositories']
         if args.extras:command+=['--extras',args.extras]
         if args.skip_nvim_tools:command+=['--skip-nvim-tools']
         if args.profile:command+=['--profile',args.profile]
-        if args.theme:command+=['--theme',args.theme]
         if args.components:command+=['--components',args.components]
         if args.boot_components!='grub,plymouth,greeter':command+=['--boot-components',args.boot_components]
         run(command);return 0
@@ -630,8 +684,8 @@ def main(argv=None):
     source=(args.source or (Path(previous_source) if previous_source else Path(__file__).resolve().parent.parent)).resolve()
     if not (source/'config/.config/wysun/hyprland.lua').is_file():raise RuntimeError('Indica un repositorio completo: dotifails install --source /ruta/dotifails')
     if not (args.orbit_only or args.scripts_only or args.installer_only):
-        InstallOptions(source,home,selected,args.theme,tuple(names),tuple(args.boot_components.split(',')),args.config_only,args.skip_nvim_tools,args.profile).validate()
-    if not args.config_only and 'wayland' in selected:
+        InstallOptions(source,home,selected,tuple(names),tuple(args.boot_components.split(',')),args.config_only,args.skip_nvim_tools,args.profile,args.upgrade_system,args.prepare_repositories).validate()
+    if not args.config_only and 'wayland' in selected and not args.prepare_repositories:
         from wayland import simulate_packages
         # Fail before creating a journal or touching user/system files.
         print(simulate_packages(source,host_supported(),package_names(source,selected,names,args.boot_components.split(','))))
@@ -640,12 +694,16 @@ def main(argv=None):
     try:
         steps=[]
         if not args.config_only:
-            steps += [('Paquetes del sistema',lambda:packages(source,names,selected,args.boot_components.split(','))),
+            if args.prepare_repositories:steps.append(('Repositorios oficiales de la distribución',lambda:prepare_repositories(source)))
+            prepared=args.prepare_repositories or args.upgrade_system
+            if prepared:steps.append(('Índices APT y compatibilidad de dependencias',lambda:refresh_package_plan(source,names,selected,args.boot_components.split(','))))
+            if args.upgrade_system:steps.append(('Actualización del sistema',lambda:upgrade_system(refresh=False)))
+            steps += [('Paquetes del sistema',lambda:packages(source,names,selected,args.boot_components.split(','),refresh=not prepared)),
                       ('Herramientas verificadas',lambda:install_tools(d,selected))]
         if args.installer_only:steps.append(('Instalador y recuperación',d.configure_manager))
         elif args.scripts_only:steps.append(('Herramientas personales',d.configure_scripts))
         elif args.orbit_only:steps.append(('Aplicación Wysun',d.configure_orbit))
-        else:steps.append(('Configuraciones y respaldos',lambda:d.configure(args.profile,args.theme,selected)))
+        else:steps.append(('Configuraciones y respaldos',lambda:d.configure(args.profile,selected)))
         if args.scripts_only or args.orbit_only:steps.append(('Instalador y recuperación',d.configure_manager))
         if not args.config_only:
             if 'wayland' in selected:steps.append(('Registrar sesión Wysun / Hyprland',lambda:wayland_session(source) if not d.conflicts else None))

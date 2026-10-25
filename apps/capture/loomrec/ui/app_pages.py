@@ -1,4 +1,5 @@
 """Basic player and recorder settings pages."""
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -6,19 +7,20 @@ from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (QComboBox, QFileDialog, QHBoxLayout, QLabel, QScrollArea, QSpinBox, QVBoxLayout,
                                QWidget)
 
-from .app_kit import Button, IconButton, Panel, Switch, clock, metric, section_label as _section_label
-from .player import Player
-from .seekbar import SeekBar
+from .app_kit import Button, IconButton, Panel, Switch, metric, section_label as _section_label
 
 
 class PlayerPage(QWidget):
-    """Plain playback for now; a dedicated Wysun video viewer will take this slot."""
+    """A finished recording in the shared Wysun player, under Recorder's own header."""
 
     closed = Signal()
     message = Signal(str)
 
     def __init__(self):
         super().__init__()
+        from . import media_host
+        media_host.install()
+        from wysun_media.player import MediaPlayer
         column = QVBoxLayout(self)
         margin = metric('space_xl')
         column.setContentsMargins(margin, metric('space_l'), margin, metric('space_l'))
@@ -30,71 +32,41 @@ class PlayerPage(QWidget):
         head.addWidget(self.back)
         head.addSpacing(metric('space_s'))
         head.addWidget(self.title, 1)
-        self.external = IconButton('open_in_new', 'Abrir con otro reproductor', self._external, size=36)
+        self.external = IconButton('open_in_new', 'Abrir en Wysun Player', self._external, size=36)
         head.addWidget(self.external)
         column.addLayout(head)
-        self.player = Player()
+        self.player = MediaPlayer(mode='embedded', backdrop='canvas')
+        self.player.enable_integration()
+        self.player.errorOccurred.connect(lambda error: self.message.emit(error.message))
+        self.player.expandRequested.connect(self._external)
         column.addWidget(self.player, 1)
-        controls = QHBoxLayout()
-        controls.setSpacing(metric('space_s'))
-        self.toggle = IconButton('play_arrow', 'Reproducir · Espacio', self.player.toggle, variant='filled', size=44)
-        self.seek = SeekBar()
-        self.time = QLabel('0:00 / 0:00')
-        self.time.setObjectName('muted')
-        self.mute = IconButton('volume_up', 'Silenciar · M', self.player.toggle_mute, size=36)
-        controls.addWidget(self.toggle)
-        controls.addWidget(self.seek, 1)
-        controls.addWidget(self.time)
-        controls.addWidget(self.mute)
-        column.addLayout(controls)
+        self.setFocusProxy(self.player)             # keys reach the player when the page is focused
         self.path = None
-        self._autoplay = False
-        self.player.positionChanged.connect(self._position)
-        self.player.durationChanged.connect(lambda _: self._position(self.player.position))
-        self.player.stateChanged.connect(self._state)
-        self.player.failed.connect(self.message.emit)
-        self.seek.seekRequested.connect(self.player.seek)
 
     def load(self, item):
         self.path = item.video
         self.title.setText(item.title)
-        self._autoplay = True
-        self.player.load(str(item.video))
+        self.player.open(item.video)                # the user asked to play it
 
     def stop(self):
         self.player.close_media()
 
-    def _position(self, seconds):
-        duration = self.player.duration
-        self.seek.duration, self.seek.position = duration, seconds
-        self.seek.update()
-        self.time.setText(f'{clock(seconds)} / {clock(duration)}')
-
-    def _state(self):
-        if self._autoplay and self.player.client is not None and self.player.paused:
-            self._autoplay = False   # mpv starts paused; the user asked to play it
-            self.player.toggle()
-            return
-        self.toggle.set_symbol('play_arrow' if self.player.paused else 'pause')
-        self.toggle.set_label('Reproducir · Espacio' if self.player.paused else 'Pausar · Espacio')
-        self.mute.set_symbol('volume_off' if self.player.muted else 'volume_up')
-
     def _external(self):
-        if self.path:
-            self.player.close_media()
+        """Continue the recording in Wysun Player at the same place; the preview stays paused."""
+        if not self.path:
+            return
+        session = self.player.session
+        position, paused = session.position, session.paused
+        session.set_paused(True)
+        launcher = shutil.which('wysun-player') or str(Path.home() / '.local/bin/wysun-player')
+        argv = [launcher, *(['--start', f'{position:.1f}'] if position else []), *(['--paused'] if paused else []), '--', str(self.path)]
+        try:
+            subprocess.Popen(argv, start_new_session=True, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except OSError:
             subprocess.Popen(['xdg-open', str(self.path)], start_new_session=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-    def keyPressEvent(self, event):
-        if event.key() == Qt.Key_Space:
-            self.player.toggle()
-        elif event.key() == Qt.Key_M:
-            self.player.toggle_mute()
-        elif event.key() == Qt.Key_Left:
-            self.player.seek(max(0, self.player.position - 5))
-        elif event.key() == Qt.Key_Right:
-            self.player.seek(min(self.player.duration, self.player.position + 5))
-        else:
-            super().keyPressEvent(event)
+    def shutdown(self):
+        self.player.shutdown()
 
 
 def section_label(text):

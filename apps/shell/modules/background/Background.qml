@@ -19,8 +19,8 @@ Variants {
         screen: modelData
         name: "background"
         WlrLayershell.exclusionMode: ExclusionMode.Ignore
-        WlrLayershell.layer: contentItem.Config.background.wallpaperEnabled ? WlrLayer.Background : WlrLayer.Bottom
-        color: contentItem.Config.background.wallpaperEnabled ? "black" : "transparent"
+        WlrLayershell.layer: WlrLayer.Background
+        color: "black"
         surfaceFormat.opaque: false
 
         anchors.top: true
@@ -45,15 +45,17 @@ Variants {
                 asynchronous: true
 
                 anchors.fill: parent
-                active: Config.background.wallpaperEnabled
 
                 sourceComponent: Wallpaper {}
             }
 
-            Visualiser {
+            Loader {
                 anchors.fill: parent
-                screen: win.modelData
-                wallpaper: wallpaper
+                active: Screens.hasWidgets(win.modelData)
+                sourceComponent: Visualiser {
+                    screen: win.modelData
+                    wallpaper: wallpaper
+                }
             }
         }
 
@@ -61,7 +63,7 @@ Variants {
             id: clockLoader
 
             asynchronous: true
-            active: Config.background.desktopClock.enabled
+            active: Screens.hasWidgets(win.modelData) && Config.background.desktopClock.enabled
 
             anchors.margins: Tokens.padding.extraLargeIncreased
             anchors.leftMargin: Tokens.padding.extraLargeIncreased + Tokens.sizes.bar.innerWidth + Math.max(Tokens.padding.small, Config.border.thickness)

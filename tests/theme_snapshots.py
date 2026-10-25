@@ -2,7 +2,7 @@
 """Render Wysun windows offscreen for theme before/after comparisons.
 
 Usage:
-  QT_QPA_PLATFORM=offscreen python3 tests/theme_snapshots.py OUT_DIR [--source apps/wysun] [--theme space-black:tokyo]
+  QT_QPA_PLATFORM=offscreen python3 tests/theme_snapshots.py OUT_DIR [--source apps/wysun] [--theme light|dark]
   python3 tests/theme_snapshots.py --compare BEFORE_DIR AFTER_DIR
 
 Runs with a disposable HOME/XDG tree and synthetic data only. Clock, process and
@@ -110,7 +110,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('out', nargs='?')
     parser.add_argument('--source', default=str(ROOT / 'apps/wysun'))
-    parser.add_argument('--theme', default='space-black')
+    parser.add_argument('--theme', default='dark')
     parser.add_argument('--compare', nargs=2)
     args = parser.parse_args()
     if args.compare:

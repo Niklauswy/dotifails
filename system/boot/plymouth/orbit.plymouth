@@ -1,6 +1,6 @@
 [Plymouth Theme]
-Name=Blue CRT
-Description=CRT azul con ventana clásica, Tux y carga animada
+Name=Wysun Terminal
+Description=Wysun boot on an office CRT: the file is drawn by the beam with the real progress and opens at the end
 ModuleName=script
 
 [script]

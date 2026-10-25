@@ -15,6 +15,7 @@ def main():
         # reach the user's Wayland/X11 desktop or their real preferences.
         for variable in ('WAYLAND_DISPLAY', 'HYPRLAND_INSTANCE_SIGNATURE', 'XDG_SESSION_TYPE', 'DISPLAY'):
             env.pop(variable, None)
+        env['DBUS_SESSION_BUS_ADDRESS'] = 'unix:path=/nonexistent/wysun-test-bus'      # MPRIS must not reach the user's bus
         for variable, folder in (('XDG_CONFIG_HOME', 'config'), ('XDG_DATA_HOME', 'data'),
                                  ('XDG_STATE_HOME', 'state'), ('XDG_CACHE_HOME', 'cache'),
                                  ('XDG_RUNTIME_DIR', 'run')):

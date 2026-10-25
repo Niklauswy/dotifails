@@ -41,17 +41,6 @@ Searcher {
     property bool previewColourLock
     property bool pendingPreviewClear
 
-    function getCategoryFor(w: FileSystemEntry): string {
-        let category = w.parentDir.slice(Paths.wallsdir.length + 1);
-        if (category.includes("/"))
-            category = category.slice(0, category.indexOf("/"));
-        return category;
-    }
-
-    function setRandom(): void {
-        Quickshell.execDetached(["wysun", "settings", "wallpaper"]);
-    }
-
     function setWallpaper(path: string): void {
         actualCurrent = path;
         Quickshell.execDetached(["wysun", "wallpaper", "set", path]);
@@ -61,8 +50,7 @@ Searcher {
         previewPath = path;
         showPreview = true;
 
-        if (Colours.scheme === "dynamic")
-            getPreviewColoursProc.running = true;
+        getPreviewColoursProc.running = true;
     }
 
     function stopPreview(): void {

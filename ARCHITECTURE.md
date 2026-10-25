@@ -14,7 +14,7 @@ atajos existentes (sección 7). El código derivado del shell GPL-3.0 de tercero
 ```
 apps/
   shell/        Shell Quickshell (QML) + plugin C++ `Wysun.*`        → ~/.local/share/wysun/quickshell
-  wysun/        Lanzador y apps Qt/PySide6 (Music, Files, Settings…) → ~/.local/share/orbit/app
+  wysun/        Apps Qt/PySide6 (Music, Files, Player) y backends de datos que usa el shell → ~/.local/share/orbit/app
   capture/      Wysun Recorder (loomrec/)                             → ~/.local/share/wysun/capture/releases/<hash>
   tools/        `orbit-tools` (dev, audit, share, cloud, vpn, resets) → ~/.local/share/orbit/tools
 bin/            Lanzadores públicos (wysun, wysun-shell, wysun-session, wysun-lock, wysun-wm, …) → ~/.local/bin
@@ -23,8 +23,7 @@ machines/       Perfiles opcionales por equipo (p. ej. samsung-touchscreen.sh); 
 installer/      Instalador (CLI + GUI), constructor del runtime, registro de sesión, limpieza, arranque (GRUB/Plymouth)
 manifests/      Versiones y sumas fijadas: packages.json, runtime.json, artifacts.json, themes.json, mason/plugins
 assets/         Iconos, fuentes, fondos
-system/boot/    Temas de arranque opcionales (GRUB, Plymouth, greeter) — componente `boot`
-native/         `blue-crt` (efecto de terminal, componente opcional)
+system/boot/    Arranque Macrodata (GRUB, Plymouth) y su generador; la pantalla de acceso (greetd) es apps/shell/greeter.qml
 docs/           Guías por tema (instalador, wayland, temas, validación…)
 tests/          Todas las pruebas (ver sección 8)
 ```
@@ -39,9 +38,9 @@ detectan por huella y se guardan como `incoming/`).
 | Hyprland 0.55.x | Compositor, configuración Lua `~/.config/wysun/hyprland.lua` (de `config/.config/wysun/hyprland.lua`) | `wysun-session` (sesión “Wysun / Hyprland”) |
 | `wysun-session-services` | Supervisor: `wysun-shell`, `wysun-idle` (swayidle configurable: bloqueo/pantalla), `wysun daemon`, polkit | Hyprland `exec` |
 | Shell (`wysun-shell` → `runtime.sh` → Quickshell) | Barra, dashboard, lanzador QML, menús, notificaciones (vista), OSD, sesión, fondos | supervisor |
-| `wysun daemon` (`orbit.py --daemon`) | Residente Qt: lanzador, portapapeles, Notas, procesos, OCR; socket `$XDG_RUNTIME_DIR/orbit-<uid>.sock` | supervisor |
+| `wysun daemon` (`orbit.py --daemon`) | Residente Qt sin ventanas: registra el historial del portapapeles y reenvía comandos; socket `$XDG_RUNTIME_DIR/orbit-<uid>.sock`. El lanzador, Colors, Processes y Settings son del shell; Music y Files son procesos propios | supervisor |
 | Shell (Quickshell) | Único dueño de D-Bus de notificaciones (`NotificationServer` en `apps/shell/services/Notifs.qml`); No molestar: `wysun-shell dnd on\|off\|toggle\|status` | supervisor |
-| Apps (Music, Files, Settings, Recorder) | Ventanas Qt bajo demanda (`wysun <modo>`) | usuario |
+| Apps (Music, Files, Player, Recorder) | Ventanas Qt bajo demanda (`wysun <modo>`), cada una en su proceso | usuario |
 
 ### Shell (`apps/shell`)
 
@@ -94,9 +93,20 @@ viven en `hyprland.lua`.
 
 ### Aplicaciones Qt (`apps/wysun`)
 
-Módulos planos Python (se importan por nombre): `orbit.py` (lanzador/daemon), `music_*`, `files_*`, `notes_window`, `color_window`, `power_window`,
-`theme_*`, `wayland_clipboard`, etc. `orbit-client` es el cliente ligero (socket) que invoca `bin/wysun`. Las preferencias de
+Módulos planos Python (se importan por nombre): `orbit.py` (residente del portapapeles), `music_*`, `files_*`, `player_*`, `wysun_media/`,
+`theme_*`, `wayland_clipboard`, más los backends que consume el shell (`launcher_data`, `color_data`, `environment_settings`,
+`hypr_settings`, `wysun_scheme`). `orbit-client` es el cliente ligero (socket) que invoca `bin/wysun`. Las preferencias de
 usuario viven en `~/.config/orbit/` y `~/.local/share/orbit/` (sección 7).
+
+### Wysun Player y `wysun_media` (`apps/wysun/wysun_media`, `player_*.py`)
+
+Visor único de imágenes, video y audio (`wysun player`, alias `wysun image`) y el componente reutilizable que lo implementa
+(`MediaPlayer`). Un proceso por usuario atiende todas las ventanas mientras haya alguna (socket en `$XDG_RUNTIME_DIR`); Files
+abre ahí cualquier medio y embebe el mismo componente en su panel de detalles; Recorder lo embebe en su página de reproducción.
+El paquete no importa ningún módulo del anfitrión: cada app instala un `Host` con su tema (`media_host.py` en Wysun,
+`loomrec/ui/media_host.py` en Recorder). Reproduce con libmpv (OpenGL y decodificación por hardware con copia de vuelta;
+respaldo por software), decodifica imágenes con `QImageReader` en segundo plano y publica MPRIS. Detalle, atajos, decisiones y
+diagnóstico: `docs/player.md`. `apps/capture/wysun_media` es un enlace al mismo código y cada release de Recorder lleva su copia.
 
 ### Captura (`apps/capture`)
 
@@ -110,7 +120,7 @@ toca `~/.local/share/wybie-screenshot`.
 **Grabación de pantalla**: la elección (ventana/región/pantalla), la cuenta atrás y el HUD viven en el shell
 (`wysun-shell record [start|toggle|pause|stop]`, IPC `recorder`; `modules/areapicker` en modo `record` + `modules/recorder`);
 el worker independiente de `loomrec` hace la captura y `wysun recorder --start JSON` lo arranca sin ventana. La ventana Qt
-`wysun recorder` es solo biblioteca, reproductor básico y ajustes (`loomrec/ui/app_*.py`, patrón de Music/Files). Atajos:
+`wysun recorder` es solo biblioteca, reproducción con el componente compartido `wysun_media` y ajustes (`loomrec/ui/app_*.py`, patrón de Music/Files). Atajos:
 `Super+Shift+L`/`R` alternan (elegir y grabar / terminar), `Ctrl+Shift+R` pausa, `Ctrl+Shift+S` termina.
 
 ## 3. Runtime del shell (Qt / Quickshell / plugin)
@@ -156,6 +166,17 @@ Piezas: `main.py` (despliegue, restauración, `doctor`), `install_model.py` (com
 `wayland.py` (sesión Hyprland, shell, runtime, portales), `runtime_build.py`, `capture_distribution.py` (releases de captura),
 `session_registration.py` (entrada de sesión en el gestor de acceso, reversible), `clean_legacy.py`, `boot*.py`, `gui.py`.
 `WYSUN_SKIP_RUNTIME=1` omite el runtime (pruebas).
+
+La nueva base gráfica se abre con `./wysun-installer`; `./wysun-installer-preview` recorre una instalación nueva con
+operaciones simuladas en memoria. `preview_process.py` separa esa demostración de `process_runner.py`. El gestor instalado
+lleva un subconjunto de los controles Material de Music/Files, fuentes y tokens mediante `ui_support.py`, por lo que puede
+abrir antes de instalar el escritorio y sin conservar el checkout. Recorrido y piezas visuales en `scenes.py`;
+`docs/installer.md` documenta el funcionamiento y los límites de validación.
+
+Las opciones explícitas `--prepare-repositories` y `--upgrade-system` preparan backports nativos y actualizaciones de la
+distribución actual, respectivamente. Se actualizan índices y se resuelven dependencias antes del upgrade. La preparación
+de fuentes tiene su propio diario bajo `/var/lib/dotifails/repositories/backups/`; no se reemplazan fuentes ajenas ni claves.
+La recuperación de archivos no revierte paquetes. Estos modos no se combinan con `--config-only` o `--only`.
 
 ### Configuración general vs. de la máquina
 
@@ -219,8 +240,23 @@ Nunca reiniciar Hyprland ni el login para actualizar un panel.
   cápsula de búsqueda con forma M3 que se transforma, filas con selección tonal y entrada escalonada). Pestañas All, Apps,
   Files y Clipboard (Ctrl+Tab las recorre); «All» es una lista agrupada (Suggestions, Applications, Commands, Files,
   Clipboard) filtrada en JS (`Search.js`, `Results.js`, `Calc.js` para la calculadora en línea; el JS de QML no admite
-  lookbehind en expresiones regulares) sobre datos precalculados; archivos por `find` asíncrono en streaming con debounce de
-  120 ms; el portapapeles se carga una vez al abrir con `apps/wysun/launcher_data.py` (mismo almacén que el residente). Las
+  lookbehind en expresiones regulares) sobre datos precalculados; archivos por un índice en memoria de todo el home (`launcher_data.py files-index` lo escribe en
+  `~/.local/share/orbit/launcher-files.idx`; incluye ocultos y `~/.config`) que `FileSearch.mjs` recorre en cada tecla dentro de un
+  `WorkerScript` (`FileSearchWorker.mjs`, fuera del hilo de la interfaz; las teclas pulsadas durante una búsqueda se
+  agrupan en la última consulta):
+  recursivo, con carpeta de ámbito dentro de una carpeta, tokens AND sobre nombre y ruta, subsecuencias y estrechamiento
+  incremental; las imágenes del portapapeles se buscan por el texto reconocido con Tesseract (`act ocr-pending` rellena
+  las pendientes; Alt+K › Copy Text from Image). Los archivos de texto, código y dotfiles se abren en Neovim: la vista
+  previa de código se despega del panel, se expande sobre el espacio de trabajo y se asienta en la baldosa de la terminal, una ventana normal en mosaico de clase `wysun.edit` (`EditMorph.qml`,
+  `services/Editor.qml`; `wysun-shell ipc call editor open <ruta>` lo reproduce) y la vista previa de código usa la paleta del
+  NvChad activo (`nvim_theme.py`, marcado StyledText de Qt, no RichText: se maqueta ~7 veces más rápido) servida por
+  `apps/wysun/code_preview.py` (primeras 120 líneas, caché en `~/.cache/wysun/code-preview` por archivo, fecha y tema; la
+  vista previa guarda además en memoria las ya vistas); el portapapeles se carga una vez al abrir con `apps/wysun/launcher_data.py` (mismo almacén que el residente).
+  Ranking aprendido (`services/Usage.js`, guardado en `launcher.json`): frecencia por entrada (últimos usos con vida media de
+  5 días y horas habituales) y lo que se eligió tras cada texto escrito (`picks`); solo reordena coincidencias, nunca
+  añade resultados. Las sugerencias vacías mezclan fijados, frecencia y la frecuencia histórica de AppDb, con 3 archivos
+  como máximo. Las páginas de Ajustes (`Catalog.settings()`, palabras clave en español e inglés) aparecen como grupo
+  «Settings» y se abren con `wysun settings <ruta>`. Las
   vistas (Clipboard History, Files, Applications, Calculator History, Open With) se apilan con push/pop (Escape o Backspace
   con la búsqueda vacía vuelven). La vista previa (`PreviewPane.qml`) cambia según el tipo: imagen sobre su copia difuminada,
   vídeo en bucle y sin sonido, primera página de PDF, código con números de línea, Markdown renderizado, contenido de
@@ -230,8 +266,8 @@ Nunca reiniciar Hyprland ni el login para actualizar un panel.
   `launcher_web.py` entrega metadatos antes de la imagen, limita las descargas y guarda hasta 32 previews en
   `~/.cache/wysun/link-previews` (una hora; fallos, un minuto). El highlight lo posiciona el propio ListView para seguir el scroll. No hay snippets, vista de ventanas ni comandos de energía en el lanzador (Alt+Tab abre el overview).
   `wysun clipboard|calculator` abren la vista correspondiente y `emoji` el cajón de emojis; `power|audio|notifications|calendar|system` abren las superficies del
-  shell. El residente Qt (`orbit.py`) ya no muestra menús: aloja utilidades (Notas, Música, Herramientas…) y registra el
-  historial del portapapeles.
+  shell. El residente Qt (`orbit.py`) ya no muestra menús ni aloja utilidades: registra el historial del portapapeles.
+  Music (`music_app.py`) y Files (`files_app.py`) se lanzan con `orbit-client` como procesos independientes.
 - **Colores** (`wysun colors`, `wysun color`, `orbit color`): panel nativo de Quickshell en
   `apps/shell/modules/colors/`, capa overlay `wysun-colors` en la pantalla enfocada. Usa los controles,
   tipografía, radios y paleta M3 del shell. Incluye plano HSV con teclado, formatos HEX/RGB/HSL,
@@ -240,6 +276,18 @@ Nunca reiniciar Hyprland ni el login para actualizar un panel.
   La captura oculta el panel y llama a `wysun recorder --pick-color`; vuelve tanto al elegir como al
   cancelar. Escape o pérdida de foco cierran el panel; Ctrl+P captura y Ctrl+C copia HEX fuera del
   campo de edición. No se abre la antigua ventana Qt Widgets desde los comandos públicos.
+- **Bloqueo** (`wysun-lock`, `apps/shell/lock.qml`, `modules/lockscreen/`): terminal de refinamiento. Un campo de
+  números en un shader (`field.frag`, atlas de glifos con la fuente mono del shell) reacciona al puntero; cada tecla agita
+  un grupo y envía dígitos a una de cinco cajas; Enter barre el campo, el rechazo lo revuelve en rojo y el acierto lo vacía
+  en las cajas antes de apagar el CRT (`screen.frag`: curvatura, convergencia RGB, resplandor, apagado). Easter egg: una
+  caja al 100 % muestra «QUOTA MET»; las cinco hacen bailar el campo y dibujar una W. Colores de `scheme.json`
+  (`LockPalette.qml`), sin cargar servicios del shell. Proceso propio con `WlSessionLock` y PAM vía `/etc/pam.d/login`;
+  swaylock queda como alternativa y respaldo. Vista previa sin bloqueo: `wysun-lock --preview`. Pruebas:
+  `tests/test_wysun_lock.py`, `tests/test_screen_lock.py`. Detalles y recuperación en `docs/wayland.md`.
+  La misma escena es la pantalla de acceso (`apps/shell/greeter.qml`, `GreeterRoot.qml`, con greetd y el Quickshell de
+  Debian: por eso `LockScene.qml` no importa el plugin `Wysun.*`); al entrar, las puertas del ascensor se cierran
+  (`screen.frag`). GRUB y Plymouth reutilizan sus shaders para el arte de arranque (`BootArt.qml`,
+  `system/boot/render_assets.py`). Ver `docs/boot.md`.
 - **Panel de sesión**: `Super+X` alterna el panel lateral de sesión (salir, apagar, suspender, reiniciar) en el monitor
   enfocado y Escape lo cierra. `Ctrl+X` no está asignado: vuelve a ser Cortar en las aplicaciones. Los paneles invocados explícitamente conservan máscara interactiva y capa overlay
   sobre fullscreen; no dejan un foco invisible.
@@ -250,8 +298,8 @@ Nunca reiniciar Hyprland ni el login para actualizar un panel.
   `environment_settings.py`, `display_layout.py` y `hypr_settings.py`. No hay sección Escritorio ni páginas
   Terminal, Notificaciones, Inicio, Archivos y copias, Efectos, Ventanas, Atajos, SSH o Processes en Settings.
   Wi-Fi, VPN y Bluetooth usan Red y Dispositivos conectados. `wysun processes` se gestiona fuera de Nexus.
-- **Tema**: Space Black (`space-black`, `tokyo`, `severance`) y Fluent (`light`, `dark`); selección en
-  `~/.config/orbit/theme.json`. Los tokens viven en `apps/wysun/wysun_theme.json`; Quickshell los lee por
+- **Tema**: un solo estilo, Material You; el color sale del wallpaper (`scheme.json`) y la selección, en
+  `~/.config/orbit/theme.json`, es solo el modo (`auto`, `light`, `dark`). Los tokens viven en `apps/wysun/wysun_theme.json`; Quickshell los lee por
   `apps/shell/services/Colours.qml` (vía `scheme.json`); `tests/test_theme_literals.py` rechaza colores literales
   (excepciones: `theme-exception: motivo`). Guía: `docs/themes.md`.
 
@@ -277,6 +325,8 @@ QT_QPA_PLATFORM=offscreen python3 tests/utility_ui.py
 python3 tests/check_manifest.py
 python3 apps/capture/run_tests.py                              # captura (medios serializados)
 python3 tests/wysun_installed_smoke.py                         # sobre la instalación real
+python3 -m unittest discover -s tests -p 'test_media_*.py'     # reproductor: componente, widget, tema y MPRIS (D-Bus propio)
+python3 tests/wayland_media_case.py                            # reproductor sobre el compositor real (OpenGL, fugas)
 ```
 
 Pruebas de sockets/compositor requieren acceso de sesión; un bloqueo de sandbox no prueba un fallo del producto. Las seis

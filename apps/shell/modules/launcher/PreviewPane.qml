@@ -33,6 +33,7 @@ Item {
     readonly property font small: Tokens.font.body.builders.small.size(9 * scale).weight(Font.Medium).build()
     readonly property font body: Tokens.font.body.builders.medium.size(10 * scale).build()
 
+    readonly property alias stage: stage
     readonly property bool isFile: row?.kind === "file"
     readonly property bool isClip: row?.kind === "clip"
     readonly property string ext: isFile ? Files.extension(row.path) : ""
@@ -50,7 +51,8 @@ Item {
             if (ext === "md" || ext === "markdown") return "markdown";
             if (fileIcon === "code") return "code";
             if (fileIcon === "description") return "text";
-            return "other";
+            // Anything Neovim would open (unknown extensions, backups, dotfiles) previews as text when it is text.
+            return row.editable ? "code" : "other";
         }
         if (isClip)
             return {image: "image", color: "color", url: "link"}[row.clip_kind] ?? Content.textKind(row.value);
@@ -59,8 +61,21 @@ Item {
 
     property string imageSource
     property string bodyText
+    // Neovim-coloured rendering of code files (from nvim_theme.py); empty when no Neovim theme is configured.
+    property string codeHtml
+    // Lines in the whole file; the preview itself stops after the first ones (code_preview.py).
+    property int codeLines
+    property color codeBg
+    property color codeFg
+    property color codeLineNr
+    // NvChad's `transparency = true`: Neovim draws no background of its own, so neither does the preview.
+    property bool codeTransparent
+    readonly property bool nvimStyled: mode === "code" && codeHtml !== ""
     property var meta: ({})
     property var linkCache: ({})
+    // Code previews already coloured this session, by path: {data, modified}. Arrowing back to a
+    // file shows it at once; the stat answer re-runs the preview only if the file changed meanwhile.
+    property var codeCache: ({})
     property var folderItems: []
     // Zoom of the picture stage: 1 = fit. panX/panY move the scaled picture inside the frame.
     // zoom/panX/panY are targets; the shown* copies glide to them on the same short curve.
@@ -124,6 +139,8 @@ Item {
     onStampChanged: {
         imageSource = "";
         bodyText = "";
+        codeHtml = "";
+        codeLines = 0;
         meta = mode === "link" ? (linkCache[row.value.trim()] || {}) : {};
         folderItems = [];
         folderCount = -1;
@@ -172,7 +189,7 @@ Item {
         if (m.audio_codec) out.push(["graphic_eq", String(m.audio_codec).toUpperCase()]);
         if (m.pages) out.push(["description", m.pages + (m.pages === 1 ? " page" : " pages")]);
         if (mode === "code" || mode === "text" || mode === "markdown")
-            if (bodyText) out.push(["format_list_numbered", bodyText.split("\n").length + " lines"]);
+            if (bodyText) out.push(["format_list_numbered", (codeLines || bodyText.split("\n").length) + " lines"]);
         if (mode === "folder" && folderCount >= 0) out.push(["folder", folderCount + (folderCount === 1 ? " item" : " items")]);
         if (m.size !== undefined) out.push(["save", size(m.size)]);
         if (m.modified) out.push(["edit_calendar", when(m.modified)]);
@@ -188,6 +205,7 @@ Item {
         if (!r)
             return;
         if (isFile) {
+            statProc.running = false;
             statProc.command = ["stat", "-L", "-c", "%s|%Y", r.path];
             statProc.running = true;
             if (mode === "image")
@@ -195,7 +213,14 @@ Item {
             else if (mode === "folder") {
                 listProc.command = ["find", r.path, "-mindepth", "1", "-maxdepth", "1", "-not", "-name", ".*", "-printf", "%y\t%f\n"];
                 listProc.running = true;
-            } else if (["code", "text", "markdown"].includes(mode)) {
+            } else if (mode === "code") {
+                const hit = codeCache[r.path];
+                if (hit)
+                    showCode(hit.data);
+                else
+                    runCode(r.path);
+            } else if (["text", "markdown"].includes(mode)) {
+                headProc.running = false;
                 headProc.command = ["head", "-c", "12000", r.path];
                 headProc.running = true;
             } else if (["video", "audio", "page"].includes(mode)) {
@@ -231,6 +256,25 @@ Item {
         }
     }
 
+    function runCode(path: string): void {
+        codeProc.running = false;
+        codeProc.path = path;
+        codeProc.command = LauncherData.codePreview(path);
+        codeProc.running = true;
+    }
+
+    function showCode(d: var): void {
+        bodyText = d.text ?? "";
+        codeLines = d.lines ?? 0;
+        if (d.html) {
+            codeBg = d.bg;
+            codeFg = d.fg;
+            codeLineNr = d.lineNr;
+            codeTransparent = !!d.transparent;
+            codeHtml = d.html;
+        }
+    }
+
     Timer {
         id: debounce
 
@@ -246,7 +290,11 @@ Item {
                 const p = text.trim().split("|");
                 if (p.length < 2 || !root.isFile)
                     return;
-                root.meta = Object.assign({}, root.meta, {size: parseInt(p[0]), modified: parseInt(p[1])});
+                const modified = parseInt(p[1]);
+                root.meta = Object.assign({}, root.meta, {size: parseInt(p[0]), modified});
+                const hit = root.mode === "code" ? root.codeCache[root.row.path] : null;
+                if (hit && hit.modified !== modified)
+                    root.runCode(root.row.path);
             }
         }
     }
@@ -256,6 +304,29 @@ Item {
 
         stdout: StdioCollector {
             onStreamFinished: root.bodyText = text
+        }
+    }
+
+    Process {
+        id: codeProc
+
+        property string path
+
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let d;
+                try {
+                    d = JSON.parse(text);
+                } catch (e) {
+                    return;
+                }
+                const cache = root.codeCache;
+                if (Object.keys(cache).length >= 40)
+                    root.codeCache = {};
+                root.codeCache[codeProc.path] = {data: d, modified: root.row?.path === codeProc.path ? root.meta.modified : undefined};
+                if (root.row?.path === codeProc.path && root.mode === "code")
+                    root.showCode(d);
+            }
         }
     }
 
@@ -336,7 +407,7 @@ Item {
         anchors.right: parent.right
         height: root.expanded || root.mode === "link" ? parent.height : root.mode === "folder" || ["code", "text", "markdown"].includes(root.mode) ? parent.height - details.height - Tokens.spacing.medium : Math.min(parent.height * 0.62, parent.height - details.height - Tokens.spacing.medium)
         radius: Tokens.rounding.large
-        color: Colours.palette.m3surfaceContainerHigh
+        color: root.nvimStyled ? (root.codeTransparent ? "transparent" : root.codeBg) : Colours.palette.m3surfaceContainerHigh
         border.width: root.focusedPane ? 2 : 0
         border.color: Colours.palette.m3primary
         clip: true
@@ -886,13 +957,14 @@ Item {
                             return Array.from({length: n}, (_, i) => i + 1).join("\n");
                         }
                         font: Tokens.font.mono.small
-                        color: Colours.palette.m3outline
+                        color: root.nvimStyled ? root.codeLineNr : Colours.palette.m3outline
                         horizontalAlignment: Text.AlignRight
                     }
                     StyledText {
-                        text: root.mode === "code" ? root.bodyText : ""
+                        text: root.mode !== "code" ? "" : root.nvimStyled ? root.codeHtml : root.bodyText
+                        textFormat: root.nvimStyled ? Text.StyledText : Text.PlainText
                         font: Tokens.font.mono.small
-                        color: Colours.palette.m3onSurface
+                        color: root.nvimStyled ? root.codeFg : Colours.palette.m3onSurface
                     }
                 }
                 StyledText {

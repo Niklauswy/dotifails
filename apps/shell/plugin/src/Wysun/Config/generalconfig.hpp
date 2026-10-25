@@ -21,6 +21,10 @@ class GeneralApps : public settings::ObjectNode {
     CONFIG_PROPERTY(QStringList, audio, { u"pwvucontrol"_s })
     CONFIG_PROPERTY(QStringList, playback, { u"mpv"_s })
     CONFIG_PROPERTY(QStringList, explorer, { u"thunar"_s })
+    // Opened with the URL as its last argument (launcher web searches, links); xdg-open follows the system default.
+    CONFIG_PROPERTY(QStringList, browser, { u"xdg-open"_s })
+    // What the launcher's plain "Search the web" row uses: duckduckgo | google | bing | brave | ecosia
+    CONFIG_PROPERTY(QString, searchEngine, u"duckduckgo"_s)
 };
 
 class GeneralIdleTimeout : public settings::ObjectNode {

@@ -32,9 +32,9 @@ sudo apt-get update && sudo apt-get install --yes git python3 ca-certificates &&
 
 Si ya tienes esta carpeta, ejecuta `./instalar.sh`. Desde una sesión gráfica abre el **instalador visual**: bienvenida, vista previa del tema, componentes, aplicaciones opcionales, revisión, progreso real y primeros pasos. Si falta Qt, ofrece preparar únicamente la interfaz desde la terminal. La instalación del escritorio empieza después de revisar el plan.
 
-Puedes seleccionar escritorio, sesión Wysun / Hyprland, terminal, Neovim, herramientas y Blue CRT; el escritorio, la sesión y Neovim incluyen lo que necesitan. Desmarcar algo conserva su instalación actual. GRUB, carga y acceso también se eligen por separado. El instalador conserva los cambios personales, muestra conflictos, guarda el registro y permite recuperar respaldos del hogar o del arranque. [Guía del instalador visual](docs/installer.md).
+Puedes seleccionar escritorio, sesión Wysun / Hyprland, terminal, Neovim, herramientas y el arranque Macrodata; el escritorio, la sesión y Neovim incluyen lo que necesitan. Desmarcar algo conserva su instalación actual. GRUB, carga y acceso también se eligen por separado. El instalador conserva los cambios personales, muestra conflictos, guarda el registro y permite recuperar respaldos del hogar o del arranque. [Guía del instalador visual](docs/installer.md).
 
-Una instalación nueva utiliza Severance (estilo Space Black) y las actualizaciones conservan el tema elegido (también `--theme fluent-light` o `--theme fluent-dark`). No lo ejecutes con `sudo`: la interfaz pide autorización cuando corresponde. Al terminar, cierra sesión cuando quieras y elige **Wysun / Hyprland** en el gestor de acceso. El instalador mantiene abierta tu sesión.
+Una instalación nueva usa el fondo `purple-abstract` y Material You: los colores salen del wallpaper y el modo (automático, claro u oscuro) se conserva al actualizar. No lo ejecutes con `sudo`: la interfaz pide autorización cuando corresponde. Al terminar, cierra sesión cuando quieras y elige **Wysun / Hyprland** en el gestor de acceso. El instalador mantiene abierta tu sesión.
 
 El instalador se valida con HOME/XDG temporales y con una sesión Wayland anidada. Consulta el alcance exacto en [Validación](docs/validation.md).
 
@@ -61,8 +61,8 @@ El perfil Samsung es opcional y específico del equipo con pantalla táctil defe
 - Ghostty **1.2.3**, Neovim **0.11.5**, Node **24.19.0**, Starship **1.24.1**; versiones y SHA-256 en `manifests/artifacts.json`. Ghostty se extrae una vez, sin depender de FUSE al abrir terminales.
 - NvChad con plugins fijados por `lazy-lock.json`, LSP, formato, búsqueda difusa, tareas, depuración y herramientas de JS/TS, C/C++ y Python. Las versiones de Mason están en `manifests/mason.json`.
 - Zsh, autocompletado/sugerencias, resaltado, fzf y prompt Starship. Mise **2026.9.14** cambia versiones por proyecto; Node está disponible directamente y NVM se conserva bajo demanda.
-- Severance: ARK-Dark, Flat-Remix-Green-Dark, cursor Breeze y el prompt actual de Starship. Tokyo: Arc-Darker, Win11-Dark, cursor Fluent y el prompt compacto.
-- Ambos mantienen la barra, notificaciones, paleta de Ghostty, Neovim, FiraCode Nerd Font, Inter, Noto Color Emoji, `eza`, `bat` y FZF. Los dos fondos quedan en la biblioteca de Wysun.
+- Apariencia: GTK Arc-Darker, iconos Win11-Dark, cursor Fluent y el prompt compacto de Starship.
+- Incluye la barra, notificaciones, paleta de Ghostty, Neovim, FiraCode Nerd Font, Inter, Noto Color Emoji, `eza`, `bat` y FZF. El fondo queda en la biblioteca de Wysun.
 
 Los paquetes APT y las aplicaciones Flatpak reciben las versiones que publica cada distribución. Los binarios externos y plugins tienen versiones fijadas; los paquetes del sistema no forman una imagen inmutable.
 
@@ -124,7 +124,7 @@ Esta versión está orientada a Wysun / Hyprland sobre Wayland y a las rutas XDG
 
 [Manual de Wysun](apps/wysun/README.md) · [Neovim](config/.config/nvim/README.md) · [Créditos](docs/credits.md) · [Validación](docs/validation.md)
 
-En Ajustes → Tema (`wysun settings theme`) eliges un estilo —**Space Black** (variantes Space Black, Tokyo y Severance) o **Fluent** (claro y oscuro, tipo Windows 11)— y lo ves al instante en todas las aplicaciones, sin reinstalar el escritorio ([guía de temas](docs/themes.md)). El cambio incluye Wysun, terminal, prompt, Neovim, barra, bordes, notificaciones y animaciones del bloqueo; las configuraciones anteriores se respaldan.
+En Ajustes → Wallpaper & style eliges el fondo con el carrusel (`Super+Shift+W`) y el modo —automático, claro u oscuro—; los colores y el acento salen siempre del wallpaper actual y se aplican al instante en todas las aplicaciones, sin reinstalar el escritorio ([guía de temas](docs/themes.md)). Las configuraciones anteriores se respaldan.
 
 ### Herramientas personales
 
@@ -132,4 +132,4 @@ Un solo comando: `orbit-tools`, con grupos `dev`, `audit`, `share`, `cloud`, `vp
 
 ### Arranque y acceso
 
-La selección completa incluye Blue CRT: GRUB azul clásico, carga animada e inicio de LightDM con Tux y biseles retro. Se actualizan por separado con `./instalar.sh --boot-only`; `--boot-components grub,plymouth` limita las pantallas. El instalador visual permite elegirlas y recuperar sus respaldos. [Instalación, compatibilidad y recuperación](docs/boot.md).
+La selección completa incluye el arranque inspirado en *Severance*: GRUB como la tarjeta azul de una cinta de formación (con efecto VHS), y Plymouth como un CRT de oficina en fósforo que hojea el índice de proyectos, abre Cold Harbor y llena el indicador con el progreso real. Se actualizan por separado con `./instalar.sh --boot-only`; `--boot-components grub,plymouth` limita las pantallas. El instalador visual permite elegirlas y recuperar sus respaldos. [Instalación, compatibilidad y recuperación](docs/boot.md).

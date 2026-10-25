@@ -16,6 +16,8 @@ Singleton {
 
     property bool showPreview
     property string scheme
+    // What the user chose: "auto" follows the wallpaper, "light" and "dark" override it.
+    property string modePreference: "auto"
     property string flavour
     readonly property bool light: showPreview ? previewLight : currentLight
     property bool currentLight
@@ -88,7 +90,8 @@ Singleton {
     }
 
     function setMode(mode: string): void {
-        Quickshell.execDetached(["wysun", "scheme", "set", "--dynamic", "--mode", mode]);
+        modePreference = mode;
+        Quickshell.execDetached(["wysun", "scheme", "set", mode]);
     }
 
     function reloadHyprRules(): void {
@@ -112,6 +115,22 @@ Singleton {
         }
 
         target: Hypr
+    }
+
+    FileView {
+        path: `${Quickshell.env("XDG_CONFIG_HOME") || `${Paths.home}/.config`}/orbit/theme.json`
+        watchChanges: true
+        printErrors: false
+        onFileChanged: reload()
+        onLoaded: {
+            try {
+                const mode = JSON.parse(text()).mode;
+                root.modePreference = mode === "light" || mode === "dark" ? mode : "auto";
+            } catch (error) {
+                root.modePreference = "auto";
+            }
+        }
+        onLoadFailed: root.modePreference = "auto"
     }
 
     FileView {

@@ -62,6 +62,12 @@ def main():
             text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=90)
         if update.returncode:raise RuntimeError(update.stdout)
         assert config.read_text() == '-- synthetic personal binding fixture\n'
+        for command in ('player', 'image'):       # the viewer's public entry points run from the installed copy and never start a window
+            help_text = subprocess.run(['wysun', command, '--help'], env=env, cwd='/', text=True, stdout=subprocess.PIPE,
+                                       stderr=subprocess.STDOUT, timeout=20)
+            assert help_text.returncode == 0 and 'wysun player' in help_text.stdout, (command, help_text.stdout)
+        assert (home / '.local/share/applications/wysun-player.desktop').is_file()
+        assert not list((home / 'runtime').glob('wysun-player-*.sock'))
         assert not (home / '.config/bspwm').exists()
         assert not (home / '.config/sxhkd').exists()
         print(json.dumps({'result': 'WYSUN_INSTALLED_SMOKE_OK', 'cwd': '/', 'commands_ms': timings,

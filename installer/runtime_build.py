@@ -43,7 +43,9 @@ def fetch(url, commit, dest):
 def shell_hash():
     digest = hashlib.sha256()
     shell = ROOT / 'apps/shell'
-    for path in sorted([shell / 'CMakeLists.txt', *shell.joinpath('plugin').rglob('*'), *shell.joinpath('extras').rglob('*')]):
+    # The plugin also bundles the lock's mascot shader (Wysun.Components).
+    for path in sorted([shell / 'CMakeLists.txt', shell / 'modules/lockscreen/shaders/mascot.frag',
+                        *shell.joinpath('plugin').rglob('*'), *shell.joinpath('extras').rglob('*')]):
         if path.is_file():
             digest.update(path.relative_to(shell).as_posix().encode() + b'\0' + path.read_bytes())
     return digest.hexdigest()

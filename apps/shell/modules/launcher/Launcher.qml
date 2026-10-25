@@ -2,12 +2,14 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell
+import Quickshell.Io
 import Quickshell.Wayland
 import Quickshell.Hyprland
 import Wysun.Config
 import qs.components
 import qs.components.containers
 import qs.services
+import qs.modules.launcher.services
 
 // Raycast-style launcher in Material 3 Expressive: one floating panel in the upper
 // third of the focused screen that springs open and settles.
@@ -15,6 +17,22 @@ Scope {
     id: root
 
     readonly property alias variants: variants
+
+    EditMorph {}
+
+    // `wysun-shell ipc call launcher activate`: what Enter does on the selected row (scripted checks of a hand-over).
+    IpcHandler {
+        target: "launcher"
+
+        function activate(): bool {
+            for (const win of root.variants.instances)
+                if (win.active) {
+                    win.panelItem.activate(win.panelItem.row);
+                    return true;
+                }
+            return false;
+        }
+    }
 
     Variants {
         id: variants

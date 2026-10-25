@@ -13,15 +13,23 @@ def main(argv=None):
     graphical = bool(os.environ.get('DISPLAY') or os.environ.get('WAYLAND_DISPLAY'))
     explicit_gui = '--gui' in args
     explicit_cli = '--cli' in args
-    if explicit_gui and explicit_cli:
+    preview = '--preview' in args
+    if (explicit_gui or preview) and explicit_cli:
         print('Elige --gui o --cli, no ambos.', file=sys.stderr)
         return 2
     if explicit_cli:
         args.remove('--cli')
     if explicit_gui:
         args.remove('--gui')
-    gui = explicit_gui or (not args and graphical and not explicit_cli)
+    if preview:
+        args.remove('--preview')
+    gui = explicit_gui or preview or (not args and graphical and not explicit_cli)
     if gui:
+        if args == ['--help'] or args == ['-h']:
+            print('Wysun Installer\nUso: ./wysun-installer [--preview]\n'
+                  '  --preview  Recorrer la instalación completa con operaciones simuladas.\n'
+                  'Para instalar desde la terminal: ./instalar.sh --cli --help')
+            return 0
         if args:
             print('Usa --gui sin opciones de instalación; elige los componentes en la ventana.', file=sys.stderr)
             return 2
@@ -31,6 +39,9 @@ def main(argv=None):
         try:qt_available=importlib.util.find_spec('PySide6.QtWidgets') is not None
         except ModuleNotFoundError:qt_available=False
         if not qt_available:
+            if preview:
+                print('La vista previa necesita PySide6. No prepara dependencias ni modifica el equipo.', file=sys.stderr)
+                return 1
             print('La interfaz necesita python3-pyside6.qtwidgets. La preparación instala únicamente su entorno gráfico.')
             if not sys.stdin.isatty():
                 print('Abre ./instalar.sh en una terminal para preparar la interfaz, o usa --cli.', file=sys.stderr)
@@ -42,7 +53,7 @@ def main(argv=None):
                 return 0
             subprocess.run(['sudo','apt-get','update'],check=True)
             subprocess.run(['sudo','apt-get','install','--yes','--no-install-recommends','python3-pyside6.qtwidgets'],check=True)
-        os.execv('/usr/bin/python3', ['/usr/bin/python3', str(source/'installer/main.py'), 'gui', '--source', str(source)])
+        os.execv('/usr/bin/python3', ['/usr/bin/python3', str(source/'installer/main.py'), 'gui', '--source', str(source), *(['--preview'] if preview else [])])
     os.execv('/usr/bin/python3', ['/usr/bin/python3', str(source/'installer/main.py'), 'install', '--source', str(source), *args])
 
 

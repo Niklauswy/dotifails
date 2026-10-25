@@ -278,7 +278,9 @@ class SelectionPreview(QWidget):
         self.image.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored)
         self.holder = QWidget()
         QVBoxLayout(self.holder).setContentsMargins(0, 0, 0, 0)
-        for page in (self.glyph, self.image, self.holder):
+        self.media_page = QWidget()          # the one player lives here for the whole life of the panel
+        QVBoxLayout(self.media_page).setContentsMargins(0, 0, 0, 0)
+        for page in (self.glyph, self.image, self.holder, self.media_page):
             self.stack.addWidget(page)
         column.addWidget(self.stack, 1)
 
@@ -345,11 +347,7 @@ class SelectionPreview(QWidget):
 
     def _clear_dynamic(self):
         if self.player is not None:
-            self.player.stop()
-            self.player.hide()
-            self.player.setParent(None)
-            self.player.deleteLater()
-            self.player = None
+            self.player.close_media()        # stops playback and decoding; the session is reused by the next file
         layout = self.holder.layout()
         while layout.count():
             item = layout.takeAt(0)
@@ -417,7 +415,7 @@ class SelectionPreview(QWidget):
         self.modes.setVisible(True)
         self.view_chip.setVisible(kind == 'markdown')
         self.source_chip.setVisible(kind == 'markdown')
-        if kind in ('image', 'pdf'):
+        if kind == 'pdf':
             self.image.setText('Cargando vista previa…')
             self.stack.setCurrentWidget(self.image)
             self.request = (path, 1)
@@ -430,14 +428,9 @@ class SelectionPreview(QWidget):
         if not self.path:
             return
         kind = preview_kind(self.path)
-        if kind in ('video', 'audio'):
-            from .player import MediaPlayer
-            self.player = MediaPlayer(self.path, audio=kind == 'audio')
-            self.player.fullscreen_requested.connect(self.fullscreen_requested)
-            self.holder.layout().addWidget(self.player)
-            self.stack.setCurrentWidget(self.holder)
-            self._probe_media()
-        elif kind in ('image', 'pdf'):
+        if kind in ('video', 'audio', 'image'):
+            self._show_media()
+        elif kind == 'pdf':
             self._start_image()
         else:
             self._start_text()
@@ -471,17 +464,64 @@ class SelectionPreview(QWidget):
             else:
                 self._start_image()
 
-    def _probe_media(self):
-        from file_media import probe_media
-        meta = probe_media(self.path)
+    def _media_player(self):
+        """The embedded player, created when the first picture, video or song is selected."""
+        if self.player is None:
+            import media_host
+            media_host.install()
+            from wysun_media.player import MediaPlayer
+            self.player = MediaPlayer(mode='embedded', backdrop='surface')
+            self.player.enable_integration()       # media keys and the shell widget see it once the user presses play
+            self.player.fullscreenRequested.connect(self.fullscreen_requested)
+            self.player.expandRequested.connect(self.open_in_player)
+            self.player.infoChanged.connect(self._media_tags)
+            self.player.errorOccurred.connect(lambda error: self.message.emit(error.message))
+            self.player.reveal = lambda: None          # Files is already showing the folder
+            self.media_page.layout().addWidget(self.player)
+        return self.player
+
+    def _show_media(self):
+        player = self._media_player()
+        if player.open(self.path, paused=True):         # no autoplay: video shows its first frame, audio waits for play
+            self.stack.setCurrentWidget(self.media_page)
+        else:
+            self._show_glyph(*describe(self.path)[:2], 'Sin vista previa · usa Abrir')
+
+    def _media_tags(self):
+        """Duration, size and codec of the file on show, from what the player itself learned."""
+        player = self.player
+        if player is None or player.source is None or str(player.source.path) != self.path:
+            return
         tags = list(self.base_tags)
-        if meta.get('duration'):
-            tags.append(('schedule', duration_label(meta['duration'])))
-        if meta.get('width'):
-            tags.append(('aspect_ratio', f"{meta['width']} × {meta.get('height', 0)}"))
-        if meta.get('audio_codec') or meta.get('codec_name'):
-            tags.append(('graphic_eq', (meta.get('codec_name') or meta.get('audio_codec')).upper()))
+        if player.kind == 'image':
+            frame = player._images.frame if player._images else None
+            if frame is not None:
+                tags.append(('aspect_ratio', f'{frame.size.width()} × {frame.size.height()}'))
+                tags.append(('image', frame.format.upper()))
+        else:
+            props = player.session.props
+            if player.session.duration:
+                tags.append(('schedule', duration_label(player.session.duration)))
+            params = props.get('video-params') or {}
+            if params.get('w'):
+                tags.append(('aspect_ratio', f"{params['w']} × {params.get('h', 0)}"))
+            codec = props.get('audio-codec-name') if player.kind == 'audio' else props.get('video-codec')
+            if codec:
+                tags.append(('graphic_eq', codec.split('/')[0].strip().upper()))
         self.details.set(self.details.name.text(), self.details.line.text(), tags[:3], self.details.location.text())
+
+    def open_in_player(self):
+        """Continue this file in Wysun Player, at the same place, and leave the panel quiet."""
+        if not self.path:
+            return
+        from player_client import launch
+        player = self.player
+        timed = player is not None and player.kind in ('video', 'audio')
+        position = player.session.position if timed else None
+        paused = player.session.paused if timed else False
+        if timed:
+            player.session.set_paused(True)
+        launch([self.path], start=position or None, paused=paused)
 
     def _image_loaded(self, path, page, data):
         if path != self.path or page != self.page:
@@ -579,4 +619,4 @@ class SelectionPreview(QWidget):
         self.timer.stop()
         self.request = None
         if self.player is not None:
-            self.player.stop()
+            self.player.shutdown()

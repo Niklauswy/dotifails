@@ -11,11 +11,14 @@ function primaryLabel(row) {
     if (!row)
         return "Open";
     switch (row.kind) {
-    case "calc": case "clip": case "history": return "Copy";
+    case "calc": case "clip": case "history": case "translate": case "variant": case "value": return "Copy";
+    case "link": return "Open";
+    case "timer": return "Start";
+    case "kill": return "Quit";
     case "run": case "openwith": return row.kind === "run" ? "Run" : "Open";
     case "cmd": return row.view ? "Open" : "Run";
     case "web": return "Search";
-    case "file": return row.isDir ? "Browse" : "Open";
+    case "file": return row.isDir ? "Browse" : row.editable ? "Edit" : "Open";
     }
     return "Open";
 }
@@ -50,19 +53,19 @@ function rawActions(row, pinned, desktopActions) {
                 a("copy-title", "Copy Name", "badge"),
                 pin];
         return [
-            a("open", "Open", "open_in_new", "↵"),
-            a("folder", "Show in Folder", "folder_open", "Alt ↵"),
+            a("open", row.editable ? "Edit in Neovim" : "Open", row.editable ? "edit_note" : "open_in_new", "↵"),
+            a("folder", "Show in Folder", "folder_open", "Alt ↵")].concat(row.editable ? [a("xdg", "Open with Default App", "open_in_new")] : [], [
             a("openwith", "Open With…", "apps"),
             a("copy-path", "Copy Path", "content_copy"),
             a("copy-title", "Copy Name", "badge"),
             a("copy-file", "Copy File", "file_copy"),
-            pin];
+            pin]);
     case "clip": {
         const list = [a("copy", "Copy to Clipboard", "content_copy", "↵"), a("paste", "Paste to Previous Window", "content_paste_go", "Alt ↵")];
         if (/^https?:\/\/[^\s]+$/i.test(row.value || ""))
             list.push(a("open-link", "Open Web Page", "open_in_new"));
         if (row.clip_kind === "image")
-            list.push(a("open-image", "Open Image", "image"));
+            list.splice(2, 0, a("copy-text", "Copy Text from Image", "text_fields"), a("open-image", "Open Image", "image"));
         list.push(a("delete", "Delete Entry", "delete", "Alt Del", true), a("capture", "Pause or Resume Capture", "pause_circle"), a("clear", "Clear History", "delete_sweep", "", true));
         return list;
     }
@@ -71,7 +74,18 @@ function rawActions(row, pinned, desktopActions) {
     case "history":
         return [a("copy", "Copy Result", "content_copy", "↵"), a("paste", "Paste to Previous Window", "content_paste_go", "Alt ↵")];
     case "web":
-        return [a("open", "Search the Web", "travel_explore", "↵")];
+        return [a("open", row.site ? "Search " + row.site : "Search the Web", "travel_explore", "↵")];
+    case "variant":
+    case "value":
+        return [a("copy-variant", "Copy", "content_copy", "↵")];
+    case "link":
+        return [a("open", "Open in Browser", "open_in_new", "↵"), a("copy-link", "Copy Link", "link")];
+    case "timer":
+        return [a("open", "Start Timer", "timer", "↵")];
+    case "kill":
+        return [a("open", "Quit All of Them", "dangerous", "↵")];
+    case "translate":
+        return [a("copy-translation", "Copy Translation", "content_copy", "↵"), a("open-translate", "Open in Google Translate", "open_in_new", "Alt ↵"), a("copy-original", "Copy Original Text", "format_quote")];
     case "run":
         return [a("open", "Run in Terminal", "terminal", "↵")];
     case "openwith":

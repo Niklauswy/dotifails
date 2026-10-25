@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import Quickshell
 import M3Shapes
 import Wysun.Config
 import qs.components
@@ -16,8 +17,11 @@ Item {
     required property int index
     required property var panel
 
-    readonly property bool header: modelData.header === true
-    readonly property bool card: modelData.kind === "calc"
+    readonly property bool hero: modelData.kind === "hero"
+    // Section titles are not selectable; neither is the welcome card of a prefix, which also sets `header`.
+    readonly property bool header: modelData.header === true && !hero
+    readonly property bool card: modelData.kind === "calc" || modelData.kind === "value"
+    readonly property bool translate: modelData.kind === "translate"
     readonly property bool current: panel.selected === index
     readonly property int ordinal: modelData.n ?? -1
     readonly property string subtitleText: panel.confirmKey === modelData.key ? "Press ↵ again to confirm" : (modelData.subtitle ?? "")
@@ -25,6 +29,8 @@ Item {
     width: ListView.view?.width ?? 0
     height: header ? 32 * panel.scale
         : card ? 92 * panel.scale
+        : translate ? (translator.item?.implicitHeight ?? 112 * panel.scale)
+        : hero ? 300 * panel.scale
         : 54 * panel.scale
 
     Component.onCompleted: enter()
@@ -62,9 +68,24 @@ Item {
     }
 
     opacity: Math.min(1, enterProgress * 1.4)
-    transform: Translate {
-        y: (1 - root.enterProgress) * 10 * root.panel.scale
-    }
+    transform: [
+        Translate {
+            y: (1 - root.enterProgress) * 10 * root.panel.scale
+        },
+        // Pressed rows sink a little, like a pressed expressive button.
+        Scale {
+            origin.x: root.width / 2
+            origin.y: root.height / 2
+            xScale: yScale
+            yScale: press.pressed && !root.header ? 0.985 : 1
+
+            Behavior on yScale {
+                Anim {
+                    type: Anim.FastSpatial
+                }
+            }
+        }
+    ]
 
     StyledText {
         visible: root.header
@@ -89,19 +110,25 @@ Item {
         Column {
             anchors.left: parent.left
             anchors.leftMargin: Tokens.padding.large
+            anchors.right: parent.right
+            anchors.rightMargin: 110 * root.panel.scale
             anchors.verticalCenter: parent.verticalCenter
             spacing: Tokens.spacing.extraSmall
 
             StyledText {
+                width: parent.width
                 text: root.modelData.subtitle ?? ""
                 font: root.panel.fontBody
                 color: Colours.palette.m3onTertiaryContainer
                 opacity: 0.8
+                elide: Text.ElideRight
             }
             StyledText {
+                width: parent.width
                 text: root.modelData.title ?? ""
                 font: Tokens.font.headline.large
                 color: Colours.palette.m3onTertiaryContainer
+                elide: Text.ElideRight
             }
         }
 
@@ -124,9 +151,35 @@ Item {
         }
     }
 
+    Loader {
+        id: translator
+
+        active: root.translate
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: parent.top
+
+        sourceComponent: TranslateCard {
+            modelData: root.modelData
+            scale: root.panel.scale
+            onPicked: code => root.panel.setQuery(";" + code + " " + root.modelData.text)
+        }
+    }
+
+    Loader {
+        active: root.hero
+        anchors.fill: parent
+
+        sourceComponent: HeroCard {
+            modelData: root.modelData
+            scale: root.panel.scale
+            panel: root.panel
+        }
+    }
+
     // Regular row
     Item {
-        visible: !root.header && !root.card
+        visible: !root.header && !root.card && !root.translate && !root.hero
         anchors.fill: parent
         anchors.leftMargin: Tokens.padding.small
         anchors.rightMargin: Tokens.padding.small
@@ -136,6 +189,7 @@ Item {
 
             readonly property bool appLike: root.modelData.kind === "app" || root.modelData.kind === "openwith"
             readonly property bool picture: !!root.modelData.thumb || !!root.modelData.swatch
+            readonly property bool brand: !!root.modelData.brand
 
             anchors.left: parent.left
             anchors.leftMargin: Tokens.padding.small
@@ -210,9 +264,27 @@ Item {
                     }
                 }
             }
+            // Brand mark of a web search (Google, YouTube); it grows a little when selected.
+            Image {
+                anchors.centerIn: parent
+                width: parent.width * (root.current ? 0.62 : 0.54)
+                height: width
+                visible: iconBox.brand
+                source: iconBox.brand ? Quickshell.shellPath(`assets/brands/${root.modelData.brand}.svg`) : ""
+                sourceSize: Qt.size(96, 96)
+                fillMode: Image.PreserveAspectFit
+                asynchronous: true
+                smooth: true
+
+                Behavior on width {
+                    Anim {
+                        type: Anim.FastSpatial
+                    }
+                }
+            }
             MaterialIcon {
                 anchors.centerIn: parent
-                visible: !iconBox.appLike && !iconBox.picture
+                visible: !iconBox.appLike && !iconBox.picture && !iconBox.brand
                 text: root.modelData.icon || "draft"
                 fill: root.current ? 1 : 0
                 color: root.current ? Colours.palette.m3onPrimaryContainer : Colours.palette.m3onSurfaceVariant
@@ -222,11 +294,17 @@ Item {
 
         Column {
             anchors.left: iconBox.right
-            anchors.leftMargin: Tokens.spacing.medium + 2
+            anchors.leftMargin: Tokens.spacing.medium + 2 + (root.current ? 3 * root.panel.scale : 0)
             anchors.right: meta.left
             anchors.rightMargin: Tokens.spacing.medium
             anchors.verticalCenter: parent.verticalCenter
             spacing: 1
+
+            Behavior on anchors.leftMargin {
+                Anim {
+                    type: Anim.FastSpatial
+                }
+            }
 
             StyledText {
                 width: parent.width
@@ -234,6 +312,10 @@ Item {
                 font: root.current ? Tokens.font.body.builders.medium.size(10.5 * root.panel.scale).weight(Font.DemiBold).build() : root.panel.fontBody
                 color: root.current ? Colours.palette.m3onSecondaryContainer : Colours.palette.m3onSurface
                 elide: Text.ElideRight
+
+                Behavior on color {
+                    CAnim {}
+                }
             }
             StyledText {
                 width: parent.width
@@ -243,6 +325,10 @@ Item {
                 color: root.panel.confirmKey === root.modelData.key ? Colours.palette.m3error : root.current ? Colours.palette.m3onSecondaryContainer : Colours.palette.m3onSurfaceVariant
                 opacity: root.current ? 0.85 : 1
                 elide: root.modelData.kind === "file" ? Text.ElideMiddle : Text.ElideRight
+
+                Behavior on color {
+                    CAnim {}
+                }
             }
         }
 
@@ -289,21 +375,34 @@ Item {
     }
 
     MouseArea {
+        id: press
+
+        // Under the translator card, whose language chips take their own clicks.
+        z: root.translate ? -1 : 0
         anchors.fill: parent
-        enabled: !root.header
+        enabled: !root.header && !root.hero
         hoverEnabled: true
         cursorShape: Qt.PointingHandCursor
-        // Only a real pointer movement selects; rows sliding under a still pointer must not steal it.
-        onPositionChanged: mouse => {
-            const p = mapToItem(null, mouse.x, mouse.y);
-            const first = root.panel.pointerX < 0;
-            if (!first && Math.abs(p.x - root.panel.pointerX) + Math.abs(p.y - root.panel.pointerY) < 2)
-                return;
-            root.panel.pointerX = p.x;
-            root.panel.pointerY = p.y;
-            if (!first && root.panel.selected !== root.index)
-                root.panel.select(root.index);
-        }
         onClicked: root.panel.activate(root.modelData)
+
+        // Only a real pointer movement selects. Rows that slide or arrive under a still pointer must not
+        // steal the selection: the scene position of the pointer itself is compared (an item-local one,
+        // mapped back mid-animation, drifts by a few pixels per frame), and a row still entering waits.
+        HoverHandler {
+            acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+            enabled: !root.header && !root.hero
+
+            onPointChanged: {
+                const p = point.scenePosition;
+                const first = root.panel.pointerX < 0;
+                const still = !first && Math.abs(p.x - root.panel.pointerX) + Math.abs(p.y - root.panel.pointerY) < 2;
+                if (still)
+                    return;
+                root.panel.pointerX = p.x;
+                root.panel.pointerY = p.y;
+                if (!first && root.enterProgress >= 1 && root.panel.selected !== root.index)
+                    root.panel.select(root.index);
+            }
+        }
     }
 }

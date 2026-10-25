@@ -14,7 +14,6 @@ import qs.modules.nexus.pages.bluetooth
 import qs.modules.nexus.pages.network
 import qs.modules.nexus.pages.panels
 import qs.modules.nexus.pages.services
-import qs.modules.nexus.pages.wallandstyle
 import qs.modules.nexus.pages.panels.taskbar
 
 QtObject {
@@ -27,15 +26,6 @@ QtObject {
             StackPage {
                 Component {
                     WallpaperAndStyle {}
-                }
-                Component {
-                    WallpaperSelect {}
-                }
-                Component {
-                    WallpaperCategory {}
-                }
-                Component {
-                    ColourSelect {}
                 }
             }
         },

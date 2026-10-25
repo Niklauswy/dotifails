@@ -18,7 +18,7 @@ class BootRecoveryDialog(QDialog):
         self.runner.line.connect(self.log_line)
         self.runner.event.connect(self.event_received)
         self.runner.finished.connect(self.finished_operation)
-        self.setWindowTitle('Recuperación de Blue CRT')
+        self.setWindowTitle('Recuperación del arranque')
         self.resize(700, 550)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(26, 24, 26, 24)

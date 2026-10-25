@@ -174,6 +174,12 @@ MouseArea {
         session.saveAs(frame);
     }
 
+    function view(): void {
+        if (annotations.editingText)
+            annotations.commitText();
+        session.view(frame);
+    }
+
     function cornerAt(x: real, y: real): string {
         const r = session.selection, hit = Tokens.sizes.screenshot.handleHitSize / 2;
         const corners = { tl: [r.x, r.y], tr: [r.x + r.width, r.y], bl: [r.x, r.y + r.height], br: [r.x + r.width, r.y + r.height] };
@@ -267,6 +273,8 @@ MouseArea {
             root.deliver(root.session.autoSave);
         } else if (phase === "actions" && event.key === Qt.Key_S) {
             root.saveAs();
+        } else if (phase === "actions" && event.key === Qt.Key_V) {
+            root.view();
         } else if (phase === "actions" && event.key === Qt.Key_A) {
             session.phase = "edit";
         } else if (phase === "actions" && event.key === Qt.Key_T) {
@@ -405,6 +413,7 @@ MouseArea {
         visible: root.active && root.phase === "actions" && !root.grab
         onCopy: root.deliver(root.session.autoSave)
         onSaveAs: root.saveAs()
+        onView: root.view()
         onAnnotate: root.session.phase = "edit"
         onReadText: {
             root.session.recognise(frame);

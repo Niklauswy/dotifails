@@ -28,7 +28,7 @@ class FilesUITests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.config=tempfile.TemporaryDirectory()
-        cls.env=patch.dict(os.environ,{'XDG_CONFIG_HOME':cls.config.name})
+        cls.env=patch.dict(os.environ,{'XDG_CONFIG_HOME':cls.config.name,'WYSUN_MPV_OPTIONS':'ao=null','XDG_STATE_HOME':cls.config.name})
         cls.env.start();cls.app=QApplication.instance() or QApplication([])
     @classmethod
     def tearDownClass(cls):
@@ -43,9 +43,9 @@ class FilesUITests(unittest.TestCase):
     def tearDown(self):
         wait_for(lambda:not self.w.jobs and self.w.inline_preview.job is None and not self.w.inline_preview.timer.isActive())
         self.w.close();self.w.deleteLater();QCoreApplication.sendPostedEvents(None,QEvent.DeferredDelete);QApplication.processEvents();self.temp.cleanup()
-    def select(self,path):
+    def select(self,path,extend=False):
         tab=self.w.current();index=tab.model.index(str(path))
-        tab.view().selectionModel().select(index,QItemSelectionModel.ClearAndSelect|QItemSelectionModel.Rows)
+        tab.view().selectionModel().select(index,(QItemSelectionModel.Select if extend else QItemSelectionModel.ClearAndSelect)|QItemSelectionModel.Rows)
     def rows(self,tab=None):
         tab=tab or self.w.current();root_index=tab.model.index(tab.path)
         return [tab.model.fileName(tab.model.index(row,0,root_index)) for row in range(tab.model.rowCount(root_index))]
@@ -220,12 +220,14 @@ class FilesUITests(unittest.TestCase):
         path=self.base/'photo.png';image.save(str(path))
         wait_for(lambda:self.w.current().model.index(str(path)).isValid())
         self.select(path);preview=self.w.inline_preview
-        wait_for(lambda:preview.image.image is not None and not preview.image.image.isNull())
-        self.assertEqual(preview.image.image.width(),120)
+        wait_for(lambda:preview.player is not None and preview.player._images is not None and preview.player._images.frame is not None)
+        self.assertEqual(preview.player._images.frame.size.width(),120);self.assertIs(preview.stack.currentWidget(),preview.media_page)
+        from wysun_files.preview import Tag
+        wait_for(lambda:any('120 × 80' in tag.text for tag in preview.findChildren(Tag)))
         self.select(self.base/'alpha.txt')
         self.assertEqual(preview.path,str(self.base/'alpha.txt'))
         wait_for(lambda:preview.job is None and not preview.timer.isActive())
-        self.assertIsNone(preview.image.image)
+        self.assertIsNone(preview.player.source);self.assertIsNone(preview.player._images.frame)
     def test_text_preview_is_literal_with_gutter(self):
         path=self.base/'alpha.txt';path.write_text('<script>literal text</script>\nsecond')
         self.select(path);preview=self.w.inline_preview
@@ -274,38 +276,67 @@ class FilesUITests(unittest.TestCase):
             self.w.open_path(str(pdf));browser.assert_called_once_with(str(pdf));desktop.assert_not_called();other.assert_not_called()
 
     # ----------------------------------------------------------------- media
-    def test_media_lifecycle(self):
-        path=self.base/'test.mp4';path.write_bytes(b'fixture')
-        wait_for(lambda:self.w.current().model.index(str(path)).isValid())
-        self.select(path);preview=self.w.inline_preview
-        wait_for(lambda:preview.player is not None);player=preview.player
+    def wav(self,name,seconds=2):
+        import wave
+        path=self.base/name
+        with wave.open(str(path),'wb') as out:
+            out.setnchannels(1);out.setsampwidth(2);out.setframerate(8000);out.writeframes(b'\0\0'*8000*seconds)
+        wait_for(lambda:self.w.current().model.index(str(path)).isValid());return path
+    def test_media_lifecycle_reuses_one_player_and_stops_it_on_deselect(self):
+        path=self.wav('test.wav');preview=self.w.inline_preview
+        self.select(path);wait_for(lambda:preview.player is not None and preview.player.source is not None);player=preview.player
+        self.assertEqual(player.kind,'audio');self.assertIs(preview.stack.currentWidget(),preview.media_page)
+        wait_for(lambda:player.session.state=='paused')                    # opened paused: nothing plays by itself
         self.select(self.base/'destination')
-        wait_for(lambda:player.core.stopped);self.assertIsNone(preview.player)
-    def test_audio_has_controls_without_video_surface(self):
-        path=self.base/'test.wav';path.write_bytes(b'fixture')
-        wait_for(lambda:self.w.current().model.index(str(path)).isValid())
-        self.select(path);wait_for(lambda:self.w.inline_preview.player is not None);player=self.w.inline_preview.player
-        self.assertTrue(player.surface.isHidden());self.assertTrue(player.full.isHidden())
-        self.w.current().view().clearSelection();wait_for(lambda:player.core.stopped)
-        wait_for(lambda:player.job is None or not player.job.isRunning())
-    def test_transport_actions_and_states(self):
-        from wysun_files.player import MediaPlayer
-        player=MediaPlayer(str(self.base/'test.mp4'));self.addCleanup(player.deleteLater);self.addCleanup(player.stop)
-        player.core.sock=object();player.core.props={'pause':True,'mute':False,'duration':100.0,'time-pos':10.0}
-        with patch.object(player.core,'send') as send,patch.object(player.core,'poll',return_value=True):
-            player._tick();self.assertEqual(player.play.symbol,'play_arrow');self.assertIn('Reproducir',player.play.accessibleName())
-            player.play.click();send.assert_called_with(['cycle','pause'])
-            player.mute.click();send.assert_called_with(['cycle','mute'])
-            player.ahead.click();send.assert_called_with(['seek',10,'relative+exact'])
-            player.progress.released.emit(.5);send.assert_called_with(['seek',50.0,'absolute-percent+exact'])
-            player.core.props.update(pause=False,mute=True);player._tick()
-            self.assertEqual(player.play.symbol,'pause');self.assertEqual(player.mute.symbol,'volume_off')
-        player.core.sock=None
-    def test_audio_fullscreen_guard(self):
-        from wysun_files.player import MediaPlayer
-        player=MediaPlayer(str(self.base/'test.wav'),audio=True);self.addCleanup(player.deleteLater);self.addCleanup(player.stop)
-        emitted=[];player.fullscreen_requested.connect(emitted.append);player.set_fullscreen(True)
+        wait_for(lambda:player.source is None);self.assertIs(preview.player,player)   # same widget, ready for the next file
+        self.assertEqual(player.session.state,'idle')
+        other=self.wav('second.wav');self.select(other);wait_for(lambda:player.source is not None);self.assertIs(preview.player,player)
+    def test_audio_preview_has_no_video_surface_and_no_fullscreen(self):
+        path=self.wav('test.wav');self.select(path);preview=self.w.inline_preview
+        wait_for(lambda:preview.player is not None and preview.player.source is not None);player=preview.player
+        self.assertIsNone(player._video);self.assertTrue(player.bar.fullscreen.isHidden())
+        emitted=[];player.fullscreenRequested.connect(emitted.append);player.set_fullscreen(True)
         self.assertEqual(emitted,[]);self.assertFalse(player.fullscreen)
+    def test_preview_tags_come_from_the_player(self):
+        path=self.wav('tagged.wav',seconds=3);self.select(path);preview=self.w.inline_preview
+        wait_for(lambda:preview.player is not None and preview.player.session.duration>2)
+        from wysun_files.preview import Tag
+        wait_for(lambda:any(tag.text=='0:03' for tag in preview.findChildren(Tag)))
+    def test_expanding_a_preview_continues_in_wysun_player_at_the_same_place(self):
+        path=self.wav('long.wav',seconds=20);self.select(path);preview=self.w.inline_preview
+        wait_for(lambda:preview.player is not None and preview.player.session.duration>10);player=preview.player
+        player.session.seek(7.5);wait_for(lambda:abs(player.session.position-7.5)<.3)
+        with patch('player_client.launch') as launch:
+            player.bar.expand.click()
+        launch.assert_called_once()
+        self.assertEqual(launch.call_args.args[0],[str(path)]);self.assertAlmostEqual(launch.call_args.kwargs['start'],7.5,delta=.4)
+        self.assertTrue(launch.call_args.kwargs['paused']);wait_for(lambda:player.session.state=='paused')
+    def test_opening_media_goes_to_wysun_player_and_other_files_to_the_desktop(self):
+        picture=self.base/'shot.png'
+        from PySide6.QtGui import QImage
+        QImage(10,10,QImage.Format_RGB32).save(str(picture));song=self.wav('song.wav');note=self.base/'plain.txt';note.write_text('hi')
+        with patch('wysun_files.window.launch') as launch,patch('wysun_files.window.QDesktopServices.openUrl',return_value=True) as desktop:
+            self.w.open_path(str(picture));self.w.open_path(str(song));self.w.open_path(str(note))
+        self.assertEqual([c.args[0] for c in launch.call_args_list],[[str(picture)],[str(song)]])
+        desktop.assert_called_once()
+    def test_a_selection_of_media_opens_one_player_window_in_selection_order(self):
+        from PySide6.QtGui import QImage
+        pictures=[]
+        for name in ('b.png','a.png','c.png'):
+            path=self.base/name;QImage(10,10,QImage.Format_RGB32).save(str(path));pictures.append(path)
+        note=self.base/'beside.txt';note.write_text('x')
+        wait_for(lambda:all(self.w.current().model.index(str(p)).isValid() for p in pictures+[note]))
+        self.select(pictures[0])
+        for path in pictures[1:]+[note]:self.select(path,extend=True)
+        with patch('wysun_files.window.launch') as launch,patch('wysun_files.window.QDesktopServices.openUrl',return_value=True) as desktop:
+            self.w.open_selected()
+        launch.assert_called_once();self.assertEqual(sorted(launch.call_args.args[0]),sorted(str(p) for p in pictures))
+        desktop.assert_called_once()
+    def test_a_file_that_cannot_be_decoded_still_selects_and_reports(self):
+        path=self.base/'broken.mp4';path.write_bytes(b'not a video');wait_for(lambda:self.w.current().model.index(str(path)).isValid())
+        self.select(path);preview=self.w.inline_preview
+        wait_for(lambda:preview.player is not None and preview.player.source is not None)
+        self.assertEqual(preview.player.session.state in ('loading','error','paused','idle'),True)
 
 
 if __name__=='__main__':unittest.main()

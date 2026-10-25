@@ -1,0 +1,5 @@
+#%PAM-1.0
+# Wysun Lock. Same authentication as swaylock on Debian/Parrot: the system's own login stack.
+# Linux-PAM reads this file from the shell's packaged directory (configDirectory); the include uses
+# an absolute path so it resolves to /etc/pam.d/login. Wysun never writes to /etc/pam.d.
+auth include /etc/pam.d/login

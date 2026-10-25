@@ -35,12 +35,23 @@ Item {
     visible: offsetScale < 1
 
     // Keyboard mode (e.g. Wysun Music's shortcut): Esc closes, the media keys
-    // drive the active player and ↑/↓ the output volume.
+    // drive the active player and ↑/↓ the output volume. While the dashboard is open, by
+    // shortcut or by hovering it, Alt+1…9 switch between its tabs.
     readonly property bool keyboardMode: shouldBeActive && screenState.dashboardKeyboard
-    focus: keyboardMode
-    onKeyboardModeChanged: if (keyboardMode) Qt.callLater(forceActiveFocus)
+    readonly property int tabCount: (content.item as Content)?.dashboardTabs.length ?? 0
+    focus: shouldBeActive
+    onShouldBeActiveChanged: if (shouldBeActive) Qt.callLater(forceActiveFocus)
     Keys.onPressed: event => {
         const player = Players.active;
+        const tab = event.key - Qt.Key_1;
+        if ((event.modifiers & Qt.AltModifier) && tab >= 0 && tab <= 8) {
+            if (tab < tabCount)
+                screenState.dashboardTab = tab;
+            event.accepted = true;
+            return;
+        }
+        if (!keyboardMode)
+            return;
         if (event.key === Qt.Key_Escape)
             screenState.dashboard = false;
         else if ((event.key === Qt.Key_Space || event.key === Qt.Key_K || event.key === Qt.Key_MediaPlay) && player?.canTogglePlaying)

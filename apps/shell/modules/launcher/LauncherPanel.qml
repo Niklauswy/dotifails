@@ -15,6 +15,7 @@ import qs.modules.launcher.services
 import "services/Actions.js" as Actions
 import "services/Files.js" as Files
 import "services/Results.js" as Results
+import "services/Translate.js" as Translate
 
 // Raycast-style command palette in Material 3 Expressive: a search pill, category chips with
 // a sliding indicator, grouped results, a type-aware preview, an actions popover and a
@@ -80,11 +81,11 @@ Item {
     readonly property string query: search.text
 
     property var suggestSnapshot: []
-    readonly property var results: current.id === "root" ? (query.trim() === "" ? Results.keepOrder(suggestSnapshot, LauncherIndex.context.apps.concat(LauncherIndex.context.commands)) : Results.root(query, LauncherIndex.context)) : Results.view(current.id, query, LauncherIndex.context, current.target, filter)
+    readonly property var results: current.id === "root" ? (query.trim() === "" ? Results.keepOrder(suggestSnapshot, LauncherIndex.context.apps.concat(LauncherIndex.context.commands, LauncherIndex.context.settings)) : Results.root(query, LauncherIndex.context, extrasFor(query.trim()))) : Results.view(current.id, query, LauncherIndex.context, current.target, filter)
     readonly property var items: flatten(results)
     readonly property var row: items[selected] ?? null
     readonly property bool previewOn: !!row && ["file", "clip"].includes(row.kind)
-    readonly property bool busy: (LauncherIndex.filesBusy && (current.id === "root" || current.id === "files") && query.trim() !== "") || (current.id === "browse" && LauncherIndex.browseBusy)
+    readonly property bool busy: (LauncherIndex.filesBusy && (current.id === "root" || current.id === "files" || current.id === "browse") && query.trim() !== "") || (current.id === "browse" && LauncherIndex.browseBusy)
 
     readonly property var placeholders: ({
             root: "Search apps, files, commands...",
@@ -126,9 +127,11 @@ Item {
         expandedPreview = false;
         confirmKey = "";
         autoFirst = true;
-        LauncherIndex.searchFiles("");
+        LauncherIndex.searchFiles("", "");
         LauncherIndex.refresh();
+        LauncherIndex.ensureFileIndex();
         entrance++;
+        syncLive();
     }
 
     function showCategory(id: string): void {
@@ -192,7 +195,7 @@ Item {
         actionsOpen = false;
         confirmKey = "";
         autoFirst = true;
-        LauncherIndex.searchFiles("");
+        LauncherIndex.searchFiles("", "");
         if (view.id === "files") {
             LauncherIndex.loadRecentFiles();
             LauncherIndex.loadPlaces();
@@ -200,8 +203,10 @@ Item {
             LauncherIndex.listDir(view.target);
         else if (view.id === "calc-history")
             LauncherIndex.loadCalcHistory();
-        else if (view.id === "clipboard")
+        else if (view.id === "clipboard") {
             LauncherIndex.loadStatus();
+            LauncherIndex.recognizePending();
+        }
         viewAnim.restart();
         entrance++;
         search.forceActiveFocus();
@@ -217,7 +222,7 @@ Item {
         actionsOpen = false;
         confirmKey = "";
         autoFirst = true;
-        LauncherIndex.searchFiles("");
+        LauncherIndex.searchFiles("", "");
         if (current.id === "browse")
             LauncherIndex.listDir(current.target);
         navDir = -1;
@@ -260,26 +265,143 @@ Item {
             i = firstSelectable();
         selected = i;
         selKey = items[i]?.key ?? "";
+        // Rows arriving above the selection make the ListView carry its own currentIndex along
+        // with the old item while `selected` keeps its number: the purple highlight then sat on a
+        // different row than the real selection. Put it back once the model has settled.
+        Qt.callLater(resyncHighlight);
         // A fresh view/query starts at the top even when the index did not change (no selected signal).
         if (autoFirst)
-            Qt.callLater(() => list.positionViewAtBeginning());
+            Qt.callLater(scrollToTop);
+    }
+
+    // Named so that Qt.callLater folds the many calls of one burst of changes into one.
+    function resyncHighlight(): void {
+        list.currentIndex = selected;
+    }
+
+    function scrollToTop(): void {
+        list.positionViewAtBeginning();
+    }
+
+    // What a query needs besides the indexes, and nothing more: only the properties read here become
+    // dependencies of `results`, so a network answer never re-runs the fuzzy
+    // search of an ordinary query.
+    function extrasFor(q: string): var {
+        const extra = {engine: GlobalConfig.general.apps.searchEngine, seed: entrance};
+        switch (q[0]) {
+        case ";":
+            extra.live = {translation: {state: Translator.state, answered: Translator.answered, variants: Translator.variants, meanings: Translator.meanings}};
+            break;
+        case "?":
+        case "!":
+        case ">":
+            extra.live = {suggest: {kind: Suggest.kind, query: Suggest.query, items: Suggest.items}};
+            break;
+        default:
+            if (/^kill(\s|$)/i.test(q))
+                extra.live = {procs: {query: Suggest.query, items: Suggest.items}};
+        }
+        return extra;
+    }
+
+    // Tells the services what the person is typing after a prefix: ";" translates, "?" and "!" suggest
+    // searches, ">" looks through the shell history. They debounce and cache by themselves.
+    function syncLive(): void {
+        const q = current.id === "root" ? query.trim() : "";
+        const rest = q.slice(1).trim();
+        if (/^kill(\s|$)/i.test(q)) {
+            Translator.clear();
+            Suggest.ask("proc", q.slice(4).trim());
+            return;
+        }
+        switch (q[0]) {
+        case ";": {
+            const t = Translate.splitQuery(q.slice(1));
+            if (t.text)
+                Translator.ask(t.text, t.target);
+            else
+                Translator.clear();
+            Suggest.clear();
+            return;
+        }
+        case "?":
+            Translator.clear();
+            Suggest.ask("google", rest);
+            return;
+        case "!":
+            Translator.clear();
+            Suggest.ask("youtube", rest);
+            return;
+        case ">":
+            Translator.clear();
+            Suggest.ask("run", rest);
+            return;
+        }
+        Translator.clear();
+        Suggest.clear();
+    }
+
+    function setQuery(text: string): void {
+        search.text = text;
+        search.cursorPosition = text.length;
+        search.forceActiveFocus();
     }
 
     onItemsChanged: syncSelection()
-    onEntranceChanged: Qt.callLater(() => list.positionViewAtBeginning())
+    onCurrentChanged: syncLive()
+    onEntranceChanged: Qt.callLater(scrollToTop)
     onSelectedChanged: {
         if (selected >= 0)
             list.positionViewAtIndex(items[selected - 1]?.header ? selected - 1 : selected, ListView.Contain);
     }
     onQueryChanged: {
         autoFirst = true;
+        syncLive();
         Qt.callLater(syncSelection);
         confirmKey = "";
-        if (current.id === "root" || current.id === "files")
+        if (current.id === "root" || current.id === "files" || current.id === "browse")
             filesDebounce.restart();
     }
 
     // Activation ---------------------------------------------------------------------------------
+
+    // Neovim in a terminal: the whole panel turns into the editor (Editor.qml / EditMorph.qml). A snapshot of the
+    // panel is taken first so the morph can start as an exact copy of it; the panel closes under the copy.
+    function edit(path: string): void {
+        const stage = preview.stage, a = stage.mapToItem(root, 0, 0), b = stage.mapToItem(root, stage.width, stage.height);
+        const s = surface.mapToItem(root, 0, 0);
+        const styled = preview.nvimStyled;
+        const code = Qt.rect(originX + x + a.x, originY + y + a.y, b.x - a.x, b.y - a.y);
+        const style = styled ? {html: preview.codeHtml, text: preview.bodyText, fg: preview.codeFg, lineNr: preview.codeLineNr, transparent: preview.codeTransparent, scale: (b.x - a.x) / stage.width} : null;
+        const panel = {rect: Qt.rect(originX + x + s.x, originY + y + s.y, surface.width, surface.height), colour: surface.color, radius: surface.radius, snapshot: ""};
+        let done = false;
+        const go = () => {
+            if (done)
+                return;
+            done = true;
+            editFallback.stop();
+            Editor.open(screen, code, styled ? preview.codeBg : Colours.palette.m3surface, path, style, panel);
+            close();
+        };
+        // Without a snapshot (the grab failed or is late) the morph starts from the plain panel colour.
+        editFallback.run = go;
+        editFallback.restart();
+        if (!surface.grabToImage(result => {
+                panel.snapshot = result.url;
+                panel.image = result; // keeps the grab alive while the morph shows it
+                go();
+            }))
+            go();
+    }
+
+    Timer {
+        id: editFallback
+
+        property var run
+
+        interval: 150
+        onTriggered: run?.()
+    }
 
     function xdg(target: string): void {
         Quickshell.execDetached(["xdg-open", target]);
@@ -287,6 +409,23 @@ Item {
 
     function copyText(text: string): void {
         Quickshell.execDetached(["wl-copy", "--", text]);
+    }
+
+    // Runs a typed command the way the person's own terminal would (their shell, so aliases work)
+    // and keeps the window open afterwards: a command that just prints and exits would vanish at once.
+    function runInTerminal(command: string): void {
+        const script = '"${SHELL:-sh}" -ic "$1"; code=$?; printf "\\n[exit %s]  press Enter to close " "$code"; read -r _';
+        Quickshell.execDetached(["wysun-terminal", "-e", "sh", "-c", script, "sh", command]);
+    }
+
+    // The browser chosen in Settings > Apps, with the address as its last argument.
+    function openUrl(url: string): void {
+        Quickshell.execDetached([...GlobalConfig.general.apps.browser, url]);
+    }
+
+    function openTranslate(r: var): void {
+        openUrl(Translate.openUrl(r.text, r.target));
+        close();
     }
 
     function dirname(path: string): string {
@@ -309,6 +448,7 @@ Item {
             return;
         switch (r.kind) {
         case "app": {
+            LauncherIndex.remember(r, query);
             // Already open: bring that window forward (workspace switch, leaving a covering fullscreen).
             const open = LauncherIndex.windowOf(r);
             if (open)
@@ -320,10 +460,12 @@ Item {
         }
         case "cmd":
             if (r.view) {
+                LauncherIndex.remember(r, query);
                 push({id: r.view});
                 return;
             }
             if (r.emoji) {
+                LauncherIndex.remember(r, query);
                 close();
                 state.emoji = true;
                 return;
@@ -332,7 +474,7 @@ Item {
                 confirmKey = r.key;
                 return;
             }
-            LauncherIndex.remember(r);
+            LauncherIndex.remember(r, query);
             runArgv(r.argv);
             close();
             return;
@@ -341,16 +483,52 @@ Item {
                 enterFolder(r.path);
                 return;
             }
-            LauncherIndex.remember(r);
+            LauncherIndex.remember(r, query);
+            if (r.editable) {
+                edit(r.path); // closes the panel itself, once the morph has taken its place
+                return;
+            }
             xdg(r.path);
             close();
             return;
+        case "variant":
+        case "value":
+            copyText(r.value);
+            close();
+            return;
+        case "link":
+            openUrl(r.url);
+            close();
+            return;
+        case "timer":
+            Timers.start(r.seconds, r.label);
+            close();
+            return;
+        case "kill":
+            // Closing programs is not undone: the first press asks, the second does it.
+            if (confirmKey !== r.key) {
+                confirmKey = r.key;
+                return;
+            }
+            Quickshell.execDetached(["pkill", "-x", r.name]);
+            close();
+            return;
+        case "hero":
+            return;
+        case "translate":
+            if (Translator.state === "done") {
+                copyText(Translator.result);
+                close();
+            } else if (Translator.state === "error") {
+                openTranslate(r);
+            }
+            return;
         case "web":
-            xdg(`https://duckduckgo.com/?q=${encodeURIComponent(r.query)}`);
+            openUrl(r.url);
             close();
             return;
         case "run":
-            Quickshell.execDetached([...GlobalConfig.general.apps.terminal, `${Quickshell.shellDir}/assets/wrap_term_launch.sh`, "sh", "-c", r.command]);
+            runInTerminal(r.command);
             close();
             return;
         case "openwith":
@@ -394,12 +572,19 @@ Item {
             case "folder": xdg(dirname(r.path)); break;
             case "openwith": actionsOpen = false; push({id: "openwith", target: r.path}); return;
             case "copy-path": copyText(r.path); break;
-            case "open-app": LauncherIndex.remember(r); xdg(r.path); break;
+            case "open-app": LauncherIndex.remember(r, query); xdg(r.path); break;
+            case "xdg": LauncherIndex.remember(r, query); xdg(r.path); break;
             case "copy-file": Quickshell.execDetached(["wl-copy", "--type", "text/uri-list", "--", "file://" + r.path + "\r\n"]); break;
             case "copy": LauncherData.copy(r); break;
             case "paste": LauncherData.paste(r); break;
             case "copy-expression": copyText(r.expression); break;
+            case "copy-translation": copyText(Translator.result); break;
+            case "copy-variant": copyText(r.value); break;
+            case "copy-link": copyText(r.url); break;
+            case "copy-original": copyText(r.text); break;
+            case "open-translate": openTranslate(r); return;
             case "open-link": xdg(r.value.trim()); break;
+            case "copy-text": LauncherData.run(["copy-text", String(r.id)]); break;
             case "open-image": LauncherIndex.exportClip(r.id, path => xdg(path)); break;
             case "delete": LauncherIndex.mutate(["delete-clip", String(r.id)]); break;
             case "capture": LauncherIndex.mutate(["toggle-capture"]); break;
@@ -511,8 +696,8 @@ Item {
     Timer {
         id: filesDebounce
 
-        interval: 120
-        onTriggered: LauncherIndex.searchFiles(root.query)
+        interval: 30
+        onTriggered: LauncherIndex.searchFiles(root.query, root.current.id === "browse" ? root.current.target : "")
     }
 
     Connections {
@@ -1003,7 +1188,6 @@ Item {
                     reuseItems: true
                     cacheBuffer: 400
                     boundsBehavior: Flickable.StopAtBounds
-                    currentIndex: root.selected
                     objectName: "launcherResults"
                     highlightFollowsCurrentItem: true
                     highlightMoveVelocity: -1
@@ -1018,12 +1202,56 @@ Item {
                         panel: root
                     }
 
+                    // A Binding, not `currentIndex: root.selected`: syncSelection() also assigns
+                    // currentIndex by hand after the model settles, and an assignment would
+                    // destroy a plain binding, leaving the highlight stuck on one row.
+                    Binding {
+                        target: list
+                        property: "currentIndex"
+                        value: root.selected
+                    }
+
                     // Let ListView own highlight coordinates and delegate lifecycle. A separate
                     // rectangle uses viewport coordinates and drifts when contentY changes.
+                    // Shape morph on move (Material 3 Expressive): the container stretches toward a
+                    // pill while it travels and settles back on its resting corners.
                     highlight: Rectangle {
-                        radius: root.rowRadius
+                        id: marker
+
+                        property real stretch
+
+                        radius: root.rowRadius + stretch
                         color: Colours.palette.m3secondaryContainer
                         visible: root.selected >= 0 && !root.items[root.selected]?.header
+
+                        Behavior on color {
+                            CAnim {}
+                        }
+
+                        SequentialAnimation {
+                            id: morph
+
+                            Anim {
+                                target: marker
+                                property: "stretch"
+                                to: 14 * root.scale
+                                type: Anim.FastSpatial
+                            }
+                            Anim {
+                                target: marker
+                                property: "stretch"
+                                to: 0
+                                type: Anim.DefaultSpatial
+                            }
+                        }
+
+                        Connections {
+                            target: root
+
+                            function onSelectedChanged(): void {
+                                morph.restart();
+                            }
+                        }
                     }
                 }
 
@@ -1104,6 +1332,7 @@ Item {
                 spacing: Tokens.spacing.medium
 
                 readonly property bool appIcon: !!root.row && root.stack.length === 1 && root.row.kind === "app"
+                readonly property bool brandIcon: !!root.row && root.stack.length === 1 && !!root.row.brand
 
                 Item {
                     anchors.verticalCenter: parent.verticalCenter
@@ -1117,9 +1346,19 @@ Item {
                         shape: MaterialShape.Cookie4Sided
                         color: Colours.palette.m3tertiaryContainer
                     }
+                    Image {
+                        anchors.centerIn: parent
+                        width: parent.width * 0.6
+                        height: width
+                        visible: parent.parent.brandIcon
+                        source: visible ? Quickshell.shellPath(`assets/brands/${root.row.brand}.svg`) : ""
+                        sourceSize: Qt.size(96, 96)
+                        fillMode: Image.PreserveAspectFit
+                        smooth: true
+                    }
                     MaterialIcon {
                         anchors.centerIn: parent
-                        visible: !parent.parent.appIcon
+                        visible: !parent.parent.appIcon && !parent.parent.brandIcon
                         text: root.stack.length > 1 ? root.viewIcons[root.current.id] ?? "bolt" : root.row ? root.row.icon || "bolt" : "bolt"
                         color: Colours.palette.m3onTertiaryContainer
                         fontStyle: Tokens.font.icon.builders.small.scale(root.scale).build()

@@ -1,67 +1,86 @@
-# Instalador visual de Wysun
+# Instalador de Wysun
 
-Ejecuta `./instalar.sh` desde el proyecto. Con una sesión gráfica se abre la aplicación nativa; con opciones de instalación o sin pantalla se utiliza la CLI. `--gui` y `--cli` permiten elegirlo explícitamente. En una instalación administrada también puedes abrir **Instalador de Wysun** desde el menú de aplicaciones o ejecutar `dotifails gui`.
+El instalador gráfico recorre tres momentos, cada uno con una pieza animada propia: **Tu equipo** (la distribución se lee y sus
+comprobaciones aparecen como píldoras; única opción: actualizar también el sistema), **Contenido** (Wysun siempre incluido, más Neovim,
+Wysun Tools y el arranque Macrodata, y Brave/Discord/Obsidian por Flatpak) e **Instalación** (una forma que cambia en cada etapa real de
+`main.py`). Las comprobaciones de la selección corren en segundo plano y «Instalar» sale de Contenido; «Detalles» muestra
+etapas, orden y paquetes. Arriba, un indicador de formas marca el paso; abajo, la barra lleva la acción y el progreso.
 
-## Recorrido
+Código: `installer/gui.py` (controlador y páginas), `installer/scenes.py` (piezas expresivas), `installer/material_widgets.py`
+(controles sobre el kit Material de Music/Files) y `installer/journey.py` (textos, etapas y comprobaciones, sin Qt).
+Las opciones avanzadas (`--config-only`, `--skip-nvim-tools`, perfiles, pantalla de acceso) quedan solo en la CLI.
 
-1. **Bienvenida:** confirma la carpeta del proyecto que se va a instalar. Puedes elegir otra copia local.
-2. **Apariencia:** Severance, Tokyo o Space Black, con el fondo real y una composición orientativa. Al actualizar está seleccionada la opción de conservar el tema y el fondo actuales.
-3. **Componentes:** escritorio, terminal, Neovim, herramientas y Blue CRT. «Esencial» prepara escritorio, terminal y arranque. «Completa» incluye esos cinco. Wysun / Hyprland es un componente adicional opcional y conserva la configuración de BSPWM; consulta [Wayland](wayland.md). El escritorio y Neovim requieren la terminal; desmarcar un componente no lo desinstala.
-4. **Opciones:** Brave, Discord y Obsidian mediante Flatpak para el usuario; selección independiente de GRUB, Plymouth y LightDM; preparación diferida de lenguajes de Neovim. El perfil Samsung defectuoso es opcional y nunca se aplica automáticamente.
-5. **Revisión:** sistema, arquitectura, archivos del proyecto, permisos, espacio disponible y otra operación activa. El plan detalla paquetes y versiones. La disponibilidad de Internet se comprueba durante la descarga, no se presenta como verificada en esta pantalla.
-6. **Instalación:** etapas comunicadas por el motor, tiempo transcurrido, operación actual, conflictos y registro. El progreso cuenta etapas completadas; no estima porcentajes de tiempo ni simula descargas.
-7. **Resultado:** estado real, respaldo, recuperación y primeros atajos. Los conflictos y las interrupciones tienen estados distintos del éxito.
+## Abrir
 
-La ventana se puede redimensionar y el contenido largo se desplaza verticalmente. Los controles admiten Tab, Espacio y Enter. `ORBIT_REDUCED_MOTION=1 ./instalar.sh` desactiva las transiciones.
-
-## Preparación y autorización
-
-La interfaz requiere `python3-pyside6.qtwidgets`. En una computadora nueva, el lanzador ofrece instalar este entorno mínimo desde una terminal antes de abrir la ventana; también se puede usar `--cli`. Qt y las dependencias de la aplicación quedan incluidos en el plan común.
-
-La aplicación se ejecuta como usuario normal. Las operaciones del sistema utilizan `sudo -A` con un diálogo de contraseña separado. La contraseña se entrega a sudo por una tubería y no se incorpora al plan, a argumentos de comandos ni al registro. Los comandos de APT conservan los archivos de configuración existentes al resolver preguntas de dpkg.
-
-## Detener, repetir y recuperar
-
-«Detener después de esta operación» crea una solicitud que el motor comprueba entre operaciones. No mata APT, una copia de archivos en curso ni la reconstrucción de initramfs. La ventana permanece abierta hasta que el proceso termine. Repetir la instalación reutiliza el motor idempotente y conserva las ediciones locales. No se afirma que una instalación detenida haya sido deshecha.
-
-**Respaldos** muestra los diarios del hogar y permite recuperar el más reciente pendiente. Las modificaciones posteriores se guardan en `changes-before-restore/`. No elimina los paquetes instalados. **Respaldos del arranque Blue CRT** consulta, verifica y restaura los respaldos del sistema mediante autorización; no reinicia el equipo ni LightDM.
-
-Cada operación gráfica conserva su `plan.json`, cuando corresponde, y su `console.log` en `~/.local/state/dotifails/runs/ID/`. La carpeta tiene permisos 0700 y los archivos 0600. Estos registros y los datos personales están fuera del proyecto. Los respaldos anteriores permanecen disponibles; la limpieza del repositorio no los elimina.
-
-## CLI y mantenimiento
+Desde la raíz del proyecto:
 
 ```sh
-./instalar.sh --components terminal,editor --plan
-./instalar.sh --components desktop,boot --theme space-black
-./instalar.sh --components boot --boot-components grub,plymouth
-./instalar.sh --components terminal --config-only
+./wysun-installer
+./wysun-installer-preview
+# También: ./instalar.sh --gui o ./instalar.sh --preview
+```
+
+El modo normal reconoce una instalación por su recibo y por los archivos de Wysun. Ofrece mantenimiento, diagnóstico, recuperación y modificación de componentes. La vista previa ignora esa detección y permite completar el recorrido: sus operaciones se simulan en memoria, no solicita privilegios ni ejecuta instalación, restauración o reinicio.
+
+El ejecutable del repositorio necesita el resto del proyecto junto a él; no es un AppImage. La instalación administrada publica `wysun-installer`, **Instalador de Wysun** y **Vista previa del instalador de Wysun** en el menú. El gestor instalado lleva una copia pequeña de los controles Material, fuentes, tokens y fondos, por lo que abre aunque la copia original del proyecto desaparezca. Para aplicar una instalación real necesita una fuente completa y válida.
+
+Si falta PySide6, el lanzador normal ofrece preparar su dependencia desde una terminal. La vista previa nunca prepara dependencias automáticamente.
+
+## Instalación completa
+
+La base admitida es Debian 13 o Parrot 7, x86_64. La revisión comprueba distribución, arquitectura, archivos, destino, permisos, espacio, estado de dpkg y requisitos del arranque. La resolución APT se realiza antes de actualizar o instalar paquetes.
+
+La selección permite preparar:
+
+- Aplicaciones Wysun: Music, Files, Recorder y utilidades.
+- Escritorio: Hyprland, shell Quickshell, lanzador, Settings, capturas, bloqueo y runtime privado.
+- Terminal y shell, Neovim y herramientas del proyecto.
+- Arranque Macrodata: GRUB, Plymouth y la pantalla de acceso con greetd (la misma terminal del bloqueo). Cambia el gestor de acceso a greetd para el próximo arranque, con el anterior registrado para restaurarlo; ver [docs/boot.md](boot.md).
+- Brave, Discord y Obsidian mediante Flatpak, de forma opcional.
+
+El escritorio requiere sus aplicaciones y la terminal en la selección gráfica. Los perfiles de hardware son opcionales; no se trasladan datos personales o ajustes particulares de otra máquina.
+
+Las opciones nuevas de preparación son explícitas:
+
+```sh
+./instalar.sh --cli --components desktop,wayland,terminal,editor,tools,boot \
+  --boot-components grub,plymouth --upgrade-system --prepare-repositories
+
+# Plan sin modificaciones:
+./instalar.sh --cli --components desktop,wayland,terminal,editor,tools,boot \
+  --boot-components grub,plymouth --upgrade-system --prepare-repositories --plan
+```
+
+`--prepare-repositories` añade solo los backports oficiales de la distribución detectada si faltan. No reemplaza fuentes existentes, cambia de distribución, descarga claves nuevas ni desactiva firmas. Usa [Debian Backports](https://backports.debian.org/Instructions/) en Debian y [los repositorios de Parrot](https://www.parrotsec.org/docs/mirrors/mirrors-list/) en Parrot. Se guarda un diario previo en `/var/lib/dotifails/repositories/backups/`.
+
+Después se actualizan los índices APT y se simula la resolución de dependencias. Las versiones y la compatibilidad ABI de Hyprland siguen comprobándose mediante `wayland.py` y los manifiestos fijados. Un fallo de resolución detiene el proceso antes de actualizar paquetes o copiar configuraciones.
+
+`--upgrade-system` actualiza los paquetes de la distribución actual con `--no-remove` y conserva los archivos de configuración existentes. No realiza un salto de distribución. Estas opciones se rechazan junto a `--config-only` y los modos `--only`.
+
+El proceso conserva el motor de instalación con diario, respaldos, conflictos, registros privados y cancelación entre operaciones. APT, compilación e initramfs no se interrumpen por la fuerza. La recuperación de archivos no desinstala paquetes ni revierte una actualización del sistema.
+
+Al completar la instalación real se ofrece un reinicio voluntario. La sesión registrada es **Wysun / Hyprland**; el usuario la elige en su gestor de acceso existente. No se cambia su sesión predeterminada ni se sustituye el gestor de acceso.
+
+## Wysun Player
+
+`--orbit-only` instala `~/.local/bin/wysun-player` y `wysun-player.desktop`, pero no cambia aplicaciones predeterminadas ni instala
+dependencias. La instalación completa añade `python3-pyside6.qtopengl` y `python3-pyside6.qtopenglwidgets` (render por GPU) y fija
+Wysun Player como predeterminado de sus tipos de imagen, video y audio en `~/.config/mimeapps.list`, conservando lo anterior como
+alternativa; `dotifails restore ID` lo deshace. `dotifails doctor` avisa si falta OpenGL (el reproductor usa entonces el render por
+software). Ver `docs/player.md`.
+
+## Mantenimiento y validación
+
+```sh
 ./instalar.sh --installer-only
-```
-
-`--components` no se combina con los modos `--orbit-only`, `--scripts-only`, `--boot-only` o `--installer-only`. Los modos originales conservan su propósito. `--installer-only` actualiza la interfaz, la CLI, los manifiestos y el acceso del menú con respaldo; conserva el resto de la instalación. La interfaz instala la copia local seleccionada. Para descargar una revisión publicada se mantiene `dotifails update`.
-
-El modo **Solo copiar configuraciones** exige dependencias ya instaladas, omite paquetes y registro de sesión y desactiva arranque y aplicaciones opcionales. Una instalación solo de terminal conserva los archivos del escritorio y del editor.
-
-## Organización
-
-- `launcher.py`: selección del modo visual o CLI y preparación inicial de Qt.
-- `gui.py` y `visual_widgets.py`: recorrido, controles y vistas previas.
-- `install_model.py`: selección, dependencias, plan y comprobaciones sin escrituras.
-- `main.py`: instalación y recuperación del hogar, con diario previo a cada modificación.
-- `install_events.py` y `process_runner.py`: progreso estructurado, proceso Qt, registros y cancelación entre operaciones.
-- `askpass.py`: autorización de sudo.
-- `boot.py` y `boot_recovery.py`: instalación, comprobación y recuperación del arranque.
-- `manifests/packages.json`: una única lista de paquetes por componente y pantalla de arranque.
-
-Comprobaciones del instalador:
-
-```sh
-python3 -m unittest discover -s tests -p test_visual_installer.py -v
-python3 -m unittest discover -s tests -p test_boot.py -v
 QT_QPA_PLATFORM=offscreen python3 tests/installer_ui.py
+python3 -m unittest discover -s tests -p 'test_*installer*.py' -v
+python3 -m unittest discover -s tests -p test_boot.py -v
+python3 -m unittest discover -s tests -p test_wayland_install.py -v
 python3 tests/check_manifest.py
+python3 tests/wysun_installed_smoke.py
 ```
 
-Las pruebas gráficas ejecutan instalación y restauración reales de configuraciones en un hogar temporal mediante QProcess. Comprueban teclado, cancelación, errores, permisos de registros y ausencia de desbordamiento a 800 × 600 y 1100 × 780. No ejecutan APT en el equipo anfitrión ni reinician el sistema. La instalación completa en una máquina nueva y el arranque físico tienen un alcance distinto; consulta [Validación](validation.md).
+`--installer-only` despliega el gestor y sus entradas de menú con respaldo, sin instalar paquetes ni modificar el escritorio. No se ha desplegado este prototipo en la instalación activa.
 
-API de procesos: [documentación de QProcess de Qt](https://doc.qt.io/qtforpython-6/PySide6/QtCore/QProcess.html).
+Las pruebas gráficas incluyen claro y oscuro, el recorrido simulado, mantenimiento, teclado, instalación/restauración reales en HOME temporal, errores y cancelación. La copia instalada se prueba fuera del checkout, sin depender del repositorio original. Estas pruebas no equivalen a una instalación integral ni a un arranque físico en una máquina Debian nueva.

@@ -55,6 +55,41 @@ class LayoutTests(unittest.TestCase):
         self.assertIn('["disabled"] = true', text)
 
 
+class FillModesTests(unittest.TestCase):
+    offered = {'eDP-1': [{'name': '1920x1080', 'rates': ['60.00']}],
+               'DP-1': [{'name': '1920x1080', 'rates': ['143.99', '60.00']}, {'name': '1280x720', 'rates': ['60.00']}]}
+
+    def test_a_display_switched_on_again_gets_a_real_mode(self):
+        # A monitor that was off reports 0x0 until it is lit.
+        plan = [monitor('eDP-1', 0, mode='0x0', enabled=True), monitor('DP-1', 1920)]
+        filled = {p['name']: p for p in layout.fill_modes(plan, self.offered)}
+        self.assertEqual((filled['eDP-1']['mode'], filled['eDP-1']['rate']), ('1920x1080', '60.00'))
+        self.assertEqual((filled['DP-1']['mode'], filled['DP-1']['rate']), ('1920x1080', '60.00'))
+
+    def test_the_largest_picture_at_sixty_hertz_is_chosen_never_the_fastest(self):
+        plan = [monitor('DP-1', 0, mode='0x0')]
+        filled = layout.fill_modes(plan, self.offered)[0]
+        self.assertEqual((filled['mode'], filled['rate']), ('1920x1080', '60.00'))
+        only_fast = {'DP-1': [{'name': '2560x1440', 'rates': ['143.99', '120.00']}, {'name': '1920x1080', 'rates': ['60.00']}]}
+        filled = layout.fill_modes([monitor('DP-1', 0, mode='0x0')], only_fast)[0]
+        self.assertEqual((filled['mode'], filled['rate']), ('2560x1440', '143.99'))
+
+    def test_a_mode_the_monitor_offers_is_left_alone_and_a_stale_rate_is_fixed(self):
+        keep = monitor('DP-1', 0, mode='1280x720')
+        self.assertEqual(layout.fill_modes([keep], self.offered)[0]['mode'], '1280x720')
+        stale = monitor('DP-1', 0, mode='1920x1080', rate='120.00')
+        self.assertEqual(layout.fill_modes([stale], self.offered)[0]['rate'], '60.00')
+
+    def test_disabled_displays_and_unknown_ones_are_not_touched(self):
+        off = monitor('eDP-1', 0, mode='0x0', enabled=False)
+        self.assertEqual(layout.fill_modes([off], self.offered)[0]['mode'], '0x0')
+        unknown = monitor('X', 0, mode='0x0')
+        self.assertEqual(layout.fill_modes([unknown], self.offered)[0]['mode'], '0x0')
+        original = [monitor('eDP-1', 0, mode='0x0')]
+        layout.fill_modes(original, self.offered)
+        self.assertEqual(original[0]['mode'], '0x0', 'the draft is copied, not edited')
+
+
 class RuntimeTests(unittest.TestCase):
     def runner(self, monitors):
         calls = []
@@ -96,6 +131,34 @@ class RuntimeTests(unittest.TestCase):
             self.assertFalse(settings_runtime.restore_displays(EnvironmentSettings(Path(folder), run)))
             self.assertFalse(any(c[:2] == ['hyprctl', 'eval'] for c in run.calls))
             self.assertFalse((Path(folder) / '.config/orbit/hypr-monitors.lua').exists())
+
+    def test_nothing_lit_switches_every_connected_display_back_on(self):
+        from environment_settings import EnvironmentSettings
+        import settings_runtime
+        with tempfile.TemporaryDirectory(prefix='wysun-displays-') as folder:
+            home = Path(folder)
+            off = dict(self.hypr('eDP-1', -1), disabled=True, width=0, height=0)
+            run = self.runner([off])
+            backend = EnvironmentSettings(home, run)
+            # Saved while two monitors were plugged in; none of them is here now, so no profile matches.
+            backend.save_section('displays', {'profiles': {'DP-1|DP-2|eDP-1': [monitor('eDP-1', 0, enabled=False)]}})
+            self.assertTrue(settings_runtime.restore_displays(backend))
+            evals = [c for c in run.calls if c[:2] == ['hyprctl', 'eval']]
+            self.assertEqual(len(evals), 1)
+            self.assertIn('["output"] = "eDP-1"', evals[0][2])
+            self.assertNotIn('disabled', evals[0][2])
+            self.assertIn('["mode"] = "1920x1080@60.00"', evals[0][2])
+            fragment = (home / '.config/orbit/hypr-monitors.lua').read_text()
+            self.assertNotIn('disabled', fragment)
+
+    def test_a_lit_display_is_never_touched_by_the_safety_net(self):
+        from environment_settings import EnvironmentSettings
+        import settings_runtime
+        with tempfile.TemporaryDirectory(prefix='wysun-displays-') as folder:
+            off = dict(self.hypr('eDP-1', -1), disabled=True, width=0, height=0)
+            run = self.runner([off, self.hypr('DP-1', 0)])
+            self.assertFalse(settings_runtime.restore_displays(EnvironmentSettings(Path(folder), run)))
+            self.assertFalse(any(c[:2] == ['hyprctl', 'eval'] for c in run.calls))
 
     def test_trial_normalizes_saves_profile_fragment_and_refreshes(self):
         from unittest.mock import patch

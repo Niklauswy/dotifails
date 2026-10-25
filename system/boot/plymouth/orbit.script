@@ -1,105 +1,496 @@
-Window.SetBackgroundTopColor(0.0157, 0.0157, 0.4941);
-Window.SetBackgroundBottomColor(0.0157, 0.0157, 0.4941);
-background_image = Image("background.png").Scale(Window.GetWidth(), Window.GetHeight());
-background_sprite = Sprite(background_image);
-background_sprite.SetPosition(Window.GetX(), Window.GetY(), -10);
-scale = Window.GetWidth() / 1000;
-if (scale > 1.5) scale = 1.5;
-if (scale < 0.7) scale = 0.7;
-// Plymouth supplies boot, shutdown or reboot; never reuse the boot title at power-off.
+// Wysun · the terminal. Template: system/boot/render_assets.py writes orbit.script with the Severance
+// token colours. The office CRT is background.png; everything on its glass was rendered in phosphor
+// by BootArt.qml. Boot: the terminal leafs through the project index (one folder; each card falls
+// over the hinge and uncovers the next), stops on Cold Harbor, the cursor clicks it and the folder
+// dissolves into the data field while the real progress fills the header gauge. Passphrases are asked
+// by the terminal's own program window. Shutdown/reboot: the data fades and the office mascot walks
+// in, turns to the viewer, waves and hops, and wanders the glass with a speech balloon trailing after
+// it: the screen never goes blank.
+
+Window.SetBackgroundTopColor(0.0588, 0.1059, 0.1176);
+Window.SetBackgroundBottomColor(0.0588, 0.1059, 0.1176);
+W = Window.GetWidth();
+H = Window.GetHeight();
+X = Window.GetX();
+Y = Window.GetY();
+kx = W / 1920;
+ky = H / 1080;
+font_small = "DejaVu Sans Mono " + Math.Int(13 * ky + 1);
+font_large = "DejaVu Sans Mono " + Math.Int(17 * ky + 1);
+
+fun px(value) { return X + value * kx; }
+fun py(value) { return Y + value * ky; }
+fun ease(value) {
+    if (value < 0) return 0;
+    if (value > 1) return 1;
+    return value * value * (3 - 2 * value);
+}
+
+// The glass is centred at (930, 540) on the 1920x1080 canvas (BootArt.qml uses the same numbers).
+centre_x = 930;
+folder_y = 520;
+
+background = Sprite(Image("background.png").Scale(W, H));
+background.SetPosition(X, Y, -10);
+
+// ---------------------------------------------------------------- the project index
+// card-N rests on project N; flip-N-K is card N falling (K of 4) to uncover N+1; then click and fade-K.
+projects = 6;
+flip_frames = 4;
+fade_frames = 4;
+for (i = 0; i < projects; i++) {
+    card[i] = Image("card-" + i + ".png").Scale(440 * kx, 440 * ky);
+    for (k = 1; k <= flip_frames; k++)
+        if (i + 1 < projects) falling[i * flip_frames + k - 1] = Image("flip-" + i + "-" + k + ".png").Scale(440 * kx, 440 * ky);
+}
+clicked = Image("click.png").Scale(440 * kx, 440 * ky);
+for (k = 1; k <= fade_frames; k++) fading[k - 1] = Image("fade-" + k + ".png").Scale(440 * kx, 440 * ky);
+file = Sprite(card[0]);
+file.SetPosition(px(centre_x - 220), py(folder_y - 220), 3);
+
+// ---------------------------------------------------------------- the farewell
+// The mascot's poses (BootArt.qml renders them; the counts must match), its balloon and shadow.
+walk_frames = 12;
+turn_frames = 4;
+wave_frames = 16;
+idle_frames = 8;
+hop_frames = 10;
+fun pose(name) {
+    return Image("mascot-" + name + ".png").Scale(360 * kx, 400 * ky);
+}
+for (k = 0; k < walk_frames; k++) {
+    walk_r[k] = pose("walk-r-" + k);
+    walk_l[k] = pose("walk-l-" + k);
+}
+for (k = 0; k < turn_frames; k++) {
+    turn_r[k] = pose("turn-r-" + k);
+    turn_l[k] = pose("turn-l-" + k);
+}
+for (k = 0; k < wave_frames; k++) waving[k] = pose("wave-" + k);
+for (k = 0; k < idle_frames; k++) {
+    idle_cheer[k] = pose("idle-cheer-" + k);
+    idle_woe[k] = pose("idle-woe-" + k);
+    idle_dread[k] = pose("idle-dread-" + k);
+}
+for (k = 0; k < hop_frames; k++) hopping[k] = pose("hop-" + k);
+mascot = Sprite(idle_cheer[0]);
+mascot.SetOpacity(0);
+shadow = Sprite(Image("shadow.png").Scale(220 * kx, 50 * ky));
+shadow.SetOpacity(0);
+balloon = Sprite();
+balloon.SetOpacity(0);
+balloon_source = "";
+// The shutdown waits for the farewell (wysun-farewell.service); any key skips it.
+hint = Sprite();
+hint.SetOpacity(0);
+hint_image = 0;
+ground = 735;               // where the feet stand on the glass (1920x1080 canvas)
+
+// The data field: two sparse layers crossfading and drifting on the glass.
+field_a = Sprite(Image("field-a.png").Scale(1060 * kx, 500 * ky));
+field_b = Sprite(Image("field-b.png").Scale(1060 * kx, 500 * ky));
+field_a.SetOpacity(0);
+field_b.SetOpacity(0);
+fun show_field(t, light) {
+    drift = Math.Sin(t * 0.004);
+    field_a.SetPosition(px(400 + 14 * drift), py(275 + 8 * Math.Cos(t * 0.003)), 1);
+    field_b.SetPosition(px(400 - 14 * drift), py(275 - 8 * Math.Cos(t * 0.0035)), 1);
+    swap = 0.5 + 0.5 * Math.Sin(t * 0.02);
+    field_a.SetOpacity(light * (0.35 + 0.65 * swap));
+    field_b.SetOpacity(light * (0.35 + 0.65 * (1 - swap)));
+}
+
+// The header gauge on the glass, filled with the real progress.
+gauge_image = Image("fill.png");
+gauge = Sprite();
+gauge.SetPosition(px(643), py(185), 3);
+gauge_width = -1;
+fun show_gauge(amount) {
+    width = Math.Int(614 * kx * amount);
+    if (width < 1) width = 1;
+    if (width != global.gauge_width) {
+        global.gauge_width = width;
+        gauge.SetImage(gauge_image.Scale(width, 21 * ky));
+    }
+}
+
+// The terminal's cursor.
+pointer = Sprite(Image("pointer.png").Scale(48 * kx, 60 * ky));
+pointer.SetZ(8);
+
+// ---------------------------------------------------------------- status and addresses
+fun status_image(key) {
+    picture = Image("status-" + key + ".png");
+    return picture.Scale(picture.GetWidth() * kx, picture.GetHeight() * ky);
+}
+glyph_names = "0123456789ABCDEF";
+for (i = 0; i < 16; i++) glyph[i] = Image("glyph-" + glyph_names.CharAt(i) + ".png").Scale(20 * kx, 34 * ky);
+glyph_x = Image("glyph-x.png").Scale(20 * kx, 34 * ky);
+glyph_colon = Image("glyph-colon.png").Scale(20 * kx, 34 * ky);
+
+status = Sprite();
+status.SetZ(6);
+// The address line: 0x + six digits, a colon, 0x + six digits (cells of 20 px, centred).
+for (i = 0; i < 19; i++) {
+    cell[i] = Sprite();
+    cell[i].SetPosition(px(centre_x - 190 + i * 20), py(840), 6);
+}
+cell[0].SetImage(glyph[0]);
+cell[1].SetImage(glyph_x);
+cell[9].SetImage(glyph_colon);
+cell[11].SetImage(glyph[0]);
+cell[12].SetImage(glyph_x);
+fun show_address(first, second) {
+    for (n = 0; n < 6; n++) {
+        cell[7 - n].SetImage(glyph[Math.Int(first % 16)]);
+        first = Math.Int(first / 16);
+        cell[18 - n].SetImage(glyph[Math.Int(second % 16)]);
+        second = Math.Int(second / 16);
+    }
+}
+
+message = Sprite();
+message.SetZ(6);
+fun centred(sprite, image, y) {
+    sprite.SetImage(image);
+    sprite.SetPosition(px(centre_x) - image.GetWidth() / 2, py(y), 6);
+}
+fun show_message(text) {
+    centred(message, Image.Text(text, 0.9137, 0.9529, 0.9647, 1, font_small), 755);
+    message.SetOpacity(1);
+}
+fun hide_message(text) {
+    message.SetOpacity(0);
+}
+Plymouth.SetDisplayMessageFunction(show_message);
+Plymouth.SetHideMessageFunction(hide_message);
+Plymouth.SetMessageFunction(show_message);
+
+label = "";
+fun say(key) {
+    if (key != global.label) {
+        global.label = key;
+        centred(status, status_image(key), 780);
+    }
+}
+
 mode = "";
 closing = 0;
-frame_count = 72;
+progress = 0;
+shown = 0;
 fun select_mode(value) {
     global.mode = value;
     global.closing = (value == "shutdown" || value == "reboot");
-    prefix = "frame-";
-    global.frame_count = 72;
-    if (closing) { prefix = value + "-"; global.frame_count = 48; }
-    global.frames = null;
-    for (index = 0; index < frame_count; index++)
-        global.frames[index] = Image(prefix + index + ".png").Scale(640*scale, 300*scale);
+    global.label = "";
+    global.tick = 0;
 }
 select_mode(Plymouth.GetMode());
-logo = Sprite(frames[0]);
-logo.SetPosition(Window.GetX()+Window.GetWidth()/2-320*scale, Window.GetY()+Window.GetHeight()*0.53-150*scale, 1);
-tux_image = Image("tux.png").Scale(160*scale,160*scale);
-power_image = Image("computer.png").Scale(160*scale,160*scale);
-mascot = Sprite(tux_image);
-if (closing) mascot.SetImage(power_image);
-mascot.SetPosition(Window.GetX()+Window.GetWidth()/2-80*scale,Window.GetY()+Window.GetHeight()*0.53-287*scale,2);
-for (i=0;i<16;i++) noise[i]=Image("noise-"+i+".png").Scale(Window.GetWidth(),Window.GetHeight());
-static = Sprite(noise[0]); static.SetPosition(Window.GetX(),Window.GetY(),20); static.SetOpacity(0.35);
-band_image=Image("scan-band.png").Scale(Window.GetWidth(),Window.GetHeight()*0.16);
-band=Sprite(band_image); band.SetZ(21);
-curtain_image=Image("curtain.png").Scale(Window.GetWidth(),Window.GetHeight()/2);
-upper=Sprite(curtain_image);lower=Sprite(curtain_image);upper.SetZ(30);lower.SetZ(30);
-tick = 0;
-paused = 0;
-fun refresh() {
-    if (mode != Plymouth.GetMode()) {
-        select_mode(Plymouth.GetMode());
-        global.tick = 0;
-        if (closing) mascot.SetImage(power_image);
-        else mascot.SetImage(tux_image);
-    }
-    global.tick++;
-    if (!paused) logo.SetImage(frames[Math.Int(tick / 2) % frame_count]);
-    static.SetImage(noise[Math.Int(tick/4)%16]);
-    band.SetPosition(Window.GetX(),Window.GetY()+((tick%550)/550)*Window.GetHeight()*1.2-Window.GetHeight()*0.16,21);
-    reveal=tick/48; if (reveal>1 || closing) reveal=1;
-    reveal=1-(1-reveal)*(1-reveal)*(1-reveal);
-    upper.SetPosition(Window.GetX(),Window.GetY()-reveal*Window.GetHeight()/2,30);
-    lower.SetPosition(Window.GetX(),Window.GetY()+Window.GetHeight()/2+reveal*Window.GetHeight()/2,30);
-    if (tick%582>538 && tick%582<548) background_sprite.SetOpacity(0.91);
-    else background_sprite.SetOpacity(1);
-}
-Plymouth.SetRefreshFunction(refresh);
 
-// Keep encrypted disks, fsck messages and interactive questions usable.
-prompt_sprite = Sprite();
-entry_sprite = Sprite();
-message_sprite = Sprite();
-fun center_text(sprite, text, y) {
-    image = Image.Text(text, 0.90, 0.92, 0.95);
-    sprite.SetImage(image);
-    sprite.SetPosition(Window.GetX() + Window.GetWidth()/2 - image.GetWidth()/2,
-                       Window.GetY() + y, 10);
-    sprite.SetOpacity(1);
+fun boot_progress(duration, amount) {
+    global.progress = amount;
 }
-fun password(prompt, count) {
-    paused = 1;
-    center_text(prompt_sprite, prompt, Window.GetHeight()/2 + 142);
-    dots = "";
-    for (i = 0; i < count; i++) dots += "•";
-    center_text(entry_sprite, dots, Window.GetHeight()/2 + 178);
+Plymouth.SetBootProgressFunction(boot_progress);
+
+// ---------------------------------------------------------------- prompts
+// The terminal's own passphrase program: a window, and the field with the bullets typed so far.
+dialog = Sprite(Image("dialog.png").Scale(760 * kx, 260 * ky));
+dialog.SetPosition(px(centre_x - 380), py(folder_y - 130), 40);
+dialog.SetOpacity(0);
+for (k = 0; k < 17; k++) typed_image[k] = Image("pass-" + k + ".png").Scale(680 * kx, 50 * ky);
+field = Sprite(typed_image[0]);
+field.SetPosition(px(centre_x - 340), py(folder_y - 130 + 176), 41);
+field.SetOpacity(0);
+asked = Sprite();
+asked.SetOpacity(0);
+asking = 0;
+fun show_dialog() {
+    global.asking = 1;
+    dialog.SetOpacity(1);
+    field.SetOpacity(1);
 }
-fun question(prompt, answer) {
-    paused = 1;
-    center_text(prompt_sprite, prompt, Window.GetHeight()/2 + 142);
-    center_text(entry_sprite, answer, Window.GetHeight()/2 + 178);
+fun password(question, bullets) {
+    show_dialog();
+    if (bullets > 16) bullets = 16;
+    field.SetImage(typed_image[bullets]);
+    asked.SetOpacity(0);
+}
+fun question(question, answer) {
+    // Anything other than a passphrase (rare) is typed in the same window, as plain text.
+    show_dialog();
+    field.SetImage(typed_image[0]);
+    text = Image.Text(question + "  " + answer + "_", 0.5804, 0.7961, 0.8510, 1, font_small);
+    asked.SetImage(text);
+    asked.SetPosition(px(centre_x - 320), py(folder_y - 130 + 190), 42);
+    asked.SetOpacity(1);
+    field.SetOpacity(0);
 }
 fun normal() {
-    paused = 0;
-    prompt_sprite.SetOpacity(0);
-    entry_sprite.SetOpacity(0);
-    message_sprite.SetOpacity(0);
-}
-fun message(text) {
-    center_text(message_sprite, text, Window.GetHeight() * 0.88);
-}
-fun hide_message(text) { message_sprite.SetOpacity(0); }
-fun quit() {
-    // Do not delay shutdown, and do not flash the startup frame on exit.
-    if (closing) {
-        upper.SetPosition(Window.GetX(),Window.GetY(),30);
-        lower.SetPosition(Window.GetX(),Window.GetY()+Window.GetHeight()/2,30);
-    }
+    global.asking = 0;
+    dialog.SetOpacity(0);
+    field.SetOpacity(0);
+    asked.SetOpacity(0);
 }
 Plymouth.SetDisplayPasswordFunction(password);
 Plymouth.SetDisplayQuestionFunction(question);
 Plymouth.SetDisplayNormalFunction(normal);
-Plymouth.SetDisplayMessageFunction(message);
-Plymouth.SetHideMessageFunction(hide_message);
-Plymouth.SetMessageFunction(message);
+
+// ---------------------------------------------------------------- the sequence
+// Boot timeline in ticks (50 per second): each card rests 20 ticks and falls in 12 (to 160), the
+// cursor reaches Cold Harbor (160-205), clicks it (205-225), the folder dissolves (225-249) and the
+// data field comes up from 235.
+rest = 20;
+fall = 12;
+browse_end = (projects - 1) * (rest + fall);
+click_start = 205;
+fade_start = 225;
+fade_end = 249;
+tick = 0;
+
+fun show_index(t) {
+    if (t < browse_end) {
+        n = Math.Int(t / (rest + fall));
+        within = t - n * (rest + fall) - rest;
+        if (within < 0) file.SetImage(card[n]);
+        else file.SetImage(falling[n * flip_frames + Math.Int(within / fall * flip_frames)]);
+    } else if (t < click_start) file.SetImage(card[projects - 1]);
+    else if (t < fade_start) file.SetImage(clicked);
+    else if (t < fade_end) file.SetImage(fading[Math.Int((t - fade_start) / (fade_end - fade_start) * fade_frames)]);
+}
+
+fun wander(t) {
+    pointer.SetPosition(px(centre_x + 300 * Math.Sin(t * 0.009) + 20), py(520 + 190 * Math.Sin(t * 0.014 + 1.2)), 8);
+}
+
+fun boot_frame(t) {
+    light = 1;
+    if (asking) light = 0;
+    show_index(t);
+    if (t < fade_end) file.SetOpacity(light);
+    else file.SetOpacity(0);
+    if (t < click_start) {
+        // The cursor waits beside the index, then glides onto the card.
+        travel = ease((t - browse_end) / 45);
+        pointer.SetPosition(px(centre_x + 260 - travel * 240 + 6 * Math.Sin(t * 0.05)), py(560 - travel * 160), 8);
+    } else if (t < fade_end) {
+        pointer.SetPosition(px(centre_x + 20), py(400), 8);
+    } else {
+        wander(t - fade_end + 160);
+    }
+    pointer.SetOpacity(1 - asking);
+    if (t < browse_end) say("browsing");
+    else if (t < fade_end) say("opening");
+    else if (mode == "updates" || mode == "system-upgrade" || mode == "firmware-upgrade") say("maintenance");
+    else if (shown < 0.95) say("loading");
+    else say("ready");
+    show_field(t, light * ease((t - 235) / 60));
+}
+
+
+// ---------------------------------------------------------------- the farewell choreography
+// Scenes in order; after the last one it goes back to `loop_from` and wanders on until power-off.
+//   walk X     walk to X in profile (the legs carry it: about 4.5 px per tick)
+//   face D     turn from profile (D = 1 right, -1 left) to the viewer; leave D does the reverse
+//   wave N     wave and talk for N ticks (cheer); idle/woe/dread N stand in that temper; hop jumps (frolic)
+//   say K      the balloon pops up with K (instant)
+scene_kind[0] = "walk"; scene_arg[0] = 820;
+scene_kind[1] = "face"; scene_arg[1] = 1;
+scene_kind[2] = "say"; scene_arg[2] = "first";
+scene_kind[3] = "wave"; scene_arg[3] = 140;
+scene_kind[4] = "say"; scene_arg[4] = "miss";
+scene_kind[5] = "woe"; scene_arg[5] = 90;
+scene_kind[6] = "say"; scene_arg[6] = "second";
+scene_kind[7] = "hop"; scene_arg[7] = 0;
+scene_kind[8] = "idle"; scene_arg[8] = 40;
+scene_kind[9] = "leave"; scene_arg[9] = 1;
+scene_kind[10] = "walk"; scene_arg[10] = 1260;
+scene_kind[11] = "face"; scene_arg[11] = 1;
+scene_kind[12] = "say"; scene_arg[12] = "third";
+scene_kind[13] = "wave"; scene_arg[13] = 120;
+scene_kind[14] = "say"; scene_arg[14] = "dark";
+scene_kind[15] = "dread"; scene_arg[15] = 80;
+scene_kind[16] = "hop"; scene_arg[16] = 0;
+scene_kind[17] = "leave"; scene_arg[17] = -1;
+scene_kind[18] = "walk"; scene_arg[18] = 600;
+scene_kind[19] = "face"; scene_arg[19] = -1;
+scene_kind[20] = "say"; scene_arg[20] = "first";
+scene_kind[21] = "wave"; scene_arg[21] = 100;
+scene_kind[22] = "say"; scene_arg[22] = "miss";
+scene_kind[23] = "woe"; scene_arg[23] = 70;
+scene_kind[24] = "say"; scene_arg[24] = "second";
+scene_kind[25] = "hop"; scene_arg[25] = 0;
+scene_kind[26] = "leave"; scene_arg[26] = 1;
+scenes = 27;
+loop_from = 10;
+
+scene = 0;
+scene_start = 0;
+mascot_x = 470;
+facing = 1;
+balloon_x = 0;
+balloon_y = 0;
+balloon_pop = 0;
+balloon_on = 0;
+lift = 0;
+done = 0;
+
+fun balloon_key(which) {
+    if (mode == "reboot") {
+        if (which == "miss" || which == "dark") return "moment";
+        return "back";
+    }
+    if (which == "first") return "goodbye";
+    if (which == "miss") return "miss";
+    if (which == "second") return "tomorrow";
+    if (which == "dark") return "dark";
+    return "thanks";
+}
+
+fun show_balloon(key) {
+    global.balloon_source = Image("balloon-" + key + ".png");
+    global.balloon_on = 1;
+    global.balloon_pop = 1;
+}
+
+// Returns the pose for this tick and whether the scene is over; moves the mascot while walking.
+fun play_scene(elapsed) {
+    kind = scene_kind[scene];
+    arg = scene_arg[scene];
+    global.lift = 0;
+    global.done = 0;
+    if (kind == "say") {
+        show_balloon(balloon_key(arg));
+        global.done = 1;
+        if (facing > 0) return turn_r[turn_frames - 1];
+        return turn_l[turn_frames - 1];
+    }
+    if (kind == "walk") {
+        if (arg > mascot_x) global.facing = 1;
+        else global.facing = -1;
+        step = 4.5 * facing;
+        if ((arg - mascot_x) * facing <= 4.5) {
+            global.mascot_x = arg;
+            global.done = 1;
+        } else {
+            global.mascot_x = mascot_x + step;
+        }
+        frame = Math.Int(elapsed / 3) % walk_frames;
+        if (facing > 0) return walk_r[frame];
+        return walk_l[frame];
+    }
+    if (kind == "face" || kind == "leave") {
+        global.facing = arg;
+        frame = Math.Int(elapsed / 3);
+        if (frame >= turn_frames) {
+            global.done = 1;
+            frame = turn_frames - 1;
+        }
+        if (kind == "leave") frame = turn_frames - 1 - frame;
+        if (arg > 0) return turn_r[frame];
+        return turn_l[frame];
+    }
+    if (kind == "wave") {
+        if (elapsed >= arg) global.done = 1;
+        return waving[Math.Int(elapsed / 3) % wave_frames];
+    }
+    if (kind == "idle" || kind == "woe" || kind == "dread") {
+        if (elapsed >= arg) global.done = 1;
+        frame = Math.Int(elapsed / 5) % idle_frames;
+        if (kind == "woe") return idle_woe[frame];
+        if (kind == "dread") return idle_dread[frame];
+        return idle_cheer[frame];
+    }
+    // hop: anticipation (0-5), up in an arc (6-21), landing (21-30)
+    frame = Math.Int(elapsed / 3);
+    if (frame >= hop_frames) {
+        global.done = 1;
+        frame = hop_frames - 1;
+    }
+    if (elapsed > 6 && elapsed < 21) global.lift = 120 * Math.Sin((elapsed - 6) / 15 * 3.1416);
+    return hopping[frame];
+}
+
+fun closing_frame(t) {
+    show_field(t, 1 - ease(t / 45));
+    file.SetOpacity(0);
+    if (t < 30) {
+        mascot.SetOpacity(0);
+    } else {
+        elapsed = t - scene_start;
+        image = play_scene(elapsed);
+        if (done) {
+            global.scene++;
+            if (scene >= scenes) global.scene = loop_from;
+            global.scene_start = t;
+        }
+        mascot.SetImage(image);
+        mascot.SetPosition(px(mascot_x - 180), py(ground - 376 - lift), 5);
+        mascot.SetOpacity(ease((t - 30) / 20));
+        // The shadow stays on the floor and shrinks while the mascot is in the air.
+        shadow.SetPosition(px(mascot_x - 110 + lift * 0.2), py(ground - 22), 4);
+        shadow.SetOpacity(ease((t - 30) / 20) * (1 - lift / 200));
+        // The balloon trails the head on a spring and pops in with an overshoot.
+        if (balloon_on) {
+            target_x = mascot_x + 55 * facing - 22;
+            if (facing < 0) target_x = mascot_x + 40 - 22;
+            target_y = ground - 300 - lift - 124 + 6 * Math.Sin(t * 0.08);
+            // Keep the whole balloon on the glass (x 400..1460).
+            if (target_x + balloon_source.GetWidth() > 1460) target_x = 1460 - balloon_source.GetWidth();
+            if (target_x < 400) target_x = 400;
+            if (balloon_x == 0) {
+                global.balloon_x = target_x;
+                global.balloon_y = target_y;
+            }
+            global.balloon_x = balloon_x + (target_x - balloon_x) * 0.14;
+            global.balloon_y = balloon_y + (target_y - balloon_y) * 0.2;
+            if (balloon_pop > 0) {
+                grow = balloon_pop / 12;
+                if (grow < 0.7) size = 0.3 + grow / 0.7 * 0.85;
+                else size = 1.15 - (grow - 0.7) / 0.3 * 0.15;
+                w = balloon_source.GetWidth() * size;
+                h = balloon_source.GetHeight() * size;
+                balloon.SetImage(balloon_source.Scale(w * kx, h * ky));
+                global.balloon_pop++;
+                if (balloon_pop > 12) {
+                    global.balloon_pop = 0;
+                    balloon.SetImage(balloon_source.Scale(balloon_source.GetWidth() * kx, balloon_source.GetHeight() * ky));
+                }
+                balloon.SetPosition(px(balloon_x), py(balloon_y + 124 * (1 - size)), 9);
+            } else {
+                balloon.SetPosition(px(balloon_x), py(balloon_y), 9);
+            }
+            balloon.SetOpacity(1);
+        }
+    }
+    pointer.SetOpacity(0);
+    if (!hint_image) {
+        global.hint_image = status_image("skip");
+        hint.SetImage(hint_image);
+    }
+    hint.SetPosition(px(centre_x) - hint_image.GetWidth() / 2, py(880), 6);
+    if (t > 60) hint.SetOpacity(0.55 + 0.35 * Math.Sin(t * 0.08));
+    if (mode == "reboot") say("reboot");
+    else say("closing");
+}
+
+fun refresh() {
+    if (mode != Plymouth.GetMode()) select_mode(Plymouth.GetMode());
+    // The sequence waits while the terminal asks for a passphrase.
+    if (!asking || closing) global.tick++;
+    t = tick;
+    if (closing) {
+        closing_frame(t);
+        show_gauge(1);
+    } else {
+        global.shown = shown + (progress - shown) * 0.08;
+        mascot.SetOpacity(0);
+        boot_frame(t);
+        show_gauge(shown);
+    }
+    if (t % 4 == 1) show_address(shown * 1083984 + 1048576, (t * 7919) % 16777216);
+}
+Plymouth.SetRefreshFunction(refresh);
+
+fun quit() {
+    // Keep the last frame: no flash of the starting state when Plymouth hands over.
+}
 Plymouth.SetQuitFunction(quit);

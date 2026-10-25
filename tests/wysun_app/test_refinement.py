@@ -69,10 +69,20 @@ class MotionTests(unittest.TestCase):
             self.w.show();self.assertEqual(self.w.pos(),QPoint(100,90));self.w.dismiss();self.assertFalse(self.w.isVisible())
         b=button('Test',lambda:None);self.w.outer.addWidget(b);self.w.show();b.pressed.emit();wait(110);self.assertAlmostEqual(b.pressScale,.96,3);b.released.emit();wait(160);self.assertAlmostEqual(b.pressScale,1.,3)
     def test_glass_background_alpha(self):
-        with patch('ui_theme.read_appearance',return_value=dict(opacity=80)):
-            self.w.show();wait(280);img=self.w.grab().toImage();alpha=img.pixelColor(80,self.w.height()-35).alpha();self.assertGreater(alpha,180);self.assertLess(alpha,245)
-        with patch('ui_theme.read_appearance',return_value=dict(opacity=100)):
-            self.w.update();wait(10);self.assertEqual(self.w.grab().toImage().pixelColor(80,self.w.height()-35).alpha(),255)
+        from theme_tokens import refresh_widgets
+        # Glass belongs to dark mode; the user's current light palette is deliberately opaque.
+        try:
+            with patch.dict(os.environ,{'WYSUN_THEME':'dark'}):
+                refresh_widgets()
+                with patch('ui_theme.read_appearance',return_value=dict(opacity=80)):
+                    self.w.show();wait(280);img=self.w.grab().toImage();alpha=img.pixelColor(80,self.w.height()-35).alpha();self.assertGreater(alpha,180);self.assertLess(alpha,245)
+                with patch('ui_theme.read_appearance',return_value=dict(opacity=100)):
+                    self.w.update();wait(10);self.assertEqual(self.w.grab().toImage().pixelColor(80,self.w.height()-35).alpha(),255)
+            with patch.dict(os.environ,{'WYSUN_THEME':'light'}), patch('ui_theme.read_appearance',return_value=dict(opacity=80)):
+                refresh_widgets();self.w.update();wait(10)
+                self.assertEqual(self.w.grab().toImage().pixelColor(80,self.w.height()-35).alpha(),255)
+        finally:
+            refresh_widgets()
 
 
 if __name__=='__main__':unittest.main(verbosity=2)

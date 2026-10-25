@@ -1,4 +1,4 @@
-"""A demo widget follows the theme live in all five variants (Qt and Quickshell)."""
+"""A demo widget follows the theme live in the light and dark palettes and in every wallpaper (Qt and Quickshell)."""
 import json
 import os
 import shutil
@@ -9,7 +9,7 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-VARIANTS = [('space-black', 'space-black'), ('space-black', 'tokyo'), ('space-black', 'severance'), ('fluent', 'light'), ('fluent', 'dark')]
+VARIANTS = [('material-you', 'light'), ('material-you', 'dark')]
 
 
 class QtDemo(unittest.TestCase):
@@ -39,20 +39,27 @@ print(json.dumps(seen))
         seen = json.loads(out.stdout.strip().splitlines()[-1])
         self.assertEqual(set(seen), {a + ':' + b for a, b in VARIANTS})
         self.assertTrue(all(row[0] for row in seen.values()), seen)
-        self.assertEqual(len({row[1] for row in seen.values()}), 5, 'caption names every variant')
+        self.assertEqual(len({row[1] for row in seen.values()}), 2, 'caption names every variant')
 
 
 class ShellPalettes(unittest.TestCase):
-    """The Wysun shell paints from the Wysun scheme producer: five distinct palettes."""
-    def test_bridge_exposes_a_distinct_surface_for_each_variant(self):
+    """The Wysun shell paints from the Wysun scheme producer: every wallpaper gives its own palette."""
+    def test_bridge_exposes_a_distinct_palette_for_each_wallpaper_and_mode(self):
+        from PIL import Image
         with tempfile.TemporaryDirectory(prefix='wysun-qs-') as home:
             env = dict(os.environ, HOME=home, XDG_CONFIG_HOME=home + '/config', XDG_STATE_HOME=home + '/state')
-            out = subprocess.run([sys.executable, str(ROOT / 'apps/shell/wysun/backend.py'), 'schemes'], env=env,
-                                 capture_output=True, text=True, timeout=60, check=True)
-        palettes = json.loads(out.stdout)
-        self.assertEqual(set(palettes), {a + ':' + b if a == 'fluent' else b for a, b in VARIANTS})
-        surfaces = {key: value['default']['surface'] for key, value in palettes.items()}
-        self.assertEqual(len(set(surfaces.values())), 5, surfaces)
+            for key in ('WYSUN_THEME', 'ORBIT_THEME'):
+                env.pop(key, None)
+            palettes = {}
+            for name, rgb in (('red', (225, 36, 72)), ('blue', (25, 82, 224)), ('bright', (245, 240, 225))):
+                image = Path(home, name + '.png')
+                Image.new('RGB', (32, 32), rgb).save(image)
+                out = subprocess.run([sys.executable, str(ROOT / 'apps/shell/wysun/backend.py'), 'preview', str(image)], env=env,
+                                     capture_output=True, text=True, timeout=60, check=True)
+                palettes[name] = json.loads(out.stdout)
+        self.assertEqual({key: value['mode'] for key, value in palettes.items()}, {'red': 'dark', 'blue': 'dark', 'bright': 'light'})
+        surfaces = {key: value['colours']['surface'] for key, value in palettes.items()}
+        self.assertEqual(len(set(surfaces.values())), 3, surfaces)
 
 
 if __name__ == '__main__':

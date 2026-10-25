@@ -94,6 +94,11 @@ StyledRect {
             }
         }
         onClicked: event => {
+            // A sticky notification is put away by clicking it.
+            if (event.button === Qt.LeftButton && root.modelData.sticky) {
+                root.modelData.popup = false;
+                return;
+            }
             if (!GlobalConfig.notifs.actionOnClick || event.button !== Qt.LeftButton)
                 return;
 

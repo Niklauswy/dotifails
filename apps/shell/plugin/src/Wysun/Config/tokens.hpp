@@ -103,6 +103,7 @@ class WallpaperMotionTokens : public settings::ObjectNode {
     CONFIG_GLOBAL_PROPERTY(qreal, blurStrength, 0.018)
     CONFIG_GLOBAL_PROPERTY(qreal, revealStart, 0.16)
     CONFIG_GLOBAL_PROPERTY(qreal, revealEnd, 0.82)
+    CONFIG_GLOBAL_PROPERTY(int, riftDuration, 1900)
 };
 
 class AppearanceTokens : public settings::ObjectNode {

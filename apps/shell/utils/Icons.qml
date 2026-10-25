@@ -218,19 +218,26 @@ Singleton {
             "brave": "brave-browser",
             "chrome": "google-chrome",
             "firefox": "firefox",
-            "telegram": "org.telegram.desktop",
-            "ghostty": "com.mitchellh.ghostty"
+            "telegram": "org.telegram.desktop"
+        })
+
+    // Icons shipped with the shell for apps whose own icon is missing or generic; they win over the lookups below.
+    readonly property var bundledAppIcons: ({
+            "ghostty": Quickshell.shellPath("assets/ghostty.png")
         })
 
     // Real icon file of an app: the notification's own icon, its desktop entry (hint or heuristic name match), or a known alias.
     function appIconPath(icon: string, app: string, hints: var): string {
+        const lowered = (app ?? "").toLowerCase();
+        for (const key of Object.keys(bundledAppIcons))
+            if (lowered.includes(key) || `${hints?.["desktop-entry"] ?? ""}`.toLowerCase().includes(key))
+                return bundledAppIcons[key];
         const names = [icon];
         const entryId = hints?.["desktop-entry"];
         if (entryId)
             names.push(DesktopEntries.byId(entryId)?.icon ?? "");
         if (app)
             names.push(DesktopEntries.heuristicLookup(app)?.icon ?? "");
-        const lowered = (app ?? "").toLowerCase();
         for (const key of Object.keys(appIconAliases))
             if (lowered.includes(key))
                 names.push(appIconAliases[key]);

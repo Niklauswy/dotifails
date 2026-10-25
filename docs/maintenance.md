@@ -52,21 +52,10 @@ QT_QPA_PLATFORM=offscreen python3 -m unittest discover -s tests/wysun_app -t tes
 
 `tests/container-install.sh` prepara un usuario de prueba y ejecuta instalación, pruebas, repetición y verificaciones de Neovim en una imagen limpia. Se ejecuta dentro de un contenedor, nunca directamente en el equipo. No valida el arranque de un gestor gráfico, hardware Wi-Fi/Bluetooth ni GPU física; esas pruebas requieren una VM o equipo de prueba.
 
-## Perfiles visuales
+## Perfil visual
 
-- `severance`: `backgrounds/azul.jpg`, GTK ARK-Dark, iconos Flat-Remix-Green-Dark y cursor Breeze. Los recursos se conservan con sus licencias en `assets/appearance/azul.tar.xz`; el instalador comprueba SHA-256 antes de extraerlos.
-- `tokyo`: `backgrounds/tokyo.png`, GTK Arc-Darker, iconos Win11-Dark y cursor Fluent.
-- `space-black`: `backgrounds/space-black.png`, GTK Arc-Darker, iconos Win11-Dark y cursor Fluent.
-- Los tres coordinan los paneles, bordes, terminal, prompt, Neovim, barra y notificaciones mediante el motor de temas. Eza aporta los iconos de archivos y Bat mantiene su tema local y su caché.
+Hay un solo perfil, Material You: fondo `backgrounds/purple-abstract-3840x3840-27445.jpg`, GTK Arc-Darker, iconos Win11-Dark y cursor Fluent (`manifests/themes.json`). Los colores salen del wallpaper y coordinan los paneles, bordes, terminal, prompt, Neovim, barra y notificaciones mediante el motor de temas. Eza aporta los iconos de archivos y Bat mantiene su tema local y su caché.
 
-Una instalación nueva selecciona Severance. Las actualizaciones conservan el tema de Ajustes; una instalación antigua sin perfil registrado conserva Tokyo. `azul` y `morado` siguen siendo alias de compatibilidad. Para seleccionar explícitamente:
+Una instalación nueva queda en modo automático. Las actualizaciones conservan el modo y el wallpaper del usuario, y leen el modo de cualquier `theme.json` antiguo. Ya no existe `--theme`. En un equipo con todas las dependencias instaladas, `--config-only` permite aplicar solo archivos y recursos. Cierra sesión después para cargar el perfil completo. Las ediciones locales siguen protegidas: si hay conflictos, revisar `incoming/` antes de considerar aplicado todo el perfil. `--orbit-only` conserva el perfil.
 
-```sh
-./instalar.sh --theme severance
-./instalar.sh --theme tokyo
-./instalar.sh --theme space-black
-```
-
-En un equipo con todas las dependencias instaladas, `--config-only --theme severance` permite aplicar solo archivos y recursos. Cierra sesión después para cargar el perfil completo. Las ediciones locales siguen protegidas: si hay conflictos, revisar `incoming/` antes de considerar aplicado todo el perfil. `--orbit-only` conserva el perfil.
-
-La instantánea azul conserva los ajustes visuales útiles, sin rutas del usuario ni cachés. La configuración antigua de Xsettings apuntaba a `Echo`, que no existía en el equipo: se usa el ARK-Dark indicado por GTK. Se omiten módulos GTK ausentes, opciones de ejemplo ignoradas y comandos de PowerShell rotos del prompt; se conservan sus módulos funcionales, símbolos y colores. El tema declarado de Bat no estaba instalado, por lo que se incluye uno local con la paleta de la terminal.
+La instantánea visual conserva los ajustes útiles, sin rutas del usuario ni cachés. La configuración antigua de Xsettings apuntaba a `Echo`, que no existía en el equipo: se usa el tema GTK indicado. Se omiten módulos GTK ausentes, opciones de ejemplo ignoradas y comandos de PowerShell rotos del prompt; se conservan sus módulos funcionales, símbolos y colores. El tema declarado de Bat no estaba instalado, por lo que se incluye uno local con la paleta de la terminal.

@@ -24,6 +24,35 @@ def logical_size(p):
     return round(w / scale), round(h / scale)
 
 
+def _pixels(mode):
+    try:
+        w, h = (int(v) for v in str(mode).split('x'))
+    except ValueError:
+        return 0
+    return w * h
+
+
+def fill_modes(plan, available):
+    """Give every enabled monitor a mode it really offers.
+
+    A monitor that was switched off reports 0x0 until it is lit again, and one that comes back after
+    other company may have lost the mode it was saved with. Such a monitor gets its largest picture,
+    at 60 Hz when it has it (a faster rate costs more and is never chosen for the person).
+    ``available`` maps a monitor name to ``[{name, rates}]`` as the inventory lists it.
+    """
+    plan = copy.deepcopy(plan)
+    for p in plan:
+        modes = available.get(p['name']) or []
+        offered = {m['name']: m['rates'] for m in modes}
+        if not p.get('enabled', True) or not modes or p.get('rate') in offered.get(p.get('mode'), ()):
+            continue
+        if p.get('mode') not in offered:
+            p['mode'] = max(modes, key=lambda m: _pixels(m['name']))['name']
+        rates = offered[p['mode']]
+        p['rate'] = '60.00' if '60.00' in rates else rates[0]
+    return plan
+
+
 def _rows(active):
     """Group monitors whose vertical extents overlap into rows, top to bottom."""
     rows = []

@@ -28,6 +28,9 @@ hl.window_rule({ name = "wysun-power", match = { class = "^orbit$", title = "^Wy
 -- The consent provider is a native MainWindow, but behaves as a dialog.
 hl.window_rule({ name = "wysun-portal-picker", match = { class = "^hyprland-share-picker$", title = "^Select what to share$" }, float = true, center = true })
 hl.window_rule({ name = "wysun-file-chooser", match = { class = "^orbit-files$", title = ".*Wysun Selector" }, float = true, center = true })
+-- Neovim opened from the launcher: mapped unseen (no animation, transparent) so the launcher's preview can fly onto
+-- its tile; the shell makes it visible on landing (apps/shell/modules/launcher/services/Editor.qml).
+hl.window_rule({ name = "wysun-edit-handoff", match = { class = "^wysun\\.edit$" }, no_anim = true, opacity = "0 override" })
 -- BEGIN AUDITED DAILY SHORTCUTS
 hl.bind("SUPER + Return", hl.dsp.exec_cmd("wysun-terminal"), {description="Wysun | equivalent | Abrir wysun-terminal"})
 hl.bind("SUPER + D", hl.dsp.exec_cmd("wysun"), {description="Wysun | equivalent | Abrir wysun"})

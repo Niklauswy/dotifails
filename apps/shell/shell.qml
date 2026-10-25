@@ -17,6 +17,7 @@ import qs.modules.areapicker
 import qs.modules.recorder
 import qs.modules.background
 import qs.modules.drawers
+import qs.modules.identify
 import qs.modules.lock
 import qs.modules.launcher
 import qs.daemons
@@ -53,6 +54,7 @@ ShellRoot {
     Background {}
     Drawers {}
     AreaPicker {}
+    Identify {}
     RecordingHud {}
     RecordingBorder {}
     LiveAnnotations {}

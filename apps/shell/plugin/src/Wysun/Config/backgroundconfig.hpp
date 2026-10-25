@@ -52,7 +52,7 @@ class BackgroundConfig : public settings::ObjectNode {
 
     CONFIG_PROPERTY(bool, enabled, true)
     CONFIG_PROPERTY(bool, wallpaperEnabled, true)
-    CONFIG_ENUM_PROPERTY(WallpaperTransition, wallpaperTransition, WallpaperTransition::Crossfade)
+    CONFIG_ENUM_PROPERTY(WallpaperTransition, wallpaperTransition, WallpaperTransition::LiquidRift)
     CONFIG_SUBOBJECT(DesktopClock, desktopClock)
     CONFIG_SUBOBJECT(BackgroundVisualiser, visualiser)
 };

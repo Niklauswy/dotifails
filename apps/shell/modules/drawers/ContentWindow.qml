@@ -75,7 +75,10 @@ StyledWindow {
     name: "drawers"
     WlrLayershell.exclusionMode: ExclusionMode.Ignore
     WlrLayershell.layer: (hasFullscreen && interactivePanelOpen) || (fsTransitionProg > 0 && contentItem.Config.general.showOverFullscreen) || (hasSpecialWorkspace && hasFullscreenOnNormalWs) ? WlrLayer.Overlay : WlrLayer.Top
-    WlrLayershell.keyboardFocus: screenState.session || screenState.sidebar || screenState.aiUsage || (screenState.dashboard && screenState.dashboardKeyboard) ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+    // A dashboard opened by hovering takes the keyboard only while it is open (Alt+1…9 switch its tabs);
+    // the window underneath gets it back as soon as the dashboard closes.
+    WlrLayershell.keyboardFocus: screenState.session || screenState.sidebar || screenState.aiUsage || (screenState.dashboard && screenState.dashboardKeyboard) ? WlrKeyboardFocus.OnDemand
+        : screenState.dashboard && !hasFullscreen ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
     mask: hasFullscreen && !interactivePanelOpen ? emptyRegion : regions
 

@@ -20,7 +20,7 @@ class UtilityUITests(unittest.TestCase):
   with tempfile.TemporaryDirectory() as tmp:
    w=ColorWindow(Path(tmp)/'colors.json')
    try:
-    for variant in ('space-black','tokyo','severance','fluent:light','fluent:dark'):
+    for variant in ('light','dark'):
      with patch.dict(os.environ,{'ORBIT_THEME':variant}):
       refresh_widgets();w.resize(1100,700);w.show();wait(50);self.assertFalse(w.grab().isNull())
    finally:w.close()
@@ -29,15 +29,12 @@ class UtilityUITests(unittest.TestCase):
   from PySide6.QtWidgets import QLabel
   from theme_tokens import apply_style,refresh_widgets
   label=QLabel('Tema');original='color: @text; background: @canvas; border-radius: @radius_l;'
-  with patch.dict(os.environ,{'ORBIT_THEME':'severance'}):
-   refresh_widgets();apply_style(label,original);severance=label.styleSheet()
-   with patch.dict(os.environ,{'ORBIT_THEME':'tokyo'}):
-    refresh_widgets();self.assertNotEqual(label.styleSheet(),severance)
+  with patch.dict(os.environ,{'ORBIT_THEME':'dark'}):
+   refresh_widgets();apply_style(label,original);dark=label.styleSheet()
+   with patch.dict(os.environ,{'ORBIT_THEME':'light'}):
+    refresh_widgets();self.assertNotIn('@',label.styleSheet());self.assertNotEqual(label.styleSheet(),dark)
     self.assertEqual(label.property('orbitOriginalStyle'),original)
-    for key in ('fluent:light','fluent:dark'):
-     with patch.dict(os.environ,{'ORBIT_THEME':key}):
-      refresh_widgets();self.assertNotIn('@',label.styleSheet());self.assertNotEqual(label.styleSheet(),severance)
-   refresh_widgets();self.assertEqual(label.styleSheet(),severance)
+   refresh_widgets();self.assertEqual(label.styleSheet(),dark)
   label.deleteLater();refresh_widgets()
  def test_color_formats_invalid_input_and_palette(self):
   with tempfile.TemporaryDirectory() as tmp:

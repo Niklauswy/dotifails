@@ -11,9 +11,14 @@ var pageRoutes = {
     connections: "network",
     bluetooth: "bluetooth",
     audio: "audio",
+    apps: "apps",
     displays: "displays",
     workspaces: "workspaces",
     lock: "lock",
-    idle: "lock"
+    idle: "lock",
+    panels: "panels",
+    services: "services",
+    language: "language",
+    about: "about"
 };
-var pageSubs = {theme: 3};
+var pageSubs = {};

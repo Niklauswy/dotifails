@@ -71,13 +71,13 @@ QMenu::item:disabled {color:@disabled;}
 
 
 def surface_alpha(values=None):
-    """Window material opacity: the user's preference for glass, solid for Fluent."""
+    """Window material opacity: the user's preference for glass, solid for the opaque light material."""
     values = values or tokens()
     return round(read_appearance()['opacity']*2.55) if values['translucent'] else 255
 
 
 def paint_surface(widget, radius=None):
-    """Window material. Space Black: tinted glass; Fluent: pearl or mica, opaque."""
+    """Window material. Dark: tinted glass; light: opaque pearl."""
     values=tokens();radius=values['radius_l']
     p=QPainter(widget);p.setRenderHint(QPainter.Antialiasing)
     rect=QRectF(.5,.5,widget.width()-1,widget.height()-1)

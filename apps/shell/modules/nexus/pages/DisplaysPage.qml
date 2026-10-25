@@ -31,6 +31,7 @@ PageBase {
     property int countdown: 0
     readonly property bool trialing: trialFolder.length > 0
     readonly property var current: plan.find(p => p.name === selected) ?? null
+    readonly property var switchedOff: plan.filter(p => !p.enabled)
     readonly property var modeList: current ? (modes[current.name] ?? []) : []
     readonly property var rateList: (modeList.find(m => m.name === current?.mode)?.rates ?? [])
 
@@ -175,15 +176,15 @@ PageBase {
                     radius: Tokens.rounding.small
                     opacity: modelData.enabled ? 1 : 0.4
                     color: isSelected ? Colours.palette.m3secondaryContainer : Colours.palette.m3surfaceContainerHigh
-                    border.width: isSelected ? 2 : 1
-                    border.color: isSelected ? Colours.palette.m3primary : Colours.palette.m3outlineVariant
+                    border.width: isSelected || DisplayIdentify.showing ? 2 : 1
+                    border.color: DisplayIdentify.showing ? Colours.palette.m3tertiary : isSelected ? Colours.palette.m3primary : Colours.palette.m3outlineVariant
 
                     transform: Translate { x: drag.offsetX; y: drag.offsetY }
                     z: drag.pressed ? 1 : 0
 
                     StyledText {
                         anchors.centerIn: parent
-                        text: box.modelData.name + (root.plan.find(p => p.name === box.modelData.name)?.primary ? " ★" : "")
+                        text: (root.order.indexOf(box.modelData.name) + 1) + " · " + box.modelData.name + (root.plan.find(p => p.name === box.modelData.name)?.primary ? " ★" : "")
                         color: box.isSelected ? Colours.palette.m3onSecondaryContainer : Colours.palette.m3onSurface
                         font: Tokens.font.label.medium
                     }
@@ -227,15 +228,89 @@ PageBase {
             }
         }
 
-        StyledText {
+        RowLayout {
             Layout.fillWidth: true
             Layout.leftMargin: Tokens.padding.small
             Layout.topMargin: Tokens.spacing.small
-            visible: root.order.length > 0
-            text: "Display order: " + root.order.join("  →  ")
-            color: Colours.palette.m3onSurfaceVariant
-            font: Tokens.font.label.small
-            elide: Text.ElideRight
+            spacing: Tokens.spacing.small
+
+            StyledText {
+                Layout.fillWidth: true
+                visible: root.order.length > 0
+                text: "Display order: " + root.order.join("  →  ")
+                color: Colours.palette.m3onSurfaceVariant
+                font: Tokens.font.label.small
+                elide: Text.ElideRight
+            }
+
+            // Puts the number and name of each display on that display for a few seconds.
+            ActionButton {
+                type: TextButton.Tonal
+                text: "Identify"
+                onClicked: DisplayIdentify.show()
+            }
+        }
+
+        // Displays that are off do not appear in the miniature; they are here, one click from on.
+        Flow {
+            Layout.fillWidth: true
+            Layout.topMargin: Tokens.spacing.small
+            Layout.leftMargin: Tokens.padding.small
+            spacing: Tokens.spacing.small
+            visible: root.switchedOff.length > 0 && !root.trialing
+
+            StyledText {
+                height: 32
+                verticalAlignment: Text.AlignVCenter
+                text: "Turned off"
+                color: Colours.palette.m3onSurfaceVariant
+                font: Tokens.font.label.small
+            }
+
+            Repeater {
+                model: root.switchedOff
+
+                StyledRect {
+                    id: off
+
+                    required property var modelData
+
+                    implicitWidth: offRow.implicitWidth + Tokens.padding.large * 2
+                    implicitHeight: 32
+                    radius: Tokens.rounding.full
+                    color: Colours.palette.m3surfaceContainerHigh
+                    opacity: root.busy ? 0.5 : 1
+
+                    StateLayer {
+                        radius: off.radius
+                        disabled: root.busy
+                        onClicked: {
+                            root.selected = off.modelData.name;
+                            root.edit({enabled: true});
+                        }
+                    }
+
+                    Row {
+                        id: offRow
+
+                        anchors.centerIn: parent
+                        spacing: Tokens.spacing.small
+
+                        MaterialIcon {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "power_settings_new"
+                            color: Colours.palette.m3primary
+                            fontStyle: Tokens.font.icon.small
+                        }
+                        StyledText {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: off.modelData.name + " · turn on"
+                            font: Tokens.font.label.medium
+                            color: Colours.palette.m3onSurface
+                        }
+                    }
+                }
+            }
         }
 
         RowLayout {
@@ -270,7 +345,7 @@ PageBase {
         OptionRow {
             first: true
             label: "Display"
-            options: root.plan.map(p => ({value: p.name, label: p.name}))
+            options: root.plan.map(p => ({value: p.name, label: p.enabled ? p.name : p.name + " · off"}))
             current: root.selected
             onPicked: value => root.selected = value
         }
@@ -286,10 +361,24 @@ PageBase {
         ToggleRow {
             visible: root.current
             text: "Primary display"
-            subtext: "Receives focus when the session starts"
+            subtext: "Receives focus at startup and hosts widgets in primary-only mode"
             checked: root.current?.primary ?? false
             disabled: root.trialing || root.busy || !(root.current?.enabled ?? false)
             onToggled: root.edit({primary: checked})
+        }
+
+        OptionRow {
+            label: "Widgets on"
+            options: [{value: "all", label: "All displays"}, {value: "primary", label: "Primary display"}]
+            current: Screens.widgetsOnlyPrimary ? "primary" : "all"
+            enabled: !root.trialing && !root.busy
+            onPicked: value => {
+                root.busy = true;
+                DisplayBridge.call("displays.widgets", {mode: value}, data => {
+                    root.busy = false;
+                    root.report("Widget placement saved. Wallpapers and capture remain on all displays.", false);
+                }, message => { root.busy = false; root.report(message, true); });
+            }
         }
 
         OptionRow {

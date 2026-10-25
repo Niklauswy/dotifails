@@ -14,19 +14,21 @@ if [ "${XDG_SESSION_TYPE:-}" != wayland ] || [ -z "${WAYLAND_DISPLAY:-}" ]; then
     exit 1
 fi
 suspend=false
+preview=false
 case "$#" in
     0) ;;
     1)
         case "$1" in
             --suspend) suspend=true ;;
-            *) printf '%s\n' 'Uso: wysun-lock [--suspend]' >&2; exit 2 ;;
+            --preview) preview=true ;;
+            *) printf '%s\n' 'Uso: wysun-lock [--suspend | --preview]' >&2; exit 2 ;;
         esac
         ;;
-    *) printf '%s\n' 'Uso: wysun-lock [--suspend]' >&2; exit 2 ;;
+    *) printf '%s\n' 'Uso: wysun-lock [--suspend | --preview]' >&2; exit 2 ;;
 esac
 
-# Opt-in backend. Default is the proven swaylock lock; both the environment and
-# a small, flat preference file are accepted. Invalid values never select QML.
+# Backend. The Wysun lock (QML, ext-session-lock-v1) is the default; swaylock remains selectable and
+# is the fallback whenever the QML lock cannot confirm the lock. Invalid values select the default.
 config="${XDG_CONFIG_HOME:-$HOME/.config}/orbit/lock.json"
 backend=${WYSUN_LOCK_BACKEND:-}
 media=${WYSUN_LOCK_MEDIA:-}
@@ -38,11 +40,11 @@ if [ -r "$config" ]; then
         media=$(sed -n 's/.*"media"[[:space:]]*:[[:space:]]*true.*/1/p' "$config" | head -n 1)
     fi
 fi
-backend=${backend:-swaylock}
+backend=${backend:-qml}
 case "$media" in 1) ;; *) media=0 ;; esac
 case "$backend" in
     swaylock|qml) ;;
-    *) printf '%s\n' 'Wysun Lock: backend desconocido; se usa swaylock.' >&2; backend=swaylock ;;
+    *) printf '%s\n' 'Wysun Lock: backend desconocido; se usa el bloqueo de Wysun.' >&2; backend=qml ;;
 esac
 
 # Accept only six hex digits. Standalone key/idle invocations retain swaylock's
@@ -110,21 +112,77 @@ if [ -z "$shell_root" ]; then
     fi
 fi
 qml="$shell_root/lock.qml"
+runtime=${WYSUN_RUNTIME:-${XDG_DATA_HOME:-$HOME/.local/share}/wysun/runtime}
+launcher="$shell_root/wysun/runtime.sh"
+
+# Compile the lock's GLSL with the runtime's qsb once per shader revision. The cache is keyed by the
+# sources' content; a failure only means the flat presentation (the lock itself never depends on it).
+prepare_shaders() {
+    sources="$shell_root/modules/lockscreen/shaders"
+    [ -d "$sources" ] || return 0
+    qsb=
+    for candidate in "$runtime"/qt/*/gcc_64/bin/qsb; do
+        [ -x "$candidate" ] && qsb=$candidate && break
+    done
+    [ -n "$qsb" ] || return 0
+    key=$(cat "$sources"/*.frag 2>/dev/null | sha256sum | cut -c1-16) || return 0
+    cache="${XDG_CACHE_HOME:-$HOME/.cache}/wysun/lock-shaders/$key"
+    if [ ! -d "$cache" ]; then
+        mkdir -p "${cache%/*}" || return 0
+        work=$(mktemp -d "${cache%/*}/.build.XXXXXX") || return 0
+        for shader in "$sources"/*.frag; do
+            if ! "$qsb" --glsl "300es,330" -o "$work/${shader##*/}.qsb" "$shader" >/dev/null 2>&1; then
+                rm -rf "$work"
+                return 0
+            fi
+        done
+        mv "$work" "$cache" 2>/dev/null || rm -rf "$work"
+    fi
+    [ -d "$cache" ] && printf '%s' "$cache"
+}
+
+qml_available() {
+    [ -f "$1" ] && [ -f "$launcher" ] && [ -x "$runtime/quickshell/bin/quickshell" ]
+}
+
+if "$preview"; then
+    # Never locks, never authenticates, never falls back to swaylock.
+    entry="$shell_root/lock-preview.qml"
+    if ! qml_available "$entry"; then
+        printf '%s\n' 'Wysun Lock: la vista previa necesita el runtime del shell de Wysun.' >&2
+        exit 1
+    fi
+    WYSUN_LOCK_SHADERS=$(prepare_shaders) WYSUN_SHELL_ENTRY="$entry" exec sh "$launcher"
+fi
 
 run_qml() {
-    if [ ! -f "$qml" ] || ! command -v quickshell >/dev/null 2>&1; then
-        printf '%s\n' 'Wysun Lock: el bloqueo QML no está instalado; se usa swaylock.' >&2
+    if ! qml_available "$qml"; then
+        printf '%s\n' 'Wysun Lock: el bloqueo de Wysun no está instalado; se usa swaylock.' >&2
         run_swaylock
     fi
-    runtime=${XDG_RUNTIME_DIR:-}
-    if [ -z "$runtime" ] || [ ! -d "$runtime" ]; then runtime=${TMPDIR:-/tmp}; fi
-    ready=$(mktemp "$runtime/wysun-lock-ready.XXXXXX") || {
+    shaders=$(prepare_shaders)
+    tmp=${XDG_RUNTIME_DIR:-}
+    if [ -z "$tmp" ] || [ ! -d "$tmp" ]; then tmp=${TMPDIR:-/tmp}; fi
+    ready=$(mktemp "$tmp/wysun-lock-ready.XXXXXX") || {
         printf '%s\n' 'Wysun Lock: no hay un directorio temporal seguro; se usa swaylock.' >&2
         run_swaylock
     }
     trap 'rm -f "$ready"' EXIT HUP INT TERM
+    # The scene goes on the monitor in use; the other monitors stay dark.
+    output=${WYSUN_LOCK_OUTPUT:-}
+    if [ -z "$output" ] && command -v hyprctl >/dev/null 2>&1; then
+        output=$(hyprctl -j activeworkspace 2>/dev/null | sed -n 's/.*"monitor": *"\([^"]*\)".*/\1/p' | head -n 1)
+    fi
+    # A snapshot of that monitor, kept only in the private runtime dir, for the doors to open on.
+    desktop=""
+    if [ -n "$output" ] && [ "$tmp" = "${XDG_RUNTIME_DIR:-}" ] && command -v grim >/dev/null 2>&1; then
+        desktop="$tmp/wysun-lock-desktop.png"
+        (umask 077; grim -l 0 -o "$output" "$desktop") 2>/dev/null || desktop=""
+    fi
+    WYSUN_LOCK_DESKTOP="$desktop" WYSUN_LOCK_OUTPUT="$output" \
     WYSUN_SHELL_ROOT="$shell_root" WYSUN_LOCK_READY="$ready" WYSUN_LOCK_MEDIA="$media" \
-        quickshell -p "$qml" >/dev/null 2>&1 &
+        WYSUN_LOCK_SHADERS="$shaders" WYSUN_SHELL_ENTRY="$qml" \
+        sh "$launcher" >/dev/null 2>&1 &
     pid=$!
     # Seconds to wait for the compositor to confirm the lock (1-60, default 30).
     limit=30

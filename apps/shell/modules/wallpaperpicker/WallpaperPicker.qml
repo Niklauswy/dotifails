@@ -6,9 +6,13 @@ import Quickshell.Io
 import Quickshell.Wayland
 import Quickshell.Hyprland
 import Wysun.Config
+import Wysun.I18n
 import qs.components
 import qs.components.containers
+import qs.components.controls
+import qs.components.filedialog
 import qs.services
+import qs.utils
 
 // Coverflow wallpaper picker. Original Wysun code; the card strip follows the
 // visual reference supplied for the task (tall cards, tilted and overlapped
@@ -45,15 +49,25 @@ Scope {
             }
             color: "transparent"
 
+            property bool libraryOpen
+
             function sync(): void {
                 if (state.wallpapers) {
                     filter.text = "";
-                    WallpaperLibrary.open();
+                    if (!libraryOpen)
+                        WallpaperLibrary.open();
+                    libraryOpen = true;
                     carousel.reset();
                     Qt.callLater(() => filter.forceActiveFocus());
-                } else {
+                } else if (libraryOpen) {
+                    libraryOpen = false;
                     WallpaperLibrary.close();
                 }
+            }
+
+            Component.onDestruction: {
+                if (libraryOpen)
+                    WallpaperLibrary.close();
             }
 
             // The state survives shell reloads, so a picker left open comes back populated.
@@ -100,6 +114,10 @@ Scope {
                     carousel.apply();
                 }
 
+                function random(): void {
+                    carousel.random();
+                }
+
                 function state(): string {
                     return JSON.stringify({ settled: carousel.settled, query: filter.text, index: carousel.index, count: carousel.items.length, cards: cards.count, selected: carousel.items[carousel.index]?.path ?? "" });
                 }
@@ -132,7 +150,7 @@ Scope {
                 readonly property string query: filter.text.trim().toLowerCase()
                 readonly property var items: {
                     const all = WallpaperLibrary.entries;
-                    return query ? all.filter(e => e.path.toLowerCase().includes(query) || (query === "animated" && e.animated)) : all;
+                    return query ? all.filter(e => e.name.toLowerCase().includes(query) || (query === "animated" && e.animated)) : all;
                 }
                 readonly property string currentPath: Wallpapers.forOutput(win.modelData.name)
                 property int index: 0
@@ -180,6 +198,21 @@ Scope {
                     closeTimer.restart();
                 }
 
+                // Apply a wallpaper other than the current one, picked at random from what the filter shows.
+                function random(): void {
+                    const pool = items.filter(e => e.path !== currentPath);
+                    if (pool.length === 0)
+                        return;
+                    Wallpapers.setWallpaper(pool[Math.floor(Math.random() * pool.length)].path);
+                    closeTimer.restart();
+                }
+
+                // The picker covers the screen, so it steps aside while the file dialog is open.
+                function add(): void {
+                    addDialog.open();
+                    win.state.wallpapers = false;
+                }
+
                 // Keep only the cards near the selection alive (virtualised strip).
                 function syncWindow(): void {
                     const base = Math.round(pos);
@@ -207,7 +240,8 @@ Scope {
                 onPosChanged: syncWindow()
                 onItemsChanged: {
                     cards.clear();
-                    index = query ? 0 : Math.min(index, Math.max(items.length - 1, 0));
+                    const found = query ? -1 : items.findIndex(e => e.path === currentPath);
+                    index = found >= 0 ? found : query ? 0 : Math.min(index, Math.max(items.length - 1, 0));
                     pos = index;
                     syncWindow();
                     settled = false;
@@ -243,6 +277,15 @@ Scope {
 
                     interval: 260
                     onTriggered: win.state.wallpapers = false
+                }
+
+                FileDialog {
+                    id: addDialog
+
+                    title: Tr.tr("Select a wallpaper")
+                    filterLabel: Tr.tr("Images and videos")
+                    filters: Images.validImageExtensions.concat(["bmp", "gif", "mp4", "webm", "mkv"])
+                    onAccepted: path => Wallpapers.setWallpaper(path)
                 }
 
                 ListModel {
@@ -302,76 +345,99 @@ Scope {
                     StyledText {
                         anchors.horizontalCenter: parent.horizontalCenter
                         visible: carousel.items.length > 0
-                        text: `${carousel.index + 1} / ${carousel.items.length}  ·  ← → browse  ·  Enter apply  ·  Esc close`
+                        text: `${carousel.index + 1} / ${carousel.items.length}  ·  ← → browse  ·  Enter apply  ·  Ctrl+R random  ·  Esc close`
                         color: Colours.palette.m3onSurfaceVariant
                         font: Tokens.font.label.small
                     }
 
-                    Rectangle {
+                    Row {
                         anchors.horizontalCenter: parent.horizontalCenter
-                        implicitWidth: Tokens.sizes.launcher.itemWidth * 0.6
-                        implicitHeight: filter.implicitHeight + Tokens.padding.small * 2
-                        radius: Tokens.rounding.full
-                        color: Colours.tPalette.m3surfaceContainer
-                        border.width: 1
-                        border.color: filter.activeFocus ? Colours.palette.m3primary : Colours.palette.m3outlineVariant
+                        spacing: Tokens.spacing.small
 
-                        MaterialIcon {
-                            id: searchIcon
-
-                            anchors.left: parent.left
-                            anchors.leftMargin: Tokens.padding.medium
+                        IconButton {
                             anchors.verticalCenter: parent.verticalCenter
-                            text: "search"
-                            color: Colours.palette.m3onSurfaceVariant
-                            fontStyle: Tokens.font.icon.small
+                            icon: "add_photo_alternate"
+                            type: IconButton.Tonal
+                            isRound: true
+                            onClicked: carousel.add()
                         }
 
-                        TextInput {
-                            id: filter
-
-                            anchors.left: searchIcon.right
-                            anchors.right: parent.right
-                            anchors.margins: Tokens.padding.medium
+                        Rectangle {
                             anchors.verticalCenter: parent.verticalCenter
-                            color: Colours.palette.m3onSurface
-                            selectionColor: Colours.palette.m3primary
-                            selectedTextColor: Colours.palette.m3onPrimary
-                            font: Tokens.font.body.small
-                            clip: true
-                            focus: true
+                            implicitWidth: Tokens.sizes.launcher.itemWidth * 0.6
+                            implicitHeight: filter.implicitHeight + Tokens.padding.small * 2
+                            radius: Tokens.rounding.full
+                            color: Colours.tPalette.m3surfaceContainer
+                            border.width: 1
+                            border.color: filter.activeFocus ? Colours.palette.m3primary : Colours.palette.m3outlineVariant
 
-                            StyledText {
-                                anchors.fill: parent
-                                visible: !filter.text
-                                text: "Filter wallpapers"
-                                color: Colours.palette.m3outline
-                                font: filter.font
+                            MaterialIcon {
+                                id: searchIcon
+
+                                anchors.left: parent.left
+                                anchors.leftMargin: Tokens.padding.medium
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: "search"
+                                color: Colours.palette.m3onSurfaceVariant
+                                fontStyle: Tokens.font.icon.small
                             }
 
-                            Keys.priority: Keys.BeforeItem
-                            Keys.onPressed: event => {
-                                const key = event.key;
-                                if (key === Qt.Key_Left || key === Qt.Key_Up)
-                                    carousel.go(-1);
-                                else if (key === Qt.Key_Right || key === Qt.Key_Down)
-                                    carousel.go(1);
-                                else if (key === Qt.Key_PageUp)
-                                    carousel.go(-5);
-                                else if (key === Qt.Key_PageDown)
-                                    carousel.go(5);
-                                else if (key === Qt.Key_Home)
-                                    carousel.move(0);
-                                else if (key === Qt.Key_End)
-                                    carousel.move(carousel.items.length - 1);
-                                else if (key === Qt.Key_Return || key === Qt.Key_Enter)
-                                    carousel.apply();
-                                else if (key === Qt.Key_Escape)
-                                    win.state.wallpapers = false;
-                                else
-                                    return;
-                                event.accepted = true;
+                            TextInput {
+                                id: filter
+
+                                anchors.left: searchIcon.right
+                                anchors.right: parent.right
+                                anchors.margins: Tokens.padding.medium
+                                anchors.verticalCenter: parent.verticalCenter
+                                color: Colours.palette.m3onSurface
+                                selectionColor: Colours.palette.m3primary
+                                selectedTextColor: Colours.palette.m3onPrimary
+                                font: Tokens.font.body.small
+                                clip: true
+                                focus: true
+
+                                StyledText {
+                                    anchors.fill: parent
+                                    visible: !filter.text
+                                    text: "Filter wallpapers"
+                                    color: Colours.palette.m3outline
+                                    font: filter.font
+                                }
+
+                                Keys.priority: Keys.BeforeItem
+                                Keys.onPressed: event => {
+                                    const key = event.key;
+                                    if ((event.modifiers & Qt.ControlModifier) && key === Qt.Key_R)
+                                        carousel.random();
+                                    else if (key === Qt.Key_Left || key === Qt.Key_Up)
+                                        carousel.go(-1);
+                                    else if (key === Qt.Key_Right || key === Qt.Key_Down)
+                                        carousel.go(1);
+                                    else if (key === Qt.Key_PageUp)
+                                        carousel.go(-5);
+                                    else if (key === Qt.Key_PageDown)
+                                        carousel.go(5);
+                                    else if (key === Qt.Key_Home)
+                                        carousel.move(0);
+                                    else if (key === Qt.Key_End)
+                                        carousel.move(carousel.items.length - 1);
+                                    else if (key === Qt.Key_Return || key === Qt.Key_Enter)
+                                        carousel.apply();
+                                    else if (key === Qt.Key_Escape)
+                                        win.state.wallpapers = false;
+                                    else
+                                        return;
+                                    event.accepted = true;
+                                }
                             }
+                        }
+
+                        IconButton {
+                            anchors.verticalCenter: parent.verticalCenter
+                            icon: "shuffle"
+                            type: IconButton.Tonal
+                            isRound: true
+                            onClicked: carousel.random()
                         }
                     }
                 }
