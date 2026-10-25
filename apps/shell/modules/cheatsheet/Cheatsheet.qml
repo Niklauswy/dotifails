@@ -6,11 +6,8 @@ import QtQuick
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Io
-import Quickshell.Wayland
-import Quickshell.Hyprland
 import Wysun.Config
 import qs.components
-import qs.components.containers
 import qs.components.controls
 import qs.services
 
@@ -31,48 +28,31 @@ Scope {
 
     Variants {
         model: Quickshell.screens
-        delegate: StyledWindow {
+        delegate: OverlayWindow {
             id: win
-            required property ShellScreen modelData
-            readonly property ScreenState state: ShellState.forScreen(modelData)
-            property real reveal: state.cheatsheet ? 1 : 0
-            Behavior on reveal { Anim {} }
 
-            Tokens.screen: modelData.name
-            name: "cheatsheet"
-            screen: modelData
-            visible: state.cheatsheet || reveal > 0.001
-            exclusionMode: ExclusionMode.Ignore
-            WlrLayershell.layer: WlrLayer.Overlay
-            WlrLayershell.keyboardFocus: state.cheatsheet ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+            surface: "cheatsheet"
             anchors { top: true; bottom: true; left: true; right: true }
-            color: "transparent"
 
             onVisibleChanged: {
-                if (visible && state.cheatsheet) { loader.running = false; loader.running = true; Qt.callLater(() => keys.forceActiveFocus()); }
-            }
-            HyprlandFocusGrab {
-                active: win.state.cheatsheet
-                windows: [win]
-                onCleared: win.state.cheatsheet = false
+                if (visible && open) { loader.running = false; loader.running = true; Qt.callLater(() => keys.forceActiveFocus()); }
             }
 
             Rectangle {
                 anchors.fill: parent
                 color: Colours.palette.m3scrim
                 opacity: 0.45 * Math.max(0, Math.min(1, win.reveal))
-                MouseArea { anchors.fill: parent; onClicked: win.state.cheatsheet = false }
+                MouseArea { anchors.fill: parent; onClicked: win.close() }
             }
 
             Item {
                 id: keys
                 anchors.fill: parent
                 focus: true
-                Keys.onEscapePressed: win.state.cheatsheet = false
             }
 
             Rectangle {
-                id: surface
+                id: sheet
                 anchors.centerIn: parent
                 anchors.verticalCenterOffset: (1 - win.reveal) * Tokens.padding.extraExtraLarge
                 width: Math.min(win.width - Tokens.padding.extraExtraLarge * 2, Tokens.sizes.launcher.itemWidth * 2.6)
@@ -94,7 +74,7 @@ Scope {
                         StyledText { text: "Keyboard shortcuts"; font: Tokens.font.title.medium }
                         StyledText { text: "From your active Hyprland config"; color: Colours.palette.m3onSurfaceVariant; font: Tokens.font.body.small; Layout.fillWidth: true }
                         StyledText { text: "Super + /"; color: Colours.palette.m3outline; font: Tokens.font.label.small }
-                        IconButton { icon: "close"; type: IconButton.Text; onClicked: win.state.cheatsheet = false }
+                        IconButton { icon: "close"; type: IconButton.Text; onClicked: win.close() }
                     }
 
                     Flickable {

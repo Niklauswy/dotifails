@@ -4,11 +4,8 @@ import QtQuick
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Io
-import Quickshell.Wayland
-import Quickshell.Hyprland
 import Wysun.Config
 import qs.components
-import qs.components.containers
 import qs.components.controls
 import qs.services
 import qs.modules.launcher.services
@@ -70,10 +67,8 @@ Scope {
 
     Variants {
         model: Quickshell.screens
-        delegate: StyledWindow {
+        delegate: OverlayWindow {
             id: win
-            required property ShellScreen modelData
-            readonly property ScreenState state: ShellState.forScreen(modelData)
             property string copied
             property string zone: "grid"
             property int recentIndex: 0
@@ -82,27 +77,19 @@ Scope {
             readonly property var recentRows: root.recents.slice(0, root.columns)
             readonly property bool showRecents: !needle && recentRows.length > 0
             readonly property var selected: showRecents && zone === "recent" ? recentRows[recentIndex] : filtered[grid.currentIndex]
-            property real reveal: state.emoji ? 1 : 0
-            Behavior on reveal { Anim {} }
 
-            Tokens.screen: modelData.name
-            name: "emoji"
-            screen: modelData
-            visible: state.emoji || reveal > 0.001
+            surface: "emoji"
             anchors.bottom: true
             margins.bottom: Tokens.padding.large
             implicitWidth: Math.min(screen.width - Tokens.padding.extraExtraLarge * 2, Tokens.sizes.launcher.itemWidth * 1.15)
             implicitHeight: Math.min(screen.height - Tokens.padding.extraExtraLarge * 2, Tokens.sizes.launcher.itemHeight * 10 + Tokens.padding.extraLarge * 3)
-            exclusionMode: ExclusionMode.Ignore
-            WlrLayershell.layer: WlrLayer.Overlay
-            WlrLayershell.keyboardFocus: state.emoji ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
 
             function pick(row: var, paste: bool): void {
                 if (!row) return;
                 root.remember(row);
                 if (paste) {
                     LauncherData.paste(row);
-                    state.emoji = false;
+                    close();
                 } else {
                     LauncherData.copy(row);
                     copied = row.value;
@@ -134,16 +121,11 @@ Scope {
                 }
             }
 
-            Timer { id: closeTimer; interval: 480; onTriggered: win.state.emoji = false }
-            HyprlandFocusGrab {
-                active: win.state.emoji
-                windows: [win]
-                onCleared: win.state.emoji = false
-            }
+            Timer { id: closeTimer; interval: 480; onTriggered: win.close() }
             DataSource { id: source; mode: "emoji"; enabled: win.visible }
 
             Rectangle {
-                id: surface
+                id: card
                 width: parent.width
                 height: parent.height
                 radius: Tokens.rounding.large
@@ -164,7 +146,6 @@ Scope {
                         placeholderText: "Search emoji"
                         onAccepted: win.pick(win.selected, false)
                         onTextChanged: win.zone = "grid"
-                        Keys.onEscapePressed: win.state.emoji = false
                         Keys.onUpPressed: win.step(0, -1)
                         Keys.onDownPressed: win.step(0, 1)
                         Keys.onLeftPressed: event => { if (!text) { win.step(-1, 0); event.accepted = true; } else event.accepted = false; }

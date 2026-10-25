@@ -183,7 +183,7 @@ class WiringTests(unittest.TestCase):
         self.assertFalse((LAUNCHER / 'Wrapper.qml').exists())
         window = (LAUNCHER / 'Launcher.qml').read_text()
         self.assertIn('anchors.top: true', window)
-        self.assertIn('WlrLayer.Overlay', window)
+        self.assertIn('OverlayWindow {', window)  # the overlay layer comes from components/OverlayWindow.qml
         emoji = (LAUNCHER / 'EmojiPicker.qml').read_text()
         self.assertIn('anchors.bottom: true', emoji)
         self.assertIn('mode: "emoji"', emoji)

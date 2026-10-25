@@ -3,12 +3,9 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Io
-import Quickshell.Wayland
-import Quickshell.Hyprland
 import Wysun.Config
 import Wysun.I18n
 import qs.components
-import qs.components.containers
 import qs.components.controls
 import qs.components.filedialog
 import qs.services
@@ -23,31 +20,16 @@ Scope {
     Variants {
         model: Quickshell.screens
 
-        delegate: StyledWindow {
+        delegate: OverlayWindow {
             id: win
 
-            required property ShellScreen modelData
-            readonly property ScreenState state: ShellState.forScreen(modelData)
-            property real reveal: state.wallpapers ? 1 : 0
-
-            Behavior on reveal {
-                Anim {}
-            }
-
-            Tokens.screen: modelData.name
-            name: "wallpapers"
-            screen: modelData
-            visible: state.wallpapers || reveal > 0.001
-            exclusionMode: ExclusionMode.Ignore
-            WlrLayershell.layer: WlrLayer.Overlay
-            WlrLayershell.keyboardFocus: state.wallpapers ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+            surface: "wallpapers"
             anchors {
                 top: true
                 bottom: true
                 left: true
                 right: true
             }
-            color: "transparent"
 
             property bool libraryOpen
 
@@ -123,12 +105,6 @@ Scope {
                 }
             }
 
-            HyprlandFocusGrab {
-                active: win.state.wallpapers
-                windows: [win]
-                onCleared: win.state.wallpapers = false
-            }
-
             Rectangle {
                 anchors.fill: parent
                 color: Colours.palette.m3scrim
@@ -136,7 +112,7 @@ Scope {
 
                 MouseArea {
                     anchors.fill: parent
-                    onClicked: win.state.wallpapers = false
+                    onClicked: win.close()
                     onWheel: wheel => carousel.wheelStep(wheel.angleDelta.y)
                 }
             }
@@ -210,7 +186,7 @@ Scope {
                 // The picker covers the screen, so it steps aside while the file dialog is open.
                 function add(): void {
                     addDialog.open();
-                    win.state.wallpapers = false;
+                    win.close();
                 }
 
                 // Keep only the cards near the selection alive (virtualised strip).
@@ -276,7 +252,7 @@ Scope {
                     id: closeTimer
 
                     interval: 260
-                    onTriggered: win.state.wallpapers = false
+                    onTriggered: win.close()
                 }
 
                 FileDialog {
@@ -423,8 +399,6 @@ Scope {
                                         carousel.move(carousel.items.length - 1);
                                     else if (key === Qt.Key_Return || key === Qt.Key_Enter)
                                         carousel.apply();
-                                    else if (key === Qt.Key_Escape)
-                                        win.state.wallpapers = false;
                                     else
                                         return;
                                     event.accepted = true;

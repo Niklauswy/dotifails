@@ -1,0 +1,64 @@
+"""Shell surfaces share one overlay window and one definition of each common control."""
+import re
+import unittest
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+SHELL = ROOT / 'apps/shell'
+
+
+def qml(relative):
+    return (SHELL / relative).read_text()
+
+
+def qml_files():
+    return sorted(p for p in SHELL.rglob('*.qml') if 'plugin' not in p.relative_to(SHELL).parts)
+
+
+def relative(paths):
+    return sorted(str(p.relative_to(SHELL)) for p in paths)
+
+
+class OverlayWindowTests(unittest.TestCase):
+    maxDiff = 2000
+    OVERLAYS = ['modules/launcher/Launcher.qml', 'modules/launcher/EmojiPicker.qml',
+                'modules/cheatsheet/Cheatsheet.qml', 'modules/wallpaperpicker/WallpaperPicker.qml',
+                'modules/colors/ColorWindow.qml']
+
+    def test_overlay_window_owns_the_pattern(self):
+        text = qml('components/OverlayWindow.qml')
+        for needle in ('HyprlandFocusGrab', 'WlrKeyboardFocus.OnDemand', 'WlrLayer.Overlay',
+                       'sequence: "Escape"', 'required property ShellScreen modelData', 'ShellState.forScreen'):
+            self.assertIn(needle, text)
+
+    def test_overlays_use_overlay_window(self):
+        for rel in self.OVERLAYS:
+            text = qml(rel)
+            self.assertRegex(text, r'\bOverlayWindow\s*\{', rel)
+            for copy in ('HyprlandFocusGrab', 'WlrKeyboardFocus.OnDemand', 'WlrLayer.Overlay'):
+                self.assertNotIn(copy, text, rel)
+
+    # Surfaces that grab focus but are not overlays: the drawers share one window per screen whose
+    # keyboard focus depends on which drawer is open, and the bar popouts live inside the bar window.
+    NOT_OVERLAYS = ['modules/bar/popouts/Wrapper.qml', 'modules/drawers/ContentWindow.qml']
+
+    def test_no_other_module_copies_the_overlay_pattern(self):
+        found = [p for p in qml_files() if 'HyprlandFocusGrab' in p.read_text() and 'WlrKeyboardFocus.OnDemand' in p.read_text()]
+        self.assertEqual(relative(found), sorted(['components/OverlayWindow.qml'] + self.NOT_OVERLAYS))
+
+    def test_process_window_is_a_regular_window(self):
+        # Documented exception: a resizable toplevel with a title and minimum size, not an overlay.
+        self.assertRegex(qml('modules/processes/ProcessWindow.qml'), r'(?m)^FloatingWindow\s*\{')
+
+    def test_launcher_keeps_its_own_escape(self):
+        # Escape closes the action menu, the expanded preview or a stacked folder before the launcher.
+        self.assertIn('closeOnEscape: false', qml('modules/launcher/Launcher.qml'))
+
+    def test_color_window_survives_sampling(self):
+        text = qml('modules/colors/ColorWindow.qml')
+        self.assertRegex(text, r'focusGrab:[^\n]*!\s*win\.sampling')
+        self.assertIn('closeOnEscape: false', text)
+
+
+if __name__ == '__main__':
+    unittest.main()

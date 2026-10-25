@@ -3,22 +3,22 @@ import QtQuick
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Io
-import Quickshell.Wayland
-import Quickshell.Hyprland
-import qs.components.containers
 import Wysun.Config
 import qs.components
 import qs.components.controls
 import qs.services
 
-StyledWindow {
+// Created on demand by Colors.qml and destroyed on close; hidden while hyprpicker samples the screen.
+OverlayWindow {
     id: win
     name: "colors"
-    screen: Quickshell.screens.find(s => s.name === Hypr.focusedMonitor?.name) ?? Quickshell.screens[0]
-    exclusionMode: ExclusionMode.Ignore
-    WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: visible ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+    modelData: Quickshell.screens.find(s => s.name === Hypr.focusedMonitor?.name) ?? Quickshell.screens[0]
     visible: true
+    active: visible
+    // Escape first leaves the colour field (Shortcut below), then closes.
+    closeOnEscape: false
+    focusGrab: dismissOnFocusLoss && visible && !win.sampling
+    onDismissed: if (!win.sampling) win.destroy()
     property bool dismissOnFocusLoss: true
     readonly property bool compact: height < 680
     implicitWidth: Math.min(920, (screen?.width ?? 1280) * 0.9)
@@ -189,11 +189,6 @@ StyledWindow {
         Keys.onSpacePressed: if (!disabled) clicked()
         border.width: activeFocus ? Tokens.spacing.extraSmall / 2 : 0
         border.color: Colours.palette.m3primary
-    }
-    HyprlandFocusGrab {
-        active: win.dismissOnFocusLoss && win.visible && !win.sampling
-        windows: [win]
-        onCleared: if (!win.sampling) win.destroy()
     }
     function snapshot(path: string): void { background.grabToImage(result => result.saveToFile(path)); }
     Rectangle {
