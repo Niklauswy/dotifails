@@ -9,7 +9,7 @@ def app_dir():
     """Directory with the Wysun Python backends: checkout first, then the installed copy."""
     candidates = [os.environ.get('WYSUN_APP_DIR'),
                   str(Path(__file__).resolve().parents[2]/'wysun'),
-                  str(Path(os.environ.get('XDG_DATA_HOME') or Path.home()/'.local/share')/'orbit/app')]
+                  str(Path.home()/'.local/share/orbit/app')]   # where the installer always deploys
     for candidate in candidates:
         if candidate and (Path(candidate)/'settings_data.py').is_file():
             return candidate

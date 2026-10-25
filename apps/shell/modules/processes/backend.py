@@ -12,7 +12,8 @@ import time
 
 source = Path(__file__).resolve().parents[3] / 'wysun'
 if not (source / 'process_data.py').exists():
-    source = Path(os.environ.get('XDG_DATA_HOME', str(Path.home() / '.local/share'))) / 'orbit/app'
+    # Installed copy: the installer always deploys under ~/.local/share (plan 04 replaces this lookup with PYTHONPATH).
+    source = Path.home() / '.local/share/orbit/app'
 sys.path.insert(0, str(source))
 from process_data import Processes, matched  # noqa: E402
 

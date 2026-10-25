@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """Small serialized JSON service for the native Colors panel's existing store."""
 import json
-import os
 from pathlib import Path
 import sys
 
 source = Path(__file__).resolve().parents[3] / 'wysun'
 if not (source / 'utility_data.py').exists():
-    source = Path(os.environ.get('XDG_DATA_HOME', str(Path.home() / '.local/share'))) / 'orbit/app'
+    # Installed copy: the installer always deploys under ~/.local/share (plan 04 replaces this lookup with PYTHONPATH).
+    source = Path.home() / '.local/share/orbit/app'
 sys.path.insert(0, str(source))
 from utility_data import Colors
 from color_data import parse_color
