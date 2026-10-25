@@ -89,5 +89,119 @@ class PdfThemeTests(unittest.TestCase):
             self.assertTrue(ligature_available(name), name)
 
 
+
+class PdfChromeTests(unittest.TestCase):
+    """The reader's widgets build from the kit in both modes, are named for assistive tech and behave."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def setUp(self):
+        from wysun_core import qt_theme
+        qt_theme.invalidate()
+        self.addCleanup(qt_theme.invalidate)
+
+    def widgets(self):
+        from PySide6.QtWidgets import QWidget
+        from pdf_chrome import EmptyState, NoteDialog, PageIndicator, SelectionBar, ViewModeSwitch, ZoomControl
+        from pdf_sidebar import Sidebar
+        host = QWidget()
+        host.resize(900, 700)
+        self.addCleanup(host.deleteLater)
+        return host, [ZoomControl(), ViewModeSwitch(), PageIndicator(host), SelectionBar(host), EmptyState(),
+                      Sidebar(), NoteDialog(host, 'texto')]
+
+    def test_widgets_build_in_both_modes_with_accessible_names(self):
+        from PySide6.QtWidgets import QAbstractButton
+        for mode in ('light', 'dark'):
+            with mock.patch.dict(os.environ, {'WYSUN_THEME': mode}):
+                from wysun_core import qt_theme
+                qt_theme.invalidate()
+                _, widgets = self.widgets()
+                for widget in widgets:
+                    self.assertFalse(widget.grab().isNull(), type(widget).__name__)
+                    self.assertNotIn('@', widget.styleSheet())
+                    for button in widget.findChildren(QAbstractButton):
+                        self.assertTrue(button.accessibleName(), f'{type(widget).__name__}: unnamed button')
+
+    def test_zoom_control_shows_percent_and_reports_choices(self):
+        from pdf_chrome import ZoomControl
+        control = ZoomControl()
+        control.set_zoom(1.25, 'custom')
+        self.assertEqual(control.label.text(), '125 %')
+        chosen = []
+        control.fit.connect(chosen.append)
+        control.percent.connect(chosen.append)
+        control.choose('width')
+        control.choose(2.0)
+        self.assertEqual(chosen, ['width', 2.0])
+
+    def test_view_mode_switch_is_exclusive(self):
+        from pdf_chrome import ViewModeSwitch
+        switch = ViewModeSwitch()
+        modes = []
+        switch.changed.connect(modes.append)
+        switch.buttons['spread'].click()
+        self.assertEqual(modes, ['spread'])
+        self.assertFalse(switch.buttons['single'].isChecked())
+        switch.set_mode('single')
+        self.assertTrue(switch.buttons['single'].isChecked())
+
+    def test_page_indicator_jumps_to_a_typed_page(self):
+        from PySide6.QtWidgets import QWidget
+        from pdf_chrome import PageIndicator
+        host = QWidget()
+        indicator = PageIndicator(host)
+        indicator.set_page(2, 40)
+        self.assertIn('3', indicator.accessibleName())
+        jumps = []
+        indicator.jump.connect(jumps.append)
+        indicator.start_edit()
+        indicator.editor.setText('17')
+        indicator.editor.returnPressed.emit()
+        self.assertEqual(jumps, [16])
+        indicator.start_edit()
+        indicator.editor.setText('99')
+        indicator.editor.returnPressed.emit()
+        self.assertEqual(jumps, [16, 39])
+
+    def test_selection_bar_sits_above_the_selection_and_hides_edits(self):
+        from PySide6.QtCore import QRect
+        from PySide6.QtWidgets import QWidget
+        from pdf_chrome import SelectionBar
+        host = QWidget()
+        host.resize(800, 600)
+        bar = SelectionBar(host)
+        bar.place(QRect(300, 300, 120, 20))
+        self.assertLessEqual(bar.geometry().bottom(), 300)
+        bar.place(QRect(300, 4, 120, 20))
+        self.assertGreaterEqual(bar.geometry().top(), 24)
+        bar.set_editable(False)
+        self.assertTrue(bar.buttons['highlight'].isHidden())
+        self.assertFalse(bar.buttons['copy'].isHidden())
+
+    def test_sidebar_lists_results_with_context_and_emits(self):
+        from pdf_sidebar import Sidebar
+        sidebar = Sidebar()
+        sidebar.set_results('idea', [(4, 'una idea clara'), (9, 'otra idea')])
+        self.assertEqual(sidebar.results.count(), 2)
+        chosen = []
+        sidebar.result_requested.connect(chosen.append)
+        sidebar.results.itemActivated.emit(sidebar.results.item(1))
+        self.assertEqual(chosen, [1])
+        sidebar.set_notes([{'page': 2, 'xref': 7, 'type': 'Text', 'text': 'Volver aquí'}])
+        self.assertIn('Volver aquí', sidebar.notes.item(0).text())
+        sidebar.set_tab(2)
+        self.assertEqual(sidebar.heading.text(), 'Notas')
+
+    def test_inks_start_with_the_theme_accent(self):
+        from pdf_chrome import ink_colours
+        from wysun_core import qt_theme
+        inks = ink_colours()
+        self.assertEqual(inks[0][1], qt_theme.color('accent'))
+        self.assertEqual(len(inks), 5)
+
+
 if __name__ == '__main__':
     unittest.main()
