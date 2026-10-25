@@ -4,6 +4,7 @@ import Quickshell
 import Wysun
 import Wysun.Config
 import qs.components
+import qs.components.rows
 import qs.services
 import qs.modules.drawers
 import qs.modules.nexus.common

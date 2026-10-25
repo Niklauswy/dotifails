@@ -5,6 +5,7 @@ import QtQuick.Layouts
 import Wysun.Config
 import Wysun.I18n
 import qs.components
+import qs.components.controls
 import qs.services
 import "Format.js" as Format
 

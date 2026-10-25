@@ -4,6 +4,7 @@ import QtQuick
 import QtQuick.Layouts
 import Wysun.Config
 import qs.components
+import qs.components.rows
 import qs.services
 
 ConnectedRect {

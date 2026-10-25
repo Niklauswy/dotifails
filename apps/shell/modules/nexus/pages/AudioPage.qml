@@ -4,6 +4,7 @@ import QtQuick
 import QtQuick.Layouts
 import Wysun.Config
 import Wysun.I18n
+import qs.components.rows
 import qs.services
 import qs.utils
 import qs.modules.nexus.common

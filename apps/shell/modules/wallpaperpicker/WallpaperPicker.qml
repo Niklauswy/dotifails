@@ -3,12 +3,9 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Io
-import Quickshell.Wayland
-import Quickshell.Hyprland
 import Wysun.Config
 import Wysun.I18n
 import qs.components
-import qs.components.containers
 import qs.components.controls
 import qs.components.filedialog
 import qs.services
@@ -23,31 +20,16 @@ Scope {
     Variants {
         model: Quickshell.screens
 
-        delegate: StyledWindow {
+        delegate: OverlayWindow {
             id: win
 
-            required property ShellScreen modelData
-            readonly property ScreenState state: ShellState.forScreen(modelData)
-            property real reveal: state.wallpapers ? 1 : 0
-
-            Behavior on reveal {
-                Anim {}
-            }
-
-            Tokens.screen: modelData.name
-            name: "wallpapers"
-            screen: modelData
-            visible: state.wallpapers || reveal > 0.001
-            exclusionMode: ExclusionMode.Ignore
-            WlrLayershell.layer: WlrLayer.Overlay
-            WlrLayershell.keyboardFocus: state.wallpapers ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+            surface: "wallpapers"
             anchors {
                 top: true
                 bottom: true
                 left: true
                 right: true
             }
-            color: "transparent"
 
             property bool libraryOpen
 
@@ -123,12 +105,6 @@ Scope {
                 }
             }
 
-            HyprlandFocusGrab {
-                active: win.state.wallpapers
-                windows: [win]
-                onCleared: win.state.wallpapers = false
-            }
-
             Rectangle {
                 anchors.fill: parent
                 color: Colours.palette.m3scrim
@@ -136,7 +112,7 @@ Scope {
 
                 MouseArea {
                     anchors.fill: parent
-                    onClicked: win.state.wallpapers = false
+                    onClicked: win.close()
                     onWheel: wheel => carousel.wheelStep(wheel.angleDelta.y)
                 }
             }
@@ -210,7 +186,7 @@ Scope {
                 // The picker covers the screen, so it steps aside while the file dialog is open.
                 function add(): void {
                     addDialog.open();
-                    win.state.wallpapers = false;
+                    win.close();
                 }
 
                 // Keep only the cards near the selection alive (virtualised strip).
@@ -276,7 +252,7 @@ Scope {
                     id: closeTimer
 
                     interval: 260
-                    onTriggered: win.state.wallpapers = false
+                    onTriggered: win.close()
                 }
 
                 FileDialog {
@@ -362,73 +338,36 @@ Scope {
                             onClicked: carousel.add()
                         }
 
-                        Rectangle {
+                        SearchBar {
+                            id: filter
+
                             anchors.verticalCenter: parent.verticalCenter
                             implicitWidth: Tokens.sizes.launcher.itemWidth * 0.6
-                            implicitHeight: filter.implicitHeight + Tokens.padding.small * 2
-                            radius: Tokens.rounding.full
-                            color: Colours.tPalette.m3surfaceContainer
-                            border.width: 1
-                            border.color: filter.activeFocus ? Colours.palette.m3primary : Colours.palette.m3outlineVariant
+                            placeholderText: "Filter wallpapers"
+                            focus: true
 
-                            MaterialIcon {
-                                id: searchIcon
-
-                                anchors.left: parent.left
-                                anchors.leftMargin: Tokens.padding.medium
-                                anchors.verticalCenter: parent.verticalCenter
-                                text: "search"
-                                color: Colours.palette.m3onSurfaceVariant
-                                fontStyle: Tokens.font.icon.small
-                            }
-
-                            TextInput {
-                                id: filter
-
-                                anchors.left: searchIcon.right
-                                anchors.right: parent.right
-                                anchors.margins: Tokens.padding.medium
-                                anchors.verticalCenter: parent.verticalCenter
-                                color: Colours.palette.m3onSurface
-                                selectionColor: Colours.palette.m3primary
-                                selectedTextColor: Colours.palette.m3onPrimary
-                                font: Tokens.font.body.small
-                                clip: true
-                                focus: true
-
-                                StyledText {
-                                    anchors.fill: parent
-                                    visible: !filter.text
-                                    text: "Filter wallpapers"
-                                    color: Colours.palette.m3outline
-                                    font: filter.font
-                                }
-
-                                Keys.priority: Keys.BeforeItem
-                                Keys.onPressed: event => {
-                                    const key = event.key;
-                                    if ((event.modifiers & Qt.ControlModifier) && key === Qt.Key_R)
-                                        carousel.random();
-                                    else if (key === Qt.Key_Left || key === Qt.Key_Up)
-                                        carousel.go(-1);
-                                    else if (key === Qt.Key_Right || key === Qt.Key_Down)
-                                        carousel.go(1);
-                                    else if (key === Qt.Key_PageUp)
-                                        carousel.go(-5);
-                                    else if (key === Qt.Key_PageDown)
-                                        carousel.go(5);
-                                    else if (key === Qt.Key_Home)
-                                        carousel.move(0);
-                                    else if (key === Qt.Key_End)
-                                        carousel.move(carousel.items.length - 1);
-                                    else if (key === Qt.Key_Return || key === Qt.Key_Enter)
-                                        carousel.apply();
-                                    else if (key === Qt.Key_Escape)
-                                        win.state.wallpapers = false;
-                                    else
-                                        return;
-                                    event.accepted = true;
-                                }
+                            Keys.priority: Keys.BeforeItem
+                            Keys.onPressed: event => {
+                                const key = event.key;
+                                if ((event.modifiers & Qt.ControlModifier) && key === Qt.Key_R)
+                                    carousel.random();
+                                else if (key === Qt.Key_Left || key === Qt.Key_Up)
+                                    carousel.go(-1);
+                                else if (key === Qt.Key_Right || key === Qt.Key_Down)
+                                    carousel.go(1);
+                                else if (key === Qt.Key_PageUp)
+                                    carousel.go(-5);
+                                else if (key === Qt.Key_PageDown)
+                                    carousel.go(5);
+                                else if (key === Qt.Key_Home)
+                                    carousel.move(0);
+                                else if (key === Qt.Key_End)
+                                    carousel.move(carousel.items.length - 1);
+                                else if (key === Qt.Key_Return || key === Qt.Key_Enter)
+                                    carousel.apply();
+                                else
+                                    return;
+                                event.accepted = true;
                             }
                         }
 

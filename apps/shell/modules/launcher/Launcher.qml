@@ -3,11 +3,8 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Io
-import Quickshell.Wayland
-import Quickshell.Hyprland
 import Wysun.Config
 import qs.components
-import qs.components.containers
 import qs.services
 import qs.modules.launcher.services
 
@@ -39,33 +36,22 @@ Scope {
 
         model: Quickshell.screens
 
-        delegate: StyledWindow {
+        delegate: OverlayWindow {
             id: win
 
-            required property ShellScreen modelData
-            readonly property ScreenState state: ShellState.forScreen(modelData)
-            readonly property bool active: state.launcher && Config.launcher.enabled
-            // 0 → 1 on open with an expressive spring (it overshoots slightly), a quick fade on close.
-            property real reveal: active ? 1 : 0
             readonly property real pad: 48
 
-            Behavior on reveal {
-                Anim {
-                    type: win.active ? Anim.DefaultSpatial : Anim.FastEffects
-                }
-            }
-
-            Tokens.screen: modelData.name
-            name: "launcher"
-            screen: modelData
-            visible: active || reveal > 0.001
+            surface: "launcher"
+            active: open && Config.launcher.enabled
+            // Opens with an expressive spring (it overshoots slightly), closes with a quick fade.
+            openAnim: Anim.DefaultSpatial
+            closeAnim: Anim.FastEffects
+            // LauncherPanel.handleKey: Escape leaves a menu, the preview or a folder before closing.
+            closeOnEscape: false
             anchors.top: true
             margins.top: Math.max(8, modelData.height * 0.12 - pad)
             implicitWidth: panel.panelWidth + pad * 2
             implicitHeight: panel.panelHeight + pad * 2
-            exclusionMode: ExclusionMode.Ignore
-            WlrLayershell.layer: WlrLayer.Overlay
-            WlrLayershell.keyboardFocus: active ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
             mask: Region {
                 item: panel.surface
             }
@@ -73,12 +59,6 @@ Scope {
             onActiveChanged: {
                 if (active)
                     Qt.callLater(() => panel.focusSearch());
-            }
-
-            HyprlandFocusGrab {
-                active: win.active
-                windows: [win]
-                onCleared: win.state.launcher = false
             }
 
             readonly property alias panelItem: panel

@@ -33,7 +33,7 @@ ColumnLayout {
         font: Tokens.font.body.builders.medium.weight(Font.Medium).build()
     }
 
-    Toggle {
+    SwitchRow {
         visible: root.view === "wireless"
         Layout.preferredHeight: visible ? implicitHeight : 0
         label: Tr.trCtx("Enabled", "toggle label")
@@ -374,24 +374,5 @@ ColumnLayout {
         }
 
         target: root.popouts
-    }
-
-    component Toggle: RowLayout {
-        required property string label
-        property alias checked: toggle.checked
-        property alias toggle: toggle
-
-        Layout.fillWidth: true
-        Layout.rightMargin: Tokens.padding.extraSmall
-        spacing: Tokens.spacing.medium
-
-        StyledText {
-            Layout.fillWidth: true
-            text: parent.label
-        }
-
-        StyledSwitch {
-            id: toggle
-        }
     }
 }

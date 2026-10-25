@@ -174,8 +174,12 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                     spacing: Tokens.spacing.small
 
+                    // Language pills; the filled one is the target.
                     Chip {
+                        Layout.alignment: Qt.AlignVCenter
                         text: root.sourceName
+                        font: root.chipFont
+                        accent: Colours.palette.m3onTertiaryContainer
                         pulsing: root.loading && !Translator.from
                     }
 
@@ -194,8 +198,12 @@ Item {
                     }
 
                     Chip {
+                        Layout.alignment: Qt.AlignVCenter
                         text: root.targetName
-                        accent: true
+                        font: root.chipFont
+                        filled: true
+                        accent: Colours.palette.m3tertiary
+                        onAccent: Colours.palette.m3onTertiary
                     }
                 }
 
@@ -498,59 +506,6 @@ Item {
         }
     }
 
+    readonly property font chipFont: Tokens.font.body.builders.small.size(9 * root.scale).weight(Font.Medium).build()
     readonly property var quickLanguages: ["es", "en", "fr", "de", "pt", "it", "ja"]
-
-    // A language pill; the accented one is the target.
-    component Chip: Rectangle {
-        id: chip
-
-        property string text
-        property bool accent
-        property bool pulsing
-
-        onPulsingChanged: {
-            if (!pulsing)
-                label.opacity = 1;
-        }
-
-        Layout.alignment: Qt.AlignVCenter
-        implicitWidth: label.implicitWidth + Tokens.padding.medium * 1.6
-        implicitHeight: 24 * root.scale
-        radius: height / 2
-        color: accent ? Colours.palette.m3tertiary : Qt.alpha(Colours.palette.m3onTertiaryContainer, 0.12)
-
-        Behavior on implicitWidth {
-            Anim {
-                type: Anim.FastSpatial
-            }
-        }
-        Behavior on color {
-            CAnim {}
-        }
-
-        StyledText {
-            id: label
-
-            anchors.centerIn: parent
-            text: chip.text
-            font: Tokens.font.body.builders.small.size(9 * root.scale).weight(Font.Medium).build()
-            color: chip.accent ? Colours.palette.m3onTertiary : Colours.palette.m3onTertiaryContainer
-
-            SequentialAnimation on opacity {
-                running: chip.pulsing
-                loops: Animation.Infinite
-
-                NumberAnimation {
-                    to: 0.45
-                    duration: 520
-                    easing.type: Easing.InOutSine
-                }
-                NumberAnimation {
-                    to: 1
-                    duration: 520
-                    easing.type: Easing.InOutSine
-                }
-            }
-        }
-    }
 }
