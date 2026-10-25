@@ -17,7 +17,7 @@ def install():
     wysun_media.install_host(wysun_media.Host(
         color=lambda name, alpha=None: color(name, alpha),
         token=lambda name: tokens()[name],
-        font=lambda role, weight=400: text_font(role, weight),
+        font=lambda role, weight=None: text_font(role, weight),
         symbol=paint_symbol,
         reduced_motion=reduced_motion,
         on_theme_changed=on_theme_changed))

@@ -20,7 +20,7 @@ HEIGHT = 80
 class TimeLabel(QLabel):
     def __init__(self, alignment):
         super().__init__('0:00')
-        self.setFont(text_font('caption', 500))
+        self.setFont(text_font('label.small', 500))
         self.setObjectName('muted')
         self.setFixedWidth(44)
         self.setAlignment(alignment | Qt.AlignVCenter)
@@ -37,13 +37,13 @@ class PlayerBar(QWidget):
         self.setFixedHeight(HEIGHT)
         layout = QHBoxLayout(self)
         pad = (HEIGHT - 56) // 2
-        layout.setContentsMargins(pad, pad, metric('space_m'), pad)
-        layout.setSpacing(metric('space_l'))
+        layout.setContentsMargins(pad, pad, metric('spacing.medium'), pad)
+        layout.setSpacing(metric('spacing.large'))
 
         # Left: the song.
         now = QHBoxLayout()
         now.setContentsMargins(0, 0, 0, 0)
-        now.setSpacing(metric('space_m'))
+        now.setSpacing(metric('spacing.medium'))
         self.cover = CoverArt(covers, 56)
         self.cover.setCursor(Qt.PointingHandCursor)
         self.cover.setToolTip('Abrir Ahora suena · Ctrl+P')
@@ -52,8 +52,8 @@ class PlayerBar(QWidget):
         titles = QVBoxLayout()
         titles.setSpacing(2)
         titles.addStretch()
-        self.title = ElidedLabel('', 'body', 650, 'text_strong')
-        self.artist = LinkLabel('', 'small', 400, 'muted')
+        self.title = ElidedLabel('', 'body.medium', 650, 'text_strong')
+        self.artist = LinkLabel('', 'body.small', 400, 'muted')
         self.artist.activated.connect(self._open_artist)
         titles.addWidget(self.title)
         titles.addWidget(self.artist)
@@ -71,7 +71,7 @@ class PlayerBar(QWidget):
         center.setContentsMargins(0, 0, 0, 0)
         center.setSpacing(2)
         transport = QHBoxLayout()
-        transport.setSpacing(metric('space_xs'))
+        transport.setSpacing(metric('spacing.extraSmall'))
         transport.addStretch()
         self.shuffle = IconButton('shuffle', 'Aleatorio · Ctrl+S', lambda: player.set_shuffle(not player.shuffle),
                                   size=32, checkable=True, dot=True)
@@ -85,7 +85,7 @@ class PlayerBar(QWidget):
         transport.addStretch()
         center.addLayout(transport)
         timeline = QHBoxLayout()
-        timeline.setSpacing(metric('space_s'))
+        timeline.setSpacing(metric('spacing.small'))
         self.elapsed = TimeLabel(Qt.AlignRight)
         self.progress = Slider('Posición de reproducción', wavy=True, step=5 / 300)
         self.progress.setFixedHeight(14)  # 40 + 14 fits the 56 px row: no overlap, no shared repaints
@@ -139,7 +139,7 @@ class PlayerBar(QWidget):
         painter.setRenderHint(QPainter.Antialiasing)
         painter.setPen(Qt.NoPen)
         painter.setBrush(color('surface'))
-        radius = tokens()['radius_l']
+        radius = tokens()['rounding.largeIncreased']
         painter.drawRoundedRect(QRectF(self.rect()), radius, radius)
 
     # ---------------------------------------------------------------- render

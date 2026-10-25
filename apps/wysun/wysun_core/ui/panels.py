@@ -18,7 +18,7 @@ class Panel(QWidget):
         painter.setRenderHint(QPainter.Antialiasing)
         painter.setPen(Qt.NoPen)
         painter.setBrush(color('surface'))
-        radius = tokens()['radius_l']
+        radius = tokens()['rounding.largeIncreased']
         painter.drawRoundedRect(QRectF(self.rect()), radius, radius)
 
 
@@ -98,10 +98,10 @@ class NavItem(QWidget):
             painter.setPen(Qt.NoPen)
             painter.setBrush(color('nav_selected') if self.active else color('tint', round(12 * self.layer.amount)))
             painter.drawRoundedRect(rect, radius, radius)
-        pad = metric('space_m')
+        pad = metric('spacing.medium')
         text_left = self.paint_leading(painter, pad)
         right = self.width() - pad - (22 if self.playing else 0)
-        painter.setFont(text_font('body', 600 if self.active else 450))
+        painter.setFont(text_font('body.medium', 600 if self.active else 450))
         painter.setPen(color('text_strong' if self.active else 'text'))
         painter.drawText(QRect(text_left, 0, right - text_left, self.height()), Qt.AlignLeft | Qt.AlignVCenter,
                          painter.fontMetrics().elidedText(self.label, Qt.ElideRight, right - text_left))
@@ -117,14 +117,14 @@ class NavItem(QWidget):
         paint_symbol(painter, QRect(pad - 4, 0, 28, self.height()), self.symbol,
                      'accent' if self.active else 'glyph', 21,
                      filled=self.active and self.symbol not in OUTLINE_ONLY)
-        return pad + 24 + metric('space_s')
+        return pad + 24 + metric('spacing.small')
 
 
 def section_label(text):
     label = QLabel(text.upper())
-    font = text_font('caption', 700)
+    font = text_font('label.small', 700)
     font.setLetterSpacing(font.SpacingType.AbsoluteSpacing, 1.1)
     label.setFont(font)
     label.setObjectName('muted')
-    label.setContentsMargins(metric('space_m'), metric('space_m'), 0, metric('space_xs'))
+    label.setContentsMargins(metric('spacing.medium'), metric('spacing.medium'), 0, metric('spacing.extraSmall'))
     return label

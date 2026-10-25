@@ -133,7 +133,7 @@ class ModeTests(PlayerCase):
         full.fullscreenRequested.connect(events.append)
         full.set_fullscreen(True)
         self.assertEqual(events, [])
-        self.assertEqual(self.player('embedded').rounding.corner, 'xl')
+        self.assertEqual(self.player('embedded').rounding.corner, 'extraLarge')
         self.assertEqual(full.rounding.corner, 'none')
 
     def test_fullscreen_requests_are_reported_and_reflected(self):
@@ -345,7 +345,7 @@ class ThemeTests(PlayerCase):
         support.settle(.1)
         before = player.bar.play.sizeHint()
         base = host.get()
-        host.install(host.Host(color=base.color, token=lambda name: {'icon_size': 30}.get(name, base.token(name)), font=base.font,
+        host.install(host.Host(color=base.color, token=lambda name: {'icon.size': 30}.get(name, base.token(name)), font=base.font,
                                symbol=base.symbol, reduced_motion=base.reduced_motion, on_theme_changed=base.on_theme_changed))
         self.addCleanup(host.install, base)
         player._theme_changed()

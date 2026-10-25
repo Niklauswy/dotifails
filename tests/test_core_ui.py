@@ -70,8 +70,8 @@ class CoreUiTests(unittest.TestCase):
         self.assertNotEqual(render(), blank, 'the Lucide glyph is drawn where the symbol is missing')
 
     def test_text_font_and_metric_follow_tokens(self):
-        self.assertEqual(style.text_font('body').pixelSize(), tokens()['font_body'])
-        self.assertEqual(style.metric('space_m'), tokens()['space_m'])
+        self.assertEqual(style.text_font('body.medium').pointSizeF(), tokens()['font.body.medium.size'])
+        self.assertEqual(style.metric('spacing.medium'), tokens()['spacing.medium'])
 
     def test_clock_formats(self):
         self.assertEqual((style.clock(5), style.clock(3725), style.clock(None)), ('0:05', '1:02:05', '0:00'))

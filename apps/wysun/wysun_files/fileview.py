@@ -61,12 +61,12 @@ def wrapped(text, font, width, lines):
 def list_columns(width):
     """Right-aligned columns shared by the rows and their header: {key: (x, w)}."""
     columns = {}
-    right = width - metric('space_l')
+    right = width - metric('spacing.large')
     for key, size in (('size', 86), ('date', 150), ('kind', 150)):
         if key == 'kind' and width < 760 or key == 'date' and width < 540:
             continue
         columns[key] = (right - size, size)
-        right -= size + metric('space_s')
+        right -= size + metric('spacing.small')
     return columns
 
 
@@ -161,7 +161,7 @@ class FileDelegate(QStyledItemDelegate):
             painter.setBrush(color('tint', round(14 * hover)))
             painter.drawRoundedRect(rect, radius, radius)
         if focus:
-            painter.setPen(QPen(color('focus'), tokens()['focus_width']))
+            painter.setPen(QPen(color('focus'), tokens()['border.focus']))
             painter.setBrush(Qt.NoBrush)
             painter.drawRoundedRect(rect.adjusted(1, 1, -1, -1), radius - 1, radius - 1)
 
@@ -171,7 +171,7 @@ class FileDelegate(QStyledItemDelegate):
 
     def _grid(self, painter, option, view, model, index, path, is_dir, selected, hover):
         card = QRectF(option.rect).adjusted(5, 4, -5, -4)
-        radius = tokens()['radius_l'] * .8
+        radius = tokens()['rounding.largeIncreased'] * .8
         focus = bool(option.state & option.state.State_HasFocus) and view.keyboard and view.window().isActiveWindow()
         self._container(painter, card, radius, selected, hover, focus)
         side = min(card.width() - 16, 92)
@@ -184,7 +184,7 @@ class FileDelegate(QStyledItemDelegate):
             painter.setBrush(color('accent'))
             painter.drawEllipse(badge)
             paint_symbol(painter, badge, 'check', 'on_accent', 15)
-        font = text_font('small', 600 if selected else 500)
+        font = text_font('body.small', 600 if selected else 500)
         painter.setFont(font)
         painter.setPen(color('text_strong' if selected else 'text'))
         lines = wrapped(model.fileName(index), font, card.width() - 12, 2)
@@ -194,7 +194,7 @@ class FileDelegate(QStyledItemDelegate):
             painter.drawText(QRectF(card.left() + 6, top + number * step, card.width() - 12, step), Qt.AlignHCenter | Qt.AlignVCenter, line)
         meta = model.size_text(index)
         if meta and len(lines) < 2:
-            painter.setFont(text_font('caption', 400))
+            painter.setFont(text_font('label.small', 400))
             painter.setPen(color('muted'))
             painter.drawText(QRectF(card.left() + 6, top + step, card.width() - 12, step), Qt.AlignHCenter | Qt.AlignVCenter, meta)
 
@@ -203,19 +203,19 @@ class FileDelegate(QStyledItemDelegate):
         radius = card.height() / 2.6
         focus = bool(option.state & option.state.State_HasFocus) and view.keyboard and view.window().isActiveWindow()
         self._container(painter, card, radius, selected, hover, focus)
-        pad = metric('space_m')
+        pad = metric('spacing.medium')
         tile = QRectF(card.left() + pad - 2, card.center().y() - 18, 36, 36)
         self.tile(painter, tile, view, model, index, path, is_dir, selected, hover)
         columns = list_columns(option.rect.width())
-        text_left = tile.right() + metric('space_m')
-        text_right = min([x for x, _w in columns.values()] + [option.rect.width() - pad]) - metric('space_m') + option.rect.left()
-        name_font = text_font('body', 600 if is_dir or selected else 450)
+        text_left = tile.right() + metric('spacing.medium')
+        text_right = min([x for x, _w in columns.values()] + [option.rect.width() - pad]) - metric('spacing.medium') + option.rect.left()
+        name_font = text_font('body.medium', 600 if is_dir or selected else 450)
         painter.setFont(name_font)
         painter.setPen(color('text_strong' if selected else 'text'))
         name = painter.fontMetrics().elidedText(model.fileName(index), Qt.ElideMiddle, int(text_right - text_left - option.rect.left()))
         painter.drawText(QRectF(option.rect.left() + text_left, card.top(), text_right - text_left - option.rect.left(), card.height()),
                          Qt.AlignLeft | Qt.AlignVCenter, name)
-        painter.setFont(text_font('small', 400))
+        painter.setFont(text_font('body.small', 400))
         painter.setPen(color('muted'))
         for key, (x, width) in columns.items():
             value = {'date': model.lastModified(index).toString('d MMM yyyy · HH:mm'),
@@ -423,7 +423,7 @@ class FileView(QListView):
         painter.setBrush(color('tile'))
         painter.drawPath(squircle(disc, .8))
         paint_symbol(painter, disc, self.symbol, 'subtle', 44, filled=True)
-        painter.setFont(text_font('body', 500))
+        painter.setFont(text_font('body.medium', 500))
         painter.setPen(color('muted'))
         painter.drawText(QRectF(area.left() + 24, disc.bottom() + 12, area.width() - 48, 28), Qt.AlignCenter, self.message)
 
@@ -474,8 +474,8 @@ class ListHeader(QWidget):
 
     def _targets(self):
         columns = list_columns(self.width())
-        pad = metric('space_m')
-        targets = {NAME: (pad + 38 + metric('space_m'), 200)}
+        pad = metric('spacing.medium')
+        targets = {NAME: (pad + 38 + metric('spacing.medium'), 200)}
         for key, column in (('date', DATE), ('size', SIZE), ('kind', KIND)):
             if key in columns:
                 targets[column] = columns[key]
@@ -507,7 +507,7 @@ class ListHeader(QWidget):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
         labels = {NAME: COLUMNS[0], DATE: COLUMNS[1], SIZE: COLUMNS[2], KIND: COLUMNS[3]}
-        font = text_font('caption', 700)
+        font = text_font('label.small', 700)
         font.setLetterSpacing(font.SpacingType.AbsoluteSpacing, .9)
         painter.setFont(font)
         for column, (left, width) in self._targets().items():
@@ -522,4 +522,4 @@ class ListHeader(QWidget):
                 x = area.right() - advance - 18 if right_aligned else area.left() + advance + 2
                 paint_symbol(painter, QRectF(x, 0, 16, self.height()), 'arrow_upward' if self.order == Qt.AscendingOrder else 'arrow_downward', 'accent', 14)
         painter.setPen(QPen(color('divider'), 1))
-        painter.drawLine(metric('space_m'), self.height() - 1, self.width() - metric('space_m'), self.height() - 1)
+        painter.drawLine(metric('spacing.medium'), self.height() - 1, self.width() - metric('spacing.medium'), self.height() - 1)

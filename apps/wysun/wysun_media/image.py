@@ -517,7 +517,7 @@ class ImageView(QWidget):
         painter.drawImage(QRectF(-size.width() / 2, -size.height() / 2, size.width(), size.height()), image)
 
     def _paint_checker(self, painter, h, box):
-        cell = max(4, int(h.token('space_m')))
+        cell = max(4, int(h.token('spacing.medium')))
         painter.save()
         painter.setClipRect(box.intersected(QRectF(self.rect())))
         painter.fillRect(box, h.color('well'))
@@ -538,6 +538,6 @@ class ImageView(QWidget):
             return
         box = QRectF(self.rect())
         h.symbol(painter, QRectF(box.center().x() - 24, box.center().y() - 48, 48, 48), symbol, tint, 40)
-        painter.setFont(h.font('body', 500))
+        painter.setFont(h.font('body.medium', 500))
         painter.setPen(h.color(tint))
         painter.drawText(QRectF(16, box.center().y() + 8, box.width() - 32, 48), Qt.AlignHCenter | Qt.AlignTop | Qt.TextWordWrap, text)

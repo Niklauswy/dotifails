@@ -6,7 +6,7 @@ until that is used the reader simply follows the desktop.
 Drawing controls explicitly keeps native GTK/Qt platform palettes out of the UI.
 """
 from PySide6.QtCore import Qt, QSize, QRectF, QEvent, QObject, Signal, QVariantAnimation, QEasingCurve
-from PySide6.QtGui import QFont, QPainter, QPen, QPalette
+from PySide6.QtGui import QFont, QFontMetrics, QPainter, QPen, QPalette
 from PySide6.QtWidgets import QWidget, QAbstractButton, QStyledItemDelegate, QStyle, QListWidget, QFrame
 from wysun_core.ui.fonts import load_fonts, symbol_family
 from wysun_core import jsonio, paths, qt_theme, theme as core_theme
@@ -26,17 +26,11 @@ GLYPHS = {'notes': 0xe06f, 'palette': 0xe40a, 'back': 0xe5c4, 'forward': 0xe5c8,
 class Metrics:
     """Shape, spacing, type, icon and motion sizes are the shared theme's; only the layout sizes are the reader's."""
     LAYOUT = {'control': 44, 'rail': 80, 'sidebar': 244}
-    # The reader's names for what the theme calls differently (Material shape scale, icon size, motion).
-    ALIASES = {'radius_s': 'corner_m', 'radius_m': 'corner_l', 'radius_l': 'corner_xl', 'radius_xl': 'corner_xl',
-               'icon': 'icon_size', 'motion_ms': 'motion_fast'}
 
     def __getitem__(self, name):
         if name in self.LAYOUT:
             return self.LAYOUT[name]
-        values = qt_theme.tokens()
-        if name == 'space_xxl':
-            return values['space_l'] * 2
-        return values[self.ALIASES.get(name, name)]
+        return qt_theme.tokens()[name]
 
 
 M = Metrics()
@@ -83,7 +77,7 @@ class ReaderTheme(QObject):
     def color(self, role, alpha=None):
         return qt_theme.color(ROLES[role], alpha, self.values())
 
-    def font(self, role='body', weight=400):
+    def font(self, role='body.medium', weight=400):
         return qt_theme.font(role=role, weight=weight, values=self.values())
 
     def palette(self):
@@ -97,7 +91,7 @@ class ReaderTheme(QObject):
         return p
 
     def icon(self, painter, name, rect, role='text', size=None):
-        f = QFont(symbol_family()); f.setPixelSize(size or M['icon'])
+        f = QFont(symbol_family()); f.setPixelSize(size or M['icon.size'])
         painter.setFont(f); painter.setPen(self.color(role))
         painter.drawText(rect, Qt.AlignCenter, chr(GLYPHS.get(name, GLYPHS['documents'])))
 
@@ -106,33 +100,33 @@ class ReaderTheme(QObject):
         family = qt_theme.family(self.values())
         return f'''
 QDialog, QMessageBox {{background:{c('canvas')}; color:{c('text')};}}
-QLabel {{color:{c('text')}; font-family:"{family}"; font-size:{M['font_body']}px;}}
-QPushButton {{background:{c('primary_container')}; color:{c('on_primary_container')}; border:0; border-radius:{M['control']//2}px; min-height:{M['control']}px; padding:0 {M['space_xl']}px;}}
+QLabel {{color:{c('text')}; font-family:"{family}"; font-size:{M['font.body.medium.size']}px;}}
+QPushButton {{background:{c('primary_container')}; color:{c('on_primary_container')}; border:0; border-radius:{M['control']//2}px; min-height:{M['control']}px; padding:0 {M['spacing.extraLarge']}px;}}
 QPushButton:hover {{background:{c('selection')};}}
 QPushButton:default {{background:{c('primary')}; color:{c('on_primary')};}}
 QPushButton:disabled {{background:{c('surface_high')}; color:{c('disabled')};}}
 QLineEdit, QSpinBox, QComboBox, QPlainTextEdit {{
  background:{c('surface_high')}; color:{c('text')}; border:0;
- border-radius:{M['radius_s']}px; padding:{M['space_m']}px;
+ border-radius:{M['rounding.medium']}px; padding:{M['spacing.medium']}px;
  selection-background-color:{c('primary_container')}; selection-color:{c('on_primary_container')};
- font-family:"{family}"; font-size:{M['font_body']}px;
+ font-family:"{family}"; font-size:{M['font.body.medium.size']}px;
 }}
-QComboBox::drop-down {{border:0; width:{M['space_xl']}px;}}
+QComboBox::drop-down {{border:0; width:{M['spacing.extraLarge']}px;}}
 QComboBox QAbstractItemView {{background:{c('surface_high')}; color:{c('text')}; selection-background-color:{c('primary_container')}; border:0;}}
 QScrollArea {{border:0; background:transparent;}}
-QScrollBar:vertical {{background:transparent; width:{M['space_s']}px; margin:0;}}
-QScrollBar::handle:vertical {{background:{c('outline')}; border-radius:{M['space_xs']}px; min-height:{M['space_xxl']}px;}}
+QScrollBar:vertical {{background:transparent; width:{M['spacing.small']}px; margin:0;}}
+QScrollBar::handle:vertical {{background:{c('outline')}; border-radius:{M['spacing.extraSmall']}px; min-height:{M['spacing.extraLargeIncreased']}px;}}
 QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{height:0;}}
 QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {{background:transparent;}}
-QScrollBar:horizontal {{height:{M['space_s']}px; background:transparent;}}
-QScrollBar::handle:horizontal {{background:{c('outline')}; border-radius:{M['space_xs']}px; min-width:{M['space_xxl']}px;}}
+QScrollBar:horizontal {{height:{M['spacing.small']}px; background:transparent;}}
+QScrollBar::handle:horizontal {{background:{c('outline')}; border-radius:{M['spacing.extraSmall']}px; min-width:{M['spacing.extraLargeIncreased']}px;}}
 QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{width:0;}}
-QToolTip {{color:{c('text')}; background:{c('surface_high')}; border:0; padding:{M['space_s']}px;}}
+QToolTip {{color:{c('text')}; background:{c('surface_high')}; border:0; padding:{M['spacing.small']}px;}}
 '''
 
 
 class Panel(QWidget):
-    def __init__(self, theme, role='surface', radius='radius_l', parent=None):
+    def __init__(self, theme, role='surface', radius='rounding.extraLarge', parent=None):
         super().__init__(parent); self.theme = theme; self.role = role; self.radius = radius
         theme.changed.connect(self.update)
 
@@ -144,9 +138,9 @@ class Panel(QWidget):
 
 
 class Text(QWidget):
-    def __init__(self, theme, text='', role='body', tone='text', weight=400):
+    def __init__(self, theme, text='', role='body.medium', tone='text', weight=400):
         super().__init__(); self.theme=theme; self._text=text; self.role=role; self.tone=tone; self.weight=weight
-        self.setMinimumWidth(0); self.setFixedHeight(M['font_'+role]+M['space_m'])
+        self.setMinimumWidth(0); self.setFixedHeight(QFontMetrics(theme.font(role, weight)).height()+M['spacing.medium'])
         theme.changed.connect(self.update)
 
     def text(self): return self._text
@@ -171,7 +165,7 @@ class Action(QAbstractButton):
         self.setCursor(Qt.PointingHandCursor); self.setFocusPolicy(Qt.StrongFocus)
         self.setAttribute(Qt.WA_Hover);self.setFixedHeight(size or M['control'])
         if not text: self.setFixedWidth(self.height())
-        self.animation=QVariantAnimation(self);self.animation.setDuration(M['motion_ms'])
+        self.animation=QVariantAnimation(self);self.animation.setDuration(M['anim.durations.expressiveFastEffects'])
         self.animation.setEasingCurve(QEasingCurve.OutCubic)
         self.animation.valueChanged.connect(self.animate)
         self.pressed.connect(lambda:self.morph(1.));self.released.connect(lambda:self.morph(0.))
@@ -189,7 +183,7 @@ class Action(QAbstractButton):
     def sizeHint(self):
         if not self.text():return QSize(self.height(),self.height())
         from PySide6.QtGui import QFontMetrics
-        return QSize(QFontMetrics(self.theme.font('body',500)).horizontalAdvance(self.text()) + M['space_xl']*2 + (M['icon']+M['space_s'] if self.symbol else 0), self.height())
+        return QSize(QFontMetrics(self.theme.font('body.medium',500)).horizontalAdvance(self.text()) + M['spacing.extraLarge']*2 + (M['icon.size']+M['spacing.small'] if self.symbol else 0), self.height())
 
     def event(self,event):
         if event.type() in (QEvent.Enter,QEvent.Leave,QEvent.HoverEnter,QEvent.HoverLeave):self.update()
@@ -205,44 +199,44 @@ class Action(QAbstractButton):
         fg='on_primary' if filled else 'on_primary_container' if tonal else 'text'
         bg='primary' if filled else 'primary_container' if tonal else None
         if not self.isEnabled(): fg='disabled';bg='surface_high' if filled else None
-        r=self.height()/2-(self.height()/2-M['radius_s'])*self.progress
+        r=self.height()/2-(self.height()/2-M['rounding.medium'])*self.progress
         if bg:p.setBrush(self.theme.color(bg));p.drawRoundedRect(QRectF(self.rect()),r,r)
         if self.isEnabled() and (self.underMouse() or self.isDown()):
             p.setBrush(self.theme.color(fg,24 if self.isDown() else 15));p.drawRoundedRect(QRectF(self.rect()),r,r)
         if self.keyboard_focus and self.hasFocus():
             p.setBrush(Qt.NoBrush);p.setPen(QPen(self.theme.color('primary'),2));p.drawRoundedRect(QRectF(self.rect()).adjusted(2,2,-2,-2),r,r)
-        p.setFont(self.theme.font('body',500));fm=p.fontMetrics()
-        text_width=fm.horizontalAdvance(self.text());icon_width=M['icon'] if self.symbol else 0
-        total=text_width+icon_width+(M['space_s'] if self.symbol and self.text() else 0)
+        p.setFont(self.theme.font('body.medium',500));fm=p.fontMetrics()
+        text_width=fm.horizontalAdvance(self.text());icon_width=M['icon.size'] if self.symbol else 0
+        total=text_width+icon_width+(M['spacing.small'] if self.symbol and self.text() else 0)
         x=(self.width()-total)/2
         if self.symbol:
             self.theme.icon(p,self.symbol,QRectF(x,0,icon_width,self.height()),fg)
-            x+=icon_width+M['space_s']
-        p.setFont(self.theme.font('body',500));p.setPen(self.theme.color(fg))
+            x+=icon_width+M['spacing.small']
+        p.setFont(self.theme.font('body.medium',500));p.setPen(self.theme.color(fg))
         p.drawText(QRectF(x,0,text_width,self.height()),Qt.AlignVCenter,self.text())
 
 
 class RowDelegate(QStyledItemDelegate):
     def __init__(self,theme,parent=None):super().__init__(parent);self.theme=theme
-    def sizeHint(self,option,index):return QSize(180,M['control']+M['space_m'])
+    def sizeHint(self,option,index):return QSize(180,M['control']+M['spacing.medium'])
     def paint(self,p,option,index):
-        p.save();p.setRenderHint(QPainter.Antialiasing);r=QRectF(option.rect).adjusted(0,M['space_xs']/2,0,-M['space_xs']/2)
+        p.save();p.setRenderHint(QPainter.Antialiasing);r=QRectF(option.rect).adjusted(0,M['spacing.extraSmall']/2,0,-M['spacing.extraSmall']/2)
         selected=bool(option.state & QStyle.State_Selected)
         hover=bool(option.state & QStyle.State_MouseOver)
         if selected or hover:
             p.setPen(Qt.NoPen);p.setBrush(self.theme.color('primary_container' if selected else 'surface_high'))
-            p.drawRoundedRect(r,M['radius_m'],M['radius_m'])
+            p.drawRoundedRect(r,M['rounding.large'],M['rounding.large'])
         text=str(index.data() or '')
-        p.setFont(self.theme.font('body',500 if selected else 400))
+        p.setFont(self.theme.font('body.medium',500 if selected else 400))
         p.setPen(self.theme.color('on_primary_container' if selected else 'text'))
-        text_rect=r.adjusted(M['space_l'],0,-M['space_l'],0)
+        text_rect=r.adjusted(M['spacing.large'],0,-M['spacing.large'],0)
         p.drawText(text_rect,Qt.AlignVCenter,p.fontMetrics().elidedText(text,Qt.ElideRight,int(text_rect.width())))
         p.restore()
 
 
 def reader_list(theme):
     w=QListWidget();w.setFrameShape(QFrame.NoFrame);w.setMouseTracking(True)
-    w.setItemDelegate(RowDelegate(theme,w));w.setSpacing(M['space_xs'])
+    w.setItemDelegate(RowDelegate(theme,w));w.setSpacing(M['spacing.extraSmall'])
     def refresh():
         w.setPalette(theme.palette());w.viewport().setPalette(theme.palette())
         w.setStyleSheet('QListWidget {background:transparent; border:0; outline:0;}'+theme.inputs())
@@ -282,19 +276,19 @@ class ThumbnailDelegate(QStyledItemDelegate):
     def sizeHint(self,option,index):return QSize(180, M['rail']*3)
     def paint(self,p,option,index):
         p.save();p.setRenderHint(QPainter.Antialiasing);p.setRenderHint(QPainter.SmoothPixmapTransform)
-        r=QRectF(option.rect).adjusted(M['space_s'],M['space_xs'], -M['space_s'],-M['space_xs'])
+        r=QRectF(option.rect).adjusted(M['spacing.small'],M['spacing.extraSmall'], -M['spacing.small'],-M['spacing.extraSmall'])
         selected=bool(option.state & QStyle.State_Selected)
         p.setPen(Qt.NoPen);p.setBrush(self.theme.color('primary_container' if selected else 'surface'))
-        p.drawRoundedRect(r,M['radius_m'],M['radius_m'])
-        area=r.adjusted(M['space_l'],M['space_m'],-M['space_l'],-M['control'])
+        p.drawRoundedRect(r,M['rounding.large'],M['rounding.large'])
+        area=r.adjusted(M['spacing.large'],M['spacing.medium'],-M['spacing.large'],-M['control'])
         image=index.data(Qt.UserRole)
         if image is not None and not image.isNull():
             scaled=image.size().scaled(int(area.width()),int(area.height()),Qt.KeepAspectRatio)
             rect=QRectF(area.center().x()-scaled.width()/2,area.center().y()-scaled.height()/2,scaled.width(),scaled.height())
             p.drawImage(rect,image)
         else:
-            self.theme.icon(p,'documents',area,'muted',M['space_xxl'])
-        p.setPen(self.theme.color('on_primary_container' if selected else 'muted'));p.setFont(self.theme.font('small',500))
+            self.theme.icon(p,'documents',area,'muted',M['spacing.extraLargeIncreased'])
+        p.setPen(self.theme.color('on_primary_container' if selected else 'muted'));p.setFont(self.theme.font('body.small',500))
         p.drawText(QRectF(r.x(),r.bottom()-M['control'],r.width(),M['control']),Qt.AlignCenter,index.data())
         p.restore()
 
@@ -314,7 +308,7 @@ def thumbnail_view(theme):
 class Emblem(QWidget):
     """A single expressive shape for the app identity, not every control."""
     def __init__(self,theme,size=None):
-        super().__init__();self.theme=theme;self.setFixedSize(size or M['control']+M['space_m'],size or M['control']+M['space_m'])
+        super().__init__();self.theme=theme;self.setFixedSize(size or M['control']+M['spacing.medium'],size or M['control']+M['spacing.medium'])
         self.setAccessibleName('Wysun PDF');theme.changed.connect(self.update)
 
     def paintEvent(self,event):
@@ -337,9 +331,9 @@ class NoteDialog(QDialog):
     def __init__(self,theme,parent=None,text='',title='Añadir una nota'):
         super().__init__(parent);self.setWindowTitle(title);self.setPalette(theme.palette());self.setStyleSheet(theme.inputs())
         self.setMinimumWidth(M['rail']*6)
-        layout=QVBoxLayout(self);layout.setContentsMargins(M['space_xl'],M['space_xl'],M['space_xl'],M['space_xl']);layout.setSpacing(M['space_l'])
-        layout.addWidget(Text(theme,title,'heading','text',500))
-        layout.addWidget(Text(theme,'Una idea para volver a ella.','body','muted'))
+        layout=QVBoxLayout(self);layout.setContentsMargins(M['spacing.extraLarge'],M['spacing.extraLarge'],M['spacing.extraLarge'],M['spacing.extraLarge']);layout.setSpacing(M['spacing.large'])
+        layout.addWidget(Text(theme,title,'title.medium','text',500))
+        layout.addWidget(Text(theme,'Una idea para volver a ella.','body.medium','muted'))
         self.editor=QPlainTextEdit();self.editor.setPlainText(text);self.editor.setPlaceholderText('Escribe aquí…')
         self.editor.setMinimumHeight(M['rail']*2);layout.addWidget(self.editor)
         buttons=QHBoxLayout();buttons.addStretch()

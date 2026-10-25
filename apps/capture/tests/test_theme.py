@@ -44,7 +44,7 @@ class CaptureTheme(unittest.TestCase):
         write('light');settle(self.app)
         light=theme.resolve('light')
         self.assertEqual((tokens()['material'],tokens()['translucent']),('pearl',False))
-        self.assertEqual(color('canvas').name().upper(),light['canvas'][:7].upper());self.assertEqual(tokens()['radius_m'],12);self.assertEqual(tokens()['motion_fast'],120)
+        self.assertEqual(color('canvas').name().upper(),light['canvas'][:7].upper());self.assertEqual(tokens()['rounding.medium'],12);self.assertEqual(tokens()['anim.durations.expressiveFastEffects'],150)
     def test_dynamic_scheme_recolours_capture_tokens_live(self):
         write('dark');settle(self.app)
         path=theme.scheme_path()

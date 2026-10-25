@@ -83,7 +83,7 @@ class TabStrip(QWidget):
                 painter.setBrush(color('tint', 14))
                 painter.drawRoundedRect(box, 16, 16)
             paint_symbol(painter, QRectF(box.left() + 8, box.top(), 22, box.height()), 'folder', 'accent' if active else 'muted', 17, filled=active)
-            painter.setFont(text_font('small', 600 if active else 450))
+            painter.setFont(text_font('body.small', 600 if active else 450))
             painter.setPen(color('text_strong' if active else 'muted'))
             area = QRectF(box.left() + 34, box.top(), box.width() - 62, box.height())
             painter.drawText(area, Qt.AlignLeft | Qt.AlignVCenter, painter.fontMetrics().elidedText(label, Qt.ElideRight, int(area.width())))
@@ -187,7 +187,7 @@ class SelectionBar(QWidget):
         row.addSpacing(4)
         self.clear = IconButton('close', 'Quitar la selección · Esc', lambda: self.action.emit('clear'), variant='tonal', size=34)
         row.addWidget(self.clear)
-        self.anim = QVariantAnimation(self, duration=tokens()['motion_enter'])
+        self.anim = QVariantAnimation(self, duration=tokens()['anim.durations.expressiveFastSpatial'])
         self.anim.setEasingCurve(QEasingCurve.OutBack)
         self.anim.valueChanged.connect(self._move)
         self.setFixedHeight(54)
@@ -234,7 +234,7 @@ class SelectionBar(QWidget):
         painter.setPen(color('line_strong'))
         painter.setBrush(color('surface_raised'))
         painter.drawRoundedRect(rect, rect.height() / 2, rect.height() / 2)
-        painter.setFont(text_font('small', 650))
+        painter.setFont(text_font('body.small', 650))
         painter.setPen(color('text_strong'))
         text = f'{self.count} seleccionado' + ('' if self.count == 1 else 's')
         painter.drawText(QRect(20, 0, self.label_width - 8, self.height()), Qt.AlignLeft | Qt.AlignVCenter, text)
@@ -269,8 +269,8 @@ class StatusLine(QWidget):
     def paintEvent(self, _event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
-        pad = metric('space_l')
-        painter.setFont(text_font('caption', 500))
+        pad = metric('spacing.large')
+        painter.setFont(text_font('label.small', 500))
         painter.setPen(color('muted'))
         painter.drawText(QRect(pad, 0, self.width() // 2, self.height()), Qt.AlignLeft | Qt.AlignVCenter, self.left)
         painter.drawText(QRect(self.width() // 2, 0, self.width() // 2 - pad, self.height()), Qt.AlignRight | Qt.AlignVCenter, self.right)
@@ -299,7 +299,7 @@ class Segmented(QWidget):
         self.setCursor(Qt.PointingHandCursor)
         self.setFocusPolicy(Qt.StrongFocus)
         self.setAccessibleName('Vista')
-        self.anim = QVariantAnimation(self, duration=tokens()['motion_enter'])
+        self.anim = QVariantAnimation(self, duration=tokens()['anim.durations.expressiveFastSpatial'])
         self.anim.setEasingCurve(QEasingCurve.OutBack)
         self.anim.valueChanged.connect(self._glide)
         self.setToolTip(' · '.join(labels))
@@ -425,11 +425,11 @@ class Hero(QWidget):
         if event.rect().right() < 66:
             return                                   # spin frames only repaint the cookie
         left = 66
-        painter.setFont(text_font('title', 700, .95))
+        painter.setFont(text_font('title.large', 700, .95))
         painter.setPen(color('text_strong'))
         room = self.width() - left - 12
         painter.drawText(QRect(left, 8, max(80, room), 36), Qt.AlignLeft | Qt.AlignVCenter,
                          painter.fontMetrics().elidedText(self.title, Qt.ElideRight, max(80, room)))
-        painter.setFont(text_font('small', 450))
+        painter.setFont(text_font('body.small', 450))
         painter.setPen(color('muted'))
         painter.drawText(QRect(left, 44, max(80, room), 22), Qt.AlignLeft | Qt.AlignVCenter, self.subtitle)

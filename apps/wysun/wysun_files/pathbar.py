@@ -49,9 +49,9 @@ class PathBar(QWidget):
 
     def _layout(self):
         chain = self._chain()
-        font = text_font('body', 600)
+        font = text_font('body.medium', 600)
         metrics_ = QFontMetrics(font)
-        pad = metric('space_m')
+        pad = metric('spacing.medium')
         gap = 20
         widths = [min(metrics_.horizontalAdvance(label) + pad * 2 - 4, 220) for label, _ in chain]
         icon = 34
@@ -98,7 +98,7 @@ class PathBar(QWidget):
                 painter.setPen(Qt.NoPen)
                 painter.setBrush(color('tint', 22))
                 painter.drawRoundedRect(box, box.height() / 2, box.height() / 2)
-            painter.setFont(text_font('body', 700 if current else 500))
+            painter.setFont(text_font('body.medium', 700 if current else 500))
             painter.setPen(color('text_strong' if current else 'muted' if self.hover != number else 'text'))
             painter.drawText(box, Qt.AlignCenter, painter.fontMetrics().elidedText(label, Qt.ElideMiddle, int(box.width() - 8)))
 

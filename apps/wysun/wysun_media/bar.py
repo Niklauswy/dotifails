@@ -21,17 +21,17 @@ class ControlBar(Capsule):
         self.player = player
         self.kind, self.mode, self.compact = 'video', 'embedded', False
         h = host.get()
-        space = round(float(h.token('space_m')))
+        space = round(float(h.token('spacing.medium')))
         column = QVBoxLayout(self)
         column.setContentsMargins(space, round(space * .75), space, round(space * .75))
-        column.setSpacing(round(float(h.token('space_xs'))))
+        column.setSpacing(round(float(h.token('spacing.extraSmall'))))
 
         self.elapsed, self.remaining = Clock(Qt.AlignLeft), Clock(Qt.AlignRight)
         self.seek = SeekBar()
         self.progress = QWidget()
         row = QHBoxLayout(self.progress)
         row.setContentsMargins(0, 0, 0, 0)
-        row.setSpacing(round(float(h.token('space_s'))))
+        row.setSpacing(round(float(h.token('spacing.small'))))
         row.addWidget(self.elapsed)
         row.addWidget(self.seek, 1)
         row.addWidget(self.remaining)
@@ -64,7 +64,7 @@ class ControlBar(Capsule):
                                (self.right, (self.speed, self.subtitles, self.audio, self.more, self.fullscreen, self.expand))):
             layout = QHBoxLayout(group)
             layout.setContentsMargins(0, 0, 0, 0)
-            layout.setSpacing(round(float(h.token('space_xs'))))
+            layout.setSpacing(round(float(h.token('spacing.extraSmall'))))
             for widget in widgets:
                 layout.addWidget(widget, 0, Qt.AlignVCenter)
         buttons = QHBoxLayout()

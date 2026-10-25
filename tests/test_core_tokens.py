@@ -45,7 +45,8 @@ class TokenSourceTests(unittest.TestCase):
         light, dark = (set(theme.resolve(mode)) for mode in MODES)
         self.assertEqual(light, dark)
         for required in ('canvas', 'surface', 'well', 'line', 'text', 'muted', 'accent', 'accent_hover', 'selection', 'disabled',
-                         'danger', 'success', 'warning', 'scrim', 'radius_s', 'radius_m', 'radius_l', 'motion_fast', 'font_family'):
+                         'danger', 'success', 'warning', 'scrim', 'rounding.small', 'rounding.medium', 'spacing.large',
+                         'anim.durations.normal', 'font.family.sans', 'font.body.medium.size'):
             self.assertIn(required, light)
 
     def test_light_and_dark_share_the_shape_and_only_differ_by_palette_and_material(self):
@@ -59,6 +60,30 @@ class TokenSourceTests(unittest.TestCase):
         wallpaper = theme.default_wallpaper()
         self.assertTrue((ROOT / 'assets/backgrounds' / wallpaper).is_file())
         self.assertEqual(theme.resolve('dark')['wallpaper'], wallpaper)
+
+    def test_schema_3_follows_the_shell_names(self):
+        data = theme.data()
+        self.assertEqual(data['schema'], 3)
+        for group in ('rounding', 'spacing', 'padding', 'font', 'anim', 'border', 'icon', 'palettes'):
+            self.assertIn(group, data)
+        self.assertNotIn('shape', data)
+        self.assertEqual(data['rounding']['full'], 2147483647)
+        self.assertEqual(data['font']['family'], {'sans': 'Google Sans Flex', 'mono': 'CaskaydiaCove NF',
+                                                  'icon': 'Material Symbols Rounded'})
+        values = theme.resolve('dark')
+        self.assertEqual(values['rounding.medium'], 12)
+        self.assertEqual(values['font.body.medium.size'], 14)
+        self.assertEqual(values['anim.curves.standard'], [0.2, 0, 0, 1, 1, 1])
+        old = [key for key in values if key.startswith(('radius_', 'corner_', 'space_', 'font_', 'motion_', 'shadow_', 'lock_'))
+               or key in ('border', 'focus_width', 'icon_size', 'icon_stroke')]
+        self.assertEqual(old, [])
+
+    def test_base_scheme_is_the_default_wallpaper_scheme(self):
+        import wysun_scheme
+        wallpaper = ROOT / 'assets/backgrounds' / theme.default_wallpaper()
+        for mode in MODES:
+            self.assertEqual(theme.data()['palettes'][mode]['scheme'],
+                             wysun_scheme.generate_dynamic(wallpaper, mode=mode)['colours'], mode)
 
     def test_wcag_contrast_in_every_palette(self):
         failures = []

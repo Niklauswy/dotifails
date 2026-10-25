@@ -42,13 +42,13 @@ class WindowMotion:
             if not entering:self.hide()
             return
         from_top=bool(getattr(self,'motion_from_top',False))
-        distance=theme['motion_lift']
+        distance=theme['anim.lift']
         if from_top:
             screen=self.screen();edge=screen.geometry().top() if screen else 0
             distance=-(self.height()+self._motion_target.y()-edge+10)
         start=self.pos() if was_running else self._motion_target+QPoint(0,distance if entering else 0)
         end=self._motion_target+QPoint(0,0 if entering else distance if from_top else distance//2)
-        duration=getattr(self,'motion_enter_ms',theme['motion_enter']) if entering else getattr(self,'motion_exit_ms',theme['motion_exit'])
+        duration=getattr(self,'motion_enter_ms',theme['anim.durations.expressiveFastSpatial']) if entering else getattr(self,'motion_exit_ms',theme['anim.durations.small'])
         if self._motion_opacity is not None:
             opacity=self._motion_opacity;opacity.setDuration(duration)
             opacity.setStartValue(self.windowOpacity() if was_running else (0.0 if entering else 1.0));opacity.setEndValue(1.0 if entering else 0.0);opacity.setEasingCurve(QEasingCurve.OutCubic)

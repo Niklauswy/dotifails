@@ -29,15 +29,15 @@ def code_colors():
 
 def mono_font(scale=.95):
     font = QFont()
-    font.setFamilies(list(tokens()['font_mono']))
+    font.setFamilies(list(tokens()['font.family.mono']))
     font.setStyleHint(QFont.Monospace)
-    font.setPixelSize(round(tokens()['font_body'] * scale))
+    font.setPixelSize(round(tokens()['font.body.medium.size'] * scale))
     return font
 
 
 def ink():
     return {'link': color('accent').name(), 'code_bg': css(color('tint', 44)), 'code_fg': color('text_strong').name(),
-            'mono': ', '.join(f'"{family}"' for family in tokens()['font_mono']), 'muted': color('muted').name()}
+            'mono': ', '.join(f'"{family}"' for family in tokens()['font.family.mono']), 'muted': color('muted').name()}
 
 
 class CodeEdit(QPlainTextEdit):
@@ -131,7 +131,7 @@ class CodeView(QWidget):
         painter.setRenderHint(QPainter.Antialiasing)
         painter.setPen(Qt.NoPen)
         painter.setBrush(code_colors()[0])
-        painter.drawRoundedRect(QRectF(self.rect()), tokens()['radius_m'], tokens()['radius_m'])
+        painter.drawRoundedRect(QRectF(self.rect()), tokens()['rounding.medium'], tokens()['rounding.medium'])
 
 
 # ------------------------------------------------------------------ Markdown
@@ -193,10 +193,10 @@ class CodeBlock(QWidget):
         painter.setRenderHint(QPainter.Antialiasing)
         painter.setPen(Qt.NoPen)
         painter.setBrush(code_colors()[0])
-        radius = tokens()['radius_m']
+        radius = tokens()['rounding.medium']
         painter.drawRoundedRect(QRectF(self.rect()), radius, radius)
         if self.language_name:
-            painter.setFont(text_font('caption', 700))
+            painter.setFont(text_font('label.small', 700))
             painter.setPen(color('subtle'))
             painter.drawText(QRect(14, 6, self.width() - 60, 18), Qt.AlignLeft | Qt.AlignVCenter, self.language_name.upper())
 
@@ -233,7 +233,7 @@ class Marker(QWidget):
             painter.setBrush(color('accent'))
             painter.drawEllipse(QRectF(10, 10, 6, 6))
         elif self.kind == 'number':
-            painter.setFont(text_font('body', 600))
+            painter.setFont(text_font('body.medium', 600))
             painter.setPen(color('accent'))
             painter.drawText(QRect(0, 0, 24, 26), Qt.AlignRight | Qt.AlignVCenter, self.label)
         else:
@@ -265,7 +265,7 @@ class Table(QWidget):
     def paintEvent(self, _event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
-        radius = tokens()['radius_m']
+        radius = tokens()['rounding.medium']
         rect = QRectF(self.rect()).adjusted(.5, .5, -.5, -.5)
         painter.setPen(color('line'))
         painter.setBrush(color('well'))
@@ -312,8 +312,8 @@ class Picture(QWidget):
         if self.pixmap.isNull():
             painter.setPen(Qt.NoPen)
             painter.setBrush(color('well'))
-            painter.drawRoundedRect(QRectF(self.rect()), tokens()['radius_m'], tokens()['radius_m'])
-            painter.setFont(text_font('small', 500))
+            painter.drawRoundedRect(QRectF(self.rect()), tokens()['rounding.medium'], tokens()['rounding.medium'])
+            painter.setFont(text_font('body.small', 500))
             painter.setPen(color('muted'))
             painter.drawText(self.rect().adjusted(14, 0, -14, 0), Qt.AlignVCenter, f'Imagen: {self.alt or "sin descripción"}')
             return
@@ -323,7 +323,7 @@ class Picture(QWidget):
         outline = squircle(target, 0)
         from PySide6.QtGui import QPainterPath
         shape = QPainterPath()
-        shape.addRoundedRect(target, tokens()['radius_m'], tokens()['radius_m'])
+        shape.addRoundedRect(target, tokens()['rounding.medium'], tokens()['rounding.medium'])
         clip_pixmap(self.pixmap, shape, painter, target)
 
 
@@ -358,7 +358,7 @@ class MarkdownView(QScrollArea):
         self.setWidget(page)
 
     # ---------------------------------------------------------------- blocks
-    def _label(self, html, size='body', weight=400, bold=False, ink_name='text', scale=1.0):
+    def _label(self, html, size='body.medium', weight=400, bold=False, ink_name='text', scale=1.0):
         label = QLabel()
         label.setTextFormat(Qt.RichText)
         label.setWordWrap(True)
@@ -390,13 +390,13 @@ class MarkdownView(QScrollArea):
                 inner = QVBoxLayout(holder)
                 inner.setContentsMargins(0, 8, 0, 0)
                 inner.setSpacing(8)
-                inner.addWidget(self._label(html, 'title', bold=True, ink_name='text_strong'))
+                inner.addWidget(self._label(html, 'title.large', bold=True, ink_name='text_strong'))
                 rule = QWidget()
                 rule.setFixedHeight(1)
                 rule.setStyleSheet(f'background:{color("divider").name()};')
                 inner.addWidget(rule)
                 return holder
-            size, scale = {2: ('heading', 1.2), 3: ('heading', 1.0)}.get(level, ('body', 1.0))
+            size, scale = {2: ('title.medium', 1.2), 3: ('title.medium', 1.0)}.get(level, ('body.medium', 1.0))
             holder = self._label(html, size, bold=True, ink_name='text_strong' if level < 4 else 'text', scale=scale)
             holder.setContentsMargins(0, 8 if level == 2 else 4, 0, 0)
             return holder
@@ -455,5 +455,5 @@ class MarkdownView(QScrollArea):
         label.setFont(mono_font(.85))
         label.setWordWrap(True)
         label.setContentsMargins(14, 10, 14, 10)
-        label.setStyleSheet(f'color:{color("muted").name()};background:{css(color("tint", 14))};border-radius:{tokens()["radius_m"]}px;')
+        label.setStyleSheet(f'color:{color("muted").name()};background:{css(color("tint", 14))};border-radius:{tokens()["rounding.medium"]}px;')
         return label

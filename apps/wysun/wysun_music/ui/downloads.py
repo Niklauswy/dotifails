@@ -50,16 +50,16 @@ class TwoLineDelegate(QStyledItemDelegate):
         if selected or option.state & QStyle.State_MouseOver:
             painter.setPen(Qt.NoPen)
             painter.setBrush(color('row_selected' if selected else 'row_hover'))
-            painter.drawRoundedRect(rect, tokens()['radius_s'], tokens()['radius_s'])
+            painter.drawRoundedRect(rect, tokens()['rounding.small'], tokens()['rounding.small'])
         title, _, detail = index.data(Qt.DisplayRole).partition('\n')
-        pad = metric('space_m')
+        pad = metric('spacing.medium')
         width = rect.width() - 2 * pad
-        painter.setFont(text_font('body', 500))
+        painter.setFont(text_font('body.medium', 500))
         metrics = painter.fontMetrics()
         painter.setPen(color('text'))
         painter.drawText(QRect(rect.left() + pad, rect.center().y() - metrics.height(), width, metrics.height()),
                          Qt.AlignLeft | Qt.AlignVCenter, metrics.elidedText(title, Qt.ElideRight, width))
-        painter.setFont(text_font('small'))
+        painter.setFont(text_font('body.small'))
         small = painter.fontMetrics()
         painter.setPen(color(index.data(Qt.UserRole + 2) or 'muted'))
         painter.drawText(QRect(rect.left() + pad, rect.center().y() + 2, width, small.height()),
@@ -79,7 +79,7 @@ def two_line_list(name):
 
 def section(title):
     label = QLabel(title)
-    label.setFont(text_font('heading', 700, 1.2))
+    label.setFont(text_font('title.medium', 700, 1.2))
     return label
 
 
@@ -93,11 +93,11 @@ class DownloadsPage(QScrollArea):
         self.setWidgetResizable(True)
         content = QWidget()
         layout = QVBoxLayout(content)
-        pad = metric('space_xl')
+        pad = metric('spacing.extraLarge')
         layout.setContentsMargins(pad, pad, pad, pad)
-        layout.setSpacing(metric('space_l'))
+        layout.setSpacing(metric('spacing.large'))
         title = QLabel('Añadir música')
-        title.setFont(text_font('title', 800, 1.3))
+        title.setFont(text_font('title.large', 800, 1.3))
         layout.addWidget(title)
 
         row = QHBoxLayout()

@@ -12,7 +12,7 @@ from . import host, shape
 
 def unit():
     """Base measure of the controls, from the theme's icon size."""
-    return float(host.get().token('icon_size'))
+    return float(host.get().token('icon.size'))
 
 
 def clock(seconds):
@@ -44,7 +44,7 @@ def _keyboard_focus(reason):
 
 
 class ControlButton(QAbstractButton):
-    """Circular icon button (``corner_full``) with hover and press layers and a keyboard focus ring."""
+    """Circular icon button (``rounding.full``) with hover and press layers and a keyboard focus ring."""
 
     def __init__(self, symbol, label, parent=None, *, variant='standard', scale=2.0, filled=False):
         super().__init__(parent)
@@ -134,12 +134,12 @@ class PlayButton(ControlButton):
         self.morph.go(1.0 if playing else 0.0)
 
     def _outline(self, rect):
-        full, resting = shape.radius('full', rect), shape.radius('l', rect)
+        full, resting = shape.radius('full', rect), shape.radius('large', rect)
         return shape.rounded(rect, shape.lerp(full, resting, self.morph.value))
 
 
 class Pill(QAbstractButton):
-    """Text in a ``corner_full`` capsule (playback speed); highlighted when it differs from the default."""
+    """Text in a ``rounding.full`` capsule (playback speed); highlighted when it differs from the default."""
 
     def __init__(self, text, label, parent=None):
         super().__init__(parent)
@@ -152,7 +152,7 @@ class Pill(QAbstractButton):
         self.setCursor(Qt.PointingHandCursor)
 
     def sizeHint(self):
-        metrics = QFontMetricsF(host.get().font('small', 600))
+        metrics = QFontMetricsF(host.get().font('body.small', 600))
         return QSize(round(metrics.horizontalAdvance(self.text()) + unit() * 1.6), round(unit() * 1.8))
 
     def enterEvent(self, event):
@@ -190,7 +190,7 @@ class Pill(QAbstractButton):
         if self._focus_ring:
             painter.setPen(hud_ink('focus'))
             painter.drawPath(shape.rounded(rect.adjusted(1, 1, -1, -1), 'full'))
-        painter.setFont(h.font('small', 600))
+        painter.setFont(h.font('body.small', 600))
         painter.setPen(ink)
         painter.drawText(rect, Qt.AlignCenter, self.text())
 
@@ -232,7 +232,7 @@ class Track(QWidget):
 
     # ------------------------------------------------------------- geometry
     def _inset(self):
-        return float(host.get().token('space_s'))
+        return float(host.get().token('spacing.small'))
 
     def lane(self):
         inset = self._inset()
@@ -243,7 +243,7 @@ class Track(QWidget):
         return min(1.0, max(0.0, (x - lane.left()) / lane.width()))
 
     def _thickness(self):
-        base = float(host.get().token('space_xs'))
+        base = float(host.get().token('spacing.extraSmall'))
         return base * 1.5 if self._drag or self._hover is not None or self._focus_ring else base
 
     # ---------------------------------------------------------------- input
@@ -315,7 +315,7 @@ class Track(QWidget):
         painter.setRenderHint(QPainter.Antialiasing)
         lane, thickness = self.lane(), self._thickness()
         top = lane.center().y() - thickness / 2
-        gap = float(h.token('space_xs')) / 2
+        gap = float(h.token('spacing.extraSmall')) / 2
         cut = [(a, b) for a, b in self.segments()]
         for index, (start, end) in enumerate(cut):
             left = lane.left() + lane.width() * start + (gap if index else 0)
@@ -329,7 +329,7 @@ class Track(QWidget):
                 painter.fillPath(shape.rounded(box, 'full'), hud_ink('accent'))
                 painter.restore()
         self.paint_extras(painter, h, lane, top, thickness)
-        handle = QRectF(0, 0, float(h.token('space_xs')), unit() * 1.3)
+        handle = QRectF(0, 0, float(h.token('spacing.extraSmall')), unit() * 1.3)
         handle.moveCenter(QPointF(lane.left() + lane.width() * self.ratio, lane.center().y()))
         if self._drag:
             handle.adjust(1, 1, -1, -1)
@@ -393,7 +393,7 @@ class SeekBar(Track):
             return
         left = lane.left() + lane.width() * min(1.0, a / self.duration)
         right = lane.left() + lane.width() * min(1.0, (b if b is not None else a) / self.duration)
-        marks = QRectF(0, 0, float(h.token('space_xs')) / 2 + 1, thickness + float(h.token('space_s')))
+        marks = QRectF(0, 0, float(h.token('spacing.extraSmall')) / 2 + 1, thickness + float(h.token('spacing.small')))
         for x in ((left, right) if b is not None else (left,)):
             marks.moveCenter(QPointF(x, top + thickness / 2))
             painter.fillPath(shape.rounded(marks, 'full'), h.color('on_hud'))
@@ -427,7 +427,7 @@ class Row:
 
 
 class PopupMenu(QWidget):
-    """Floating list for speeds, tracks and actions, in the HUD palette with ``corner_m`` corners."""
+    """Floating list for speeds, tracks and actions, in the HUD palette with ``rounding.medium`` corners."""
 
     dismissed = Signal()
 
@@ -456,10 +456,10 @@ class PopupMenu(QWidget):
 
     def _height(self, row):
         base = unit() * 2
-        return {'item': base, 'header': base * .8, 'info': base * .8, 'separator': float(host.get().token('space_s'))}[row.kind]
+        return {'item': base, 'header': base * .8, 'info': base * .8, 'separator': float(host.get().token('spacing.small'))}[row.kind]
 
     def _pad(self):
-        return float(host.get().token('space_xs'))
+        return float(host.get().token('spacing.extraSmall'))
 
     def _layout(self):
         y, boxes = self._pad(), []
@@ -470,7 +470,7 @@ class PopupMenu(QWidget):
 
     def _measure(self):
         h = host.get()
-        metrics, small = QFontMetricsF(h.font('body', 500)), QFontMetricsF(h.font('small'))
+        metrics, small = QFontMetricsF(h.font('body.medium', 500)), QFontMetricsF(h.font('body.small'))
         gutter = unit() * 2.2
         widest = max((metrics.horizontalAdvance(r.text) + (small.horizontalAdvance(r.detail) + unit() if r.detail else 0)
                       for r in self.rows), default=0)
@@ -481,7 +481,7 @@ class PopupMenu(QWidget):
         """Open over ``anchor`` (right edges aligned), or below when there is no room above."""
         self._measure()
         screen = anchor.screen().availableGeometry()
-        gap = round(float(host.get().token('space_s')))
+        gap = round(float(host.get().token('spacing.small')))
         corner = anchor.mapToGlobal(QPoint(anchor.width(), 0))
         x = min(max(screen.left(), corner.x() - self.width()), screen.right() - self.width())
         y = corner.y() - self.height() - gap
@@ -542,19 +542,19 @@ class PopupMenu(QWidget):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
         outer = QRectF(self.rect()).adjusted(.5, .5, -.5, -.5)
-        painter.fillPath(shape.rounded(outer, 'm'), h.color('hud'))
+        painter.fillPath(shape.rounded(outer, 'medium'), h.color('hud'))
         painter.setPen(h.color('hud_line'))
-        painter.drawPath(shape.rounded(outer, 'm'))
+        painter.drawPath(shape.rounded(outer, 'medium'))
         gutter = unit() * 2.2
         for index, (row, box) in enumerate(zip(self.rows, self._layout())):
             if row.kind == 'separator':
                 painter.fillRect(QRectF(box.left() + unit() * .5, box.center().y(), box.width() - unit(), 1), h.color('hud_line'))
                 continue
             if row.kind == 'item' and index == self._current:
-                painter.fillPath(shape.rounded(box, 's'), h.color('hud_hover'))
+                painter.fillPath(shape.rounded(box, 'small'), h.color('hud_hover'))
             muted = row.kind in ('header', 'info') or not row.enabled
             painter.setPen(h.color('hud_muted' if muted else 'on_hud'))
-            painter.setFont(h.font('small' if row.kind == 'header' else 'body', 600 if row.kind == 'header' else 500))
+            painter.setFont(h.font('body.small' if row.kind == 'header' else 'body.medium', 600 if row.kind == 'header' else 500))
             if row.checked:
                 h.symbol(painter, QRectF(box.left(), box.top(), gutter, box.height()), 'check', hud_ink('accent'), round(unit()))
             elif row.symbol:
@@ -562,7 +562,7 @@ class PopupMenu(QWidget):
             painter.drawText(QRectF(box.left() + gutter, box.top(), box.width() - gutter - unit() * .5, box.height()),
                              Qt.AlignLeft | Qt.AlignVCenter, row.text)
             if row.detail:
-                painter.setFont(h.font('small'))
+                painter.setFont(h.font('body.small'))
                 painter.setPen(h.color('hud_muted'))
                 painter.drawText(QRectF(box.left(), box.top(), box.width() - unit() * .6, box.height()),
                                  Qt.AlignRight | Qt.AlignVCenter, row.detail)
@@ -576,7 +576,7 @@ class Toast(QWidget):
         self.setAttribute(Qt.WA_TransparentForMouseEvents)
         self.text = ''
         self.symbol = ''
-        self.fade = shape.Morph(self, 'motion_exit')
+        self.fade = shape.Morph(self, 'anim.durations.small')
         self.fade.jump(0.0)
         self.fade.changed.connect(lambda _: self.update())
         self._timer = QTimer(self, singleShot=True, interval=1100)
@@ -585,7 +585,7 @@ class Toast(QWidget):
 
     def say(self, text, symbol=''):
         self.text, self.symbol = text, symbol
-        metrics = QFontMetricsF(host.get().font('body', 600))
+        metrics = QFontMetricsF(host.get().font('body.medium', 600))
         width = metrics.horizontalAdvance(text) + unit() * (3.4 if symbol else 2.0)
         self.resize(round(width), round(unit() * 2))
         self.reposition()
@@ -597,7 +597,7 @@ class Toast(QWidget):
     def reposition(self):
         parent = self.parentWidget()
         if parent is not None:
-            self.move((parent.width() - self.width()) // 2, round(float(host.get().token('space_l'))))
+            self.move((parent.width() - self.width()) // 2, round(float(host.get().token('spacing.large'))))
 
     def paintEvent(self, _event):
         h = host.get()
@@ -615,22 +615,22 @@ class Toast(QWidget):
         if self.symbol:
             h.symbol(painter, QRectF(left + unit() * .4, rect.top(), unit() * 1.6, rect.height()), self.symbol, 'on_hud', round(unit()))
             left += unit() * 1.6
-        painter.setFont(h.font('body', 600))
+        painter.setFont(h.font('body.medium', 600))
         painter.setPen(h.color('on_hud'))
         painter.drawText(QRectF(left, rect.top(), rect.right() - left, rect.height()), Qt.AlignCenter, self.text)
 
 
 class Capsule(QWidget):
-    """The floating bar's background: ``corner_l`` in the HUD material."""
+    """The floating bar's background: ``rounding.large`` in the HUD material."""
 
     def paintEvent(self, _event):
         h = host.get()
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
         rect = QRectF(self.rect()).adjusted(.5, .5, -.5, -.5)
-        painter.fillPath(shape.rounded(rect, 'l'), h.color('hud'))
+        painter.fillPath(shape.rounded(rect, 'large'), h.color('hud'))
         painter.setPen(h.color('hud_line'))
-        painter.drawPath(shape.rounded(rect, 'l'))
+        painter.drawPath(shape.rounded(rect, 'large'))
 
 
 class Rounding(QWidget):
@@ -670,12 +670,12 @@ class Clock(QWidget):
             self.update()
 
     def sizeHint(self):
-        metrics = QFontMetricsF(host.get().font('small', 600))
+        metrics = QFontMetricsF(host.get().font('body.small', 600))
         return QSize(round(metrics.horizontalAdvance('−0:00:00')), round(unit() * 1.6))
 
     def paintEvent(self, _event):
         h = host.get()
         painter = QPainter(self)
-        painter.setFont(h.font('small', 600))
+        painter.setFont(h.font('body.small', 600))
         painter.setPen(h.color('hud_muted'))
         painter.drawText(QRectF(self.rect()), self.align | Qt.AlignVCenter, self.text)

@@ -72,14 +72,14 @@ class MusicWindow(FramelessResize, WindowMotion, QWidget):
         self.frame = QWidget()
         root.addWidget(self.frame)
         outer = QHBoxLayout(self.frame)
-        margin = metric('space_s')
+        margin = metric('spacing.small')
         outer.setContentsMargins(margin, margin, margin, margin)
         outer.setSpacing(margin)
 
         left = QVBoxLayout()
-        left.setSpacing(metric('space_s'))
+        left.setSpacing(metric('spacing.small'))
         nav = QHBoxLayout()
-        nav.setContentsMargins(metric('space_xs'), metric('space_xs'), 0, 0)
+        nav.setContentsMargins(metric('spacing.extraSmall'), metric('spacing.extraSmall'), 0, 0)
         nav.setSpacing(2)
         close = IconButton('close', 'Ocultar · la música sigue sonando', self.close, size=34)
         self.back = IconButton('chevron_left', 'Atrás · Alt+←', self.go_back, size=34)
@@ -88,13 +88,13 @@ class MusicWindow(FramelessResize, WindowMotion, QWidget):
         for button in (close, self.back, self.forward, keys):
             button.setFocusPolicy(Qt.TabFocus)
         nav.addWidget(close)
-        nav.addSpacing(metric('space_s'))
+        nav.addSpacing(metric('spacing.small'))
         nav.addWidget(self.back)
         nav.addWidget(self.forward)
         nav.addStretch()
         nav.addWidget(keys)
         left.addLayout(nav)
-        left.addSpacing(metric('space_s'))
+        left.addSpacing(metric('spacing.small'))
         self.sidebar = Sidebar(self.library, self.covers, self.player)
         self.sidebar.navigate.connect(self.navigate)
         self.sidebar.create_playlist.connect(self.actions.new_playlist)
@@ -184,7 +184,7 @@ class MusicWindow(FramelessResize, WindowMotion, QWidget):
             self._leaving_search = True
             self.search.clear()
             self._leaving_search = False
-        reveal_content(page, metric('motion_fast'))
+        reveal_content(page, metric('anim.durations.expressiveFastEffects'))
 
     def _open(self, route):
         kind = route[0]

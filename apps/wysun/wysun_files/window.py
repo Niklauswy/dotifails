@@ -92,14 +92,14 @@ class FilesWindow(FramelessResize, WindowMotion, QMainWindow):
         central = QWidget()
         self.setCentralWidget(central)
         outer = QHBoxLayout(central)
-        margin = metric('space_s')
+        margin = metric('spacing.small')
         outer.setContentsMargins(margin, margin, margin, margin)
         outer.setSpacing(margin)
 
         left = QVBoxLayout()
-        left.setSpacing(metric('space_s'))
+        left.setSpacing(metric('spacing.small'))
         nav = QHBoxLayout()
-        nav.setContentsMargins(metric('space_xs'), metric('space_xs'), 0, 0)
+        nav.setContentsMargins(metric('spacing.extraSmall'), metric('spacing.extraSmall'), 0, 0)
         nav.setSpacing(2)
         self.close_button = IconButton('close', 'Cerrar · Ctrl+Q', self.close, size=34)
         self.back_button = IconButton('chevron_left', 'Atrás · Alt+←', lambda: self.current().go(-1), size=34)
@@ -109,13 +109,13 @@ class FilesWindow(FramelessResize, WindowMotion, QMainWindow):
         for button in (self.close_button, self.back_button, self.forward_button, self.up_button, keys):
             button.setFocusPolicy(Qt.TabFocus)
         nav.addWidget(self.close_button)
-        nav.addSpacing(metric('space_s'))
+        nav.addSpacing(metric('spacing.small'))
         for button in (self.back_button, self.forward_button, self.up_button):
             nav.addWidget(button)
         nav.addStretch()
         nav.addWidget(keys)
         left.addLayout(nav)
-        left.addSpacing(metric('space_s'))
+        left.addSpacing(metric('spacing.small'))
         self.sidebar = Sidebar(self.bookmarks)
         self.sidebar.navigate.connect(self.navigate)
         self.sidebar.bookmark_menu.connect(self.bookmark_menu)
@@ -129,10 +129,10 @@ class FilesWindow(FramelessResize, WindowMotion, QMainWindow):
         self.right.setSpacing(margin)
         self.files_surface = Surface()
         files = self.files_layout = QVBoxLayout(self.files_surface)
-        files.setContentsMargins(metric('space_m'), metric('space_m'), metric('space_m'), 0)
-        files.setSpacing(metric('space_s'))
+        files.setContentsMargins(metric('spacing.medium'), metric('spacing.medium'), metric('spacing.medium'), 0)
+        files.setSpacing(metric('spacing.small'))
         top = QHBoxLayout()
-        top.setSpacing(metric('space_s'))
+        top.setSpacing(metric('spacing.small'))
         self.pathbar = PathBar()
         self.pathbar.navigate_requested.connect(self.navigate)
         self.pathbar.copy_requested.connect(self.copy_current_path)
@@ -144,7 +144,7 @@ class FilesWindow(FramelessResize, WindowMotion, QMainWindow):
         top.addWidget(self.filter_edit)
         files.addLayout(top)
         tools = QHBoxLayout()
-        tools.setSpacing(metric('space_xs'))
+        tools.setSpacing(metric('spacing.extraSmall'))
         self.view_toggle = Segmented(('grid_view', 'view_list'), ('Cuadrícula · Ctrl+1', 'Lista · Ctrl+2'))
         self.view_toggle.changed.connect(lambda index: self.set_grid(index == 0))
         self.sort_button = IconButton('sort', 'Ordenar', self.sort_menu, variant='tonal', size=38)
@@ -152,7 +152,7 @@ class FilesWindow(FramelessResize, WindowMotion, QMainWindow):
         self.details_button.setChecked(self.details_on)
         self.details_button.outline = True
         tools.addWidget(self.view_toggle)
-        tools.addSpacing(metric('space_s'))
+        tools.addSpacing(metric('spacing.small'))
         tools.addWidget(self.sort_button)
         tools.addWidget(self.details_button)
         tools.addStretch()
@@ -178,7 +178,7 @@ class FilesWindow(FramelessResize, WindowMotion, QMainWindow):
 
         self.inspector = Surface()
         inside = QVBoxLayout(self.inspector)
-        inside.setContentsMargins(metric('space_l'), metric('space_l'), metric('space_l'), metric('space_l'))
+        inside.setContentsMargins(metric('spacing.large'), metric('spacing.large'), metric('spacing.large'), metric('spacing.large'))
         self.inline_preview = SelectionPreview()
         self.inline_preview.open_requested.connect(self.open_selected)
         self.inline_preview.message.connect(self.say)
@@ -190,7 +190,7 @@ class FilesWindow(FramelessResize, WindowMotion, QMainWindow):
         self.inspector.hide()
         self.right.addWidget(self.inspector)
         outer.addLayout(self.right, 1)
-        self.slide = QVariantAnimation(self, duration=tokens()['motion_enter'] + 40)
+        self.slide = QVariantAnimation(self, duration=tokens()['anim.durations.expressiveFastSpatial'] + 40)
         self.slide.setEasingCurve(QEasingCurve.OutCubic)
         self.slide.valueChanged.connect(self._slide_step)
         self.slide.finished.connect(self._slide_done)
@@ -389,7 +389,7 @@ class FilesWindow(FramelessResize, WindowMotion, QMainWindow):
 
     def inspector_target(self):
         """About half of the area right of the places column, within sane bounds."""
-        total = self.width() - self.column.width() - metric('space_s') * 3
+        total = self.width() - self.column.width() - metric('spacing.small') * 3
         return max(INSPECTOR_WIDTH, min(round(total * .5), 860))
 
     def arrange_inspector(self):
@@ -463,7 +463,7 @@ class FilesWindow(FramelessResize, WindowMotion, QMainWindow):
             self.files_surface.show()
         self.right.setStretch(0, 0)
         self.right.setStretch(1, 0)
-        self.expand_anim = QVariantAnimation(self, duration=tokens()['motion_enter'] + 60)
+        self.expand_anim = QVariantAnimation(self, duration=tokens()['anim.durations.expressiveFastSpatial'] + 60)
         self.expand_anim.setEasingCurve(QEasingCurve.InOutCubic)
         self.expand_anim.setStartValue(0.0 if enabled else 1.0)
         self.expand_anim.setEndValue(1.0 if enabled else 0.0)
@@ -857,7 +857,7 @@ class FilesWindow(FramelessResize, WindowMotion, QMainWindow):
             return
         anim = getattr(self, '_filter_anim', None)
         if anim is None:
-            anim = self._filter_anim = QVariantAnimation(self, duration=tokens()['motion_enter'])
+            anim = self._filter_anim = QVariantAnimation(self, duration=tokens()['anim.durations.expressiveFastSpatial'])
             anim.setEasingCurve(QEasingCurve.OutCubic)
             anim.valueChanged.connect(lambda v: self.filter_edit.setFixedWidth(round(float(v))))
         anim.stop()

@@ -14,7 +14,7 @@ class UtilityUITests(unittest.TestCase):
   from unittest.mock import patch
   from PySide6.QtWidgets import QLabel
   from wysun_core.qt_theme import apply_style,refresh_widgets
-  label=QLabel('Tema');original='color: @text; background: @canvas; border-radius: @radius_l;'
+  label=QLabel('Tema');original='color: @text; background: @canvas; border-radius: @rounding.largeIncreased;'
   with patch.dict(os.environ,{'WYSUN_THEME':'dark'}):
    refresh_widgets();apply_style(label,original);dark=label.styleSheet()
    with patch.dict(os.environ,{'WYSUN_THEME':'light'}):

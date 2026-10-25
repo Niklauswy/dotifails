@@ -35,11 +35,11 @@ class PlaceItem(NavItem):
             painter.setPen(Qt.NoPen)
             painter.setBrush(color('tint', round(12 * self.layer.amount)))
             painter.drawRoundedRect(rect, radius, radius)
-        pad = metric('space_m')
+        pad = metric('spacing.medium')
         paint_symbol(painter, QRect(pad - 4, 0, 28, self.height()), self.symbol, 'accent' if self.active else 'glyph', 21,
                      filled=self.active and self.symbol not in ('delete',))
-        left = pad + 24 + metric('space_s')
-        painter.setFont(text_font('body', 600 if self.active else 450))
+        left = pad + 24 + metric('spacing.small')
+        painter.setFont(text_font('body.medium', 600 if self.active else 450))
         painter.setPen(color('text_strong' if self.active else 'text'))
         painter.drawText(QRect(left, 0, self.width() - left - pad, self.height()), Qt.AlignLeft | Qt.AlignVCenter,
                          painter.fontMetrics().elidedText(self.label, Qt.ElideRight, self.width() - left - pad))
@@ -94,7 +94,7 @@ class Rail(QWidget):
 
 def tokens_motion():
     from wysun_core.qt_theme import tokens
-    return tokens()['motion_enter'] + 60
+    return tokens()['anim.durations.expressiveFastSpatial'] + 60
 
 
 class DeviceItem(NavItem):
@@ -127,10 +127,10 @@ class DeviceItem(NavItem):
             painter.setPen(Qt.NoPen)
             painter.setBrush(color('tint', round(12 * self.layer.amount)))
             painter.drawRoundedRect(rect, radius, radius)
-        pad = metric('space_m')
+        pad = metric('spacing.medium')
         paint_symbol(painter, QRect(pad - 4, 0, 28, self.height() - 8), self.symbol, 'accent' if self.active else 'glyph', 21, filled=True)
-        left = pad + 24 + metric('space_s')
-        painter.setFont(text_font('body', 600 if self.active else 450))
+        left = pad + 24 + metric('spacing.small')
+        painter.setFont(text_font('body.medium', 600 if self.active else 450))
         painter.setPen(color('text_strong' if self.active else 'text'))
         painter.drawText(QRect(left, 7, self.width() - left - pad, 20), Qt.AlignLeft | Qt.AlignVCenter,
                          painter.fontMetrics().elidedText(self.label, Qt.ElideRight, self.width() - left - pad))
@@ -141,7 +141,7 @@ class DeviceItem(NavItem):
         if self.used:
             painter.setBrush(color('danger' if self.used > .92 else 'accent'))
             painter.drawRoundedRect(QRectF(track.left(), track.top(), max(5, track.width() * self.used), 5), 2.5, 2.5)
-        painter.setFont(text_font('caption', 400))
+        painter.setFont(text_font('label.small', 400))
         painter.setPen(color('muted'))
         painter.drawText(QRect(left, 36, self.width() - left - pad, 14), Qt.AlignLeft | Qt.AlignVCenter, self.caption)
         if self.hasFocus() and self.window().isActiveWindow():
@@ -161,13 +161,13 @@ class Sidebar(QWidget):
         self.items = []
         self.current = ''
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(metric('space_xs'), 0, 0, 0)
+        layout.setContentsMargins(metric('spacing.extraSmall'), 0, 0, 0)
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         content = self.rail = Rail()
         self.column = QVBoxLayout(content)
-        self.column.setContentsMargins(0, 0, metric('space_xs'), metric('space_m'))
+        self.column.setContentsMargins(0, 0, metric('spacing.extraSmall'), metric('spacing.medium'))
         self.column.setSpacing(1)
         scroll.setWidget(content)
         layout.addWidget(scroll)

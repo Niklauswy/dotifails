@@ -61,7 +61,7 @@ class SeekBarTests(unittest.TestCase):
         return bar
 
     def inset(self, bar):
-        return float(host.get().token('space_s'))
+        return float(host.get().token('spacing.small'))
 
     def x_at(self, bar, fraction):
         inset = self.inset(bar)
@@ -160,7 +160,7 @@ class ButtonTests(unittest.TestCase):
         small, play = controls.ControlButton('add', 'x', scale=1.8), controls.PlayButton('y')
         self.addCleanup(small.deleteLater)
         self.addCleanup(play.deleteLater)
-        icon = float(host.get().token('icon_size'))
+        icon = float(host.get().token('icon.size'))
         self.assertEqual(small.sizeHint().width(), round(icon * 1.8))
         self.assertEqual(play.sizeHint().width(), round(icon * 3))
 
@@ -271,7 +271,7 @@ class RoundingTests(unittest.TestCase):
         image.fill(0)
         widget.render(image, QPoint(), QRegion(), QWidget.DrawChildren)     # no window background underneath
         self.assertEqual(image.pixelColor(1, 1).alpha(), 0)
-        widget.set_corner('xl', 'surface')
+        widget.set_corner('extraLarge', 'surface')
         image.fill(0)
         widget.render(image, QPoint(), QRegion(), QWidget.DrawChildren)
         self.assertGreater(image.pixelColor(1, 1).alpha(), 0)

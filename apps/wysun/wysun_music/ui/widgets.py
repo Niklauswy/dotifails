@@ -78,7 +78,7 @@ class CoverArt(QWidget):
             self.update()
 
     def radius(self):
-        return self.width() / 2 if self.shape != 'square' else min(tokens()['radius_m'], self.width() / 6)
+        return self.width() / 2 if self.shape != 'square' else min(tokens()['rounding.medium'], self.width() / 6)
 
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:

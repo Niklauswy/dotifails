@@ -13,16 +13,20 @@ def metric(name, scale=1.0):
 
 
 @lru_cache(maxsize=64)
-def _text_font(family, pixels, weight):
+def _text_font(family, points, weight):
     result = QFont(family)
-    result.setPixelSize(max(8, pixels))
+    result.setPointSizeF(max(6.0, points))
     result.setWeight(QFont.Weight(weight))
     return result
 
 
-def text_font(role='body', weight=400, scale=1.0):
-    """Rubik at a theme size role (caption/small/body/heading/title) × scale."""
-    return QFont(_text_font(display_family(), round(tokens()['font_' + role] * scale), weight))
+def text_font(role='body.medium', weight=None, scale=1.0):
+    """The theme's family (mono for ``mono.*``) at a role of the shell's type scale (``'label.small'``…``'headline.large'``),
+    in points × scale; ``weight`` overrides the role's."""
+    values = tokens()
+    weight = values[f'font.{role}.weight'] if weight is None else weight
+    family = values['font.family.mono'] if role.startswith('mono.') else display_family()
+    return QFont(_text_font(family, round(values[f'font.{role}.size'] * scale, 2), int(weight)))
 
 
 @lru_cache(maxsize=64)
@@ -74,7 +78,7 @@ def paint_symbol(painter, rect, name, tint, size=None, filled=False):
     A missing glyph is drawn by the registered fallback; returns False when nothing was drawn.
     """
     load_fonts()
-    size = round(size or tokens()['icon_size'] * 1.2)
+    size = round(size or tokens()['icon.size'] * 1.2)
     ink = color(tint) if isinstance(tint, str) else tint
     rect = QRectF(rect)
     if not ligature_available(name):
@@ -111,31 +115,31 @@ QScrollBar::handle:vertical {background:@scrollbar;border-radius:3px;min-height:
 QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {height:0;}
 QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {background:transparent;}
 QScrollBar:horizontal {height:0;}
-QLineEdit {background:@well;border:@border solid @line;border-radius:@radius_control;padding:@space_s @space_m;
+QLineEdit {background:@well;border:@border.width solid @line;border-radius:@rounding.medium;padding:@spacing.small @spacing.medium;
            selection-background-color:@text_selection;}
-QLineEdit:focus {border:@focus_width solid @focus_input;}
-QLineEdit#kitSearch {border-radius:18px;padding:0 @space_m 0 34px;min-height:36px;background:@well;}
-QPushButton {padding:@space_s @space_l;border-radius:@radius_control;background:@fill;border:0;color:@control_text;}
+QLineEdit:focus {border:@border.focus solid @focus_input;}
+QLineEdit#kitSearch {border-radius:18px;padding:0 @spacing.medium 0 34px;min-height:36px;background:@well;}
+QPushButton {padding:@spacing.small @spacing.large;border-radius:@rounding.medium;background:@fill;border:0;color:@control_text;}
 QPushButton:hover {background:@hover;}
 QPushButton:pressed {background:@pressed;}
-QPushButton:focus {border:@focus_width solid @focus;}
+QPushButton:focus {border:@border.focus solid @focus;}
 QPushButton:disabled {background:@disabled_surface;color:@disabled;}
 QPushButton#primary {background:@accent;color:@on_accent;font-weight:600;}
 QPushButton#primary:hover {background:@accent_hover;}
 QPushButton#primary:pressed {background:@accent_pressed;}
-QMenu {background:@menu;color:@text;border:@border solid @line_strong;border-radius:@radius_m;padding:@space_xs;}
-QMenu::item {padding:@space_s @space_xl @space_s @space_m;border-radius:@radius_s;}
+QMenu {background:@menu;color:@text;border:@border.width solid @line_strong;border-radius:@rounding.medium;padding:@spacing.extraSmall;}
+QMenu::item {padding:@spacing.small @spacing.extraLarge @spacing.small @spacing.medium;border-radius:@rounding.small;}
 QMenu::item:selected {background:@menu_selected;}
 QMenu::item:disabled {color:@disabled;}
-QMenu::separator {height:1px;background:@divider;margin:@space_xs @space_s;}
-QToolTip {background:@tooltip;color:@on_tooltip;border:@border solid @tooltip_line;padding:@space_xs @space_s;}
-QLabel#heading {font-size:@font_title;font-weight:700;}
-QLabel#muted {color:@muted;font-size:@font_small;}
+QMenu::separator {height:1px;background:@divider;margin:@spacing.extraSmall @spacing.small;}
+QToolTip {background:@tooltip;color:@on_tooltip;border:@border.width solid @tooltip_line;padding:@spacing.extraSmall @spacing.small;}
+QLabel#heading {font-size:@font.title.large.size;font-weight:700;}
+QLabel#muted {color:@muted;font-size:@font.body.small.size;}
 '''
 
 
 def apply_kit_style(widget):
-    """Themed QSS for colours/shapes plus the Rubik body font, inherited by children."""
+    """Themed QSS for colours/shapes plus the theme's body font, inherited by children."""
     load_fonts()
     extend_style(widget, KIT_STYLE)
-    widget.setFont(text_font('body'))
+    widget.setFont(text_font('body.medium'))

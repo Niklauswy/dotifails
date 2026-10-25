@@ -217,7 +217,7 @@ class Motion:
         animation = QVariantAnimation(self.view)
         animation.setStartValue(self.hover.get(row, 0.0))
         animation.setEndValue(float(target))
-        animation.setDuration(metric('motion_fast') + 60)
+        animation.setDuration(metric('anim.durations.expressiveFastEffects') + 60)
         animation.setEasingCurve(QEasingCurve.OutCubic)
         animation.valueChanged.connect(lambda value, row=row: (self.hover.__setitem__(row, float(value)), self._repaint(row)))
         animation.finished.connect(lambda row=row: self.running.pop(row, None))
@@ -272,7 +272,7 @@ def thumbnail(painter, model, item, art, radius, zoom=1.0):
 
 
 def badge(painter, art, text):
-    painter.setFont(text_font('caption', 700))
+    painter.setFont(text_font('label.small', 700))
     width = painter.fontMetrics().horizontalAdvance(text) + 14
     box = QRectF(art.right() - width - 8, art.bottom() - 26, width, 20)
     painter.setPen(Qt.NoPen)
@@ -318,7 +318,7 @@ class Delegate(QStyledItemDelegate):
         row = index.row()
         painter.save()
         painter.setRenderHint(QPainter.Antialiasing)
-        radius = tokens()['radius_m']
+        radius = tokens()['rounding.medium']
         hover = self.motion.hover.get(row, 0.0) if self.motion else 0.0
         arrival = self.motion.arrival(item) if self.motion else 1.0
         scale = (self.motion.selected_scale(row) if self.motion else 1.0) * (1 + .02 * hover)
@@ -340,10 +340,10 @@ class Delegate(QStyledItemDelegate):
         if item.video is not None:
             play_button(painter, art, hover)
         text = QRectF(card.left() + 2, art.bottom() + 8, card.width() - 4, 22)
-        painter.setFont(text_font('body', 600))
+        painter.setFont(text_font('body.medium', 600))
         painter.setPen(color('text_strong'))
         painter.drawText(text, Qt.AlignLeft | Qt.AlignVCenter, painter.fontMetrics().elidedText(item.title, Qt.ElideRight, int(text.width())))
-        painter.setFont(text_font('small'))
+        painter.setFont(text_font('body.small'))
         painter.setPen(color('danger' if item.state == 'error' else 'muted'))
         painter.drawText(QRectF(text.left(), text.bottom() + 2, text.width(), 20), Qt.AlignLeft | Qt.AlignVCenter, info_line(item))
         if option.state & QStyle.State_HasFocus:
@@ -381,20 +381,20 @@ class RowDelegate(QStyledItemDelegate):
             painter.setBrush(color('nav_selected') if selected else color('tint', round(14 * hover)))
             painter.drawRoundedRect(box, box.height() / 2.4, box.height() / 2.4)
         art = QRectF(box.left() + 8, box.top() + 7, 96, 54)
-        thumbnail(painter, self.model, item, art, tokens()['radius_s'], 1 + .05 * hover)
+        thumbnail(painter, self.model, item, art, tokens()['rounding.small'], 1 + .05 * hover)
         if item.video is not None:
             play_button(painter, art, hover * .9)
         left = art.right() + 14
-        painter.setFont(text_font('body', 600))
+        painter.setFont(text_font('body.medium', 600))
         painter.setPen(color('text_strong'))
         right = box.right() - 72
         painter.drawText(QRectF(left, box.top() + 14, right - left, 22), Qt.AlignLeft | Qt.AlignVCenter,
                          painter.fontMetrics().elidedText(item.title, Qt.ElideRight, int(right - left)))
-        painter.setFont(text_font('small'))
+        painter.setFont(text_font('body.small'))
         painter.setPen(color('danger' if item.state == 'error' else 'muted'))
         painter.drawText(QRectF(left, box.top() + 36, right - left, 20), Qt.AlignLeft | Qt.AlignVCenter, info_line(item))
         if item.duration and item.state == 'ready':
-            painter.setFont(text_font('small', 600))
+            painter.setFont(text_font('body.small', 600))
             painter.setPen(color('muted'))
             painter.drawText(QRectF(box.right() - 70, box.top(), 58, box.height()), Qt.AlignRight | Qt.AlignVCenter, clock(item.duration))
         if option.state & QStyle.State_HasFocus:
@@ -534,7 +534,7 @@ class LibraryPage(QWidget):
         self.library, self.trash = library, trash
         self.model = LibraryModel(library, trash, recent)
         column = QVBoxLayout(self)
-        margin = metric('space_xl')
+        margin = metric('spacing.extraLarge')
         column.setContentsMargins(margin, margin, margin, 0)
         head = QHBoxLayout()
         self.heading = QLabel(title)
@@ -542,7 +542,7 @@ class LibraryPage(QWidget):
         self.count = QLabel('')
         self.count.setObjectName('muted')
         head.addWidget(self.heading)
-        head.addSpacing(metric('space_m'))
+        head.addSpacing(metric('spacing.medium'))
         head.addWidget(self.count, 0, Qt.AlignBottom)
         head.addStretch()
         from ..videolibrary import preferences
@@ -559,7 +559,7 @@ class LibraryPage(QWidget):
             self.trash_button = Button('Vaciar papelera', 'delete_forever', 'tonal', self.empty_trash)
             head.addWidget(self.trash_button)
         column.addLayout(head)
-        column.addSpacing(metric('space_s'))
+        column.addSpacing(metric('spacing.small'))
         self.grid = Grid(self.model)
         self.grid.activatedItem.connect(self.open)
         self.grid.menuRequested.connect(self.menu)

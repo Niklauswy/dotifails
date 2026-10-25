@@ -2,7 +2,9 @@
 
 Stylesheets are templates. ``@token`` becomes the token value, ``@token/40`` the same
 colour with alpha 40 (0-255) and ``@svg(name,token)`` a tinted copy of an asset SVG.
-Metric tokens render as pixels and ``@font_family`` as a quoted family list.
+Shape tokens use the shell's dotted names (``@rounding.medium``, ``@spacing.large``):
+lengths render as pixels, ``@font.<role>.<size>.size`` as points (the shell's type scale)
+and ``@font.family.sans`` as a quoted family.
 ``apply_style`` keeps the template on the widget, so a mode or wallpaper change
 re-renders every widget, including widgets created later. Painters call
 ``color()``/``font()`` while painting; other caches register with ``on_theme_changed``.
@@ -14,14 +16,13 @@ import time
 import weakref
 from pathlib import Path
 
-from PySide6.QtGui import QColor, QFont, QFontDatabase, QPalette
+from PySide6.QtGui import QColor, QFont, QPalette
 
 from . import paths, theme
 from .jsonio import atomic_write_text
 
-MARKER = re.compile(r'@svg\(([\w-]+),\s*([a-z][a-z0-9_]*)\)|@([a-z][a-z0-9_]*)(?:/(\d{1,3}))?')
-PIXELS = ('radius_', 'corner_', 'space_', 'font_caption', 'font_small', 'font_body', 'font_heading', 'font_title',
-          'border', 'focus_width', 'icon_size', 'shadow_')
+MARKER = re.compile(r'@svg\(([\w-]+),\s*([a-z][a-z0-9_]*)\)|@([a-z][a-z0-9_]*(?:\.[a-zA-Z][a-zA-Z0-9]*)*)(?:/(\d{1,3}))?')
+PIXELS = ('rounding.', 'spacing.', 'padding.', 'border.', 'icon.size')
 TEMPLATE = 'wysunThemeTemplate'          # widget property holding the unrendered stylesheet
 ASSET_DIRS = [Path(__file__).resolve().parents[1] / 'assets']   # apps/wysun/assets; apps may add theirs
 _listeners = []
@@ -83,24 +84,37 @@ def css(name, alpha=None, values=None):
     return f'rgba({value.red()},{value.green()},{value.blue()},{alpha})'  # theme-exception: conversion a sintaxis CSS
 
 
-def family(values=None):
-    """First installed family of the theme's list."""
-    available = set(QFontDatabase.families())
-    names = (values or tokens())['font_family']
-    return next((name for name in names if name in available), names[-1])
+def family(values=None, kind='sans'):
+    """The theme family ``font.family.<kind>`` (sans, mono or icon)."""
+    return (values or tokens())['font.family.' + kind]
 
 
-def font(size=None, weight=None, role=None, values=None):
-    """QFont in the theme family. ``size`` is points; ``role`` (body/small/caption/heading/title) a pixel token."""
+def font(role=None, size=None, weight=None, values=None):
+    """QFont of a type-scale ``role`` of the shell (``'body.medium'``, ``'mono.small'``…) in points.
+
+    ``size`` (points) and ``weight`` override the role's; without a role the font is the sans family.
+    """
     values = values or tokens()
-    result = QFont(family(values))
+    result = QFont(family(values, 'mono' if role and role.startswith('mono.') else 'sans'))
     if role:
-        result.setPixelSize(int(values['font_' + role]))
-    elif size:
+        result.setPointSizeF(values[f'font.{role}.size'])
+        result.setWeight(QFont.Weight(int(values[f'font.{role}.weight'])))
+    if size:
         result.setPointSizeF(size)
     if weight is not None:
         result.setWeight(QFont.Weight(int(weight)))
     return result
+
+
+def easing(name, values=None):
+    """QEasingCurve of an ``anim.curves.*`` token, built like the shell's AnimTokens::buildCurve."""
+    from PySide6.QtCore import QEasingCurve, QPointF
+    points = (values or tokens())[name]
+    curve = QEasingCurve(QEasingCurve.BezierSpline)
+    for index in range(0, len(points) - 5, 6):
+        curve.addCubicBezierSegment(QPointF(points[index], points[index + 1]), QPointF(points[index + 2], points[index + 3]),
+                                    QPointF(points[index + 4], points[index + 5]))
+    return curve
 
 
 def svg_asset(name, token, values=None):
@@ -123,8 +137,10 @@ def _render(match, values):
     value = values[name]
     if isinstance(value, str) and value.startswith('#'):
         return css(name, alpha, values)
-    if name in ('font_family', 'font_mono'):
-        return ', '.join(f'"{item}"' for item in value)
+    if name.startswith('font.family.'):
+        return f'"{value}"'
+    if isinstance(value, (int, float)) and name.startswith('font.') and name.endswith('.size'):
+        return f'{value:g}pt'
     if isinstance(value, (int, float)) and name.startswith(PIXELS):
         return f'{value:g}px'
     return str(value)

@@ -74,10 +74,10 @@ class PlayerComponentTests(unittest.TestCase):
         from wysun_media import host
         page = self.page()
         values = tokens.tokens()
-        self.assertEqual(host.get().token('corner_xl'), values['corner_xl'])
+        self.assertEqual(host.get().token('rounding.extraLarge'), values['rounding.extraLarge'])
         self.assertEqual(host.get().color('hud').name(), tokens.color('hud').name())
         self.assertEqual(page.player.mode, 'embedded')
-        self.assertEqual(page.player.rounding.corner, 'xl')
+        self.assertEqual(page.player.rounding.corner, 'extraLarge')
 
     def test_keys_reach_the_player_when_the_page_has_focus(self):
         page = self.page()
