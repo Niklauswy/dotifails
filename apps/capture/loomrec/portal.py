@@ -275,11 +275,6 @@ class Portal:
         if uri.scheme!='file' or uri.netloc not in ('','localhost'):raise RuntimeError('El portal no devolvió una imagen local')
         return Path(unquote(uri.path))
 
-    def pick_color(self):
-        values=self.request('org.freedesktop.portal.Screenshot','PickColor','').get('color',())
-        if len(values)!=3 or not all(0<=float(v)<=1 for v in values):raise RuntimeError('El portal devolvió un color inválido')
-        return tuple(float(v) for v in values)
-
     def close(self):
         if self.disposed:return
         strict=getattr(self,'strict_close',False)
@@ -306,7 +301,6 @@ if __name__=='__main__':
     import json,sys
     portal=Portal()
     try:
-        if sys.argv[1:] == ['pick-color']:print(json.dumps(portal.pick_color()))
-        elif sys.argv[1:] == ['screenshot']:print(json.dumps({'path':str(portal.screenshot())}))
-        else:raise SystemExit('Use screenshot or pick-color')
+        if sys.argv[1:] == ['screenshot']:print(json.dumps({'path':str(portal.screenshot())}))
+        else:raise SystemExit('Use screenshot')
     finally:portal.close()

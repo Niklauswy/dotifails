@@ -120,11 +120,6 @@ def main(serial_diagnostic=False, stream_diagnostic=False, case_selector='all'):
               {'WIREPLUMBER_DEBUG':'4'} if stream_diagnostic or case_selector.startswith('live-static') else None)
         objects = json.loads(command(['/usr/bin/pw-dump']))
         assert not any(o.get('type', '').endswith(':Device') for o in objects), 'Unexpected hardware device'
-        if case_selector=='color':
-            tools=run_dir/'color-picker-bin';tools.mkdir()
-            wrapper=tools/'slurp'
-            wrapper.write_text('#!/usr/bin/python3\nimport subprocess,sys\nfrom pathlib import Path\np=subprocess.run(["/tmp/wysun-portal-tools/root/usr/bin/slurp",*sys.argv[1:]],stdout=subprocess.PIPE)\nPath('+repr(str(run_dir/'selected-point.txt'))+').write_bytes(p.stdout)\nsys.stdout.buffer.write(p.stdout)\nraise SystemExit(p.returncode)\n')
-            wrapper.chmod(0o700);env['PATH']=str(tools)+':'+env['PATH'];os.environ['PATH']=env['PATH']
         start('private-xdph', [PORTAL_ROOT / 'usr/libexec/xdg-desktop-portal-hyprland'])
         start('private-gtk', ['/usr/libexec/xdg-desktop-portal-gtk', '--replace', '--verbose'],
               {'GDK_BACKEND':'wayland', 'WAYLAND_DEBUG':'client'})
@@ -227,10 +222,6 @@ def main(serial_diagnostic=False, stream_diagnostic=False, case_selector='all'):
             return
         if case_selector == 'startup-cancel':
             from wayland_startup_cancel_case import run_case
-            run_case(run_dir,env,command,start,wait_for)
-            return
-        if case_selector == 'color':
-            from wayland_color_case import run_case
             run_case(run_dir,env,command,start,wait_for)
             return
         if case_selector == 'previews':

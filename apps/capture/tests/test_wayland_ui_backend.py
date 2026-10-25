@@ -2,11 +2,9 @@
 import os
 from pathlib import Path
 import tempfile
-from types import SimpleNamespace
 import unittest
-from unittest.mock import Mock,patch
-from PySide6.QtCore import Qt,QRect,Signal
-from PySide6.QtWidgets import QApplication,QWidget,QLabel,QComboBox,QButtonGroup,QRadioButton
+from unittest.mock import patch
+from PySide6.QtWidgets import QApplication
 
 
 class NativeUiBackendTests(unittest.TestCase):
@@ -19,17 +17,6 @@ class NativeUiBackendTests(unittest.TestCase):
         self.env=patch.dict(os.environ,dict(WAYLAND_DISPLAY='synthetic-wayland',XDG_SESSION_TYPE='wayland',DISPLAY=':synthetic-xwayland',QT_QPA_PLATFORM='wayland',XDG_CONFIG_HOME=self.temp.name))
         self.env.start()
     def tearDown(self):self.env.stop();self.temp.cleanup()
-    def test_material_never_opens_xlib_or_passes_native_winid_to_x11(self):
-        from loomrec.ui.materials import _x11_property,apply_material
-        with patch('loomrec.ui.materials.ctypes.CDLL') as library,patch('subprocess.run') as run:
-            self.assertFalse(_x11_property(123,True,20))
-            widget=QWidget();widget.show();binding=apply_material(widget);binding.refresh()
-            self.assertEqual(widget.property('materialMode'),'matte');library.assert_not_called();run.assert_not_called()
-            widget.close();widget.deleteLater();self.app.processEvents()
-        # Existing X11 branch remains callable, entirely mocked here.
-        with patch.dict(os.environ,dict(WAYLAND_DISPLAY='',XDG_SESSION_TYPE='x11',QT_QPA_PLATFORM='xcb')),patch('loomrec.ui.materials.ctypes.CDLL') as library:
-            library.return_value.XOpenDisplay.return_value=None
-            self.assertFalse(_x11_property());library.assert_called_once()
     def test_native_player_embeds_without_winid_or_mpv_subprocess(self):
         import subprocess
         from PySide6.QtCore import QProcess

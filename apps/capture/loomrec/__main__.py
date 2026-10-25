@@ -4,7 +4,6 @@ def main():
     parser.add_argument('--version', action='version', version='Wysun Recorder 0.1.0')
     parser.add_argument('--quick-record', action='store_true', help='Open only the floating quick capture bar')
     parser.add_argument('--devices', action='store_true')
-    parser.add_argument('--pick-color',action='store_true',help='Pick a color using the desktop portal; prints RGB JSON')
     parser.add_argument('--record', action='store_true', help='Open recording setup without starting capture')
     parser.add_argument('--recover', metavar='PROJECT_DIRECTORY')
     parser.add_argument('--audio-devices', action='store_true', help='Print microphones and cameras as JSON')
@@ -17,13 +16,7 @@ def main():
     for action in ['status','pause','resume','stop']:
         actions.add_argument('--'+action, metavar='PROJECT_DIRECTORY')
     args = parser.parse_args()
-    if args.pick_color:
-        import json
-        from .portal import Portal
-        portal=Portal()
-        try:print(json.dumps(portal.pick_color()))
-        finally:portal.close()
-    elif args.devices:
+    if args.devices:
         import json
         from .devices import discover
         print(json.dumps(discover(), indent=2))
@@ -67,12 +60,6 @@ def main():
         if name!='status':getattr(session,name)()
         print(json.dumps(session.status(),indent=2))
     else:
-        if args.quick_record:
-            import os
-            os.environ['LOOMREC_QUICK_RECORD']='1'
-        if args.record:
-            import os
-            os.environ['LOOMREC_START_RECORDING']='1'
         from .ui import main as ui_main
         ui_main()
 

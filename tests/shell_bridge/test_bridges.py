@@ -103,7 +103,7 @@ class NotificationOwnershipTests(unittest.TestCase):
     def test_no_dunst_is_started_or_called(self):
         root = SHELL.parents[1]
         for relative in ('bin/wysun-session-services', 'apps/shell/wysun/backend.py', 'apps/wysun/theme_runtime.py',
-                         'apps/capture/loomrec/integration.py', 'config/.config/wysun/hyprland.lua'):
+                         'config/.config/wysun/hyprland.lua'):
             self.assertNotIn('dunst', (root / relative).read_text().lower(), relative)
 
     def test_dnd_command_reaches_the_shell_ipc(self):

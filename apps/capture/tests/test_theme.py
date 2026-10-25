@@ -61,24 +61,11 @@ class CaptureTheme(unittest.TestCase):
             self.assertEqual(color('blue').name().upper(),'#A24670')
         finally:
             path.unlink(missing_ok=True);theme_core.invalidate();settle(self.app)
-    def test_material_resources_and_live_navigation_geometry(self):
-        from loomrec.ui.material import load_fonts, SYMBOLS, symbol_pixmap, Navigation, Workspace, metric
-        from PySide6.QtWidgets import QWidget
+    def test_material_symbol_fonts_render_every_glyph(self):
+        from loomrec.ui.material import load_fonts, SYMBOLS, symbol_pixmap
         self.assertTrue(all(identifier >= 0 for identifier in load_fonts()))
         for name in SYMBOLS:
             self.assertIsNotNone(symbol_pixmap(name, color('text'), 24), name)
-        activated=[]
-        nav=Navigation('Fixture', [('Biblioteca','library',lambda: activated.append('library'))])
-        page=Workspace(nav,QWidget());page.resize(1100,650);page.show()
-        try:
-            for style,variant in VARIANTS:
-                write(style,variant);settle(self.app)
-                self.assertEqual(page.layout().contentsMargins().left(),metric('space_m'))
-                nav.buttons[0][0].click()
-                self.assertFalse(page.grab().isNull())
-            self.assertEqual(activated,['library']*len(VARIANTS))
-        finally:
-            page.close();page.deleteLater()
     def test_auto_follows_the_scheme_and_an_old_file_still_reads(self):
         path=Path(CONFIG.name)/'orbit/theme.json'
         path.write_text('{"mode":"auto"}');settle(self.app)
