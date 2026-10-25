@@ -259,8 +259,7 @@ class EnvironmentSettings:
         paths = {'environment.json': self.path,
                  'theme.json': theme.selection_path(self.home),
                  'scheme.json': theme.scheme_path(self.home)}
-        for key in ('environment.json', 'theme.json'):
-            json_object(paths[key])
+        json_object(paths['environment.json'])     # theme.json: wysun_core.theme replaces a broken one with a backup
         if expected is not None and self.colour_values() != expected:
             raise ValueError('El color cambió en otra ventana. Recarga antes de guardar.')
         if values['mode'] not in theme.MODES:

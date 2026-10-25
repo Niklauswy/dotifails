@@ -141,19 +141,23 @@ def _backup(path, home=None):
 
 
 def write_mode(mode, home=None):
-    """Store the mode, keeping any other key of theme.json and a backup of the previous file."""
+    """Store the mode, keeping any other key of theme.json and a backup of the previous file.
+
+    A file that is not a JSON object is replaced (its backup keeps the original bytes).
+    """
     if mode not in MODES:
         raise ValueError('Modo desconocido: ' + str(mode))
     path = selection_path(home)
     try:
         original = path.read_text(encoding='utf-8')
-        value = json.loads(original)
     except FileNotFoundError:
-        original, value = None, {}
-    except (OSError, ValueError) as error:
-        raise ValueError('No se reemplazó theme.json porque no es un objeto JSON válido.') from error
+        original = None
+    try:
+        value = json.loads(original) if original is not None else {}
+    except ValueError:
+        value = None
     if not isinstance(value, dict):
-        raise ValueError('No se reemplazó theme.json porque no es un objeto JSON válido.')
+        value = {}                  # a broken file is replaced; the backup below keeps its bytes
     value['mode'] = mode
     text = json.dumps(value, ensure_ascii=False, indent=2) + '\n'
     if text != original:

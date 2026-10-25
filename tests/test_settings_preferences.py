@@ -264,10 +264,12 @@ class ColourPreferenceTests(PreferenceCase):
         self.assertEqual(json.loads((self.orbit / 'theme.json').read_text()), {'mode': 'dark'})
 
     def test_invalid_theme_json_or_mode_blocks_the_save(self):
+        environment = self.write('environment.json', '{oops')
         theme_file = self.write('theme.json', '{oops')
         before = self.state()
         with self.assertRaisesRegex(ValueError, 'JSON inválido'):
             self.env.apply_colour(dict(mode='dark'), None)
+        environment.write_text('{}')
         theme_file.write_text('{}')
         for bad in ('nope', 'sepia', ''):
             with self.assertRaises(ValueError):

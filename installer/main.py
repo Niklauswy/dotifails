@@ -343,10 +343,12 @@ class Deployment:
                 if (self.source/'config'/rel).is_file():self.deploy(self.source/'config'/rel,Path(rel))
         if selected & {'desktop','terminal'}:self.deploy(self.source/'assets/fonts',Path('.local/share/fonts/dotifails'))
         if 'desktop' in selected:
-            # The mode is the only choice: keep the user's; anything else starts automatic.
-            stored=read(self.home/'.config/orbit/theme.json',{})
-            mode=stored.get('mode') if isinstance(stored,dict) else None
-            self.generated(json.dumps({'mode':mode if mode in ('auto','light','dark') else 'auto'},indent=2)+'\n',Path('.config/orbit/theme.json'))
+            # The mode is the only choice: keep the user's (and any other key); a broken file starts automatic.
+            try:stored=json.loads((self.home/'.config/orbit/theme.json').read_text())
+            except (OSError,ValueError):stored={}
+            stored=stored if isinstance(stored,dict) else {}
+            stored['mode']=stored.get('mode') if stored.get('mode') in ('auto','light','dark') else 'auto'
+            self.generated(json.dumps(stored,ensure_ascii=False,indent=2)+'\n',Path('.config/orbit/theme.json'))
             preferences=read(self.home/'.config/orbit/environment.json',{})
             if not preferences.get('wallpaper',{}).get('default'):
                 preferences['wallpaper']=dict(default=str(self.home/'.local/share/backgrounds'/default_wallpaper(self.source)),mode='fill',monitors={},folders=preferences.get('wallpaper',{}).get('folders',[]))
@@ -505,6 +507,13 @@ def install_extras(names,d,env):
         d.generated(f'#!/bin/sh\nexec flatpak run {EXTRAS[name]} "$@"\n',Path('.local/bin')/command,True)
 
 
+def required_files(home,selected):
+    """Installed files doctor checks for the selected components (relative to home)."""
+    required=[]
+    if 'desktop' in selected:required += ['.config/wysun/hyprland.lua','.local/share/orbit/app/orbit.py','.local/share/wysun/quickshell/shell.qml','.local/share/backgrounds/'+read(home/'.local/share/orbit/app/wysun_core/tokens.json',{}).get('wallpaper','')]
+    return required
+
+
 def doctor(home,components=None):
     home=Path(home);env=dict(os.environ,HOME=str(home),PATH=str(home/'.local/bin')+':'+os.environ.get('PATH',''));failed=[]
     selected=set(normalize_components(components or read(home/'.local/state/dotifails/installed.json',{}).get('components')))
@@ -526,9 +535,7 @@ def doctor(home,components=None):
         except (OSError,subprocess.TimeoutExpired):opengl=False
         # Not a failure: Wysun Player falls back to software rendering, which works but uses more CPU.
         print('OK  Wysun Player (OpenGL)' if opengl else 'AVISO Wysun Player usa renderizado por software: instala python3-pyside6.qtopengl y python3-pyside6.qtopenglwidgets')
-    required=[]
-    if 'desktop' in selected:required += ['.config/wysun/hyprland.lua','.local/share/orbit/app/orbit.py','.local/share/wysun/quickshell/shell.qml','.local/share/backgrounds/'+read(home/'.local/share/orbit/app/wysun_theme.json',{}).get('default',{}).get('wallpaper','')]
-    for rel in required:
+    for rel in required_files(home,selected):
         ok=(home/rel).is_file();print(('OK  ' if ok else 'FAIL ')+rel)
         if not ok:failed.append(rel)
     if 'terminal' in selected:

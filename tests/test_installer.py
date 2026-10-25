@@ -15,18 +15,22 @@ class InstallerTests(unittest.TestCase):
    self.assertEqual(json.loads(written['.config/orbit/theme.json']),{'mode':'auto'})
    self.assertEqual(json.loads(written['.config/orbit/environment.json'])['wallpaper']['default'],str(self.home/'.local/share/backgrounds/purple.jpg'))
   finally:d.lock.close()
-  # An update keeps the mode and the wallpaper the user picked; an unknown format starts automatic.
-  for stored,expected in (({'mode':'light'},'light'),({'style':'fluent','variant':'dark'},'auto'),({'id':'tokyo','name':'Tokyo'},'auto'),
-                          ({'style':'fluent','variant':'dark','dynamic':{'enabled':True,'mode':'dark'}},'auto')):
-   active=self.home/'.config/orbit/theme.json';active.parent.mkdir(parents=True,exist_ok=True);active.write_text(json.dumps(stored))
+  # An update keeps the mode, any other key and the wallpaper the user picked; a broken file starts automatic.
+  for stored,expected in (('{"mode":"light","x":1}',{'mode':'light','x':1}),('{"style":"fluent","variant":"dark"}',{'style':'fluent','variant':'dark','mode':'auto'}),
+                          ('[]',{'mode':'auto'}),('nope',{'mode':'auto'})):
+   active=self.home/'.config/orbit/theme.json';active.parent.mkdir(parents=True,exist_ok=True);active.write_text(stored)
    (self.home/'.config/orbit/environment.json').write_text(json.dumps({'wallpaper':{'default':'/mine.jpg','folders':['/library']}}))
    d=self.deploy()
    try:
     with patch.object(d,'deploy'),patch.object(d,'configure_scripts'),patch.object(d,'configure_manager'),patch.object(d,'generated') as generated:d.configure(components=('desktop',))
     written={str(call.args[1]):call.args[0] for call in generated.call_args_list}
-    self.assertEqual(json.loads(written['.config/orbit/theme.json']),{'mode':expected},stored)
+    self.assertEqual(json.loads(written['.config/orbit/theme.json']),expected,stored)
     self.assertNotIn('.config/orbit/environment.json',written,'the personal wallpaper is left alone')
    finally:d.lock.close()
+ def test_doctor_checks_the_shipped_wallpaper_from_the_installed_tokens(self):
+  tokens=self.home/'.local/share/orbit/app/wysun_core/tokens.json';tokens.parent.mkdir(parents=True)
+  tokens.write_text(json.dumps({'schema':2,'wallpaper':'purple.jpg'}))
+  self.assertIn('.local/share/backgrounds/purple.jpg',m.required_files(self.home,{'desktop'}))
  def test_mise_shim_keeps_command_name(self):
   import subprocess,tarfile
   bundle=self.root/'bundle';(bundle/'mise/bin').mkdir(parents=True)

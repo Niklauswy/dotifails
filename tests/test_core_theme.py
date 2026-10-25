@@ -51,11 +51,13 @@ class ThemeTests(unittest.TestCase):
         self.assertEqual(len(list((self.home / '.local/state/orbit/theme-backups').iterdir())), 1)
         self.assertEqual(theme.read_mode(self.home), 'light')
 
-    def test_write_mode_refuses_a_non_object_file_and_unknown_modes(self):
-        path = self.selection('[]')
-        with self.assertRaises(ValueError):
+    def test_write_mode_replaces_a_broken_file_and_keeps_a_backup(self):
+        for text in ('[]', 'nope'):
+            path = self.selection(text)
             theme.write_mode('light', self.home)
-        self.assertEqual(path.read_text(), '[]')
+            self.assertEqual(json.loads(path.read_text()), {'mode': 'light'})
+        backups = sorted((self.home / '.local/state/orbit/theme-backups').iterdir())
+        self.assertEqual([b.read_text() for b in backups], ['[]', 'nope'])
         with self.assertRaises(ValueError):
             theme.write_mode('sepia', self.home)
 

@@ -63,13 +63,14 @@ class ModeTests(unittest.TestCase):
         self.theme.write_text('{"mode": "light", "unrelated": 1}')
         self.assertEqual(theme.read_mode(self.home), 'light')
 
-    def test_unreadable_theme_json_is_never_overwritten(self):
+    def test_unreadable_theme_json_is_replaced_and_kept_as_a_backup(self):
         self.theme.write_text('{broken')
+        self.config.joinpath('environment.json').write_text(json.dumps({'wallpaper': {'default': str(self.red)}}))
         self.assertEqual(theme.read_mode(self.home), 'auto')
-        with self.assertRaises(ValueError):
-            wysun_scheme.set_scheme('dark', self.home)
-        self.assertEqual(self.theme.read_text(), '{broken')
-        self.assertFalse(self.state_file.exists())
+        wysun_scheme.set_scheme('dark', self.home)
+        self.assertEqual(json.loads(self.theme.read_text()), {'mode': 'dark'})
+        backups = list((self.home / '.local/state/orbit/theme-backups').iterdir())
+        self.assertEqual([b.read_text() for b in backups], ['{broken'])
 
     def test_set_persists_the_mode_and_publishes_the_scheme_from_the_wallpaper(self):
         self.theme.write_text('{"mode":"auto","private":"keep"}\n')
