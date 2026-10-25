@@ -105,6 +105,22 @@ class InstanceTests(unittest.TestCase):
         server.close()
         self.assertFalse(server.endpoint.exists())
 
+    def test_termination_right_after_claim_removes_the_socket(self):
+        import signal
+        import subprocess
+        child = subprocess.Popen([sys.executable, '-c', (
+            'import sys, time; sys.path.insert(0, sys.argv[1])\n'
+            'from wysun_core.instance import SingleInstance, release_on_termination\n'
+            'owner = SingleInstance("t", sys.argv[2]); owner.claim(); release_on_termination(owner)\n'
+            'print("ready", flush=True); time.sleep(30)\n'),
+            str(Path(__file__).resolve().parents[1] / 'apps/wysun'), str(self.dir)], stdout=subprocess.PIPE, text=True)
+        self.addCleanup(child.kill)
+        self.assertEqual(child.stdout.readline().strip(), 'ready')
+        self.assertTrue((self.dir / 't.sock').exists())
+        child.send_signal(signal.SIGTERM)
+        self.assertEqual(child.wait(timeout=5), 0)
+        self.assertFalse((self.dir / 't.sock').exists())
+
     def test_qt_notifier_dispatches_requests(self):
         os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
         from PySide6.QtCore import QCoreApplication

@@ -4,6 +4,7 @@ Clients call :func:`send`; the owner claims a :class:`SingleInstance` and calls
 ``poll`` whenever its socket is readable (``qt_instance`` wires that to Qt).
 """
 import fcntl
+import signal
 import socket
 import time
 from pathlib import Path
@@ -107,6 +108,19 @@ class SingleInstance:
         if self._lock is not None:
             self._lock.close()
             self._lock = None
+
+
+def release_on_termination(instance):
+    """Until the app installs its own handlers, SIGTERM/SIGINT remove the socket and exit cleanly.
+
+    The socket exists as soon as the instance is claimed, often before Qt has started;
+    without this a termination in that window would leave a stale endpoint behind.
+    """
+    def stop(*_):
+        instance.close()
+        raise SystemExit(0)
+    for number in (signal.SIGTERM, signal.SIGINT):
+        signal.signal(number, stop)
 
 
 def send(endpoint, message, *, timeout=1.0, reply=False, retry=0.0):

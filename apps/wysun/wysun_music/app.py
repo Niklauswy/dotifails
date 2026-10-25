@@ -7,7 +7,7 @@ import sys
 from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QApplication
 
-from wysun_core.instance import SingleInstance, send
+from wysun_core.instance import SingleInstance, release_on_termination, send
 from wysun_core.qt_instance import InstanceNotifier
 
 from .covers import CoverStore
@@ -60,6 +60,7 @@ def main(argv=None):
         return 0
     if not owner.claim():
         return 0
+    release_on_termination(owner)            # until the Qt handlers below take over
 
     qt = QApplication(['Orbit', '-name', 'Orbit'])
     qt.setStyle('Fusion')

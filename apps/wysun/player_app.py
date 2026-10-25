@@ -7,11 +7,11 @@ and exits; the process ends with its last window, so nothing stays resident.
     wysun player [--paused] [--fullscreen] [--start SECONDS] [--] FILE...
 """
 import argparse
-import signal
 import sys
 import time
 
 import player_client
+from wysun_core.instance import release_on_termination
 
 EXIT_MESSAGE = 'Wysun Player: no se pudo iniciar (¿otra instancia se está cerrando?)'
 
@@ -43,12 +43,7 @@ def main(argv=None):
 
 def serve(first, owner):
     """Become the player process: import Qt only now, so a forwarded launch stays light."""
-    def stop(*_):
-        owner.close()
-        raise SystemExit(0)
-    # Until Qt takes over the signals (in run), a termination still removes the socket.
-    for number in (signal.SIGTERM, signal.SIGINT):
-        signal.signal(number, stop)
+    release_on_termination(owner)            # until Qt takes over the signals in run()
     from player_window import run
     return run(first, owner)
 
