@@ -29,10 +29,9 @@ ENTRANCE_ROWS = 36
 
 
 @lru_cache(maxsize=512)
-def _wrap(text, family, pixels, weight, width, lines):
-    font = QFont(family)
-    font.setPixelSize(pixels)
-    font.setWeight(QFont.Weight(weight))
+def _wrap(text, key, width, lines):
+    font = QFont()
+    font.fromString(key)
     layout = QTextLayout(text, font)
     option = QTextOption()
     option.setWrapMode(QTextOption.WrapAtWordBoundaryOrAnywhere)
@@ -55,7 +54,7 @@ def _wrap(text, family, pixels, weight, width, lines):
 
 
 def wrapped(text, font, width, lines):
-    return _wrap(text, font.family(), font.pixelSize(), int(font.weight()), max(8, int(width)), lines)
+    return _wrap(text, font.toString(), max(8, int(width)), lines)
 
 
 def list_columns(width):

@@ -5,7 +5,7 @@ sit underneath on the page. Artists wear an M3 cookie that turns a little on
 hover; posters grow a caption block in their artwork's own colour.
 """
 from PySide6.QtCore import QRect, QRectF, QSize, Qt, Signal
-from PySide6.QtGui import QColor, QPainter, QPainterPath
+from PySide6.QtGui import QColor, QFontMetrics, QPainter, QPainterPath
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QSizePolicy, QVBoxLayout, QWidget
 
 from wysun_core.qt_theme import color, tokens
@@ -246,6 +246,55 @@ class BentoTile(Tile):
         self.style, self.symbol, self.eyebrow = style, symbol, eyebrow
         self.setMinimumHeight(180)
 
+    @staticmethod
+    def _eyebrow_font():
+        font = text_font('label.small', 700)
+        font.setLetterSpacing(font.SpacingType.AbsoluteSpacing, 1.1)
+        return font
+
+    @staticmethod
+    def _title_font():
+        return text_font('title.large', 800, 1.05)
+
+    @staticmethod
+    def _subtitle_font():
+        return text_font('body.medium', 500)
+
+    def badge_rect(self):
+        """The corner cookie of the accent and tonal tiles (empty for ``resume``)."""
+        if self.style == 'resume':
+            return QRectF()
+        pad = metric('spacing.large')
+        side = min(self.height() * .62, self.width() * .42)
+        return QRectF(self.width() - side - pad * .6, self.height() - side - pad * .6, side, side)
+
+    def text_rects(self):
+        """Eyebrow, title (up to two lines) and subtitle boxes, sized from the fonts they are painted in.
+
+        The subtitle stops before the badge or the play button, so text never runs under them.
+        """
+        pad = metric('spacing.large')
+        gap = metric('spacing.extraSmall')
+        # The resume tile's square cover fills its height (see paintEvent).
+        text_left = (pad + (self.height() - 2 * pad) - 1) + pad if self.style == 'resume' else pad
+        width = self.width() - text_left - pad
+        y = pad
+        eyebrow = QRect(text_left, y, width, 0)
+        if self.eyebrow:
+            eyebrow.setHeight(QFontMetrics(self._eyebrow_font()).height())
+            y = eyebrow.bottom() + 1 + gap
+        title = QFontMetrics(self._title_font())
+        reserve = self.play_rect().width() + pad if self.style == 'resume' else 0
+        title_rect = QRect(text_left, y, width - reserve, title.height() * 2 + gap)
+        bounds = title.boundingRect(title_rect, Qt.AlignLeft | Qt.TextWordWrap, self.title)
+        top = min(bounds.bottom(), title_rect.bottom()) + gap
+        height = QFontMetrics(self._subtitle_font()).height()
+        obstacle = self.badge_rect() if self.style != 'resume' else QRectF(self.play_rect())
+        right = text_left + width
+        if obstacle.isValid() and top + height > obstacle.top():
+            right = min(right, int(obstacle.left()) - gap)
+        return eyebrow, title_rect, QRect(text_left, top, max(0, right - text_left), height)
+
     def play_rect(self):
         if self.style != 'resume':
             return QRect()
@@ -279,7 +328,6 @@ class BentoTile(Tile):
             painter.setBrush(color('shadow'))
             painter.drawRoundedRect(QRectF(cover).translated(0, 4), tokens()['rounding.medium'], tokens()['rounding.medium'])
             self.draw_cover(painter, cover, tokens()['rounding.medium'])
-            text_left = cover.right() + pad
             painter.save()
         else:
             accent = self.style == 'accent'
@@ -287,34 +335,25 @@ class BentoTile(Tile):
             painter.fillRect(rect, color('accent' if accent else 'nav_selected'))
             painter.fillRect(rect, color('tint', round(10 * self.layer.amount)))
             # A cookie badge in the corner, turning a little with the hover.
-            side = min(self.height() * .62, self.width() * .42)
-            badge = QRectF(self.width() - side - pad * .6, self.height() - side - pad * .6, side, side)
+            badge = self.badge_rect()
+            side = badge.width()
             painter.setPen(Qt.NoPen)
             painter.setBrush(color('on_accent' if accent else 'accent', 40 if accent else 52))
             painter.drawPath(cookie(badge, 12 if accent else 7, 20 * self.layer.amount))
             paint_symbol(painter, badge, self.symbol, ink, side * .42, filled=True)
-            text_left = pad
         painter.restore()
-        width = self.width() - text_left - pad
-        y = pad
+        eyebrow_rect, title_rect, sub_rect = self.text_rects()
         if self.eyebrow:
-            font = text_font('label.small', 700)
-            font.setLetterSpacing(font.SpacingType.AbsoluteSpacing, 1.1)
-            painter.setFont(font)
+            painter.setFont(self._eyebrow_font())
             painter.setPen(color(soft))
-            painter.drawText(QRect(text_left, y, width, 18), Qt.AlignLeft | Qt.AlignVCenter, self.eyebrow.upper())
-            y += 22
-        painter.setFont(text_font('title.large', 800, 1.05))
-        metrics = painter.fontMetrics()
+            painter.drawText(eyebrow_rect, Qt.AlignLeft | Qt.AlignVCenter, self.eyebrow.upper())
+        painter.setFont(self._title_font())
         painter.setPen(color(ink))
-        title_rect = QRect(text_left, y, width - (60 if self.style == 'resume' else 0), metrics.height() * 2 + 4)
         painter.drawText(title_rect, Qt.AlignLeft | Qt.AlignTop | Qt.TextWordWrap, self.title)
-        bounds = metrics.boundingRect(title_rect, Qt.AlignLeft | Qt.TextWordWrap, self.title)
-        painter.setFont(text_font('body.medium', 500))
+        painter.setFont(self._subtitle_font())
         painter.setPen(color(soft))
-        sub = painter.fontMetrics()
-        painter.drawText(QRect(text_left, min(bounds.bottom(), title_rect.bottom()) + 4, width - 64, sub.height()),
-                         Qt.AlignLeft | Qt.AlignVCenter, sub.elidedText(self.subtitle, Qt.ElideRight, width - 64))
+        painter.drawText(sub_rect, Qt.AlignLeft | Qt.AlignVCenter,
+                         painter.fontMetrics().elidedText(self.subtitle, Qt.ElideRight, sub_rect.width()))
         if self.style == 'resume':
             # Always visible on the hero, not only on hover.
             button = QRectF(self.play_rect())

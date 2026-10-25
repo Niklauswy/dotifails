@@ -479,8 +479,13 @@ class AddonTile(QAbstractButton):
             painter.setBrush(color('tint', round(12 * self.layer.amount)))
             painter.drawRoundedRect(rect, radius, radius)
         pad = metric('spacing.large')
-        side = min(rect.height() * .5, rect.width() * .5) * self.pop
-        centre = QPointF(rect.center().x(), pad + rect.height() * .28)
+        # The title and two lines of detail sit at the bottom; the cookie takes what is left above.
+        title_font, detail_font = text_font('title.medium', 700), text_font('body.small')
+        title = QFontMetrics(title_font).height()
+        y = rect.height() - pad - QFontMetrics(detail_font).lineSpacing() * 2 - 2 - title
+        room = y - metric('spacing.large') - pad
+        side = min(room, rect.width() * .5) * self.pop
+        centre = QPointF(rect.center().x(), pad + room / 2)
         box = QRectF(centre.x() - side / 2, centre.y() - side / 2, side, side)
         shape = cookie(box, self.sides, self.angle + 25 * self.layer.amount)
         if on > .01:
@@ -499,12 +504,10 @@ class AddonTile(QAbstractButton):
         painter.drawEllipse(badge)
         paint_symbol(painter, badge, 'check' if self.isChecked() else 'add', 'on_accent' if self.isChecked() else 'glyph',
                      badge.height() * .7, filled=True)
-        y = box.bottom() + metric('spacing.large')
-        painter.setFont(text_font('title.medium', 700))
+        painter.setFont(title_font)
         painter.setPen(color('text_strong'))
-        title = painter.fontMetrics().height()
         painter.drawText(QRectF(pad, y, rect.width() - pad * 2, title), Qt.AlignHCenter | Qt.AlignVCenter, self.title)
-        painter.setFont(text_font('body.small'))
+        painter.setFont(detail_font)
         painter.setPen(color('muted'))
         painter.drawText(QRectF(pad, y + title + 2, rect.width() - pad * 2, rect.bottom() - y - title - pad),
                          Qt.AlignHCenter | Qt.AlignTop | Qt.TextWordWrap, self.detail)
