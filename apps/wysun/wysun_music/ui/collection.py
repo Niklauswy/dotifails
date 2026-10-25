@@ -9,7 +9,7 @@ from PySide6.QtGui import QFontMetrics, QLinearGradient, QPainter, QPainterPath
 from PySide6.QtWidgets import QHBoxLayout, QLineEdit, QMenu, QVBoxLayout, QWidget
 
 from music_library import artists, normalize
-from theme_tokens import color, tokens
+from wysun_core.qt_theme import color, tokens
 from ui_motion import reduced_motion
 from .shapes import artwork, blurred, clip_pixmap, cookie
 from .style import long_duration, metric, songs, text_font

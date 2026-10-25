@@ -29,15 +29,6 @@ ARTIFACTS = {
 WYSUN = Path(__file__).resolve().parents[1] / 'apps/wysun'
 
 
-def theme_core():
-    """The shared theme selection rules (apps/wysun/theme_core.py), loaded from the source tree."""
-    import sys
-    from ui_support import prepare_imports
-    prepare_imports()
-    import theme_core as module
-    return module
-
-
 def load_json(path, default=None):
     try:
         return json.loads(Path(path).read_text())
@@ -178,7 +169,7 @@ def preflight(options):
     add('system', 'ok' if supported else ('warning' if options.config_only else 'error'),
         fields.get('PRETTY_NAME', 'Sistema no identificado'),
         platform.machine() + (' · compatible' if supported else ' · requiere Debian 13 o Parrot 7, x86_64'))
-    required = ['installer/main.py', 'manifests/packages.json', 'manifests/artifacts.json', 'manifests/themes.json']
+    required = ['installer/main.py', 'manifests/packages.json', 'manifests/artifacts.json', 'apps/wysun/wysun_core/tokens.json']
     if 'boot' in options.components:
         required += ['installer/boot.py', 'system/boot/grub/theme.txt', 'system/boot/plymouth/orbit.script', 'apps/shell/greeter.qml']
     if 'desktop' in options.components:

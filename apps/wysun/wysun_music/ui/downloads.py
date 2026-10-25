@@ -10,7 +10,7 @@ from PySide6.QtWidgets import (QAbstractItemView, QFileDialog, QHBoxLayout, QLab
                                QVBoxLayout, QWidget)
 
 import music_data
-from theme_tokens import color, tokens
+from wysun_core.qt_theme import color, tokens
 from .style import metric, songs, stamp, text_font
 
 STATUS = {'pending': 'En cola', 'downloading': 'Descargando', 'error': 'Error', 'review': 'Revisar versión'}

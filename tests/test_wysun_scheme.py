@@ -20,8 +20,8 @@ from PySide6.QtWidgets import QApplication
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'apps/wysun'))
-import theme_core  # noqa: E402
-import theme_tokens  # noqa: E402
+from wysun_core import theme  # noqa: E402
+from wysun_core import qt_theme
 import wysun_scheme  # noqa: E402
 
 
@@ -80,8 +80,8 @@ class SchemeGeneratorTests(unittest.TestCase):
         self.blue = _make_wallpaper(self.root / 'synthetic-blue.png', (25, 82, 224))
 
     def tearDown(self):
-        theme_core.invalidate()
-        theme_tokens.invalidate()
+        theme.invalidate()
+        qt_theme.invalidate()
         self.folder.cleanup()
 
     def test_same_image_generates_identical_scheme(self):
@@ -103,7 +103,7 @@ class SchemeGeneratorTests(unittest.TestCase):
         orbit = config / 'orbit'
         orbit.mkdir(parents=True)
         theme_file = orbit / 'theme.json'
-        theme_file.write_text('{"style":"fluent","variant":"dark","private":"keep"}\n', encoding='utf-8')
+        theme_file.write_text('{"mode":"auto","private":"keep"}\n', encoding='utf-8')
         environment_file = orbit / 'environment.json'
         env = {**os.environ, 'HOME': str(home), 'XDG_CONFIG_HOME': str(config), 'XDG_STATE_HOME': str(state)}
         generated = []
@@ -147,13 +147,13 @@ class SchemeGeneratorTests(unittest.TestCase):
         self.assertEqual(wysun_scheme.generate_dynamic(bright)['mode'], 'light')
         self.assertEqual(wysun_scheme.generate_dynamic(self.blue)['mode'], 'dark')
         self.assertIn('automático', wysun_scheme.set_scheme('auto', home))
-        self.assertEqual(theme_core.read_scheme(home)['mode'], 'light')
-        self.assertEqual(theme_core.read_mode(home), 'auto')
+        self.assertEqual(theme.read_scheme(home)['mode'], 'light')
+        self.assertEqual(theme.read_mode(home), 'auto')
         wysun_scheme.set_scheme('dark', home)
-        self.assertEqual((theme_core.read_scheme(home)['mode'], theme_core.read_mode(home)), ('dark', 'dark'))
+        self.assertEqual((theme.read_scheme(home)['mode'], theme.read_mode(home)), ('dark', 'dark'))
         with self.assertRaises(ValueError):
             wysun_scheme.set_scheme('sepia', home)
-        self.assertEqual(theme_core.read_mode(home), 'dark')
+        self.assertEqual(theme.read_mode(home), 'dark')
 
     def test_all_variants_generate_for_light_and_dark(self):
         failures = []
@@ -164,7 +164,7 @@ class SchemeGeneratorTests(unittest.TestCase):
                     self.assertEqual((scheme['name'], scheme['mode'], scheme['variant']), ('dynamic', mode, variant))
                     self.assertTrue({'primary', 'onPrimary', 'surface', 'onSurface', 'error'} <= set(scheme['colours']))
                     self.assertTrue(all(not value.startswith('#') for value in scheme['colours'].values()))
-                    tokens = theme_core.overlay_material_roles(theme_core.resolve('material-you', mode), scheme)
+                    tokens = theme.overlay_material_roles(theme.resolve(mode), scheme)
                     for foreground, background, minimum in TEXT_PAIRS:
                         actual = _contrast(tokens[foreground], tokens[background], tokens['canvas'])
                         if actual < minimum:
@@ -175,7 +175,7 @@ class SchemeGeneratorTests(unittest.TestCase):
         home = self.root / 'home'
         home.mkdir()
         dynamic = wysun_scheme.generate_dynamic(self.red, 'dark', 'content')
-        path = theme_core.write_scheme(dynamic, home)
+        path = theme.write_scheme(dynamic, home)
         before = json.loads(path.read_text())
         self.assertIsNone(wysun_scheme.regenerate_scheme(home, {}), 'no wallpaper yet: nothing to do')
         wysun_scheme.regenerate_scheme(home, {'default': str(self.blue)})
@@ -187,17 +187,17 @@ class SchemeGeneratorTests(unittest.TestCase):
         self.assertEqual(path.read_bytes(), settled, 'the same wallpaper and mode never rewrite the contract')
         # A scheme left behind by a retired fixed theme is replaced by one from the wallpaper.
         leftover = dict(dynamic, name='tokyo', wallpaper_hash=None)
-        theme_core.write_scheme(leftover, home)
+        theme.write_scheme(leftover, home)
         wysun_scheme.regenerate_scheme(home, {'default': str(self.red)})
         self.assertEqual(json.loads(path.read_text())['name'], 'dynamic')
         # An explicit mode is honoured when the wallpaper changes.
-        theme_core.write_mode('light', home)
+        theme.write_mode('light', home)
         wysun_scheme.regenerate_scheme(home, {'default': str(self.blue)})
         self.assertEqual(json.loads(path.read_text())['mode'], 'light')
 
     def test_material_roles_map_to_live_wysun_tokens_and_pass_wcag(self):
         failures = []
-        roles = theme_core.MATERIAL_TOKEN_ROLES
+        roles = theme.MATERIAL_TOKEN_ROLES
         self.assertEqual(roles['primary'], 'accent')
         self.assertEqual(roles['onPrimary'], 'on_accent')
         self.assertEqual(roles['onSecondary'], 'accent_ink')
@@ -206,8 +206,8 @@ class SchemeGeneratorTests(unittest.TestCase):
         for wallpaper in (self.red, self.blue):
             for mode in ('light', 'dark'):
                 scheme = wysun_scheme.generate_dynamic(wallpaper, mode, 'tonalspot')
-                preset = theme_core.resolve('material-you', mode)
-                tokens = theme_core.overlay_material_roles(preset, scheme)
+                preset = theme.resolve(mode)
+                tokens = theme.overlay_material_roles(preset, scheme)
                 self.assertEqual(tokens['accent'], '#' + scheme['colours']['primary'])
                 self.assertEqual(tokens['on_accent'], '#' + scheme['colours']['onPrimary'])
                 self.assertEqual(tokens['success'], '#' + scheme['colours']['success'].lower())
@@ -224,11 +224,11 @@ class SchemeGeneratorTests(unittest.TestCase):
         (config / 'orbit').mkdir(parents=True)
         (state / 'wysun').mkdir(parents=True)
         (config / 'orbit/theme.json').write_text('{"mode":"dark"}')
-        previous = getattr(APP, 'orbitThemeWatcher', None)
+        previous = getattr(APP, 'wysunThemeWatcher', None)
         if previous is not None:
-            del APP.orbitThemeWatcher
+            del APP.wysunThemeWatcher
         environment = {'HOME': str(home), 'XDG_CONFIG_HOME': str(config),
-                       'XDG_STATE_HOME': str(state), 'ORBIT_THEME': '', 'WYSUN_THEME': ''}
+                       'XDG_STATE_HOME': str(state), 'WYSUN_THEME': ''}
 
         def settle():
             # Other UI tests can leave lastWindowClosed/quit queued. Pump
@@ -238,44 +238,44 @@ class SchemeGeneratorTests(unittest.TestCase):
                 APP.processEvents()
                 time.sleep(.005)
 
-        with patch.dict(os.environ, environment), patch.object(theme_tokens, 'refresh_widgets') as refreshed:
-            theme_tokens.invalidate()
-            theme_tokens.watch_theme()
-            watcher = APP.orbitThemeWatcher
+        with patch.dict(os.environ, environment), patch.object(qt_theme, 'refresh_widgets') as refreshed:
+            qt_theme.invalidate()
+            qt_theme.watch_theme()
+            watcher = APP.wysunThemeWatcher
             try:
                 first = wysun_scheme.generate_dynamic(self.red, 'dark', 'tonalspot')
-                theme_core.write_scheme(first)
+                theme.write_scheme(first)
                 settle()
                 expected_first = '#' + first['colours']['primary'].lower()
-                self.assertEqual(theme_tokens.tokens()['accent'], expected_first)
+                self.assertEqual(qt_theme.tokens()['accent'], expected_first)
                 self.assertEqual(refreshed.call_count, 1)
                 second = wysun_scheme.generate_dynamic(self.blue, 'dark', 'tonalspot')
-                theme_core.write_scheme(second)
+                theme.write_scheme(second)
                 settle()
                 expected_second = '#' + second['colours']['primary'].lower()
                 self.assertNotEqual(expected_first, expected_second)
-                self.assertEqual(theme_tokens.tokens()['accent'], expected_second)
+                self.assertEqual(qt_theme.tokens()['accent'], expected_second)
                 self.assertEqual(refreshed.call_count, 2)
             finally:
                 watcher.deleteLater()
-                del APP.orbitThemeWatcher
+                del APP.wysunThemeWatcher
                 if previous is not None:
-                    APP.orbitThemeWatcher = previous
-                theme_tokens.invalidate()
+                    APP.wysunThemeWatcher = previous
+                qt_theme.invalidate()
 
     def test_scheme_write_is_atomic_private_and_rejects_sensitive_fields(self):
-        path = theme_core.scheme_path(self.root)
+        path = theme.scheme_path(self.root)
         scheme = wysun_scheme.generate_dynamic(self.red, 'dark', 'vibrant')
-        written = theme_core.write_scheme(scheme, self.root)
+        written = theme.write_scheme(scheme, self.root)
         original = written.read_bytes()
         self.assertEqual(path, written)
         self.assertEqual(stat.S_IMODE(path.stat().st_mode), 0o600)
         invalid = dict(scheme, wallpaper_path='/private/background.png')
         with self.assertRaises(ValueError):
-            theme_core.write_scheme(invalid, self.root)
-        with patch.object(theme_core.os, 'replace', side_effect=OSError('simulated replace failure')):
+            theme.write_scheme(invalid, self.root)
+        with patch('wysun_core.jsonio.os.replace', side_effect=OSError('simulated replace failure')):
             with self.assertRaises(OSError):
-                theme_core.write_scheme(dict(scheme, variant='content'), self.root)
+                theme.write_scheme(dict(scheme, variant='content'), self.root)
         self.assertEqual(path.read_bytes(), original)
         self.assertEqual(list(path.parent.glob('.scheme.json*')), [])
 

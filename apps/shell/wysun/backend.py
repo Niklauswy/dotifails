@@ -74,9 +74,9 @@ def main():
         if not source.is_dir():
             source = Path.home() / '.local/share/orbit/app'
         sys.path.insert(0, str(source))
-        import theme_core
+        from wysun_core import theme
         import wysun_scheme
-        mode = theme_core.read_mode()
+        mode = theme.read_mode()
         print(json.dumps(wysun_scheme.generate_dynamic(Path(args.value), None if mode == 'auto' else mode)))
 
 

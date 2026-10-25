@@ -19,7 +19,8 @@ from typing import Protocol, Any
 
 from PIL import Image
 
-import theme_core
+from wysun_core import theme
+from wysun_core.jsonio import atomic_write_text
 
 VENDOR = Path(__file__).with_name('vendor')
 if str(VENDOR) not in sys.path:
@@ -455,21 +456,21 @@ def regenerate_scheme(home, wallpaper_values):
     path = _wallpaper_path(wallpaper_values)
     if not path or not path.is_file():
         return None
-    mode = theme_core.read_mode(home)
+    mode = theme.read_mode(home)
     wanted = None if mode == 'auto' else mode
-    current = theme_core.read_scheme(home)
+    current = theme.read_scheme(home)
     if (current and current.get('name') == 'dynamic' and current.get('wallpaper_hash') == _file_hash(path)
             and wanted in (None, current['mode'])):
-        return theme_core.scheme_path(home)
-    return theme_core.write_scheme(generate_dynamic(path, wanted), home)
+        return theme.scheme_path(home)
+    return theme.write_scheme(generate_dynamic(path, wanted), home)
 
 
 def _restore(path, previous):
     if previous is None:
         path.unlink(missing_ok=True)
     else:
-        theme_core._atomic_write(path, previous.decode('utf-8'))
-    theme_core.invalidate()
+        atomic_write_text(path, previous.decode('utf-8'))
+    theme.invalidate()
 
 
 def set_scheme(mode=None, home=None):
@@ -477,16 +478,16 @@ def set_scheme(mode=None, home=None):
 
     Without a mode the stored one is kept. Both files roll back together if either write fails.
     """
-    mode = mode or theme_core.read_mode(home)
-    if mode not in theme_core.MODES:
+    mode = mode or theme.read_mode(home)
+    if mode not in theme.MODES:
         raise ValueError('El modo debe ser auto, light o dark.')
-    config_path = theme_core.selection_path(home)
-    scheme_file = theme_core.scheme_path(home)
+    config_path = theme.selection_path(home)
+    scheme_file = theme.scheme_path(home)
     previous = {path: path.read_bytes() if path.exists() else None for path in (config_path, scheme_file)}
     scheme = generate_dynamic(_current_wallpaper(home), None if mode == 'auto' else mode)
     try:
-        theme_core.write_mode(mode, home)
-        theme_core.write_scheme(scheme, home)
+        theme.write_mode(mode, home)
+        theme.write_scheme(scheme, home)
     except Exception:
         for path, content in previous.items():
             _restore(path, content)
@@ -532,8 +533,8 @@ def main(argv=None):
     parser = argparse.ArgumentParser(prog='wysun scheme', description='Esquema de color de Wysun')
     subparsers = parser.add_subparsers(dest='action', required=True)
     command = subparsers.add_parser('set', help='elegir el modo de color: auto (según el fondo), light o dark')
-    command.add_argument('value', nargs='?', choices=theme_core.MODES, metavar='{auto,light,dark}')
-    command.add_argument('--mode', dest='option', choices=theme_core.MODES, help='lo mismo que el argumento')
+    command.add_argument('value', nargs='?', choices=theme.MODES, metavar='{auto,light,dark}')
+    command.add_argument('--mode', dest='option', choices=theme.MODES, help='lo mismo que el argumento')
     command.add_argument('--dynamic', action='store_true', help=argparse.SUPPRESS)  # kept so older callers keep working
     subparsers.add_parser('refresh', help='regenerar el esquema desde el fondo actual')
     args = parser.parse_args(argv)

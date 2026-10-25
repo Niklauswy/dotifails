@@ -9,7 +9,7 @@ import re
 
 from PySide6.QtGui import QColor, QFont, QSyntaxHighlighter, QTextCharFormat
 
-from theme_tokens import color, tokens
+from wysun_core.qt_theme import color, tokens
 
 WORD = re.compile(r'[A-Za-z_$][\w$]*')
 NUMBER = re.compile(r'0[xXbBoO][0-9a-fA-F_]+|\d[\d_]*(?:\.\d+)?(?:[eE][+-]?\d+)?')

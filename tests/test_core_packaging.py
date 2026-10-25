@@ -1,5 +1,6 @@
 """wysun_core reaches every place that runs Wysun Python code, and depends on no application."""
 import re
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -33,6 +34,18 @@ class CorePackagingTests(unittest.TestCase):
             imports = re.findall(r'^\s*(?:from|import)\s+([\w.]+)', module.read_text(), re.M)
             offending = [name for name in imports if re.fullmatch(APPLICATION_MODULES, name.split('.')[0])]
             self.assertEqual(offending, [], module.name)
+
+
+    def test_one_theme_runtime(self):
+        for gone in ('apps/wysun/theme_core.py', 'apps/wysun/theme_tokens.py', 'apps/wysun/ui_appearance.py',
+                     'apps/wysun/wysun_theme.json', 'apps/capture/loomrec/ui/theme_core.py',
+                     'apps/capture/loomrec/ui/wysun_theme.json', 'manifests/themes.json'):
+            self.assertFalse((ROOT / gone).exists(), gone)
+        hits = subprocess.run(['git', '-C', str(ROOT), 'grep', '-nE',
+                               r'ORBIT_THEME|wysunThemeTemplate|wysunThemeStyle|RETIRED_BAR_COLORS|LOOMREC_REDUCED_MOTION',
+                               '--', 'apps', 'installer', 'tests', 'bin', 'docs/themes.md', 'AGENTS.md',
+                               ':!tests/test_core_packaging.py'], capture_output=True, text=True).stdout
+        self.assertEqual(hits, '')
 
 
 if __name__ == '__main__':

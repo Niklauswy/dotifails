@@ -6,7 +6,7 @@ from PySide6.QtGui import QColor, QDesktopServices, QFont, QFontMetrics, QGuiApp
 from PySide6.QtWidgets import (QGridLayout, QHBoxLayout, QLabel, QPlainTextEdit, QScrollArea, QSizePolicy, QTextEdit,
                                QVBoxLayout, QWidget)
 
-from theme_tokens import color, on_theme_changed, tokens
+from wysun_core.qt_theme import color, on_theme_changed, tokens
 from . import markdown
 from .highlight import CodeHighlighter, highlight_html, language_for_fence, language_for_path, scheme
 from .kit import IconButton, clip_pixmap, metric, text_font

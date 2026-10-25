@@ -16,9 +16,9 @@ from PySide6.QtCore import QPoint
 from PySide6.QtGui import QColor, QFont, QImage, QRawFont, QTextLayout
 from PySide6.QtWidgets import QApplication
 import music_data as music
-import theme_core
+from wysun_core import theme
 from music_material import display_family, ligature_available, load_fonts, symbol_family
-from theme_tokens import tokens, watch_theme
+from wysun_core.qt_theme import tokens, watch_theme
 from wysun_scheme import generate_dynamic
 
 app = QApplication([])
@@ -33,10 +33,10 @@ for name in ('Primera', 'Segunda'):
         output.setparams((1, 2, 8000, 0, 'NONE', 'not compressed'))
         output.writeframes(b'\0\0' * 16000)
 music.import_files([Path.home() / 'Primera.wav', Path.home() / 'Segunda.wav'])
-selection = theme_core.selection_path()
+selection = theme.selection_path()
 selection.parent.mkdir(parents=True, exist_ok=True)
 selection.write_text(json.dumps({'mode': 'dark'}))
-scheme_path = theme_core.scheme_path()
+scheme_path = theme.scheme_path()
 scheme_path.parent.mkdir(parents=True, exist_ok=True)
 watch_theme()
 

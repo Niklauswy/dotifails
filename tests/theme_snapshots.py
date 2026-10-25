@@ -25,7 +25,6 @@ def render(out, source, theme):
         (home / sub).mkdir(parents=True, exist_ok=True)
         os.environ[key] = str(home / sub)
     os.environ['HOME'] = str(home)
-    os.environ['ORBIT_THEME'] = theme
     os.environ['WYSUN_THEME'] = theme
     os.environ['ORBIT_REDUCED_MOTION'] = '1'
     backgrounds = home / '.local/share/backgrounds'

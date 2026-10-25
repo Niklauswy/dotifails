@@ -35,7 +35,7 @@ class AdapterTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as home:
             image=Path(home,'bright.png');Image.new('RGB',(32,32),(245,240,225)).save(image)
             env=dict(os.environ,HOME=home,XDG_CONFIG_HOME=home+'/config',XDG_STATE_HOME=home+'/state')
-            for key in ('WYSUN_THEME','ORBIT_THEME'):env.pop(key,None)
+            env.pop('WYSUN_THEME',None)
             def preview():
                 result=subprocess.run(['/usr/bin/python3',str(SOURCE),'preview',str(image)],env=env,capture_output=True,text=True,check=True)
                 return json.loads(result.stdout)

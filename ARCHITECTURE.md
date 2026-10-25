@@ -85,8 +85,8 @@ detectan por huella y se guardan como `incoming/`).
   llegar a `alertThreshold` (10 % por defecto) y otra al reiniciarse; lo ya avisado vive en `~/.local/state/wysun/ai-usage/alerts.json`.
   La última instantánea se guarda en `~/.cache/wysun/ai-usage/snapshot.json`, así el primer hover tras reiniciar ya tiene datos.
 - **Colores**: `~/.local/state/wysun/scheme.json`, producido por `wysun scheme` (`apps/wysun/wysun_scheme.py`) a partir de los
-  tokens de `apps/wysun/wysun_theme.json` (copia idéntica en `apps/capture/loomrec/ui/`; lo comprueba
-  `tests/test_theme_tokens.py`). El shell los lee solo desde `scheme.json` (`services/Colours.qml`); `Appearance.qml` ya no existe.
+  tokens de `apps/wysun/wysun_core/tokens.json` (las releases del Recorder lo llevan dentro de su `wysun_core`).
+  El shell los lee solo desde `scheme.json` (`services/Colours.qml`); `Appearance.qml` ya no existe.
   Ver `docs/themes.md`.
 
 ### Aplicaciones Qt (`apps/wysun`)
@@ -296,7 +296,7 @@ Nunca reiniciar Hyprland ni el login para actualizar un panel.
   Terminal, Notificaciones, Inicio, Archivos y copias, Efectos, Ventanas, Atajos, SSH o Processes en Settings.
   Wi-Fi, VPN y Bluetooth usan Red y Dispositivos conectados. `wysun processes` se gestiona fuera de Nexus.
 - **Tema**: un solo estilo, Material You; el color sale del wallpaper (`scheme.json`) y la selección, en
-  `~/.config/orbit/theme.json`, es solo el modo (`auto`, `light`, `dark`). Los tokens viven en `apps/wysun/wysun_theme.json`; Quickshell los lee por
+  `~/.config/orbit/theme.json`, es solo el modo (`auto`, `light`, `dark`). Los tokens viven en `apps/wysun/wysun_core/tokens.json`; Quickshell lee los colores por
   `apps/shell/services/Colours.qml` (vía `scheme.json`); `tests/test_theme_literals.py` rechaza colores literales
   (excepciones: `theme-exception: motivo`). Guía: `docs/themes.md`.
 

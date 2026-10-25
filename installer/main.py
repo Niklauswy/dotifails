@@ -83,6 +83,11 @@ def host_supported():
     return fields
 
 
+
+def default_wallpaper(source):
+    """File name of the wallpaper the distribution ships (wysun_core/tokens.json)."""
+    return read(Path(source)/'apps/wysun/wysun_core/tokens.json')['wallpaper']
+
 class Deployment:
     def __init__(self,home,source):
         self.home=Path(home).absolute();self.source=Path(source).resolve();self.state=self.home/'.local/state/dotifails';self.data=self.home/'.local/share/dotifails';self.receipt=read(self.state/'installed.json',{'files':{}});self.journal=None;self.conflicts=[]
@@ -210,9 +215,8 @@ class Deployment:
         self.deploy(self.source/'apps/wysun',Path('.local/share/orbit/app'))
         if (self.source/'apps/tools').is_dir():self.deploy(self.source/'apps/tools',Path('.local/share/orbit/tools'))
         if self.conflicts:return
-        for theme in read(self.source/'manifests/themes.json',{}).values():
-            wallpaper=self.source/'assets/backgrounds'/theme['wallpaper']
-            if wallpaper.is_file():self.deploy(wallpaper,Path('.local/share/backgrounds')/wallpaper.name)
+        wallpaper=self.source/'assets/backgrounds'/default_wallpaper(self.source)
+        if wallpaper.is_file():self.deploy(wallpaper,Path('.local/share/backgrounds')/wallpaper.name)
         self.deploy(self.source/'config/.local/bin/orbit',Path('.local/bin/orbit'))
         if 'wayland' not in self.receipt.get('components',[]):self.configure_files()
         if (self.source/'config/.local/share/icons/hicolor/scalable/apps/musika.svg').is_file():self.deploy(self.source/'config/.local/share/icons/hicolor/scalable/apps/musika.svg',Path('.local/share/icons/hicolor/scalable/apps/musika.svg'))
@@ -292,8 +296,6 @@ class Deployment:
                 return
         if 'tools' in selected:self.configure_scripts()
         self.stage('Configuraciones y aplicaciones')
-        theme='material-you'
-        appearance=read(self.source/'manifests/themes.json')[theme]
         home_source=self.backup/'generated/theme-home'
         shutil.copytree(self.source/'config',home_source)
         if (self.source/'apps/wysun/theme_runtime.py').exists():
@@ -341,15 +343,14 @@ class Deployment:
                 if (self.source/'config'/rel).is_file():self.deploy(self.source/'config'/rel,Path(rel))
         if selected & {'desktop','terminal'}:self.deploy(self.source/'assets/fonts',Path('.local/share/fonts/dotifails'))
         if 'desktop' in selected:
-            from install_model import theme_core
-            core=theme_core()
-            # The mode is the only choice: keep the user's, and read it out of any older theme.json.
-            self.generated(core.serialize(core.mode_from_object(read(self.home/'.config/orbit/theme.json',{}))[0]),Path('.config/orbit/theme.json'))
+            # The mode is the only choice: keep the user's; anything else starts automatic.
+            stored=read(self.home/'.config/orbit/theme.json',{})
+            mode=stored.get('mode') if isinstance(stored,dict) else None
+            self.generated(json.dumps({'mode':mode if mode in ('auto','light','dark') else 'auto'},indent=2)+'\n',Path('.config/orbit/theme.json'))
             preferences=read(self.home/'.config/orbit/environment.json',{})
             if not preferences.get('wallpaper',{}).get('default'):
-                preferences['wallpaper']=dict(default=str(self.home/'.local/share/backgrounds'/appearance['wallpaper']),mode='fill',monitors={},folders=preferences.get('wallpaper',{}).get('folders',[]))
+                preferences['wallpaper']=dict(default=str(self.home/'.local/share/backgrounds'/default_wallpaper(self.source)),mode='fill',monitors={},folders=preferences.get('wallpaper',{}).get('folders',[]))
                 self.generated(json.dumps(preferences,indent=2)+'\n',Path('.config/orbit/environment.json'))
-            if not self.conflicts:self.receipt['theme']=theme
         self.configure_manager()
         if profile:self.deploy(self.source/'machines'/f'{profile}.sh',Path('.config/dotifails/machine.sh'))
         if 'desktop' in selected:

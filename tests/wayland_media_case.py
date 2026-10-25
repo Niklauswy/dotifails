@@ -39,8 +39,8 @@ app = QApplication.instance() or QApplication(sys.argv[:1])
 support._app = app
 app.setStyle('Fusion')
 import media_host  # noqa: E402
-import theme_tokens  # noqa: E402
-theme_tokens.apply_palette(app)
+from wysun_core import qt_theme
+qt_theme.apply_palette(app)
 media_host.install()
 
 

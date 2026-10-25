@@ -12,15 +12,14 @@ No hay variantes de Material (se elige sola según lo colorido que sea el fondo)
 
 ## Dónde se guarda
 
-- `~/.config/orbit/theme.json`: `{"mode": "auto"}` (o `light`, `dark`). Las claves desconocidas se conservan.
+- `~/.config/orbit/theme.json`: `{"mode": "auto"}` (o `light`, `dark`). Las claves desconocidas se conservan; un archivo sin `mode` válido se lee como `auto`, y `write_mode` lo reescribe con copia en `~/.local/state/orbit/theme-backups/`, escritura atómica y permisos `0600`.
 - `~/.local/state/wysun/scheme.json`: roles de Material You generados desde el wallpaper; lo escribe solo `wysun scheme` (`wysun scheme set auto|light|dark`, `wysun scheme refresh`). El shell, las apps Qt y el Recorder lo leen en vivo.
-- Los formatos antiguos ({"style","variant"}, {"id"}, {"dynamic"}) se migran solos a `{"mode"}`, con copia en `~/.local/state/orbit/theme-backups/`, escritura atómica y permisos `0600`. Un tema fijo antiguo pasa a `auto`.
-- `WYSUN_THEME` y `ORBIT_THEME` (en ese orden) fuerzan la paleta base `light` o `dark` sin leer el esquema; los nombres antiguos (`tokyo`, `fluent:dark`…) solo se entienden como `dark` o `light`.
+- `WYSUN_THEME=light|dark` fuerza la paleta base sin leer el esquema (pruebas y capturas).
 - El fondo por defecto es `assets/backgrounds/purple-abstract-3840x3840-27445.jpg`; una instalación nueva lo usa y el fondo personal no se toca.
 
 ## Fuente única de tokens
 
-`apps/wysun/wysun_theme.json` define una paleta base para `light` y otra para `dark` (~108 tokens semánticos cada una, horneados desde el esquema del fondo por defecto) y los tokens de forma y movimiento del estilo. El esquema del wallpaper se superpone a la paleta base de su modo (`theme_core.overlay_material_roles`): la base cubre lo que Material no define y es el respaldo mientras no exista `scheme.json`.
+`apps/wysun/wysun_core/tokens.json` define una paleta base para `light` y otra para `dark` (~108 tokens semánticos cada una, horneados desde el esquema del fondo por defecto) y los tokens de forma y movimiento. El esquema del wallpaper se superpone a la paleta base de su modo (`wysun_core.theme.overlay_material_roles`): la base cubre lo que Material no define y es el respaldo mientras no exista `scheme.json`.
 
 - Colores: `canvas`, `surface`, `well`, `line`, `text`, `muted`, `accent`, `accent_hover`, `selection`, `disabled`, `danger`, `success`, `warning`, `scrim` y los derivados de estado (`hover`, `pressed`, `focus`, `*_soft`…), material (`material_top/mid/bottom/edge/glow/highlight`), categorías (`cat_*`) y los de superficies concretas (`tile`, `card`, `region_*`, `knob_off`…). La paleta de código y terminal (`external.palette`) también sigue al fondo.
 - Forma: `radius_s/control/m/l`, `corner_*` (escala M3), `space_*`, `border`, `focus_width`, `shadow_*`. Oscuro: cristal translúcido (`material: glass`); claro: perla opaca (`pearl`).
@@ -30,23 +29,16 @@ No hay variantes de Material (se elige sola según lo colorido que sea el fondo)
 
 Los colores se escriben en orden CSS: `#RRGGBB` o `#RRGGBBAA`.
 
-**Copia idéntica** (las apps de captura se instalan por versiones separadas y no importan código de `~/.local/share/orbit/app/`):
-
-| Copia | Ruta |
-|---|---|
-| Fuente | `apps/wysun/wysun_theme.json`, `apps/wysun/theme_core.py` |
-| Recorder | `apps/capture/loomrec/ui/wysun_theme.json`, `apps/capture/loomrec/ui/theme_core.py` |
-
-`tests/test_theme_tokens.py` comprueba que son idénticas. Al cambiar los tokens, copia el archivo a la otra ruta. Quickshell no usa el JSON: lee `scheme.json` (`apps/shell/services/Colours.qml`) y la forma sale de sus propios tokens.
+Hay **una sola copia**. Las releases del Recorder llevan su propio `wysun_core` (con `tokens.json`) y nunca importan `~/.local/share/orbit/app/`. Quickshell no usa el JSON: lee `scheme.json` (`apps/shell/services/Colours.qml`) y la forma sale de sus propios tokens (el plan 03 los une).
 
 ## Adaptadores
 
 | Entorno | Módulo | Cómo se usa |
 |---|---|---|
-| Qt (Wysun) | `apps/wysun/theme_tokens.py` | `color()`, `font()`, `apply_style(widget, plantilla)`, `on_theme_changed()` |
-| Recorder | `apps/capture/loomrec/ui/tokens.py` | Mismo contrato; lee la misma selección. |
+| Python sin Qt | `wysun_core/theme.py` | `read_mode()`, `write_mode()`, `active_mode()`, `resolve(mode)`, `resolve_active()`, `read_scheme()`, `write_scheme()` |
+| Qt (apps, Recorder, instalador) | `wysun_core/qt_theme.py` | `color()`, `font()`, `apply_style(widget, plantilla)`, `on_theme_changed()`, `watch_theme()` |
+| Apariencia | `wysun_core/appearance.py` | `read_appearance()`, `save_appearance()`, `reduced_motion()` |
 | Quickshell | `apps/shell/services/Colours.qml` | `Colours.palette.m3*`, `Colours.modePreference`, `Colours.setMode()` |
-| Instalador | `installer/visual_widgets.py` | Usa `theme_tokens` del repositorio. |
 
 Las plantillas de hoja de estilo usan `@token`, `@token/alpha` (0-255) y `@svg(nombre,token)`. `apply_style` guarda la plantilla en el widget y se vuelve a renderizar al cambiar de tema.
 
@@ -54,12 +46,12 @@ Las plantillas de hoja de estilo usan `@token`, `@token/alpha` (0-255) y `@svg(n
 
 1. **Qt (Wysun)**:
    ```python
-   from theme_tokens import apply_style, color, on_theme_changed
+   from wysun_core.qt_theme import apply_style, color, on_theme_changed
    apply_style(self, 'QFrame#mio { background:@surface; border:@border solid @line; border-radius:@radius_m; }')
    p.setBrush(color('accent'))           # al pintar, siempre se pide el color en ese momento
    on_theme_changed(self.refrescar)      # solo si guardas cachés (pixmaps, iconos, texto derivado)
    ```
-2. **Recorder**: lo mismo con `from .tokens import apply_style, color`.
+2. **Recorder**: lo mismo; su hoja global y `apply_theme(app)` viven en `loomrec/ui/tokens.py`.
 3. **Quickshell**: usa `Colours.palette.m3*` y los tokens de forma del shell; nunca un color propio.
 4. Nunca escribas un color, radio, tamaño de letra o duración propios. `tests/test_theme_literals.py` falla si aparece un color literal (`#rrggbb`, `rgb()`, `QColor(1,2,3)`, `Qt.white`…).
 5. Prueba el widget en claro y oscuro (`WYSUN_THEME=light`, `WYSUN_THEME=dark`) y con wallpapers de colores distintos.
@@ -70,7 +62,7 @@ Un color literal solo se admite con una razón en la misma línea (`# theme-exce
 
 ## Contraste (WCAG)
 
-Texto ≥ 4,5:1; componentes de interfaz y foco ≥ 3:1. `tests/test_theme_tokens.py` comprueba 24 pares por paleta base (los tokens translúcidos se componen sobre el fondo) y `tests/test_wysun_scheme.py` comprueba los mismos pares con el esquema generado de varios fondos, en claro y oscuro y con las nueve variantes de Material.
+Texto ≥ 4,5:1; componentes de interfaz y foco ≥ 3:1. `tests/test_core_tokens.py` comprueba 24 pares por paleta base (los tokens translúcidos se componen sobre el fondo) y `tests/test_wysun_scheme.py` comprueba los mismos pares con el esquema generado de varios fondos, en claro y oscuro y con las nueve variantes de Material.
 
 | Paleta base | canvas | surface | text | muted | accent | on_accent |
 |---|---|---|---|---|---|---|

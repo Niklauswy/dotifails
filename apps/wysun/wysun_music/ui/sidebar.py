@@ -7,7 +7,7 @@ from PySide6.QtCore import QRect, QRectF, Qt, Signal
 from PySide6.QtGui import QPainter
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QLineEdit, QScrollArea, QVBoxLayout, QWidget
 
-from theme_tokens import color, tokens
+from wysun_core.qt_theme import color, tokens
 from .style import metric, paint_symbol, text_font
 from .widgets import IconButton, StateLayer, draw_art, paint_favorites_cover
 

@@ -20,7 +20,6 @@ class MusicMaterialTests(unittest.TestCase):
                        ORBIT_MUSIC_HOME=str(home / 'music'),
                        ORBIT_MUSIC_LIBRARY=str(home / 'audio'),
                        QT_QPA_PLATFORM='offscreen', ORBIT_REDUCED_MOTION='1')
-            env.pop('ORBIT_THEME', None)
             # The AO runtime can report its own bundle as sys.executable.
             python = sys.executable if Path(sys.executable).is_file() else shutil.which('python3')
             result = subprocess.run([python, str(Path(__file__).with_name('music_material_ui.py'))],

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Wysun resident: hosts the Qt utility windows and clipboard history. The launcher is the shell widget."""
-from theme_tokens import apply_style, color, paint_color
+from wysun_core.qt_theme import apply_style, color, paint_color
 
 import argparse, os, re, subprocess, sys
 from pathlib import Path
@@ -94,7 +94,7 @@ def main():
     parser=argparse.ArgumentParser();parser.add_argument('mode',nargs='?',default='toggle');parser.add_argument('--daemon',action='store_true');args=parser.parse_args()
     os.umask(0o077)
     app=QApplication(['Orbit','--name','Orbit']);app.setApplicationName('Orbit');app.setApplicationDisplayName('Wysun');app.setDesktopFileName('orbit');app.setWindowIcon(QIcon(str(ROOT/'orbit.png')));app.setQuitOnLastWindowClosed(False);app.setStyle('Fusion');apply_style(app,STYLE);QIcon.setThemeSearchPaths([str(HOME/'.local/share/icons'),str(HOME/'.icons'),'/usr/share/icons']);QIcon.setThemeName('Win11-Dark');QIcon.setFallbackThemeName('Adwaita')
-    from theme_tokens import watch_theme
+    from wysun_core.qt_theme import watch_theme
     watch_theme()
     owner=SingleInstance(f'orbit-{os.getuid()}')
     if send(owner.endpoint,args.mode.encode(),timeout=.5):return

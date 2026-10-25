@@ -218,10 +218,10 @@ class EnvironmentSettings:
             lambda: self.runner(['wysun', 'shell', 'reload-preferences']))
 
     def preference_paths(self):
-        import theme_core
+        from wysun_core import theme
         return {name: self.config / 'orbit' / name for name in (
             'shell.json', 'hypr-bar.json', 'appearance.json', 'environment.json', 'theme.json')} | {
-            'scheme.json': theme_core.scheme_path(self.home)}
+            'scheme.json': theme.scheme_path(self.home)}
 
     def apply_panels(self, shell, appearance, expected_shell=None, expected_appearance=None):
         from settings_data import PreferenceBackup, json_object
@@ -244,8 +244,8 @@ class EnvironmentSettings:
 
     def colour_values(self):
         """Selection view only; all generation stays in wysun_scheme."""
-        import theme_core
-        return dict(mode=theme_core.read_mode(self.home))
+        from wysun_core import theme
+        return dict(mode=theme.read_mode(self.home))
 
     def apply_colour(self, values, wallpaper=None, expected=None):
         """Publish through the existing colour authority, with exact undo.
@@ -253,17 +253,17 @@ class EnvironmentSettings:
         No private wallpaper lists or unknown theme/environment fields are
         reconstructed from the form. Only the explicitly edited path changes.
         """
-        import theme_core
+        from wysun_core import theme
         from wysun_scheme import set_scheme
         from settings_data import PreferenceBackup, json_object
         paths = {'environment.json': self.path,
-                 'theme.json': theme_core.selection_path(self.home),
-                 'scheme.json': theme_core.scheme_path(self.home)}
+                 'theme.json': theme.selection_path(self.home),
+                 'scheme.json': theme.scheme_path(self.home)}
         for key in ('environment.json', 'theme.json'):
             json_object(paths[key])
         if expected is not None and self.colour_values() != expected:
             raise ValueError('El color cambió en otra ventana. Recarga antes de guardar.')
-        if values['mode'] not in theme_core.MODES:
+        if values['mode'] not in theme.MODES:
             raise ValueError('Elige modo automático, claro u oscuro.')
         backup = PreferenceBackup(self.home, paths, 'colour')
         old_wallpaper = copy.deepcopy(self.wallpaper_values())
@@ -288,7 +288,7 @@ class EnvironmentSettings:
         except Exception:
             backup.restore(force=True)
             self.reload()
-            theme_core.invalidate()
+            theme.invalidate()
             self.notify_shell()  # the bytes are restored verbatim; never re-render over them
             raise
         backup.seal()
@@ -327,8 +327,8 @@ class EnvironmentSettings:
         """Restore the exact bytes of a sealed Settings write (refuses foreign edits)."""
         backup.restore()
         self.reload()
-        import theme_core
-        theme_core.invalidate()
+        from wysun_core import theme
+        theme.invalidate()
         # Files are restored verbatim; the shell follows through its file watchers.
         return self.notify_shell()
 
@@ -362,7 +362,7 @@ class EnvironmentSettings:
 
     def bar_theme_colors(self):
         """Bar colours of the active theme; stored colours are user overrides."""
-        from theme_tokens import tokens
+        from wysun_core.qt_theme import tokens
         external=tokens(self.home)['external']
         return {key:external[key].upper() for key in ('background','foreground','accent')}
 
@@ -402,7 +402,7 @@ class EnvironmentSettings:
     def wallpaper_values(self):
         saved = copy.deepcopy(self.section('wallpaper'))
         if not saved.get('default'):
-            from theme_tokens import tokens
+            from wysun_core.qt_theme import tokens
             filename=tokens(self.home)['wallpaper']
             bundled=self.home/'.local/share/backgrounds'/filename
             if bundled.is_file():saved['default']=str(bundled)

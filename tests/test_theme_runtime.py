@@ -1,12 +1,12 @@
 import json,sys,tempfile,unittest
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'apps/wysun'))
-import theme_core
+from wysun_core import theme
 import wysun_scheme
 from PIL import Image
-from theme_runtime import RETIRED_BAR_COLORS,restore_theme,theme_colors,theme_files
-from theme_tokens import invalidate
-def external(variant):return theme_core.resolve('material-you',variant)['external']
+from theme_runtime import restore_theme,theme_files
+from wysun_core.qt_theme import invalidate
+def external(mode):return theme.resolve(mode)['external']
 class PaletteFilesTests(unittest.TestCase):
  def setUp(self):
   self.folder=tempfile.TemporaryDirectory();self.home=Path(self.folder.name)
@@ -35,22 +35,18 @@ class PaletteFilesTests(unittest.TestCase):
    self.assertEqual(json.loads((self.home/'.config/orbit/environment.json').read_text())['workspaces']['names'],['keep'],'the staging never touches preferences')
    self.assertNotIn(self.home/'.config/orbit/theme.json',files,'the mode is the installer\'s and the shell\'s to write')
    self.assertFalse((self.home/'.config/wysun/dunstrc').exists())      # notifications follow the shell theme; no separate daemon config
- def test_unknown_variant_uses_the_default_palette(self):
-  files=theme_files(self.home,'tokyo')
-  self.assertIn(external('dark')['background'][1:],files[self.home/'.config/ghostty/config'])
  def test_theme_generated_bar_colours_are_dropped_but_custom_ones_kept(self):
   bar=self.home/'.config/orbit/hypr-bar.json'
-  for generated in (external('dark')['background'],'#101012','#101118'):
+  for generated in (external('dark')['background'],external('light')['accent']):
    bar.write_text(json.dumps({'height':40,'background':generated,'foreground':'#123456'}))
    saved=json.loads(theme_files(self.home,'light')[bar])
    self.assertEqual(saved,{'height':40,'foreground':'#123456'},generated)
-  self.assertTrue(RETIRED_BAR_COLORS<=theme_colors())
  def test_restore_theme_paints_the_borders_with_the_active_scheme(self):
   image=self.home/'blue.png';Image.new('RGB',(32,32),(25,82,224)).save(image)
-  scheme=wysun_scheme.generate_dynamic(image,'dark');theme_core.write_scheme(scheme,self.home)
+  scheme=wysun_scheme.generate_dynamic(image,'dark');theme.write_scheme(scheme,self.home)
   calls=[];restore_theme(self.home,lambda args:calls.append(list(args)) or '')
   self.assertEqual(calls[0][:2],['hyprctl','eval']);self.assertIn(scheme['colours']['primary'],calls[0][2])
  def test_restore_theme_without_a_scheme_uses_the_shipped_palette(self):
   calls=[];restore_theme(self.home,lambda args:calls.append(list(args)) or '')
-  self.assertIn(theme_core.resolve('material-you','dark')['accent'][1:7],calls[0][2])
+  self.assertIn(theme.resolve('dark')['accent'][1:7],calls[0][2])
 if __name__=='__main__':unittest.main()

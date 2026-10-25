@@ -319,15 +319,13 @@ class CollectionTests(PlayerCase):
 class ThemeTests(PlayerCase):
     def test_every_variant_paints_a_complete_player_without_errors(self):
         import os
-        import theme_core
-        import theme_tokens
-        variants = [variant for spec in theme_core.styles().values() for variant in spec['variants']]
-        self.assertTrue(variants)
-        for variant in variants:
+        from wysun_core import theme
+        from wysun_core import qt_theme
+        for variant in ('light', 'dark'):
             with self.subTest(variant):
                 os.environ['WYSUN_THEME'] = variant
-                theme_core.invalidate()
-                theme_tokens.refresh_widgets()
+                theme.invalidate()
+                qt_theme.refresh_widgets()
                 player = self.player('embedded', size=(520, 400))
                 self.open(player, 'cover.mp3', paused=True)
                 support.settle(.3)
@@ -336,8 +334,8 @@ class ThemeTests(PlayerCase):
                 painted = {image.pixelColor(x, y).rgb() for x in range(0, image.width(), 23) for y in range(0, image.height(), 19)}
                 self.assertGreater(len(painted), 4, 'the player drew something')
         os.environ.pop('WYSUN_THEME', None)
-        theme_core.invalidate()
-        theme_tokens.refresh_widgets()
+        theme.invalidate()
+        qt_theme.refresh_widgets()
 
     def test_a_live_theme_change_remeasures_the_controls(self):
         """Sizes derive from tokens: when a token changes, the next theme refresh makes every control measure itself again."""
@@ -358,7 +356,7 @@ class ThemeTests(PlayerCase):
 
 class FreedWindowTests(PlayerCase):
     def test_a_player_whose_window_was_freed_never_breaks_a_later_theme_change(self):
-        import theme_tokens
+        from wysun_core import qt_theme
         holder = QWidget()
         layout = QVBoxLayout(holder)
         player = MediaPlayer(mode='embedded', renderer='software')
@@ -368,7 +366,7 @@ class FreedWindowTests(PlayerCase):
         holder.close()
         holder.deleteLater()
         support.settle(.1)                         # Qt frees the C++ widgets; the Python wrapper (and its theme listener) lives on
-        theme_tokens.refresh_widgets()             # must not raise, or the other windows would miss the new theme
+        qt_theme.refresh_widgets()             # must not raise, or the other windows would miss the new theme
         self.assertIsNotNone(player)
 
 

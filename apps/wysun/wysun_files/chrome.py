@@ -5,7 +5,7 @@ from PySide6.QtCore import QEasingCurve, QRect, QRectF, QSize, Qt, QTimer, QVari
 from PySide6.QtGui import QPainter
 from PySide6.QtWidgets import QHBoxLayout, QStackedWidget, QVBoxLayout, QWidget
 
-from theme_tokens import color, tokens
+from wysun_core.qt_theme import color, tokens
 from ui_motion import reduced_motion
 from wysun_music.ui.sidebar import Panel
 from .kit import IconButton, StateLayer, metric, paint_symbol, text_font

@@ -41,4 +41,4 @@ Esta integración cambia la distribución y los nombres públicos. Conserva las 
 
 ## Temas
 
-Un solo estilo, Material You, con el color del wallpaper y el modo claro/oscuro/automático, se aplica en vivo a todas las superficies de Wysun. Los tokens viven en `apps/wysun/wysun_theme.json`; la guía, los valores de contraste y cómo crear un widget que obedezca el tema están en [themes.md](themes.md).
+Un solo estilo, Material You, con el color del wallpaper y el modo claro/oscuro/automático, se aplica en vivo a todas las superficies de Wysun. Los tokens viven en `apps/wysun/wysun_core/tokens.json`; la guía, los valores de contraste y cómo crear un widget que obedezca el tema están en [themes.md](themes.md).

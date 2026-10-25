@@ -17,7 +17,7 @@ from PySide6.QtWidgets import (QButtonGroup, QHBoxLayout, QLabel, QMenu, QSizePo
                                QVBoxLayout, QWidget)
 
 from music_library import artists, parse_lrc
-from theme_tokens import color, tokens
+from wysun_core.qt_theme import color, tokens
 from ui_motion import reduced_motion
 from .playerbar import REPEAT_LABELS, TimeLabel
 from .shapes import Drift, blurred, grain_tile
@@ -512,7 +512,7 @@ class FullPlayer(QWidget):
     def _render_backdrop(self):
         path = self.covers.path(self.player.current) if self.player.current else None
         ratio = self.devicePixelRatioF()
-        key = (path, self.width(), self.height(), ratio, tokens()['name'], tokens()['variant'])
+        key = (path, self.width(), self.height(), ratio, tokens()['mode'], tokens()['canvas'])
         if key == self._backdrop_key and self._backdrop is not None:
             return self._backdrop
         pixmap = QPixmap(round(self.width() * ratio), round(self.height() * ratio))

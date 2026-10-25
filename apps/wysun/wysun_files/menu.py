@@ -6,7 +6,7 @@ from PySide6.QtCore import QEasingCurve, QPoint, QRectF, QSize, Qt, QTimer, QVar
 from PySide6.QtGui import QFontMetrics, QGuiApplication, QPainter
 from PySide6.QtWidgets import QWidget
 
-from theme_tokens import color, tokens
+from wysun_core.qt_theme import color, tokens
 from ui_motion import reduced_motion
 from .kit import metric, paint_symbol, text_font
 

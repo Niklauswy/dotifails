@@ -4,7 +4,7 @@ from PySide6.QtGui import QLinearGradient, QPainter, QPainterPath
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QScrollArea, QVBoxLayout, QWidget
 
 from music_library import normalize
-from theme_tokens import color, tokens
+from wysun_core.qt_theme import color, tokens
 from .cards import Card, Shelf, Tile
 from .shapes import filled
 from .widgets import paint_favorites_cover

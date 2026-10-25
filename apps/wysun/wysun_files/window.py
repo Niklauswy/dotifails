@@ -12,7 +12,7 @@ from PySide6.QtWidgets import QApplication, QHBoxLayout, QMainWindow, QVBoxLayou
 from file_media import human_size
 from files_ops import execute_operation
 from player_client import launch
-from theme_tokens import color, on_theme_changed, tokens
+from wysun_core.qt_theme import color, on_theme_changed, tokens
 from ui_motion import WindowMotion, reduced_motion, reveal_content
 from ui_theme import paint_surface
 from wysun_media.source import kind_of as media_kind

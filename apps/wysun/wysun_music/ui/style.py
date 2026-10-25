@@ -6,7 +6,7 @@ from PySide6.QtGui import QFont, QFontMetricsF, QPainter, QPainterPath
 
 from icons import glyph
 from music_material import SYMBOL_FAMILY, display_family, ligature_available, load_fonts
-from theme_tokens import color, extend_style, tokens
+from wysun_core.qt_theme import color, extend_style, tokens
 
 # Material Symbols ligature -> bundled Lucide asset when the font is missing.
 FALLBACK = {

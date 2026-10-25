@@ -101,10 +101,11 @@ class NativeSettingsTests(unittest.TestCase):
             self.assertEqual(json.loads(model.path.read_text())['overrides'],{})
     def test_native_bar_and_theme_with_xdg_outside_home(self):
         from environment_settings import EnvironmentSettings
-        from theme_tokens import theme_id,invalidate
-        from ui_appearance import save_appearance,read_appearance
-        with tempfile.TemporaryDirectory() as home,tempfile.TemporaryDirectory() as xdg,patch.dict(os.environ,{'HOME':home,'XDG_CONFIG_HOME':xdg,'WAYLAND_DISPLAY':'fixture','ORBIT_THEME':''}):
-            native=Path(xdg)/'orbit/hypr-bar.json';native.parent.mkdir(parents=True);native.write_text(json.dumps({'height':40,'background':'#101118','opacity':65}))
+        from wysun_core.qt_theme import invalidate
+        from wysun_core import theme
+        from wysun_core.appearance import save_appearance,read_appearance
+        with tempfile.TemporaryDirectory() as home,tempfile.TemporaryDirectory() as xdg,patch.dict(os.environ,{'HOME':home,'XDG_CONFIG_HOME':xdg,'WAYLAND_DISPLAY':'fixture'}):
+            native=Path(xdg)/'orbit/hypr-bar.json';native.parent.mkdir(parents=True);native.write_text(json.dumps({'height':40,'background':theme.resolve('dark')['external']['background'],'opacity':65}))
             calls=[]
             def runner(args):
                 calls.append(args)
@@ -118,7 +119,7 @@ class NativeSettingsTests(unittest.TestCase):
             # Theme colours are no longer copied into the bar file: the bar follows the theme.
             saved=json.loads(native.read_text());self.assertNotIn('background',saved);self.assertEqual(saved['monitors'],{'DP-1':True})
             self.assertFalse((Path(home)/'.config').exists())
-            invalidate();self.assertEqual(theme_id(Path.home()),'material-you:dark')
+            invalidate();self.assertEqual(theme.active_mode(Path.home()),'dark')
             save_appearance({'opacity':77,'reduced_motion':True},Path.home());self.assertEqual(read_appearance()['opacity'],77)
             self.assertIn(['wysun','shell','reload-preferences'],calls);self.assertFalse(any('bspc' in c or 'desktop-bar' in str(c) for c in calls))
     def test_first_fragment_runtime_error_rolls_back_files_and_partial_bindings(self):
@@ -158,21 +159,21 @@ class NativeSettingsTests(unittest.TestCase):
         from PySide6.QtCore import QEventLoop,QTimer
         def wait(ms):
             loop=QEventLoop();QTimer.singleShot(ms,loop.quit);loop.exec()
-        import theme_tokens
-        with tempfile.TemporaryDirectory() as home,patch.dict(os.environ,{'HOME':home,'XDG_CONFIG_HOME':home+'/config','XDG_STATE_HOME':home+'/state','ORBIT_THEME':'','WYSUN_THEME':''}),patch.object(theme_tokens,'refresh_widgets') as refresh:
-            previous=getattr(APP,'orbitThemeWatcher',None)
-            if previous is not None:del APP.orbitThemeWatcher
-            theme_tokens.invalidate();theme_tokens.watch_theme();watcher=APP.orbitThemeWatcher
+        from wysun_core import qt_theme
+        with tempfile.TemporaryDirectory() as home,patch.dict(os.environ,{'HOME':home,'XDG_CONFIG_HOME':home+'/config','XDG_STATE_HOME':home+'/state','WYSUN_THEME':''}),patch.object(qt_theme,'refresh_widgets') as refresh:
+            previous=getattr(APP,'wysunThemeWatcher',None)
+            if previous is not None:del APP.wysunThemeWatcher
+            qt_theme.invalidate();qt_theme.watch_theme();watcher=APP.wysunThemeWatcher
             try:
                 path=Path(home)/'config/orbit/theme.json';path.parent.mkdir(parents=True);path.write_text('{"mode":"light"}')
-                wait(120);self.assertEqual(watcher.key,(('material-you','light'),None));self.assertEqual(refresh.call_count,1)
+                wait(120);self.assertEqual(watcher.revision[:2],('light','light'));self.assertEqual(refresh.call_count,1)
                 alternate=path.with_suffix('.new');alternate.write_text('{"mode":"dark"}');alternate.replace(path)
-                wait(120);self.assertEqual(watcher.key,(('material-you','dark'),None));self.assertEqual(refresh.call_count,2)
+                wait(120);self.assertEqual(watcher.revision[:2],('dark','dark'));self.assertEqual(refresh.call_count,2)
                 wait(100);self.assertEqual(refresh.call_count,2);self.assertFalse(watcher.timer.isActive())
             finally:
-                watcher.deleteLater();del APP.orbitThemeWatcher
-                if previous is not None:APP.orbitThemeWatcher=previous
-                theme_tokens.invalidate()
+                watcher.deleteLater();del APP.wysunThemeWatcher
+                if previous is not None:APP.wysunThemeWatcher=previous
+                qt_theme.invalidate()
     def test_large_watch_offer_is_drained_before_rereading_formats(self):
         import threading
         import wayland_clipboard as clip

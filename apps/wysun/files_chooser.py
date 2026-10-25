@@ -7,7 +7,7 @@ from PySide6.QtCore import QMimeDatabase, QModelIndex, QSortFilterProxyModel, Qt
 from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import QAbstractItemView, QHBoxLayout, QLabel, QLineEdit, QMenu, QVBoxLayout, QWidget
 
-from theme_tokens import color
+from wysun_core.qt_theme import color
 from wysun_files.kit import Chip, PillButton, metric, text_font
 from wysun_files.window import FilesWindow
 

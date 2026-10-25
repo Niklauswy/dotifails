@@ -3,7 +3,7 @@ from PySide6.QtCore import QEasingCurve, QEvent, QRectF, QTimer, QVariantAnimati
 from PySide6.QtGui import QPainter
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QLineEdit, QVBoxLayout, QWidget
 
-from theme_tokens import color, tokens
+from wysun_core.qt_theme import color, tokens
 from ui_motion import reduced_motion
 from .kit import PillButton, metric, text_font
 

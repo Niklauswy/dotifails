@@ -16,7 +16,7 @@ SHELL = ROOT / 'apps/shell'
 spec = importlib.util.spec_from_file_location('wysun_cael_backend_b', SHELL / 'wysun/backend.py')
 backend = importlib.util.module_from_spec(spec); spec.loader.exec_module(backend)
 sys.path.insert(0, str(ROOT / 'apps/wysun'))
-import theme_core  # noqa: E402
+from wysun_core import theme  # noqa: E402
 import wysun_scheme  # noqa: E402
 from PIL import Image  # noqa: E402
 
@@ -57,7 +57,7 @@ class SchemeBridgeTests(unittest.TestCase):
         self.assertIn('propertyKey(name)', source)
         self.assertIn('["wysun", "scheme", "set", mode]', source, 'the mode goes through the single producer')
         self.assertIn('orbit/theme.json', source, 'the page shows the stored mode, not only the one the wallpaper gave')
-        self.assertEqual(theme_core.scheme_path(Path('/x')).as_posix(), '/x/.local/state/wysun/scheme.json')
+        self.assertEqual(theme.scheme_path(Path('/x')).as_posix(), '/x/.local/state/wysun/scheme.json')
 
     def test_scheme_changes_never_call_the_original_project_cli(self):
         for rel in ('services/Colours.qml', 'modules/nexus/pages/WallpaperAndStyle.qml', 'wysun/backend.py'):

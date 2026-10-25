@@ -2,6 +2,7 @@ from pathlib import Path
 from functools import lru_cache
 from PySide6.QtCore import Qt,QRectF
 from PySide6.QtGui import QPixmap,QPainter,QPen,QColor,QFont,QIcon
+from wysun_core.qt_theme import on_theme_changed
 
 ASSETS=Path(__file__).parent/'assets/lucide'
 ALIASES={
@@ -25,13 +26,13 @@ ACCENTS={'clipboard':'cat_orange','files':'cat_blue','file':'cat_blue','calculat
 def tint(color):
  """Icon colour: a theme token name, or an explicit '#rrggbb' (user colours, previews)."""
  if isinstance(color,str) and color.startswith('#'):return color
- from theme_tokens import color as token
+ from wysun_core.qt_theme import color as token
  return token(color or 'glyph').name()
 
 @lru_cache(maxsize=512)
 def glyph(name,size=24,color='glyph'):
  color=tint(color)
- from theme_tokens import tokens
+ from wysun_core.qt_theme import tokens
  stroke=tokens()['icon_stroke']
  path=ASSETS/(ALIASES.get(name,name)+'.svg')
  if not path.exists():path=ASSETS/'file-text.svg'
@@ -81,3 +82,12 @@ def refresh_icons():
 @lru_cache(maxsize=2000)
 def emoji_pixmap(emoji,size=42):
  pm=QPixmap(size,size);pm.fill(Qt.transparent);p=QPainter(pm);p.setRenderHint(QPainter.TextAntialiasing);f=QFont('Noto Color Emoji');f.setPixelSize(int(size*.82));p.setFont(f);p.drawText(QRectF(0,0,size,size),Qt.AlignCenter,emoji);p.end();return pm
+
+
+def _follow_theme():
+    glyph.cache_clear()
+    badge.cache_clear()
+    refresh_icons()
+
+
+on_theme_changed(_follow_theme)

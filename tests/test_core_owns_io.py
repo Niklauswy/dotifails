@@ -6,8 +6,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 # path → plan that removes it. Each entry must still need it (see the last test).
 PENDING = {
-    'apps/wysun/theme_core.py': '02b', 'apps/capture/loomrec/ui/theme_core.py': '02b',
-    'apps/wysun/theme_tokens.py': '02b', 'apps/wysun/ui_appearance.py': '02b',
+    'apps/capture/loomrec/ui/theme_core.py': '02b',
     'apps/capture/loomrec/ui/tokens.py': '02b', 'apps/capture/loomrec/ui/motion.py': '02b',
     'apps/capture/loomrec/ui/app_kit.py': '02b',
     'apps/shell/modules/aiusage/backend.py': '04',

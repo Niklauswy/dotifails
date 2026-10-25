@@ -6,11 +6,8 @@ root=Path(__file__).resolve().parents[1];sys.path.insert(0,str(root/'apps/wysun'
 backgrounds=root/'assets/backgrounds'
 assert set(p.name for p in backgrounds.iterdir())=={'purple-abstract-3840x3840-27445.jpg'}
 assert hashlib.sha256((backgrounds/'purple-abstract-3840x3840-27445.jpg').read_bytes()).hexdigest()=='aeb9c5a195534fb47c7de1704a277a77f7a598ba0cee8d26b140e9f8991fc214'
-themes=json.loads((root/'manifests/themes.json').read_text())
-assert set(themes)=={'material-you'}
-for theme in themes.values():
- assert (backgrounds/theme['wallpaper']).is_file()
- if theme.get('archive'):assert hashlib.sha256((root/theme['archive']).read_bytes()).hexdigest()==theme['sha256']
+assert (backgrounds/json.loads((root/'apps/wysun/wysun_core/tokens.json').read_text())['wallpaper']).is_file(),'the base palettes go with the shipped wallpaper'
+assert not (root/'manifests/themes.json').exists(),'there is one style: no theme manifest'
 assert json.loads((root/'manifests/mason.json').read_text())==json.loads((root/'config/.config/nvim/mason-lock.json').read_text())
 plugins=json.loads((root/'manifests/plugins.json').read_text())
 lock=json.loads((root/'config/.config/nvim/lazy-lock.json').read_text())

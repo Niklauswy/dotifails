@@ -1,5 +1,5 @@
 """Shared, interruptible Qt motion. Actions that transfer focus still hide immediately."""
-from theme_tokens import color
+from wysun_core.qt_theme import color
 
 import os
 from PySide6.QtCore import (Qt, QSize, QObject, Property, QPropertyAnimation, QParallelAnimationGroup,
@@ -9,7 +9,7 @@ from PySide6.QtWidgets import QApplication, QPushButton, QStyle, QStyleOptionBut
 
 
 def reduced_motion(widget=None):
-    from ui_appearance import read_appearance
+    from wysun_core.appearance import read_appearance
     app = QApplication.instance()
     return (os.environ.get('ORBIT_REDUCED_MOTION', '').lower() in ('1', 'true', 'yes')
             or read_appearance()['reduced_motion'] or bool(app and app.property('orbitReducedMotion')) or bool(getattr(widget, 'test', False)))
@@ -30,7 +30,7 @@ class WindowMotion:
             self._motion_opacity=QPropertyAnimation(self,b'windowOpacity');self._window_motion.addAnimation(self._motion_opacity)
 
     def _animate_window(self, entering):
-        from theme_tokens import tokens
+        from wysun_core.qt_theme import tokens
         theme=tokens()
         self._motion_init()
         was_running = self._window_motion.state() == QAbstractAnimation.Running

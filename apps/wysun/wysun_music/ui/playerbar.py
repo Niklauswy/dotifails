@@ -8,7 +8,7 @@ from PySide6.QtGui import QPainter
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
 from music_library import artists
-from theme_tokens import color, tokens
+from wysun_core.qt_theme import color, tokens
 from .style import metric, stamp, text_font
 from .widgets import CoverArt, ElidedLabel, IconButton, LinkLabel, Slider
 

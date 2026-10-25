@@ -8,7 +8,7 @@ from PySide6.QtCore import QRect, QRectF, QSize, Qt, Signal
 from PySide6.QtGui import QColor, QPainter, QPainterPath
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QSizePolicy, QVBoxLayout, QWidget
 
-from theme_tokens import color, tokens
+from wysun_core.qt_theme import color, tokens
 from .shapes import artwork, blurred, clip_pixmap, cookie
 from .style import metric, paint_symbol, text_font
 from .widgets import LinkLabel, StateLayer, draw_art, paint_favorites_cover

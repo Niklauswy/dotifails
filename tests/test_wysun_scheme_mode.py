@@ -14,7 +14,7 @@ from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'apps/wysun'))
-import theme_core  # noqa: E402
+from wysun_core import theme  # noqa: E402
 import wysun_scheme  # noqa: E402
 
 MONITORS = [dict(name='DP-1', width=64, height=48, x=0, y=0, scale=1, refreshRate=60,
@@ -42,12 +42,12 @@ class ModeTests(unittest.TestCase):
         self.patch = patch.dict(os.environ, {'XDG_CONFIG_HOME': str(self.home / '.config'),
                                              'XDG_STATE_HOME': str(self.home / '.local/state')})
         self.patch.start()
-        theme_core.invalidate()
-        self.state_file = theme_core.scheme_path(self.home)
+        theme.invalidate()
+        self.state_file = theme.scheme_path(self.home)
 
     def tearDown(self):
         self.patch.stop()
-        theme_core.invalidate()
+        theme.invalidate()
         self.folder.cleanup()
 
     def environment(self):
@@ -57,22 +57,22 @@ class ModeTests(unittest.TestCase):
 
     # -- the stored mode ---------------------------------------------------
     def test_a_new_profile_is_automatic_and_the_mode_survives_unknown_keys(self):
-        self.assertEqual(theme_core.read_mode(self.home), 'auto')
+        self.assertEqual(theme.read_mode(self.home), 'auto')
         self.theme.write_text('{"unrelated": 1}')
-        self.assertEqual(theme_core.read_mode(self.home), 'auto')
+        self.assertEqual(theme.read_mode(self.home), 'auto')
         self.theme.write_text('{"mode": "light", "unrelated": 1}')
-        self.assertEqual(theme_core.read_mode(self.home), 'light')
+        self.assertEqual(theme.read_mode(self.home), 'light')
 
     def test_unreadable_theme_json_is_never_overwritten(self):
         self.theme.write_text('{broken')
-        self.assertEqual(theme_core.read_mode(self.home), 'auto')
+        self.assertEqual(theme.read_mode(self.home), 'auto')
         with self.assertRaises(ValueError):
             wysun_scheme.set_scheme('dark', self.home)
         self.assertEqual(self.theme.read_text(), '{broken')
         self.assertFalse(self.state_file.exists())
 
     def test_set_persists_the_mode_and_publishes_the_scheme_from_the_wallpaper(self):
-        self.theme.write_text('{"style":"fluent","variant":"dark","private":"keep"}\n')
+        self.theme.write_text('{"mode":"auto","private":"keep"}\n')
         self.config.joinpath('environment.json').write_text(json.dumps({'wallpaper': {'default': str(self.red)}}))
         run = lambda *args: wysun_scheme.main(['set', *args])
         run('light')
@@ -92,9 +92,9 @@ class ModeTests(unittest.TestCase):
         original = '{"mode":"dark","private":"keep"}\r\n'
         self.theme.write_bytes(original.encode())
         self.config.joinpath('environment.json').write_text(json.dumps({'wallpaper': {'default': str(self.red)}}))
-        theme_core.write_scheme(wysun_scheme.generate_dynamic(self.blue, 'dark'), self.home)
+        theme.write_scheme(wysun_scheme.generate_dynamic(self.blue, 'dark'), self.home)
         before = self.state_file.read_bytes()
-        with patch.object(theme_core, 'write_scheme', side_effect=OSError('disk full')):
+        with patch.object(theme, 'write_scheme', side_effect=OSError('disk full')):
             with self.assertRaises(OSError):
                 wysun_scheme.set_scheme('light', self.home)
         self.assertEqual(self.theme.read_bytes(), original.encode())

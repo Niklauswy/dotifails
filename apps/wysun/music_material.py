@@ -11,7 +11,7 @@ from pathlib import Path
 
 from PySide6.QtGui import QFont, QFontDatabase, QTextLayout
 
-from theme_tokens import family as theme_family
+from wysun_core.qt_theme import family as theme_family
 
 
 # Asset families are resource identifiers, not independent theme typography.

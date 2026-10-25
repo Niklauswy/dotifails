@@ -16,8 +16,7 @@ from PySide6.QtCore import (QEasingCurve, QEvent, QPointF, QRect, QRectF, QSize,
 from PySide6.QtGui import QColor, QFontMetrics, QPainter, QPainterPath, QPen, QPixmap
 from PySide6.QtWidgets import (QAbstractButton, QFrame, QGraphicsOpacityEffect, QLabel, QPlainTextEdit,
                                QSizePolicy, QVBoxLayout, QWidget)
-import theme_core
-from theme_tokens import apply_style as apply_tokens, color, tokens
+from wysun_core.qt_theme import apply_style as apply_tokens, color, tokens
 from ui_motion import reduced_motion
 from ui_theme import paint_surface
 from wysun_music.ui.shapes import Drift, blurred, cookie, grain_tile, squircle
@@ -47,7 +46,7 @@ ROLES = {
 
 def apply_style(widget, template=STYLE):
     apply_kit(widget)
-    from theme_tokens import extend_style
+    from wysun_core.qt_theme import extend_style
     extend_style(widget, template)
 
 

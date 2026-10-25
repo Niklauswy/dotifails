@@ -1,7 +1,7 @@
 """Native surface and control tokens shared by every Wysun module."""
-from theme_tokens import apply_style, color, tokens
+from wysun_core.qt_theme import apply_style, color, tokens
 
-from ui_appearance import read_appearance
+from wysun_core.appearance import read_appearance
 from PySide6.QtCore import Qt, QRectF
 from PySide6.QtGui import QPainter, QPen, QLinearGradient, QRadialGradient
 

@@ -6,7 +6,7 @@ from PySide6.QtCore import QPointF, QRectF, Qt
 from PySide6.QtGui import QPainter, QPainterPath, QPixmap, QPolygonF
 
 from file_media import AUDIO, VIDEOS
-from theme_tokens import color, tokens
+from wysun_core.qt_theme import color, tokens
 from .kinds import describe
 from .kit import clip_pixmap, cookie, paint_symbol, squircle, text_font
 

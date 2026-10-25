@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'apps/wysun'))
 import settings_data  # noqa: E402
 from wysun_core import jsonio  # noqa: E402
-import theme_core  # noqa: E402
+from wysun_core import theme  # noqa: E402
 from environment_settings import EnvironmentSettings  # noqa: E402
 from settings_data import PreferenceBackup, ShellPreferences  # noqa: E402
 
@@ -51,11 +51,11 @@ class PreferenceCase(unittest.TestCase):
         self.patch = patch.dict(os.environ, {'XDG_CONFIG_HOME': str(self.home / '.config'),
                                              'XDG_STATE_HOME': str(self.home / '.local/state')})
         self.patch.start()
-        theme_core.invalidate()
+        theme.invalidate()
 
     def tearDown(self):
         self.patch.stop()
-        theme_core.invalidate()
+        theme.invalidate()
         self.folder.cleanup()
 
     def write(self, name, text):
@@ -65,7 +65,7 @@ class PreferenceCase(unittest.TestCase):
 
     def state(self):
         names = ('shell.json', 'hypr-bar.json', 'appearance.json', 'environment.json', 'theme.json')
-        return {n: digest(self.orbit / n) for n in names} | {'scheme.json': digest(theme_core.scheme_path(self.home))}
+        return {n: digest(self.orbit / n) for n in names} | {'scheme.json': digest(theme.scheme_path(self.home))}
 
 
 class MigrationTests(PreferenceCase):
@@ -233,19 +233,19 @@ class ColourPreferenceTests(PreferenceCase):
         self.assertEqual(self.env.colour_values(), {'mode': 'auto'}, 'a retired fixed theme reads as automatic')
 
     def test_mode_save_with_wallpaper_and_exact_undo(self):
-        theme = self.write('theme.json', '{"style":"fluent","variant":"dark","privado":{"a":[1,2]}}\r\n')
+        theme_file = self.write('theme.json', '{"mode":"dark","privado":{"a":[1,2]}}\r\n')
         environment = self.write('environment.json', json.dumps({'wallpaper': {'default': str(self.red), 'mode': 'fit', 'folders': ['/x']},
                                                                   'other': {'k': 1}}, indent=3) + '\n')
         self.env.reload()
         before = self.state()
         baseline = self.env.colour_values()
         result = self.env.apply_colour(dict(mode='light'), str(self.blue), baseline)
-        theme_json = json.loads(theme.read_text())
+        theme_json = json.loads(theme_file.read_text())
         self.assertEqual(theme_json, {'privado': {'a': [1, 2]}, 'mode': 'light'})
         saved = json.loads(environment.read_text())
         self.assertEqual((saved['wallpaper']['default'], saved['wallpaper']['mode'], saved['wallpaper']['folders'], saved['other']),
                          (str(self.blue), 'fit', ['/x'], {'k': 1}))
-        scheme = json.loads(theme_core.scheme_path(self.home).read_text())
+        scheme = json.loads(theme.scheme_path(self.home).read_text())
         self.assertEqual((scheme['name'], scheme['mode']), ('dynamic', 'light'))
         self.assertEqual(set(scheme), {'name', 'flavour', 'mode', 'variant', 'colours', 'wallpaper_hash'})
         self.assertEqual(self.env.colour_values()['mode'], 'light')
@@ -258,25 +258,25 @@ class ColourPreferenceTests(PreferenceCase):
         self.write('environment.json', json.dumps({'wallpaper': {'default': str(bright)}}))
         self.env.reload()
         self.env.apply_colour(dict(mode='auto'), None, self.env.colour_values())
-        self.assertEqual(json.loads(theme_core.scheme_path(self.home).read_text())['mode'], 'light')
+        self.assertEqual(json.loads(theme.scheme_path(self.home).read_text())['mode'], 'light')
         self.env.apply_colour(dict(mode='dark'), None, self.env.colour_values())
-        self.assertEqual(json.loads(theme_core.scheme_path(self.home).read_text())['mode'], 'dark')
+        self.assertEqual(json.loads(theme.scheme_path(self.home).read_text())['mode'], 'dark')
         self.assertEqual(json.loads((self.orbit / 'theme.json').read_text()), {'mode': 'dark'})
 
     def test_invalid_theme_json_or_mode_blocks_the_save(self):
-        theme = self.write('theme.json', '{oops')
+        theme_file = self.write('theme.json', '{oops')
         before = self.state()
         with self.assertRaisesRegex(ValueError, 'JSON inválido'):
             self.env.apply_colour(dict(mode='dark'), None)
-        theme.write_text('{}')
+        theme_file.write_text('{}')
         for bad in ('nope', 'sepia', ''):
             with self.assertRaises(ValueError):
                 self.env.apply_colour(dict(mode=bad), None)
         with self.assertRaises(ValueError):
             self.env.apply_colour(dict(mode='dark'), None, dict(mode='light'))
-        theme.write_text('{oops')
+        theme_file.write_text('{oops')
         self.assertEqual(self.state()['theme.json'], before['theme.json'])
-        self.assertFalse(theme_core.scheme_path(self.home).exists())
+        self.assertFalse(theme.scheme_path(self.home).exists())
 
     def test_unreadable_wallpaper_restores_environment_and_scheme(self):
         junk = self.home / 'not-image.png'

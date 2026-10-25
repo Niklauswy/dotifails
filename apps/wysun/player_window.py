@@ -8,7 +8,7 @@ from shiboken6 import isValid
 
 import media_host
 import player_client
-from theme_tokens import apply_style, watch_theme
+from wysun_core.qt_theme import apply_style, watch_theme
 from ui_theme import PALETTE_STYLE
 from wysun_media import mpv
 from wysun_media.player import MediaPlayer

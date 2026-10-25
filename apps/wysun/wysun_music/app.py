@@ -69,7 +69,7 @@ def main(argv=None):
     qt.setApplicationDisplayName('Wysun Music')
     qt.setDesktopFileName('orbit-music')
     qt.setQuitOnLastWindowClosed(False)
-    from theme_tokens import watch_theme
+    from wysun_core.qt_theme import watch_theme
     watch_theme()
     music = build()
     server = InstanceNotifier(owner, lambda line: music.present(line.decode(errors='replace').strip()), qt,

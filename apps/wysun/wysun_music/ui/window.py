@@ -4,7 +4,7 @@ from PySide6.QtGui import QKeySequence, QPainter, QShortcut
 from PySide6.QtWidgets import (QApplication, QHBoxLayout, QLabel, QLineEdit, QMessageBox, QStackedWidget,
                                QVBoxLayout, QWidget)
 
-from theme_tokens import color, on_theme_changed
+from wysun_core.qt_theme import color, on_theme_changed
 from ui_motion import WindowMotion, reveal_content
 from ui_theme import paint_surface
 from .actions import Actions

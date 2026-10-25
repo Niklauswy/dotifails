@@ -6,7 +6,7 @@ palette, and re-applies the border colours of the active scheme.
 """
 import colorsys,json,re
 from pathlib import Path
-import theme_core
+from wysun_core.theme import resolve, resolve_active
 from environment_settings import set_values,run
 
 
@@ -27,29 +27,23 @@ def editor_tint(value,tint):
     return value
 
 
-# Colours that the retired fixed themes (Space Black, Tokyo, Severance, Fluent) and older
-# Settings versions saved into hypr-bar.json, so they are still told apart from user choices.
-RETIRED_BAR_COLORS={'#101118','#EBECF3','#B8C8FA','#0C171C','#101012','#17131F','#1C2A3B','#202020','#2165D5','#76B4FF','#79C9DC','#BB9AF7','#CECED4','#D2E4E8','#E5DCFA','#E6E6E8','#F3F3F3','#F3F6FB'}  # theme-exception: valores de temas retirados; sirven para reconocer colores generados
-
-
 def theme_colors():
-    """Every theme-generated bar colour, to tell them apart from user choices."""
-    return RETIRED_BAR_COLORS|{theme_core.styles()[style]['variants'][v]['external'][k].upper() for style in theme_core.styles() for v in theme_core.styles()[style]['variants'] for k in ('background','foreground','accent')}
+    """Every bar colour the base palettes generate, to tell them apart from user choices."""
+    return {resolve(mode)['external'][key].upper() for mode in ('light','dark') for key in ('background','foreground','accent')}
 
 
 def border_colors(theme):
     return {'active_border':'rgb('+theme['accent'][1:7]+')','inactive_border':'rgb('+theme['surface'][1:7]+')'}  # theme-exception: sintaxis de color de Hyprland
 
 
-def theme_files(home,variant='dark'):
+def theme_files(home,mode='dark'):
     """Files of the programs themed from the Material You palette, as {path: text}.
 
-    ``variant`` picks the base palette (``light`` or ``dark``); the installer stages
+    ``mode`` picks the base palette (``light`` or ``dark``); the installer stages
     these before any wallpaper scheme exists, so they come from the shipped palette.
     """
     from hypr_settings import config_dir,lua
-    style,variant=theme_core.normalize(None,variant)
-    home=Path(home);values=theme_core.resolve(style,variant);theme=values['external'];config=config_dir(home);files={}
+    home=Path(home);values=resolve(mode);theme=values['external'];config=config_dir(home);files={}
     def put(relative,transform):
         path=config/relative.removeprefix('.config/') if relative.startswith('.config/') else home/relative
         if path.is_file():files[path]=transform(path.read_text())
@@ -97,5 +91,5 @@ def theme_files(home,variant='dark'):
 def restore_theme(home=None,runner=run):
     """Paint the compositor borders with the active scheme (the compositor forgets them on restart)."""
     from hypr_settings import lua
-    values=theme_core.resolve_active(home=home)
+    values=resolve_active(home)
     runner(['hyprctl','eval','hl.config('+lua({'general':{'col':border_colors(values)}})+')'])

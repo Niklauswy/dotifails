@@ -3,15 +3,14 @@ from pathlib import Path
 import shutil
 import sys
 
-MODULES = ('theme_core.py', 'theme_tokens.py', 'wysun_theme.json', 'music_material.py',
-           'icons.py', 'ui_motion.py', 'ui_appearance.py', 'ui_theme.py', 'hypr_settings.py', 'desktop_backend.py')
+MODULES = ('music_material.py', 'icons.py', 'ui_motion.py', 'ui_theme.py', 'hypr_settings.py', 'desktop_backend.py')
 MUSIC = ('__init__.py', 'ui/__init__.py', 'ui/style.py', 'ui/shapes.py', 'ui/widgets.py')
 
 
 def prepare_imports():
     here = Path(__file__).resolve().parent
     for candidate in (here / 'ui_runtime', here.parent / 'apps/wysun'):
-        if (candidate / 'theme_tokens.py').is_file():
+        if (candidate / 'wysun_core/qt_theme.py').is_file():
             sys.path.insert(0, str(candidate))
             return candidate
     raise RuntimeError('Faltan los componentes visuales. Actualiza el instalador desde una copia completa de Wysun.')

@@ -7,7 +7,7 @@ from PySide6.QtGui import QPainter
 from PySide6.QtWidgets import QHBoxLayout, QScrollArea, QVBoxLayout, QWidget
 
 from file_media import human_size
-from theme_tokens import color
+from wysun_core.qt_theme import color
 from wysun_music.ui.sidebar import NavItem, section_label
 from ui_motion import reduced_motion
 from .kit import IconButton, metric, paint_symbol, text_font
@@ -92,7 +92,7 @@ class Rail(QWidget):
 
 
 def tokens_motion():
-    from theme_tokens import tokens
+    from wysun_core.qt_theme import tokens
     return tokens()['motion_enter'] + 60
 
 

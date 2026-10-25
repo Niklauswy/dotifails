@@ -11,7 +11,7 @@ from PySide6.QtWidgets import QHBoxLayout, QLabel, QSizePolicy, QStackedWidget, 
 
 from file_media import FilePreviewJob, duration_label, file_kind, human_size
 from files_zoom import ZoomCanvas
-from theme_tokens import color, tokens
+from wysun_core.qt_theme import color, tokens
 from ui_motion import reduced_motion
 from wysun_music.ui.shapes import squircle
 from .highlight import language_for_path

@@ -5,7 +5,7 @@ from PySide6.QtCore import QEvent, QRectF, Qt, Signal
 from PySide6.QtGui import QFontMetrics, QPainter
 from PySide6.QtWidgets import QHBoxLayout, QLineEdit, QWidget
 
-from theme_tokens import color
+from wysun_core.qt_theme import color
 from .kit import metric, paint_symbol, text_font
 
 HEIGHT = 42

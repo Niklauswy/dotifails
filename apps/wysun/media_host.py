@@ -1,7 +1,7 @@
 """Connects wysun_media to the Wysun theme runtime, symbols and motion preference."""
 import wysun_media
 from ui_motion import reduced_motion
-from theme_tokens import color, on_theme_changed, tokens
+from wysun_core.qt_theme import color, on_theme_changed, tokens
 from music_material import load_fonts
 from wysun_music.ui.style import paint_symbol, text_font
 

@@ -54,8 +54,8 @@ def app():
         _app = QApplication.instance() or QApplication(sys.argv[:1])
         _app.setStyle('Fusion')
         import media_host
-        import theme_tokens
-        theme_tokens.apply_palette(_app)
+        from wysun_core import qt_theme
+        qt_theme.apply_palette(_app)
         media_host.install()
     return _app
 

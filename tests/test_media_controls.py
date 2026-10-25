@@ -38,15 +38,14 @@ class HudInkTests(unittest.TestCase):
         self.assertEqual(controls.hud_ink('accent').name(), '#c6c2ee')
 
     def test_every_theme_variant_gives_visible_progress(self):
-        import theme_core
+        from wysun_core import theme
         from PySide6.QtGui import QColor
-        for style, spec in theme_core.styles().items():
-            for variant in spec['variants']:
-                tokens = theme_core.resolve(style, variant)
-                self.with_colours({name: QColor(value[:7]) for name, value in tokens.items() if isinstance(value, str) and value.startswith('#')})
-                ink, hud = controls.hud_ink('accent'), QColor(tokens['hud'][:7])
-                light, dark = sorted((controls._luminance(ink), controls._luminance(hud)), reverse=True)
-                self.assertGreaterEqual((light + .05) / (dark + .05), 3.0, (style, variant))
+        for mode in ('light', 'dark'):
+            tokens = theme.resolve(mode)
+            self.with_colours({name: QColor(value[:7]) for name, value in tokens.items() if isinstance(value, str) and value.startswith('#')})
+            ink, hud = controls.hud_ink('accent'), QColor(tokens['hud'][:7])
+            light, dark = sorted((controls._luminance(ink), controls._luminance(hud)), reverse=True)
+            self.assertGreaterEqual((light + .05) / (dark + .05), 3.0, mode)
 
 
 class SeekBarTests(unittest.TestCase):

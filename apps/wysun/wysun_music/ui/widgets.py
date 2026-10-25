@@ -10,7 +10,7 @@ from PySide6.QtCore import (QEasingCurve, QPointF, QRectF, QSize, Qt, QTimer,
 from PySide6.QtGui import QColor, QPainter, QPainterPath, QPen, QPixmap, QPixmapCache, QRadialGradient
 from PySide6.QtWidgets import QAbstractButton, QLabel, QSizePolicy, QWidget
 
-from theme_tokens import color, tokens
+from wysun_core.qt_theme import color, tokens
 from ui_motion import reduced_motion
 from .shapes import artwork, clip_pixmap, cookie, squircle
 from .style import metric, paint_symbol, text_font

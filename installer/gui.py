@@ -21,8 +21,7 @@ from PySide6.QtGui import QKeySequence, QShortcut
 from shiboken6 import isValid
 from PySide6.QtWidgets import (QApplication, QFileDialog, QHBoxLayout, QLabel, QListWidget, QScrollArea,
                                QSizePolicy, QVBoxLayout, QWidget)
-from theme_tokens import invalidate, on_theme_changed, refresh_widgets
-import theme_core
+from wysun_core.qt_theme import on_theme_changed, watch_theme
 from icons import icon
 from install_model import COMPONENTS, InstallOptions, backups, load_json, preflight, read_os_release
 import journey
@@ -1033,20 +1032,7 @@ def launch(source=None, home=None, preview=False):
     app.setOrganizationName('Wysun')
     app.setStyle('Fusion')
     window = InstallerWindow(source, home, preview=preview)
-    # Following the desktop's appearance is read-only. The shared app watcher migrates old theme
-    # files, which would break the preview's no-write contract, so this polls instead.
-    window.theme_revision = theme_core.visual_key()
-    window.theme_watcher = QTimer(window)
-    window.theme_watcher.setInterval(500)
-
-    def refresh_appearance():
-        revision = theme_core.visual_key()
-        if revision != window.theme_revision:
-            window.theme_revision = revision
-            invalidate()
-            refresh_widgets()
-    window.theme_watcher.timeout.connect(refresh_appearance)
-    window.theme_watcher.start()
+    watch_theme()                      # follows the desktop's mode and wallpaper; it never writes
     app.setFont(text_font())
     geometry = app.primaryScreen().availableGeometry()
     window.resize(min(1180, geometry.width() - metric('space_xl') * 2), min(800, geometry.height() - metric('space_xl') * 2))

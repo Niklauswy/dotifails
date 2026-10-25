@@ -12,7 +12,7 @@ from PySide6.QtCore import QEvent, QModelIndex, QPoint, QRect, QRectF, QSize, Qt
 from PySide6.QtGui import QColor, QFont, QPainter, QPainterPath, QPen, QTextLayout, QTextOption
 from PySide6.QtWidgets import QAbstractItemView, QListView, QStyledItemDelegate, QWidget
 
-from theme_tokens import color, tokens
+from wysun_core.qt_theme import color, tokens
 from ui_motion import reduced_motion
 from .kinds import describe
 from .tiles import paint_icon

@@ -33,7 +33,7 @@ def main():
         QMessageBox.warning(None, 'No se pudo abrir la ubicación', str(exc))
         return 1
     from files_window import FilesWindow
-    from theme_tokens import watch_theme
+    from wysun_core.qt_theme import watch_theme
     window = FilesWindow(paths=paths)
     watch_theme()
     window.show()

@@ -328,8 +328,8 @@ sys.path.insert(0, sys.argv[1])
 from PySide6.QtWidgets import QApplication
 app=QApplication(['standalone-installer-test'])
 from gui import InstallerWindow, CONTENT
-import theme_core
-assert str(Path(sys.argv[1])/'ui_runtime') in theme_core.__file__
+from wysun_core import theme
+assert str(Path(sys.argv[1])/'ui_runtime') in theme.__file__
 w=InstallerWindow(Path('/missing/repository'), Path(sys.argv[2]), preview=True)
 w.show();w.show_page(CONTENT,animate=False)
 end=time.monotonic()+15
@@ -348,7 +348,7 @@ assert w.next.isEnabled(), w.checks
         self.assertIn('Exec=wysun-installer --preview', desktop)
 
     def test_light_and_dark_render_every_page_at_laptop_size(self):
-        from theme_tokens import invalidate
+        from wysun_core.qt_theme import invalidate
         SHOTS.mkdir(parents=True, exist_ok=True)
         for theme in ('light', 'dark'):
             with patch.dict(os.environ, {'WYSUN_THEME': theme}):

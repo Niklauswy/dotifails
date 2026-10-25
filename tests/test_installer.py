@@ -6,7 +6,7 @@ class InstallerTests(unittest.TestCase):
  def test_the_mode_is_installed_in_the_new_format_and_kept_on_update(self):
   for name in ('config/.config','config/.local/bin','assets/icons','assets/backgrounds','manifests'):(self.source/name).mkdir(parents=True)
   (self.source/'config/.zshrc').write_text('preserved')
-  (self.source/'manifests/themes.json').write_text(json.dumps({'material-you':{'name':'Material You','wallpaper':'purple.jpg'}}))
+  (self.source/'apps/wysun/wysun_core').mkdir(parents=True);(self.source/'apps/wysun/wysun_core/tokens.json').write_text(json.dumps({'schema':2,'wallpaper':'purple.jpg'}))
   # A fresh profile gets the automatic mode and the shipped wallpaper.
   d=self.deploy()
   try:
@@ -14,11 +14,10 @@ class InstallerTests(unittest.TestCase):
    written={str(call.args[1]):call.args[0] for call in generated.call_args_list}
    self.assertEqual(json.loads(written['.config/orbit/theme.json']),{'mode':'auto'})
    self.assertEqual(json.loads(written['.config/orbit/environment.json'])['wallpaper']['default'],str(self.home/'.local/share/backgrounds/purple.jpg'))
-   self.assertEqual(d.receipt['theme'],'material-you')
   finally:d.lock.close()
-  # An update keeps the mode and the wallpaper the user picked, and reads the mode out of the old formats.
+  # An update keeps the mode and the wallpaper the user picked; an unknown format starts automatic.
   for stored,expected in (({'mode':'light'},'light'),({'style':'fluent','variant':'dark'},'auto'),({'id':'tokyo','name':'Tokyo'},'auto'),
-                          ({'style':'fluent','variant':'dark','dynamic':{'enabled':True,'mode':'dark'}},'dark')):
+                          ({'style':'fluent','variant':'dark','dynamic':{'enabled':True,'mode':'dark'}},'auto')):
    active=self.home/'.config/orbit/theme.json';active.parent.mkdir(parents=True,exist_ok=True);active.write_text(json.dumps(stored))
    (self.home/'.config/orbit/environment.json').write_text(json.dumps({'wallpaper':{'default':'/mine.jpg','folders':['/library']}}))
    d=self.deploy()
