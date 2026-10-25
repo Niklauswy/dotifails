@@ -45,8 +45,7 @@ detectan por huella y se guardan como `incoming/`).
 ### Shell (`apps/shell`)
 
 `shell.qml` carga `Background`, `Drawers` (barra y paneles por pantalla), `AreaPicker`, `WysunBridge` y los demonios
-`BatteryMonitor`, `IdleInhibit`. `daemons/Shortcuts.qml` (atajos globales de Quickshell) existe pero **no se carga**: los atajos
-viven en `hyprland.lua`.
+`BatteryMonitor`, `IdleInhibit`. Los atajos viven en `hyprland.lua`.
 
 - **IPC**: `wysunShell` (en `apps/shell/wysun/WysunBridge.qml`): `toggle|open <superficie>`, `close`, `status`, `reloadPreferences`,
   `theme`, `openThemeSettings`. Superficies: `dashboard, launcher, menu, quicksettings, notifications, sidebar, windows, session`.
@@ -216,7 +215,7 @@ Nunca reiniciar Hyprland ni el login para actualizar un panel.
 ## 6. Atajos, tema y ajustes (para las siguientes olas)
 
 - **Atajos**: `config/.config/wysun/hyprland.lua` (Hyprland 0.55, Lua). Atajos privados en `~/.config/wysun/local.lua`.
-  Los de captura apuntan a `wysun-shell screenshot …` / `wysun recorder …`. `apps/shell/daemons/Shortcuts.qml` está disponible si se decide mover atajos al shell.
+  Los de captura apuntan a `wysun-shell screenshot …` / `wysun recorder …`.
 - **Cheat sheet** (`Super+/`, `apps/shell/modules/cheatsheet`): `backend.py` vuelve a leer `~/.config/wysun/hyprland.lua`
   en cada apertura, sin caché. Un bind nuevo aparece solo si lleva `description="Wysun | <Categoría> | <texto>"`
   (por ejemplo `{description="Wysun | Notes | Quick note"}`): se lista en esa categoría con ese texto y una categoría

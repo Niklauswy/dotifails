@@ -12,7 +12,7 @@ Barra, dashboard, lanzador, menús, notificaciones, sesión y bloqueo de Wysun, 
 | `modules/` | `bar`, `dashboard`, `launcher`, `lock`, `nexus` (ajustes del shell), `notifications`, `osd`, `session`, `sidebar`, `utilities`, `windowinfo`, `drawers`, `background`, `areapicker` |
 | `services/` | Singletons QML (audio, red, hypr, notificaciones, colores, sistema…) |
 | `components/`, `utils/` | Controles, animaciones y utilidades compartidas |
-| `daemons/` | `BatteryMonitor`, `IdleInhibit`, `Shortcuts` (atajos globales; no se carga todavía) |
+| `daemons/` | `BatteryMonitor`, `IdleInhibit` |
 | `plugin/` | Plugin C++/QML `Wysun.*` (Config, Services, Components, Models, Blobs, Images, I18n, Multimedia, Settings, State, Shaders) |
 | `extras/` | Pequeño ejecutable `version` |
 | `wysun/` | Puente con las apps Qt: `WysunBridge.qml` (IPC `wysunShell`), `backend.py`, `runtime.sh` |

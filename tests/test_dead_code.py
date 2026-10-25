@@ -106,6 +106,28 @@ class DeadCodeTests(unittest.TestCase):
         source = (ROOT / 'apps/capture/loomrec/__main__.py').read_text()
         self.assertNotIn('--pick-color', source)
 
+    def test_every_shell_module_is_imported(self):
+        modules = sorted(p.name for p in (ROOT / 'apps/shell/modules').iterdir() if p.is_dir())
+        unused = []
+        for module in modules:
+            own = ROOT / 'apps/shell/modules' / module
+            corpus = '\n'.join(t for p, t, _ in corpus_files(ROOT) if own not in p.parents)
+            if not re.search(rf'qs\.modules\.{module}\b|modules/{module}\b', corpus):
+                unused.append(module)
+        self.assertEqual(unused, [])
+
+    def test_real_lock_does_not_import_the_old_one(self):
+        self.assertFalse((ROOT / 'apps/shell/modules/lock').exists())
+        self.assertNotRegex((ROOT / 'apps/shell/lock.qml').read_text(), r'qs\.modules\.lock\s*$')
+
+    def test_shell_has_no_unloaded_shortcuts_daemon(self):
+        self.assertFalse((ROOT / 'apps/shell/daemons/Shortcuts.qml').exists())
+
+    def test_upstream_manifest_lists_only_existing_files(self):
+        data = json.loads((ROOT / 'apps/shell/UPSTREAM.json').read_text())
+        missing = [f for f in data['imported_files'] if not (ROOT / 'apps/shell' / f).exists()]
+        self.assertEqual(missing, [])
+
     def test_subprocess_backends_count_as_alive(self):
         corpus = alive_names(ROOT)
         for backend in ('launcher_data', 'process_data', 'wysun_scheme', 'code_preview'):
