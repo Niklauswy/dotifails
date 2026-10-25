@@ -60,5 +60,29 @@ class OverlayWindowTests(unittest.TestCase):
         self.assertIn('closeOnEscape: false', text)
 
 
+class SearchFieldTests(unittest.TestCase):
+    def test_search_fields_use_search_bar(self):
+        for rel in ('modules/wallpaperpicker/WallpaperPicker.qml', 'modules/launcher/LauncherPanel.qml'):
+            text = qml(rel)
+            self.assertRegex(text, r'\bSearchBar\s*\{', rel)
+            self.assertNotRegex(text, r'\b(TextInput|TextFieldBase)\s*\{', rel)
+
+    def test_only_the_lock_screen_uses_a_raw_text_field_in_modules(self):
+        raw = [p for p in qml_files() if p.relative_to(SHELL).parts[0] == 'modules'
+               and re.search(r'\b(TextInput|TextFieldBase)\s*\{', p.read_text())]
+        self.assertEqual(relative(raw), ['modules/lockscreen/LockScene.qml'])  # a password, not a search
+
+    def test_wallpaper_filter_keeps_carousel_keys(self):
+        text = qml('modules/wallpaperpicker/WallpaperPicker.qml')
+        block = text[text.index('SearchBar {'):]
+        self.assertIn('Keys.priority: Keys.BeforeItem', block)
+        self.assertIn('carousel.random()', block)
+
+    def test_search_bar_has_a_bare_variant(self):
+        text = qml('components/controls/SearchBar.qml')
+        self.assertIn('property bool bare', text)
+        self.assertIn('bare: true', qml('modules/launcher/LauncherPanel.qml'))
+
+
 if __name__ == '__main__':
     unittest.main()

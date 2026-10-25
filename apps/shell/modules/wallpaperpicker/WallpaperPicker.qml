@@ -338,71 +338,36 @@ Scope {
                             onClicked: carousel.add()
                         }
 
-                        Rectangle {
+                        SearchBar {
+                            id: filter
+
                             anchors.verticalCenter: parent.verticalCenter
                             implicitWidth: Tokens.sizes.launcher.itemWidth * 0.6
-                            implicitHeight: filter.implicitHeight + Tokens.padding.small * 2
-                            radius: Tokens.rounding.full
-                            color: Colours.tPalette.m3surfaceContainer
-                            border.width: 1
-                            border.color: filter.activeFocus ? Colours.palette.m3primary : Colours.palette.m3outlineVariant
+                            placeholderText: "Filter wallpapers"
+                            focus: true
 
-                            MaterialIcon {
-                                id: searchIcon
-
-                                anchors.left: parent.left
-                                anchors.leftMargin: Tokens.padding.medium
-                                anchors.verticalCenter: parent.verticalCenter
-                                text: "search"
-                                color: Colours.palette.m3onSurfaceVariant
-                                fontStyle: Tokens.font.icon.small
-                            }
-
-                            TextInput {
-                                id: filter
-
-                                anchors.left: searchIcon.right
-                                anchors.right: parent.right
-                                anchors.margins: Tokens.padding.medium
-                                anchors.verticalCenter: parent.verticalCenter
-                                color: Colours.palette.m3onSurface
-                                selectionColor: Colours.palette.m3primary
-                                selectedTextColor: Colours.palette.m3onPrimary
-                                font: Tokens.font.body.small
-                                clip: true
-                                focus: true
-
-                                StyledText {
-                                    anchors.fill: parent
-                                    visible: !filter.text
-                                    text: "Filter wallpapers"
-                                    color: Colours.palette.m3outline
-                                    font: filter.font
-                                }
-
-                                Keys.priority: Keys.BeforeItem
-                                Keys.onPressed: event => {
-                                    const key = event.key;
-                                    if ((event.modifiers & Qt.ControlModifier) && key === Qt.Key_R)
-                                        carousel.random();
-                                    else if (key === Qt.Key_Left || key === Qt.Key_Up)
-                                        carousel.go(-1);
-                                    else if (key === Qt.Key_Right || key === Qt.Key_Down)
-                                        carousel.go(1);
-                                    else if (key === Qt.Key_PageUp)
-                                        carousel.go(-5);
-                                    else if (key === Qt.Key_PageDown)
-                                        carousel.go(5);
-                                    else if (key === Qt.Key_Home)
-                                        carousel.move(0);
-                                    else if (key === Qt.Key_End)
-                                        carousel.move(carousel.items.length - 1);
-                                    else if (key === Qt.Key_Return || key === Qt.Key_Enter)
-                                        carousel.apply();
-                                    else
-                                        return;
-                                    event.accepted = true;
-                                }
+                            Keys.priority: Keys.BeforeItem
+                            Keys.onPressed: event => {
+                                const key = event.key;
+                                if ((event.modifiers & Qt.ControlModifier) && key === Qt.Key_R)
+                                    carousel.random();
+                                else if (key === Qt.Key_Left || key === Qt.Key_Up)
+                                    carousel.go(-1);
+                                else if (key === Qt.Key_Right || key === Qt.Key_Down)
+                                    carousel.go(1);
+                                else if (key === Qt.Key_PageUp)
+                                    carousel.go(-5);
+                                else if (key === Qt.Key_PageDown)
+                                    carousel.go(5);
+                                else if (key === Qt.Key_Home)
+                                    carousel.move(0);
+                                else if (key === Qt.Key_End)
+                                    carousel.move(carousel.items.length - 1);
+                                else if (key === Qt.Key_Return || key === Qt.Key_Enter)
+                                    carousel.apply();
+                                else
+                                    return;
+                                event.accepted = true;
                             }
                         }
 

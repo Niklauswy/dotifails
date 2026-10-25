@@ -9,14 +9,16 @@ TextFieldBase {
     readonly property alias bg: bg
     readonly property alias searchIcon: searchIcon
     readonly property alias clearIcon: clearIcon
+    // Only the text and its placeholder, for a field drawn inside a surface of its own.
+    property bool bare
 
-    leftPadding: searchIcon.width + searchIcon.anchors.leftMargin + Tokens.spacing.medium
-    rightPadding: clearIcon.width + clearIcon.anchors.rightMargin + Tokens.spacing.medium
-    topPadding: Tokens.padding.large
-    bottomPadding: Tokens.padding.large
+    leftPadding: bare ? 0 : searchIcon.width + searchIcon.anchors.leftMargin + Tokens.spacing.medium
+    rightPadding: bare ? 0 : clearIcon.width + clearIcon.anchors.rightMargin + Tokens.spacing.medium
+    topPadding: bare ? 0 : Tokens.padding.large
+    bottomPadding: bare ? 0 : Tokens.padding.large
 
     onPressed: {
-        if (!stateLayer.disabled)
+        if (!bare && !stateLayer.disabled)
             stateLayer.press(stateLayer.mouseX, stateLayer.mouseY);
     }
 
@@ -24,6 +26,7 @@ TextFieldBase {
         id: bg
 
         anchors.fill: parent
+        visible: !root.bare
         color: Colours.tPalette.m3surfaceContainer
         radius: Tokens.rounding.full
 
@@ -64,6 +67,7 @@ TextFieldBase {
         anchors.verticalCenter: parent.verticalCenter
         anchors.leftMargin: Tokens.padding.large
 
+        visible: !root.bare
         text: "search"
         color: Colours.palette.m3onSurfaceVariant
         fontStyle: Tokens.font.icon.builders.medium.scale(0.9).build()
@@ -76,6 +80,7 @@ TextFieldBase {
         anchors.verticalCenter: parent.verticalCenter
         anchors.rightMargin: Tokens.padding.medium
 
+        visible: !root.bare
         icon: "clear"
         type: IconButton.Text
         radius: Tokens.rounding.full

@@ -833,7 +833,7 @@ Item {
                 }
             }
 
-            TextFieldBase {
+            SearchBar {
                 id: search
 
                 anchors.left: lead.right
@@ -841,12 +841,10 @@ Item {
                 anchors.right: trailing.left
                 anchors.rightMargin: Tokens.spacing.medium
                 anchors.verticalCenter: parent.verticalCenter
-                background: null
-                leftPadding: 0
-                rightPadding: 0
+                bare: true
                 font: Tokens.font.body.builders.large.size(13.5 * root.scale).build()
                 focus: true
-                placeholderText: ""
+                placeholderText: root.placeholders[root.current.id] ?? ""
                 onTextChanged: root.previewFocus = false
                 Keys.onPressed: event => root.handleKey(event)
                 Keys.onReleased: event => {
@@ -854,14 +852,6 @@ Item {
                         root.ctrlHeld = false;
                     if (event.key === Qt.Key_Alt)
                         root.altHeld = false;
-                }
-
-                StyledText {
-                    anchors.verticalCenter: parent.verticalCenter
-                    visible: search.text === ""
-                    text: root.placeholders[root.current.id] ?? ""
-                    font: search.font
-                    color: Colours.palette.m3onSurfaceVariant
                 }
             }
 
