@@ -53,6 +53,11 @@ class JsonIOTests(unittest.TestCase):
         self.assertIn('canción', target.read_text(encoding='utf-8'))
         self.assertEqual(jsonio.read_json(target), data)
 
+    def test_sort_keys_orders_the_output(self):
+        target = self.root / 'sorted.json'
+        jsonio.atomic_write_json(target, {'b': 1, 'a': 2}, sort_keys=True)
+        self.assertLess(target.read_text().index('"a"'), target.read_text().index('"b"'))
+
     def test_invalid_json_returns_default_unless_strict(self):
         broken = self.root / 'broken.json'
         broken.write_text('{')

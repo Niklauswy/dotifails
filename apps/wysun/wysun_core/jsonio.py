@@ -58,8 +58,8 @@ def atomic_write_text(path, text, *, mode=None):
     return atomic_write_bytes(path, text.encode('utf-8'), mode=mode)
 
 
-def atomic_write_json(path, data, *, mode=None, indent=2):
-    text = json.dumps(data, ensure_ascii=False, allow_nan=False, indent=indent) + '\n'
+def atomic_write_json(path, data, *, mode=None, indent=2, sort_keys=False):
+    text = json.dumps(data, ensure_ascii=False, allow_nan=False, indent=indent, sort_keys=sort_keys) + '\n'
     return atomic_write_text(path, text, mode=mode)
 
 
