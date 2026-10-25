@@ -1,9 +1,8 @@
 """The windows and request server of the Wysun Player process (see player_app.py for the command line)."""
 import json
 import signal
-import socket
 
-from PySide6.QtCore import QObject, QSocketNotifier, Qt, QTimer, Signal
+from PySide6.QtCore import QObject, Qt, QTimer, Signal
 from PySide6.QtWidgets import QApplication, QFileDialog, QMainWindow
 from shiboken6 import isValid
 
@@ -13,6 +12,7 @@ from theme_tokens import apply_style, watch_theme
 from ui_theme import PALETTE_STYLE
 from wysun_media import mpv
 from wysun_media.player import MediaPlayer
+from wysun_core.qt_instance import InstanceNotifier
 
 WINDOW_LIMIT = 24
 GRACE_MS = 400                      # after the last window closes, wait for a request that is already on its way
@@ -76,62 +76,21 @@ class RequestServer(QObject):
 
     received = Signal(dict)
 
-    def __init__(self, parent=None):
+    def __init__(self, owner=None, parent=None):
         super().__init__(parent)
-        path = player_client.endpoint()
-        if path.exists() or path.is_symlink():
-            if not path.is_socket():
-                raise RuntimeError('La ruta del reproductor está ocupada por otro archivo.')
-            path.unlink()
-        self.path = path
-        self.server = socket.socket(socket.AF_UNIX)
-        self.server.bind(str(path))
-        path.chmod(0o600)
-        self.server.listen(8)
-        self.server.setblocking(False)
-        self.clients = {}
-        self.notifier = QSocketNotifier(self.server.fileno(), QSocketNotifier.Read, self)
-        self.notifier.activated.connect(self.accept)
+        if owner is None:
+            owner = player_client.instance()
+            if not owner.claim():
+                raise RuntimeError('Wysun Player ya está en ejecución.')
+        self.owner = owner
+        self.notifier = InstanceNotifier(owner, self._handle, self, limit=player_client.LIMIT, timeout=2.0)
 
-    def accept(self, *_):
-        while True:
-            try:
-                connection, _ = self.server.accept()
-            except BlockingIOError:
-                return
-            connection.setblocking(False)
-            notifier = QSocketNotifier(connection.fileno(), QSocketNotifier.Read, self)
-            self.clients[connection] = [notifier, b'']
-            notifier.activated.connect(lambda *_, c=connection: self.read(c))
-            QTimer.singleShot(2000, self, lambda c=connection: self.drop(c))
-            self.read(connection)
-
-    def read(self, connection):
-        if connection not in self.clients:
-            return
-        try:
-            data = connection.recv(65536)
-        except BlockingIOError:
-            return
-        except OSError:
-            self.drop(connection)
-            return
-        if not data:
-            self.drop(connection)
-            return
-        state = self.clients[connection]
-        state[1] += data
-        if len(state[1]) > player_client.LIMIT:
-            self.drop(connection)
-        elif b'\n' in state[1]:
-            payload = self.parse(state[1].split(b'\n', 1)[0])
-            try:
-                connection.send(b'ok\n' if payload is not None else b'no\n')
-            except OSError:
-                pass
-            self.drop(connection)
-            if payload is not None:
-                self.received.emit(payload)
+    def _handle(self, line):
+        payload = self.parse(line)
+        if payload is None:
+            return b'no'
+        QTimer.singleShot(0, self, lambda: self.received.emit(payload))   # acknowledge first, then open
+        return b'ok'
 
     @staticmethod
     def parse(line):
@@ -144,24 +103,15 @@ class RequestServer(QObject):
         payload['files'] = [str(f) for f in payload.get('files', [])]
         return payload
 
-    def drop(self, connection):
-        state = self.clients.pop(connection, None)
-        if state:
-            state[0].setEnabled(False)
-            state[0].deleteLater()
-            connection.close()
-
     def close(self):
-        self.notifier.setEnabled(False)
-        self.server.close()
-        if self.path.is_socket():
-            self.path.unlink(missing_ok=True)
+        self.notifier.close()
+        self.owner.close()
 
 
 class Process(QObject):
     """Everything one Wysun Player process owns: its windows, the request socket and the idle exit."""
 
-    def __init__(self, quit_application, parent=None):
+    def __init__(self, quit_application, owner=None, parent=None):
         super().__init__(parent)
         # Load the native library during process startup, before the first window
         # is mapped. Its first dlopen can take hundreds of milliseconds; opening
@@ -175,7 +125,7 @@ class Process(QObject):
         self._quit = quit_application
         self.grace = QTimer(self, singleShot=True, interval=GRACE_MS)
         self.grace.timeout.connect(self._maybe_quit)
-        self.requests = RequestServer(self)
+        self.requests = RequestServer(owner, self)
         self.requests.received.connect(self.show)
 
     def show(self, payload):
@@ -222,7 +172,7 @@ class Process(QObject):
             window.player.shutdown()
 
 
-def run(first):
+def run(first, owner=None):
     """Create the application, show the window for ``first`` and serve requests until the last window closes."""
     qt = QApplication(['wysun-player', '-name', 'wysun-player'])
     qt.setStyle('Fusion')
@@ -232,7 +182,7 @@ def run(first):
     apply_style(qt, PALETTE_STYLE)
     watch_theme()
     media_host.install()
-    process = Process(qt.quit, qt)
+    process = Process(qt.quit, owner, qt)
     qt.aboutToQuit.connect(process.shutdown)
     qt.aboutToQuit.connect(mpv.wait_closed)
     for number in (signal.SIGTERM, signal.SIGINT):

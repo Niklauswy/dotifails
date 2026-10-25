@@ -3,10 +3,12 @@ from PySide6.QtCore import QObject, QSocketNotifier, QTimer
 
 
 class InstanceNotifier(QObject):
-    def __init__(self, instance, handler, parent=None):
+    def __init__(self, instance, handler, parent=None, **options):
+        """``options`` go to :meth:`SingleInstance.poll` (``limit``, ``timeout``)."""
         super().__init__(parent)
         self._instance = instance
         self._handler = handler
+        self._options = options
         self._notifier = QSocketNotifier(instance.fileno(), QSocketNotifier.Read, self)
         self._notifier.activated.connect(self._poll)
         # Clients already accepted are not on the listening socket: keep polling while any is pending.
@@ -14,7 +16,7 @@ class InstanceNotifier(QObject):
         self._timer.timeout.connect(self._poll)
 
     def _poll(self, *_):
-        self._instance.poll(self._handler)
+        self._instance.poll(self._handler, **self._options)
         if self._instance.pending:
             self._timer.start()
         else:

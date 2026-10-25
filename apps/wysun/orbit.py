@@ -2,17 +2,18 @@
 """Wysun resident: hosts the Qt utility windows and clipboard history. The launcher is the shell widget."""
 from theme_tokens import apply_style, color, paint_color
 
-import argparse, os, re, socket, subprocess, sys
+import argparse, os, re, subprocess, sys
 from pathlib import Path
-from PySide6.QtCore import Qt, QObject, QTimer, QThread, Signal
+from PySide6.QtCore import Qt, QObject, QTimer
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication, QLabel, QFrame
 
 from desktop_backend import Desktop, wayland
 from core import STATE, HOME, sensitive
+from wysun_core.instance import SingleInstance, send
+from wysun_core.qt_instance import InstanceNotifier
 
 ROOT=Path(__file__).resolve().parent
-SOCKET=str(Path(os.environ.get('XDG_RUNTIME_DIR','/tmp'))/f'orbit-{os.getuid()}.sock')
 from ui_theme import PALETTE_STYLE as STYLE
 
 def run(args):
@@ -95,31 +96,15 @@ def main():
     app=QApplication(['Orbit','--name','Orbit']);app.setApplicationName('Orbit');app.setApplicationDisplayName('Wysun');app.setDesktopFileName('orbit');app.setWindowIcon(QIcon(str(ROOT/'orbit.png')));app.setQuitOnLastWindowClosed(False);app.setStyle('Fusion');apply_style(app,STYLE);QIcon.setThemeSearchPaths([str(HOME/'.local/share/icons'),str(HOME/'.icons'),'/usr/share/icons']);QIcon.setThemeName('Win11-Dark');QIcon.setFallbackThemeName('Adwaita')
     from theme_tokens import watch_theme
     watch_theme()
-    server=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM)
-    try:
-        server.bind(SOCKET)
-    except OSError:
-        try:
-            with socket.socket(socket.AF_UNIX) as sock:
-                sock.settimeout(.5);sock.connect(SOCKET);sock.sendall((args.mode+'\n').encode())
-            return
-        except OSError:
-            Path(SOCKET).unlink(missing_ok=True);server.bind(SOCKET)
-    os.chmod(SOCKET,0o600);server.listen(8)
+    owner=SingleInstance(f'orbit-{os.getuid()}')
+    if send(owner.endpoint,args.mode.encode(),timeout=.5):return
+    if not owner.claim():
+        send(owner.endpoint,args.mode.encode(),timeout=.5,retry=2.0);return   # another resident is starting
     win=OrbitDaemon()
-    class IPC(QThread):
-        received=Signal(str)
-        def run(self):
-            while True:
-                try:client,_=server.accept()
-                except OSError:return
-                with client:
-                    client.settimeout(.5)
-                    try:
-                        data=client.recv(256).decode('utf-8',errors='ignore').strip()
-                        if data=='ping':client.sendall(b'pong\n')
-                        elif data and data!='daemon':self.received.emit(data)
-                    except OSError:pass
+    def request(line):
+        mode=line.decode('utf-8',errors='ignore').strip()
+        if mode=='ping':return b'pong'
+        if mode and mode!='daemon':QTimer.singleShot(0,lambda:receive(mode))
     def receive(mode):
         if mode=='reload':
             # Preserve pending notes, and refuse reload if an external edit conflicts.
@@ -128,11 +113,11 @@ def main():
                     window.present();return
             for window in win.utilities.values():
                 if hasattr(window,'shutdown_jobs'):window.shutdown_jobs()
-            server.close();Path(SOCKET).unlink(missing_ok=True)
+            ipc.close();owner.close()
             os.execv(sys.executable,[sys.executable,str(ROOT/'orbit.py'),'daemon','--daemon'])
         else:win.show_mode(mode)
     app.aboutToQuit.connect(lambda:[w.shutdown_jobs() for w in win.utilities.values() if hasattr(w,'shutdown_jobs')])
-    ipc=IPC();ipc.received.connect(receive);ipc.start()
+    ipc=InstanceNotifier(owner,request,app,limit=256,timeout=.5)
     if not args.daemon:QTimer.singleShot(0,lambda:win.show_mode(args.mode))
     sys.exit(app.exec())
 if __name__=='__main__':main()

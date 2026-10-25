@@ -5,25 +5,22 @@ no Qt import. The wire format is one JSON line; the server answers ``ok`` once i
 """
 import json
 import os
-import socket
 import subprocess
 import sys
-import tempfile
 from pathlib import Path
+
+from wysun_core.instance import SingleInstance, send
 
 LIMIT = 1 << 20
 
 
-def runtime_dir():
-    return Path(os.environ.get('XDG_RUNTIME_DIR') or tempfile.gettempdir())
+def instance():
+    """The user's player instance (not claimed: the server claims it, clients only read its endpoint)."""
+    return SingleInstance(f'wysun-player-{os.getuid()}')
 
 
 def endpoint():
-    return runtime_dir() / f'wysun-player-{os.getuid()}.sock'
-
-
-def lock_path():
-    return runtime_dir() / f'wysun-player-{os.getuid()}.lock'
+    return instance().endpoint
 
 
 def request(files, *, paused=False, fullscreen=False, start=None):
@@ -37,14 +34,7 @@ def forward(payload, timeout=1.0):
     data = (json.dumps(payload) + '\n').encode()
     if len(data) > LIMIT:
         raise ValueError('Demasiados archivos en una sola petición')
-    try:
-        with socket.socket(socket.AF_UNIX) as client:
-            client.settimeout(timeout)
-            client.connect(str(endpoint()))
-            client.sendall(data)
-            return client.recv(16).startswith(b'ok')
-    except OSError:
-        return False
+    return (send(endpoint(), data.rstrip(b'\n'), timeout=timeout, reply=True) or b'').startswith(b'ok')
 
 
 def command(payload):

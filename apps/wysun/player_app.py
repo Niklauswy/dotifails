@@ -7,7 +7,7 @@ and exits; the process ends with its last window, so nothing stays resident.
     wysun player [--paused] [--fullscreen] [--start SECONDS] [--] FILE...
 """
 import argparse
-import fcntl
+import signal
 import sys
 import time
 
@@ -32,26 +32,25 @@ def main(argv=None):
     while True:
         if player_client.forward(payload):
             return 0
-        lock = open(player_client.lock_path(), 'a')
-        try:
-            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError:
-            lock.close()
-            if time.monotonic() > deadline:
-                print(EXIT_MESSAGE, file=sys.stderr)
-                return 1
-            time.sleep(0.05)            # an instance is starting or closing: try again shortly
-            continue
-        try:
-            return serve(payload)
-        finally:
-            lock.close()
+        owner = player_client.instance()
+        if owner.claim():
+            return serve(payload, owner)
+        if time.monotonic() > deadline:
+            print(EXIT_MESSAGE, file=sys.stderr)
+            return 1
+        time.sleep(0.05)            # an instance is starting or closing: try again shortly
 
 
-def serve(first):
+def serve(first, owner):
     """Become the player process: import Qt only now, so a forwarded launch stays light."""
+    def stop(*_):
+        owner.close()
+        raise SystemExit(0)
+    # Until Qt takes over the signals (in run), a termination still removes the socket.
+    for number in (signal.SIGTERM, signal.SIGINT):
+        signal.signal(number, stop)
     from player_window import run
-    return run(first)
+    return run(first, owner)
 
 
 if __name__ == '__main__':

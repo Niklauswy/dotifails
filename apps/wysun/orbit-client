@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-import os, socket, subprocess, sys
+import os, subprocess, sys
 from pathlib import Path
-endpoint=str(Path(os.environ.get('XDG_RUNTIME_DIR','/tmp'))/f'orbit-{os.getuid()}.sock')
+from wysun_core.instance import SingleInstance, send
+endpoint=SingleInstance(f'orbit-{os.getuid()}').endpoint
 mode=sys.argv[1] if len(sys.argv)>1 else 'toggle'
 if mode in ('files', 'file-manager'):
     state=Path.home()/'.local/state';state.mkdir(parents=True,exist_ok=True)
@@ -11,11 +12,7 @@ if mode in ('files', 'file-manager'):
 if mode in ('music','music-mini'):
     # music-mini: the shell's media widget with Wysun Music chosen; the app starts hidden if needed.
     route='background' if mode=='music-mini' else 'present'
-    music_endpoint=str(Path(os.environ.get('XDG_RUNTIME_DIR',str(Path.home()/'.cache/orbit')))/f'orbit-music-app-{os.getuid()}.sock')
-    try:
-        with socket.socket(socket.AF_UNIX) as s:
-            s.settimeout(.3);s.connect(music_endpoint);s.sendall((route+'\n').encode())
-    except OSError:
+    if not send(SingleInstance(f'orbit-music-app-{os.getuid()}').endpoint,route.encode(),timeout=.3):
         state=Path.home()/'.local/state';state.mkdir(parents=True,exist_ok=True)
         with (state/'orbit-music.log').open('a') as log:
             subprocess.Popen(['/usr/bin/python3',str(Path(__file__).resolve().with_name('music_app.py'))]+(['--background'] if mode=='music-mini' else []),stdout=log,stderr=log,start_new_session=True)
@@ -27,10 +24,7 @@ if mode in ('settings','network','processes','color','colors') or mode.startswit
     # These pages are shell widgets (Nexus); `wysun` asks the running shell to open them.
     wysun=Path.home()/'.local/bin/wysun'
     os.execv(str(wysun),[str(wysun),mode]+sys.argv[2:])
-try:
-    with socket.socket(socket.AF_UNIX) as s:
-        s.settimeout(.3);s.connect(endpoint);s.sendall((mode+'\n').encode())
-except OSError:
+if not send(endpoint,mode.encode(),timeout=.3):
     state=Path.home()/'.local/state';state.mkdir(parents=True,exist_ok=True)
     with (state/'orbit.log').open('a') as log:
         start_mode='daemon' if mode=='reload' else mode

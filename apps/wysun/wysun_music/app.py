@@ -1,14 +1,14 @@
 """Composition root and single-instance entry point of Wysun Music."""
 from dataclasses import dataclass
-import fcntl
 import os
-from pathlib import Path
 import signal
-import socket
 import sys
 
 from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QApplication
+
+from wysun_core.instance import SingleInstance, send
+from wysun_core.qt_instance import InstanceNotifier
 
 from .covers import CoverStore
 from .library import Library
@@ -52,40 +52,14 @@ def build(test=False, *, persist=None, network=None, publish=None):
     return app
 
 
-def _runtime():
-    runtime = Path(os.environ.get('XDG_RUNTIME_DIR', str(Path.home() / '.cache/orbit')))
-    runtime.mkdir(parents=True, exist_ok=True, mode=0o700)
-    return runtime
-
-
-def _forward(endpoint, route):
-    """Hand the request to a running instance; True when one answered."""
-    try:
-        with socket.socket(socket.AF_UNIX) as client:
-            client.settimeout(.3)
-            client.connect(str(endpoint))
-            client.sendall((route + '\n').encode())
-        return True
-    except OSError:
-        return False
-
-
 def main(argv=None):
     argv = sys.argv if argv is None else argv
     route = 'background' if '--background' in argv else 'present'
-    runtime = _runtime()
-    endpoint = runtime / f'orbit-music-app-{os.getuid()}.sock'
-    if _forward(endpoint, route):
+    owner = SingleInstance(f'orbit-music-app-{os.getuid()}')
+    if send(owner.endpoint, route.encode(), timeout=.3):
         return 0
-    lock = (runtime / f'orbit-music-app-{os.getuid()}.lock').open('a')
-    try:
-        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-    except BlockingIOError:
+    if not owner.claim():
         return 0
-    if endpoint.exists():
-        if not endpoint.is_socket():
-            raise RuntimeError('La ruta del reproductor está ocupada por otro archivo.')
-        endpoint.unlink()
 
     qt = QApplication(['Orbit', '-name', 'Orbit'])
     qt.setStyle('Fusion')
@@ -95,15 +69,15 @@ def main(argv=None):
     qt.setQuitOnLastWindowClosed(False)
     from theme_tokens import watch_theme
     watch_theme()
-    from local_ipc import LocalSettingsServer
-    server = LocalSettingsServer(endpoint, qt)
     music = build()
-    server.requested.connect(music.present)
+    server = InstanceNotifier(owner, lambda line: music.present(line.decode(errors='replace').strip()), qt,
+                              limit=128, timeout=2.0)
     QTimer.singleShot(0, lambda: music.present(route))
 
     def finish():
         music.shutdown()
         server.close()
+        owner.close()
 
     qt.aboutToQuit.connect(finish)
     for number in (signal.SIGTERM, signal.SIGINT):
