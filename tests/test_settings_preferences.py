@@ -15,6 +15,7 @@ from PIL import Image
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'apps/wysun'))
 import settings_data  # noqa: E402
+from wysun_core import jsonio  # noqa: E402
 import theme_core  # noqa: E402
 from environment_settings import EnvironmentSettings  # noqa: E402
 from settings_data import PreferenceBackup, ShellPreferences  # noqa: E402
@@ -127,13 +128,13 @@ class MigrationTests(PreferenceCase):
     def test_write_failure_during_migration_leaves_no_partial_state(self):
         legacy = self.write('hypr-bar.json', json.dumps(LEGACY))
         before = digest(legacy)
-        real = settings_data.atomic_write
+        real = jsonio.atomic_write_bytes
 
-        def failing(path, text, mode=None):
+        def failing(path, data, mode=None):
             if Path(path).name == 'shell.json':
                 raise OSError(28, 'No space left on device')
-            return real(path, text, mode)
-        with patch.object(settings_data, 'atomic_write', failing):
+            return real(path, data, mode=mode)
+        with patch.object(jsonio, 'atomic_write_bytes', failing):
             with self.assertRaises(OSError):
                 ShellPreferences(self.home).migrate()
         self.assertFalse((self.orbit / 'shell.json').exists())
@@ -197,13 +198,13 @@ class SaveAndUndoTests(PreferenceCase):
         appearance = self.write('appearance.json', '{"opacity": 80, "k": 1}\n')
         ShellPreferences(self.home).migrate()
         before = self.state()
-        real = settings_data.atomic_write
+        real = jsonio.atomic_write_bytes
 
-        def failing(path, text, mode=None):
-            if Path(path).name == 'appearance.json' and 'opacity": 90' in text:
+        def failing(path, data, mode=None):
+            if Path(path).name == 'appearance.json' and b'opacity": 90' in data:
                 raise OSError(28, 'No space left on device')
-            return real(path, text, mode)
-        with patch.object(settings_data, 'atomic_write', failing), patch('environment_settings.atomic_write', failing):
+            return real(path, data, mode=mode)
+        with patch.object(jsonio, 'atomic_write_bytes', failing):
             with self.assertRaises(OSError):
                 self.env.apply_panels({'low_power': True}, {'opacity': 90, 'reduced_motion': False})
         self.assertEqual(self.state(), before)  # shell.json written first, then rolled back

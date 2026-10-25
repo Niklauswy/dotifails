@@ -30,7 +30,8 @@ def atomic_path(path, *, mode=None):
             mode = path.stat().st_mode & 0o777
         except FileNotFoundError:
             mode = 0o600
-    temporary = path.with_name(f'.{path.name}.{uuid.uuid4().hex}.tmp')
+    # Keep the suffix: tools such as ffmpeg and PIL choose the format from it.
+    temporary = path.with_name(f'.{path.stem}.{uuid.uuid4().hex}.tmp{path.suffix}')
     try:
         yield temporary
         os.chmod(temporary, mode)

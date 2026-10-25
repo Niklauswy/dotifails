@@ -38,6 +38,13 @@ class JsonIOTests(unittest.TestCase):
         self.assertEqual(target.read_text(), 'keep')
         self.assertEqual(sorted(p.name for p in self.root.iterdir()), ['data.json'])
 
+    def test_temporary_keeps_the_target_suffix(self):
+        # External writers (ffmpeg, PIL) pick the format from the extension of the path they get.
+        with jsonio.atomic_path(self.root / 'thumb.jpg') as temporary:
+            self.assertEqual(temporary.suffix, '.jpg')
+            self.assertTrue(temporary.name.startswith('.'))
+            temporary.write_bytes(b'x')
+
     def test_json_round_trip_is_utf8_with_newline(self):
         target = self.root / 'song.json'
         data = {'nombre': 'canción', 'n': [1, 2]}

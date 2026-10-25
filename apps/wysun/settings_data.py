@@ -2,6 +2,9 @@
 import datetime, hashlib, itertools, json, os, re, shutil, subprocess, tempfile
 from pathlib import Path
 
+from wysun_core import paths
+from wysun_core.jsonio import atomic_write_bytes, atomic_write_json, atomic_write_text
+
 HOME=Path.home()
 SCHEMA={
  'window_gap':('Separación entre ventanas','int',0,80),
@@ -16,18 +19,12 @@ SCHEMA={
 def checked(args):
     return subprocess.run(args,text=True,capture_output=True,timeout=4,check=True).stdout.strip()
 
-def atomic_write(path,text,mode=None):
-    path=Path(path);path.parent.mkdir(parents=True,exist_ok=True)
-    fd,tmp=tempfile.mkstemp(prefix='.'+path.name,dir=path.parent)
-    try:
-        os.fchmod(fd,mode or (path.stat().st_mode&0o777 if path.exists() else 0o600))
-        with os.fdopen(fd,'w') as f:f.write(text);f.flush();os.fsync(f.fileno())
-        os.replace(tmp,path)
-    finally:
-        if Path(tmp).exists():Path(tmp).unlink()
+def settings_backups(home=None):
+    """Where Settings keeps copies of the files it rewrites; ``home`` is injected by tests and previews."""
+    return Path(home)/'.local/share/orbit/settings-backups' if home else paths.data('orbit','settings-backups')
 
 def backup_file(path,root=None):
-    root=Path(root or HOME/'.local/share/orbit/settings-backups');root.mkdir(parents=True,exist_ok=True,mode=0o700)
+    root=Path(root or settings_backups());root.mkdir(parents=True,exist_ok=True,mode=0o700)
     stamp=datetime.datetime.now().strftime('%Y%m%d-%H%M%S-%f');dest=root/(stamp+'-'+Path(path).name)
     if Path(path).exists():shutil.copy2(path,dest);dest.chmod(0o600)
     return dest
@@ -146,17 +143,7 @@ def restore_bytes(path, content, mode=0o600):
     if content is None:
         path.unlink(missing_ok=True)
         return
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, name = tempfile.mkstemp(prefix='.' + path.name, dir=path.parent)
-    try:
-        with os.fdopen(fd, 'wb') as stream:
-            os.fchmod(stream.fileno(), mode)
-            stream.write(content)
-            stream.flush()
-            os.fsync(stream.fileno())
-        os.replace(name, path)
-    finally:
-        Path(name).unlink(missing_ok=True)
+    atomic_write_bytes(path, content, mode=mode)
 
 
 class PreferenceBackup:
@@ -176,12 +163,12 @@ class PreferenceBackup:
         for key, content in self.before.items():
             if content is not None:
                 restore_bytes(self.folder / key, content)
-        atomic_write(self.folder / 'receipt.json', json.dumps({'version': 1, 'present': [k for k,v in self.before.items() if v is not None]}))
+        atomic_write_text(self.folder / 'receipt.json', json.dumps({'version': 1, 'present': [k for k,v in self.before.items() if v is not None]}))
         self.after = None
 
     def seal(self):
         self.after = {key: path.read_bytes() if path.exists() else None for key, path in self.paths.items()}
-        atomic_write(self.folder / 'receipt.json', json.dumps({
+        atomic_write_text(self.folder / 'receipt.json', json.dumps({
             'version': 1, 'present': [k for k,v in self.before.items() if v is not None],
             'modes': self.modes, 'after': {k: self.digest(v) for k,v in self.after.items()}}))
 
@@ -303,7 +290,7 @@ class ShellPreferences:
             values = validate_shell(translate_legacy_bar(json_object(self.legacy)))
             backup = PreferenceBackup(self.home, {'shell.json': self.path, 'hypr-bar.json': self.legacy}, 'shell-migration')
             try:
-                atomic_write(self.path, json.dumps(values, ensure_ascii=False, indent=2) + '\n')
+                atomic_write_json(self.path, values)
             except Exception:
                 backup.restore(force=True)
                 raise
@@ -323,11 +310,11 @@ class ShellPreferences:
                 raise ValueError('El shell cambió en otra ventana. Recarga antes de guardar.')
             merged = validate_shell(dict(latest, **values))
             if not snapshot:  # the caller owns one combined backup
-                atomic_write(self.path, json.dumps(merged, ensure_ascii=False, indent=2) + '\n')
+                atomic_write_json(self.path, merged)
                 return None
             backup = PreferenceBackup(self.home, {'shell.json': self.path}, 'shell')
             try:
-                atomic_write(self.path, json.dumps(merged, ensure_ascii=False, indent=2) + '\n')
+                atomic_write_json(self.path, merged)
             except Exception:
                 backup.restore(force=True)
                 raise

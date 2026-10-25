@@ -4,7 +4,7 @@ Original Wysun code. The design (video/GIF wallpapers, thumbnails cached by file
 identity, a representative frame feeding the Material You scheme) follows the
 description in the upstream animated-wallpaper project; no code was copied from it.
 
-Everything generated lives under $XDG_CACHE_HOME/wysun/wallpapers, never in the repo.
+Everything generated lives in the user cache (wysun/wallpapers), never in the repo.
 """
 from __future__ import annotations
 
@@ -16,6 +16,11 @@ from pathlib import Path
 import shutil
 import subprocess
 import sys
+
+# The shell runs this file with `python3 -I`, which leaves its own directory off sys.path.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from wysun_core import paths  # noqa: E402
+from wysun_core.jsonio import atomic_path  # noqa: E402
 
 ANIMATED_EXTENSIONS = ('.mp4', '.webm', '.mkv', '.mov', '.gif')
 IMAGE_EXTENSIONS = ('.png', '.jpg', '.jpeg', '.webp', '.bmp', '.avif', '.jxl', '.tif', '.tiff')
@@ -32,8 +37,7 @@ def is_wallpaper(path):
 
 
 def cache_dir(home=None):
-    base = os.environ.get('XDG_CACHE_HOME') or str(Path(home or Path.home()) / '.cache')
-    return Path(base) / 'wysun' / 'wallpapers'
+    return (Path(home) / '.cache' if home else paths.cache_home()) / 'wysun' / 'wallpapers'
 
 
 def identity(path):
@@ -94,18 +98,16 @@ def _extract(path, target, vf, seek):
     ffmpeg = _ffmpeg()
     if not ffmpeg:
         raise ValueError('ffmpeg is needed to use video wallpapers.')
-    target.parent.mkdir(parents=True, exist_ok=True)
-    partial = target.with_name(target.name + '.part' + target.suffix)
     for at in (seek, 0.0):
-        command = [ffmpeg, '-v', 'error', '-y', '-ss', f'{at:.2f}', '-i', str(path), '-frames:v', '1', '-vf', vf, str(partial)]
         try:
-            subprocess.run(command, capture_output=True, timeout=60, check=False)
-        except (OSError, subprocess.TimeoutExpired):
-            continue
-        if partial.is_file() and partial.stat().st_size:
-            partial.replace(target)
+            with atomic_path(target) as partial:
+                command = [ffmpeg, '-v', 'error', '-y', '-ss', f'{at:.2f}', '-i', str(path), '-frames:v', '1', '-vf', vf, str(partial)]
+                subprocess.run(command, capture_output=True, timeout=60, check=False)
+                if not (partial.is_file() and partial.stat().st_size):
+                    raise ValueError('empty frame')
             return target
-    partial.unlink(missing_ok=True)
+        except (OSError, ValueError, subprocess.TimeoutExpired):
+            continue
     raise ValueError('No frame could be extracted from ' + Path(path).name)
 
 
@@ -135,13 +137,11 @@ def thumbnail(path, home=None):
         vf = f'scale={width}:{height}:force_original_aspect_ratio=increase,crop={width}:{height}'
         return _extract(path, target, vf, _seek(path))
     from PIL import Image, ImageOps
-    target.parent.mkdir(parents=True, exist_ok=True)
     with Image.open(path) as source:
         source.draft('RGB', (width * 2, height * 2))
         image = ImageOps.fit(source.convert('RGB'), THUMB_SIZE, Image.Resampling.LANCZOS)
-    partial = target.with_name(target.name + '.part.jpg')
-    image.save(partial, 'JPEG', quality=85)
-    partial.replace(target)
+    with atomic_path(target) as partial:
+        image.save(partial, 'JPEG', quality=85)
     return target
 
 

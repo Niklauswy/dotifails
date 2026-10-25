@@ -16,11 +16,13 @@ import re
 import shutil
 import subprocess
 
+from wysun_core import paths
+
 HOME = Path.home()
-CONFIG = Path(os.environ.get('XDG_CONFIG_HOME') or HOME / '.config') / 'nvim/lua/chadrc.lua'
-DATA = Path(os.environ.get('XDG_DATA_HOME') or HOME / '.local/share') / 'nvim/lazy'
-BASE46_CACHE = Path(os.environ.get('XDG_DATA_HOME') or HOME / '.local/share') / 'nvim/base46'
-CACHE = Path(os.environ.get('XDG_CACHE_HOME') or HOME / '.cache') / 'wysun/nvim-colours.json'
+CONFIG = paths.config('nvim', 'lua', 'chadrc.lua')
+DATA = paths.data('nvim', 'lazy')
+BASE46_CACHE = paths.data('nvim', 'base46')
+CACHE = paths.cache('wysun', 'nvim-colours.json')
 # Treesitter groups the preview uses, read from the running theme.
 GROUPS = ('Normal', 'LineNr', '@comment', '@string', '@string.escape', '@string.regexp', '@number', '@boolean',
           '@constant', '@type', '@module', '@keyword', '@keyword.function', '@function', '@function.builtin',

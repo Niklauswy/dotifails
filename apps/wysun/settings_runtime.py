@@ -6,29 +6,30 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-from environment_settings import EnvironmentSettings, display_inventory, display_command, display_plan, profile_key, restore_display, render_wallpaper, run, read_json, trial_lock
-from settings_data import atomic_write
+from environment_settings import EnvironmentSettings, display_inventory, display_command, display_plan, profile_key, restore_display, render_wallpaper, run, trial_lock
+from wysun_core import paths
+from wysun_core.jsonio import atomic_write_text, read_json
 
 def guard(folder,runner=run):
     folder=Path(folder)
     while True:
         if (folder/'accepted').exists() or (folder/'reverted').exists():return
         with trial_lock(folder):
-            trial=read_json(folder/'trial.json')
+            trial=read_json(folder/'trial.json', {})
             if time.time()>=trial['deadline']:
                 if (folder/'accepted').exists() or (folder/'reverted').exists():return
                 try:
                     restore_display(trial['old'],runner)
-                    atomic_write(folder/'reverted','ok')
+                    atomic_write_text(folder/'reverted','ok')
                 except Exception as exc:
-                    atomic_write(folder/'error',str(exc))
+                    atomic_write_text(folder/'error',str(exc))
                 return
         time.sleep(.1)
 
 def start_applications(backend):
     entries=[r for r in backend.autostart_entries() if r['managed'] and r['enabled']]
     if not entries:return
-    runtime=Path(os.environ.get('XDG_RUNTIME_DIR',str(backend.home/'.cache')))/'orbit-settings-startup'
+    runtime=(paths.runtime_dir() if backend.home==Path.home() else backend.home/'.cache')/'orbit-settings-startup'
     runtime.mkdir(parents=True,exist_ok=True,mode=0o700)
     session=os.environ.get('XDG_SESSION_ID') or os.environ.get('HYPRLAND_INSTANCE_SIGNATURE') or os.environ.get('WAYLAND_DISPLAY')
     if not session:return
@@ -39,7 +40,7 @@ def start_applications(backend):
         for entry in entries:
             try:subprocess.run(['gio','launch',entry['path']],capture_output=True,text=True,timeout=8,check=True)
             except Exception as exc:print('Inicio:',entry['name'],str(exc),file=sys.stderr)
-        atomic_write(marker,'ok')
+        atomic_write_text(marker,'ok')
 
 def restore_workspaces(backend):
     """Login/hotplug: regenerate hypr-workspaces.lua and pin it live.
@@ -63,7 +64,7 @@ def restore_workspaces(backend):
             if not mapping:return
             text=layouts.lua_fragment(mapping)
             path=backend.config/'orbit/hypr-workspaces.lua'
-            if not path.is_file() or path.read_text()!=text:atomic_write(path,text)
+            if not path.is_file() or path.read_text()!=text:atomic_write_text(path,text)
             backend.runner(['hyprctl','eval',layouts.live_script(mapping,{})])
     except Exception as exc:print('Escritorios:',str(exc),file=sys.stderr)
 
@@ -81,7 +82,7 @@ def revive_displays(backend,inventory):
     plan=normalize(fill_modes(plan,{o['name']:o['modes'] for o in connected}))
     plan[0]['primary']=True
     backend.runner(display_command(plan,inventory))
-    atomic_write(backend.config/'orbit/hypr-monitors.lua',monitors_fragment(plan))
+    atomic_write_text(backend.config/'orbit/hypr-monitors.lua',monitors_fragment(plan))
     return True
 
 def restore_displays(backend):
@@ -100,7 +101,7 @@ def restore_displays(backend):
         current={p['name']:p for p in display_plan(inventory)}
         wanted={p['name']:p for p in plan}
         path=backend.config/'orbit/hypr-monitors.lua';text=monitors_fragment(plan)
-        if not path.is_file() or path.read_text()!=text:atomic_write(path,text)
+        if not path.is_file() or path.read_text()!=text:atomic_write_text(path,text)
         keys=('enabled','mode','rate','rotation','x','y')
         if any(current.get(n,{}).get(k)!=wanted[n].get(k) for n in wanted for k in keys):
             backend.runner(display_command(plan,inventory))

@@ -14,7 +14,8 @@ import sys
 import tempfile
 import time
 from pathlib import Path
-from settings_data import atomic_write, backup_file
+from settings_data import backup_file, settings_backups
+from wysun_core.jsonio import atomic_write_json, atomic_write_text, read_json
 
 ROOT = Path(__file__).resolve().parent
 ROTATIONS = ('normal','left','right','inverted')
@@ -27,12 +28,6 @@ def run(args):
     output=result.stdout.strip()
     if list(args[:2]) in (['hyprctl','eval'],['hyprctl','dispatch']) and output!='ok':raise RuntimeError(output[:500])
     return output
-
-def read_json(path, default=None):
-    try:
-        return json.loads(Path(path).read_text())
-    except FileNotFoundError:
-        return copy.deepcopy(default if default is not None else {})
 
 def display_inventory(runner=run):
     from hypr_settings import inventory
@@ -98,13 +93,13 @@ class DisplayTrial:
         folder.mkdir(parents=True,exist_ok=True,mode=0o700)
         self.folder = Path(tempfile.mkdtemp(dir=folder))
         self.done=False
-        atomic_write(self.folder/'trial.json',json.dumps({'old':self.old,'deadline':time.time()+35}))
-        atomic_write(self.folder/'meta.json',json.dumps({'plan':plan,'key':self.key}))
+        atomic_write_text(self.folder/'trial.json',json.dumps({'old':self.old,'deadline':time.time()+35}))
+        atomic_write_text(self.folder/'meta.json',json.dumps({'plan':plan,'key':self.key}))
         self.process = subprocess.Popen([sys.executable,str(ROOT/'settings_runtime.py'),'guard',str(self.folder)],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,start_new_session=True)
         try:
             backend.runner(command)
             with trial_lock(self.folder):
-                atomic_write(self.folder/'trial.json',json.dumps({'old':self.old,'deadline':time.time()+18}))
+                atomic_write_text(self.folder/'trial.json',json.dumps({'old':self.old,'deadline':time.time()+18}))
         except Exception:
             self.reject()
             raise
@@ -116,9 +111,9 @@ class DisplayTrial:
         if folder.parent != backend.home/'.cache/orbit/display-trials' or not (folder/'meta.json').is_file():
             raise ValueError('Prueba de pantallas desconocida.')
         trial = cls.__new__(cls)
-        meta = read_json(folder/'meta.json')
+        meta = read_json(folder/'meta.json', {})
         trial.backend, trial.folder, trial.plan, trial.key = backend, folder, meta['plan'], meta['key']
-        trial.old = read_json(folder/'trial.json')['old']
+        trial.old = read_json(folder/'trial.json', {})['old']
         trial.done = (folder/'accepted').exists() or (folder/'reverted').exists()
         trial.process = None
         return trial
@@ -130,14 +125,14 @@ class DisplayTrial:
             self.reject()
             raise ValueError('Cambió la conexión de una pantalla; se revirtió la prueba.')
         with trial_lock(self.folder):
-            if (self.folder/'reverted').exists() or (self.folder/'error').exists() or time.time() > read_json(self.folder/'trial.json')['deadline']:
+            if (self.folder/'reverted').exists() or (self.folder/'error').exists() or time.time() > read_json(self.folder/'trial.json', {})['deadline']:
                 raise ValueError('La prueba venció. Vuelve a probar la distribución.')
             section = copy.deepcopy(self.backend.section('displays'))
             section.setdefault('profiles',{})[self.key] = self.plan
             self.backend.save_section('displays',section)
             from display_layout import monitors_fragment
-            atomic_write(self.backend.config/'orbit/hypr-monitors.lua',monitors_fragment(self.plan))
-            atomic_write(self.folder/'accepted','ok')
+            atomic_write_text(self.backend.config/'orbit/hypr-monitors.lua',monitors_fragment(self.plan))
+            atomic_write_text(self.folder/'accepted','ok')
             self.done = True
         after_display_change(self.backend)
 
@@ -146,7 +141,7 @@ class DisplayTrial:
             return
         with trial_lock(self.folder):
             if not (self.folder/'reverted').exists():restore_display(self.old,self.backend.runner)
-            atomic_write(self.folder/'reverted','ok')
+            atomic_write_text(self.folder/'reverted','ok')
         self.done = True
         after_display_change(self.backend)
 
@@ -198,7 +193,7 @@ class EnvironmentSettings:
         self.reload()
 
     def reload(self):
-        self.data = read_json(self.path)
+        self.data = read_json(self.path, {})
 
     def section(self, name):
         return self.data.get(name,{})
@@ -316,11 +311,11 @@ class EnvironmentSettings:
                       reduced_motion=values['reduced_motion'])
         text = json.dumps(latest, ensure_ascii=False, indent=2) + '\n'
         if not snapshot:
-            atomic_write(path, text)
+            atomic_write_text(path, text)
             return None
         backup = PreferenceBackup(self.home, {'appearance.json': path}, 'appearance')
         try:
-            atomic_write(path, text)
+            atomic_write_text(path, text)
         except Exception:
             backup.restore(force=True)
             raise
@@ -344,25 +339,25 @@ class EnvironmentSettings:
             self._save_section(name,values)
 
     def _save_section(self,name,values):
-        latest = read_json(self.path)
+        latest = read_json(self.path, {})
         if latest.get(name,{}) != self.data.get(name,{}):
             raise ValueError('Esta sección cambió en otra ventana. Recarga antes de guardar.')
         latest[name] = values
         if self.path.exists():
-            backup_file(self.path,self.home/'.local/share/orbit/settings-backups')
-        atomic_write(self.path,json.dumps(latest,ensure_ascii=False,indent=2)+'\n')
+            backup_file(self.path,settings_backups(self.home))
+        atomic_write_json(self.path, latest)
         self.data[name] = copy.deepcopy(values)
 
     def edit_file(self,path,text,activate=None):
         path = Path(path)
         old = path.read_text()
-        backup_file(path,self.home/'.local/share/orbit/settings-backups')
-        atomic_write(path,text)
+        backup_file(path,settings_backups(self.home))
+        atomic_write_text(path,text)
         try:
             if activate:
                 activate()
         except Exception:
-            atomic_write(path,old)
+            atomic_write_text(path,old)
             raise
 
     def bar_theme_colors(self):
@@ -374,7 +369,7 @@ class EnvironmentSettings:
     def bar_values(self):
         defaults=dict(height=36,offset=10,radius=12,opacity=65,**self.bar_theme_colors(),left=['orbit','workspaces'],center=['title'],right=['resources','network','volume','battery','date','notifications','power','tray'],monitors={},tray_monitor='')
         path=self.config/'orbit/hypr-bar.json'
-        return defaults | read_json(path) if path.exists() else defaults
+        return defaults | read_json(path, {}) if path.exists() else defaults
 
     def apply_bar(self, values):
         values=copy.deepcopy(values)
@@ -394,12 +389,12 @@ class EnvironmentSettings:
         if not any(values[side] for side in ('left','center','right')):
             raise ValueError('Deja al menos un módulo en la barra.')
         path=self.config/'orbit/hypr-bar.json';previous=path.read_text() if path.exists() else None
-        backup_file(path,self.home/'.local/share/orbit/settings-backups')
-        atomic_write(path,json.dumps(values,ensure_ascii=False,indent=2)+'\n')
+        backup_file(path,settings_backups(self.home))
+        atomic_write_json(path, values)
         try:self.runner(['wysun','shell','reload-preferences'])
         except Exception:
             if previous is None:path.unlink(missing_ok=True)
-            else:atomic_write(path,previous)
+            else:atomic_write_text(path,previous)
             try:self.runner(['wysun','shell','reload-preferences'])
             except Exception:pass
             raise
@@ -454,7 +449,7 @@ class EnvironmentSettings:
             self.path.parent.mkdir(parents=True,exist_ok=True,mode=0o700)
             with (self.path.parent/'environment.lock').open('a') as handle:
                 fcntl.flock(handle,fcntl.LOCK_EX)
-                latest=read_json(self.path)
+                latest=read_json(self.path, {})
                 if latest.get('hypr-effects',{})!=self.section('hypr-effects'):raise ValueError('Los efectos cambiaron. Recarga antes de guardar.')
                 latest['hypr-effects']=values
                 apply_fragment(self.runner,{path:text,self.path:json.dumps(latest,ensure_ascii=False,indent=2)+'\n'},text,rollback)
@@ -506,7 +501,7 @@ class EnvironmentSettings:
         self.path.parent.mkdir(parents=True,exist_ok=True,mode=0o700)
         with (self.path.parent/'environment.lock').open('a') as handle:
             fcntl.flock(handle,fcntl.LOCK_EX)
-            latest = read_json(self.path)
+            latest = read_json(self.path, {})
             if latest.get('workspaces',{})!=self.data.get('workspaces',{}):
                 raise ValueError('Los escritorios cambiaron en otra ventana. Recarga antes de guardar.')
             latest['workspaces'] = clean
@@ -547,7 +542,7 @@ class EnvironmentSettings:
         self.apply_workspace_layout(layouts.default_layout(display_inventory(self.runner)))
 
     def workspace_action(self, action, ident='', value=''):
-        if read_json(self.path).get('workspaces',{})!=self.section('workspaces'):
+        if read_json(self.path, {}).get('workspaces',{})!=self.section('workspaces'):
             raise ValueError('Los escritorios cambiaron en otra ventana. Recarga antes de editar.')
         if action in ('move','remove') and str(ident).isdecimal():
             import workspace_layout as layouts
@@ -585,8 +580,8 @@ class EnvironmentSettings:
     def set_autostart(self, entry, enabled):
         target=self.home/'.config/autostart'/entry['id']
         text=Path(entry['path']).read_text()
-        if target.exists():backup_file(target,self.home/'.local/share/orbit/settings-backups')
-        atomic_write(target,set_ini(text,'Desktop Entry',{'Hidden':'false' if enabled else 'true'}))
+        if target.exists():backup_file(target,settings_backups(self.home))
+        atomic_write_text(target,set_ini(text,'Desktop Entry',{'Hidden':'false' if enabled else 'true'}))
         entries=list(self.section('autostart').get('entries',[]))
         if entry['id'] not in entries:entries.append(entry['id'])
         self.save_section('autostart',{'entries':entries})
@@ -598,7 +593,7 @@ class EnvironmentSettings:
         ident='orbit-'+re.sub(r'[^a-z0-9]+','-',name.casefold()).strip('-')+'.desktop'
         path=self.home/'.config/autostart'/ident
         if path.exists():raise ValueError('Ya existe una entrada con ese nombre.')
-        atomic_write(path,'[Desktop Entry]\nType=Application\nName='+name+'\nExec='+command+'\nTerminal=false\nHidden=false\n')
+        atomic_write_text(path,'[Desktop Entry]\nType=Application\nName='+name+'\nExec='+command+'\nTerminal=false\nHidden=false\n')
         self.save_section('autostart',{'entries':[*self.section('autostart').get('entries',[]),ident]})
 
 def render_wallpaper(values, outputs, home=None, runner=run):
@@ -620,8 +615,8 @@ def render_wallpaper(values, outputs, home=None, runner=run):
         selected_paths.append(path)
     # Quickshell owns wallpaper surfaces; publish validated preferences.
     from hypr_settings import config_dir
-    config=config_dir(home)/'orbit/environment.json';data=read_json(config);data['wallpaper']=copy.deepcopy(values)
-    atomic_write(config,json.dumps(data,ensure_ascii=False,indent=2)+'\n')
+    config=config_dir(home)/'orbit/environment.json';data=read_json(config, {});data['wallpaper']=copy.deepcopy(values)
+    atomic_write_json(config, data)
     try:runner(['wysun','shell','reload-preferences'])
     except Exception:pass  # the shell watches environment.json; a stopped shell is not a failed save
     return selected_paths[0]

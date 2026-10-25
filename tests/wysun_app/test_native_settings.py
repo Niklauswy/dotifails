@@ -137,13 +137,13 @@ class NativeSettingsTests(unittest.TestCase):
         from hypr_settings import apply_fragment
         with tempfile.TemporaryDirectory() as home:
             root=Path(home);one=root/'one';two=root/'two';one.write_text('before')
-            import settings_data
-            real=settings_data.atomic_write
-            def write(path,text):
+            from wysun_core import jsonio
+            real=jsonio.atomic_write_bytes
+            def write(path,data,mode=None):
                 if path==two:raise OSError('fixture full disk')
-                real(path,text)
+                return real(path,data,mode=mode)
             runner=Mock()
-            with patch.object(settings_data,'atomic_write',side_effect=write):
+            with patch.object(jsonio,'atomic_write_bytes',side_effect=write):
                 with self.assertRaises(OSError):apply_fragment(runner,{one:'after',two:'new'},'new runtime','old runtime')
             runner.assert_not_called();self.assertEqual(one.read_text(),'before');self.assertFalse(two.exists())
     def test_effects_observe_live_state_and_prepare_rollback(self):

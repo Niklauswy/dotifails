@@ -9,6 +9,7 @@ from urllib.request import Request, urlopen
 from PySide6.QtCore import QObject, QRunnable, QThreadPool, Signal
 from music_library import normalize
 import music_data
+from wysun_core.jsonio import atomic_path, atomic_write_json
 
 UA = 'WysunMusic/2.0 (local desktop music player; metadata cache)'
 _mb_lock = threading.Lock()
@@ -95,10 +96,9 @@ class Metadata(QObject):
         self.pending.discard((kind, key))
         self.results[kind, key] = data
         path = self.filename(kind, key)
-        temp = path.with_suffix('.tmp')
         try:
-            temp.write_text(json.dumps(data, ensure_ascii=False));temp.chmod(0o600);temp.replace(path)
-        except OSError:
+            atomic_write_json(path, data, mode=0o600, indent=None)
+        except (OSError, ValueError):
             pass
         self.ready.emit(kind, key, data)
 
@@ -112,8 +112,9 @@ class Metadata(QObject):
                 raise ValueError('Imagen no válida')
             image = image.scaled(512, 512, aspectMode=__import__('PySide6.QtCore', fromlist=['Qt']).Qt.KeepAspectRatio,
                                  mode=__import__('PySide6.QtCore', fromlist=['Qt']).Qt.SmoothTransformation)
-            temp = path.with_suffix('.tmp')
-            image.save(str(temp), 'PNG');temp.chmod(0o600);temp.replace(path)
+            with atomic_path(path, mode=0o600) as temp:
+                if not image.save(str(temp), 'PNG'):
+                    raise OSError('No se pudo guardar la imagen')
         return str(path)
 
     def cover(self, key, spotify_url):

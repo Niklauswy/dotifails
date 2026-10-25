@@ -11,6 +11,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 from core import Store, STATE, HOME, SKIP, calculate, file_index  # noqa: E402
+from wysun_core.jsonio import atomic_path, atomic_write_json  # noqa: E402
+from wysun_core.paths import data_home, private_dir, runtime  # noqa: E402
 
 MODES = ('status', 'all', 'clip', 'files', 'emoji', 'calc')
 LIMIT = 150
@@ -30,9 +32,7 @@ def row(kind, title, subtitle='', icon='', **extra):
 
 
 def clip_folder():
-    folder = Path(os.environ.get('XDG_RUNTIME_DIR') or tempfile.gettempdir()) / 'wysun-launcher'
-    folder.mkdir(mode=0o700, exist_ok=True)
-    return folder
+    return private_dir(runtime('wysun-launcher'))
 
 
 def clip_image(store, clip_id, folder):
@@ -145,12 +145,7 @@ def load_files(rebuild=False):
 
 def build_index():
     files = file_index()
-    STATE.mkdir(parents=True, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(dir=STATE, prefix='.launcher-files-')
-    with os.fdopen(fd, 'w') as handle:
-        json.dump(files, handle)
-    os.chmod(tmp, 0o600)
-    os.replace(tmp, FILE_CACHE)
+    atomic_write_json(FILE_CACHE, files, mode=0o600, indent=None)
     return files
 
 
@@ -194,12 +189,9 @@ def build_tree_index():
                 pending.append((entry.path, hidden + 1))
             elif not hidden and base == home and name in HIDDEN_ROOTS:
                 pending.append((entry.path, 1))
-    STATE.mkdir(parents=True, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(dir=STATE, prefix='.launcher-idx-')
-    with os.fdopen(fd, 'w', encoding='utf-8', errors='replace') as handle:
-        handle.write('\n'.join(lines))
-    os.chmod(tmp, 0o600)
-    os.replace(tmp, TREE_INDEX)
+    with atomic_path(TREE_INDEX, mode=0o600) as tmp:
+        with tmp.open('w', encoding='utf-8', errors='replace') as handle:
+            handle.write('\n'.join(lines))
 
 
 def ensure_tree_index():
@@ -218,7 +210,7 @@ def recent_files():
     """XDG recent documents, with a bounded local fallback for new sessions."""
     from urllib.parse import urlsplit, unquote
     import xml.etree.ElementTree as ET
-    source = Path(os.environ.get('XDG_DATA_HOME', HOME / '.local/share')) / 'recently-used.xbel'
+    source = data_home() / 'recently-used.xbel'
     paths = []
     try:
         bookmarks = ET.fromstring(source.read_text()).findall('bookmark')

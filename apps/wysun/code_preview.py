@@ -13,13 +13,15 @@ import sys
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 import nvim_theme  # noqa: E402
+from wysun_core import paths  # noqa: E402
+from wysun_core.jsonio import atomic_write_json  # noqa: E402
 
 # Bumped whenever the output format changes, so older cached answers are not reused.
 VERSION = 4
 MAX_BYTES = 12000
 # About four screens of the preview pane; laying out more costs frames and is rarely scrolled to.
 MAX_LINES = 120
-CACHE = Path(os.environ.get('XDG_CACHE_HOME') or Path.home() / '.cache') / 'wysun/code-preview'
+CACHE = paths.cache('wysun', 'code-preview')
 CACHE_KEEP = 300
 
 
@@ -71,10 +73,7 @@ def preview(path):
         pass
     result = build(path)
     try:
-        CACHE.mkdir(mode=0o700, parents=True, exist_ok=True)
-        tmp = target.with_name(f'{target.stem}.{os.getpid()}.tmp')
-        tmp.write_text(json.dumps(result, ensure_ascii=False))
-        tmp.replace(target)
+        atomic_write_json(target, result, indent=None)
         if len(os.listdir(CACHE)) > CACHE_KEEP + 50:
             prune()
     except OSError:  # a read-only or full cache only costs the next preview its speed

@@ -2,15 +2,7 @@
 import hashlib,json,os,signal,time,uuid
 from pathlib import Path
 
-
-def atomic(path,value):
-    path=Path(path);path.parent.mkdir(parents=True,exist_ok=True,mode=0o700)
-    temporary=path.with_name('.'+path.name+'.'+uuid.uuid4().hex)
-    try:
-        with temporary.open('x',encoding='utf8') as f:
-            os.chmod(temporary,0o600);f.write(value);f.flush();os.fsync(f.fileno())
-        temporary.replace(path)
-    finally:temporary.unlink(missing_ok=True)
+from wysun_core.jsonio import atomic_write_text
 
 
 def digest(text):return hashlib.sha256(text.encode()).hexdigest()
@@ -33,7 +25,7 @@ class Notes:
             except (OSError,UnicodeError):continue
         return sorted(rows,key=lambda r:(not r['favorite'],-r['stamp']))
     def create(self,body='# Nueva nota\n\n'):
-        key=uuid.uuid4().hex;atomic(self.path(key),body);return key
+        key=uuid.uuid4().hex;atomic_write_text(self.path(key),body);return key
     def import_legacy(self,path):
         """Import the previous local notebook once; never alter the original."""
         marker=self.root/'.legacy-imported'
@@ -42,16 +34,16 @@ class Notes:
         if body.strip():
             # Stable key makes retry after interruption safe without duplicates.
             key=hashlib.sha256(str(path).encode()).hexdigest()[:32]
-            if not self.path(key).exists():atomic(self.path(key),body)
-        atomic(marker,'Imported locally; original preserved.\n')
+            if not self.path(key).exists():atomic_write_text(self.path(key),body)
+        atomic_write_text(marker,'Imported locally; original preserved.\n')
     def save(self,key,body,expected):
         path=self.path(key)
         if not path.exists() or digest(path.read_text())!=expected:raise RuntimeError('La nota cambió fuera de Wysun. Tu borrador se conserva; guarda una copia para continuar.')
-        atomic(path,body);return digest(body)
+        atomic_write_text(path,body);return digest(body)
     def toggle_favorite(self,key):
         p=self.path(key).with_suffix('.star')
         if p.exists():p.unlink()
-        else:atomic(p,'')
+        else:atomic_write_text(p,'')
     def move(self,key,restore=False):self.path(key,restore).replace(self.path(key,not restore))
 
 
@@ -64,7 +56,7 @@ class Colors:
         data=self.read();key='favorites' if favorite else 'recent';rows=data.get(key,[])
         if favorite and color in rows:rows.remove(color)
         else:rows=[color]+[x for x in rows if x!=color]
-        data[key]=rows[:64 if favorite else 24];atomic(self.path,json.dumps(data));return data
+        data[key]=rows[:64 if favorite else 24];atomic_write_text(self.path,json.dumps(data));return data
 
 
 from process_data import Processes, process_record

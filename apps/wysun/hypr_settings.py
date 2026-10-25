@@ -6,11 +6,12 @@ import os
 from pathlib import Path
 import re
 from desktop_backend import Desktop
+from wysun_core import paths
 
 
 def config_dir(home=None):
     home=Path(home or Path.home())
-    return Path(os.environ.get('XDG_CONFIG_HOME',str(home/'.config'))) if home==Path.home() else home/'.config'
+    return paths.config_home() if home==Path.home() else home/'.config'
 
 
 def lua(value):
@@ -49,19 +50,20 @@ def evaluate(runner,text):
 
 def apply_fragment(runner,files,text,rollback):
     """Publish durable files before changing runtime; restore both on any failure."""
-    from settings_data import atomic_write,backup_file
+    from settings_data import backup_file
+    from wysun_core.jsonio import atomic_write_text
     originals={path:path.read_text() if path.exists() else None for path in files}
     for path in files:backup_file(path,path.parent/'backups')
     attempted=False
     try:
-        for path,content in files.items():atomic_write(path,content)
+        for path,content in files.items():atomic_write_text(path,content)
         attempted=True;evaluate(runner,text)
     except Exception as error:
         failures=[]
         for path,content in originals.items():
             try:
                 if content is None:path.unlink(missing_ok=True)
-                else:atomic_write(path,content)
+                else:atomic_write_text(path,content)
             except Exception as exc:failures.append(str(exc))
         if attempted:
             try:evaluate(runner,rollback)
@@ -167,7 +169,8 @@ class HyprDesktopSettings:
                 if match:self.values[key]='#'+match[1]
             except Exception:pass
     def apply(self,values,rules):
-        from settings_data import DesktopSettings,backup_file,atomic_write
+        from settings_data import DesktopSettings,backup_file
+        from wysun_core.jsonio import atomic_write_text
         # Reuse the existing validation without constructing an X11 settings model.
         clean=DesktopSettings.validate(self,values,rules)
         if (self.path.read_text() if self.path.exists() else '')!=self.observed:raise ValueError('Los ajustes cambiaron. Recarga antes de guardar.')
@@ -225,14 +228,15 @@ class HyprShortcutFile:
     def delete(self,index):
         rows=copy.deepcopy(self.rows);del rows[index];return self._write(rows)
     def _write(self,rows):
-        from settings_data import backup_file,atomic_write
+        from settings_data import backup_file,settings_backups
+        from wysun_core.jsonio import atomic_write_text
         if (self.path.read_text() if self.path.exists() else '')!=self.original:raise ValueError('Los atajos cambiaron fuera de Ajustes. Recarga antes de guardar.')
         text=['-- Wysun managed custom bindings','for _, bind in ipairs(wysun_shortcut_handles or {}) do bind:remove() end','wysun_shortcut_handles = {}']
         for row in rows:
             chord=' + '.join({'super':'SUPER','ctrl':'CTRL','control':'CTRL','shift':'SHIFT','alt':'ALT'}.get(p.strip().lower(),p.strip()) for p in row['key'].split('+'))
             text.append('table.insert(wysun_shortcut_handles, hl.bind('+lua(chord)+', hl.dsp.exec_cmd('+lua(row['command'])+')))')
         script='\n'.join(text)+'\n';old_script=self.script.read_text() if self.script.exists() else None
-        backup=backup_file(self.path,self.home/'.local/share/orbit/settings-backups')
+        backup=backup_file(self.path,settings_backups(self.home))
         rollback=old_script or 'for _, bind in ipairs(wysun_shortcut_handles or {}) do bind:remove() end; wysun_shortcut_handles = {}'
         apply_fragment(self.runner,{self.script:script,self.path:json.dumps(rows,ensure_ascii=False,indent=2)+'\n'},script,rollback)
         self.reload();return backup

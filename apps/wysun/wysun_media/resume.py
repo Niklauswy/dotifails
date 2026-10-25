@@ -1,10 +1,11 @@
 """Remembered playback positions for long files, in the user's state directory."""
 import hashlib
 import json
-import os
-import tempfile
 import time
 from pathlib import Path
+
+from wysun_core import paths
+from wysun_core.jsonio import atomic_write_json
 
 MIN_DURATION = 300.0         # shorter files always start over
 MAX_ENTRIES = 200
@@ -13,8 +14,7 @@ LIMIT = 256 * 1024
 
 
 def state_file():
-    base = os.environ.get('XDG_STATE_HOME') or str(Path.home() / '.local/state')
-    return Path(base) / 'wysun/player/positions.json'
+    return paths.state('wysun', 'player', 'positions.json')
 
 
 def key(source):
@@ -59,11 +59,6 @@ class Positions:
 
     def _write(self):
         try:
-            self.path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-            handle, temporary = tempfile.mkstemp(dir=self.path.parent, prefix='.positions')
-            with os.fdopen(handle, 'w') as out:
-                json.dump(self._data, out)
-            os.chmod(temporary, 0o600)
-            os.replace(temporary, self.path)
-        except OSError:
+            atomic_write_json(self.path, self._data, mode=0o600, indent=None)
+        except (OSError, ValueError):
             pass                  # remembering is a convenience; never interrupt playback for it

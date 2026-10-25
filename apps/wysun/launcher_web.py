@@ -10,6 +10,9 @@ import os
 import time
 from pathlib import Path
 
+from wysun_core import paths
+from wysun_core.jsonio import atomic_write_json
+
 
 def public_url(url):
     parts = urlsplit(url)
@@ -95,7 +98,7 @@ def preview(url, on_metadata=None):
 
 def cached_preview(url, on_metadata=None):
     """Private, bounded local cache; no URL is sent to a third-party screenshot service."""
-    folder = Path(os.environ.get('XDG_CACHE_HOME', Path.home() / '.cache')) / 'wysun/link-previews'
+    folder = paths.cache('wysun', 'link-previews')
     key = hashlib.sha256(url.encode()).hexdigest()
     target = folder / (key + '.json')
     try:
@@ -107,12 +110,7 @@ def cached_preview(url, on_metadata=None):
         pass
     result = preview(url, on_metadata)
     try:
-        folder.mkdir(parents=True, exist_ok=True, mode=0o700)
-        temporary = target.with_suffix('.' + str(os.getpid()) + '.tmp')
-        with temporary.open('w') as stream:
-            os.chmod(temporary, 0o600)
-            json.dump(result, stream)
-        temporary.replace(target)
+        atomic_write_json(target, result, mode=0o600, indent=None)
         for old in sorted(folder.glob('*.json'), key=lambda p: p.stat().st_mtime, reverse=True)[32:]:
             old.unlink(missing_ok=True)
     except OSError:
