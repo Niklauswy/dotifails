@@ -7,6 +7,8 @@ ROOT = Path(__file__).resolve().parents[1]
 # path → plan that removes it. Each entry must still need it (see the last test).
 PENDING = {
     'apps/shell/modules/aiusage/backend.py': '04',
+    # Runs in Claude Code's process on every status line refresh, outside the app: no PYTHONPATH, no fsync.
+    'apps/shell/modules/aiusage/statusline-hook.py': '04',
 }
 SCOPES = ('apps/wysun', 'apps/shell', 'apps/capture/loomrec')
 ATOMIC = re.compile(r'os\.replace\(|mkstemp\(|\b\w+\.replace\(\s*(self\.)?\w*(path|target|dest|final)\w*\s*\)')

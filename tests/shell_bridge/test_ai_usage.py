@@ -2,6 +2,8 @@
 import importlib.util
 import json
 import os
+import subprocess
+import sys
 import tempfile
 import time
 import unittest
@@ -9,6 +11,7 @@ from pathlib import Path
 from unittest import mock
 
 SOURCE = Path(__file__).resolve().parents[2] / 'apps/shell/modules/aiusage/backend.py'
+HOOK = SOURCE.with_name('statusline-hook.py')
 
 
 def load(home):
@@ -50,6 +53,29 @@ class AiUsageTests(unittest.TestCase):
         return {'type': 'assistant', 'requestId': 'r' + ident, 'timestamp': stamp(self.now - ago),
                 'message': {'id': ident, 'model': model, 'usage': {'input_tokens': 100, 'cache_read_input_tokens': 1000,
                                                                     'cache_creation_input_tokens': 10, 'output_tokens': output}}}
+
+    def configure(self, accounts):
+        (self.home / 'config/wysun').mkdir(parents=True, exist_ok=True)
+        (self.home / 'config/wysun/ai-accounts.json').write_text(json.dumps({'accounts': accounts}))
+
+    def limits_payload(self, used):
+        """What Claude Code pipes to its status line command."""
+        return {'model': {'display_name': 'Sonnet 5.5'},
+                'rate_limits': {'five_hour': {'used_percentage': used, 'resets_at': int(self.now) + 600}}}
+
+    def run_hook(self, payload, config_dir):
+        env = dict(os.environ, HOME=str(self.home), XDG_STATE_HOME=str(self.home / 'state'),
+                   CLAUDE_CONFIG_DIR=str(config_dir))
+        subprocess.run([sys.executable, '-I', str(HOOK)], input=json.dumps(payload).encode(), env=env, check=True)
+
+    def write_snapshot(self, name, used, captured_at=None):
+        folder = self.home / 'state/wysun/ai-usage'
+        folder.mkdir(parents=True, exist_ok=True)
+        limits = {'five_hour': {'used_percentage': used, 'resets_at': int(self.now) + 600}} if used is not None else None
+        (folder / name).write_text(json.dumps({'captured_at': captured_at or time.time(), 'rate_limits': limits}))
+
+    def claude_accounts(self):
+        return [a for a in self.collect()['accounts'] if a['provider'] == 'claude']
 
     def collect(self):
         return self.backend.collect(now=self.now, live=False)
@@ -159,6 +185,137 @@ class AiUsageTests(unittest.TestCase):
         self.assertEqual([a['usage']['24h']['totals']['output'] for a in claude], [1000, 7])
         self.assertEqual(result['usage']['24h']['totals']['output'], 1007)
 
+    def test_homes_with_the_same_folder_name_keep_their_own_limits(self):
+        homes = [self.home / 'one/claude', self.home / 'two/claude']
+        for home, used in zip(homes, (11, 77)):
+            home.mkdir(parents=True)
+            self.run_hook(self.limits_payload(used), home)
+        self.configure([{'provider': 'claude', 'home': str(h)} for h in homes])
+        self.assertEqual([a['limits'][0]['usedPercent'] for a in self.claude_accounts()[1:]], [11, 77])
+
+    def test_fresh_session_without_limits_keeps_the_known_ones(self):
+        self.run_hook(self.limits_payload(40), self.home / '.claude')
+        self.run_hook({'model': {'display_name': 'Sonnet 5.5'}, 'rate_limits': None}, self.home / '.claude')
+        self.assertEqual(self.account('claude')['limits'][0]['usedPercent'], 40)
+
+    def test_snapshot_without_limits_does_not_hide_newer_limits_from_another_hook(self):
+        self.run_hook(self.limits_payload(25), self.home / '.claude')
+        self.write_snapshot('claude.json', None, captured_at=time.time() + 60)
+        self.assertEqual(self.account('claude')['limits'][0]['usedPercent'], 25)
+
+    def test_snapshot_named_after_the_folder_still_works_for_a_single_home(self):
+        work = self.home / 'claude-work'
+        work.mkdir()
+        self.configure([{'provider': 'claude', 'home': str(work)}])
+        self.write_snapshot('claude-claude-work.json', 31)
+        self.assertEqual(self.claude_accounts()[1]['limits'][0]['usedPercent'], 31)
+
+    def test_snapshot_named_after_a_shared_folder_name_is_not_guessed(self):
+        homes = [self.home / 'one/claude', self.home / 'two/claude']
+        for home in homes:
+            home.mkdir(parents=True)
+        self.configure([{'provider': 'claude', 'home': str(h)} for h in homes])
+        self.write_snapshot('claude-claude.json', 31)
+        self.assertEqual([a['available'] for a in self.claude_accounts()[1:]], [False, False])
+
+    def test_logs_reached_through_a_symlinked_projects_folder_count_once(self):
+        self.claude_log([self.claude_entry('a')])
+        shared = self.home / 'claude-shared'
+        shared.mkdir()
+        (shared / 'projects').symlink_to(self.home / '.claude/projects')
+        self.configure([{'provider': 'claude', 'home': str(shared)}])
+        result = self.collect()
+        self.assertEqual(result['usage']['24h']['totals']['output'], 1000)
+        self.assertEqual([a['usage']['24h']['totals']['output'] for a in result['accounts'] if a['provider'] == 'claude'], [1000, 0])
+
+    def seen_home(self, name='extra/claude-two', email='ana@example.com', display=None):
+        """A signed-in Claude home that nobody listed in ai-accounts.json."""
+        home = self.home / name
+        home.mkdir(parents=True)
+        (home / '.claude.json').write_text(json.dumps({'oauthAccount': {
+            'emailAddress': email, 'organizationType': 'claude_pro', 'displayName': display}}))
+        return home
+
+    def test_claude_home_seen_by_the_hook_needs_no_configuration(self):
+        home = self.seen_home()
+        self.run_hook(self.limits_payload(30), home)
+        claude = self.claude_accounts()
+        self.assertEqual([a['home'] for a in claude], ['~/.claude', '~/extra/claude-two'])
+        self.assertEqual(claude[1]['label'], 'ana')
+        self.assertEqual(claude[1]['limits'][0]['usedPercent'], 30)
+
+    def test_home_seen_by_the_hook_is_forgotten_when_its_folder_is_gone(self):
+        home = self.seen_home()
+        self.run_hook(self.limits_payload(30), home)
+        (home / '.claude.json').unlink()
+        home.rmdir()
+        self.assertEqual([a['home'] for a in self.claude_accounts()], ['~/.claude'])
+
+    def shared_logs(self):
+        """~/.claude/projects holds a session of each home; the second home reaches the folder by symlink."""
+        self.claude_log([self.claude_entry('a')])
+        other = self.home / '.claude/projects/p/s-two.jsonl'
+        other.write_text(json.dumps(self.claude_entry('b', output=7)) + '\n')
+        shared = self.seen_home('claude-shared')
+        (shared / 'projects').symlink_to(self.home / '.claude/projects')
+        return shared
+
+    def test_sessions_of_homes_sharing_logs_are_split_by_the_account_that_ran_them(self):
+        shared = self.shared_logs()
+        self.run_hook(dict(self.limits_payload(30), session_id='s-two'), shared)
+        result = self.collect()
+        claude = [a for a in result['accounts'] if a['provider'] == 'claude']
+        self.assertEqual([a['usage']['24h']['totals']['output'] for a in claude], [1000, 7])
+        self.assertEqual(result['usage']['24h']['totals']['output'], 1007)
+
+    def test_subagent_logs_follow_the_session_that_started_them(self):
+        shared = self.shared_logs()
+        agent = self.home / '.claude/projects/p/s-two/subagents/agent-1.jsonl'
+        agent.parent.mkdir(parents=True)
+        agent.write_text(json.dumps(self.claude_entry('c', output=3)) + '\n')
+        self.run_hook(dict(self.limits_payload(30), session_id='s-two'), shared)
+        claude = [a for a in self.collect()['accounts'] if a['provider'] == 'claude']
+        self.assertEqual([a['usage']['24h']['totals']['output'] for a in claude], [1000, 10])
+
+    def test_session_of_a_vanished_home_still_counts_for_the_home_that_read_its_log(self):
+        self.claude_log([self.claude_entry('a')])
+        sessions = self.home / 'state/wysun/ai-usage/sessions'
+        sessions.mkdir(parents=True)
+        (sessions / 'session').write_text('0123456789')
+        self.assertEqual(self.account('claude')['usage']['24h']['totals']['output'], 1000)
+
+    def test_hook_ignores_session_ids_that_are_not_plain_names(self):
+        self.run_hook(dict(self.limits_payload(30), session_id='../../escape'), self.home / '.claude')
+        written = sorted(p.relative_to(self.home / 'state').as_posix() for p in (self.home / 'state').rglob('*') if p.is_file())
+        self.assertEqual(len(written), 1)
+        self.assertTrue(written[0].startswith('wysun/ai-usage/claude-'))
+
+    def test_old_session_markers_are_dropped(self):
+        sessions = self.home / 'state/wysun/ai-usage/sessions'
+        sessions.mkdir(parents=True)
+        old, recent = sessions / 'old', sessions / 'recent'
+        old.write_text('0123456789')
+        recent.write_text('0123456789')
+        os.utime(old, (self.now - 91 * 86400,) * 2)
+        self.collect()
+        self.assertEqual(sorted(p.name for p in sessions.iterdir()), ['recent'])
+
+    def test_accounts_with_the_same_name_are_told_apart_by_email(self):
+        for name, email in (('one', 'ana@one.test'), ('two', 'ana.b@two.test')):
+            self.run_hook(self.limits_payload(30), self.seen_home(name, email, display='Ana'))
+        self.assertEqual([a['label'] for a in self.claude_accounts()[1:]], ['ana', 'ana.b'])
+
+    def test_a_label_the_user_gave_survives_a_name_clash(self):
+        for name, email in (('one', 'ana@one.test'), ('two', 'ana.b@two.test')):
+            self.run_hook(self.limits_payload(30), self.seen_home(name, email, display='Ana'))
+        self.configure([{'provider': 'claude', 'home': str(self.home / 'one'), 'label': 'Ana'}])
+        self.assertEqual([a['label'] for a in self.claude_accounts()[1:]], ['Ana', 'ana.b'])
+
+    def test_accounts_that_clash_even_by_email_are_told_apart_by_folder(self):
+        for name in ('one', 'two'):
+            self.run_hook(self.limits_payload(30), self.seen_home(name, 'ana@same.test', display='Ana'))
+        self.assertEqual([a['label'] for a in self.claude_accounts()[1:]], ['ana (one)', 'ana (two)'])
+
     def test_claude_plan_comes_from_the_cached_profile(self):
         (self.home / '.claude.json').write_text(json.dumps({'oauthAccount': {
             'organizationType': 'claude_max', 'userRateLimitTier': 'default_claude_max_20x', 'displayName': 'Ana'}}))
@@ -166,7 +323,8 @@ class AiUsageTests(unittest.TestCase):
         self.assertEqual(claude['plan'], 'Max 20x')
         self.assertEqual(claude['label'], 'Ana')
 
-    def test_codex_sessions_of_another_account_get_a_history_tab(self):
+    def codex_history(self, label):
+        """Sessions of another Codex account in this home, and a label the user gave that account by id."""
         path = self.home / '.codex/sessions/2026/rollout.jsonl'
         path.parent.mkdir(parents=True)
         meta = {'type': 'session_meta', 'payload': {'creator_account_id': 'acct-other-123'}}
@@ -178,9 +336,10 @@ class AiUsageTests(unittest.TestCase):
         own = self.home / '.codex/sessions/2026/mine.jsonl'
         own_meta = {'type': 'session_meta', 'payload': {'creator_account_id': 'acct-mine'}}
         own.write_text(json.dumps(own_meta) + '\n' + json.dumps(dict(event, timestamp=stamp(self.now - 30))) + '\n')
-        (self.home / 'config/wysun').mkdir(parents=True)
-        (self.home / 'config/wysun/ai-accounts.json').write_text(json.dumps({'accounts': [
-            {'provider': 'codex', 'accountId': 'acct-other-123', 'label': 'Uni'}]}))
+        self.configure([{'provider': 'codex', 'accountId': 'acct-other-123', 'label': label}])
+
+    def test_codex_sessions_of_another_account_get_a_history_tab(self):
+        self.codex_history('Uni')
         result = self.collect()
         history = next(a for a in result['accounts'] if a.get('source') == 'history')
         self.assertEqual(history['label'], 'Uni')
@@ -189,6 +348,17 @@ class AiUsageTests(unittest.TestCase):
         self.assertEqual(history['usage']['24h']['totals']['output'], 5)
         self.assertEqual(self.account('codex', result)['usage']['24h']['totals']['output'], 5)
         self.assertEqual(len(result['accounts']), 3)
+
+    def test_a_label_given_to_a_codex_account_by_id_survives_a_name_clash(self):
+        second = self.home / '.codex-2'
+        for folder, account in ((self.home / '.codex', 'acct-a'), (second, 'acct-b')):
+            log = folder / 'sessions/2026/rollout.jsonl'
+            log.parent.mkdir(parents=True)
+            log.write_text(json.dumps({'type': 'session_meta', 'payload': {'creator_account_id': account}}) + '\n')
+        self.configure([{'provider': 'codex', 'home': str(second)},
+                        {'provider': 'codex', 'accountId': 'acct-a', 'label': 'Codex'}])
+        labels = [a['label'] for a in self.collect()['accounts'] if a['provider'] == 'codex']
+        self.assertEqual(labels, ['Codex', 'Codex (.codex-2)'])
 
     def test_reset_credits_are_summarised(self):
         summary = {'availableCount': 2, 'credits': [

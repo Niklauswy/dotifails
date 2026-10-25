@@ -73,11 +73,25 @@ detectan por huella y se guardan como `incoming/`).
   el ratón (o `wysun-shell toggle ai`). Pestañas: Resumen y una por cuenta (Alt+1…9, Ctrl+Tab, Ctrl+R refresca, Esc cierra;
   mientras está abierto toma el teclado con el mismo `HyprlandFocusGrab` que los demás paneles). Cada cuenta muestra plan, límites
   con su ritmo y tokens/coste estimado de 24 h, 7, 30 y 90 días. `backend.py` no lee credenciales: Codex responde con su propia
-  sesión vía `codex app-server` (`account/read`, `account/rateLimits/read`) y Claude Code deja `rate_limits` en
-  `~/.local/state/wysun/ai-usage/claude[-<dir>].json` desde su statusline; el plan de Claude sale de `oauthAccount` en `.claude.json`.
+  sesión vía `codex app-server` (`account/read`, `account/rateLimits/read`) y Claude Code deja el estado de cada cuenta en
+  `~/.local/state/wysun/ai-usage` mediante `modules/aiusage/statusline-hook.py`, que llama la statusline de cada carpeta de Claude:
+  `claude-<clave>.json` (límites y carpeta; la clave es un hash de `CLAUDE_CONFIG_DIR`, así que carpetas con el mismo nombre no se
+  pisan, y un snapshot sin límites nunca borra ni tapa uno que sí los trae) y `sessions/<id de sesión>` (la clave de la cuenta que
+  corrió esa sesión; los logs de Claude no nombran su cuenta, así que con esto los tokens se reparten por cuenta aunque compartan
+  `projects/` por enlace simbólico). Las sesiones de Claude anteriores al hook y las carpetas sin marcador se asignan a la primera
+  cuenta que lee esos logs; los marcadores se borran a los 90 días. Las cuentas de Claude se descubren solas: cada carpeta cuyo hook
+  ha corrido aparece sin tocar `ai-accounts.json` (y desaparece si se borra la carpeta). Los nombres anteriores (`claude.json` y
+  `claude-<carpeta>.json`) se siguen leyendo; el segundo solo mientras ninguna otra cuenta de Claude tenga esa carpeta. El plan de
+  Claude sale de `oauthAccount` en `.claude.json`.
   Las sesiones de Codex llevan `creator_account_id`, así que el historial se reparte por cuenta y las cuentas sin sesión iniciada
-  aparecen como pestañas de solo historial. Cuentas extra y etiquetas: `~/.config/wysun/ai-accounts.json`
+  aparecen como pestañas de solo historial. Etiquetas y carpetas extra: `~/.config/wysun/ai-accounts.json`
   (`{"accounts": [{"provider": "codex", "home": "…"} | {"provider": "codex", "accountId": "…", "label": "…"}]}`).
+  Cuenta nueva de Codex: iniciar sesión en la misma carpeta (aparece sola por su historial) o en otra con
+  `CODEX_HOME=<carpeta> codex login`, que se añade a ese archivo para tener límites en vivo. Cuenta nueva de Claude: basta con que
+  su `settings.json` tenga una statusline que llame al hook (el comando exacto, con y sin script de
+  statusline propio, está en el docstring de `statusline-hook.py`); no hay nada más que
+  configurar, y `ai-accounts.json` solo sirve para ponerle etiqueta. Las carpetas de logs se leen por su ruta real, de modo que una
+  carpeta compartida por enlace simbólico entre cuentas cuenta una sola vez.
   Caché incremental en `~/.cache/wysun/ai-usage`; precios en `modules/aiusage/pricing.json`, ampliables en
   `~/.config/wysun/ai-pricing.json`; logotipos de lobe-icons (MIT) en `Logos.js`.
   También hay desglose por proyecto (carpeta de la sesión; los worktrees se suman a su repo) y una entrada `aiUsage` en la barra

@@ -26,6 +26,7 @@ import shutil
 import subprocess
 import sys
 import time
+from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
@@ -34,6 +35,7 @@ HOME = Path.home()
 STATE = Path(os.environ.get('XDG_STATE_HOME') or HOME / '.local/state') / 'wysun/ai-usage'
 CACHE = Path(os.environ.get('XDG_CACHE_HOME') or HOME / '.cache') / 'wysun/ai-usage'
 CONFIG = Path(os.environ.get('XDG_CONFIG_HOME') or HOME / '.config') / 'wysun'
+SESSIONS = STATE / 'sessions'
 DEFAULT_HOMES = {
     'claude': Path(os.environ.get('CLAUDE_CONFIG_DIR') or HOME / '.claude'),
     'codex': Path(os.environ.get('CODEX_HOME') or HOME / '.codex'),
@@ -74,17 +76,24 @@ def _read_json(path):
 
 # Accounts
 
+def home_key(home):
+    """Short id of a resolved home; statusline-hook.py computes the same one for its snapshot file."""
+    return hashlib.sha1(str(home).encode()).hexdigest()[:10]
+
+
 def account_id(provider, home):
-    return provider + ':' + hashlib.sha1(str(home).encode()).hexdigest()[:10]
+    return provider + ':' + home_key(home)
 
 
 def load_accounts():
-    """Default homes first, then the configured ones; homes are deduplicated."""
+    """Default homes first, then the configured ones, then the Claude homes whose status line hook has run."""
     entries = [{'provider': p, 'home': str(h)} for p, h in DEFAULT_HOMES.items()]
     configured = (_read_json(CONFIG / 'ai-accounts.json') or {}).get('accounts', [])
     for entry in configured if isinstance(configured, list) else []:
         if isinstance(entry, dict) and entry.get('provider') in NAMES and entry.get('home'):
             entries.append(entry)
+    announced = {s['home'] for s in map(_read_json, STATE.glob('claude-*.json')) if isinstance(s, dict) and isinstance(s.get('home'), str)}
+    entries += [{'provider': 'claude', 'home': home} for home in sorted(announced)]
     accounts, seen = [], {}
     for entry in entries:
         home = Path(os.path.expanduser(str(entry['home']))).resolve()
@@ -196,6 +205,30 @@ def parse_codex(handle, state, buckets):
 PARSERS = {'claude': parse_claude, 'codex': parse_codex}
 
 
+def claim_sessions(files, accounts, now):
+    """Claude logs name no account: the marker the status line hook leaves per session names the home that ran it."""
+    ids = {a['id'] for a in accounts}
+    for record in files.values():
+        if record.get('provider') != 'claude' or not record.get('session'):
+            continue
+        try:
+            owner = 'claude:' + (SESSIONS / record['session']).read_text(encoding='utf-8').strip()
+        except OSError:
+            continue
+        if owner in ids:
+            record['owner'] = owner
+    try:
+        markers = list(SESSIONS.iterdir())
+    except OSError:
+        return
+    for marker in markers:
+        try:
+            if marker.stat().st_mtime < now - KEEP:
+                marker.unlink()
+        except OSError:
+            pass
+
+
 def load_cache():
     cache = _read_json(CACHE / 'index.json')
     if isinstance(cache, dict) and cache.get('version') == CACHE_VERSION:
@@ -229,7 +262,8 @@ def scan(accounts, now):
     alive = set()
     for account in accounts:
         parser = PARSERS[account['provider']]
-        for root in log_roots(account):
+        # Resolved, so a folder shared between homes by symlink is read once, for the first of them.
+        for root in map(Path.resolve, log_roots(account)):
             if not root.is_dir():
                 continue
             for path in root.rglob('*.jsonl'):
@@ -243,9 +277,12 @@ def scan(accounts, now):
                 if key in alive:
                     continue
                 alive.add(key)
+                # Claude logs sit in <project>/<session>.jsonl or <project>/<session>/subagents/….
+                parts = path.relative_to(root).parts
+                session = parts[1].removesuffix('.jsonl') if account['provider'] == 'claude' and len(parts) > 1 else None
                 record = files.get(key)
                 if record and record['size'] == stat.st_size:
-                    record['account'] = account['id']
+                    record.update(account=account['id'], session=session)
                     continue
                 if not record or stat.st_size < record['size']:
                     record = {'size': 0, 'offset': 0, 'state': {}, 'buckets': {}}
@@ -255,7 +292,7 @@ def scan(accounts, now):
                         parser(_complete_lines(handle, record), record['state'], record['buckets'])
                 except OSError:
                     continue
-                record.update(size=stat.st_size, account=account['id'], provider=account['provider'])
+                record.update(size=stat.st_size, account=account['id'], provider=account['provider'], session=session)
                 files[key] = record
     for key in list(files):
         if key not in alive:
@@ -430,13 +467,21 @@ def _limit(ident, used, resets_at, window, now):
             'windowMinutes': window}
 
 
-def claude_snapshot(home):
-    """Matches the status line hook: claude.json without CLAUDE_CONFIG_DIR, claude-<dir name>.json with it."""
-    paths = [STATE / f'claude-{home.name}.json']
+def claude_snapshot(home, named_by_folder=True):
+    """The newest snapshot with limits that the status line hook left for this home.
+
+    statusline-hook.py names it after the home's key. Earlier hooks used claude.json without
+    CLAUDE_CONFIG_DIR and claude-<folder name>.json with it; the folder name only identifies
+    a home while no other Claude home has the same one.
+    """
+    paths = [STATE / f'claude-{home_key(home)}.json']
+    if named_by_folder:
+        paths.append(STATE / f'claude-{home.name}.json')
     if home == (HOME / '.claude').resolve():
-        paths.insert(0, STATE / 'claude.json')
+        paths.append(STATE / 'claude.json')
     found = [s for s in map(_read_json, paths) if isinstance(s, dict)]
-    return max(found, key=lambda s: s.get('captured_at') or 0, default=None)
+    # A session reports no limits until its first reply, so a snapshot without them never hides one with.
+    return max([s for s in found if s.get('rate_limits')] or found, key=lambda s: s.get('captured_at') or 0, default=None)
 
 
 def claude_profile(home):
@@ -453,9 +498,9 @@ def claude_profile(home):
             'extraUsage': profile.get('hasExtraUsageEnabled')}
 
 
-def claude_account(account, now):
+def claude_account(account, now, named_by_folder=True):
     info = claude_profile(account['home'])
-    snapshot = claude_snapshot(account['home'])
+    snapshot = claude_snapshot(account['home'], named_by_folder)
     if not snapshot:
         return dict(info, available=False, reason='statusline', limits=[])
     limits = snapshot.get('rate_limits') or {}
@@ -610,20 +655,47 @@ def history_account(key, records, label, now):
             'source': 'history', 'updatedAt': seen, 'home': None}
 
 
-def describe(account, now, live):
-    details = claude_account(account, now) if account['provider'] == 'claude' else codex_account(account, now, live)
+def describe(account, now, live, shared_names=frozenset()):
+    if account['provider'] == 'claude':
+        details = claude_account(account, now, account['home'].name not in shared_names)
+    else:
+        details = codex_account(account, now, live)
     label = account['label'] or details.get('name') or (details.get('email') or '').split('@')[0] or NAMES[account['provider']]
     return dict(details, id=account['id'], provider=account['provider'], providerName=NAMES[account['provider']],
                 label=label, home=str(account['home']).replace(str(HOME), '~', 1))
 
 
+def tell_apart(accounts, named):
+    """Accounts of one provider that came out with the same label are told apart by e-mail, then by folder.
+
+    Labels the user chose (ids in `named`) are never changed.
+    """
+    groups = {}
+    for account in accounts:
+        groups.setdefault((account['provider'], account['label']), []).append(account)
+    for group in groups.values():
+        if len(group) < 2:
+            continue
+        for account in group:
+            if account['id'] not in named:
+                account['label'] = (account.get('email') or '').split('@')[0] or account['label']
+        labels = Counter(a['label'] for a in group)
+        for account in group:
+            if account['id'] not in named and labels[account['label']] > 1 and account.get('home'):
+                account['label'] += f" ({Path(account['home']).name})"
+
+
 def collect(now=None, live=True):
     now = time.time() if now is None else now
     accounts = load_accounts()
-    records = list(scan(accounts, now).values())
+    files = scan(accounts, now)
+    claim_sessions(files, accounts, now)
+    records = list(files.values())
     prices = load_pricing()
+    folders = Counter(a['home'].name for a in accounts if a['provider'] == 'claude')
+    shared_names = {name for name, count in folders.items() if count > 1}
     with ThreadPoolExecutor(max_workers=max(1, len(accounts))) as pool:
-        described = list(pool.map(lambda a: describe(a, now, live), accounts))
+        described = list(pool.map(lambda a: describe(a, now, live, shared_names), accounts))
     # Two homes signed in to the same Codex account report the same id; keep the first.
     unique, keys = [], set()
     for account in described:
@@ -656,9 +728,12 @@ def collect(now=None, live=True):
         for record in owned:
             record['owner'] = account['id']
         unique.append(account)
+    named = {a['id'] for a in accounts if a['label']}
     for account in unique:
         if account.get('accountKey') in labels and labels[account['accountKey']]:
             account['label'] = labels[account['accountKey']]
+            named.add(account['id'])
+    tell_apart(unique, named)
     ids = [a['id'] for a in unique]
     for account in unique:
         account['usage'] = summarise(records, [account['id']], now, prices)
