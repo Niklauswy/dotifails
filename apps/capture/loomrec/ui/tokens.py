@@ -16,7 +16,7 @@ def tint(value):
 
 
 def family(values=None):
-    """Rubik (bundled in wysun_core) first, then the theme's families."""
+    """The theme's interface family (Google Sans Flex, bundled in wysun_core)."""
     from wysun_core.ui.fonts import display_family, load_fonts
     load_fonts()
     return display_family()

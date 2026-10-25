@@ -68,7 +68,7 @@ class TokenSourceTests(unittest.TestCase):
             self.assertIn(group, data)
         self.assertNotIn('shape', data)
         self.assertEqual(data['rounding']['full'], 2147483647)
-        self.assertEqual(data['font']['family'], {'sans': 'Google Sans Flex', 'mono': 'CaskaydiaCove NF',
+        self.assertEqual(data['font']['family'], {'sans': 'Google Sans Flex', 'mono': 'CaskaydiaCove Nerd Font',
                                                   'icon': 'Material Symbols Rounded'})
         values = theme.resolve('dark')
         self.assertEqual(values['rounding.medium'], 12)

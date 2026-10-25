@@ -21,8 +21,12 @@ class CoreUiTests(unittest.TestCase):
 
     def test_fonts_load_from_wysun_core(self):
         families = fonts.load_fonts()
-        self.assertIn(fonts.TEXT_FAMILY, families)
+        self.assertIn('Google Sans Flex', families)
+        self.assertIn('CaskaydiaCove Nerd Font', families)
         self.assertIn(fonts.SYMBOL_FAMILY, families)
+        self.assertNotIn('Rubik', families)
+        self.assertEqual(fonts.display_family(), tokens()['font.family.sans'])
+        self.assertEqual(fonts.mono_family(), tokens()['font.family.mono'])
         self.assertTrue(str(fonts.FONT_DIR).endswith('wysun_core/fonts'))
 
     def test_symbol_family_is_named_once_loaded(self):

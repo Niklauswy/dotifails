@@ -314,7 +314,7 @@ QSpinBox:focus, QComboBox:focus {border:@border.focus solid @focus_input;}
 
 
 def apply_style(widget):
-    """Themed QSS for colours/shapes plus the Rubik body font, inherited by children."""
+    """Themed QSS for colours/shapes plus the theme's body font, inherited by children."""
     load_fonts()
     widget.setProperty(TEMPLATE, STYLE)
     widget.setStyleSheet(qss(STYLE))

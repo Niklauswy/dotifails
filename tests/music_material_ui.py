@@ -50,11 +50,11 @@ keys = library.all_keys()
 assert len(keys) == 2
 covers._paths[keys[0]] = str(cover)  # synthetic artwork, as a finished lookup would leave it
 
-# Offline fonts: Rubik text, Material Symbols ligatures rendered as single glyphs.
-assert 'Rubik' in load_fonts() and 'Material Symbols Rounded' in load_fonts()
-assert display_family() == 'Rubik' and SYMBOL_FAMILY in load_fonts()
-assert window.font().family() == 'Rubik' and window.bar.title.font().family() == 'Rubik'
-raw = QRawFont.fromFont(QFont('Rubik'))
+# Offline fonts: Google Sans Flex text, Material Symbols ligatures rendered as single glyphs.
+assert 'Google Sans Flex' in load_fonts() and 'Material Symbols Rounded' in load_fonts()
+assert display_family() == 'Google Sans Flex' and SYMBOL_FAMILY in load_fonts()
+assert window.font().family() == 'Google Sans Flex' and window.bar.title.font().family() == 'Google Sans Flex'
+raw = QRawFont.fromFont(QFont('Google Sans Flex'))
 assert raw.supportsCharacter(ord('ñ')) and raw.supportsCharacter(ord('ú'))
 layout = QTextLayout('volume_up', QFont('Material Symbols Rounded'))
 layout.beginLayout(); layout.createLine(); layout.endLayout()
