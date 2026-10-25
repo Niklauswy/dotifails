@@ -86,8 +86,8 @@ class LayoutTests(unittest.TestCase):
     def test_raster_width_respects_both_limits(self):
         self.assertEqual(raster_width(595, 842, 1200), 1200)
         self.assertEqual(raster_width(400, 200, 9000), 2800)
-        self.assertLess(raster_width(5000, 5000, 9000), 2800)
-        self.assertLessEqual(raster_width(5000, 5000, 9000) ** 2, 8_000_000)
+        self.assertLess(raster_width(1000, 5000, 9000), 2800)
+        self.assertLessEqual(raster_width(1000, 5000, 9000) ** 2 * 5, 8_000_000)
 
 
 if __name__ == '__main__':
