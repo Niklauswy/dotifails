@@ -198,6 +198,9 @@ class PdfChromeTests(unittest.TestCase):
         self.assertIn('Volver aquí', sidebar.notes.item(0).text())
         sidebar.set_tab(2)
         self.assertEqual(sidebar.heading.text(), 'Notas')
+        self.assertEqual(sidebar.meta.text(), '1 en el documento')
+        sidebar.set_notes([])
+        self.assertEqual(sidebar.meta.text(), 'Ninguna todavía')
 
     def test_inks_start_with_the_theme_accent(self):
         from pdf_chrome import ink_colours

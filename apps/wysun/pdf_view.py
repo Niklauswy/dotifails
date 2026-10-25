@@ -250,15 +250,27 @@ class DocumentView(QAbstractScrollArea):
                 info = self.source.info(page)
                 if info:
                     painter.setPen(Qt.NoPen)
-                    painter.setBrush(color('text_selection', 150))
-                    for index in self.selection[1]:
-                        painter.drawRect(self._box(info['words'][index], rect, scale))
+                    # The accent, not text_selection: only the accent follows every wallpaper scheme.
+                    painter.setBrush(color('accent', 120))
+                    for line in self._lines(info['words'], self.selection[1]):
+                        painter.drawRect(self._box(line, rect, scale))
         if self._keyboard_focus and self.hasFocus() and self.window().isActiveWindow():
             painter.setPen(QPen(color('focus'), tokens()['focus_width']))
             painter.setBrush(Qt.NoBrush)
             painter.drawRect(QRectF(self.viewport().rect()).adjusted(1, 1, -1, -1))
 
     # ------------------------------------------------------------ hits & selection
+    @staticmethod
+    def _lines(words, indices):
+        """One band per text line of the selection, so it reads as a passage rather than word chips."""
+        bands = {}
+        for index in indices:
+            x0, y0, x1, y1, _, block, line = words[index]
+            band = bands.get((block, line))
+            bands[(block, line)] = [x0, y0, x1, y1] if band is None else [
+                min(band[0], x0), min(band[1], y0), max(band[2], x1), max(band[3], y1)]
+        return bands.values()
+
     def set_hits(self, hits, current=None):
         self.hits, self.current_hit = hits, current
         if current is not None and current[0] in hits and current[1] < len(hits[current[0]]):

@@ -88,6 +88,7 @@ class PdfWindow(FramelessResize, WindowMotion, QMainWindow):
         self.setAcceptDrops(True)
         self.set_sidebar(self.preferences.get('sidebar', True) is not False, persist=False)
         self.controls()
+        self.empty.button.setFocus()
         if path:
             QTimer.singleShot(0, lambda: self.open_path(path))
 
@@ -233,7 +234,7 @@ class PdfWindow(FramelessResize, WindowMotion, QMainWindow):
         ready = open_ and not self.busy
         self.save_button.setEnabled(ready and self.dirty)
         self.note_button.setEnabled(ready and self.editable)
-        for widget in (self.zoom, self.view_switch, self.search, self.indicator):
+        for widget in (self.zoom, self.view_switch, self.search, self.indicator, self.sidebar_button):
             widget.setEnabled(open_)
         searching = bool(self.search_term)
         for widget in (self.previous_hit, self.next_hit, self.hit_count):
@@ -292,6 +293,7 @@ class PdfWindow(FramelessResize, WindowMotion, QMainWindow):
             self.clear_search()
             self.stage_stack.setCurrentWidget(self.view)
             self.indicator.show()
+            self.set_sidebar(self.preferences.get('sidebar', True) is not False, persist=False)
             self.view.set_document(self.sizes)
             saved = self.positions.load(self.path)
             if saved:
@@ -349,10 +351,11 @@ class PdfWindow(FramelessResize, WindowMotion, QMainWindow):
             self.positions.save(self.path, self.view.position())
 
     def remember_sidebar(self):
-        self.preferences.set(sidebar=self.sidebar.isVisible())
+        if self.path:
+            self.preferences.set(sidebar=self.sidebar.isVisible())
 
     def set_sidebar(self, visible, persist=True):
-        self.sidebar.setVisible(visible)
+        self.sidebar.setVisible(visible and bool(self.path))
         self.sidebar_button.set_symbol('left_panel_close' if visible else 'left_panel_open')
         if persist:
             self.remember_sidebar()

@@ -144,6 +144,10 @@ class ViewTests(unittest.TestCase):
         self.assertEqual(finished, [True])
         self.assertTrue(self.view.selection_rect().isValid())
 
+    def test_selection_paints_one_band_per_line(self):
+        bands = list(DocumentView._lines(WORDS, [0, 1, 2]))
+        self.assertEqual(bands, [[72, 90, 160, 100], [72, 110, 110, 120]])
+
     def test_click_on_link_emits(self):
         self.source.infos[0] = {'words': WORDS, 'links': [{'rect': [72, 200, 200, 220], 'page': 3, 'y': 0}],
                                 'annotations': []}

@@ -355,22 +355,19 @@ class EmptyState(QWidget):
         column.addSpacing(metric('space_m'))
         title = QLabel('Abre un PDF')
         title.setFont(text_font('title', 600))
-        body = QLabel('Lee de corrido, marca lo importante y guarda tus notas dentro del propio documento.')
+        body = QLabel('Lee de corrido y marca lo importante.\nTus notas se guardan dentro del propio PDF.')
         body.setObjectName('muted')
-        body.setWordWrap(True)
         for label in (title, body):
             label.setAlignment(Qt.AlignHCenter)
-            column.addWidget(label)
+            column.addWidget(label, 0, Qt.AlignHCenter)
         column.addSpacing(metric('space_s'))
-        button = PillButton('folder_open', 'Abrir un PDF', lambda: self.open_requested.emit(), height=44)
-        column.addWidget(button, 0, Qt.AlignHCenter)
+        self.button = PillButton('folder_open', 'Abrir un PDF', lambda: self.open_requested.emit(), height=44)
+        column.addWidget(self.button, 0, Qt.AlignHCenter)
         hint = QLabel('o arrastra un archivo aquí · Ctrl O')
         hint.setObjectName('muted')
         hint.setAlignment(Qt.AlignHCenter)
         column.addWidget(hint)
         column.addStretch(4)
-        body.setMaximumWidth(420)
-        column.setAlignment(body, Qt.AlignHCenter)
 
 
 class NoteDialog(QDialog):

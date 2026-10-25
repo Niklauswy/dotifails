@@ -266,7 +266,8 @@ class Sidebar(QWidget):
         elif index == 1:
             text = f'{self.outline.count()} entradas' if self.outline.isEnabled() else 'Sin índice'
         elif index == 2:
-            text = f'{self.notes.count()} en el documento'
+            count = sum(1 for row in range(self.notes.count()) if self.notes.item(row).data(Qt.UserRole))
+            text = f'{count} en el documento' if count else 'Ninguna todavía'
         else:
             text = self.results_meta
         self.meta.setText(text)

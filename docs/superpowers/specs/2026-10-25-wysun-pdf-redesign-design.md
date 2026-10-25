@@ -233,3 +233,17 @@ una ventana por documento, arrastrar y soltar.
 - Zoom > ~2800 px de raster: la imagen se escala (algo borrosa). Sin mosaicos en esta versión.
 - `WYSUN_THEME` en el entorno del proceso afecta a los hijos: el motor lo ignora y `xdg-open` recibe el entorno original.
 - Plan 03 (renombrado de tokens) en paralelo: se usan los accesores del kit para minimizar el choque y se rebasa al final.
+
+## 10. Capturas y comparación
+
+`pdf-shots/` (1280 × 860, offscreen, `tests/pdf/shots.py`): `before-dark.png` es el lector anterior.
+`base-{light,dark}-{reader,search,spread,empty}.png` usan las paletas base; `teal-*` y `amber-*` usan
+esquemas generados con `wysun_scheme.generate_dynamic` a partir de dos fondos sintéticos.
+
+| Antes (`before-dark.png`) | Ahora (`base-dark-reader.png`, `base-*-search.png`, `base-*-spread.png`) |
+|---|---|
+| Riel de 80 px, panel lateral con miniaturas grandes y cabecera alta con emblema: menos de la mitad del ancho es documento | Barra superior de una fila, panel plegable de 244 px y escenario con el documento: la página ocupa el ~75 % del ancho |
+| Una página a la vez, flechas abajo y combo «Ajustar» | Desplazamiento continuo, indicador flotante «1 / 6» que salta de página y zoom −/%/+ con menú de ajustes |
+| Barra de herramientas de anotación siempre visible y modal (seleccionar/resaltar/subrayar/nota) | Barra contextual sobre la selección; la herramienta Nota está en la barra superior |
+| Búsqueda en una pestaña del riel con lista «Página N · k coincidencias» | Campo en la barra superior con contador y ↑/↓; resultados con la línea de contexto y el término destacado; coincidencias resaltadas en el papel |
+| Línea de estado fija abajo | Toast del kit |
