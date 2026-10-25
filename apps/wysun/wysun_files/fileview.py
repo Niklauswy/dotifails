@@ -18,7 +18,7 @@ from .kinds import describe
 from .tiles import paint_icon
 from wysun_core.ui.shapes import clip_pixmap, squircle
 from wysun_core.ui.style import metric, text_font
-from icons import paint_symbol
+from wysun_core.ui.style import paint_symbol
 from .model import COLUMNS, DATE, KIND, NAME, SIZE
 
 GRID_MIN = 132

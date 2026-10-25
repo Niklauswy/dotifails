@@ -225,7 +225,7 @@ class Marker(QWidget):
         self.setFixedSize(28, 26)
 
     def paintEvent(self, _event):
-        from icons import paint_symbol
+        from wysun_core.ui.style import paint_symbol
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
         if self.kind == 'bullet':

@@ -9,8 +9,7 @@ from PySide6.QtWidgets import QWidget
 from wysun_core.qt_theme import color, tokens
 from wysun_core.ui.motion import reduced_motion
 from wysun_core.ui.style import metric, text_font
-from icons import paint_symbol
-
+from wysun_core.ui.style import paint_symbol
 ROW = 40
 SEPARATOR = 13
 PAD = 8

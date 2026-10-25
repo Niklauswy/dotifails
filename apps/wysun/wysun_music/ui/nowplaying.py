@@ -22,7 +22,7 @@ from wysun_core.ui.motion import reduced_motion
 from .playerbar import REPEAT_LABELS, TimeLabel
 from wysun_core.ui.shapes import Drift, blurred, grain_tile
 from wysun_core.ui.style import metric, clock, text_font
-from icons import paint_symbol
+from wysun_core.ui.style import paint_symbol
 from .tracks import TrackView
 from wysun_core.ui.widgets import Chip, ElidedLabel, IconButton, LinkLabel, Slider
 from .widgets import CoverArt

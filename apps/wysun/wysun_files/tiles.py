@@ -9,7 +9,7 @@ from file_media import AUDIO, VIDEOS
 from wysun_core.qt_theme import color, tokens
 from .kinds import describe
 from wysun_core.ui.shapes import clip_pixmap, cookie, squircle
-from icons import paint_symbol
+from wysun_core.ui.style import paint_symbol
 from wysun_core.ui.style import text_font
 
 

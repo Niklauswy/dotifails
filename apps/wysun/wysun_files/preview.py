@@ -18,7 +18,7 @@ from .highlight import language_for_path
 from .kinds import describe, preview_kind
 from wysun_core.ui.widgets import Chip, ElidedLabel, IconButton, PillButton
 from wysun_core.ui.style import metric, text_font
-from icons import paint_symbol
+from wysun_core.ui.style import paint_symbol
 from .textview import CodeView, MarkdownView
 
 TEXT_LIMIT = 512 * 1024

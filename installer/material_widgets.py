@@ -20,7 +20,7 @@ from wysun_core.qt_theme import apply_style as apply_tokens, color, tokens
 from wysun_core.ui.motion import reduced_motion
 from ui_theme import paint_surface
 from wysun_core.ui.shapes import Drift, blurred, cookie, grain_tile, squircle
-from icons import paint_symbol
+from wysun_core.ui.style import paint_symbol
 from wysun_core.ui.style import apply_kit_style, metric, text_font
 from wysun_core.ui.widgets import IconButton, PillButton, StateLayer
 

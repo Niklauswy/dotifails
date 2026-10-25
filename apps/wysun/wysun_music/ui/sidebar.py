@@ -9,7 +9,7 @@ from PySide6.QtWidgets import QHBoxLayout, QLabel, QLineEdit, QScrollArea, QVBox
 
 from wysun_core.qt_theme import color, tokens
 from wysun_core.ui.style import metric, text_font
-from icons import paint_symbol
+from wysun_core.ui.style import paint_symbol
 from wysun_core.ui.panels import NavItem, SearchField, section_label
 from wysun_core.ui.widgets import IconButton
 from .widgets import draw_art, paint_favorites_cover

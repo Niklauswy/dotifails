@@ -10,9 +10,7 @@ from wysun_core.ui.motion import reduced_motion
 from wysun_core.ui.panels import Panel
 from wysun_core.ui.widgets import IconButton, StateLayer
 from wysun_core.ui.style import metric, text_font
-from icons import paint_symbol
-
-
+from wysun_core.ui.style import paint_symbol
 class Surface(Panel):
     """Raised rounded surface that tells its owner when it is resized (overlay placement)."""
 

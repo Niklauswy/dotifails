@@ -12,8 +12,7 @@ from wysun_core.ui.panels import NavItem, section_label
 from wysun_core.ui.motion import reduced_motion
 from wysun_core.ui.widgets import IconButton
 from wysun_core.ui.style import metric, text_font
-from icons import paint_symbol
-
+from wysun_core.ui.style import paint_symbol
 SYSTEM_FS = {'tmpfs', 'devtmpfs', 'overlay', 'squashfs', 'proc', 'sysfs', 'cgroup2', 'efivarfs', 'ramfs'}
 LOCATIONS = (('Inicio', None, 'home'),
              ('Escritorio', QStandardPaths.DesktopLocation, 'desktop_windows'),

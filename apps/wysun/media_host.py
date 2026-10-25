@@ -2,7 +2,8 @@
 import wysun_media
 from wysun_core.ui.motion import reduced_motion
 from wysun_core.qt_theme import color, on_theme_changed, tokens
-from icons import paint_symbol
+from wysun_core.ui.style import paint_symbol
+import icons  # noqa: F401  (registers the Lucide fallback for Material symbols the font lacks)
 from wysun_core.ui.fonts import load_fonts
 from wysun_core.ui.style import text_font
 

@@ -12,7 +12,7 @@ from PySide6.QtWidgets import QAbstractItemView, QListView, QStyle, QStyledItemD
 from music_library import artists
 from wysun_core.qt_theme import color, tokens
 from wysun_core.ui.style import metric, clock, text_font
-from icons import paint_symbol
+from wysun_core.ui.style import paint_symbol
 from .widgets import draw_art
 
 KEY_ROLE = Qt.UserRole + 1

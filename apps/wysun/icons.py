@@ -102,18 +102,15 @@ FALLBACK = {
 }
 
 
-def paint_symbol(painter, rect, name, tint, size=None, filled=False):
-    """The kit's Material symbol, or the matching Lucide glyph when the ligature is unavailable."""
-    if kit.paint_symbol(painter, rect, name, tint, size, filled):
-        return
-    from wysun_core.qt_theme import color, tokens
-    size = round(size or tokens()['icon_size'] * 1.2)
-    ink = color(tint) if isinstance(tint, str) else tint
-    rect = QRectF(rect)
+def _paint_lucide(painter, rect, name, ink, size):
+    """The Lucide glyph for a Material symbol the font cannot draw."""
     pixmap = glyph(FALLBACK.get(name, 'music'), max(12, round(size * .8)), ink.name())
     side = pixmap.width() / pixmap.devicePixelRatio()
     painter.drawPixmap(QRectF(rect.center().x() - side / 2, rect.center().y() - side / 2, side, side),
                        pixmap, QRectF(pixmap.rect()))
+
+
+kit.set_symbol_fallback(_paint_lucide)    # every Wysun app imports this module; Recorder never does
 
 
 def _follow_theme():

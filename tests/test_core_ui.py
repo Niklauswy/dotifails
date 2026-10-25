@@ -38,12 +38,36 @@ class CoreUiTests(unittest.TestCase):
         return painted, image
 
     def test_paint_symbol_reports_a_missing_glyph(self):
+        self.addCleanup(style.set_symbol_fallback, style.set_symbol_fallback(None))   # as in the Recorder
         painted, image = self.paint('play_arrow')
         self.assertTrue(painted)
         self.assertTrue(any(image.pixelColor(x, y).alpha() for x in range(48) for y in range(48)))
         painted, image = self.paint('no_such_ligature_xyz')
         self.assertFalse(painted)
         self.assertFalse(any(image.pixelColor(x, y).alpha() for x in range(48) for y in range(48)))
+
+    def test_a_registered_fallback_paints_missing_glyphs(self):
+        calls = []
+        previous = style.set_symbol_fallback(lambda painter, rect, name, ink, size: calls.append(name))
+        self.addCleanup(style.set_symbol_fallback, previous)
+        painted, _ = self.paint('no_such_ligature_xyz')
+        self.assertTrue(painted)
+        self.assertEqual(calls, ['no_such_ligature_xyz'])
+
+    def test_kit_buttons_fall_back_to_lucide_in_wysun_apps(self):
+        import icons  # noqa: F401  (registers the Lucide fallback, as every Wysun app does)
+        from wysun_core.ui.widgets import IconButton
+        def render():
+            with mock.patch('wysun_core.ui.style.ligature_available', return_value=False):
+                button = IconButton('play_arrow', 'Reproducir', lambda: None)
+                button.resize(40, 40)
+                return button.grab().toImage()
+        lucide = style.set_symbol_fallback(None)
+        self.addCleanup(style.set_symbol_fallback, lucide)
+        self.assertIsNotNone(lucide, 'importing icons registers the Lucide fallback')
+        blank = render()
+        style.set_symbol_fallback(lucide)
+        self.assertNotEqual(render(), blank, 'the Lucide glyph is drawn where the symbol is missing')
 
     def test_text_font_and_metric_follow_tokens(self):
         self.assertEqual(style.text_font('body').pixelSize(), tokens()['font_body'])

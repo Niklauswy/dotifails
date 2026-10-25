@@ -7,8 +7,7 @@ from PySide6.QtWidgets import QHBoxLayout, QLineEdit, QWidget
 
 from wysun_core.qt_theme import color
 from wysun_core.ui.style import metric, text_font
-from icons import paint_symbol
-
+from wysun_core.ui.style import paint_symbol
 HEIGHT = 42
 
 

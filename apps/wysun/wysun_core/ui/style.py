@@ -56,17 +56,32 @@ def _symbol_path(name, pixels, filled):
     return path.translated(-metrics.horizontalAdvance(name) / 2, (metrics.ascent() - metrics.descent()) / 2)
 
 
+_fallback = [None]
+
+
+def set_symbol_fallback(painter_function):
+    """Register ``painter_function(painter, rect, name, ink, size)`` for glyphs the font lacks; returns the previous one.
+
+    Wysun's apps register their Lucide icons (icons.py); without one, a missing glyph draws nothing.
+    """
+    previous, _fallback[0] = _fallback[0], painter_function
+    return previous
+
+
 def paint_symbol(painter, rect, name, tint, size=None, filled=False):
     """Draw a Material symbol centred in ``rect``; ``tint`` is a token name or QColor.
 
-    Returns False, drawing nothing, when the glyph is unavailable, so callers can fall back.
+    A missing glyph is drawn by the registered fallback; returns False when nothing was drawn.
     """
     load_fonts()
-    if not ligature_available(name):
-        return False
     size = round(size or tokens()['icon_size'] * 1.2)
     ink = color(tint) if isinstance(tint, str) else tint
     rect = QRectF(rect)
+    if not ligature_available(name):
+        if _fallback[0] is None:
+            return False
+        _fallback[0](painter, rect, name, ink, size)
+        return True
     painter.save()
     if filled:
         painter.setRenderHint(QPainter.Antialiasing)
