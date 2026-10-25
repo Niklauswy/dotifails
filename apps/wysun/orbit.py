@@ -73,18 +73,13 @@ class OrbitDaemon(QObject):
             kind='color' if color_value(text) else 'url' if re.fullmatch(r'https?://\S+',text.strip()) else 'text'
             self.store.clip(kind,text,blob=rich,source=source,meta={'mime_envelope':True})
     def show_utility(self,mode):
-        if mode == 'color' and not self.test:
+        if mode == 'color':
             run([str(HOME/'.local/bin/wysun'), 'colors']);return
         if mode=='music' and not self.test:
             run([str(Path(__file__).with_name('orbit-client')),mode]);return
         if mode not in self.utilities:
-            if mode=='music':
-                from wysun_music.app import build
-                window=build(test=self.test).window
-            else:
-                from utilities import ColorWindow
-                window=ColorWindow()
-            self.utilities[mode]=window
+            from wysun_music.app import build
+            self.utilities[mode]=build(test=self.test).window
         window=self.utilities[mode]
         if window.isVisible() and not getattr(window,'_motion_exiting',False):window.close();return
         window.present()

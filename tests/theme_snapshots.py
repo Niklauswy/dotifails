@@ -69,8 +69,6 @@ def render(out, source, theme):
         orbit.apply_style(app, orbit.STYLE)
     except Exception as error:
         print('fail app-style', error)
-    from utilities import ColorWindow
-    attempt('colors', lambda: ColorWindow(home / 'colors.json'))
     from wysun_music.app import build
     attempt('music', lambda: build(test=True).window)
     (home / 'Documentos').mkdir()

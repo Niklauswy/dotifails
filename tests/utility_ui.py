@@ -1,29 +1,15 @@
-import os,sys,tempfile,unittest
+import os,sys,unittest
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).parents[1]/'apps/wysun'))
 from PySide6.QtWidgets import QApplication
-from PySide6.QtCore import Qt
+
 import time
 def wait(ms):
  end=time.monotonic()+ms/1000
  while time.monotonic()<end:QApplication.processEvents();time.sleep(.005)
-from utilities import ColorWindow
 class UtilityUITests(unittest.TestCase):
  @classmethod
  def setUpClass(cls):cls.app=QApplication.instance() or QApplication([])
- def test_material_glyphs_and_data_survive_all_presets(self):
-  from unittest.mock import patch
-  from utility_material import glyph_coverage,SYMBOLS,material_icon
-  from theme_tokens import refresh_widgets
-  path,family,missing=glyph_coverage();self.assertEqual(missing,())
-  for symbol in SYMBOLS:self.assertFalse(material_icon(symbol).isNull(),symbol)
-  with tempfile.TemporaryDirectory() as tmp:
-   w=ColorWindow(Path(tmp)/'colors.json')
-   try:
-    for variant in ('light','dark'):
-     with patch.dict(os.environ,{'ORBIT_THEME':variant}):
-      refresh_widgets();w.resize(1100,700);w.show();wait(50);self.assertFalse(w.grab().isNull())
-   finally:w.close()
  def test_theme_switch_refreshes_existing_widgets(self):
   from unittest.mock import patch
   from PySide6.QtWidgets import QLabel
@@ -36,10 +22,4 @@ class UtilityUITests(unittest.TestCase):
     self.assertEqual(label.property('orbitOriginalStyle'),original)
    refresh_widgets();self.assertEqual(label.styleSheet(),dark)
   label.deleteLater();refresh_widgets()
- def test_color_formats_invalid_input_and_palette(self):
-  with tempfile.TemporaryDirectory() as tmp:
-   w=ColorWindow(Path(tmp)/'colors.json');w.entry.setText('rgb(255, 0, 0)');self.assertEqual(w.fields['HEX'].text(),'#FF0000');w.favorite();w.copy_palette();self.assertIn('--color-1: #FF0000;',self.app.clipboard().text());w.entry.setText('hsl(120, 100%, 50%)');self.assertEqual(w.fields['HEX'].text(),'#00FF00');w.entry.setText('not a color');w.copy();self.assertIn('--color-1',self.app.clipboard().text());self.assertEqual(w.formats.count(),0);w.close()
- def test_color_copy(self):
-  with tempfile.TemporaryDirectory() as tmp:
-   w=ColorWindow(Path(tmp)/'colors.json');w.present();w.entry.setText('#123456');w.formats.setCurrentIndex(1);w.copy();self.assertEqual(self.app.clipboard().text(),'rgb(18, 52, 86)');w.favorite();self.assertEqual(w.recent.count(),1);w.close()
 if __name__=='__main__':unittest.main()
