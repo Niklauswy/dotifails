@@ -79,7 +79,7 @@ StyledRect {
 
                 DelegateChoice {
                     roleValue: "wifi"
-                    delegate: Toggle {
+                    delegate: ToggleTile {
                         icon: "wifi"
                         checked: Nmcli.wifiEnabled
                         onClicked: Nmcli.toggleWifi()
@@ -87,7 +87,7 @@ StyledRect {
                 }
                 DelegateChoice {
                     roleValue: "bluetooth"
-                    delegate: Toggle {
+                    delegate: ToggleTile {
                         icon: "bluetooth"
                         checked: Bluetooth.defaultAdapter?.enabled ?? false
                         onClicked: {
@@ -99,7 +99,7 @@ StyledRect {
                 }
                 DelegateChoice {
                     roleValue: "mic"
-                    delegate: Toggle {
+                    delegate: ToggleTile {
                         icon: "mic"
                         checked: !Audio.sourceMuted
                         onClicked: {
@@ -111,7 +111,7 @@ StyledRect {
                 }
                 DelegateChoice {
                     roleValue: "settings"
-                    delegate: Toggle {
+                    delegate: ToggleTile {
                         icon: "settings"
                         inactiveOnColour: Colours.palette.m3onSurfaceVariant
                         isToggle: false
@@ -123,7 +123,7 @@ StyledRect {
                 }
                 DelegateChoice {
                     roleValue: "gameMode"
-                    delegate: Toggle {
+                    delegate: ToggleTile {
                         icon: "gamepad"
                         checked: RuntimeState.gameMode
                         onClicked: RuntimeState.gameMode = !RuntimeState.gameMode
@@ -131,7 +131,7 @@ StyledRect {
                 }
                 DelegateChoice {
                     roleValue: "wallpaperPlaying"
-                    delegate: Toggle {
+                    delegate: ToggleTile {
                         icon: "smart_display"
                         checked: PersistentState.wallpaperPlaying
                         onClicked: PersistentState.wallpaperPlaying = !PersistentState.wallpaperPlaying
@@ -139,7 +139,7 @@ StyledRect {
                 }
                 DelegateChoice {
                     roleValue: "dnd"
-                    delegate: Toggle {
+                    delegate: ToggleTile {
                         icon: "notifications_off"
                         checked: PersistentState.doNotDisturb
                         onClicked: Notifs.toggleDnd()
@@ -147,7 +147,7 @@ StyledRect {
                 }
                 DelegateChoice {
                     roleValue: "vpn"
-                    delegate: Toggle {
+                    delegate: ToggleTile {
                         icon: "vpn_key"
                         checked: VPN.connected && VPN.status.state !== "needs-auth" && VPN.status.state !== "error"
                         enabled: !VPN.connecting && !VPN.disconnecting
@@ -158,13 +158,5 @@ StyledRect {
                 }
             }
         }
-    }
-
-    component Toggle: IconButton {
-        inactiveColour: Colours.layer(Colours.palette.m3surfaceContainerHighest, 2)
-        fillWidth: true
-        isToggle: true
-        isRound: true
-        shapeMorph: true
     }
 }

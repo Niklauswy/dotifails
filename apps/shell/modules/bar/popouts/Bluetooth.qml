@@ -26,7 +26,7 @@ ColumnLayout {
         font: Tokens.font.body.builders.medium.weight(Font.Medium).build()
     }
 
-    Toggle {
+    SwitchRow {
         label: Tr.trCtx("Enabled", "toggle label")
         checked: Bluetooth.defaultAdapter?.enabled ?? false
         toggle.onToggled: {
@@ -36,7 +36,7 @@ ColumnLayout {
         }
     }
 
-    Toggle {
+    SwitchRow {
         label: Tr.trCtx("Discovering", "bluetooth adapter state")
         checked: Bluetooth.defaultAdapter?.discovering ?? false
         toggle.onToggled: {
@@ -182,24 +182,5 @@ ColumnLayout {
         icon: "settings"
 
         onClicked: root.popouts.detachRequested("bluetooth")
-    }
-
-    component Toggle: RowLayout {
-        required property string label
-        property alias checked: toggle.checked
-        property alias toggle: toggle
-
-        Layout.fillWidth: true
-        Layout.rightMargin: Tokens.padding.extraSmall
-        spacing: Tokens.spacing.medium
-
-        StyledText {
-            Layout.fillWidth: true
-            text: parent.label
-        }
-
-        StyledSwitch {
-            id: toggle
-        }
     }
 }

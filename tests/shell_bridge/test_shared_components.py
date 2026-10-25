@@ -19,6 +19,14 @@ def relative(paths):
     return sorted(str(p.relative_to(SHELL)) for p in paths)
 
 
+def inline(name):
+    return relative(p for p in qml_files() if re.search(rf'(?m)^\s*component\s+{name}\s*:', p.read_text()))
+
+
+def named(name):
+    return relative(p for p in qml_files() if p.stem == name)
+
+
 class OverlayWindowTests(unittest.TestCase):
     maxDiff = 2000
     OVERLAYS = ['modules/launcher/Launcher.qml', 'modules/launcher/EmojiPicker.qml',
@@ -82,6 +90,13 @@ class SearchFieldTests(unittest.TestCase):
         text = qml('components/controls/SearchBar.qml')
         self.assertIn('property bool bare', text)
         self.assertIn('bare: true', qml('modules/launcher/LauncherPanel.qml'))
+
+
+class SingleDefinitionTests(unittest.TestCase):
+    def test_no_inline_toggle(self):
+        self.assertEqual(inline('Toggle'), [])
+        self.assertEqual(named('SwitchRow'), ['components/controls/SwitchRow.qml'])
+        self.assertEqual(named('ToggleTile'), ['components/controls/ToggleTile.qml'])
 
 
 if __name__ == '__main__':
