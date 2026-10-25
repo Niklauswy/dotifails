@@ -52,10 +52,11 @@ def configure(deployment):
     runtime = deployment.backup / 'generated/capture-release'
     runtime.mkdir(parents=True)
     # Copy only distributable source, never a user's libraries or recording files.
-    # wysun_media is the player shared with Wysun: apps/capture/wysun_media links to its source,
-    # and each release carries its own copy so a running Recorder never imports another version.
+    # wysun_media (the player) and wysun_core (paths, atomic files, single instance) are shared
+    # with Wysun: apps/capture links to their source, and each release carries its own copy so a
+    # running Recorder never imports another version.
     import shutil
-    for package in ('loomrec', 'assets', 'wysun_media'):
+    for package in ('loomrec', 'assets', 'wysun_media', 'wysun_core'):
         shutil.copytree(source / package, runtime / package,
                         ignore=shutil.ignore_patterns('__pycache__', '*.pyc'))
     for name in ('README.md', 'UPSTREAM.md'):
