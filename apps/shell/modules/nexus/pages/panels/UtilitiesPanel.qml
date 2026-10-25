@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick.Layouts
 import Wysun.Config
 import Wysun.I18n
+import qs.components.rows
 import qs.modules.nexus.common
 
 PageBase {

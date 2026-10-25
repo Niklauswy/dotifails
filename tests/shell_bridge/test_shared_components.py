@@ -115,5 +115,26 @@ class SingleDefinitionTests(unittest.TestCase):
         self.assertEqual(named('PrefixHero'), ['modules/launcher/PrefixHero.qml'])
 
 
+class MovedComponentTests(unittest.TestCase):
+    MOVED = {'ConnectedRect': 'components/rows', 'RowButton': 'components/rows', 'ToggleRow': 'components/rows',
+             'SliderRow': 'components/rows', 'SectionHeader': 'components/rows', 'NavRow': 'components/rows',
+             'SwitchRow': 'components/controls', 'ToggleTile': 'components/controls', 'Chip': 'components',
+             'Segmented': 'components/controls', 'OverlayWindow': 'components'}
+
+    def test_rows_live_in_components(self):
+        for name, folder in self.MOVED.items():
+            self.assertEqual(named(name), [f'{folder}/{name}.qml'], name)
+
+    def test_moved_components_are_imported(self):
+        # A missing import is "X is not a type" at load time, which stops the whole shell.
+        for name, folder in self.MOVED.items():
+            module = 'qs.' + folder.replace('/', '.')
+            for path in qml_files():
+                rel = path.relative_to(SHELL)
+                text = path.read_text()
+                if str(rel.parent) != folder and re.search(rf'(?<![\w.]){name}\s*\{{', text):
+                    self.assertRegex(text, rf'(?m)^import {re.escape(module)}\s*$', f'{rel} uses {name}')
+
+
 if __name__ == '__main__':
     unittest.main()
