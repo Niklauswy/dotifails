@@ -79,7 +79,21 @@ class QtThemeTests(unittest.TestCase):
     def test_watcher_follows_atomic_replace_and_late_creation(self):
         seen = []
         qt_theme.on_theme_changed(lambda: seen.append(theme.active_mode()))
+        previous = getattr(self.app, 'wysunThemeWatcher', None)
+        if previous is not None:
+            del self.app.wysunThemeWatcher
         qt_theme.watch_theme()
+        watcher = self.app.wysunThemeWatcher
+
+        def stop_watching():
+            watcher.watcher.removePaths(watcher.watcher.files() + watcher.watcher.directories())
+            watcher.timer.stop()
+            watcher.deleteLater()
+            del self.app.wysunThemeWatcher
+            if previous is not None:
+                self.app.wysunThemeWatcher = previous
+            QApplication.processEvents()
+        self.addCleanup(stop_watching)
         atomic_write_json(theme.scheme_path(), SCHEME, sort_keys=True)       # the state directory did not exist
         self.assertTrue(wait(lambda: 'light' in seen), 'late creation was not seen')
         atomic_write_json(theme.scheme_path(), dict(SCHEME, mode='dark'), sort_keys=True)   # atomic replace

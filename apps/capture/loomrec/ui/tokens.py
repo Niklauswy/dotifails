@@ -1,68 +1,11 @@
-"""Wysun theme for Recorder and Screenshot (Material You).
+"""Recorder's own theme pieces: its global stylesheet, its bundled font and ``apply_theme``.
 
-Capture releases are installed apart from the launcher, so they carry their own
-byte-identical copies of theme_core.py and wysun_theme.json and read the palette
-mode from ~/.config/orbit/theme.json plus the Material scheme from
-$XDG_STATE_HOME/wysun/scheme.json. Stylesheets are templates: ``@token``,
-``@token/alpha`` (0-255). ``apply_theme`` installs the palette and stylesheet and
-follows later mode and wallpaper changes live.
+Tokens, colours, templates and the live watcher come from ``wysun_core.qt_theme``,
+which every Recorder release carries inside its own ``wysun_core`` copy.
 """
-import re
-from collections.abc import Mapping
+from PySide6.QtGui import QFont, QFontDatabase
 
-from PySide6.QtGui import QColor, QPalette, QFont, QFontDatabase
-
-from . import theme_core
-
-MARKER = re.compile(r'@([a-z][a-z0-9_]*)(?:/(\d{1,3}))?')
-PIXELS = ('radius_', 'corner_', 'space_', 'font_caption', 'font_small', 'font_body', 'font_heading', 'font_title', 'border', 'focus_width', 'icon_size')
-# Historic Recorder names kept for callers; values come from the active theme.
-LEGACY = {'blue': 'accent', 'blue_hover': 'accent_hover'}
-_listeners = []
-_cache = {}
-
-
-def tokens():
-    selection = theme_core.selection()
-    if selection not in _cache:
-        _cache[selection] = theme_core.resolve(*selection)
-    return theme_core.resolve_active(*selection)
-
-
-class _Tokens(Mapping):
-    """Live view with Recorder's historic keys: colours, space, radius, motion_ms."""
-    def __getitem__(self, key):
-        values = tokens()
-        if key == 'space':
-            return tuple(values['space_' + n] for n in ('xs', 's', 'm', 'l', 'xl'))
-        if key == 'radius':
-            return values['radius_s'], values['radius_m'], values['radius_l']
-        if key == 'motion_ms':
-            return values['motion_fast']
-        value = values[LEGACY.get(key, key)]
-        return value[:7] if isinstance(value, str) and value.startswith('#') else value
-    def __iter__(self):
-        return iter(tokens())
-    def __len__(self):
-        return len(tokens())
-
-
-TOKENS = _Tokens()
-
-
-def color(name, alpha=None, values=None):
-    value = (values or tokens())[LEGACY.get(name, name)]
-    result = QColor(value[:7])
-    own = int(value[7:9], 16) if len(value) == 9 else 255
-    result.setAlpha(own if alpha is None else max(0, min(255, int(alpha))))
-    return result
-
-
-def css(name, alpha=None, values=None):
-    value = color(name, alpha, values)
-    if value.alpha() == 255:
-        return value.name()
-    return f'rgba({value.red()},{value.green()},{value.blue()},{value.alpha()})'  # theme-exception: conversion a sintaxis CSS
+from wysun_core.qt_theme import apply_palette, apply_style, color, on_theme_changed, tokens, watch_theme
 
 
 def tint(value):
@@ -73,44 +16,12 @@ def tint(value):
 
 
 def family(values=None):
-    available = set(QFontDatabase.families())
+    """Recorder ships Rubik and prefers it; the theme's families follow."""
     from .material import load_fonts
     load_fonts()
     available = set(QFontDatabase.families())
     names = ['Rubik', *(values or tokens())['font_family']]
     return next((name for name in names if name in available), 'Sans Serif')
-
-
-def _render(match, values):
-    name, alpha = match[1], match[2]
-    key = LEGACY.get(name, name)
-    if key not in values:
-        return match[0]
-    value = values[key]
-    if isinstance(value, str) and value.startswith('#'):
-        return css(key, alpha, values)
-    if key in ('font_family', 'font_mono'):
-        return ', '.join(f'"{item}"' for item in value)
-    if isinstance(value, (int, float)) and key.startswith(PIXELS):
-        return f'{value:g}px'
-    return str(value)
-
-
-def qss(template, values=None):
-    values = values or tokens()
-    return MARKER.sub(lambda match: _render(match, values), template)
-
-
-def apply_style(widget, template):
-    """Themed stylesheet that follows later theme changes."""
-    widget.setProperty('wysunThemeStyle', template)
-    widget.setStyleSheet(qss(template))
-
-
-def on_theme_changed(callback):
-    import weakref
-    _listeners.append(weakref.WeakMethod(callback) if hasattr(callback, '__self__') else (lambda: callback))
-    return callback
 
 
 STYLE = '''
@@ -187,108 +98,16 @@ STYLE = '''
 '''
 
 
-def palette(values=None):
-    values = values or tokens()
-    result = QPalette()
-    for role, key in [(QPalette.Window, 'canvas'), (QPalette.Base, 'surface'), (QPalette.AlternateBase, 'well'),
-                      (QPalette.WindowText, 'text'), (QPalette.Text, 'text'), (QPalette.Button, 'surface'),
-                      (QPalette.ButtonText, 'text'), (QPalette.Highlight, 'accent'), (QPalette.HighlightedText, 'on_accent'),
-                      (QPalette.ToolTipBase, 'tooltip'), (QPalette.ToolTipText, 'on_tooltip'),
-                      (QPalette.PlaceholderText, 'muted'), (QPalette.Link, 'accent')]:
-        result.setColor(role, color(key, 255, values))
-    for role in [QPalette.WindowText, QPalette.Text, QPalette.ButtonText]:
-        result.setColor(QPalette.Disabled, role, color('disabled', 255, values))
-    return result
-
-
-def _install(app):
-    values = tokens()
-    font = QFont(family(values))
-    font.setPixelSize(int(values['font_body']))
+def _apply_font(app):
+    font = QFont(family())
+    font.setPixelSize(int(tokens()['font_body']))
     app.setFont(font)
-    app.setPalette(palette(values))
-    app.setStyleSheet(qss(STYLE, values))
-
-
-def refresh(app=None):
-    """Re-render palette, stylesheets, icons and painters for the new theme."""
-    from PySide6.QtWidgets import QApplication, QWidget
-    app = app or QApplication.instance()
-    if not app:
-        return
-    _cache.clear()
-    theme_core.invalidate()
-    _install(app)
-    for widget in QApplication.allWidgets():
-        template = widget.property('wysunThemeStyle')
-        if template is not None:
-            widget.setStyleSheet(qss(template))
-    from .icons import refresh_icons
-    refresh_icons()
-    for reference in list(_listeners):
-        callback = reference()
-        if callback is None:
-            _listeners.remove(reference)
-            continue
-        try:
-            callback()
-        except Exception as error:
-            print('Wysun: no se pudo actualizar el tema en', callback, error)
-    for widget in QApplication.allWidgets():
-        QWidget.update(widget)
-
-
-def watch(app):
-    """Follow theme.json, including atomic replacement and late creation."""
-    from PySide6.QtCore import QFileSystemWatcher, QObject, QTimer
-    if getattr(app, '_wysun_theme_watcher', None):
-        return
-    try:
-        theme_core.migrate()
-    except OSError:
-        pass
-
-    class Watcher(QObject):
-        def __init__(self):
-            super().__init__(app)
-            self.files = QFileSystemWatcher(self)
-            self.timer = QTimer(self)
-            self.timer.setSingleShot(True)
-            self.timer.setInterval(40)
-            self.key = theme_core.visual_key()
-            self.files.fileChanged.connect(self.timer.start)
-            self.files.directoryChanged.connect(self.timer.start)
-            self.timer.timeout.connect(self.check)
-            self.arm()
-
-        def arm(self):
-            targets = set()
-            for path in (theme_core.selection_path(), theme_core.scheme_path()):
-                if path.exists():
-                    targets.add(str(path))
-                parent = path.parent
-                while not parent.exists() and parent != parent.parent:
-                    parent = parent.parent
-                if parent.exists():
-                    targets.add(str(parent))
-            current = set(self.files.files() + self.files.directories())
-            if current - targets:
-                self.files.removePaths(list(current - targets))
-            if targets - current:
-                self.files.addPaths(list(targets - current))
-
-        def check(self):
-            self.arm()
-            theme_core.invalidate()
-            key = theme_core.visual_key()
-            if key != self.key:
-                self.key = key
-                refresh(app)
-
-    app._wysun_theme_watcher = Watcher()
 
 
 def apply_theme(app):
     app.setStyle('Fusion')
-    _install(app)
-    watch(app)
+    apply_palette(app)
+    apply_style(app, STYLE)
+    _apply_font(app)
+    on_theme_changed(lambda: _apply_font(app))
+    watch_theme()

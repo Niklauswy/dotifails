@@ -42,10 +42,17 @@ class CorePackagingTests(unittest.TestCase):
                      'apps/capture/loomrec/ui/wysun_theme.json', 'manifests/themes.json'):
             self.assertFalse((ROOT / gone).exists(), gone)
         hits = subprocess.run(['git', '-C', str(ROOT), 'grep', '-nE',
-                               r'ORBIT_THEME|wysunThemeTemplate|wysunThemeStyle|RETIRED_BAR_COLORS|LOOMREC_REDUCED_MOTION',
+                               r'ORBIT_THEME|orbitOriginalStyle|wysunThemeStyle|RETIRED_BAR_COLORS|LOOMREC_REDUCED_MOTION',
                                '--', 'apps', 'installer', 'tests', 'bin', 'docs/themes.md', 'AGENTS.md',
                                ':!tests/test_core_packaging.py'], capture_output=True, text=True).stdout
         self.assertEqual(hits, '')
+
+
+    def test_capture_release_ships_theme_data(self):
+        self.assertTrue((ROOT / 'apps/capture/wysun_core/tokens.json').is_file())
+        source = (ROOT / 'apps/capture/loomrec/ui/tokens.py').read_text()
+        self.assertIn('from wysun_core.qt_theme import', source)
+        self.assertNotIn('theme_core', source)
 
 
 if __name__ == '__main__':

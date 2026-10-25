@@ -6,10 +6,7 @@ radii, spacing, type and motion all come from the theme tokens. These helpers
 mirror the ones those apps use; the Recorder installs separately and never
 imports them.
 """
-import json
-import os
 from functools import lru_cache
-from pathlib import Path
 
 from PySide6.QtCore import (QAbstractAnimation, QEasingCurve, QPropertyAnimation, QRectF, Qt, QTimer,
                             QVariantAnimation, Signal)
@@ -18,7 +15,8 @@ from PySide6.QtGui import (QFont, QFontDatabase, QFontMetricsF, QLinearGradient,
 from PySide6.QtWidgets import QAbstractButton, QGraphicsOpacityEffect, QLabel, QWidget
 
 from .material import load_fonts
-from .tokens import color, qss, tokens
+from wysun_core import appearance
+from wysun_core.qt_theme import TEMPLATE, color, qss, tokens
 
 SYMBOL_FAMILY = 'Material Symbols Rounded'
 TEXT_FAMILY = 'Rubik'
@@ -30,13 +28,7 @@ def metric(name, scale=1.0):
 
 
 def reduced_motion(widget=None):
-    if os.environ.get('ORBIT_REDUCED_MOTION', '').lower() in ('1', 'true', 'yes') or getattr(widget, 'test', False):
-        return True
-    root = Path(os.environ.get('XDG_CONFIG_HOME', str(Path.home() / '.config')))
-    try:
-        return json.loads((root / 'orbit/appearance.json').read_text()).get('reduced_motion') is True
-    except (OSError, ValueError, AttributeError):
-        return False
+    return getattr(widget, 'test', False) or appearance.reduced_motion()
 
 
 def surface_opacity(values=None):
@@ -44,13 +36,7 @@ def surface_opacity(values=None):
     values = values or tokens()
     if not values['translucent']:
         return 255
-    root = Path(os.environ.get('XDG_CONFIG_HOME', str(Path.home() / '.config')))
-    try:
-        opacity = json.loads((root / 'orbit/appearance.json').read_text()).get('opacity', 80)
-        opacity = max(65, min(100, round(opacity)))
-    except (OSError, ValueError, TypeError, AttributeError):
-        opacity = 80
-    return round(opacity * 2.55)
+    return round(appearance.read_appearance()['opacity'] * 2.55)
 
 
 # ------------------------------------------------------------------- text
@@ -494,6 +480,6 @@ QSpinBox:focus, QComboBox:focus {border:@focus_width solid @focus_input;}
 def apply_style(widget):
     """Themed QSS for colours/shapes plus the Rubik body font, inherited by children."""
     load_fonts()
-    widget.setProperty('wysunThemeStyle', STYLE)
+    widget.setProperty(TEMPLATE, STYLE)
     widget.setStyleSheet(qss(STYLE))
     widget.setFont(text_font('body'))

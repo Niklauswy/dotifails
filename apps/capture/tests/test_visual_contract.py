@@ -7,7 +7,8 @@ from pathlib import Path
 from unittest.mock import patch
 os.environ.setdefault('QT_QPA_PLATFORM','offscreen')
 from PySide6.QtWidgets import QApplication
-from loomrec.ui.tokens import TOKENS,apply_theme
+from wysun_core.qt_theme import tokens
+from loomrec.ui.tokens import apply_theme
 from loomrec.ui.motion import reduced_motion
 
 
@@ -26,17 +27,16 @@ class VisualContractTests(unittest.TestCase):
     def test_readable_text_and_focus_contrast(self):
         for foreground in ('text','muted'):
             for background in ('canvas','surface','well'):
-                values=sorted([luminance(TOKENS[foreground]),luminance(TOKENS[background])])
+                values=sorted([luminance(tokens()[foreground][:7]),luminance(tokens()[background][:7])])
                 self.assertGreaterEqual((values[1]+.05)/(values[0]+.05),4.5,(foreground,background))
         for background in ('canvas','surface','well'):
-            values=sorted([luminance(TOKENS['blue']),luminance(TOKENS[background])])
+            values=sorted([luminance(tokens()['accent'][:7]),luminance(tokens()[background][:7])])
             self.assertGreaterEqual((values[1]+.05)/(values[0]+.05),3,background)
 
     def test_reduced_motion_environment_and_local_preference(self):
-        with tempfile.TemporaryDirectory() as d,patch.dict(os.environ,{'XDG_CONFIG_HOME':d,'LOOMREC_REDUCED_MOTION':'','ORBIT_REDUCED_MOTION':''}):
-            for key in ('LOOMREC_REDUCED_MOTION','ORBIT_REDUCED_MOTION'):
-                with patch.dict(os.environ,{key:'true'}):self.assertTrue(reduced_motion(),key)
-            path=Path(d)/'loomrec/appearance.json';path.parent.mkdir();path.write_text(json.dumps({'reduced_motion':True}))
+        with tempfile.TemporaryDirectory() as d,patch.dict(os.environ,{'XDG_CONFIG_HOME':d,'ORBIT_REDUCED_MOTION':''}):
+            with patch.dict(os.environ,{'ORBIT_REDUCED_MOTION':'true'}):self.assertTrue(reduced_motion())
+            path=Path(d)/'orbit/appearance.json';path.parent.mkdir();path.write_text(json.dumps({'reduced_motion':True}))
             self.assertTrue(reduced_motion())
 
 

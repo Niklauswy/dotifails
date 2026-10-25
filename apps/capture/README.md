@@ -323,10 +323,10 @@ Final deployment: source and installed Python files match; SXHKD launch binding 
 
 ### Fluent Soft redesign validation
 
-The native UI uses a light pearl/blue palette independent of Wysun's current dark theme;
-no Wysun configuration is changed. Motion preferences are read from
-`LOOMREC_REDUCED_MOTION`, `ORBIT_REDUCED_MOTION`, or `reduced_motion` in the local
-Wysun `appearance.json`, with the Qt animation-duration preference also respected.
+The native UI follows the Wysun theme (wysun_core, shipped inside the release); no Wysun
+configuration is changed. Motion preferences come from `ORBIT_REDUCED_MOTION` or
+`reduced_motion` in Wysun's `appearance.json` (wysun_core.appearance), with the Qt
+animation-duration preference also respected.
 Hover transitions last170ms when enabled; there are no repeating recording animations.
 
 The redesign preserves the project schema and shared preview/export renderer. A43-test

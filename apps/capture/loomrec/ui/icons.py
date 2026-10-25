@@ -105,3 +105,7 @@ def refresh_icons():
             for i in range(widget.count()):item=widget.item(i);item.setIcon(refreshed(item.icon()))
         elif isinstance(widget,QComboBox):
             for i in range(widget.count()):widget.setItemIcon(i,refreshed(widget.itemIcon(i)))
+
+
+from wysun_core.qt_theme import on_theme_changed  # noqa: E402
+on_theme_changed(refresh_icons)
