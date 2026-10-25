@@ -4,8 +4,9 @@ from PySide6.QtGui import QPainter
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QLineEdit, QVBoxLayout, QWidget
 
 from wysun_core.qt_theme import color, tokens
-from ui_motion import reduced_motion
-from .kit import PillButton, metric, text_font
+from wysun_core.ui.motion import reduced_motion
+from wysun_core.ui.widgets import PillButton
+from wysun_core.ui.style import metric, text_font
 
 
 class _Card(QWidget):

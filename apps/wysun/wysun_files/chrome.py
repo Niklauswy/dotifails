@@ -6,9 +6,11 @@ from PySide6.QtGui import QPainter
 from PySide6.QtWidgets import QHBoxLayout, QStackedWidget, QVBoxLayout, QWidget
 
 from wysun_core.qt_theme import color, tokens
-from ui_motion import reduced_motion
-from wysun_music.ui.sidebar import Panel
-from .kit import IconButton, StateLayer, metric, paint_symbol, text_font
+from wysun_core.ui.motion import reduced_motion
+from wysun_core.ui.panels import Panel
+from wysun_core.ui.widgets import IconButton, StateLayer
+from wysun_core.ui.style import metric, text_font
+from icons import paint_symbol
 
 
 class Surface(Panel):
@@ -363,7 +365,7 @@ class Hero(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        from .kit import Chip
+        from wysun_core.ui.widgets import Chip
         self.title, self.subtitle, self.rotation, self.glyph = '', '', 0.0, 'folder'
         self.setFixedHeight(112)
         row = QHBoxLayout(self)
@@ -412,7 +414,7 @@ class Hero(QWidget):
             chip.setVisible(used <= self.width())
 
     def paintEvent(self, event):
-        from .kit import cookie
+        from wysun_core.ui.shapes import cookie
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
         box = QRectF(0, 12, 52, 52)

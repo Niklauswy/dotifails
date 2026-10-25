@@ -6,7 +6,8 @@ from PySide6.QtGui import QFontMetrics, QPainter
 from PySide6.QtWidgets import QHBoxLayout, QLineEdit, QWidget
 
 from wysun_core.qt_theme import color
-from .kit import metric, paint_symbol, text_font
+from wysun_core.ui.style import metric, text_font
+from icons import paint_symbol
 
 HEIGHT = 42
 
@@ -26,7 +27,7 @@ class PathBar(QWidget):
         self.setAccessibleName('Ruta de la carpeta')
         self.setToolTip('Haz clic en un tramo para ir · clic al final para escribir una ruta · Ctrl+L')
         self.edit = QLineEdit(self)
-        self.edit.setObjectName('musicSearch')
+        self.edit.setObjectName('kitSearch')
         self.edit.setAccessibleName('Ruta de la carpeta')
         self.edit.hide()
         self.edit.returnPressed.connect(self._commit)

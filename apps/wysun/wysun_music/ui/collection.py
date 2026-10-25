@@ -10,12 +10,13 @@ from PySide6.QtWidgets import QHBoxLayout, QLineEdit, QMenu, QVBoxLayout, QWidge
 
 from music_library import artists, normalize
 from wysun_core.qt_theme import color, tokens
-from ui_motion import reduced_motion
-from .shapes import artwork, blurred, clip_pixmap, cookie
+from wysun_core.ui.motion import reduced_motion
+from wysun_core.ui.shapes import artwork, blurred, clip_pixmap, cookie
 from wysun_core.ui.style import metric, text_font
 from .style import long_duration, songs
 from .tracks import TrackHeader, TrackView
-from .widgets import IconButton, PillButton, draw_art, paint_favorites_cover
+from wysun_core.ui.widgets import IconButton, PillButton
+from .widgets import draw_art, paint_favorites_cover
 
 SORTS = (('custom', 'Orden personalizado'), ('title', 'Título'), ('artist', 'Artista'),
          ('album', 'Álbum'), ('duration', 'Duración'))

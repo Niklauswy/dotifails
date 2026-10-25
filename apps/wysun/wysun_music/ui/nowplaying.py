@@ -18,13 +18,14 @@ from PySide6.QtWidgets import (QButtonGroup, QHBoxLayout, QLabel, QMenu, QSizePo
 
 from music_library import artists, parse_lrc
 from wysun_core.qt_theme import color, tokens
-from ui_motion import reduced_motion
+from wysun_core.ui.motion import reduced_motion
 from .playerbar import REPEAT_LABELS, TimeLabel
-from .shapes import Drift, blurred, grain_tile
+from wysun_core.ui.shapes import Drift, blurred, grain_tile
 from wysun_core.ui.style import metric, clock, text_font
 from icons import paint_symbol
 from .tracks import TrackView
-from .widgets import Chip, CoverArt, ElidedLabel, IconButton, LinkLabel, Slider
+from wysun_core.ui.widgets import Chip, ElidedLabel, IconButton, LinkLabel, Slider
+from .widgets import CoverArt
 
 TABS = (('lyrics', 'Letra'), ('queue', 'A continuación'))
 USER_SCROLL_HOLD_MS = 3500

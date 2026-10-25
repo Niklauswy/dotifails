@@ -10,9 +10,10 @@ from PySide6.QtWidgets import QHBoxLayout, QLabel, QLineEdit, QScrollArea, QVBox
 from wysun_core.qt_theme import color, tokens
 from wysun_core.ui.style import metric, text_font
 from icons import paint_symbol
-from .widgets import IconButton, StateLayer, draw_art, paint_favorites_cover
+from wysun_core.ui.panels import NavItem, SearchField, section_label
+from wysun_core.ui.widgets import IconButton
+from .widgets import draw_art, paint_favorites_cover
 
-OUTLINE_ONLY = {'explore', 'history', 'album', 'download', 'artist'}  # glyphs whose filled form loses detail
 LISTEN = (('home', 'home', 'Inicio', ('home',)), ('search', 'explore', 'Explorar', ('search', '')),
           ('downloads', 'download', 'Añadir música', ('downloads',)))
 LIBRARY = (('all', 'music_note', 'Canciones', ('collection', 'all')),
@@ -22,137 +23,28 @@ LIBRARY = (('all', 'music_note', 'Canciones', ('collection', 'all')),
            ('favorites', 'favorite', 'Tus me gusta', ('collection', 'favorites')))
 
 
-class Panel(QWidget):
-    """Rounded raised surface, like the shell's StyledRect containers."""
+class CollectionNavItem(NavItem):
+    """A playlist row: its artwork instead of a symbol."""
 
-    def paintEvent(self, _event):
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing)
-        painter.setPen(Qt.NoPen)
-        painter.setBrush(color('surface'))
-        radius = tokens()['radius_l']
-        painter.drawRoundedRect(QRectF(self.rect()), radius, radius)
-
-
-class SearchField(QLineEdit):
-    """Pill search with a painted Material search glyph."""
-
-    def __init__(self):
-        super().__init__()
-        self.setObjectName('musicSearch')
-        self.setPlaceholderText('Buscar')
-        self.setAccessibleName('Buscar en tu biblioteca')
-        self.setToolTip('Buscar · Ctrl+K')
-        self.setClearButtonEnabled(True)
-
-    def paintEvent(self, event):
-        super().paintEvent(event)
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing)
-        paint_symbol(painter, QRectF(8, 0, 24, self.height()), 'search', 'muted', 20)
-
-
-class NavItem(QWidget):
-    """Sidebar row: symbol + label (or artwork + label for playlists); pill when active."""
-
-    clicked = Signal()
-    menu_requested = Signal(object)  # global position
-
-    def __init__(self, symbol, label, parent=None, collection=None, covers=None):
-        super().__init__(parent)
-        self.symbol, self.label = symbol, label
+    def __init__(self, label, collection, covers, parent=None):
+        super().__init__('queue_music', label, parent)
         self.collection, self.covers = collection, covers
-        self.active = False
-        self.playing = False
-        self.layer = StateLayer(self)
-        self.setCursor(Qt.PointingHandCursor)
-        self.setFocusPolicy(Qt.StrongFocus)
-        self.setAccessibleName(label)
-        self.setToolTip(label if len(label) > 22 else '')
-        self.setFixedHeight(40 if collection is not None else 36)
-        if covers is not None and collection is not None:
-            covers.updated.connect(self._cover)
+        self.setFixedHeight(40)
+        covers.updated.connect(self._cover)
 
     def _cover(self, key):
         if key == self.collection.id or key in self.collection.keys[:12]:
             self.update()
 
-    def set_active(self, active):
-        if active != self.active:
-            self.active = active
-            self.update()
-
-    def set_playing(self, playing):
-        if playing != self.playing:
-            self.playing = playing
-            self.update()
-
-    def enterEvent(self, event):
-        self.layer.to(1.0)
-        super().enterEvent(event)
-
-    def leaveEvent(self, event):
-        self.layer.to(0.0)
-        super().leaveEvent(event)
-
-    def mouseReleaseEvent(self, event):
-        if event.button() == Qt.LeftButton and self.rect().contains(event.position().toPoint()):
-            self.clicked.emit()
-
-    def contextMenuEvent(self, event):
-        self.menu_requested.emit(event.globalPos())
-
-    def keyPressEvent(self, event):
-        if event.key() in (Qt.Key_Return, Qt.Key_Enter, Qt.Key_Space):
-            self.clicked.emit()
+    def paint_leading(self, painter, pad):
+        side = 28
+        cover = QRect(pad - 2, (self.height() - side) // 2, side, side)
+        if self.collection.kind == 'favorites':
+            paint_favorites_cover(painter, QRectF(cover), 6)
         else:
-            super().keyPressEvent(event)
-
-    def paintEvent(self, _event):
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing)
-        rect = QRectF(self.rect())
-        radius = rect.height() / 2
-        if self.active or self.layer.amount:
-            painter.setPen(Qt.NoPen)
-            painter.setBrush(color('nav_selected') if self.active else color('tint', round(12 * self.layer.amount)))
-            painter.drawRoundedRect(rect, radius, radius)
-        pad = metric('space_m')
-        if self.collection is not None:
-            side = 28
-            cover = QRect(pad - 2, (self.height() - side) // 2, side, side)
-            if self.collection.kind == 'favorites':
-                paint_favorites_cover(painter, QRectF(cover), 6)
-            else:
-                pixmap = self.covers.collection_pixmap(self.collection, side, 6, self.devicePixelRatioF())
-                draw_art(painter, cover, pixmap, 6, 'queue_music')
-            text_left = cover.right() + metric('space_m')
-        else:
-            paint_symbol(painter, QRect(pad - 4, 0, 28, self.height()), self.symbol,
-                         'accent' if self.active else 'glyph', 21,
-                         filled=self.active and self.symbol not in OUTLINE_ONLY)
-            text_left = pad + 24 + metric('space_s')
-        right = self.width() - pad - (22 if self.playing else 0)
-        painter.setFont(text_font('body', 600 if self.active else 450))
-        painter.setPen(color('text_strong' if self.active else 'text'))
-        painter.drawText(QRect(text_left, 0, right - text_left, self.height()), Qt.AlignLeft | Qt.AlignVCenter,
-                         painter.fontMetrics().elidedText(self.label, Qt.ElideRight, right - text_left))
-        if self.playing:
-            paint_symbol(painter, QRect(self.width() - pad - 20, 0, 20, self.height()), 'graphic_eq', 'accent', 18)
-        if self.hasFocus() and self.window().isActiveWindow():
-            painter.setPen(color('focus'))
-            painter.setBrush(Qt.NoBrush)
-            painter.drawRoundedRect(rect.adjusted(1, 1, -1, -1), radius - 1, radius - 1)
-
-
-def section_label(text):
-    label = QLabel(text.upper())
-    font = text_font('caption', 700)
-    font.setLetterSpacing(font.SpacingType.AbsoluteSpacing, 1.1)
-    label.setFont(font)
-    label.setObjectName('muted')
-    label.setContentsMargins(metric('space_m'), metric('space_m'), 0, metric('space_xs'))
-    return label
+            pixmap = self.covers.collection_pixmap(self.collection, side, 6, self.devicePixelRatioF())
+            draw_art(painter, cover, pixmap, 6, 'queue_music')
+        return cover.right() + metric('space_m')
 
 
 class Sidebar(QWidget):
@@ -168,7 +60,7 @@ class Sidebar(QWidget):
         layout.setContentsMargins(metric('space_xs'), 0, 0, 0)
         layout.setSpacing(metric('space_s'))
 
-        self.search = SearchField()
+        self.search = SearchField('Buscar en tu biblioteca')
         layout.addWidget(self.search)
 
         scroll = QScrollArea()
@@ -213,7 +105,7 @@ class Sidebar(QWidget):
         for collection in self.library.collections():
             if collection.kind in ('favorites', 'album'):
                 continue  # favorites and albums have their own library entries
-            item = NavItem('queue_music', collection.title, collection=collection, covers=self.covers)
+            item = CollectionNavItem(collection.title, collection, self.covers)
             route = ('collection', collection.id)
             item.clicked.connect(lambda route=route: self.navigate.emit(route))
             item.menu_requested.connect(lambda position, c=collection: self.menu_requested.emit(c, position))

@@ -5,7 +5,7 @@ from PySide6.QtWidgets import (QApplication, QHBoxLayout, QLabel, QLineEdit, QMe
                                QVBoxLayout, QWidget)
 
 from wysun_core.qt_theme import color, on_theme_changed
-from ui_motion import WindowMotion, reveal_content
+from wysun_core.ui.motion import WindowMotion, reveal_content
 from ui_theme import paint_surface
 from .actions import Actions
 from .browse import GridPage
@@ -15,9 +15,10 @@ from .home import HomePage
 from .nowplaying import FullPlayer
 from .playerbar import PlayerBar
 from .search import SearchPage
-from .sidebar import Panel, Sidebar
+from wysun_core.ui.panels import Panel
+from .sidebar import Sidebar
 from wysun_core.ui.style import apply_kit_style, metric, text_font
-from .widgets import ElidedLabel, IconButton
+from wysun_core.ui.widgets import ElidedLabel, IconButton
 
 HISTORY_LIMIT = 50
 RESIZE_MARGIN = 6

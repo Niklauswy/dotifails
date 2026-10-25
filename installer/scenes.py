@@ -11,7 +11,7 @@ from PySide6.QtWidgets import QAbstractButton, QSizePolicy, QWidget
 
 from material_widgets import (SOLID, StateLayer, animate, blob, color, cookie, focus_ring, metric, paint_symbol,
                               squircle, text_font, tokens)
-from ui_motion import reduced_motion
+from wysun_core.ui.motion import reduced_motion
 
 
 class Ticker:

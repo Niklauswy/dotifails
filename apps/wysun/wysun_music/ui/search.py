@@ -6,7 +6,7 @@ from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QScrollArea, QVB
 from music_library import normalize
 from wysun_core.qt_theme import color, tokens
 from .cards import Card, Shelf, Tile
-from .shapes import filled
+from wysun_core.ui.shapes import filled
 from .widgets import paint_favorites_cover
 from wysun_core.ui.style import metric, text_font
 from .style import songs

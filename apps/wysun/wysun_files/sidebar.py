@@ -8,9 +8,11 @@ from PySide6.QtWidgets import QHBoxLayout, QScrollArea, QVBoxLayout, QWidget
 
 from file_media import human_size
 from wysun_core.qt_theme import color
-from wysun_music.ui.sidebar import NavItem, section_label
-from ui_motion import reduced_motion
-from .kit import IconButton, metric, paint_symbol, text_font
+from wysun_core.ui.panels import NavItem, section_label
+from wysun_core.ui.motion import reduced_motion
+from wysun_core.ui.widgets import IconButton
+from wysun_core.ui.style import metric, text_font
+from icons import paint_symbol
 
 SYSTEM_FS = {'tmpfs', 'devtmpfs', 'overlay', 'squashfs', 'proc', 'sysfs', 'cgroup2', 'efivarfs', 'ramfs'}
 LOCATIONS = (('Inicio', None, 'home'),

@@ -99,7 +99,7 @@ QScrollBar:horizontal {height:0;}
 QLineEdit {background:@well;border:@border solid @line;border-radius:@radius_control;padding:@space_s @space_m;
            selection-background-color:@text_selection;}
 QLineEdit:focus {border:@focus_width solid @focus_input;}
-QLineEdit#musicSearch {border-radius:18px;padding:0 @space_m 0 34px;min-height:36px;background:@well;}
+QLineEdit#kitSearch {border-radius:18px;padding:0 @space_m 0 34px;min-height:36px;background:@well;}
 QPushButton {padding:@space_s @space_l;border-radius:@radius_control;background:@fill;border:0;color:@control_text;}
 QPushButton:hover {background:@hover;}
 QPushButton:pressed {background:@pressed;}

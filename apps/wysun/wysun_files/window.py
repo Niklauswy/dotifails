@@ -13,12 +13,13 @@ from file_media import human_size
 from files_ops import execute_operation
 from player_client import launch
 from wysun_core.qt_theme import color, on_theme_changed, tokens
-from ui_motion import WindowMotion, reduced_motion, reveal_content
+from wysun_core.ui.motion import WindowMotion, reduced_motion, reveal_content
 from ui_theme import paint_surface
 from wysun_media.source import kind_of as media_kind
 from .chrome import Hero, Segmented, SelectionBar, StatusLine, Surface, TabArea
 from .menu import ActionMenu
-from .kit import IconButton, PillButton, apply_kit_style, metric, text_font
+from wysun_core.ui.widgets import IconButton, PillButton
+from wysun_core.ui.style import apply_kit_style, metric, text_font
 from .model import DATE, KIND, NAME, SIZE
 from .pathbar import PathBar
 from .preview import SelectionPreview
@@ -931,7 +932,7 @@ class _StatusProxy:
 
 
 def _filter_field():
-    from wysun_music.ui.sidebar import SearchField
+    from wysun_core.ui.panels import SearchField
     field = SearchField()
     field.setPlaceholderText('Filtrar carpeta')
     field.setAccessibleName('Filtrar nombres en esta carpeta')

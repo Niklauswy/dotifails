@@ -9,10 +9,11 @@ from PySide6.QtGui import QColor, QPainter, QPainterPath
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QSizePolicy, QVBoxLayout, QWidget
 
 from wysun_core.qt_theme import color, tokens
-from .shapes import artwork, blurred, clip_pixmap, cookie
+from wysun_core.ui.shapes import artwork, blurred, clip_pixmap, cookie
 from wysun_core.ui.style import metric, text_font
 from icons import paint_symbol
-from .widgets import LinkLabel, StateLayer, draw_art, paint_favorites_cover
+from wysun_core.ui.widgets import LinkLabel, StateLayer
+from .widgets import draw_art, paint_favorites_cover
 
 
 class Tile(QWidget):

@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (QApplication, QHBoxLayout, QLineEdit, QMessageBox
 
 from .app_kit import reduced_motion, IconButton, Panel, RESIZE_MARGIN, Button, StateLayer, Toast, apply_style, paint_surface, reveal_content, section_label
 from wysun_core.qt_theme import color, tokens
+from wysun_core.ui.panels import SearchField
 from wysun_core.ui.style import metric, paint_symbol, text_font
 from .app_library import LibraryPage
 from .app_pages import PlayerPage, SettingsPage
@@ -195,24 +196,6 @@ class Storage(QWidget):
             painter.drawRoundedRect(QRectF(track.left(), track.top(), max(5, track.width() * self.used), track.height()), 2.5, 2.5)
 
 
-class SearchField(QLineEdit):
-    """Pill search with a painted Material search glyph."""
-
-    def __init__(self):
-        super().__init__()
-        self.setObjectName('search')
-        self.setPlaceholderText('Buscar')
-        self.setAccessibleName('Buscar en tus grabaciones')
-        self.setToolTip('Buscar · Ctrl+K')
-        self.setClearButtonEnabled(True)
-
-    def paintEvent(self, event):
-        super().paintEvent(event)
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing)
-        paint_symbol(painter, QRectF(8, 0, 24, self.height()), 'search', 'muted', 20)
-
-
 class Sidebar(QWidget):
     navigate = Signal(tuple)
     record = Signal()
@@ -222,7 +205,7 @@ class Sidebar(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(metric('space_xs'), 0, 0, 0)
         layout.setSpacing(metric('space_s'))
-        self.search = SearchField()
+        self.search = SearchField('Buscar en tus grabaciones', 'search')
         layout.addWidget(self.search)
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)

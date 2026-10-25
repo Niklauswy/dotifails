@@ -9,8 +9,10 @@ from PySide6.QtWidgets import (QGridLayout, QHBoxLayout, QLabel, QPlainTextEdit,
 from wysun_core.qt_theme import color, on_theme_changed, tokens
 from . import markdown
 from .highlight import CodeHighlighter, highlight_html, language_for_fence, language_for_path, scheme
-from .kit import IconButton, clip_pixmap, metric, text_font
-from wysun_music.ui.shapes import squircle
+from wysun_core.ui.widgets import IconButton
+from wysun_core.ui.shapes import clip_pixmap
+from wysun_core.ui.style import metric, text_font
+from wysun_core.ui.shapes import squircle
 
 
 def css(value):
@@ -223,7 +225,7 @@ class Marker(QWidget):
         self.setFixedSize(28, 26)
 
     def paintEvent(self, _event):
-        from .kit import paint_symbol
+        from icons import paint_symbol
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
         if self.kind == 'bullet':

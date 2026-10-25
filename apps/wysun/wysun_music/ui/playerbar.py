@@ -10,7 +10,8 @@ from PySide6.QtWidgets import QHBoxLayout, QLabel, QVBoxLayout, QWidget
 from music_library import artists
 from wysun_core.qt_theme import color, tokens
 from wysun_core.ui.style import metric, clock, text_font
-from .widgets import CoverArt, ElidedLabel, IconButton, LinkLabel, Slider
+from wysun_core.ui.widgets import ElidedLabel, IconButton, LinkLabel, Slider
+from .widgets import CoverArt
 
 REPEAT_LABELS = {'off': 'Repetir', 'all': 'Repetir lista', 'one': 'Repetir canción'}
 HEIGHT = 80

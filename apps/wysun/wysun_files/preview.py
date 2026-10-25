@@ -12,11 +12,13 @@ from PySide6.QtWidgets import QHBoxLayout, QLabel, QSizePolicy, QStackedWidget, 
 from file_media import FilePreviewJob, duration_label, file_kind, human_size
 from files_zoom import ZoomCanvas
 from wysun_core.qt_theme import color, tokens
-from ui_motion import reduced_motion
-from wysun_music.ui.shapes import squircle
+from wysun_core.ui.motion import reduced_motion
+from wysun_core.ui.shapes import squircle
 from .highlight import language_for_path
 from .kinds import describe, preview_kind
-from .kit import Chip, ElidedLabel, IconButton, PillButton, metric, paint_symbol, text_font
+from wysun_core.ui.widgets import Chip, ElidedLabel, IconButton, PillButton
+from wysun_core.ui.style import metric, text_font
+from icons import paint_symbol
 from .textview import CodeView, MarkdownView
 
 TEXT_LIMIT = 512 * 1024

@@ -319,7 +319,7 @@ class InstallerUiTests(unittest.TestCase):
         completed = subprocess.run(command, capture_output=True, text=True)
         self.assertEqual(completed.returncode, 0, completed.stderr)
         manager = self.home / '.local/share/dotifails/installer'
-        self.assertTrue((manager/'ui_runtime/wysun_music/ui/widgets.py').is_file())
+        self.assertTrue((manager/'ui_runtime/wysun_core/ui/widgets.py').is_file())
         self.assertTrue((manager/'ui_runtime/ui_theme.py').is_file())
         self.assertTrue((manager/'scenes.py').is_file())
         code = '''import sys, time

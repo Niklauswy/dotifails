@@ -13,10 +13,12 @@ from PySide6.QtGui import QColor, QFont, QPainter, QPainterPath, QPen, QTextLayo
 from PySide6.QtWidgets import QAbstractItemView, QListView, QStyledItemDelegate, QWidget
 
 from wysun_core.qt_theme import color, tokens
-from ui_motion import reduced_motion
+from wysun_core.ui.motion import reduced_motion
 from .kinds import describe
 from .tiles import paint_icon
-from .kit import clip_pixmap, metric, paint_symbol, squircle, text_font
+from wysun_core.ui.shapes import clip_pixmap, squircle
+from wysun_core.ui.style import metric, text_font
+from icons import paint_symbol
 from .model import COLUMNS, DATE, KIND, NAME, SIZE
 
 GRID_MIN = 132

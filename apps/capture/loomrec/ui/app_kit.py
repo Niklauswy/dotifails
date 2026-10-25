@@ -13,6 +13,8 @@ from PySide6.QtGui import QFontMetricsF, QLinearGradient, QPainter, QPen, QRadia
 from PySide6.QtWidgets import QAbstractButton, QGraphicsOpacityEffect, QLabel, QWidget
 
 from wysun_core.ui.fonts import load_fonts
+from wysun_core.ui.panels import Panel, section_label
+from wysun_core.ui.widgets import StateLayer
 from wysun_core.ui.style import metric, paint_symbol, text_font
 from wysun_core import appearance
 from wysun_core.qt_theme import TEMPLATE, color, qss, tokens
@@ -39,31 +41,6 @@ def surface_opacity(values=None):
 
 
 # ----------------------------------------------------------------- motion
-
-
-class StateLayer:
-    """Hover/press amount animated with the theme's fast motion token."""
-
-    def __init__(self, widget):
-        self.widget = widget
-        self.amount = 0.0
-        self.animation = QVariantAnimation(widget)
-        self.animation.setEasingCurve(QEasingCurve.OutCubic)
-        self.animation.valueChanged.connect(self._set)
-
-    def _set(self, value):
-        self.amount = float(value)
-        self.widget.update()
-
-    def to(self, target):
-        self.animation.stop()
-        if reduced_motion(self.widget.window()):
-            self._set(target)
-            return
-        self.animation.setDuration(metric('motion_fast'))
-        self.animation.setStartValue(self.amount)
-        self.animation.setEndValue(float(target))
-        self.animation.start()
 
 
 def reveal_content(widget, duration=140):
@@ -270,18 +247,6 @@ class Switch(QAbstractButton):
             painter.drawRoundedRect(rect, rect.height() / 2, rect.height() / 2)
 
 
-class Panel(QWidget):
-    """Rounded raised surface, like the shell's StyledRect containers."""
-
-    def paintEvent(self, _event):
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing)
-        painter.setPen(Qt.NoPen)
-        painter.setBrush(color('surface'))
-        radius = tokens()['radius_l']
-        painter.drawRoundedRect(QRectF(self.rect()), radius, radius)
-
-
 class Toast(QLabel):
     """Short-lived pill message floating over the content."""
 
@@ -315,14 +280,6 @@ class Toast(QLabel):
 
 
 # ---------------------------------------------------------------- surface
-def section_label(text):
-    label = QLabel(text.upper())
-    font = text_font('caption', 700)
-    font.setLetterSpacing(font.SpacingType.AbsoluteSpacing, 1.1)
-    label.setFont(font)
-    label.setObjectName('muted')
-    label.setContentsMargins(metric('space_m'), metric('space_m'), 0, metric('space_xs'))
-    return label
 
 
 def paint_surface(widget):

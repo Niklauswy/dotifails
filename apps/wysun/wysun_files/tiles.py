@@ -8,7 +8,9 @@ from PySide6.QtGui import QPainter, QPainterPath, QPixmap, QPolygonF
 from file_media import AUDIO, VIDEOS
 from wysun_core.qt_theme import color, tokens
 from .kinds import describe
-from .kit import clip_pixmap, cookie, paint_symbol, squircle, text_font
+from wysun_core.ui.shapes import clip_pixmap, cookie, squircle
+from icons import paint_symbol
+from wysun_core.ui.style import text_font
 
 
 def _rounded(rect, radius):
