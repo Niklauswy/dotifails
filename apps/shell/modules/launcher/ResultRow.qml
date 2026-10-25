@@ -170,7 +170,7 @@ Item {
         active: root.hero
         anchors.fill: parent
 
-        sourceComponent: HeroCard {
+        sourceComponent: PrefixHero {
             modelData: root.modelData
             scale: root.panel.scale
             panel: root.panel

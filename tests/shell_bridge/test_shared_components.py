@@ -108,6 +108,12 @@ class SingleDefinitionTests(unittest.TestCase):
         self.assertEqual(inline('Tab'), ['modules/dashboard/Tabs.qml'])  # the dashboard's underline tab bar
         self.assertEqual(named('Segmented'), ['components/controls/Segmented.qml'])
 
+    def test_one_hero_card(self):
+        self.assertEqual(inline('HeroCard'), [])
+        # The usage card stays with the other performance cards that Processes also imports.
+        self.assertEqual(named('HeroCard'), ['modules/dashboard/performance/HeroCard.qml'])
+        self.assertEqual(named('PrefixHero'), ['modules/launcher/PrefixHero.qml'])
+
 
 if __name__ == '__main__':
     unittest.main()
