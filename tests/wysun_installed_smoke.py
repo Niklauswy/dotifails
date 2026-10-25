@@ -42,6 +42,7 @@ def main():
         if install.returncode:raise RuntimeError(install.stdout)
         timings = {}
         checks = [(('wysun', '--help'), 'Wysun'),
+                  (('wysun', 'pdf', '--help'), 'Wysun PDF'),
                   (('wysun', 'recorder', '--version'), 'Wysun Recorder'),
                   (('loomrec', '--version'), 'Wysun Recorder'),
                   (('wysun', 'recorder', '--help'), '--quick-record'),

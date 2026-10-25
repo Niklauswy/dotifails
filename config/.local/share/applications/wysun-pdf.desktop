@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Wysun PDF
+Comment=Read and annotate local PDF documents
+Comment[es]=Lee y anota documentos PDF locales
+Exec=wysun pdf %F
+Icon=application-pdf
+Terminal=false
+Categories=Office;Viewer;
+MimeType=application/pdf;
+StartupNotify=true
+StartupWMClass=wysun-pdf

@@ -44,8 +44,10 @@ class WysunDistributionTests(unittest.TestCase):
         entries = self.home / '.local/share/applications'
         self.assertFalse((entries / 'wybie-screenshot.desktop').exists())
         self.assertEqual(sorted(path.name for path in entries.glob('*.desktop')),
-                         ['loomrec.desktop', 'orbit-settings.desktop', 'orbit.desktop', 'wysun-player.desktop'])
+                         ['loomrec.desktop', 'orbit-settings.desktop', 'orbit.desktop', 'wysun-pdf.desktop', 'wysun-player.desktop'])
         self.assertTrue(os.access(launch.parent / 'wysun-player', os.X_OK))
+        self.assertIn('Exec=wysun pdf %F', (entries / 'wysun-pdf.desktop').read_text())
+        self.assertTrue((launch.parent / 'wysun-pdf').is_file())
         self.assertIn('Name=Wysun Recorder', (entries / 'loomrec.desktop').read_text())
         self.assertIn('Name=Wysun Settings', (entries / 'orbit-settings.desktop').read_text())
         self.assertFalse((entries / 'orbit-connections.desktop').exists())

@@ -63,7 +63,7 @@ def main():
     args = sys.argv[1:]
     if args and args[0] in ('--help', '-h', 'help'):
         print('Wysun · aplicaciones del escritorio\n'
-              'Uso: wysun [scheme|wallpaper|shell|recover|lock|session-check|doctor|audio|calendar|recorder|screenshot|music|music-mini|files|player|image|settings|processes|colors|color-pick|power|activate CLASE] [opciones]\n'
+              'Uso: wysun [scheme|wallpaper|shell|recover|lock|session-check|doctor|audio|calendar|recorder|screenshot|pdf|music|music-mini|files|player|image|settings|processes|colors|color-pick|power|activate CLASE] [opciones]\n'
               'Sin argumentos abre el lanzador. Recorder y Screenshot abren su biblioteca;\n'
               'wysun player [--paused] [--fullscreen] [--start S] [--] ARCHIVO... abre imágenes, video y audio (alias: wysun image);\n'
               'wysun recorder --quick-record abre la barra de preparación sin grabar.\n'
@@ -74,6 +74,14 @@ def main():
     if command in NEXUS_DEFAULTS or command.startswith('settings-'):
         return open_nexus(command, args)
     command = {'colors': 'color'}.get(command, command)
+    if command == 'pdf':
+        root = Path(__file__).resolve().parents[1]
+        app = root / 'apps/wysun'
+        if not app.is_dir():
+            app = root / 'share/orbit/app'
+        if not app.is_dir():
+            app = Path(os.environ.get('XDG_DATA_HOME', str(Path.home() / '.local/share'))) / 'orbit/app'
+        os.execv(sys.executable, [sys.executable, str(app / 'pdf_app.py'), *args])
     if command in ('scheme', 'wallpaper'):
         root = Path(__file__).resolve().parents[1]
         app = root / 'apps/wysun'

@@ -230,12 +230,12 @@ class Deployment:
         if not launcher.is_file():return
         from capture_distribution import _publish,configure
         if not _publish(self,launcher.read_text(),'.local/bin/wysun',executable=True):return
-        for name,mode in (('wysun-music','music'),('wysun-files','files')):
+        for name,mode in (('wysun-music','music'),('wysun-files','files'),('wysun-pdf','pdf')):
             _publish(self,'#!/bin/sh\nexec "$HOME/.local/bin/wysun" '+mode+' "$@"\n','.local/bin/'+name,executable=True)
         player=self.source/'bin/wysun-player'
         if player.is_file():_publish(self,player.read_text(),'.local/bin/wysun-player',executable=True)
         self.generated(WYSUN_DESKTOP,Path('.local/share/applications/orbit.desktop'))
-        for name in ('orbit-settings.desktop',PLAYER_DESKTOP):
+        for name in ('orbit-settings.desktop',PLAYER_DESKTOP,'wysun-pdf.desktop'):
             source=self.source/'config/.local/share/applications'/name
             if source.is_file():self.deploy(source,Path('.local/share/applications')/name)
         configure(self)

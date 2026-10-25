@@ -105,6 +105,9 @@ detectan por huella y se guardan como `incoming/`).
 
 ### Aplicaciones Qt (`apps/wysun`)
 
+El lector local **Wysun PDF** (`wysun pdf`) usa `pdf_app.py`, `pdf_window.py` y un proceso
+`pdf_engine.py` aislado para PyMuPDF; documentación y límites en `docs/pdf-reader.md`.
+
 Módulos planos Python (se importan por nombre): `orbit.py` (residente del portapapeles), `music_*`, `files_*`, `player_*`, `wysun_media/`,
 `theme_*`, `wayland_clipboard`, más los backends que consume el shell (`launcher_data`, `color_data`, `environment_settings`,
 `hypr_settings`, `wysun_scheme`). `orbit-client` es el cliente ligero (socket) que invoca `bin/wysun`. Las preferencias de
