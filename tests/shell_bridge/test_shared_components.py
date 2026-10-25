@@ -104,6 +104,10 @@ class SingleDefinitionTests(unittest.TestCase):
         self.assertNotRegex(qml('components/Chip.qml'), r'duration:\s*\d')
         self.assertRegex(qml('modules/launcher/TranslateCard.qml'), r'\bChip\s*\{')
 
+    def test_tabs_are_not_redefined(self):
+        self.assertEqual(inline('Tab'), ['modules/dashboard/Tabs.qml'])  # the dashboard's underline tab bar
+        self.assertEqual(named('Segmented'), ['components/controls/Segmented.qml'])
+
 
 if __name__ == '__main__':
     unittest.main()

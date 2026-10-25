@@ -125,7 +125,7 @@ Item {
             Layout.fillWidth: true
             spacing: Tokens.spacing.small
 
-            Tab {
+            AccountTab {
                 shortcut: 1
                 tabId: "overview"
                 text: Tr.tr("Overview")
@@ -136,7 +136,7 @@ Item {
             Repeater {
                 model: AiUsage.accounts
 
-                Tab {
+                AccountTab {
                     required property var modelData
                     required property int index
 
@@ -184,7 +184,7 @@ Item {
         }
     }
 
-    component Tab: StyledRect {
+    component AccountTab: StyledRect {
         id: tab
 
         property int shortcut
