@@ -9,6 +9,7 @@ AVAILABLE = importlib.util.find_spec('fitz') is not None
 if AVAILABLE:
     import fitz
     from pdf_engine import PdfEngine, fingerprint
+    from pdf_layout import raster_width
 
 
 @unittest.skipUnless(AVAILABLE, 'python3-fitz is required')
@@ -33,7 +34,7 @@ class EngineTests(unittest.TestCase):
 
     def test_rotated_selection_and_native_annotations_roundtrip(self):
         for page in range(4):
-            render = self.engine.render(page, 500)
+            render = self.engine.page_info(page)
             self.assertEqual(render['words'][0][4], 'Wysun')
             self.assertTrue(self.engine.search(page, 'reader')['hits'])
             for kind in ('highlight', 'underline'):
@@ -49,6 +50,58 @@ class EngineTests(unittest.TestCase):
                 self.assertTrue(annots[0].rect.intersects(p.search_for('Wysun')[0]))
         with fitz.open(self.path) as doc:
             self.assertEqual(list(doc[0].annots()), [])
+
+    def test_open_reports_rotated_sizes(self):
+        sizes = self.engine.open(self.path)['sizes']
+        self.assertEqual(len(sizes), 4)
+        width, height = sizes[0]
+        self.assertGreater(height, width)
+        self.assertEqual(sizes[1], [height, width])
+        self.assertEqual(sizes[2], [width, height])
+
+    def test_render_is_raw_rgb_within_the_raster_limit(self):
+        result = self.engine.render(0, 5000)
+        self.assertEqual(len(result['_blob']), result['stride'] * result['height'])
+        width, height = self.engine.open(self.path)['sizes'][0]
+        self.assertAlmostEqual(result['width'], raster_width(width, height, 5000), delta=1)
+        self.assertLessEqual(result['width'], 2800)
+        self.assertNotIn('png', result)
+
+    def test_page_info_words_and_links(self):
+        doc = fitz.open(self.path)
+        doc[0].insert_link({'kind': fitz.LINK_GOTO, 'page': 2, 'from': fitz.Rect(72, 200, 200, 220), 'to': fitz.Point(0, 100)})
+        doc[0].insert_link({'kind': fitz.LINK_URI, 'uri': 'https://example.org', 'from': fitz.Rect(72, 300, 200, 320)})
+        linked = self.path.with_name('linked.pdf'); doc.save(linked); doc.close()
+        self.engine.open(linked)
+        info = self.engine.page_info(0)
+        self.assertEqual([w[4] for w in info['words']][:2], ['Wysun', 'reader'])
+        self.assertEqual(len(info['words'][0]), 7)
+        internal = [link for link in info['links'] if 'page' in link]
+        external = [link for link in info['links'] if 'uri' in link]
+        self.assertEqual(internal[0]['page'], 2)
+        self.assertAlmostEqual(internal[0]['rect'][1], 200, delta=1)
+        self.assertEqual(external[0]['uri'], 'https://example.org')
+
+    def test_links_follow_page_rotation(self):
+        doc = fitz.open(self.path)
+        doc[1].insert_link({'kind': fitz.LINK_URI, 'uri': 'https://example.org', 'from': fitz.Rect(72, 80, 200, 95)})
+        linked = self.path.with_name('rotated.pdf'); doc.save(linked); doc.close()
+        self.engine.open(linked)
+        info = self.engine.page_info(1)
+        link = fitz.Rect(info['links'][0]['rect'])
+        self.assertTrue(link.intersects(fitz.Rect(info['words'][0][:4])))
+
+    def test_search_returns_context(self):
+        result = self.engine.search(0, 'annotation')
+        self.assertEqual(len(result['hits']), 1)
+        self.assertIn('annotation', result['contexts'][0])
+        self.assertLessEqual(len(result['contexts'][0]), 120)
+
+    def test_annotations_lists_whole_document(self):
+        self.engine.annotate(0, 'note', point=[100, 100], text='first')
+        self.engine.annotate(3, 'note', point=[100, 100], text='last')
+        items = self.engine.annotations()['items']
+        self.assertEqual([(i['page'], i['text']) for i in items], [(0, 'first'), (3, 'last')])
 
     def test_atomic_save_and_repeated_save(self):
         self.engine.annotate(0, 'note', point=[100, 100], text='first')
@@ -78,18 +131,19 @@ class EngineTests(unittest.TestCase):
 
     def test_delete_and_failed_open_preserves_document(self):
         self.engine.annotate(0, 'note', point=[100, 100], text='remove')
-        xref = self.engine.render(0, 300)['annotations'][0]['xref']
+        xref = self.engine.page_info(0)['annotations'][0]['xref']
         self.engine.delete(0, xref)
-        self.assertEqual(self.engine.render(0, 300)['annotations'], [])
+        self.assertEqual(self.engine.page_info(0)['annotations'], [])
         with self.assertRaises(Exception):
             self.engine.open(self.path.with_name('missing.pdf'))
         self.assertEqual(self.engine.doc.page_count, 4)
 
     def test_thumbnail_and_edit_note(self):
         thumb = self.engine.thumbnail(0)
-        self.assertTrue(thumb['png'])
+        self.assertEqual(len(thumb['_blob']), thumb['stride'] * thumb['height'])
+        self.assertLessEqual(thumb['width'], 120)
         self.engine.annotate(0, 'note', point=[100,100], text='first draft')
-        xref = self.engine.render(0,300)['annotations'][0]['xref']
+        xref = self.engine.page_info(0)['annotations'][0]['xref']
         self.engine.update_note(0,xref,'revised idea')
         self.engine.save(self.path)
         with fitz.open(self.path) as doc:

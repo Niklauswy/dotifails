@@ -1,13 +1,16 @@
 """Local PDF engine. Owned exclusively by the reader's worker process."""
-import base64
 import json
-import math
 from pathlib import Path
 import sys
 
 import fitz
 
 from wysun_core.jsonio import atomic_path
+from pdf_layout import raster_width
+
+OPERATIONS = {'open', 'render', 'thumbnail', 'page_info', 'search', 'annotations', 'annotate', 'update_note',
+              'delete', 'save'}
+CONTEXT = 120  # characters of a search result's line
 
 
 def fingerprint(path):
@@ -36,7 +39,9 @@ class PdfEngine:
             if not candidate.page_count:
                 raise ValueError('El PDF no contiene páginas.')
             editable = bool(owner & 4 or candidate.permissions & fitz.PDF_PERM_ANNOTATE)
-            result = {'path': str(path), 'pages': candidate.page_count,
+            # Rotated sizes of every page: the reader lays the whole document out without rendering it.
+            sizes = [[page.rect.width, page.rect.height] for page in candidate]
+            result = {'path': str(path), 'pages': candidate.page_count, 'sizes': sizes,
                       'outline': candidate.get_toc()[:10000], 'editable': editable}
             stamp = fingerprint(path)
             if self.doc:
@@ -49,31 +54,61 @@ class PdfEngine:
             if candidate is not None:
                 candidate.close()
 
+    @staticmethod
+    def _raster(page, scale):
+        pix = page.get_pixmap(matrix=fitz.Matrix(scale, scale), alpha=False)
+        # Raw RGB888 rows travel as a binary frame after the JSON header: no PNG encode or decode.
+        return {'width': pix.width, 'height': pix.height, 'stride': pix.stride, '_blob': bytes(pix.samples)}
+
     def render(self, page, width):
         p = self.doc[page]
-        # One raster at a time, at most 8 MP / 24 MB RGB, even for oversized PDFs.
-        scale = min(max(200, min(width, 2800)) / p.rect.width,
-                    math.sqrt(8_000_000 / (p.rect.width * p.rect.height)))
-        pix = p.get_pixmap(matrix=fitz.Matrix(scale, scale), alpha=False)
-        words = []
-        for word in p.get_text('words', sort=True):
-            rect = fitz.Rect(word[:4]) * p.rotation_matrix
-            words.append([*rect, word[4]])
-        annotations = [{'xref': a.xref, 'text': a.info.get('content') or a.type[1],
-                        'type': a.type[1]} for a in p.annots() or ()]
-        return {'page': page, 'width': p.rect.width, 'height': p.rect.height,
-                'png': base64.b64encode(pix.tobytes('png')).decode('ascii'),
-                'words': words, 'annotations': annotations}
+        pixels = raster_width(p.rect.width, p.rect.height, max(16, width))
+        return {'page': page, **self._raster(p, pixels / p.rect.width)}
 
     def thumbnail(self, page):
         p = self.doc[page]
-        scale = min(160 / p.rect.width, 210 / p.rect.height)
-        pix = p.get_pixmap(matrix=fitz.Matrix(scale, scale), alpha=False)
-        return {'page': page, 'png': base64.b64encode(pix.tobytes('png')).decode('ascii')}
+        return {'page': page, **self._raster(p, min(120 / p.rect.width, 170 / p.rect.height))}
+
+    def page_info(self, page):
+        p = self.doc[page]
+        words = []
+        for word in p.get_text('words', sort=True):
+            rect = fitz.Rect(word[:4]) * p.rotation_matrix
+            words.append([*rect, word[4], word[5], word[6]])
+        links = []
+        for link in p.get_links():
+            rect = list(fitz.Rect(link['from']))  # MuPDF reports link areas already rotated
+            if link.get('uri'):
+                links.append({'rect': rect, 'uri': link['uri']})
+            elif link.get('page', -1) >= 0 and link['page'] < self.doc.page_count:
+                to = link.get('to')
+                # The target point is reliable on upright pages; a rotated target opens at its top.
+                y = fitz.Point(to).y if to is not None and not self.doc[link['page']].rotation else 0
+                links.append({'rect': rect, 'page': link['page'], 'y': max(0.0, y)})
+        annotations = [{'xref': a.xref, 'text': a.info.get('content') or '', 'type': a.type[1],
+                        'rect': list(a.rect * p.rotation_matrix)} for a in p.annots() or ()]
+        return {'page': page, 'words': words, 'links': links, 'annotations': annotations}
 
     def search(self, page, text):
         p = self.doc[page]
-        return {'page': page, 'hits': [list(r * p.rotation_matrix) for r in p.search_for(text)][:1000]}
+        hits = [fitz.Rect(r) for r in p.search_for(text)][:1000]
+        lines = {}
+        for word in p.get_text('words', sort=True):
+            lines.setdefault((word[5], word[6]), []).append(word)
+        contexts = []
+        for hit in hits:
+            line = next((words for words in lines.values()
+                         if any(fitz.Rect(w[:4]).intersects(hit) for w in words)), [])
+            contexts.append(_excerpt(' '.join(w[4] for w in line), text))
+        return {'page': page, 'hits': [list(r * p.rotation_matrix) for r in hits], 'contexts': contexts}
+
+    def annotations(self):
+        items = []
+        for p in self.doc:
+            for a in p.annots() or ():
+                items.append({'page': p.number, 'xref': a.xref, 'type': a.type[1],
+                              'text': a.info.get('content') or ''})
+        return {'items': items}
 
     def annotate(self, page, kind, rects=None, point=None, text='', colour=None):
         if not self.editable:
@@ -131,19 +166,35 @@ class PdfEngine:
         return {'path': str(target), 'dirty': False}
 
 
+def _excerpt(line, term):
+    """The line around the first occurrence of ``term``, at most CONTEXT characters."""
+    if len(line) <= CONTEXT:
+        return line
+    at = max(0, line.lower().find(term.lower()))
+    start = max(0, min(at - CONTEXT // 3, len(line) - CONTEXT + 2))
+    text = line[start:start + CONTEXT - 2]
+    return ('…' if start else '') + text + ('…' if start + len(text) < len(line) else '')
+
+
 def main():
     engine = PdfEngine()
+    out = sys.stdout.buffer
     for line in sys.stdin:
+        blob = b''
         try:
             request = json.loads(line)
             operation = request['op']
-            if operation not in {'open', 'render', 'thumbnail', 'search', 'annotate', 'update_note', 'delete', 'save'}:
+            if operation not in OPERATIONS:
                 raise ValueError('Operación desconocida')
             result = getattr(engine, operation)(**request.get('args', {}))
-            reply = {'result': result}
+            blob = result.pop('_blob', b'')
+            reply = {'result': result, 'blob': len(blob)}
         except Exception as exc:
             reply = {'error': str(exc)}
-        print(json.dumps(reply), flush=True)
+        # One JSON line, then exactly ``blob`` raw bytes when the reply carries pixels.
+        out.write((json.dumps(reply) + '\n').encode())
+        out.write(blob)
+        out.flush()
     if engine.doc:
         engine.doc.close()
 
