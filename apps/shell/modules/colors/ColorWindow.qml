@@ -181,7 +181,7 @@ OverlayWindow {
         border.width: activeFocus ? Tokens.spacing.extraSmall / 2 : 0
         border.color: Colours.palette.m3primary
     }
-    component Chip: TextButton {
+    component TextAction: TextButton {
         activeFocusOnTab: !disabled
         Accessible.role: Accessible.Button
         Accessible.name: text
@@ -327,10 +327,10 @@ OverlayWindow {
             Layout.fillWidth: true; spacing: Tokens.spacing.small
             RowLayout {
                 spacing: Tokens.spacing.small
-                Chip { text: 'Recientes'; type: TextButton.Text; isToggle: true; checked: !win.favoritesOnly; onClicked: win.favoritesOnly = false }
-                Chip { text: 'Favoritos · ' + (win.paletteData.favorites || []).length; type: TextButton.Text; isToggle: true; checked: win.favoritesOnly; onClicked: win.favoritesOnly = true }
+                TextAction { text: 'Recientes'; type: TextButton.Text; isToggle: true; checked: !win.favoritesOnly; onClicked: win.favoritesOnly = false }
+                TextAction { text: 'Favoritos · ' + (win.paletteData.favorites || []).length; type: TextButton.Text; isToggle: true; checked: win.favoritesOnly; onClicked: win.favoritesOnly = true }
                 Item { Layout.fillWidth: true }
-                Chip { text: 'Copiar paleta CSS · P'; type: TextButton.Text; disabled: !(win.paletteData.favorites || []).length; onClicked: win.paletteCopy() }
+                TextAction { text: 'Copiar paleta CSS · P'; type: TextButton.Text; disabled: !(win.paletteData.favorites || []).length; onClicked: win.paletteCopy() }
             }
             Item {
                 Layout.fillWidth: true; Layout.preferredHeight: win.compact ? Tokens.spacing.extraExtraLarge : Tokens.spacing.extraExtraLarge + Tokens.spacing.large

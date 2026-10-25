@@ -98,6 +98,12 @@ class SingleDefinitionTests(unittest.TestCase):
         self.assertEqual(named('SwitchRow'), ['components/controls/SwitchRow.qml'])
         self.assertEqual(named('ToggleTile'), ['components/controls/ToggleTile.qml'])
 
+    def test_one_chip(self):
+        self.assertEqual(inline('Chip'), [])
+        self.assertEqual(named('Chip'), ['components/Chip.qml'])
+        self.assertNotRegex(qml('components/Chip.qml'), r'duration:\s*\d')
+        self.assertRegex(qml('modules/launcher/TranslateCard.qml'), r'\bChip\s*\{')
+
 
 if __name__ == '__main__':
     unittest.main()
