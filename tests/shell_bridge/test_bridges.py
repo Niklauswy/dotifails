@@ -64,6 +64,10 @@ class SchemeBridgeTests(unittest.TestCase):
             text = (SHELL / rel).read_text()
             self.assertNotIn('cae' + 'lestia', ' '.join(re.findall(r'execDetached\(\[[^\]]*\]', text)).lower(), rel)
 
+    def test_colours_has_no_dead_hypr_rules_hook(self):
+        hits = [str(p) for p in SHELL.rglob('*.qml') if 'reloadHyprRules' in p.read_text() or 'cooldownPending' in p.read_text()]
+        self.assertEqual(hits, [])
+
     def test_no_fixed_theme_is_left_in_the_shell(self):
         for rel in ('modules/launcher/services/M3Variants.qml', 'modules/launcher/services/Schemes.qml',
                     'modules/nexus/pages/wallandstyle'):

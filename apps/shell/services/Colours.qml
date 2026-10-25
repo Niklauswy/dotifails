@@ -29,8 +29,6 @@ Singleton {
     readonly property Transparency transparency: Transparency {}
     readonly property alias wallLuminance: analyser.luminance
 
-    property bool cooldownPending
-    property real lastBaseTransparency
 
     function getLuminance(c: color): real {
         if (c.r == 0 && c.g == 0 && c.b == 0)
@@ -94,29 +92,6 @@ Singleton {
         Quickshell.execDetached(["wysun", "scheme", "set", mode]);
     }
 
-    function reloadHyprRules(): void {
-        // Compositor rules stay owned by Wysun's backed-up configuration.
-    }
-
-    function requestReloadHyprRules(): void {
-        if (cooldownTimer.running) {
-            root.cooldownPending = true;
-        } else {
-            root.reloadHyprRules();
-            cooldownTimer.restart();
-        }
-    }
-
-    Component.onCompleted: root.requestReloadHyprRules()
-
-    Connections {
-        function onConfigReloaded(): void {
-            root.reloadHyprRules();
-        }
-
-        target: Hypr
-    }
-
     FileView {
         path: `${Quickshell.env("XDG_CONFIG_HOME") || `${Paths.home}/.config`}/orbit/theme.json`
         watchChanges: true
@@ -146,44 +121,10 @@ Singleton {
         source: Wallpapers.current
     }
 
-    Timer {
-        id: cooldownTimer
-
-        interval: 30
-        onTriggered: {
-            if (root.cooldownPending) {
-                root.cooldownPending = false;
-                root.reloadHyprRules();
-                restart();
-            }
-        }
-    }
-
-    Timer {
-        id: cAnimCompleteTimer
-
-        interval: Tokens.anim.durations.expressiveSlowEffects
-        onTriggered: root.requestReloadHyprRules()
-    }
-
     component Transparency: QtObject {
         readonly property bool enabled: Tokens.transparency.enabled
         readonly property real base: Math.max(0, Math.min(1, Tokens.transparency.base - (root.light ? 0.1 : 0)))
         readonly property real layers: Math.max(0, Math.min(1, Tokens.transparency.layers))
-
-        onEnabledChanged: {
-            if (enabled)
-                root.requestReloadHyprRules();
-            else
-                cAnimCompleteTimer.start();
-        }
-        onBaseChanged: {
-            if (root.lastBaseTransparency > base)
-                root.requestReloadHyprRules();
-            else
-                cAnimCompleteTimer.start();
-            root.lastBaseTransparency = base;
-        }
     }
 
     component M3TPalette: QtObject {
