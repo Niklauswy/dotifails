@@ -8,6 +8,7 @@ images for every viewer in the process.
 """
 import itertools
 import math
+import weakref
 from collections import OrderedDict
 from dataclasses import dataclass
 from threading import Lock
@@ -169,20 +170,21 @@ class Jobs:
         self.cache = Cache()
         self.relay = _Relay()
         self._tokens = itertools.count(1)
-        self._shown = None
+        self._shown = weakref.WeakKeyDictionary()
 
     def lookup(self, source, want):
         """A cached decode good enough for ``want``, or None. Only works after the file was decoded once."""
         size = self.cache.sizes.get(source.fingerprint)
         return self.cache.best(source.fingerprint, ratio_for(size, want)) if size else None
 
-    def request(self, source, want):
-        """Decode for display; any decode requested for display before this one is abandoned."""
-        if self._shown is not None:
-            self._shown.cancelled = True
+    def request(self, source, want, owner):
+        """Replace the owner's pending decode without cancelling another window's image."""
+        previous = self._shown.get(owner)
+        if previous is not None:
+            previous.cancelled = True
         token = next(self._tokens)
-        self._shown = _Job(self, token, source, want)
-        self.pool.start(self._shown)
+        job = self._shown[owner] = _Job(self, token, source, want)
+        self.pool.start(job)
         return token
 
     def prefetch(self, source, want):
@@ -252,7 +254,7 @@ class ImageView(QWidget):
             self._adopt(cached)
             return
         self._loading = True
-        self._token = jobs().request(source, self._want())
+        self._token = jobs().request(source, self._want(), self)
         self._spin.start()
         self.update()
 
@@ -317,7 +319,7 @@ class ImageView(QWidget):
             self.frame = better
             self.update()
             return
-        self._token = jobs().request(self.source, want)
+        self._token = jobs().request(self.source, want, self)
 
     # -------------------------------------------------------------- animation
     def _start_movie(self):

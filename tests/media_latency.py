@@ -25,7 +25,8 @@ os.environ.setdefault('WYSUN_MPV_OPTIONS', 'ao=null')
 
 def percentile(values, share):
     ordered = sorted(values)
-    return ordered[min(len(ordered) - 1, int(len(ordered) * share))]
+    import math
+    return ordered[max(0, min(len(ordered) - 1, math.ceil(len(ordered) * share) - 1))]
 
 
 def run(seeks, samples):
@@ -36,12 +37,15 @@ def run(seeks, samples):
     import media_fixtures
     import media_support  # private D-Bus, fixed before the first player connects
     from PySide6.QtWidgets import QApplication
-    app = QApplication(sys.argv[:1])
+    app = QApplication(['wysun-player', '-name', 'wysun-player'])
+    app.setStyle('Fusion')
     import media_host
     import player_window
+    player_window.apply_style(app, player_window.PALETTE_STYLE)
+    player_window.watch_theme()
     media_host.install()
     IMPORTED[0] = time.monotonic()
-    directory = Path(tempfile.mkdtemp(prefix='wysun-latency-'))
+    directory = Path(tempfile.mkdtemp(prefix='wysun-latency-', dir=Path.home()))
     big = directory / 'p1080.mp4'
     media_fixtures.video(big, 'libx264', size='1920x1080', rate=60, seconds=20, extra=('-pix_fmt', 'yuv420p', '-preset', 'veryfast', '-g', '60'))
     for name in ('a', 'b', 'c'):
@@ -76,7 +80,7 @@ def run(seeks, samples):
         original_gl_paint = GLVideoView.paintGL
         def gl_paint(view):
             updates = original_gl_paint(view)
-            if updates and updates & mpv.RENDER_UPDATE_FRAME and view.session.props.get('video-params'):
+            if updates and updates & mpv.RENDER_UPDATE_FRAME:
                 video_paints.setdefault(id(view), clock.monotonic())
         GLVideoView.paintGL = gl_paint
     process_started = clock.monotonic()
@@ -142,6 +146,8 @@ def run(seeks, samples):
     process.shutdown()
     for w in list(process.windows):
         w.close()
+    QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+    mpv.wait_closed()
     print(json.dumps(results, indent=1))
 
 
@@ -157,10 +163,15 @@ if __name__ == '__main__':
         parser.error('an active Wayland session is required')
     display = str(Path(os.environ['XDG_RUNTIME_DIR']) / display) if not display.startswith('/') else display
     with tempfile.TemporaryDirectory(prefix='wysun-latency-home-') as home:
-        os.environ.update(HOME=home, WAYLAND_DISPLAY=display, QT_QPA_PLATFORM='wayland')
+        os.environ.update(HOME=home, WAYLAND_DISPLAY=display, QT_QPA_PLATFORM='wayland', QT_QPA_PLATFORMTHEME='', GTK_USE_PORTAL='0')
         for key, name in [('XDG_CONFIG_HOME', 'config'), ('XDG_DATA_HOME', 'data'), ('XDG_CACHE_HOME', 'cache'),
                           ('XDG_STATE_HOME', 'state'), ('XDG_RUNTIME_DIR', 'runtime')]:
             folder = Path(home) / name
             folder.mkdir(mode=0o700)
             os.environ[key] = str(folder)
-        run(args.seeks, args.samples)
+        try:
+            run(args.seeks, args.samples)
+        finally:
+            support = sys.modules.get('media_support')
+            if support is not None and support.bus is not None:
+                support.bus.stop()

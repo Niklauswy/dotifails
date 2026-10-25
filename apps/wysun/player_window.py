@@ -163,6 +163,14 @@ class Process(QObject):
 
     def __init__(self, quit_application, parent=None):
         super().__init__(parent)
+        # Load the native library during process startup, before the first window
+        # is mapped. Its first dlopen can take hundreds of milliseconds; opening
+        # a video later must not freeze an already visible image window for it.
+        # Images remain available on systems without libmpv.
+        try:
+            mpv.library()
+        except RuntimeError:
+            pass
         self.windows = []
         self._quit = quit_application
         self.grace = QTimer(self, singleShot=True, interval=GRACE_MS)

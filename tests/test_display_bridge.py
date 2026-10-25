@@ -58,7 +58,8 @@ class DisplayTests(BridgeCase):
             state = self.bridge.displays_state({})
         self.assertEqual([p['name'] for p in state['plan'] if p['primary']], ['A'])
 
-    def test_layout_is_edge_to_edge_and_reports_logical_boxes(self):
+    @patch.object(display_bridge, 'available_modes', return_value={})
+    def test_layout_is_edge_to_edge_and_reports_logical_boxes(self, _available_modes):
         view = self.bridge.displays_normalize({'plan': self.PLAN})
         boxes = {b['name']: b for b in view['boxes']}
         self.assertEqual((boxes['A']['x'], boxes['A']['w']), (0, 1920))

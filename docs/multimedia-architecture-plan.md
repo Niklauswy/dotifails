@@ -201,7 +201,7 @@ Cada fase requiere instrucción expresa para comenzar. Cada una termina con sus 
 | **2. Wysun Player y Files** | App, instancia única, `bin/wysun` y desktop file. Vista previa y apertura de Files. Predeterminado MIME en el instalador completo | Abrir desde Files, desde `xdg-open` y con una segunda llamada concurrente. La vista previa no reproduce sola. Las rutas no multimedia de Files siguen igual |
 | **3. Recorder** | `PlayerPage` sobre el componente y empaquetado en releases | Recorder funciona desde su release. Las grabaciones activas no se ven afectadas. Releases anteriores siguen funcionando tras actualizar |
 | **4. Sistema** | MPRIS, inhibición de reposo, pausa de Music, «Ver» en capturas | Teclas multimedia, inhibición y pausa de Music en el escritorio real. Un guardado fallido nunca abre un archivo inexistente |
-| **5. Limpieza** | Eliminar `mpv_embed.py`, `wysun_files/player.py` y `loomrec/ui/player.py` cuando nada los use. Actualizar `ARCHITECTURE.md`, `docs/themes.md` y créditos | Todas las suites requeridas pasan y la revisión visual en las cinco variantes está hecha |
+| **5. Limpieza** | Eliminar `mpv_embed.py`, `wysun_files/player.py` y `loomrec/ui/player.py` cuando nada los use. Actualizar `ARCHITECTURE.md`, `docs/themes.md` y créditos | Todas las suites requeridas pasan y la revisión visual en los modos claro y oscuro del tema actual está hecha |
 
 Los puntos de entrada antiguos se mantienen como envoltorios hasta que su sustituto pase las pruebas instaladas.
 
@@ -242,9 +242,9 @@ Se ejecutan las comprobaciones de `AGENTS.md` (unidad, `wysun_app`, `shell_bridg
 ## 10. Resultado de la implementación
 
 Medido el 2026-10-24 en la máquina de referencia (Intel i7-8565U, Parrot 7, Hyprland sobre Wayland nativo, PySide6 6.8.2, libmpv API 2.5,
-mpv 0.40, FFmpeg 7.1) con medios sintéticos. La superficie OpenGL se probó con los módulos de PySide6 extraídos de los paquetes
-`python3-pyside6.qtopengl` y `qtopenglwidgets` **sin instalarlos**; en el sistema siguen sin instalarse hasta que la instalación completa (o el
-usuario con `apt`) los añada, y mientras tanto el reproductor usa el render por software.
+mpv 0.40, FFmpeg 7.1) con medios sintéticos. La medición original de OpenGL usó módulos de PySide6 extraídos de paquetes temporales. Durante el cierre del plan se instalaron
+`python3-pyside6.qtopengl` y `python3-pyside6.qtopenglwidgets` 6.8.2.1-4; la prueba física posterior usa los módulos del sistema
+y confirma OpenGL con `vaapi-copy`.
 
 | Escenario (1080p60 H.264 en ventana de 960×540, 3–4 s, `ao=null`) | CPU | Primer fotograma | Memoria | Perdidos |
 |---|---|---|---|---|
@@ -264,10 +264,10 @@ el respaldo.
 | Salto en un archivo indexado (1080p60, GOP de 1 s) | mediana 91–179 ms; p95 172–317 ms | cumple en 8 de 9 (una tanda 317 ms) |
 | Siguiente imagen precargada | 24–130 ms (mediana ≈95) | **no cumple** siempre el objetivo de 50 ms: un JPEG de 1600×1200 tarda en pintarse en la ventana de prueba |
 | En pausa u oculto | 0 repintados (`wayland_media_case.py`) | cumple |
-| Abrir y cerrar 8 veces | sin descriptores, hilos ni procesos que crezcan | cumple |
+| Abrir y cerrar 100 veces | prueba física posterior: sin crecimiento fuera de los márgenes de descriptores e hilos; sin hijos del reproductor | cumple |
 
 Una ejecución de 11 registró 51 s hasta el primer fotograma de un video: no se reprodujo en 8 ejecuciones posteriores ni en 25 aperturas
-seguidas con un vigilante de hilo, y coincidió con el escritorio en uso (se descarta un bloqueo del reproductor, pero no se demostró la causa).
+seguidas con un vigilante de hilo, y coincidió con el escritorio en uso. Su causa no se demostró; no reproducirlo no permite descartar un bloqueo intermitente.
 
 ### Diferencias entre el plan y lo construido
 

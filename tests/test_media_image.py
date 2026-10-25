@@ -181,6 +181,32 @@ class ViewTests(unittest.TestCase):
         self.assertEqual(shown, ['alpha.png'])
         self.assertEqual(view.frame.fingerprint, open_source(self.files / 'alpha.png').fingerprint)
 
+    def test_concurrent_windows_do_not_cancel_each_others_image(self):
+        from threading import Event
+        from unittest.mock import patch
+        gate = Event()
+        original_decode = image.decode
+        def delayed(*args, **kwargs):
+            if not gate.wait(3):
+                raise RuntimeError('decode gate timed out')
+            return original_decode(*args, **kwargs)
+        image.jobs().pool.waitForDone()
+        image.jobs().cache.clear()
+        first, second = image.ImageView(), image.ImageView()
+        self.addCleanup(first.deleteLater)
+        self.addCleanup(second.deleteLater)
+        with patch.object(image, 'decode', side_effect=delayed):
+            try:
+                first.show_source(open_source(self.files / 'plain.png'))
+                second.show_source(open_source(self.files / 'alpha.png'))
+                gate.set()
+                self.assertTrue(support.pump(lambda: first.frame is not None and second.frame is not None))
+                self.assertEqual(first.frame.fingerprint, first.source.fingerprint)
+                self.assertEqual(second.frame.fingerprint, second.source.fingerprint)
+            finally:
+                gate.set()
+                image.jobs().pool.waitForDone()
+
     def test_errors_are_reported_without_a_frame(self):
         view = image.ImageView()
         view.resize(300, 200)

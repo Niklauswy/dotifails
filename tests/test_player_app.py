@@ -168,6 +168,13 @@ class ProcessTests(Environment):
         self.assertTrue(support.pump(lambda: window.player.session.state == 'paused'))
         self.assertEqual(window.windowTitle(), 'tone.mp3 · Wysun Player')
 
+    def test_images_still_open_when_the_native_video_library_is_missing(self):
+        with mock.patch.object(mpv, 'library', side_effect=RuntimeError('Falta libmpv2')):
+            process = self.process()
+            window = process.show({'files': [str(self.files / 'plain.png')]})
+            self.assertTrue(support.pump(lambda: window.player._images.frame is not None))
+            self.assertIsNone(window.player.session.core)
+
     def test_one_file_browses_its_folder_and_several_keep_their_order(self):
         process = self.process()
         single = process.show({'files': [str(self.files / 'plain.png')]})

@@ -218,7 +218,8 @@ class VideoTests(SessionCase):
         self.assertEqual(session.state, 'loading', 'video must not start before a render target exists')
         self.with_surface(session)
         self.assertTrue(support.pump(lambda: session.state == 'playing'))
-        self.assertTrue(session.has_video and session.has_audio)
+        # Track observations can arrive after FILE_LOADED; wait for their own event.
+        self.assertTrue(support.pump(lambda: session.has_video and session.has_audio))
         self.assertTrue(support.pump(lambda: (session.props.get('video-params') or {}).get('w') == 640))
 
     def test_every_codec_fixture_plays_in_software(self):
