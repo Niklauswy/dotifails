@@ -89,6 +89,22 @@ def dead_python_modules(package_dir):
         dead |= newly
 
 
+def shell_modules():
+    return sorted(p.name for p in (ROOT / 'apps/shell/modules').iterdir() if p.is_dir())
+
+
+def unimported_shell_modules(files):
+    """Shell modules no file outside the module imports (``qs.modules.x``) or loads by path (``modules/x``)."""
+    unused = []
+    for module in shell_modules():
+        own = ROOT / 'apps/shell/modules' / module
+        # Provenance manifests (UPSTREAM.json) list every imported path; they load nothing.
+        corpus = '\n'.join(t for p, t, _ in files if own not in p.parents and p.suffix != '.json')
+        if not re.search(rf'qs\.modules\.{module}\b|modules/{module}\b', corpus):
+            unused.append(module)
+    return unused
+
+
 class DeadCodeTests(unittest.TestCase):
     def test_every_wysun_module_is_used_outside_tests(self):
         self.assertEqual(dead_python_modules(ROOT / 'apps/wysun'), [])
@@ -107,14 +123,11 @@ class DeadCodeTests(unittest.TestCase):
         self.assertNotIn('--pick-color', source)
 
     def test_every_shell_module_is_imported(self):
-        modules = sorted(p.name for p in (ROOT / 'apps/shell/modules').iterdir() if p.is_dir())
-        unused = []
-        for module in modules:
-            own = ROOT / 'apps/shell/modules' / module
-            corpus = '\n'.join(t for p, t, _ in corpus_files(ROOT) if own not in p.parents)
-            if not re.search(rf'qs\.modules\.{module}\b|modules/{module}\b', corpus):
-                unused.append(module)
-        self.assertEqual(unused, [])
+        self.assertEqual(unimported_shell_modules(corpus_files(ROOT)), [])
+
+    def test_upstream_manifest_does_not_keep_shell_modules_alive(self):
+        manifest_only = tuple(f for f in corpus_files(ROOT) if f[0].name == 'UPSTREAM.json')
+        self.assertEqual(unimported_shell_modules(manifest_only), shell_modules())
 
     def test_real_lock_does_not_import_the_old_one(self):
         self.assertFalse((ROOT / 'apps/shell/modules/lock').exists())
@@ -129,7 +142,7 @@ class DeadCodeTests(unittest.TestCase):
         self.assertEqual(missing, [])
 
     DELETED = ('color_window.py', 'utility_material', 'notes_window.py', 'theme_demo', 'screen_lock',
-               'wysun_fonts', 'clean_legacy', 'ui/components.py', 'ui/materials.py', 'modules/lock/',
+               'wysun_fonts', 'clean_legacy', 'ui/components.py', 'ui/materials.py', 'apps/shell/modules/lock/',
                'Shortcuts.qml', '--pick-color', 'install-local.py', 'restore-materials.py',
                'portal_shortcuts', 'loomrec/integration.py', 'loomrec/analysis.py', 'loomrec/editing.py',
                'files_motion', 'files_visuals', 'desktop_common', 'link_preview', 'system_panels',

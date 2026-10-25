@@ -97,7 +97,7 @@ Not ported: `NotificationServer` was ported later: the shell owns the notificati
 
 Derived Caelestia code carries GPL attribution in its source headers and in this file. The vendored Material You implementation retains its MIT copyright notice. Wysun's Python median-cut quantizer is original code and has no native build or install step.
 
-## Caelestia Shell — Wysun phase 5 background presentation
+## Caelestia Shell — Wysun phase 5 background and lock presentation
 
 Derivado de caelestia-dots/shell (GPL-3.0), modificado para Wysun.
 Source: https://github.com/caelestia-dots/shell at
@@ -110,6 +110,7 @@ below have no individual copyright header; their project GPL notice is retained.
 | `modules/background/Background.qml` | `apps/shell/modules/background/Background.qml`, `BackgroundPolicy.js`; `apps/shell/Desktop.qml` integration | One passive surface per output; nine clock positions, local fullscreen policy, loader lifecycle on hotplug |
 | `modules/background/Wallpaper.qml`, `services/Wallpapers.qml` | `apps/shell/modules/background/Wallpaper.qml`, `BackgroundPolicy.js` | Local static images and output selection from existing preferences; no CLI, IPC, shaders, video or colour producer |
 | `modules/background/DesktopClock.qml` | `apps/shell/modules/background/DesktopClock.qml` | Material token plate, hour/minute/date layout, Spanish locale, scaled small-output layout; no blur or idle animation |
+| `modules/lock/Center.qml`, `Content.qml`, `center/PasswordInput.qml`, `center/StateMessage.qml` | `bin/wysun-lock` | Centred presentation and normal/verifying/cleared/error colour hierarchy translated to swaylock options (fallback backend); no authentication code copied |
 | `services/Time.qml` | `apps/shell/modules/background/Time.qml` | Wall clock at minute precision; instantiated only while the optional clock is visible |
 
 ## Wysun Music native presentation (phase 7)
