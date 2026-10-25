@@ -7,19 +7,16 @@ mirror the ones those apps use; the Recorder installs separately and never
 imports them.
 """
 
-from PySide6.QtCore import (QAbstractAnimation, QEasingCurve, QPropertyAnimation, QRectF, Qt, QTimer,
-                            QVariantAnimation, Signal)
+from PySide6.QtCore import QAbstractAnimation, QEasingCurve, QPropertyAnimation, QRectF, Qt, Signal
 from PySide6.QtGui import QFontMetricsF, QLinearGradient, QPainter, QPen, QRadialGradient
 from PySide6.QtWidgets import QAbstractButton, QGraphicsOpacityEffect, QLabel, QWidget
 
 from wysun_core.ui.fonts import load_fonts
-from wysun_core.ui.panels import Panel, section_label
 from wysun_core.ui.widgets import StateLayer
 from wysun_core.ui.style import metric, paint_symbol, text_font
 from wysun_core import appearance
 from wysun_core.qt_theme import TEMPLATE, color, qss, tokens
 
-RESIZE_MARGIN = 6
 
 
 def reduced_motion(widget=None):
@@ -245,38 +242,6 @@ class Switch(QAbstractButton):
             painter.setBrush(Qt.NoBrush)
             painter.setPen(QPen(color('focus'), tokens()['focus_width']))
             painter.drawRoundedRect(rect, rect.height() / 2, rect.height() / 2)
-
-
-class Toast(QLabel):
-    """Short-lived pill message floating over the content."""
-
-    def __init__(self, parent):
-        super().__init__(parent)
-        self.setFont(text_font('small', 600))
-        self.setAlignment(Qt.AlignCenter)
-        self.setAttribute(Qt.WA_TransparentForMouseEvents)
-        self.timer = QTimer(self, singleShot=True, interval=3500)
-        self.timer.timeout.connect(self.hide)
-        self.hide()
-
-    def show_message(self, text):
-        self.setText(text)
-        self.setAccessibleName(text)
-        width = min(self.parentWidget().width() - 48, self.fontMetrics().horizontalAdvance(text) + 40)
-        self.setGeometry((self.parentWidget().width() - width) // 2, self.parentWidget().height() - 64, width, 36)
-        self.raise_()
-        self.show()
-        self.timer.start()
-
-    def paintEvent(self, _event):
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing)
-        painter.setPen(Qt.NoPen)
-        painter.setBrush(color('tooltip'))
-        painter.drawRoundedRect(QRectF(self.rect()), self.height() / 2, self.height() / 2)
-        painter.setPen(color('on_tooltip'))
-        painter.setFont(self.font())
-        painter.drawText(self.rect(), Qt.AlignCenter, self.fontMetrics().elidedText(self.text(), Qt.ElideRight, self.width() - 24))
 
 
 # ---------------------------------------------------------------- surface

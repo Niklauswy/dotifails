@@ -7,7 +7,7 @@ import math
 
 from PySide6.QtCore import (QEasingCurve, QPointF, QRectF, QSize, Qt, QTimer,
                             QVariantAnimation, Signal)
-from PySide6.QtGui import QColor, QPainter, QPainterPath, QPen, QPixmap, QPixmapCache, QRadialGradient
+from PySide6.QtGui import QPainter, QPainterPath, QPen
 from PySide6.QtWidgets import QAbstractButton, QLabel, QSizePolicy, QWidget
 
 from ..qt_theme import color, tokens

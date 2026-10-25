@@ -11,6 +11,7 @@ from PySide6.QtGui import QImage, QPainter  # noqa: E402
 from PySide6.QtWidgets import QApplication  # noqa: E402
 from wysun_core.qt_theme import tokens  # noqa: E402
 from wysun_core.ui import fonts, style  # noqa: E402
+from unittest import mock  # noqa: E402
 
 
 class CoreUiTests(unittest.TestCase):
@@ -51,6 +52,72 @@ class CoreUiTests(unittest.TestCase):
     def test_clock_formats(self):
         self.assertEqual((style.clock(5), style.clock(3725), style.clock(None)), ('0:05', '1:02:05', '0:00'))
 
+
+class FramelessTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def window(self, drag_height):
+        from PySide6.QtCore import QPointF, Qt
+        from PySide6.QtGui import QMouseEvent
+        from PySide6.QtWidgets import QWidget
+        from wysun_core.ui.frameless import FramelessResize
+
+        class Window(FramelessResize, QWidget):
+            pass
+        window = Window()
+        window.drag_height = drag_height
+        window.resize(400, 300)
+        window.show()
+        self.addCleanup(window.close)
+        handle = mock.Mock()
+        window.windowHandle = lambda: handle
+
+        def press(x, y):
+            window.mousePressEvent(QMouseEvent(QMouseEvent.MouseButtonPress, QPointF(x, y), QPointF(x, y),
+                                               Qt.LeftButton, Qt.LeftButton, Qt.NoModifier))
+        return window, handle, press
+
+    def test_edges_and_drag_area(self):
+        from PySide6.QtCore import QPoint, Qt
+        from wysun_core.ui.frameless import resize_edges
+        window, handle, press = self.window(50)
+        self.assertEqual(resize_edges(window, QPoint(2, 150)), Qt.Edges(Qt.LeftEdge))
+        self.assertEqual(resize_edges(window, QPoint(398, 298)), Qt.Edges(Qt.RightEdge | Qt.BottomEdge))
+        self.assertEqual(resize_edges(window, QPoint(200, 150)), Qt.Edges())
+        press(200, 20)
+        handle.startSystemMove.assert_called_once()
+        press(2, 150)
+        handle.startSystemResize.assert_called_once_with(Qt.Edges(Qt.LeftEdge))
+        press(200, 150)
+        self.assertEqual(handle.startSystemMove.call_count, 1, 'below the drag strip nothing moves')
+
+    def test_whole_window_drags_without_a_strip_and_gestures_can_be_disabled(self):
+        window, handle, press = self.window(None)
+        press(200, 250)
+        handle.startSystemMove.assert_called_once()
+        window.frame_gestures_enabled = lambda: False
+        press(200, 250)
+        handle.startSystemMove.assert_called_once()
+
+    def test_toast_shows_and_hides(self):
+        import time
+        from PySide6.QtWidgets import QWidget
+        from wysun_core.ui.toast import Toast
+        parent = QWidget()
+        parent.resize(400, 300)
+        parent.show()
+        self.addCleanup(parent.close)
+        toast = Toast(parent, duration=60, bottom=112)
+        toast.show_message('Hola')
+        self.assertTrue(toast.isVisible())
+        self.assertEqual((toast.text(), toast.geometry().top()), ('Hola', 300 - 112))
+        end = time.monotonic() + 1
+        while toast.isVisible() and time.monotonic() < end:
+            self.app.processEvents()
+            time.sleep(.01)
+        self.assertFalse(toast.isVisible())
 
 if __name__ == '__main__':
     unittest.main()

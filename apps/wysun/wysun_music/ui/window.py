@@ -1,10 +1,10 @@
 """Main Wysun Music window: sidebar, routed pages, player capsule, full player."""
-from PySide6.QtCore import QEvent, QRectF, Qt, QTimer
-from PySide6.QtGui import QKeySequence, QPainter, QShortcut
+from PySide6.QtCore import QEvent, Qt
+from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import (QApplication, QHBoxLayout, QLabel, QLineEdit, QMessageBox, QStackedWidget,
                                QVBoxLayout, QWidget)
 
-from wysun_core.qt_theme import color, on_theme_changed
+from wysun_core.qt_theme import on_theme_changed
 from wysun_core.ui.motion import WindowMotion, reveal_content
 from ui_theme import paint_surface
 from .actions import Actions
@@ -17,11 +17,12 @@ from .playerbar import PlayerBar
 from .search import SearchPage
 from wysun_core.ui.panels import Panel
 from .sidebar import Sidebar
-from wysun_core.ui.style import apply_kit_style, metric, text_font
+from wysun_core.ui.style import apply_kit_style, metric
 from wysun_core.ui.widgets import ElidedLabel, IconButton
+from wysun_core.ui.frameless import FramelessResize
+from wysun_core.ui.toast import Toast
 
 HISTORY_LIMIT = 50
-RESIZE_MARGIN = 6
 SHORTCUTS = '''Espacio: reproducir / pausar (fuera de campos de texto)
 Ctrl+← / →: anterior / siguiente
 Ctrl+↑ / ↓: volumen ±5 · M: silenciar
@@ -34,40 +35,7 @@ Ctrl+N: nueva playlist · Ctrl+O: importar archivos
 En la lista: Enter reproducir · F me gusta · Ctrl+Enter artista · Menú: opciones'''
 
 
-class Toast(QLabel):
-    """Short-lived pill message floating over the content."""
-
-    def __init__(self, parent):
-        super().__init__(parent)
-        self.setFont(text_font('small', 600))
-        self.setAlignment(Qt.AlignCenter)
-        self.setAttribute(Qt.WA_TransparentForMouseEvents)
-        self.timer = QTimer(self, singleShot=True, interval=3500)
-        self.timer.timeout.connect(self.hide)
-        self.hide()
-
-    def show_message(self, text):
-        self.setText(text)
-        self.setAccessibleName(text)
-        width = min(self.parentWidget().width() - 48, self.fontMetrics().horizontalAdvance(text) + 40)
-        self.setGeometry((self.parentWidget().width() - width) // 2, self.parentWidget().height() - 64, width, 36)
-        self.raise_()
-        self.show()
-        self.timer.start()
-
-    def paintEvent(self, _event):
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing)
-        painter.setPen(Qt.NoPen)
-        painter.setBrush(color('tooltip'))
-        painter.drawRoundedRect(QRectF(self.rect()), self.height() / 2, self.height() / 2)
-        painter.setPen(color('on_tooltip'))
-        painter.setFont(self.font())
-        painter.drawText(self.rect(), Qt.AlignCenter,
-                         self.fontMetrics().elidedText(self.text(), Qt.ElideRight, self.width() - 24))
-
-
-class MusicWindow(WindowMotion, QWidget):
+class MusicWindow(FramelessResize, WindowMotion, QWidget):
     def __init__(self, library, covers, player, test=False):
         super().__init__(None, Qt.Window | Qt.FramelessWindowHint)
         self.library, self.covers, self.player = library, covers, player
@@ -374,35 +342,4 @@ class MusicWindow(WindowMotion, QWidget):
     def paintEvent(self, _event):
         paint_surface(self)
 
-    def _edges(self, point):
-        edges = Qt.Edges()
-        if point.x() <= RESIZE_MARGIN:
-            edges |= Qt.LeftEdge
-        if point.x() >= self.width() - RESIZE_MARGIN:
-            edges |= Qt.RightEdge
-        if point.y() <= RESIZE_MARGIN:
-            edges |= Qt.TopEdge
-        if point.y() >= self.height() - RESIZE_MARGIN:
-            edges |= Qt.BottomEdge
-        return edges
-
-    def mousePressEvent(self, event):
-        if event.button() != Qt.LeftButton or self.windowHandle() is None:
-            return
-        edges = self._edges(event.position().toPoint())
-        if edges:
-            self.windowHandle().startSystemResize(edges)
-        elif event.position().y() < 72:
-            self.windowHandle().startSystemMove()
-
-    def mouseMoveEvent(self, event):
-        edges = self._edges(event.position().toPoint())
-        horizontal = bool(edges & (Qt.LeftEdge | Qt.RightEdge))
-        vertical = bool(edges & (Qt.TopEdge | Qt.BottomEdge))
-        if horizontal and vertical:
-            diagonal = edges in (Qt.Edges(Qt.LeftEdge | Qt.TopEdge), Qt.Edges(Qt.RightEdge | Qt.BottomEdge))
-            self.setCursor(Qt.SizeFDiagCursor if diagonal else Qt.SizeBDiagCursor)
-        elif horizontal or vertical:
-            self.setCursor(Qt.SizeHorCursor if horizontal else Qt.SizeVerCursor)
-        else:
-            self.unsetCursor()
+    drag_height = 72

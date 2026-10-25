@@ -12,7 +12,8 @@ from PySide6.QtGui import QKeySequence, QPainter, QShortcut
 from PySide6.QtWidgets import (QApplication, QHBoxLayout, QLineEdit, QMessageBox, QStackedWidget, QVBoxLayout,
                                QWidget)
 
-from .app_kit import reduced_motion, IconButton, Panel, RESIZE_MARGIN, Button, StateLayer, Toast, apply_style, paint_surface, reveal_content, section_label
+from .app_kit import reduced_motion, IconButton, Button, StateLayer, apply_style, paint_surface, reveal_content
+from wysun_core.ui.panels import Panel, section_label
 from wysun_core.qt_theme import color, tokens
 from wysun_core.ui.panels import SearchField
 from wysun_core.ui.style import metric, paint_symbol, text_font
@@ -22,6 +23,8 @@ from .tokens import on_theme_changed
 
 from PySide6.QtCore import QRect, Signal
 from PySide6.QtWidgets import QLabel, QScrollArea
+from wysun_core.ui.frameless import FramelessResize
+from wysun_core.ui.toast import Toast
 
 HISTORY_LIMIT = 50
 LIBRARY = (('all', 'video_library', 'Todas', ('library', 'all')),
@@ -246,7 +249,7 @@ class Sidebar(QWidget):
         QTimer.singleShot(0, lambda: self.rail.glide(QRectF(current.geometry()) if current else None))
 
 
-class RecorderWindow(QWidget):
+class RecorderWindow(FramelessResize, QWidget):
     def __init__(self, library, test=False):
         super().__init__(None, Qt.Window | Qt.FramelessWindowHint)
         self.library = library
@@ -465,39 +468,7 @@ class RecorderWindow(QWidget):
     def paintEvent(self, _event):
         paint_surface(self)
 
-    def _edges(self, point):
-        edges = Qt.Edges()
-        if point.x() <= RESIZE_MARGIN:
-            edges |= Qt.LeftEdge
-        if point.x() >= self.width() - RESIZE_MARGIN:
-            edges |= Qt.RightEdge
-        if point.y() <= RESIZE_MARGIN:
-            edges |= Qt.TopEdge
-        if point.y() >= self.height() - RESIZE_MARGIN:
-            edges |= Qt.BottomEdge
-        return edges
-
-    def mousePressEvent(self, event):
-        if event.button() != Qt.LeftButton or self.windowHandle() is None:
-            return
-        edges = self._edges(event.position().toPoint())
-        if edges:
-            self.windowHandle().startSystemResize(edges)
-        elif event.position().y() < 72:
-            self.windowHandle().startSystemMove()
-
-    def mouseMoveEvent(self, event):
-        edges = self._edges(event.position().toPoint())
-        horizontal = bool(edges & (Qt.LeftEdge | Qt.RightEdge))
-        vertical = bool(edges & (Qt.TopEdge | Qt.BottomEdge))
-        if horizontal and vertical:
-            diagonal = edges in (Qt.Edges(Qt.LeftEdge | Qt.TopEdge), Qt.Edges(Qt.RightEdge | Qt.BottomEdge))
-            self.setCursor(Qt.SizeFDiagCursor if diagonal else Qt.SizeBDiagCursor)
-        elif horizontal or vertical:
-            self.setCursor(Qt.SizeHorCursor if horizontal else Qt.SizeVerCursor)
-        else:
-            self.unsetCursor()
-
+    drag_height = 72
 
 def main():
     import os

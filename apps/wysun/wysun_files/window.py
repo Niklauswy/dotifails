@@ -23,12 +23,13 @@ from wysun_core.ui.style import apply_kit_style, metric, text_font
 from .model import DATE, KIND, NAME, SIZE
 from .pathbar import PathBar
 from .preview import SelectionPreview
-from .sheet import Sheet, Toast
+from .sheet import Sheet
+from wysun_core.ui.toast import Toast
 from .sidebar import Sidebar
 from .tab import FolderTab
+from wysun_core.ui.frameless import FramelessResize
 
 INSPECTOR_WIDTH = 372
-RESIZE_MARGIN = 6
 SHORTCUTS = '''Alt+K: opciones del elemento actual · escribe para filtrar · Retroceso o ←: carpeta superior
 Ctrl+T / Ctrl+W: nueva pestaña / cerrar pestaña
 Ctrl+L: escribir una ruta · Alt+←/→: historial · Alt+↑: carpeta superior
@@ -53,7 +54,7 @@ class OperationJob(QThread):
             self.result.emit([], str(error))
 
 
-class FilesWindow(WindowMotion, QMainWindow):
+class FilesWindow(FramelessResize, WindowMotion, QMainWindow):
     def __init__(self, paths=None):
         super().__init__(None, Qt.Window | Qt.FramelessWindowHint)
         self.settings = QSettings('Orbita', 'Files')
@@ -73,7 +74,7 @@ class FilesWindow(WindowMotion, QMainWindow):
         apply_kit_style(self)
         self._build()
         self.sheet = Sheet(self)
-        self.toast = Toast(self.centralWidget())
+        self.toast = Toast(self.centralWidget(), duration=3200, bottom=112)
         self.add_shortcuts()
         if isinstance(paths, (str, Path)):
             paths = [paths]
@@ -844,37 +845,10 @@ class FilesWindow(WindowMotion, QMainWindow):
     def paintEvent(self, _event):
         paint_surface(self)
 
-    def _edges(self, point):
-        edges = Qt.Edges()
-        if point.x() <= RESIZE_MARGIN:
-            edges |= Qt.LeftEdge
-        if point.x() >= self.width() - RESIZE_MARGIN:
-            edges |= Qt.RightEdge
-        if point.y() <= RESIZE_MARGIN:
-            edges |= Qt.TopEdge
-        if point.y() >= self.height() - RESIZE_MARGIN:
-            edges |= Qt.BottomEdge
-        return edges
+    drag_height = 56
 
-    def mousePressEvent(self, event):
-        if event.button() != Qt.LeftButton or self.windowHandle() is None or self.fullscreen_restore is not None:
-            return
-        edges = self._edges(event.position().toPoint())
-        if edges:
-            self.windowHandle().startSystemResize(edges)
-        elif event.position().y() < 56:
-            self.windowHandle().startSystemMove()
-
-    def mouseMoveEvent(self, event):
-        edges = self._edges(event.position().toPoint())
-        horizontal, vertical = bool(edges & (Qt.LeftEdge | Qt.RightEdge)), bool(edges & (Qt.TopEdge | Qt.BottomEdge))
-        if horizontal and vertical:
-            diagonal = edges in (Qt.Edges(Qt.LeftEdge | Qt.TopEdge), Qt.Edges(Qt.RightEdge | Qt.BottomEdge))
-            self.setCursor(Qt.SizeFDiagCursor if diagonal else Qt.SizeBDiagCursor)
-        elif horizontal or vertical:
-            self.setCursor(Qt.SizeHorCursor if horizontal else Qt.SizeVerCursor)
-        else:
-            self.unsetCursor()
+    def frame_gestures_enabled(self):
+        return self.fullscreen_restore is None
 
     def _widen_filter(self):
         wide = self.filter_edit.hasFocus() or bool(self.filter_edit.text())

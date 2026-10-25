@@ -5,12 +5,14 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-KIT = ('StateLayer', 'PillButton', 'Chip', 'Slider', 'ElidedLabel', 'Panel', 'NavItem', 'SearchField')
+KIT = ('StateLayer', 'PillButton', 'Chip', 'Slider', 'ElidedLabel', 'Panel', 'NavItem', 'SearchField', 'Toast')
 CORE_UI = ROOT / 'apps/wysun/wysun_core/ui'
 # Different widgets that only share a name with a kit class (compared when the kit was extracted).
 DISTINCT = {
     'apps/capture/loomrec/ui/app_window.py:NavItem': "Recorder's own rail item (65 % like the kit row)",
     'installer/material_widgets.py:Panel': "the installer's hero panel, unrelated to the kit surface",
+    'apps/wysun/pdf_material.py:Panel': "the PDF reader's own ReaderTheme-driven panel (to review with the reader)",
+    'apps/wysun/wysun_media/controls.py:Toast': 'the player HUD pill, part of the wysun_media Host contract',
 }
 
 
@@ -46,6 +48,12 @@ class KitTests(unittest.TestCase):
                     and re.search(r'wysun_music\.ui\.(shapes|widgets|sidebar)', p.read_text())]
         self.assertEqual(borrowed, [])
         self.assertFalse((ROOT / 'apps/wysun/wysun_files/kit.py').exists())
+
+
+    def test_no_window_reimplements_frameless_resize(self):
+        offenders = [str(p.relative_to(ROOT)) for p in sources() if CORE_UI not in p.parents
+                     and re.search(r'^\s*(RESIZE_MARGIN\s*=|def _edges\()', p.read_text(), re.M)]
+        self.assertEqual(offenders, [])
 
 
 if __name__ == '__main__':

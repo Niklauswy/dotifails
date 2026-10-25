@@ -27,9 +27,9 @@ from install_model import COMPONENTS, InstallOptions, backups, load_json, prefli
 import journey
 from process_runner import InstallerProcess
 from preview_process import PreviewProcess
+from wysun_core.ui.frameless import FramelessResize
 
 HOME, SYSTEM, CONTENT, RUN = range(4)
-RESIZE_MARGIN = 6
 FACTS = {
     'sudo': 'Autorización con sudo', 'package-health': 'APT y dpkg en orden', 'paths': 'Tus archivos se respaldan',
     'lock': 'Sin otra instalación activa', 'network': 'Necesita Internet',
@@ -82,7 +82,7 @@ class Worker(QThread):
         self.ready.emit(self.kind, self.generation, result)
 
 
-class InstallerWindow(QWidget):
+class InstallerWindow(FramelessResize, QWidget):
     def __init__(self, source, home=None, preview=False):
         super().__init__(None, Qt.Window | Qt.FramelessWindowHint)
         self.source = Path(source).expanduser().resolve()
@@ -958,39 +958,7 @@ class InstallerWindow(QWidget):
     def paintEvent(self, _event):
         paint_surface(self)
 
-    def _edges(self, point):
-        edges = Qt.Edges()
-        if point.x() <= RESIZE_MARGIN:
-            edges |= Qt.LeftEdge
-        if point.x() >= self.width() - RESIZE_MARGIN:
-            edges |= Qt.RightEdge
-        if point.y() <= RESIZE_MARGIN:
-            edges |= Qt.TopEdge
-        if point.y() >= self.height() - RESIZE_MARGIN:
-            edges |= Qt.BottomEdge
-        return edges
-
-    def mousePressEvent(self, event):
-        if event.button() != Qt.LeftButton or self.windowHandle() is None:
-            return
-        edges = self._edges(event.position().toPoint())
-        if edges:
-            self.windowHandle().startSystemResize(edges)
-        else:
-            self.windowHandle().startSystemMove()
-
-    def mouseMoveEvent(self, event):
-        edges = self._edges(event.position().toPoint())
-        shapes = {Qt.LeftEdge: Qt.SizeHorCursor, Qt.RightEdge: Qt.SizeHorCursor, Qt.TopEdge: Qt.SizeVerCursor,
-                  Qt.BottomEdge: Qt.SizeVerCursor}
-        if edges in (Qt.LeftEdge | Qt.TopEdge, Qt.RightEdge | Qt.BottomEdge):
-            self.setCursor(Qt.SizeFDiagCursor)
-        elif edges in (Qt.RightEdge | Qt.TopEdge, Qt.LeftEdge | Qt.BottomEdge):
-            self.setCursor(Qt.SizeBDiagCursor)
-        elif edges in shapes:
-            self.setCursor(shapes[edges])
-        else:
-            self.unsetCursor()
+    drag_height = None
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Escape and not self.sheet_open():

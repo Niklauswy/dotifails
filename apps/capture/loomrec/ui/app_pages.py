@@ -7,7 +7,8 @@ from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (QComboBox, QFileDialog, QHBoxLayout, QLabel, QScrollArea, QSpinBox, QVBoxLayout,
                                QWidget)
 
-from .app_kit import Button, IconButton, Panel, Switch, section_label as _section_label
+from .app_kit import Button, IconButton, Switch
+from wysun_core.ui.panels import Panel, section_label as _section_label
 from wysun_core.ui.style import metric
 
 
