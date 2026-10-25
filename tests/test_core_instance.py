@@ -93,6 +93,20 @@ class InstanceTests(unittest.TestCase):
         self.assertIn(send(server.endpoint, b'a' * 5000, reply=True), (b'', None))
         self.assertEqual(calls, [])
 
+    def test_a_failing_handler_does_not_wedge_later_requests(self):
+        server = self.instance()
+        server.claim()
+        calls = []
+        def handler(line):
+            calls.append(line)
+            if line == b'boom':
+                raise OSError('recording deleted mid-scan')
+            return b'ok'
+        self.serve(server, handler)
+        self.assertIn(send(server.endpoint, b'boom', reply=True), (b'', None))
+        self.assertEqual(send(server.endpoint, b'next', reply=True), b'ok')
+        self.assertEqual(calls, [b'boom', b'next'])
+
     def test_endpoint_and_lock_are_private(self):
         server = self.instance()
         server.claim()

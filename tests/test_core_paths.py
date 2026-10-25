@@ -24,10 +24,13 @@ class PathsTests(unittest.TestCase):
             self.assertEqual(paths.cache('orbit'), Path(home) / '.cache/orbit')
             self.assertEqual(paths.bin_home(), Path(home) / '.local/bin')
 
-    def test_runtime_dir_falls_back_to_tempdir(self):
-        with patch.dict(os.environ, {}):
+    def test_runtime_dir_falls_back_to_a_private_directory(self):
+        with tempfile.TemporaryDirectory() as shared, patch.dict(os.environ, {}), \
+                patch('tempfile.gettempdir', return_value=shared):
             os.environ.pop('XDG_RUNTIME_DIR', None)
-            self.assertEqual(paths.runtime_dir(), Path(tempfile.gettempdir()))
+            fallback = paths.runtime_dir()
+            self.assertEqual(fallback, Path(shared) / f'wysun-{os.getuid()}')
+            self.assertEqual(fallback.stat().st_mode & 0o777, 0o700)
         with patch.dict(os.environ, {'XDG_RUNTIME_DIR': '/run/user/77'}):
             self.assertEqual(paths.runtime('wysun-player.sock'), Path('/run/user/77/wysun-player.sock'))
 

@@ -6,7 +6,9 @@ Clients call :func:`send`; the owner claims a :class:`SingleInstance` and calls
 import fcntl
 import signal
 import socket
+import sys
 import time
+import traceback
 from pathlib import Path
 
 from . import paths
@@ -82,7 +84,12 @@ class SingleInstance:
             except OSError:
                 finished = True
             if b'\n' in buffer and buffer.index(b'\n') <= limit:
-                reply = handler(buffer.split(b'\n', 1)[0])
+                finished = True             # whatever the handler does, this request is over
+                try:
+                    reply = handler(buffer.split(b'\n', 1)[0])
+                except Exception:
+                    traceback.print_exc(file=sys.stderr)
+                    reply = None
                 if reply is not None:
                     try:
                         client.setblocking(True)
@@ -90,7 +97,6 @@ class SingleInstance:
                         client.sendall(reply + b'\n')
                     except OSError:
                         pass
-                finished = True
             elif len(buffer) > limit or time.monotonic() - opened > timeout:
                 finished = True
             if finished:

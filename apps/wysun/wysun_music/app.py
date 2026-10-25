@@ -59,6 +59,7 @@ def main(argv=None):
     if send(owner.endpoint, route.encode(), timeout=.3):
         return 0
     if not owner.claim():
+        send(owner.endpoint, route.encode(), timeout=.3, retry=2.0)   # another launch is starting it
         return 0
     release_on_termination(owner)            # until the Qt handlers below take over
 

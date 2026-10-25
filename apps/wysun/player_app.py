@@ -30,7 +30,9 @@ def main(argv=None):
     payload = player_client.request(args.files, paused=args.paused, fullscreen=args.fullscreen, start=args.start)
     deadline = time.monotonic() + 3.0
     while True:
-        if player_client.forward(payload):
+        # Wait for the reply until the deadline: a player that is still starting reads every request it
+        # was sent, so reconnecting after a reply timeout would open the same files twice.
+        if player_client.forward(payload, timeout=max(0.1, deadline - time.monotonic())):
             return 0
         owner = player_client.instance()
         if owner.claim():

@@ -78,6 +78,24 @@ class ClientTests(Environment):
         self.assertEqual(received[0]['files'], [str(self.files / 'plain.png')])
 
 
+class SlowStartTests(Environment):
+    def test_a_launch_during_startup_is_delivered_exactly_once(self):
+        import player_app
+        owner = player_client.instance()
+        self.assertTrue(owner.claim())
+        self.addCleanup(owner.close)
+        handled = []
+        def starting_player():
+            time.sleep(1.5)                     # Qt and libmpv are still loading
+            until = time.monotonic() + 3
+            while time.monotonic() < until:
+                owner.poll(lambda line: handled.append(line) or b'ok', limit=player_client.LIMIT)
+                time.sleep(0.01)
+        threading.Thread(target=starting_player, daemon=True).start()
+        self.assertEqual(player_app.main(['--', str(self.files / 'plain.png')]), 0)
+        time.sleep(0.3)
+        self.assertEqual(len(handled), 1)
+
 class ServerTests(Environment):
     def server(self):
         server = player_window.RequestServer()

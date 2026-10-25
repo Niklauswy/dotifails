@@ -45,7 +45,8 @@ def session_runtime_dir():
 
 
 def runtime_dir():
-    return session_runtime_dir() or Path(tempfile.gettempdir())
+    """The session runtime directory; outside a session, a private per-user one in the shared temp dir."""
+    return session_runtime_dir() or private_dir(Path(tempfile.gettempdir()) / f'wysun-{os.getuid()}')
 
 
 def config(*parts):
