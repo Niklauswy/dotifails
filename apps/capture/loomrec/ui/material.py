@@ -1,11 +1,9 @@
-"""Bundled Rubik and Material Symbols fonts, and Material Symbols glyph pixmaps."""
-from pathlib import Path
-
+"""Material Symbols glyph pixmaps for the Recorder (the fonts come from wysun_core.ui.fonts)."""
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QFontDatabase, QFont, QRawFont, QPixmap, QPainter
+from PySide6.QtGui import QFont, QRawFont, QPixmap, QPainter
 
-FONT_ROOT = Path(__file__).with_name('assets') / 'fonts'
-_font_ids = None
+from wysun_core.ui.fonts import SYMBOL_FAMILY, load_fonts
+
 
 # Material Symbols Unicode codepoints: never render a ligature word on failure.
 SYMBOLS = {
@@ -24,19 +22,10 @@ SYMBOLS = {
 }
 
 
-def load_fonts():
-    global _font_ids
-    if _font_ids is None:
-        _font_ids = tuple(QFontDatabase.addApplicationFont(str(FONT_ROOT / name))
-                          for name in ('Rubik-Variable.ttf', 'MaterialSymbolsRounded.ttf'))
-    return _font_ids
-
-
 def symbol_pixmap(name, ink, size):
     """Return None for an unavailable glyph, letting the native outline fallback work."""
-    load_fonts()
     point = SYMBOLS.get(name)
-    if point is None or _font_ids[1] < 0:
+    if point is None or SYMBOL_FAMILY not in load_fonts():
         return None
     font = QFont('Material Symbols Rounded')
     font.setPixelSize(size * 2)

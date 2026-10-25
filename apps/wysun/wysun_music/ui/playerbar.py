@@ -9,7 +9,7 @@ from PySide6.QtWidgets import QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
 from music_library import artists
 from wysun_core.qt_theme import color, tokens
-from .style import metric, stamp, text_font
+from wysun_core.ui.style import metric, clock, text_font
 from .widgets import CoverArt, ElidedLabel, IconButton, LinkLabel, Slider
 
 REPEAT_LABELS = {'off': 'Repetir', 'all': 'Repetir lista', 'one': 'Repetir canción'}
@@ -180,11 +180,11 @@ class PlayerBar(QWidget):
         duration = self.player.duration
         if not self.progress.dragging:
             self.progress.set_value(seconds / duration if duration else 0)
-            self.elapsed.setText(stamp(seconds))
-        self.total.setText(stamp(duration))
+            self.elapsed.setText(clock(seconds))
+        self.total.setText(clock(duration))
 
     def _preview_seek(self, value):
-        self.elapsed.setText(stamp(value * self.player.duration))
+        self.elapsed.setText(clock(value * self.player.duration))
 
     def _seek(self, value):
         self.player.seek(value * self.player.duration)

@@ -8,7 +8,8 @@ from wysun_core.qt_theme import color, tokens
 from .cards import Card, Shelf, Tile
 from .shapes import filled
 from .widgets import paint_favorites_cover
-from .style import metric, songs, text_font
+from wysun_core.ui.style import metric, text_font
+from .style import songs
 from .tracks import TrackView
 
 class BrowseTile(Tile):

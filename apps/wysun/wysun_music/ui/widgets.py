@@ -13,7 +13,8 @@ from PySide6.QtWidgets import QAbstractButton, QLabel, QSizePolicy, QWidget
 from wysun_core.qt_theme import color, tokens
 from ui_motion import reduced_motion
 from .shapes import artwork, clip_pixmap, cookie, squircle
-from .style import metric, paint_symbol, text_font
+from wysun_core.ui.style import metric, text_font
+from icons import paint_symbol
 
 VARIANTS = ('ghost', 'tonal', 'filled')
 

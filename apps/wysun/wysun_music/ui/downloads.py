@@ -11,7 +11,8 @@ from PySide6.QtWidgets import (QAbstractItemView, QFileDialog, QHBoxLayout, QLab
 
 import music_data
 from wysun_core.qt_theme import color, tokens
-from .style import metric, songs, stamp, text_font
+from wysun_core.ui.style import metric, clock, text_font
+from .style import songs
 
 STATUS = {'pending': 'En cola', 'downloading': 'Descargando', 'error': 'Error', 'review': 'Revisar versión'}
 STATUS_TONE = {'pending': 'muted', 'downloading': 'accent', 'error': 'danger', 'review': 'warning'}
@@ -220,7 +221,7 @@ class DownloadsPage(QScrollArea):
                      'artist': entry.get('channel') or entry.get('uploader') or 'YouTube',
                      'duration': entry.get('duration') or 0,
                      'youtube_url': 'https://www.youtube.com/watch?v=' + entry['id']}
-            item = QListWidgetItem(f"{track['title']}\n{track['artist']} · {stamp(track['duration'])}")
+            item = QListWidgetItem(f"{track['title']}\n{track['artist']} · {clock(track['duration'])}")
             item.setData(Qt.UserRole, track)
             self.results.addItem(item)
         count = self.results.count()

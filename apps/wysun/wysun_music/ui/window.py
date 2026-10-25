@@ -16,7 +16,7 @@ from .nowplaying import FullPlayer
 from .playerbar import PlayerBar
 from .search import SearchPage
 from .sidebar import Panel, Sidebar
-from .style import apply_style, metric, text_font
+from wysun_core.ui.style import apply_kit_style, metric, text_font
 from .widgets import ElidedLabel, IconButton
 
 HISTORY_LIMIT = 50
@@ -80,7 +80,7 @@ class MusicWindow(WindowMotion, QWidget):
         self.setMinimumSize(900, 600)
         self.resize(1280, 820)
         self.setMouseTracking(True)
-        apply_style(self)
+        apply_kit_style(self)
         self.actions = Actions(library, covers, player, self)
         self.actions.navigate.connect(self.navigate)
         self.actions.show_player.connect(lambda tab: self.panel != tab and self.toggle_panel(tab))
@@ -364,7 +364,7 @@ class MusicWindow(WindowMotion, QWidget):
             self.side.setGeometry(self.rect())
 
     def refresh_theme(self):
-        apply_style(self)
+        apply_kit_style(self)
         self.side.invalidate()
         for label in self.findChildren(ElidedLabel):
             label.refresh_font()

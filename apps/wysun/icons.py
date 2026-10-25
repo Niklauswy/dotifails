@@ -3,6 +3,7 @@ from functools import lru_cache
 from PySide6.QtCore import Qt,QRectF
 from PySide6.QtGui import QPixmap,QPainter,QPen,QColor,QFont,QIcon
 from wysun_core.qt_theme import on_theme_changed
+from wysun_core.ui import style as kit
 
 ASSETS=Path(__file__).parent/'assets/lucide'
 ALIASES={
@@ -82,6 +83,37 @@ def refresh_icons():
 @lru_cache(maxsize=2000)
 def emoji_pixmap(emoji,size=42):
  pm=QPixmap(size,size);pm.fill(Qt.transparent);p=QPainter(pm);p.setRenderHint(QPainter.TextAntialiasing);f=QFont('Noto Color Emoji');f.setPixelSize(int(size*.82));p.setFont(f);p.drawText(QRectF(0,0,size,size),Qt.AlignCenter,emoji);p.end();return pm
+
+
+# Material Symbols ligature -> bundled Lucide asset when the font is missing.
+FALLBACK = {
+    'home': 'layout-grid', 'search': 'search', 'library_music': 'music', 'add': 'plus',
+    'favorite': 'heart', 'play_arrow': 'play', 'pause': 'pause', 'skip_previous': 'skip-back',
+    'skip_next': 'skip-forward', 'shuffle': 'shuffle', 'repeat': 'repeat', 'repeat_one': 'repeat',
+    'lyrics': 'file-text', 'queue_music': 'rows-3', 'volume_up': 'volume-2', 'volume_down': 'volume-2',
+    'volume_off': 'volume-x', 'more_horiz': 'ellipsis', 'arrow_back': 'arrow-left',
+    'arrow_forward': 'arrow-right', 'chevron_left': 'arrow-left', 'chevron_right': 'arrow-right',
+    'close': 'x', 'download': 'download', 'folder_open': 'folder-open', 'person': 'users',
+    'album': 'music', 'schedule': 'calendar', 'delete': 'trash-2', 'edit': 'pencil',
+    'music_note': 'music', 'graphic_eq': 'music', 'check': 'check', 'open_in_new': 'external-link',
+    'picture_in_picture_alt': 'arrow-up-right', 'queue_play_next': 'rows-3', 'playlist_add': 'plus',
+    'refresh': 'refresh-cw', 'sort': 'rows-3', 'grid_view': 'layout-grid', 'speaker': 'volume-2', 'keyboard': 'keyboard',
+    'explore': 'search', 'artist': 'users', 'history': 'calendar', 'expand_more': 'chevron-down', 'remove': 'arrow-left',
+}
+
+
+def paint_symbol(painter, rect, name, tint, size=None, filled=False):
+    """The kit's Material symbol, or the matching Lucide glyph when the ligature is unavailable."""
+    if kit.paint_symbol(painter, rect, name, tint, size, filled):
+        return
+    from wysun_core.qt_theme import color, tokens
+    size = round(size or tokens()['icon_size'] * 1.2)
+    ink = color(tint) if isinstance(tint, str) else tint
+    rect = QRectF(rect)
+    pixmap = glyph(FALLBACK.get(name, 'music'), max(12, round(size * .8)), ink.name())
+    side = pixmap.width() / pixmap.devicePixelRatio()
+    painter.drawPixmap(QRectF(rect.center().x() - side / 2, rect.center().y() - side / 2, side, side),
+                       pixmap, QRectF(pixmap.rect()))
 
 
 def _follow_theme():

@@ -77,14 +77,14 @@ Not ported: `NotificationServer` was ported later: the shell owns the notificati
 
 - Source: [google/material-design-icons](https://github.com/google/material-design-icons), `variablefont/MaterialSymbolsRounded[FILL,GRAD,opsz,wght].ttf`.
 - License: Apache License 2.0; text in [`LICENSES/Apache-2.0.txt`](LICENSES/Apache-2.0.txt).
-- Bundled files: `apps/wysun/assets/fonts/MaterialSymbolsRounded.ttf` (Wysun Qt apps) and the identical `apps/shell/assets/fonts/MaterialSymbolsRounded.ttf` (Caelestia shell): the complete variable font.
+- Bundled files: `apps/wysun/wysun_core/fonts/MaterialSymbolsRounded.ttf` (Wysun Qt apps and Recorder) and the identical `apps/shell/assets/fonts/MaterialSymbolsRounded.ttf` (Caelestia shell): the complete variable font.
 - SHA-256: `32e4011709e055596eb8d2dd0f7cb547b47c1d40ac9ecb8fad54f7f7eac202e7`.
 
 ## Rubik
 
 - Source: [google/fonts](https://github.com/google/fonts), `ofl/rubik/Rubik[wght].ttf`.
 - License: SIL Open Font License 1.1; text in [`LICENSES/OFL-Rubik.txt`](LICENSES/OFL-Rubik.txt).
-- Bundled font: `apps/wysun/assets/fonts/Rubik-Variable.ttf`.
+- Bundled font: `apps/wysun/wysun_core/fonts/Rubik-Variable.ttf`.
 - SHA-256: `1b3a7437ba2af80e465e773ed60c5036d1ba6ace492d89046dbcf18fb31e4e88`.
 
 ## Lobe Icons (AI brand marks)
@@ -139,8 +139,8 @@ Upstream files have no individual copyright header; no notices were removed.
   artwork/navigation and playback hierarchy change; capture/portal/media contracts stay
   in the existing backends. This is not an upstream full-screen music app.
 - The Wysun Qt apps package Rubik and the complete Material Symbols font in
-  `apps/wysun/assets/fonts/`; their OFL and Apache-2.0 notices are in `LICENSES/`.
-  Capture packages its own copies under `loomrec/ui/assets/fonts/`, with
+  `apps/wysun/wysun_core/fonts/`; their OFL and Apache-2.0 notices are in `LICENSES/`.
+  Each Recorder release carries them inside its own `wysun_core` copy, with
   `apps/capture/assets/licenses/{OFL-Rubik,Apache-2.0,GPL-3.0}.txt`; it does not
   import the installed Orbit application. No download or host font installation
   is needed. Shared fonts and vendor provenance are described above.

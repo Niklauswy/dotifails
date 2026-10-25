@@ -3,7 +3,7 @@
 Tokens, colours, templates and the live watcher come from ``wysun_core.qt_theme``,
 which every Recorder release carries inside its own ``wysun_core`` copy.
 """
-from PySide6.QtGui import QFont, QFontDatabase
+from PySide6.QtGui import QFont
 
 from wysun_core.qt_theme import apply_palette, apply_style, color, on_theme_changed, tokens, watch_theme
 
@@ -16,12 +16,10 @@ def tint(value):
 
 
 def family(values=None):
-    """Recorder ships Rubik and prefers it; the theme's families follow."""
-    from .material import load_fonts
+    """Rubik (bundled in wysun_core) first, then the theme's families."""
+    from wysun_core.ui.fonts import display_family, load_fonts
     load_fonts()
-    available = set(QFontDatabase.families())
-    names = ['Rubik', *(values or tokens())['font_family']]
-    return next((name for name in names if name in available), 'Sans Serif')
+    return display_family()
 
 
 STYLE = '''

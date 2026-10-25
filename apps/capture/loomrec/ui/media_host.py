@@ -5,7 +5,7 @@ import wysun_media
 from wysun_media import symbols
 
 from . import motion, tokens
-from .material import load_fonts
+from wysun_core.ui.fonts import load_fonts
 
 
 def _font(role, weight=400):

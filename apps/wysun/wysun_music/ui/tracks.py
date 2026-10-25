@@ -11,7 +11,8 @@ from PySide6.QtWidgets import QAbstractItemView, QListView, QStyle, QStyledItemD
 
 from music_library import artists
 from wysun_core.qt_theme import color, tokens
-from .style import metric, paint_symbol, stamp, text_font
+from wysun_core.ui.style import metric, clock, text_font
+from icons import paint_symbol
 from .widgets import draw_art
 
 KEY_ROLE = Qt.UserRole + 1
@@ -141,7 +142,7 @@ class TrackDelegate(QStyledItemDelegate):
         if favorite or hovered:
             paint_symbol(painter, layout.heart, 'favorite', 'accent' if favorite else 'muted', 18, filled=favorite)
         painter.setPen(color('muted'))
-        painter.drawText(layout.duration, Qt.AlignRight | Qt.AlignVCenter, stamp(self.library.duration(key)))
+        painter.drawText(layout.duration, Qt.AlignRight | Qt.AlignVCenter, clock(self.library.duration(key)))
         if hovered:
             paint_symbol(painter, layout.more, 'more_horiz', 'text', 20)
         painter.restore()

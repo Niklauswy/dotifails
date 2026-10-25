@@ -1,4 +1,4 @@
-"""Packaged Material fonts for Wysun Music: Rubik text and Material Symbols.
+"""Packaged Material fonts: Rubik text and Material Symbols, loaded from wysun_core/fonts.
 
 Derivado de caelestia-dots/shell (GPL-3.0), modificado para Wysun.
 Source: https://github.com/caelestia-dots/shell
@@ -11,40 +11,29 @@ from pathlib import Path
 
 from PySide6.QtGui import QFont, QFontDatabase, QTextLayout
 
-from wysun_core.qt_theme import family as theme_family
+from ..qt_theme import family as theme_family
 
-
-# Asset families are resource identifiers, not independent theme typography.
-# F8 can bundle these same offline resources alongside the native application.
+FONT_DIR = Path(__file__).resolve().parents[1] / 'fonts'
 FONT_FILES = ('Rubik-Variable.ttf', 'MaterialSymbolsRounded.ttf')
 TEXT_FAMILY = 'Rubik'
 SYMBOL_FAMILY = 'Material Symbols Rounded'
 _font_ids = {}
-
-
-def load_fonts():
-    """Load packaged resources only; never download or require host fonts."""
-    source = Path(__file__).resolve().parent
-    roots = (source / 'assets/fonts', source.parent / 'shell/assets/fonts',
-             Path.home() / '.local/share/wysun/quickshell/assets/fonts')
-    for name in FONT_FILES:
-        for root in roots:
-            path = root / name
-            if path.is_file():
-                key = str(path)
-                if key not in _font_ids:
-                    _font_ids[key] = QFontDatabase.addApplicationFont(key)
-                break
-    return tuple(family for value in _font_ids.values() if value >= 0
-                 for family in QFontDatabase.applicationFontFamilies(value))
-
-
 _display_family = []
 _known_families = set()
 
 
+def load_fonts():
+    """Register the packaged fonts once; never download or require host fonts."""
+    for name in FONT_FILES:
+        path = FONT_DIR / name
+        if path.is_file() and str(path) not in _font_ids:
+            _font_ids[str(path)] = QFontDatabase.addApplicationFont(str(path))
+    return tuple(family for value in _font_ids.values() if value >= 0
+                 for family in QFontDatabase.applicationFontFamilies(value))
+
+
 def display_family():
-    """Rubik when packaged, otherwise the active theme's own fallback list.
+    """Rubik when packaged, otherwise the theme's own fallback list.
 
     Painters ask for this on every draw call and ``QFontDatabase.families()`` is slow,
     so a found Rubik is remembered (fonts load once; a missing one is retried).
@@ -57,14 +46,9 @@ def display_family():
     return theme_family()
 
 
-def symbol_family():
-    return SYMBOL_FAMILY if SYMBOL_FAMILY in set(QFontDatabase.families()) else None
-
-
 @lru_cache(maxsize=128)
 def _renders_one_glyph(text, family):
-    font = QFont(family)
-    layout = QTextLayout(text, font)
+    layout = QTextLayout(text, QFont(family))
     layout.beginLayout()
     line = layout.createLine()
     layout.endLayout()
@@ -74,14 +58,11 @@ def _renders_one_glyph(text, family):
 
 
 def ligature_available(text, family=SYMBOL_FAMILY):
-    """A Material ligature is present only when it renders as one glyph.
+    """A Material ligature is present only when it renders as one glyph (never as literal letters).
 
-    The packaged font may be a subset (or temporarily absent while the
-    integrator assembles the final set), so callers must fall back to the
-    bundled Lucide SVG rather than draw literal letters. A missing family is
-    not cached, so fonts loaded later are picked up immediately.
+    A missing family is not cached, so fonts loaded later are picked up immediately.
     """
     if family not in _known_families and family not in set(QFontDatabase.families()):
         return False
-    _known_families.add(family)           # a loaded family stays loaded; avoids a slow lookup per glyph
+    _known_families.add(family)
     return _renders_one_glyph(text, family)

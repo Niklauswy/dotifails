@@ -4,7 +4,8 @@ from PySide6.QtWidgets import QLabel, QScrollArea, QVBoxLayout, QWidget
 
 from music_library import normalize
 from .cards import Card, FlowRow
-from .style import metric, songs, text_font
+from wysun_core.ui.style import metric, text_font
+from .style import songs
 
 TITLES = {'artists': 'Artistas', 'albums': 'Álbumes'}
 

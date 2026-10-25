@@ -12,8 +12,9 @@ from PySide6.QtGui import QKeySequence, QPainter, QShortcut
 from PySide6.QtWidgets import (QApplication, QHBoxLayout, QLineEdit, QMessageBox, QStackedWidget, QVBoxLayout,
                                QWidget)
 
-from .app_kit import (reduced_motion, IconButton, Panel, RESIZE_MARGIN, Button, StateLayer, Toast, apply_style, color, metric,
-                      paint_surface, paint_symbol, reveal_content, section_label, text_font, tokens)
+from .app_kit import reduced_motion, IconButton, Panel, RESIZE_MARGIN, Button, StateLayer, Toast, apply_style, paint_surface, reveal_content, section_label
+from wysun_core.qt_theme import color, tokens
+from wysun_core.ui.style import metric, paint_symbol, text_font
 from .app_library import LibraryPage
 from .app_pages import PlayerPage, SettingsPage
 from .tokens import on_theme_changed

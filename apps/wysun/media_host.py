@@ -2,8 +2,9 @@
 import wysun_media
 from ui_motion import reduced_motion
 from wysun_core.qt_theme import color, on_theme_changed, tokens
-from music_material import load_fonts
-from wysun_music.ui.style import paint_symbol, text_font
+from icons import paint_symbol
+from wysun_core.ui.fonts import load_fonts
+from wysun_core.ui.style import text_font
 
 
 def install():

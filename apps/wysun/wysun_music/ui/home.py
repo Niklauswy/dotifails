@@ -11,7 +11,8 @@ from PySide6.QtWidgets import QGridLayout, QLabel, QScrollArea, QVBoxLayout, QWi
 
 from ..library import FAVORITES, RECENT, Collection
 from .cards import BentoTile, Card, ChartRow, PosterCard, Shelf
-from .style import metric, songs, text_font
+from wysun_core.ui.style import metric, text_font
+from .style import songs
 
 DAYS = ('lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo')
 MONTHS = ('enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre',

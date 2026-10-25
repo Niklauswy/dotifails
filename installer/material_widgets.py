@@ -20,7 +20,8 @@ from wysun_core.qt_theme import apply_style as apply_tokens, color, tokens
 from ui_motion import reduced_motion
 from ui_theme import paint_surface
 from wysun_music.ui.shapes import Drift, blurred, cookie, grain_tile, squircle
-from wysun_music.ui.style import apply_style as apply_kit, metric, paint_symbol, text_font
+from icons import paint_symbol
+from wysun_core.ui.style import apply_kit_style, metric, text_font
 from wysun_music.ui.widgets import IconButton, PillButton, StateLayer  # noqa: F401  (re-exported)
 
 STYLE = '''
@@ -45,7 +46,7 @@ ROLES = {
 
 
 def apply_style(widget, template=STYLE):
-    apply_kit(widget)
+    apply_kit_style(widget)
     from wysun_core.qt_theme import extend_style
     extend_style(widget, template)
 

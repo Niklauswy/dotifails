@@ -10,7 +10,8 @@ from PySide6.QtWidgets import QHBoxLayout, QLabel, QSizePolicy, QVBoxLayout, QWi
 
 from wysun_core.qt_theme import color, tokens
 from .shapes import artwork, blurred, clip_pixmap, cookie
-from .style import metric, paint_symbol, text_font
+from wysun_core.ui.style import metric, text_font
+from icons import paint_symbol
 from .widgets import LinkLabel, StateLayer, draw_art, paint_favorites_cover
 
 

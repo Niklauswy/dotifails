@@ -55,5 +55,11 @@ class CorePackagingTests(unittest.TestCase):
         self.assertNotIn('theme_core', source)
 
 
+    def test_capture_release_ships_the_fonts(self):
+        self.assertTrue((ROOT / 'apps/capture/wysun_core/fonts/MaterialSymbolsRounded.ttf').is_file())
+        self.assertFalse((ROOT / 'apps/capture/loomrec/ui/assets/fonts').exists())
+        self.assertFalse((ROOT / 'apps/wysun/assets/fonts').exists())
+
+
 if __name__ == '__main__':
     unittest.main()

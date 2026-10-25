@@ -21,7 +21,8 @@ from wysun_core.qt_theme import color, tokens
 from ui_motion import reduced_motion
 from .playerbar import REPEAT_LABELS, TimeLabel
 from .shapes import Drift, blurred, grain_tile
-from .style import metric, paint_symbol, stamp, text_font
+from wysun_core.ui.style import metric, clock, text_font
+from icons import paint_symbol
 from .tracks import TrackView
 from .widgets import Chip, CoverArt, ElidedLabel, IconButton, LinkLabel, Slider
 
@@ -340,7 +341,7 @@ class FullPlayer(QWidget):
         row.addWidget(self.favorite, 0, Qt.AlignVCenter)
         left.addLayout(row)
         self.progress = Slider('Posición de reproducción', wavy=True, step=5 / 300)
-        self.progress.moved.connect(lambda value: self.elapsed.setText(stamp(value * self.player.duration)))
+        self.progress.moved.connect(lambda value: self.elapsed.setText(clock(value * self.player.duration)))
         self.progress.released.connect(lambda value: self.player.seek(value * self.player.duration))
         left.addWidget(self.progress)
         times = QHBoxLayout()
@@ -486,8 +487,8 @@ class FullPlayer(QWidget):
         duration = self.player.duration
         if not self.progress.dragging:
             self.progress.set_value(seconds / duration if duration else 0)
-            self.elapsed.setText(stamp(seconds))
-        self.total.setText(stamp(duration))
+            self.elapsed.setText(clock(seconds))
+        self.total.setText(clock(duration))
         if self.lyrics.synced and self.current_tab() == 'lyrics':
             self.lyrics.set_position(seconds + self._offset_value())
 

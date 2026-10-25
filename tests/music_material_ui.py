@@ -17,7 +17,7 @@ from PySide6.QtGui import QColor, QFont, QImage, QRawFont, QTextLayout
 from PySide6.QtWidgets import QApplication
 import music_data as music
 from wysun_core import theme
-from music_material import display_family, ligature_available, load_fonts, symbol_family
+from wysun_core.ui.fonts import SYMBOL_FAMILY, display_family, ligature_available, load_fonts
 from wysun_core.qt_theme import tokens, watch_theme
 from wysun_scheme import generate_dynamic
 
@@ -52,7 +52,7 @@ covers._paths[keys[0]] = str(cover)  # synthetic artwork, as a finished lookup w
 
 # Offline fonts: Rubik text, Material Symbols ligatures rendered as single glyphs.
 assert 'Rubik' in load_fonts() and 'Material Symbols Rounded' in load_fonts()
-assert display_family() == 'Rubik' and symbol_family() == 'Material Symbols Rounded'
+assert display_family() == 'Rubik' and SYMBOL_FAMILY in load_fonts()
 assert window.font().family() == 'Rubik' and window.bar.title.font().family() == 'Rubik'
 raw = QRawFont.fromFont(QFont('Rubik'))
 assert raw.supportsCharacter(ord('ñ')) and raw.supportsCharacter(ord('ú'))

@@ -61,8 +61,9 @@ class CaptureTheme(unittest.TestCase):
         finally:
             path.unlink(missing_ok=True);theme.invalidate();settle(self.app)
     def test_material_symbol_fonts_render_every_glyph(self):
-        from loomrec.ui.material import load_fonts, SYMBOLS, symbol_pixmap
-        self.assertTrue(all(identifier >= 0 for identifier in load_fonts()))
+        from loomrec.ui.material import SYMBOLS, symbol_pixmap
+        from wysun_core.ui.fonts import SYMBOL_FAMILY, load_fonts
+        self.assertIn(SYMBOL_FAMILY, load_fonts())
         for name in SYMBOLS:
             self.assertIsNotNone(symbol_pixmap(name, color('text'), 24), name)
     def test_auto_and_an_old_file_use_the_default_palette_without_a_scheme(self):

@@ -14,7 +14,9 @@ from PySide6.QtWidgets import (QAbstractItemView, QHBoxLayout, QInputDialog, QLa
                                QStyle, QStyledItemDelegate, QVBoxLayout, QWidget)
 
 from ..videolibrary import VideoLibrary, recording_video, finalization_status
-from .app_kit import Button, IconButton, StateLayer, clock, color, metric, paint_symbol, reduced_motion, text_font, tokens
+from .app_kit import Button, IconButton, StateLayer, reduced_motion
+from wysun_core.ui.style import clock, metric, paint_symbol, text_font
+from wysun_core.qt_theme import color, tokens
 
 ROLE_ENTRY = Qt.UserRole + 1
 ROLE_VIDEO = Qt.UserRole + 2

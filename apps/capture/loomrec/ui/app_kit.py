@@ -6,25 +6,18 @@ radii, spacing, type and motion all come from the theme tokens. These helpers
 mirror the ones those apps use; the Recorder installs separately and never
 imports them.
 """
-from functools import lru_cache
 
 from PySide6.QtCore import (QAbstractAnimation, QEasingCurve, QPropertyAnimation, QRectF, Qt, QTimer,
                             QVariantAnimation, Signal)
-from PySide6.QtGui import (QFont, QFontDatabase, QFontMetricsF, QLinearGradient, QPainter, QPainterPath, QPen,
-                           QRadialGradient, QTextLayout)
+from PySide6.QtGui import QFontMetricsF, QLinearGradient, QPainter, QPen, QRadialGradient
 from PySide6.QtWidgets import QAbstractButton, QGraphicsOpacityEffect, QLabel, QWidget
 
-from .material import load_fonts
+from wysun_core.ui.fonts import load_fonts
+from wysun_core.ui.style import metric, paint_symbol, text_font
 from wysun_core import appearance
 from wysun_core.qt_theme import TEMPLATE, color, qss, tokens
 
-SYMBOL_FAMILY = 'Material Symbols Rounded'
-TEXT_FAMILY = 'Rubik'
 RESIZE_MARGIN = 6
-
-
-def metric(name, scale=1.0):
-    return round(tokens()[name] * scale)
 
 
 def reduced_motion(widget=None):
@@ -40,93 +33,14 @@ def surface_opacity(values=None):
 
 
 # ------------------------------------------------------------------- text
-@lru_cache(maxsize=64)
-def _text_font(family, pixels, weight):
-    result = QFont(family)
-    result.setPixelSize(max(8, pixels))
-    result.setWeight(QFont.Weight(weight))
-    return result
-
-
-def display_family():
-    load_fonts()
-    return TEXT_FAMILY if TEXT_FAMILY in set(QFontDatabase.families()) else QFont().family()
-
-
-def text_font(role='body', weight=400, scale=1.0):
-    """Rubik at a theme size role (caption/small/body/heading/title) × scale."""
-    return QFont(_text_font(display_family(), round(tokens()['font_' + role] * scale), weight))
 
 
 # ---------------------------------------------------------------- symbols
-@lru_cache(maxsize=128)
-def _renders_one_glyph(text, family):
-    layout = QTextLayout(text, QFont(family))
-    layout.beginLayout()
-    line = layout.createLine()
-    layout.endLayout()
-    if line.isValid() and line.textLength() == len(text):
-        return sum(len(run.glyphIndexes()) for run in layout.glyphRuns()) == 1
-    return False
-
-
-@lru_cache(maxsize=64)
-def _symbol_font(pixels):
-    result = QFont(SYMBOL_FAMILY)
-    result.setPixelSize(pixels)
-    return result
-
-
-@lru_cache(maxsize=256)
-def _symbol_path(name, pixels):
-    """Filled glyph outline: only outer contours, since PySide6 cannot reach the FILL axis."""
-    font = _symbol_font(pixels)
-    path = QPainterPath()
-    path.addText(0, 0, font, name)
-    polygons = path.toSubpathPolygons()
-    bounds = [polygon.boundingRect() for polygon in polygons]
-    path = QPainterPath()
-    path.setFillRule(Qt.WindingFill)
-    for index, polygon in enumerate(polygons):
-        inner = any(j != index and other != bounds[index] and other.contains(bounds[index]) for j, other in enumerate(bounds))
-        if not inner:
-            path.addPolygon(polygon)
-            path.closeSubpath()
-    metrics = QFontMetricsF(font)
-    return path.simplified().translated(-metrics.horizontalAdvance(name) / 2, (metrics.ascent() - metrics.descent()) / 2)
-
-
-def symbols_ready():
-    load_fonts()
-    return SYMBOL_FAMILY in set(QFontDatabase.families())
-
-
-def paint_symbol(painter, rect, name, tint, size=None, filled=False):
-    """Draw a Material symbol centred in ``rect``; ``tint`` is a token name or a QColor."""
-    size = round(size or tokens()['icon_size'] * 1.2)
-    ink = color(tint) if isinstance(tint, str) else tint
-    if not symbols_ready() or not _renders_one_glyph(name, SYMBOL_FAMILY):
-        return
-    rect = QRectF(rect)
-    painter.save()
-    if filled:
-        painter.setRenderHint(QPainter.Antialiasing)
-        painter.translate(rect.center())
-        painter.fillPath(_symbol_path(name, size), ink)
-    else:
-        painter.setFont(_symbol_font(size))
-        painter.setPen(ink)
-        painter.drawText(rect, Qt.AlignCenter, name)
-    painter.restore()
-
-
-def clock(seconds):
-    seconds = max(0, int(seconds or 0))
-    hours, rest = divmod(seconds, 3600)
-    return f'{hours}:{rest // 60:02}:{rest % 60:02}' if hours else f'{rest // 60}:{rest % 60:02}'
 
 
 # ----------------------------------------------------------------- motion
+
+
 class StateLayer:
     """Hover/press amount animated with the theme's fast motion token."""
 
@@ -400,6 +314,7 @@ class Toast(QLabel):
         painter.drawText(self.rect(), Qt.AlignCenter, self.fontMetrics().elidedText(self.text(), Qt.ElideRight, self.width() - 24))
 
 
+# ---------------------------------------------------------------- surface
 def section_label(text):
     label = QLabel(text.upper())
     font = text_font('caption', 700)
@@ -410,7 +325,6 @@ def section_label(text):
     return label
 
 
-# ---------------------------------------------------------------- surface
 def paint_surface(widget):
     """Window material. Dark: tinted glass; light: opaque pearl."""
     values = tokens()

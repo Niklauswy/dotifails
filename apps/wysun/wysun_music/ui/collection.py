@@ -12,7 +12,8 @@ from music_library import artists, normalize
 from wysun_core.qt_theme import color, tokens
 from ui_motion import reduced_motion
 from .shapes import artwork, blurred, clip_pixmap, cookie
-from .style import long_duration, metric, songs, text_font
+from wysun_core.ui.style import metric, text_font
+from .style import long_duration, songs
 from .tracks import TrackHeader, TrackView
 from .widgets import IconButton, PillButton, draw_art, paint_favorites_cover
 
