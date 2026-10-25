@@ -46,6 +46,11 @@ def display_family():
     return theme_family()
 
 
+def symbol_family():
+    """The Material Symbols family once it is loaded, else None."""
+    return SYMBOL_FAMILY if SYMBOL_FAMILY in set(QFontDatabase.families()) else None
+
+
 @lru_cache(maxsize=128)
 def _renders_one_glyph(text, family):
     layout = QTextLayout(text, QFont(family))

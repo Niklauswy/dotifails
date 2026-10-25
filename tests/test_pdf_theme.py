@@ -54,7 +54,7 @@ class PdfThemeTests(unittest.TestCase):
         from pdf_material import ReaderTheme
         theme = ReaderTheme()
         self.assertTrue(theme.font('body', 500).pixelSize() > 0)
-        from music_material import symbol_family
+        from wysun_core.ui.fonts import symbol_family
         self.assertEqual(symbol_family(), 'Material Symbols Rounded')
 
     def test_reader_follows_the_desktop_until_its_button_pins_a_mode(self):

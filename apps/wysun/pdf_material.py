@@ -8,7 +8,7 @@ Drawing controls explicitly keeps native GTK/Qt platform palettes out of the UI.
 from PySide6.QtCore import Qt, QSize, QRectF, QEvent, QObject, Signal, QVariantAnimation, QEasingCurve
 from PySide6.QtGui import QFont, QPainter, QPen, QPalette
 from PySide6.QtWidgets import QWidget, QAbstractButton, QStyledItemDelegate, QStyle, QListWidget, QFrame
-from music_material import load_fonts, symbol_family
+from wysun_core.ui.fonts import load_fonts, symbol_family
 from wysun_core import jsonio, paths, qt_theme, theme as core_theme
 
 MODES = ('light', 'dark')

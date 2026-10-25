@@ -24,6 +24,10 @@ class CoreUiTests(unittest.TestCase):
         self.assertIn(fonts.SYMBOL_FAMILY, families)
         self.assertTrue(str(fonts.FONT_DIR).endswith('wysun_core/fonts'))
 
+    def test_symbol_family_is_named_once_loaded(self):
+        fonts.load_fonts()
+        self.assertEqual(fonts.symbol_family(), fonts.SYMBOL_FAMILY)
+
     def paint(self, name):
         image = QImage(48, 48, QImage.Format_ARGB32)
         image.fill(0)
