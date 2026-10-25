@@ -128,6 +128,20 @@ class DeadCodeTests(unittest.TestCase):
         missing = [f for f in data['imported_files'] if not (ROOT / 'apps/shell' / f).exists()]
         self.assertEqual(missing, [])
 
+    DELETED = ('color_window.py', 'utility_material', 'notes_window.py', 'theme_demo', 'screen_lock',
+               'wysun_fonts', 'clean_legacy', 'ui/components.py', 'ui/materials.py', 'modules/lock/',
+               'Shortcuts.qml', '--pick-color', 'install-local.py', 'restore-materials.py',
+               'portal_shortcuts', 'loomrec/integration.py', 'loomrec/analysis.py', 'loomrec/editing.py',
+               'files_motion', 'files_visuals', 'desktop_common', 'link_preview', 'system_panels',
+               'energy_data', 'clipboard_data')
+
+    def test_docs_do_not_point_to_deleted_files(self):
+        docs = [p for p in (ROOT / 'docs').rglob('*.md') if 'superpowers' not in p.parts]
+        docs += [ROOT / n for n in ('README.md', 'ARCHITECTURE.md', 'THIRD_PARTY.md', 'AGENTS.md')]
+        docs += list((ROOT / 'apps').glob('*/README.md')) + list((ROOT / 'apps').glob('*/UPSTREAM.md'))
+        hits = [f'{p.relative_to(ROOT)}:{name}' for p in docs for name in self.DELETED if name in p.read_text()]
+        self.assertEqual(hits, [])
+
     def test_subprocess_backends_count_as_alive(self):
         corpus = alive_names(ROOT)
         for backend in ('launcher_data', 'process_data', 'wysun_scheme', 'code_preview'):

@@ -246,7 +246,7 @@ hypr-effects.lua/hypr-shortcuts.lua bajo el config de Wysun y respeta hooks de
 sesión. No reescribe archivos Hyprland del usuario. Displays usa hl.monitor y el
 watchdog de reversión, conserva escala y posiciones negativas. Quickshell es el
 dueño del wallpaper: Python guarda preferencias y solicita `wysun shell
-reload-preferences`. Color usa `wysun recorder --pick-color`. El bloqueo y la
+reload-preferences`. Color es un panel del shell y muestrea con `hyprpicker`. El bloqueo y la
 suspensión llaman a wysun-lock, que espera la adquisición del bloqueo.
 
 Files y Recorder embeben el componente `wysun_media` (libmpv con render OpenGL y

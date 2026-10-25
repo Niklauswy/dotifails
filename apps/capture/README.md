@@ -80,8 +80,7 @@ libmpv2, un servicio xdg-desktop-portal y backend ScreenCast apropiado, PipeWire
 PulseAudio/pactl o pipewire-pulse y V4L2 mantienen sus contratos. Los atajos de
 Recorder usan GlobalShortcuts portal con consentimiento; los controles de bandeja
 y los comandos --pause/--resume/--stop del proyecto siguen disponibles si el
-compositor deniega una combinación. `wysun recorder --pick-color` usa PickColor
-del portal y devuelve RGB JSON para Wysun Colors.
+compositor deniega una combinación.
 
 Verificado localmente: pruebas unitarias/offscreen, composición/crop de imágenes
 sintéticas, Gst videotestsrc→BGRA→FFmpeg H264→decode y libmpv SW con vídeo propio y
@@ -90,9 +89,7 @@ tienen evidencia nativa anidada de monitor estático, ventana visible y cubierta
 por otra ventana, región/audio sintéticos, varios monitores con escala/rotación,
 consentimientos secuenciales y cancelación total. La release v24 pasó cinco
 segmentos estáticos con tres reanudaciones, FD estables y decodificación completa;
-también audio/vídeo correlacionados y cancelación durante el arranque. PickColor
-por el comando público y el portal devolvió RGB correcto y canceló con
-hyprpicker 0.4.7; esta herramienta evita el fallback PPM defectuoso de XDPH 1.4.1.
+también audio/vídeo correlacionados y cancelación durante el arranque.
 No acredita permisos humanos, login, dispositivos o desbloqueo físicos.
 No afirmar compatibilidad completa
 ni trasladar los resultados históricos X11 a Wayland. Datos, sockets, proyectos,
@@ -149,28 +146,13 @@ python -m venv --system-site-packages .venv
 python -m unittest discover -s tests -v
 ```
 
-No desktop files are changed by launching the application. Optional concentration mode temporarily pauses notifications and restores the prior state after capture ends. A persisted lease and detached watcher also recover the prior notification state if the UI exits unexpectedly; a live capture lock prevents premature restoration. Installation/integration is
-an explicit separate action after standalone validation, as requested for this project.
+No desktop files are changed by launching the application.
 
-## Install or remove locally
+## Installation
 
-After the standalone UI passes its smoke test, from this checkout (`apps/capture/`):
-
-```sh
-python scripts/install-local.py --check
-python scripts/install-local.py
-# Later, remove only installer-owned unchanged application files:
-python scripts/install-local.py --uninstall
-```
-
-The installer copies source into `$XDG_DATA_HOME/loomrec/bundles/<content-hash>` (default
-`~/.local/share/loomrec/bundles/<content-hash>`), creates `~/.local/bin/loomrec`, a standard application-menu
-`.desktop` entry and icon. It uses the invoking Python interpreter, checks dependencies
-without installing packages, records hashes and refuses to overwrite unrelated or modified
-files. Removal preserves recordings, settings and user-modified installed files. Test roots
-can be supplied with `--data-home` and `--bin-home`. No Wysun/dotifails source files are
-modified, and no window manager or desktop is restarted. The installed Wysun application catalog discovers “Wysun Recorder”; the closed-app
-`Super+Shift+l` launcher was physically exercised and opened setup without recording.
+The Wysun installer ships the Recorder as immutable, content-hashed releases
+(`installer/capture_distribution.py`) under `~/.local/share/wysun/capture/releases/`;
+running captures keep their own release until they finish.
 
 ## Recording semantics
 
@@ -449,27 +431,6 @@ region test, not a new full-monitor or long-session sync benchmark.
 Selection regressions: `python -m unittest discover -s tests -p "test_selection.py" -v`.
 Those tests use synthetic window inventories and never capture a screen, microphone
 or camera.
-
-
-### Scoped acrylic deployment
-
-Floating controls, popups and dialogs opt into `_WYBIE_ACRYLIC` (32-bit CARDINAL).
-Picom rules match `_WYBIE_ACRYLIC = 1 || _WYBIE_ACRYLIC@ = 1` for blur and
-`_WYBIE_ACRYLIC = 0 || _WYBIE_ACRYLIC@ = 0` for explicit matte opt-out.
-The selector and recording indicator have separate exact-name exclusions for blur,
-shadows and rounded corners. Global desktop appearance is unchanged. Transparency
-also requires a live compositor and `~/.config/loomrec/materials.json` with
-`{"backdrop_blur": true}`; otherwise surfaces remain opaque.
-
-This machine uses Picom 12.5, GLX and existing dual_kawase strength 3. The scoped
-configuration passed diagnostics and a synthetic-only native comparison (stripe
-standard deviation 0.427 with blur versus 6.908 without). Exact original compositor
-and material settings are retained in `~/.local/state/loomrec/materials-integration.json`.
-`python scripts/restore-materials.py` restores them only when the managed versions
-remain unchanged. The application uninstaller invokes this helper too; modified
-settings are preserved. Restoration defers compositor reload while a recorder exists.
-Normal application upgrades keep old bundles and saved projects; an idle GUI is
-closed through WM_DELETE and reopened normally. In-memory undo history resets.
 
 
 ### Video workspace and playback

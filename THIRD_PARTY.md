@@ -33,7 +33,7 @@
   (BSD-3-Clause) or `utils/scripts/fuzzysort.js` (MIT); the search and
   arithmetic code in `Logic.js` is a bounded Wysun implementation. Caelestia's
   `caelestia` CLI calls, `Qalculator`, wallpaper writer, `wrap_term_launch.sh`
-  and `modules/Shortcuts.qml` are not copied. Wysun uses `DesktopEntries`,
+  and the global-shortcut module are not copied. Wysun uses `DesktopEntries`,
   `Wysun`'s allowlist and existing `wysun scheme set` producer instead.
 
 ### Phase 4: notifications, OSD, session and quick settings
@@ -77,7 +77,7 @@ Not ported: `NotificationServer` was ported later: the shell owns the notificati
 
 - Source: [google/material-design-icons](https://github.com/google/material-design-icons), `variablefont/MaterialSymbolsRounded[FILL,GRAD,opsz,wght].ttf`.
 - License: Apache License 2.0; text in [`LICENSES/Apache-2.0.txt`](LICENSES/Apache-2.0.txt).
-- Bundled files: `apps/wysun/assets/fonts/MaterialSymbolsRounded.ttf` (Wysun Qt apps) and the identical `apps/shell/assets/fonts/MaterialSymbolsRounded.ttf` (Caelestia shell): the complete variable font. The 224 icons that the Wysun Qt apps rely on are listed one per line in `apps/wysun/assets/fonts/material-symbols-glyphs.txt` (shared contract read by `apps/wysun/wysun_fonts.py`).
+- Bundled files: `apps/wysun/assets/fonts/MaterialSymbolsRounded.ttf` (Wysun Qt apps) and the identical `apps/shell/assets/fonts/MaterialSymbolsRounded.ttf` (Caelestia shell): the complete variable font.
 - SHA-256: `32e4011709e055596eb8d2dd0f7cb547b47c1d40ac9ecb8fad54f7f7eac202e7`.
 
 ## Rubik
@@ -97,7 +97,7 @@ Not ported: `NotificationServer` was ported later: the shell owns the notificati
 
 Derived Caelestia code carries GPL attribution in its source headers and in this file. The vendored Material You implementation retains its MIT copyright notice. Wysun's Python median-cut quantizer is original code and has no native build or install step.
 
-## Caelestia Shell — Wysun phase 5 background and lock presentation
+## Caelestia Shell — Wysun phase 5 background presentation
 
 Derivado de caelestia-dots/shell (GPL-3.0), modificado para Wysun.
 Source: https://github.com/caelestia-dots/shell at
@@ -111,25 +111,7 @@ below have no individual copyright header; their project GPL notice is retained.
 | `modules/background/Wallpaper.qml`, `services/Wallpapers.qml` | `apps/shell/modules/background/Wallpaper.qml`, `BackgroundPolicy.js` | Local static images and output selection from existing preferences; no CLI, IPC, shaders, video or colour producer |
 | `modules/background/DesktopClock.qml` | `apps/shell/modules/background/DesktopClock.qml` | Material token plate, hour/minute/date layout, Spanish locale, scaled small-output layout; no blur or idle animation |
 | `services/Time.qml` | `apps/shell/modules/background/Time.qml` | Wall clock at minute precision; instantiated only while the optional clock is visible |
-| `modules/lock/Center.qml`, `Content.qml`, `center/PasswordInput.qml`, `center/StateMessage.qml` | `apps/wysun/screen_lock.py`, `bin/wysun-lock` | PySide6 translation of centred presentation and normal/verifying/cleared/error colour hierarchy to swaylock options (default backend); no authentication code copied |
-| `modules/lock/Center.qml`, `Content.qml`, `center/Clock.qml`, `center/InputField.qml`, `center/StateMessage.qml` | `apps/shell/modules/lock/LockPanel.qml`, `LockPolicy.js`, `OutputLock.qml` | Opt-in QML presentation: centred date/clock column, pill password field with masked buffer, Spanish state messages, per-output scaling; Wysun tokens and Rubik instead of upstream colours/fonts |
-| `modules/lock/Media.qml` | `apps/shell/modules/lock/LockMedia.qml` | Opt-in title/artist/transport card from the active MPRIS player; no cover art, no cava |
 
-The existing swaylock readiness, failure recovery and suspend sequencing remain
-authoritative for the default backend. The opt-in QML backend (`apps/shell/lock.qml`,
-`apps/shell/modules/lock/`) is a Wysun-original implementation of the session lock
-(`WlSessionLock`) and PAM client (`PamContext`, packaged service
-`apps/shell/config/pam.d/wysun-lock`); it takes only visual structure from the files
-above. `LockRoot.qml`, `LockAuth.qml`, `LockTheme.qml`, the readiness marker and
-`bin/wysun-lock` selection logic are not copies of upstream code.
-Stock swaylock cannot render Caelestia's clock/profile/input pill, side columns or
-`Media.qml`; with the default backend these are **not ported**. Media, notifications,
-avatars and wallpaper are not exposed on lock unless the user opts in to the media
-card. `Lock.qml`, `Pam.qml`, `LockSurface.qml`, unlock IPC, `Visualiser.qml`, cava and
-screencopy are excluded. Swaylock supplies native status strings and font lookup;
-Rubik is requested, using its fontconfig fallback if unavailable in that process.
-Material Symbols glyphs used by phase 5: none (labels are text); the font subset is
-not changed.
 ## Wysun Music native presentation (phase 7)
 
 - Repository: [caelestia-dots/shell](https://github.com/caelestia-dots/shell), commit `507d66285e9d9fde9330adc64159cfdebb28c19a`.
@@ -146,18 +128,17 @@ Source: https://github.com/caelestia-dots/shell, commit
 Upstream files have no individual copyright header; no notices were removed.
 
 - `modules/nexus/NavPane.qml` and `components/{StyledRect,StyledText,StateLayer}.qml`
-  inform `apps/wysun/utility_material.py`, `files_{window,visuals}.py`,
-  `{notes,color,processes,connections,tools}_window.py` and `power_widgets.py`.
-  These are native QWidget translations; models, filesystem and private stores
+  inform `apps/wysun/files_window.py`.
+  It is a native QWidget translation; models, filesystem and private stores
   remain Wysun's existing implementation.
 - `modules/nexus/NavPane.qml`, `modules/dashboard/Media.qml`,
   `modules/dashboard/media/Details.qml`, `components/widgets/CoverArt.qml` and
   `components/{StyledRect,StyledText,StateLayer}.qml` inform
-  `apps/capture/loomrec/ui/{material,layouts,components,settings}.py`. Library
+  `apps/capture/loomrec/ui/material.py`. Library
   artwork/navigation and playback hierarchy change; capture/portal/media contracts stay
   in the existing backends. This is not an upstream full-screen music app.
-- Files/utilities package Rubik and complete Material Symbols fallback resources
-  in `apps/wysun/assets/utils-material/`, with OFL and Apache-2.0 notices.
+- The Wysun Qt apps package Rubik and the complete Material Symbols font in
+  `apps/wysun/assets/fonts/`; their OFL and Apache-2.0 notices are in `LICENSES/`.
   Capture packages its own copies under `loomrec/ui/assets/fonts/`, with
   `apps/capture/assets/licenses/{OFL-Rubik,Apache-2.0,GPL-3.0}.txt`; it does not
   import the installed Orbit application. No download or host font installation

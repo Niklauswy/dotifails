@@ -52,7 +52,7 @@ Las plantillas de hoja de estilo usan `@token`, `@token/alpha` (0-255) y `@svg(n
 
 ## Crear un widget que obedece el tema
 
-1. **Qt (Wysun)**: parte de `apps/wysun/theme_demo.py`.
+1. **Qt (Wysun)**:
    ```python
    from theme_tokens import apply_style, color, on_theme_changed
    apply_style(self, 'QFrame#mio { background:@surface; border:@border solid @line; border-radius:@radius_m; }')

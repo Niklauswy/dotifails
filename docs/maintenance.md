@@ -12,7 +12,7 @@ Los servicios de escritorio registran PID e inicio del proceso y se separan por 
 
 ## Cambiar Wysun y usar la misma versión en tu escritorio
 
-La fuente de los menús es `apps/wysun/` en este repositorio. Notas vive en `notes_window.py`, Color en `color_window.py` y el almacenamiento local en `utility_data.py`. No editar la antigua copia `~/proyects/orbit-desktop` ni la copia instalada.
+La fuente de las apps Qt es `apps/wysun/` en este repositorio. Color es un panel del shell (`apps/shell/modules/colors/`) y su almacenamiento local vive en `utility_data.py`. No editar la antigua copia `~/proyects/orbit-desktop` ni la copia instalada.
 
 Después de modificar y probar el código, desde la raíz del repositorio:
 

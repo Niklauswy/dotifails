@@ -55,8 +55,7 @@ detectan por huella y se guardan como `incoming/`).
 - **Módulos QML del plugin** (`import Wysun.<X>`): `Config`, `Services`, `Components`, `Models`, `Blobs`, `Images`, `I18n`,
   `Multimedia`, `Settings`, `State`, `Shaders`, más `M3Shapes` (dependencia externa). Fuente en `apps/shell/plugin/src/Wysun/`.
 - **Configuración del shell** (dato del usuario): `~/.config/wysun/shell/shell.json`, `shell-tokens.json` y
-  `monitors/<salida>/…` (por pantalla). Antes `~/.config/wysun/caelestia` (el instalador la copia; la antigua se retira con
-  `installer/clean_legacy.py`).
+  `monitors/<salida>/…` (por pantalla). El instalador traslada una configuración anterior en `~/.config/wysun/caelestia`.
 - **Transición de fondos**: `background.wallpaperTransition = "ZoomBlurPull"` usa un acercamiento gradual del fondo
   anterior, fundido con la imagen nueva nítida y un asentamiento final. Sus parámetros viven en
   `appearance.wallpaperMotion` de los tokens nativos (`plugin/src/Wysun/Config/tokens.hpp`), con duración propia de
@@ -163,7 +162,7 @@ Python estándar (+ PySide6 para la GUI). Instala por **componentes** (`desktop,
 
 Piezas: `main.py` (despliegue, restauración, `doctor`), `install_model.py` (componentes, paquetes, comprobaciones),
 `wayland.py` (sesión Hyprland, shell, runtime, portales), `runtime_build.py`, `capture_distribution.py` (releases de captura),
-`session_registration.py` (entrada de sesión en el gestor de acceso, reversible), `clean_legacy.py`, `boot*.py`, `gui.py`.
+`session_registration.py` (entrada de sesión en el gestor de acceso, reversible), `boot*.py`, `gui.py`.
 `WYSUN_SKIP_RUNTIME=1` omite el runtime (pruebas).
 
 La nueva base gráfica se abre con `./wysun-installer`; `./wysun-installer-preview` recorre una instalación nueva con
@@ -206,7 +205,6 @@ Procedimiento seguro (el que se usó para el rebranding):
 | Archivos desplegados | `dotifails restore [id]` (o `~/.local/share/dotifails/installer/main.py restore`) devuelve el respaldo del instalador |
 | Hyprland | Restaurar `~/.config/wysun/hyprland.lua` del respaldo y `hyprctl reload` |
 | Runtime | El runtime es otro directorio; para volver a uno anterior mover/restaurar `…/wysun/runtime` (la copia previa queda en `~/.local/share/wysun-backups/`) |
-| Limpieza de restos | `installer/clean_legacy.py --restore <vault>` (mueve, no borra) |
 | Sesión no arranca | Elegir otra sesión en el gestor de acceso; `installer/session_registration.py` desregistra Wysun sin tocar el predeterminado |
 | Shell caído | `wysun-shell` lo relanza; si el plugin falla: `python3 installer/runtime_build.py --only plugin` |
 
@@ -272,9 +270,9 @@ Nunca reiniciar Hyprland ni el login para actualizar un panel.
   tipografía, radios y paleta M3 del shell. Incluye plano HSV con teclado, formatos HEX/RGB/HSL,
   contraste de texto, recientes y favoritos. `backend.py` serializa las operaciones en el almacén
   existente `~/.local/share/orbit/colors.json`; el parser compartido vive en `apps/wysun/color_data.py`.
-  La captura oculta el panel y llama a `wysun recorder --pick-color`; vuelve tanto al elegir como al
+  La captura oculta el panel y llama a `hyprpicker`; vuelve tanto al elegir como al
   cancelar. Escape o pérdida de foco cierran el panel; Ctrl+P captura y Ctrl+C copia HEX fuera del
-  campo de edición. No se abre la antigua ventana Qt Widgets desde los comandos públicos.
+  campo de edición. No hay ventana Qt de Color.
 - **Bloqueo** (`wysun-lock`, `apps/shell/lock.qml`, `modules/lockscreen/`): terminal de refinamiento. Un campo de
   números en un shader (`field.frag`, atlas de glifos con la fuente mono del shell) reacciona al puntero; cada tecla agita
   un grupo y envía dígitos a una de cinco cajas; Enter barre el campo, el rechazo lo revuelve en rojo y el acierto lo vacía
@@ -282,7 +280,7 @@ Nunca reiniciar Hyprland ni el login para actualizar un panel.
   caja al 100 % muestra «QUOTA MET»; las cinco hacen bailar el campo y dibujar una W. Colores de `scheme.json`
   (`LockPalette.qml`), sin cargar servicios del shell. Proceso propio con `WlSessionLock` y PAM vía `/etc/pam.d/login`;
   swaylock queda como alternativa y respaldo. Vista previa sin bloqueo: `wysun-lock --preview`. Pruebas:
-  `tests/test_wysun_lock.py`, `tests/test_screen_lock.py`. Detalles y recuperación en `docs/wayland.md`.
+  `tests/test_wysun_lock.py`. Detalles y recuperación en `docs/wayland.md`.
   La misma escena es la pantalla de acceso (`apps/shell/greeter.qml`, `GreeterRoot.qml`, con greetd y el Quickshell de
   Debian: por eso `LockScene.qml` no importa el plugin `Wysun.*`); al entrar, las puertas del ascensor se cierran
   (`screen.frag`). GRUB y Plymouth reutilizan sus shaders para el arte de arranque (`BootArt.qml`,
