@@ -7,7 +7,7 @@ import unittest
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'apps/wysun'))
 AVAILABLE = importlib.util.find_spec('PySide6') is not None
 if AVAILABLE:
-    from PySide6.QtCore import QCoreApplication
+    from PySide6.QtWidgets import QApplication
     from pdf_source import PageSource
 
 
@@ -50,7 +50,7 @@ class FakeWorker:
 class SourceTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.app = QCoreApplication.instance() or QCoreApplication([])
+        cls.app = QApplication.instance() or QApplication([])
 
     def setUp(self):
         self.worker = FakeWorker()

@@ -88,6 +88,10 @@ class PdfThemeTests(unittest.TestCase):
         for name in SYMBOLS:
             self.assertTrue(ligature_available(name), name)
 
+    def test_the_reader_has_no_theme_of_its_own(self):
+        self.assertFalse((APP / 'pdf_material.py').exists())
+        for path in APP.glob('pdf_*.py'):
+            self.assertNotIn('ReaderTheme', path.read_text(), path.name)
 
 
 class PdfChromeTests(unittest.TestCase):

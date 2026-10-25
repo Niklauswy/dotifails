@@ -10,7 +10,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'apps/wysun'))
 AVAILABLE = all(importlib.util.find_spec(m) for m in ('fitz', 'PySide6'))
 if AVAILABLE:
     import fitz
-    from PySide6.QtCore import QCoreApplication
+    from PySide6.QtWidgets import QApplication
     from pdf_worker import PdfWorker
 
 
@@ -18,7 +18,7 @@ if AVAILABLE:
 class WorkerTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.app = QCoreApplication.instance() or QCoreApplication([])
+        cls.app = QApplication.instance() or QApplication([])
 
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()

@@ -12,10 +12,9 @@ from wysun_core import qt_theme, theme
 MODES = ('light', 'dark')
 # Every Material symbol the reader paints; tests check the bundled font has them all.
 SYMBOLS = ('close', 'left_panel_open', 'left_panel_close', 'search', 'keyboard_arrow_up', 'keyboard_arrow_down',
-           'remove', 'add', 'fit_width', 'fit_screen', 'view_agenda', 'auto_stories', 'menu_book', 'edit_note',
-           'sticky_note_2', 'save', 'more_vert', 'folder_open', 'content_copy', 'ink_highlighter',
-           'format_underlined', 'palette', 'toc', 'grid_view', 'delete', 'light_mode', 'dark_mode',
-           'brightness_auto', 'open_in_new', 'keyboard', 'check', 'description')
+           'remove', 'add', 'view_agenda', 'auto_stories', 'menu_book', 'edit_note', 'sticky_note_2', 'save',
+           'more_vert', 'folder_open', 'content_copy', 'ink_highlighter', 'format_underlined', 'toc', 'grid_view',
+           'delete', 'check')
 
 
 class ReaderMode:
@@ -75,3 +74,13 @@ class ReaderMode:
         """Give the process its original environment back (tests, last window closed)."""
         self._set_environment(self.original)
         qt_theme.invalidate()
+
+
+_shared = []
+
+
+def shared(preferences):
+    """The process's ReaderMode: every window of the reader shows the same pinned mode."""
+    if not _shared:
+        _shared.append(ReaderMode(preferences))
+    return _shared[0]

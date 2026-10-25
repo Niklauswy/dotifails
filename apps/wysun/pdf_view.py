@@ -38,6 +38,7 @@ class DocumentView(QAbstractScrollArea):
         self._anchor_word = None
         self._dragging = False
         self._page = -1
+        self._keyboard_focus = False
         self.render_timer = QTimer(self, singleShot=True, interval=RENDER_DELAY)
         self.render_timer.timeout.connect(self.request)
         source.changed.connect(self._page_arrived)
@@ -252,7 +253,7 @@ class DocumentView(QAbstractScrollArea):
                     painter.setBrush(color('text_selection', 150))
                     for index in self.selection[1]:
                         painter.drawRect(self._box(info['words'][index], rect, scale))
-        if self.hasFocus() and self.window().isActiveWindow():
+        if self._keyboard_focus and self.hasFocus() and self.window().isActiveWindow():
             painter.setPen(QPen(color('focus'), tokens()['focus_width']))
             painter.setBrush(Qt.NoBrush)
             painter.drawRect(QRectF(self.viewport().rect()).adjusted(1, 1, -1, -1))
@@ -430,6 +431,8 @@ class DocumentView(QAbstractScrollArea):
             super().keyPressEvent(event)
 
     def focusInEvent(self, event):
+        # The ring marks keyboard arrival only; a click on the page already shows where focus is.
+        self._keyboard_focus = event.reason() in (Qt.TabFocusReason, Qt.BacktabFocusReason, Qt.ShortcutFocusReason)
         super().focusInEvent(event)
         self.viewport().update()
 
