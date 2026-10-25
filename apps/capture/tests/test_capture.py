@@ -42,11 +42,11 @@ class CaptureTests(unittest.TestCase):
   import tempfile,json
   from unittest.mock import patch
   from dataclasses import asdict
-  from loomrec.schema import atomic_json
+  from wysun_core.jsonio import atomic_write_json
   from loomrec.worker import main
   for storage,spawn in [(0,None),(10**10,OSError('encoder missing'))]:
    with tempfile.TemporaryDirectory() as d:
-    root=Path(d);atomic_json(root/'capture.json',asdict(CaptureConfig(d,':0',[0,0,640,360],auto_finalize=False)))
+    root=Path(d);atomic_write_json(root/'capture.json',asdict(CaptureConfig(d,':0',[0,0,640,360],auto_finalize=False)))
     with patch('loomrec.devices.display_bounds',return_value=[1920,1080]),patch('loomrec.worker.shutil.disk_usage') as disk,patch('loomrec.worker.subprocess.Popen',side_effect=spawn):
      disk.return_value.free=storage;main(root)
     status=json.loads((root/'status.json').read_text())
@@ -56,10 +56,10 @@ class CaptureTests(unittest.TestCase):
  def test_attach_queues_control_without_starting(self):
   import tempfile,json
   from dataclasses import asdict
-  from loomrec.schema import atomic_json
+  from wysun_core.jsonio import atomic_write_json
   from loomrec.capture import CaptureSession
   with tempfile.TemporaryDirectory() as d:
-   root=Path(d);atomic_json(root/'capture.json',asdict(CaptureConfig('/old/path',':0',[0,0,640,360])))
+   root=Path(d);atomic_write_json(root/'capture.json',asdict(CaptureConfig('/old/path',':0',[0,0,640,360])))
    session=CaptureSession.attach(root);session.pause()
    self.assertEqual(session.root,root)
    command=next(root.glob('command-*.json'))

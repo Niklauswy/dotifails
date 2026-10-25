@@ -2,7 +2,9 @@
 import json,os,hashlib,subprocess,shutil,uuid,time,threading
 from pathlib import Path
 from .library import Library,Entry,default_root
-from .schema import atomic_json,Project,Source,Clip,save_project
+from .schema import Project,Source,Clip,save_project
+from wysun_core import paths
+from wysun_core.jsonio import atomic_write_json
 
 EXTENSIONS={'.mp4','.mkv','.mov','.webm','.avi','.m4v','.mpeg','.mpg','.mts','.ts','.ogv'}
 def absolute_video_path(path):
@@ -29,12 +31,12 @@ def recording_video(path):
     changed=hashlib.sha256(path.read_bytes()).hexdigest()!=state.get('project_sha256')
     return output,changed
 
-def preferences_path():return Path(os.environ.get('XDG_CONFIG_HOME',str(Path.home()/'.config')))/'loomrec/preferences.json'
+def preferences_path():return paths.config('loomrec','preferences.json')
 def preferences():
     try:return json.loads(preferences_path().read_text())
     except (OSError,ValueError):return {}
 def save_preferences(**values):
-    current=preferences();current.update(values);atomic_json(preferences_path(),current)
+    current=preferences();current.update(values);atomic_write_json(preferences_path(),current)
 def videos_root():return Path(preferences().get('videos_folder',str(Path.home()/'Videos'))).expanduser()
 _MEDIA_LOCK=threading.Lock()
 def media_command(arguments,timeout,cancel=None):
@@ -79,7 +81,7 @@ class VideoLibrary(Library):
         try:return json.loads(target.read_text())
         except (OSError,ValueError):return {}
     def _write_metadata(self,path,**changes):
-        data=self._metadata(path);data.update(changes);atomic_json(self.cache/(self._key(path)+'.json'),data)
+        data=self._metadata(path);data.update(changes);atomic_write_json(self.cache/(self._key(path)+'.json'),data)
     def entries(self,query='',trash=False):
         result=super().entries(query,trash)
         if self.legacy.exists() and self.legacy.resolve()!=self.root.resolve():result+=Library(self.legacy).entries(query,trash)
@@ -153,7 +155,7 @@ class VideoLibrary(Library):
         if owner is not self:return owner.delete(path)
         if not path.resolve().is_relative_to(self.videos.resolve()) or path.is_symlink():raise ValueError('Video fuera de la biblioteca')
         dest=self.videos/'.wybie/trash'/uuid.uuid4().hex;dest.mkdir(parents=True,mode=0o700)
-        data=self._metadata(path);atomic_json(dest/'entry.json',dict(original=str(path.resolve()),name=path.name,title=data.get('title',path.stem),duration=data.get('duration',0)))
+        data=self._metadata(path);atomic_write_json(dest/'entry.json',dict(original=str(path.resolve()),name=path.name,title=data.get('title',path.stem),duration=data.get('duration',0)))
         path.rename(dest/path.name);return dest/path.name
     def restore(self,path):
         path=Path(path)

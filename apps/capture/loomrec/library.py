@@ -4,11 +4,13 @@ from pathlib import Path
 from datetime import datetime
 import os
 import uuid
-from .schema import load_project, save_project, atomic_json
+from .schema import load_project,save_project
+from wysun_core import paths
+from wysun_core.jsonio import atomic_write_json
 
 
 def default_root():
-    return Path(os.environ.get('XDG_DATA_HOME', str(Path.home()/'.local/share')))/'loomrec'/'recordings'
+    return paths.data('loomrec', 'recordings')
 
 
 @dataclass
@@ -64,7 +66,7 @@ class Library:
 
     def organize(self, path, collection):
         directory = self._directory(path)
-        atomic_json(directory/'library.json', {'collection':collection.strip()})
+        atomic_write_json(directory/'library.json', {'collection':collection.strip()})
 
     def delete(self, path):
         directory = self._directory(path)

@@ -7,7 +7,8 @@ from pathlib import Path
 from contextlib import contextmanager
 import fcntl,hashlib,json,os,signal,subprocess,sys,tempfile,time,uuid
 from datetime import datetime
-from .schema import atomic_json,project_from_dict,validate
+from .schema import project_from_dict,validate
+from wysun_core.jsonio import atomic_write_json
 
 ACTIVE={'pending','running'}
 
@@ -62,7 +63,7 @@ def _publication_lock(root):
     finally:os.close(fd)
 
 def _state(root,data,**values):
-    data.update(values,heartbeat=time.time());atomic_json(root/'finalization.json',data)
+    data.update(values,heartbeat=time.time());atomic_write_json(root/'finalization.json',data)
 
 def request(project_path,output_dir=None,*,retry=False):
     """Queue once and return immediately. retry=True explicitly snapshots new edits."""
@@ -75,7 +76,7 @@ def request(project_path,output_dir=None,*,retry=False):
         previous=status(path)
         if previous['state'] in ACTIVE:
             previous.update(state='error',error='La preparación se interrumpió. Puedes reintentar.',output=None)
-            atomic_json(root/'finalization.json',previous)
+            atomic_write_json(root/'finalization.json',previous)
         if (root/'discard.json').exists():return dict(state='cancelled',output=None,progress=0.,phase='Captura descartada',error=None,project_sha256=None)
         if previous['state']=='ready' and (not retry or previous.get('matches_project')):return previous
         if previous['state'] in {'error','cancelled'} and not retry:return previous
@@ -94,7 +95,7 @@ def request(project_path,output_dir=None,*,retry=False):
         work.mkdir(mode=0o700,exist_ok=True)
         sha=hashlib.sha256(raw).hexdigest();filename=datetime.now().strftime('Grabacion-%Y%m%d-%H%M%S-')+token[:12]+'.mp4'
         data=dict(version=1,state='pending',output=None,project_sha256=sha,progress=0.,phase='Preparando MP4',error=None,pid=None,token=token,destination=destination,filename=filename)
-        atomic_json(work/(token+'.json'),dict(project=snapshot,state=data))
+        atomic_write_json(work/(token+'.json'),dict(project=snapshot,state=data))
         _state(root,data)
         environment=os.environ.copy();package=str(Path(__file__).resolve().parent.parent)
         environment['PYTHONPATH']=package+(os.pathsep+environment['PYTHONPATH'] if environment.get('PYTHONPATH') else '')
@@ -111,10 +112,10 @@ def cancel(project_path,*,discard=False):
     """Cancel this attempt; publication and cancellation have one commit gate."""
     path=_path(project_path);root=path.parent
     with _publication_lock(root):
-        if discard:atomic_json(root/'discard.json',{'discard':True})
+        if discard:atomic_write_json(root/'discard.json',{'discard':True})
         data=_read(root/'finalization.json')
         if data.get('state') in ACTIVE and data.get('token'):
-            atomic_json(root/'.finalize'/('cancel-'+data['token']+'.json'),{'cancel':True})
+            atomic_write_json(root/'.finalize'/('cancel-'+data['token']+'.json'),{'cancel':True})
     return status(path)
 
 def _publish(source,destination,filename,cancelled,*,root=None,commit=None):

@@ -16,6 +16,8 @@ import struct
 import subprocess
 import time
 
+from wysun_core import paths
+
 HELPER=Path('/usr/libexec/wysun-pointer-helper')
 
 
@@ -31,7 +33,7 @@ def native_point(position,metadata,source_size,crop):
 def cursor_position():
     signature=os.environ.get('HYPRLAND_INSTANCE_SIGNATURE','')
     if not re.fullmatch(r'[A-Za-z0-9_.-]+',signature) or signature in ('.','..'):raise RuntimeError('Falta el identificador nativo de Hyprland')
-    runtime=Path(os.environ.get('XDG_RUNTIME_DIR','/run/user/'+str(os.getuid())))
+    runtime=paths.session_runtime_dir() or Path('/run/user',str(os.getuid()))
     path=runtime/'hypr'/signature/'.socket.sock'
     with socket.socket(socket.AF_UNIX,socket.SOCK_STREAM) as connection:
         connection.settimeout(.25);connection.connect(str(path))

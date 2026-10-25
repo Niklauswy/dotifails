@@ -31,6 +31,12 @@ class PathsTests(unittest.TestCase):
         with patch.dict(os.environ, {'XDG_RUNTIME_DIR': '/run/user/77'}):
             self.assertEqual(paths.runtime('wysun-player.sock'), Path('/run/user/77/wysun-player.sock'))
 
+    def test_session_runtime_dir_is_none_outside_a_session(self):
+        with patch.dict(os.environ, {'XDG_RUNTIME_DIR': ''}):
+            self.assertIsNone(paths.session_runtime_dir())
+        with patch.dict(os.environ, {'XDG_RUNTIME_DIR': '/run/user/77'}):
+            self.assertEqual(paths.session_runtime_dir(), Path('/run/user/77'))
+
     def test_private_dir_rejects_open_permissions(self):
         with tempfile.TemporaryDirectory() as tmp:
             created = paths.private_dir(Path(tmp) / 'new' / 'nested')

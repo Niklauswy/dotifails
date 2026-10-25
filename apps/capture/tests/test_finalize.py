@@ -3,7 +3,8 @@ from pathlib import Path
 from unittest.mock import Mock,patch
 from dataclasses import asdict
 from loomrec import finalize
-from loomrec.schema import Source,Project,Clip,atomic_json,save_project
+from loomrec.schema import Source,Project,Clip,save_project
+from wysun_core.jsonio import atomic_write_json
 from loomrec.capture import CaptureConfig,CaptureSession,append_segment
 
 class FinalizeTests(unittest.TestCase):
@@ -13,7 +14,7 @@ class FinalizeTests(unittest.TestCase):
  def tearDown(self):self.temp.cleanup()
  def test_legacy_is_none_and_old_attach_never_enables_automatic(self):
   self.assertEqual(finalize.status(self.path)['state'],'none')
-  config=asdict(CaptureConfig(str(self.root),':0',[0,0,64,64]));config.pop('auto_finalize');atomic_json(self.root/'capture.json',config)
+  config=asdict(CaptureConfig(str(self.root),':0',[0,0,64,64]));config.pop('auto_finalize');atomic_write_json(self.root/'capture.json',config)
   self.assertFalse(CaptureSession.attach(self.root).config.auto_finalize)
  def test_gains_are_persisted_on_every_segment_not_applied_to_originals(self):
   info={'format':{'duration':'2'},'streams':[{'codec_type':'video','start_time':'.1'},{'codec_type':'audio','start_time':'.1'},{'codec_type':'audio','start_time':'.1'}]}
@@ -40,7 +41,7 @@ class FinalizeTests(unittest.TestCase):
   self.assertEqual(finalize.status(self.path)['state'],'error')
  def test_ready_retry_idempotent_stale_revision_visible_and_missing_output(self):
   output=self.dest/'ready.mp4';output.write_bytes(b'owned');data=dict(state='ready',output=str(output),project_sha256=hashlib.sha256(self.path.read_bytes()).hexdigest(),progress=1.,error=None)
-  atomic_json(self.root/'finalization.json',data)
+  atomic_write_json(self.root/'finalization.json',data)
   with patch('loomrec.finalize.subprocess.Popen') as spawn:
    self.assertEqual(finalize.retry(self.path)['output'],str(output));spawn.assert_not_called()
   self.project.title='changed';save_project(self.project,self.path);self.assertFalse(finalize.status(self.path)['matches_project']);self.assertEqual(finalize.status(self.path)['state'],'ready')
@@ -54,10 +55,10 @@ class FinalizeTests(unittest.TestCase):
   with self.assertRaises(InterruptedError):finalize._publish(source,self.dest,'cancel.mp4',lambda:True)
   self.assertFalse((self.dest/'cancel.mp4').exists());self.assertFalse(list(self.dest.glob('.*.tmp')))
  def test_discard_cancels_pending_without_deleting_ready_output(self):
-  work=self.root/'.finalize';work.mkdir();atomic_json(self.root/'finalization.json',{'state':'pending','token':'owned'})
+  work=self.root/'.finalize';work.mkdir();atomic_write_json(self.root/'finalization.json',{'state':'pending','token':'owned'})
   CaptureSession(CaptureConfig(str(self.root),':0',[0,0,64,64])).stop(discard=True)
   self.assertTrue((self.root/'discard.json').exists());self.assertTrue((work/'cancel-owned.json').exists())
-  output=self.dest/'existing.mp4';output.write_bytes(b'keep');atomic_json(self.root/'finalization.json',{'state':'ready','output':str(output)})
+  output=self.dest/'existing.mp4';output.write_bytes(b'keep');atomic_write_json(self.root/'finalization.json',{'state':'ready','output':str(output)})
   finalize.cancel(self.path,discard=True);self.assertEqual(output.read_bytes(),b'keep')
  def test_missing_destination_durable_error_and_retry_preserves_sources(self):
   leases=[]
@@ -88,8 +89,8 @@ class FinalizeTests(unittest.TestCase):
   from loomrec.worker import main
   for action in ('stop','discard','signal','error'):
    with tempfile.TemporaryDirectory() as td:
-    root=Path(td);atomic_json(root/'capture.json',asdict(CaptureConfig(td,':0',[0,0,64,64],cursor=False,output_dir=str(self.dest),title='Captured title',mic_gain=.3,system_gain=1.4)))
-    if action in ('stop','discard'):atomic_json(root/'command-stop.json',{'command':'stop','discard':action=='discard'})
+    root=Path(td);atomic_write_json(root/'capture.json',asdict(CaptureConfig(td,':0',[0,0,64,64],cursor=False,output_dir=str(self.dest),title='Captured title',mic_gain=.3,system_gain=1.4)))
+    if action in ('stop','discard'):atomic_write_json(root/'command-stop.json',{'command':'stop','discard':action=='discard'})
     handlers={}
     def spawn(*args,**kwargs):
      if action=='error':raise OSError('synthetic encoder failure')

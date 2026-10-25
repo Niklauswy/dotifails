@@ -11,7 +11,8 @@ import subprocess
 import sys
 import time
 from .capture import CaptureConfig, append_segment, trim_tail
-from .schema import Project, atomic_json, save_project
+from .schema import Project,save_project
+from wysun_core.jsonio import atomic_write_json
 
 
 class StopRequested(RuntimeError):
@@ -118,7 +119,7 @@ def main(root):
     signal.signal(signal.SIGINT, stop_signal)
     def status():
         usage=resource.getrusage(resource.RUSAGE_CHILDREN)
-        atomic_json(root/'status.json', dict(state=state, error=error, pid=os.getpid(),
+        atomic_write_json(root/'status.json', dict(state=state, error=error, pid=os.getpid(),
                     heartbeat=time.time(), elapsed=round(project.duration+(time.time()-segment_started if state=='recording' and segment_started else 0),3), auto_finalize=config.auto_finalize, finalization_expected=bool(config.auto_finalize and explicit_stop and not discard and not (root/'discard.json').exists()), project_path=str(root/'project.json'), duration=project.duration, cursor_warning=cursor_warning, child_cpu_s=round(usage.ru_utime+usage.ru_stime,3), child_peak_rss_kib=usage.ru_maxrss))
     def begin():
         nonlocal segment_started, process, stem, logfile, state,cursor_recorder,cursor_helper,cursor_warning,live_failed,segment_config,mouse_effects
@@ -136,7 +137,7 @@ def main(root):
                     try:
                         from .live_cursor import LiveCursor
                         cursor_helper=LiveCursor(config.display,config.rect,config.cursor_effects).prepare()
-                        atomic_json(root/(stem+'.cursor-live.json'),{'baked':True,'effects':config.cursor_effects})
+                        atomic_write_json(root/(stem+'.cursor-live.json'),{'baked':True,'effects':config.cursor_effects})
                     except Exception as exc:
                         if cursor_helper:cursor_helper.stop();cursor_helper=None
                         live_failed=True;cursor_warning='Cursor en vivo no disponible; se usa el puntero nativo. '+str(exc)
@@ -307,7 +308,7 @@ def main(root):
             status()
             request(root/'project.json',config.output_dir)
         except Exception as exc:
-            atomic_json(root/'finalization.json',dict(state='error',output=None,project_sha256=None,progress=0.,phase='No se pudo preparar el MP4',error=str(exc)))
+            atomic_write_json(root/'finalization.json',dict(state='error',output=None,project_sha256=None,progress=0.,phase='No se pudo preparar el MP4',error=str(exc)))
 
     status()
 

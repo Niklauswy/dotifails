@@ -12,7 +12,7 @@ import stat
 import threading
 import time
 from .cursor import effect_settings, point_at, HALO_RADIUS, CLICK_DURATION, CURSOR_ACCENT
-from .schema import atomic_json
+from wysun_core.jsonio import atomic_write_json
 
 
 class TraceState:
@@ -43,7 +43,7 @@ class TraceFollower:
         self.state=TraceState(width,height);self.lock=threading.Lock();self.stop=threading.Event();self.error=None
         # Persist before the first painted frame. Exports must never apply a
         # second copy, including if telemetry fails later in this segment.
-        atomic_json(self.marker,dict(baked=True,effects=settings,backend='pipewire-bgra'))
+        atomic_write_json(self.marker,dict(baked=True,effects=settings,backend='pipewire-bgra'))
         self.thread=threading.Thread(target=self._run,name='wysun-live-effects',daemon=True);self.thread.start()
     def snapshot(self):
         if not self.lock.acquire(blocking=False):return None
@@ -73,7 +73,7 @@ class TraceFollower:
                 self.stop.wait(.01)
         except Exception as exc:
             self.error=str(exc)
-            atomic_json(self.marker,dict(baked=True,effects=self.settings,backend='pipewire-bgra',error=self.error))
+            atomic_write_json(self.marker,dict(baked=True,effects=self.settings,backend='pipewire-bgra',error=self.error))
         finally:
             if fd is not None:os.close(fd)
     def close(self):self.stop.set();self.thread.join(timeout=1)

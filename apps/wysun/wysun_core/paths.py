@@ -38,9 +38,14 @@ def bin_home():
     return home() / '.local/bin'
 
 
-def runtime_dir():
+def session_runtime_dir():
+    """The login session's runtime directory, or None outside a session (TTY scripts, some tests)."""
     value = os.environ.get('XDG_RUNTIME_DIR', '')
-    return Path(value) if os.path.isabs(value) else Path(tempfile.gettempdir())
+    return Path(value) if os.path.isabs(value) else None
+
+
+def runtime_dir():
+    return session_runtime_dir() or Path(tempfile.gettempdir())
 
 
 def config(*parts):

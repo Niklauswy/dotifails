@@ -8,7 +8,8 @@ import subprocess
 import sys
 import time
 import uuid
-from .schema import Project, Source, Clip, atomic_json, save_project, load_project
+from .schema import Project,Source,Clip,save_project,load_project
+from wysun_core.jsonio import atomic_write_json
 
 @dataclass
 class CaptureConfig:
@@ -105,7 +106,7 @@ class CaptureSession:
         return self.status()
 
     def _command(self, name, **values):
-        atomic_json(self.root/('command-'+str(time.time_ns())+'-'+uuid.uuid4().hex+'.json'), {'command': name, **values})
+        atomic_write_json(self.root/('command-'+str(time.time_ns())+'-'+uuid.uuid4().hex+'.json'), {'command': name, **values})
 
     def pause(self): self._command('pause')
     def resume(self): self._command('resume')

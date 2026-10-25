@@ -3,9 +3,9 @@ from dataclasses import dataclass, field, asdict
 from pathlib import Path
 import json
 import math
-import os
-import tempfile
 import uuid
+
+from wysun_core.jsonio import atomic_write_json
 
 @dataclass
 class Source:
@@ -154,29 +154,9 @@ def project_from_dict(data):
     return project
 
 
-def atomic_json(path, data):
-    path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, temporary = tempfile.mkstemp(prefix='.' + path.name, dir=path.parent)
-    try:
-        with os.fdopen(fd, 'w') as f:
-            json.dump(data, f, indent=2, ensure_ascii=False, allow_nan=False)
-            f.flush()
-            os.fsync(f.fileno())
-        os.replace(temporary, path)
-        dfd = os.open(path.parent, os.O_DIRECTORY)
-        try:
-            os.fsync(dfd)
-        finally:
-            os.close(dfd)
-    finally:
-        if os.path.exists(temporary):
-            os.unlink(temporary)
-
-
 def save_project(project, path):
     validate(project)
-    atomic_json(path, asdict(project))
+    atomic_write_json(path, asdict(project))
 
 
 def load_project(path):

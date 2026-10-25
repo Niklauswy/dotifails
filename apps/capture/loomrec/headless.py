@@ -9,6 +9,9 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+from wysun_core import paths
+from wysun_core.jsonio import atomic_write_json
+
 
 def default_mic():
     """Default microphone source id, or None when Pulse/PipeWire has no input."""
@@ -132,15 +135,11 @@ def notify_when_ready(project_dir, timeout=1800):
 
 def request_path():
     """Where a video to show is handed to the running window (or the next one to start)."""
-    return Path(os.environ.get('XDG_RUNTIME_DIR', '/tmp')) / f'loomrec-show-{os.getuid()}.json'
+    return paths.runtime(f'loomrec-show-{os.getuid()}.json')
 
 
 def request_show(video):
-    import json
-    path = request_path()
-    temporary = path.with_suffix('.tmp')
-    temporary.write_text(json.dumps({'video': str(video)}))
-    os.replace(temporary, path)
+    atomic_write_json(request_path(), {'video': str(video)}, indent=None)
 
 
 def take_show_request():

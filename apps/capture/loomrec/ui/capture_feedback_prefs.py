@@ -1,22 +1,19 @@
 """Countdown preference without importing Qt (the shell reads it too)."""
-import json
-import os
-from pathlib import Path
+from wysun_core import paths
+from wysun_core.jsonio import atomic_write_json, read_json
 
 
 def preference_path():
-    return Path(os.environ.get('XDG_CONFIG_HOME', str(Path.home()/'.config')))/'loomrec'/'capture-ui.json'
+    return paths.config('loomrec', 'capture-ui.json')
 
 
 def load_countdown():
-    try:return max(0, min(30, int(json.loads(preference_path().read_text()).get('countdown', 3))))
-    except (OSError, ValueError, TypeError, AttributeError):return 3
+    try:return max(0, min(30, int(read_json(preference_path(), {}).get('countdown', 3))))
+    except (ValueError, TypeError, AttributeError):return 3
 
 
 def save_countdown(value):
-    path = preference_path();path.parent.mkdir(parents=True, exist_ok=True)
-    try:data = json.loads(path.read_text())
-    except (OSError, ValueError):data = {}
+    data = read_json(preference_path(), {})
     if not isinstance(data, dict):data = {}
     data['countdown'] = max(0, min(30, int(value)))
-    temp = path.with_suffix('.tmp');temp.write_text(json.dumps(data));os.replace(temp, path)
+    atomic_write_json(preference_path(), data, indent=None)

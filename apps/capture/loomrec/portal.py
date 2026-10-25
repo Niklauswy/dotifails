@@ -21,16 +21,13 @@ class PortalCancelled(RuntimeError):pass
 
 def share_request(output):
     """Write the short-lived picker request for one named output, or None."""
-    import json,re,tempfile,time
-    from pathlib import Path
-    runtime=os.environ.get('XDG_RUNTIME_DIR')
+    import re,time
+    from wysun_core.jsonio import atomic_write_json
+    from wysun_core.paths import session_runtime_dir
+    runtime=session_runtime_dir()
     if not output or not runtime or not os.environ.get('HYPRLAND_INSTANCE_SIGNATURE'):return None
     if not re.fullmatch(r'[A-Za-z0-9._-]{1,64}',str(output)):return None
-    path=Path(runtime)/'loomrec-share-request.json'
-    try:
-        descriptor,name=tempfile.mkstemp(prefix='.loomrec-share-',dir=runtime)
-        with os.fdopen(descriptor,'w') as stream:json.dump({'output':str(output),'time':time.time()},stream)
-        os.replace(name,path);return path
+    try:return atomic_write_json(runtime/'loomrec-share-request.json',{'output':str(output),'time':time.time()},indent=None)
     except OSError:return None
 
 

@@ -9,8 +9,10 @@ per output (``monitor:DP-1``) so each screen asks for consent only once.
 import json
 import os
 import re
-import tempfile
 from pathlib import Path
+
+from wysun_core import paths
+from wysun_core.jsonio import atomic_write_text
 
 VERSION = 1
 MAX_TOKEN = 16384
@@ -29,8 +31,7 @@ def _kind(kind):
 
 
 def _root():
-    state = Path(os.environ.get('XDG_STATE_HOME', str(Path.home() / '.local/state')))
-    return state / 'loomrec'
+    return paths.state('loomrec')
 
 
 def _path():
@@ -78,20 +79,8 @@ def save(kind, token):
     tokens[kind] = token
     clean = {key: value for key, value in tokens.items() if _valid(key, value)}
     payload = {'version': VERSION, 'tokens': clean}
-    descriptor, name = tempfile.mkstemp(prefix='.screencast-', dir=root)
-    try:
-        os.fchmod(descriptor, 0o600)
-        with os.fdopen(descriptor, 'w', encoding='utf-8') as stream:
-            json.dump(payload, stream, ensure_ascii=False, separators=(',', ':'))
-            stream.write('\n')
-        os.replace(name, _path())
-        return True
-    except BaseException:
-        try:
-            os.unlink(name)
-        except OSError:
-            pass
-        raise
+    atomic_write_text(_path(), json.dumps(payload, ensure_ascii=False, separators=(',', ':')) + '\n', mode=0o600)
+    return True
 
 
 def clear(kind=None):
@@ -111,16 +100,4 @@ def clear(kind=None):
     else:
         tokens.pop(kind, None)
     payload = {'version': VERSION, 'tokens': {key: value for key, value in tokens.items() if _valid(key, value)}}
-    descriptor, name = tempfile.mkstemp(prefix='.screencast-', dir=path.parent)
-    try:
-        os.fchmod(descriptor, 0o600)
-        with os.fdopen(descriptor, 'w', encoding='utf-8') as stream:
-            json.dump(payload, stream, ensure_ascii=False, separators=(',', ':'))
-            stream.write('\n')
-        os.replace(name, path)
-    except BaseException:
-        try:
-            os.unlink(name)
-        except OSError:
-            pass
-        raise
+    atomic_write_text(path, json.dumps(payload, ensure_ascii=False, separators=(',', ':')) + '\n', mode=0o600)
