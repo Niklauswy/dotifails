@@ -196,9 +196,9 @@ class WaylandInstallTests(unittest.TestCase):
         self.assertEqual(list(self.home.iterdir()),[])
 
     def test_code_launchers_resolve_managed_code_with_separate_xdg_data(self):
-        code = self.home / '.local/share/wysun/app/wysun_services/client.py'
+        code = self.home / '.local/share/wysun/app/wysun_services/daemon.py'
         code.parent.mkdir(parents=True); (code.parent / '__init__.py').write_text('')
-        code.write_text('import sys\nprint("managed-client", *sys.argv[1:], end="")\n')
+        code.write_text('import sys\nprint("managed-daemon", *sys.argv[1:], end="")\n')
         launcher = self.home / '.local/bin/wysun'; launcher.parent.mkdir(parents=True); shutil.copy2(ROOT / 'bin/wysun', launcher)
         shell = self.home / '.local/share/wysun/quickshell'
         (shell / 'wysun').mkdir(parents=True); (shell / 'shell.qml').write_text('// fixture\n')
@@ -208,7 +208,7 @@ class WaylandInstallTests(unittest.TestCase):
         qs.write_text('#!/usr/bin/python3\nimport json,sys\nprint(json.dumps(sys.argv[1:]))\n'); qs.chmod(0o755)
         env = dict(os.environ, HOME=str(self.home), XDG_DATA_HOME=str(data), WYSUN_SHELL_CONFIG=str(shell),
                    PATH='/usr/bin:/bin')
-        self.assertEqual(subprocess.check_output([launcher, 'reload'], env=env, text=True), 'managed-client reload')
+        self.assertEqual(subprocess.check_output([launcher, 'reload'], env=env, text=True), 'managed-daemon reload')
         args = json.loads(subprocess.check_output([ROOT / 'bin/wysun-shell', 'status'], env=env, text=True))
         self.assertEqual(args, ['-p', str(shell), 'ipc', 'call', 'wysunShell', 'status'])
 
