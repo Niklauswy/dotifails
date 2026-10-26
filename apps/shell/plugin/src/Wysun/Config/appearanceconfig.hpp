@@ -175,7 +175,7 @@ FONT_STYLE(Body, u"Google Sans Flex"_s,
 FONT_STYLE(Label, u"Google Sans Flex"_s,
     FONT({ .size = 14, .weight = QFont::Medium }),
     FONT({ .size = 12, .weight = QFont::Medium }),
-    FONT({ .size = 11 })
+    FONT({ .size = 11, .weight = QFont::Medium })
 )
 FONT_STYLE(Mono, u"CaskaydiaCove Nerd Font"_s,
     FONT({ .size = 16, .vaxes = {} }),
