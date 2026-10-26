@@ -161,6 +161,22 @@ abren directamente Displays, Workspaces y Wallpaper & style.
   **Test layout** aplica una prueba de 15 segundos; **Keep changes** guarda el perfil de la combinación
   de monitores, y **Revert** recupera la disposición anterior. Un watchdog independiente también
   restaura la configuración cuando la ventana se cierra o deja de responder.
+- **Displays › Widgets on** elige **All displays** o **Primary display** (`displays.widgetScreens`, `all` o
+  `primary`, en `~/.config/wysun/environment.json`; las instalaciones existentes siguen en todas hasta cambiarlo).
+  La pantalla principal sale del perfil guardado, nunca del foco del teclado; si se desconecta, se usa otra disponible
+  y al reconectar la configuración guardada vuelve la suya. Las salidas desactivadas en el shell se excluyen. En modo
+  principal, la superficie de cajones (barra, dashboard, sesión, notificaciones, OSD…) y sus zonas de exclusión solo
+  existen en esa pantalla, y los relojes y visualizadores de las secundarias se descargan, no solo se ocultan. Los
+  wallpapers siguen en todas las salidas activas; captura, overlays de grabación, overview y lanzador conservan su
+  comportamiento multimonitor. Los atajos de cajones desde otro monitor van a la principal; el lanzador sigue al foco.
+  `wysun-shell status` informa `primaryScreen`, `widgetMode`, `widgetScreens` y `openByScreen`.
+  Para comparar el coste, alterna el modo (desde Settings o con
+  `python3 ~/.local/share/wysun/quickshell/wysun/display_bridge.py displays.widgets '{"mode":"primary"}'`), espera
+  al menos 8 s y muestrea con `python3 tests/benchmark_shell.py --label primary-1 --seconds 30 --output SALIDA.json`;
+  repite cada modo dos veces con el mismo proceso de Quickshell y sin otras pruebas ni paneles abiertos. La CPU es
+  porcentaje de un procesador lógico; el RSS incluye cachés compartidas y los contadores DRM ausentes valen null.
+  Una medición de 2026-10-23 con tres salidas 1080p observó ≈43 % menos CPU de Quickshell y ≈52 % menos tiempo de
+  render en modo principal (con el navegador en uso: observación, no benchmark controlado).
 - **Workspaces**: grupos por monitor con recuentos y estado activo, asignación persistente de los
   números 1–10, traslado entre pantallas y retirada de asignaciones vacías. Workspace 10 aparece
   como 0 en la barra y usa Super+0. **Reset assignments** pide confirmación antes de restablecer.
