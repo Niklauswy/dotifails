@@ -152,6 +152,14 @@ La galería (`python3 -m wysun_qml`) muestra cada componente con sus variantes y
   animación en curso termina en su destino. Los indicadores indeterminados se quedan quietos. No hace falta
   comprobarlo en cada app si se usan estas piezas.
 
+### Destinos de navegación
+
+`{id, icon, label}` y, opcionales: `activeIcon`, `badge` (número o punto), `trailing` (texto) o `trailingIcon`
+(p. ej. «sonando»), `image` (portada en lugar del icono en los drawers), `rail: false` (solo drawers),
+`drawer: false` (solo rail), `railLabel`/`railIcon`/`railOrder` (el rail es más corto y puede ordenar distinto).
+Separadores `{divider: true}`; cabeceras `{header, action, actionId, actionLabel}` (la acción emite
+`headerAction(actionId)`). El clic derecho en un destino emite `contextRequested(id, x, y)` en coordenadas de ventana.
+
 ## Adaptable
 
 `Metrics.windowClass(ancho)` devuelve `"modal"` (< 600), `"rail"` (600-839) o `"standard"` (≥ 840).

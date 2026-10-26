@@ -10,10 +10,15 @@ Item {
     property string currentId
     property bool menuButton
     property Component fab
-    readonly property var railDestinations: destinations.filter(d => d.id !== undefined && d.rail !== false)
+    // `railOrder` reorders the rail without touching the drawer's order.
+    readonly property var railDestinations: destinations.filter(d => d.id !== undefined && d.rail !== false).map((d, i) => ({
+                d: d,
+                i: i
+            })).sort((a, b) => (a.d.railOrder ?? a.i) - (b.d.railOrder ?? b.i) || a.i - b.i).map(e => e.d)
 
     signal selected(string id)
     signal menuRequested
+    signal contextRequested(string id, real x, real y)
 
     function step(fromId, delta) {
         const ids = railDestinations.map(d => d.id);
@@ -59,6 +64,7 @@ Item {
                 active: root.currentId === destinationId
                 onClicked: root.selected(destinationId)
                 onStepRequested: delta => root.step(destinationId, delta)
+                onContextRequested: (x, y) => root.contextRequested(destinationId, x, y)
             }
         }
     }
