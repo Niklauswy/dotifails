@@ -85,5 +85,25 @@ QtObject {
     readonly property int textFieldMinWidth: 210
     readonly property real disabledFilledField: 0.04       // md-comp-filled-text-field disabled container opacity
     readonly property int searchBarHeight: 56
+
+    // Lists (md-comp-list): one/two/three-line items 56/72/88, avatar 40, image 56
+    readonly property int listItemOneLine: 56
+    readonly property int listItemTwoLine: 72
+    readonly property int listItemThreeLine: 88
+    readonly property int listAvatarSize: 40
+    readonly property int listImageSize: 56
+
+    // Top app bar (md-comp-top-app-bar-small/medium/large): 64 / 112 / 152 high
+    readonly property int topAppBarSmall: 64
+    readonly property int topAppBarMedium: 112
+    readonly property int topAppBarLarge: 152
+
+    // Cards (md-comp-*-card): elevated cards rest at level 1
+    readonly property int cardElevation: 1
+
+    // Empty states: the emblem is larger than an avatar-sized one and springs in from this scale
+    readonly property int emptyEmblemSize: 112
+    readonly property real emptyEmblemEnterScale: 0.6
+    readonly property real emptyEmblemEnterTurn: -30
 }
 
