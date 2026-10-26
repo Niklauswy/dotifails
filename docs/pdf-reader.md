@@ -8,8 +8,11 @@ predeterminada sin pedirla.
 
 ## Biblioteca y espacio de estudio
 
-Sin argumentos, la aplicación abre la biblioteca: continuar la última lectura, buscar por título,
-abrir un PDF y volver a los documentos recientes. Alt+Home vuelve a ella sin cerrar el documento que
+Sin argumentos, la aplicación abre la biblioteca: continuar la última lectura, buscar por título o
+colección, abrir un PDF y volver a los documentos recientes. Clic derecho en un libro asigna una
+colección (una por libro); **Colecciones** filtra por ellas y **Cuaderno global** abre todas las notas.
+Si un reciente se movió, abrirlo pide localizarlo con el selector de Wysun Files y conserva su cuaderno
+(si el archivo elegido ya tenía cuaderno propio, se abre sin fusionar notas). Alt+Home vuelve a ella sin cerrar el documento que
 estabas leyendo. Las aperturas nuevas crean el historial; las rutas no pueden reconstruirse desde los
 hashes del almacén antiguo de posiciones. Ajustes permite desactivar o limpiar los recientes sin borrar
 los originales ni las notas.
@@ -26,14 +29,24 @@ abren el cuaderno y la consulta lateral. El contenido PDF y sus colores original
 ### Cuaderno
 
 Ctrl+Shift+N o Nota guarda una reflexión/pregunta junto a la cita, página y posición del pasaje.
-El botón **Guardar nota** escribe en la biblioteca local; no modifica el PDF. Todavía no hay autosave:
-los cambios pendientes se pueden guardar, descartar o conservar al cancelar una navegación/cierre.
-Las ediciones concurrentes no se sobrescriben: si otra ventana cambió la nota, el editor conserva tu
-texto y ofrece guardarlo como una entrada nueva. El cuaderno se exporta a Markdown con página y fuente.
+El cuaderno **se guarda solo**: cada cambio queda como borrador local al instante y se guarda como nota
+tras una breve pausa al escribir, al cambiar de panel o documento y al cerrar; no modifica el PDF.
+Solo si el guardado falla (otra ventana cambió la nota, disco o base bloqueados) se pregunta qué hacer;
+un fallo de almacenamiento se reintenta. **Borradores** aparece cuando quedan borradores recuperables
+(p. ej. tras una caída) y el botón deshacer, tras eliminar una nota. Las ediciones concurrentes no se
+sobrescriben: el editor conserva tu texto y ofrece guardarlo como una entrada nueva. El panel filtra por
+texto o `#etiqueta`. El cuaderno se exporta a Markdown (selector de Wysun Files) con página y fuente.
 
-Los datos viven en `$XDG_DATA_HOME/wysun/pdf-reader/study.sqlite3` (0600). Esta base contiene rutas
+**Cuaderno global y repaso** busca en las notas de todos los libros, incluidos los quitados de recientes,
+y vuelve al pasaje (abriendo el libro si hace falta). En modo repaso muestra solo preguntas: escribes tu
+respuesta, la cita y la respuesta anterior se revelan a petición y marcas «Lo comprendí» o «Seguir
+estudiando». No hay algoritmo de repetición espaciada ni calificación automática. Esc no descarta una
+respuesta escrita sin confirmarlo.
+
+Los datos viven en `$XDG_DATA_HOME/wysun/pdf-reader/study.sqlite3` (0600, modo WAL, esquema 2: documentos,
+entradas, colecciones, borradores y repasos; la migración desde el esquema 1 solo añade tablas). Esta base contiene rutas
 para permitir reabrir recientes, a diferencia de `positions.json`. Quitar un reciente conserva sus notas.
-Guardar una copia del PDF abre un cuaderno distinto. Si el archivo cambió desde que se guardó una cita,
+Guardar una copia del PDF abre un cuaderno distinto y ofrece copiar en él las notas del original (que las conserva). Si el archivo cambió desde que se guardó una cita,
 volver al pasaje pide confirmar un salto aproximado a la página; no afirma haber reconciliado el texto.
 
 ### Traducción y referencias
@@ -65,10 +78,15 @@ Sesión abre un temporizador de estudio (25 minutos por defecto) y descanso (5),
 opcional. Permite empezar, pausar, reanudar, terminar y anotar lo aprendido. El reloj queda en la cabecera
 al cerrar el panel. No inicia automáticamente al abrir un libro ni impide seguir leyendo al terminar.
 
+Cada cuatro bloques completados el descanso propuesto es largo (15 minutos por defecto, ajustable).
+El panel muestra bloques completados y minutos registrados, y **Historial de sesiones** lista las últimas
+100 (objetivo, duración, completada o terminada antes). **Lectura concentrada** (F8 o menú ⋮) oculta la
+cabecera y los paneles, deja el reloj y «Volver · F8»; Esc también sale.
+
 El estado se guarda en `$XDG_STATE_HOME/wysun/pdf-reader/focus.json`. Las ventanas del proceso comparten
-una sesión; un bloqueo impide propietarios simultáneos en procesos diferentes. Cerrar la última ventana
-pausa la sesión. Tras suspensión/interrupción se recupera pausada, sin atribuir tiempo no observado al
-estudio. No hay aún historial de sesiones ni ciclo automático de cuatro bloques/descanso largo.
+una sesión; un bloqueo impide propietarios simultáneos en procesos diferentes, y quien toma el bloqueo
+adopta la sesión y el historial guardados por el anterior. Cerrar la última ventana pausa la sesión (sin
+preguntar). Tras suspensión/interrupción se recupera pausada, sin atribuir tiempo no observado al estudio.
 
 ### Movimiento y validación visual
 
@@ -78,9 +96,15 @@ movimiento finito al hover. Todo usa tokens del kit y respeta `WYSUN_REDUCED_MOT
 Las capturas de `docs/design/pdf-study-shots/` se generan con PDFs y fondos sintéticos; las de consulta
 identifican explícitamente los resultados simulados. No son evidencia de despliegue en el escritorio.
 
-Pendientes del diseño completo: colecciones, cuaderno global, repaso pregunta/respuesta, borradores
-recuperables, relocalización de archivos movidos y métricas/historial de estudio. No se presentan como
-funciones disponibles en esta versión.
+Abrir, guardar copia, localizar un PDF movido y exportar usan el selector de Wysun Files en un proceso
+aparte (`wysun_files.picker`, petición/respuesta JSON); la ventana queda deshabilitada mientras tanto y,
+si se cierra, primero se cierra el selector.
+
+Límites conocidos: una colección por libro; la relocalización no verifica huella del archivo; deshacer
+una eliminación no recupera la marca de repaso; la migración de esquema no hace copia previa (es
+aditiva); el SQLite corre en el hilo de interfaz con espera máxima de 1 s; el temporizador no se
+sincroniza en vivo entre procesos; cerrar la última ventana pausa sin ofrecer elección. Sin mediciones
+de RSS/fps con bibliotecas grandes.
 
 ## Lectura
 
@@ -122,7 +146,7 @@ Ctrl+O abrir · Ctrl+S guardar · Ctrl+Shift+S copia · Ctrl+F buscar · Enter/S
 coincidencias · Esc limpiar · Ctrl+C copiar · Ctrl+H resaltar · Ctrl+U subrayar · Ctrl+G ir a página ·
 Alt+←/→ página anterior/siguiente · RePág/AvPág, Espacio/Shift+Espacio desplazan una pantalla · Inicio/Fin ·
 Ctrl+rueda, Ctrl++/− zoom · Ctrl+0 ancho · Ctrl+9 página · Ctrl+2 una/dos páginas · F9 panel · F1 atajos ·
-Ctrl+Shift+N reflexión · Alt+Home biblioteca · Ctrl+W / Ctrl+Q cerrar.
+Ctrl+Shift+N reflexión · Alt+Home biblioteca · F8 lectura concentrada · Ctrl+W / Ctrl+Q cerrar.
 
 La selección usa el orden de lectura del motor y coordenadas de palabras, compensando la rotación de la
 página. Los PDFs escaneados sin capa de texto se pueden leer y anotar con notas, pero no buscar ni subrayar;

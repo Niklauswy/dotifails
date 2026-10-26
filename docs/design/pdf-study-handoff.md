@@ -1,4 +1,37 @@
-# Estado actual — 2026-10-26, continuación en pdf-v2
+# Estado actual — 2026-10-26 (cierre de revisión, rama pdf-v2)
+
+Esta sección prevalece sobre todo lo que sigue (registro histórico).
+
+Terminado y verificado:
+- Biblioteca con recientes, colecciones (una por libro), cuaderno global y repaso de preguntas; cuaderno por
+  libro con autoguardado, borradores recuperables, filtro/#etiquetas, deshacer eliminación; consultas
+  (MyMemory/Wikipedia) con consentimiento revocable; sesiones con descanso largo cada 4 bloques, historial
+  y lectura concentrada (F8); abrir/guardar/exportar/localizar con el selector de Wysun Files.
+- Revisión visual: 70 capturas (`docs/design/pdf-study-shots/`, base/teal/amber × claro/oscuro, más
+  estrechas 720×480) regeneradas y revisadas una a una. Corregidos plurales, acciones de biblioteca,
+  herramientas del cuaderno visibles solo cuando sirven, orden del panel de sesión, campos de duración
+  tokenizados sin flechas del host, barra de lectura concentrada, diálogo de repaso compacto y márgenes
+  de Ajustes.
+- Revisión de código (revisor independiente sobre `git diff main...HEAD`), aplicada: salir guarda la nota
+  en vez de preguntar; texto escrito durante una apertura se guarda en su libro; SQLite en WAL con espera
+  de 1 s y reintento del autoguardado; Guardar copia ofrece copiar el cuaderno; quien toma el bloqueo del
+  temporizador adopta sesión e historial persistidos y terminar exige ser propietario; un selector por
+  ventana y cierre diferido; relocalizar no roba otro cuaderno; Esc no descarta respuestas de repaso.
+- Suite PDF estabilizada: abortaba por corrupción de heap al destruir con GC padres con borrados
+  diferidos pendientes (pruebas de consulta y movimiento); ahora se vacían antes.
+- Ventana real en Hyprland con HOME/XDG temporales: lectura, cuaderno (autoguardado comprobado en la
+  base), sesión, lectura concentrada, biblioteca con colección, cuaderno global/repaso y selector de
+  Files (cerrado con el compositor, devuelve cancelación). Sin errores en stderr salvo el aviso de Qt
+  «setting window opacity» del plugin Wayland.
+
+Pendiente (no bloquea la fusión; documentado en `docs/pdf-reader.md`): varias colecciones por libro,
+verificación de huella al relocalizar, copia previa a migraciones, I/O SQLite fuera del hilo de interfaz,
+sincronización en vivo del temporizador entre procesos, elección explícita al cerrar con sesión activa,
+recuperar la marca de repaso al deshacer, mediciones de RSS/fps. No se ha desplegado.
+
+---
+
+# Estado anterior — 2026-10-26, continuación en pdf-v2
 
 Esta actualización prevalece sobre el registro histórico que sigue.
 
