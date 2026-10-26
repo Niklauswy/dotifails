@@ -40,6 +40,9 @@ class QmlMusicWindow:
         from .playback import LyricsBridge
         self.lyrics = LyricsBridge(self.library, self.covers.metadata, self.player, self.engine)
         self.bridges['lyrics'] = self.lyrics
+        from .addmusic import AddMusic
+        self.addmusic = AddMusic(self.library, self.covers.metadata, self.engine)
+        self.bridges['addMusic'] = self.addmusic
 
     # ----------------------------------------------------------------- window
     def present(self):

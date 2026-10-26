@@ -188,6 +188,14 @@ Window {
         }
 
         Connections {
+            target: addMusic
+
+            function onNavigateRequested(route) {
+                window.navigate(route, true);
+            }
+        }
+
+        Connections {
             target: player
 
             function onMessage(text) {
@@ -442,6 +450,10 @@ Window {
                 onActivated: window.focusContent()
             }
             Shortcut {
+                sequence: "Ctrl+O"
+                onActivated: addMusic.importFiles()
+            }
+            Shortcut {
                 sequence: "Ctrl+N"
                 onActivated: playlistDialogs.newPlaylist([])
             }
@@ -513,7 +525,7 @@ Window {
                 sequence: "Alt+5"
                 onActivated: {
                     window.navigate("downloads");
-                    typeof addMusic !== "undefined" && addMusic.importFiles();
+                    addMusic.importFiles();
                 }
             }
     
