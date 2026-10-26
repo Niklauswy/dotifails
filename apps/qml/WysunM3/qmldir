@@ -20,3 +20,10 @@ Button 1.0 controls/Button.qml
 IconButton 1.0 controls/IconButton.qml
 Fab 1.0 controls/Fab.qml
 SegmentedButtons 1.0 controls/SegmentedButtons.qml
+Chip 1.0 controls/Chip.qml
+Badge 1.0 feedback/Badge.qml
+LinearProgress 1.0 feedback/LinearProgress.qml
+CircularProgress 1.0 feedback/CircularProgress.qml
+Divider 1.0 containers/Divider.qml
+ShapeEmblem 1.0 shapes/ShapeEmblem.qml
+internal CookieShape shapes/CookieShape.qml

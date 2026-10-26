@@ -57,4 +57,25 @@ QtObject {
 
     // Segmented button (md-comp-outlined-segmented-button): 40 high, 18 icon, 1 dp outline
     readonly property int segmentedHeight: 40
+
+    // Chips (md-comp-*-chip): 32 high, 18 icon, 24 avatar; 16 leading/trailing space, 8 next to an icon
+    readonly property int chipHeight: 32
+    readonly property int chipIconSize: 18
+    readonly property int chipAvatarSize: 24
+    readonly property int chipPadding: 16
+    readonly property int chipPaddingWithIcon: 8
+
+    // Badge (md-comp-badge): small dot 6, large 16 high; counts above the max show "max+"
+    readonly property int badgeSmall: 6
+    readonly property int badgeLarge: 16
+    readonly property int badgeMaxCount: 99
+
+    // Progress indicators (md-comp-*-progress-indicator, expressive): track 4, gap 4, stop dot 4; circular 48
+    readonly property int progressThickness: 4
+    readonly property int progressGap: 4
+    readonly property int circularProgressSize: 48
+
+    // Expressive emblem (a shaped container for an icon or artwork next to a title): 56 like a large avatar
+    readonly property int emblemSize: 56
 }
+
