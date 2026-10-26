@@ -41,6 +41,25 @@ MATERIAL_TOKEN_ROLES = {
 }
 
 
+# The Material roles of scheme.json that apps may use directly, as ``m3<role>`` (the shell's names, also
+# the QML base's Theme.m3*): one list, kept in step with apps/qml/WysunM3/Theme.qml by a test.
+MATERIAL_ROLE_NAMES = (
+    'background', 'onBackground', 'surface', 'surfaceDim', 'surfaceBright', 'surfaceContainerLowest',
+    'surfaceContainerLow', 'surfaceContainer', 'surfaceContainerHigh', 'surfaceContainerHighest', 'onSurface',
+    'surfaceVariant', 'onSurfaceVariant', 'outline', 'outlineVariant', 'inverseSurface', 'inverseOnSurface',
+    'inversePrimary', 'shadow', 'scrim', 'surfaceTint',
+    'primary', 'onPrimary', 'primaryContainer', 'onPrimaryContainer',
+    'secondary', 'onSecondary', 'secondaryContainer', 'onSecondaryContainer',
+    'tertiary', 'onTertiary', 'tertiaryContainer', 'onTertiaryContainer',
+    'error', 'onError', 'errorContainer', 'onErrorContainer',
+    'success', 'onSuccess', 'successContainer', 'onSuccessContainer')
+
+
+def m3_roles(colours):
+    """``{'m3primary': '#rrggbb', ...}`` for the Material roles present in a scheme's ``colours``."""
+    return {'m3' + role: '#' + colours[role].lower() for role in MATERIAL_ROLE_NAMES if colours.get(role)}
+
+
 def data():
     global _data
     if _data is None:
@@ -220,6 +239,7 @@ def resolve(mode):
     for group in SHAPE_GROUPS:
         tokens.update(flatten(data()[group], group))
     tokens.update(palette['colors'])
+    tokens.update(m3_roles(palette['scheme']))
     tokens.update(mode=mode, external=palette['external'], wallpaper=default_wallpaper(),
                   material=palette['material'], translucent=palette['translucent'])
     return tokens
@@ -231,6 +251,7 @@ def overlay_material_roles(tokens, scheme):
         return tokens
     colours = scheme.get('colours', {})
     result = dict(tokens)
+    result.update(m3_roles(colours))          # direct roles; the ones the scheme lacks keep the base palette's
     for role, token in MATERIAL_TOKEN_ROLES.items():
         value = colours.get(role)
         if value and token in result:

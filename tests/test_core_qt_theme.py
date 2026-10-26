@@ -55,6 +55,12 @@ class QtThemeTests(unittest.TestCase):
         self.assertIn('padding: 8px;', text)
         self.assertNotIn('@', text)
 
+    def test_color_accepts_the_direct_m3_roles(self):
+        theme.write_scheme(dict(SCHEME, colours=dict(SCHEME['colours'], secondaryContainer='123456')))
+        qt_theme.invalidate()
+        self.assertEqual(qt_theme.color('m3secondaryContainer').name(), '#123456')
+        self.assertEqual(qt_theme.color('m3secondaryContainer', alpha=64).alpha(), 64)
+
     def test_fonts_use_the_shell_type_scale_in_points(self):
         body = qt_theme.font('body.medium')
         self.assertEqual(body.pointSizeF(), 14)

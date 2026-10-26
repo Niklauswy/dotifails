@@ -36,6 +36,10 @@ class RoleTests(unittest.TestCase):
                          'success', 'onSuccess', 'successContainer', 'onSuccessContainer'):
             self.assertIn(required, ROLES)
 
+    def test_role_list_matches_wysun_core_theme(self):
+        from wysun_core import theme
+        self.assertEqual(sorted(ROLES), sorted(theme.MATERIAL_ROLE_NAMES))
+
     def test_roles_use_the_m3_prefix_and_never_a_bare_handler_name(self):
         self.assertFalse(re.search(r'property\s+color\s+on[A-Z]', THEME_QML), 'a bare onSurface is a signal handler in QML')
         self.assertIn('onSurface', ROLES)
