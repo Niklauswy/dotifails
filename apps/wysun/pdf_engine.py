@@ -1,5 +1,6 @@
 """Local PDF engine. Owned exclusively by the reader's worker process."""
 import json
+import os
 from pathlib import Path
 import sys
 
@@ -177,8 +178,13 @@ def _excerpt(line, term):
 
 
 def main():
+    # The protocol owns a private copy of stdout; fd 1 then points at stderr, so MuPDF's messages (which
+    # PyMuPDF prints on stdout by default, e.g. when it repairs a damaged file) never reach the reader.
+    sys.stdout.flush()
+    out = os.fdopen(os.dup(1), 'wb')
+    os.dup2(2, 1)
+    sys.stdout = sys.stderr
     engine = PdfEngine()
-    out = sys.stdout.buffer
     for line in sys.stdin:
         blob = b''
         try:

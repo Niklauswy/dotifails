@@ -1,5 +1,8 @@
 import importlib.util
+import json
+import os
 from pathlib import Path
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -31,6 +34,30 @@ class EngineTests(unittest.TestCase):
         if self.engine.doc:
             self.engine.doc.close()
         self.tmp.cleanup()
+
+    def test_mupdf_messages_stay_off_the_protocol(self):
+        # MuPDF reports repairs of damaged files on stdout by default; that would desynchronise every reply.
+        doc = fitz.open()
+        doc.new_page().insert_text((72, 72), 'damaged')
+        broken = Path(self.tmp.name) / 'broken.pdf'
+        broken.write_bytes(doc.tobytes(deflate=False).replace(b'stream\n', b'stream\nGARBAGE((( ', 1))
+        doc.close()
+        engine = Path(__file__).resolve().parents[2] / 'apps/wysun/pdf_engine.py'
+        requests = [{'op': 'open', 'args': {'path': str(broken)}}, {'op': 'render', 'args': {'page': 0, 'width': 120}},
+                    {'op': 'page_info', 'args': {'page': 0}}]
+        env = dict(os.environ, PYTHONPATH=os.pathsep.join(sys.path))
+        out = subprocess.run([sys.executable, str(engine)], input=''.join(json.dumps(r) + '\n' for r in requests).encode(),
+                             capture_output=True, env=env, timeout=30, check=True).stdout
+        replies = []
+        while out:
+            line, _, out = out.partition(b'\n')
+            reply = json.loads(line)
+            out = out[reply.get('blob', 0):]
+            replies.append(reply)
+        self.assertEqual([('error' in r) for r in replies], [False, False, False])
+        self.assertEqual(replies[0]['result']['pages'], 1)
+        self.assertIn('stride', replies[1]['result'])
+        self.assertIn('words', replies[2]['result'])
 
     def test_rotated_selection_and_native_annotations_roundtrip(self):
         for page in range(4):
