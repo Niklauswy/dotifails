@@ -12,3 +12,6 @@ TransitionHost 1.0 motion/TransitionHost.qml
 FadeThrough 1.0 motion/FadeThrough.qml
 SharedAxis 1.0 motion/SharedAxis.qml
 ContainerTransform 1.0 motion/ContainerTransform.qml
+StateLayer 1.0 StateLayer.qml
+FocusRing 1.0 FocusRing.qml
+Surface 1.0 Surface.qml

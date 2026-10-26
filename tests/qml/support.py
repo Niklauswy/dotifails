@@ -211,6 +211,7 @@ class Harness:
         view.show()
         self.views.append(view)
         self.pump(30)
+        self.move(view, -5, -5)          # park the pointer: a new view must not start hovered by the previous test
         return view
 
     def grab(self, view):
@@ -221,10 +222,20 @@ class Harness:
         view = self.view(body, width, height, imports)
         return view, self.grab(view)
 
+    def _dispose(self, view):
+        from PySide6.QtCore import QUrl
+        view.setSource(QUrl())
+        view.destroy()
+        view.deleteLater()
+
     def close_views(self):
+        from PySide6.QtCore import QUrl
         for view in self.views:
+            view.setSource(QUrl())          # drops the scene (and its bindings on `bridge`) before the view goes
             view.destroy()
+            view.deleteLater()
         self.views.clear()
+        self.pump()
 
     def root(self, view):
         return view.rootObject()
@@ -240,8 +251,8 @@ class Harness:
         """A property or function result of the Theme singleton, read through a probe item."""
         view = self.view('function read(n) { return Theme[n] }', 10, 10)
         value = self.call(view.rootObject(), 'read', name)
-        view.destroy()
         self.views.remove(view)
+        self._dispose(view)
         return value
 
     def pixel(self, image, x, y):
@@ -253,6 +264,51 @@ class Harness:
         view = self.view('function all(names) { var o = {}; for (var i = 0; i < names.length; ++i) '
                          'o[names[i]] = Theme["m3" + names[i]].toString(); return o }', 10, 10)
         value = self.call(view.rootObject(), 'all', list(names))
-        view.destroy()
         self.views.remove(view)
+        self._dispose(view)
         return dict(value)
+
+    # -- input (QtTest is not in the shell runtime: events are built from QtGui) ----------------------------
+    def _mouse(self, view, kind, x, y, button, buttons):
+        from PySide6.QtCore import QPointF, Qt
+        from PySide6.QtGui import QGuiApplication, QMouseEvent
+        local = QPointF(float(x), float(y))
+        event = QMouseEvent(kind, local, view.mapToGlobal(local), button, buttons, Qt.NoModifier)
+        QGuiApplication.sendEvent(view, event)
+        self.pump(20)
+
+    def move(self, view, x, y):
+        from PySide6.QtCore import QEvent, Qt
+        self._mouse(view, QEvent.MouseMove, x, y, Qt.NoButton, Qt.NoButton)
+
+    def press(self, view, x, y):
+        from PySide6.QtCore import QEvent, Qt
+        self._mouse(view, QEvent.MouseButtonPress, x, y, Qt.LeftButton, Qt.LeftButton)
+
+    def release(self, view, x, y):
+        from PySide6.QtCore import QEvent, Qt
+        self._mouse(view, QEvent.MouseButtonRelease, x, y, Qt.LeftButton, Qt.NoButton)
+        # Qt does not refresh hover for the first move after a release; spend it here, one pixel aside.
+        self._mouse(view, QEvent.MouseMove, x + 1, y, Qt.NoButton, Qt.NoButton)
+
+    def click(self, view, x, y):
+        self.move(view, x, y)
+        self.press(view, x, y)
+        self.release(view, x, y)
+
+    def key(self, view, key, modifiers=None, text=''):
+        from PySide6.QtCore import QEvent, Qt
+        from PySide6.QtGui import QGuiApplication, QKeyEvent
+        mods = modifiers if modifiers is not None else Qt.NoModifier
+        QGuiApplication.sendEvent(view, QKeyEvent(QEvent.KeyPress, key, mods, text))
+        QGuiApplication.sendEvent(view, QKeyEvent(QEvent.KeyRelease, key, mods, text))
+        self.pump(20)
+
+    def type_text(self, view, text):
+        from PySide6.QtCore import QEvent, Qt
+        from PySide6.QtGui import QGuiApplication, QKeyEvent
+        for char in text:
+            code = ord(char.upper()) if char.isalnum() else 0
+            QGuiApplication.sendEvent(view, QKeyEvent(QEvent.KeyPress, code, Qt.NoModifier, char))
+            QGuiApplication.sendEvent(view, QKeyEvent(QEvent.KeyRelease, code, Qt.NoModifier, char))
+        self.pump(20)

@@ -18,4 +18,19 @@ QtObject {
     readonly property real fadeThroughScale: 0.92
     readonly property real sharedAxisZSmall: 0.8
     readonly property real sharedAxisZLarge: 1.1
+
+    // Disabled controls: container 10 %, content 38 % of onSurface (md.sys.state / md-comp-*-disabled-*-opacity)
+    readonly property real disabledContainer: 0.10
+    readonly property real disabledContent: 0.38
+
+    // Focus indicator (md.sys.state.focus-indicator): 3 dp thick, 2 dp outside the control
+    readonly property int focusRingWidth: 3
+    readonly property int focusRingOffset: 2
+
+    // Surface tint by elevation level 0-5 (md.sys.elevation: 0, 5, 8, 11, 12, 14 %)
+    readonly property var elevationTint: [0, 0.05, 0.08, 0.11, 0.12, 0.14]
+
+    readonly property real disabledOutline: 0.12
+    // Raised surfaces: stacked translucent layers of the shadow colour (no effects module needed)
+    readonly property real shadowLayerOpacity: 0.06
 }
