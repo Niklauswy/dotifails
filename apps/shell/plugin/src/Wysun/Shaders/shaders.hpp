@@ -43,6 +43,9 @@ public:                                                                         
                                                                                                                        \
 private:
 
+    // The wallpaper picker's own handoff (the landed card swelling into the wallpaper), not a
+    // background transition: it is drawn by the picker over the desktop.
+    TRANSITION(cardBloom, "card-bloom", extraLarge, config::AnimTokens::instance()->emphasized())
     TRANSITION(chromaticBloom, "chromatic-bloom", large, QEasingCurve::Linear)
     TRANSITION(colourDistance, "colour-distance", large, config::AnimTokens::instance()->expressiveSlowEffects())
     TRANSITION(crossfade, "crossfade", large, config::AnimTokens::instance()->expressiveSlowEffects())
