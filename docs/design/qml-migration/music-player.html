@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reproductor y cola · Wysun Music · Material 3 Expressive</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Google+Sans+Flex:opsz,wght@6..144,400..700&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400,0..1,0&display=swap">
+<link rel="stylesheet" href="music-shared.css">
+<link rel="stylesheet" href="music-screens.css">
+</head>
+<body>
+<div id="doc"></div>
+<script src="music-shared.js"></script>
+<script src="music-screens.js"></script>
+<script>
+const PAGES = [['music-library.html', 'Biblioteca'], ['music-album.html', 'Álbum / lista / artista'], ['music-player.html', 'Reproductor y cola'], ['music-search.html', 'Búsqueda y añadir música']];
+const S = MX.screens, ms = MX.ms;
+const sec = (id, h, sub, inner) => `<section id="${id}"><h2>${h}</h2><p class="sub">${sub}</p>${inner}</section>`;
+const lbl = (t) => `<div class="lbl">${t}</div>`;
+
+MX.onTab = (section, tab) => {
+  const win = section.closest('.win'); win.querySelector('.content').innerHTML = S.library(tab);
+};
+const three = (route, content, extra = {}) => `<div class="widths3">
+  <div>${lbl('Compacto · &lt; 600 px · drawer modal desde el botón de menú')}${MX.win({ route, content, width: 400, navOpen: true, ...extra })}</div>
+  <div>${lbl('Medio · 600–839 px · navigation rail 80 px')}${MX.win({ route, content, width: 720, ...extra })}</div>
+  <div>${lbl('Amplio · ≥ 840 px · navigation drawer estándar 280 px')}${MX.win({ route, content, width: 1040, ...extra })}</div></div>`;
+const gallery = [['grafito', 'Grafito (tu wallpaper)'], ['indigo', 'Índigo'], ['ambar', 'Ámbar'], ['salvia', 'Salvia']].map(([p, name]) =>
+  ['dark', 'light'].map((m) => `<div>${lbl(name + ' · ' + (m === 'dark' ? 'oscuro' : 'claro'))}<div style="zoom:.5">${MX.win({ route: 'home', content: S.home(), width: 1040, fixed: true, palette: p, mode: m, cls: 'short' })}</div></div>`).join('')).join('');
+const DOC = `<h1>Wysun Music · reproductor, letra y cola</h1>
+<p class="sub">La cápsula inferior (M-45) lleva portada que gira en cookie mientras suena, título, corazón, transporte con el play que se transforma, la onda de progreso (flechas ±5 s, M-46) y letra · cola · volumen. Al pulsar la portada se abre «Ahora suena» con un container transform.</p>
+${sec('capsula', 'Cápsula del reproductor', 'Sonando, en pausa y sin nada en la cola; en compacto se reduce a portada, título y play.', `<div class="stack">${lbl('Sonando · amplio')}${S.capsule(1040, {})}${lbl('En pausa · medio')}${S.capsule(720, { playing: false })}${lbl('Vacía · compacto')}${S.capsule(400, { empty: true })}</div>`)}
+${sec('ahora', 'Ahora suena', 'Portada grande en forma expresiva, controles, y a la derecha letra sincronizada (LRCLIB, desfase ajustable, clic en una línea salta) o la cola.', `<div class="stack">${lbl('Letra sincronizada')}${S.nowPlaying({})}${lbl('Cola')}${S.nowPlaying({ tab: 'queue' })}
+  <div class="widths3" style="grid-template-columns:repeat(3,520px)">${['loading', 'instr', 'missing'].map((s) => `<div>${lbl({ loading: 'Buscando letra', instr: 'Instrumental', missing: 'Sin letra' }[s])}<div style="zoom:.5">${S.nowPlaying({ lyricState: s })}</div></div>`).join('')}</div>
+  ${lbl('Cola vacía')}<div style="zoom:.5">${S.nowPlaying({ tab: 'queue', queueEmpty: true })}</div></div>`)}
+${sec('pausa', 'En pausa · claro', 'La portada vuelve a círculo y deja de girar.', S.nowPlaying({ playing: false, mode: 'light', palette: 'indigo' }))}`;
+document.getElementById('doc').innerHTML = MX.controls(PAGES, 'music-player.html') + '<div class="doc">' + DOC + '</div>';
+</script>
+</body>
+</html>
