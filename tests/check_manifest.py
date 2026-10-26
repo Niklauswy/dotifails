@@ -24,11 +24,13 @@ for base in ('config','apps','bin','assets'):
   if p.is_symlink():
    assert not p.readlink().is_absolute(),str(p)
    assert p.exists(),str(p)
-  if p.is_file() and p.suffix in ('.py','.sh','.lua','.ini','.toml'):
+  if p.is_file() and p.suffix in ('.py','.sh','.lua','.ini','.toml','.qml'):
    text=p.read_text()
    assert not re.search(r'/home/nicolas|~/proyects/|\.local/opt/',text),str(p)
    assert not re.search(r'\brofi(?:\s|/|-)',text,re.I),str(p)
   assert p.suffix not in ('.sqlite3','.db'),str(p)
+for p in (root/'apps/qml').rglob('*'):
+ if p.is_file():assert not p.stat().st_mode&0o111,'the installer fingerprint includes file modes; the QML library ships as plain, non-executable files: '+str(p)
 runtime=json.loads((root/'manifests/runtime.json').read_text())
 for name,source in runtime['sources'].items():
  assert source['url'].startswith('https://'),name

@@ -66,6 +66,7 @@ def configure(deployment):
     # Shared applications retain their existing storage and command identities.
     for source, target in (('apps/python', '.local/share/wysun/app'),
                            ('apps/tools', '.local/share/wysun/tools'),
+                           ('apps/qml', '.local/share/wysun/qml'),
                            ('apps/shell', '.local/share/wysun/quickshell')):
         if not (d.source / source).is_dir():
             raise RuntimeError('Fuente incompleta: ' + source)
@@ -74,6 +75,7 @@ def configure(deployment):
         return
     deploy_tokens(d)
     ensure_runtime(d)
+    ensure_qml_runtime(d)
     for name in SESSION_COMMANDS:
         _publish(d, (d.source / 'bin' / name).read_text(), '.local/bin/' + name, executable=True)
     # A terminal must remain reachable even without the optional terminal component.
@@ -138,6 +140,24 @@ def ensure_runtime(deployment):
     run([sys.executable, d.source / 'installer/runtime_build.py', '--prefix', prefix], env=env)
 
 
+def ensure_qml_runtime(deployment):
+    """Create or refresh the private PySide6 venv the QML apps run in (idempotent; a network failure only warns)."""
+    d = deployment
+    if os.environ.get('WYSUN_SKIP_RUNTIME') == '1':
+        return
+    import qml_runtime
+    prefix = d.home / '.local/share/wysun/qml-runtime'
+    version = qml_runtime.wanted_version(d.source / 'manifests/runtime.json')
+    try:
+        if not qml_runtime.needs_update(prefix, version):
+            return
+        d.stage('Runtime QML de Wysun (PySide6 ' + version + ' sobre el Qt del shell)')
+        qml_runtime.ensure(prefix, version)
+    except (subprocess.CalledProcessError, OSError) as error:
+        print('AVISO: no se pudo preparar qml-runtime (' + str(error) + '). Las apps QML no arrancarán hasta que '
+              'se cree: python3 installer/qml_runtime.py', file=sys.stderr, flush=True)
+
+
 def update_runtime(deployment):
     """Application-only update when the optional shell is already managed."""
     d = deployment
@@ -145,9 +165,12 @@ def update_runtime(deployment):
         return
     from capture_distribution import _publish
     d.deploy(d.source / 'apps/shell', Path('.local/share/wysun/quickshell'))
+    if (d.source / 'apps/qml').is_dir():
+        _publish_asset(d, d.source / 'apps/qml', '.local/share/wysun/qml')
     if not d.conflicts:
         deploy_tokens(d)
         ensure_runtime(d)
+        ensure_qml_runtime(d)
     for name in SESSION_COMMANDS:
         _publish(d, (d.source / 'bin' / name).read_text(), '.local/bin/' + name, executable=True)
 

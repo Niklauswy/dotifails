@@ -33,7 +33,7 @@ class WaylandInstallTests(unittest.TestCase):
         self.source.mkdir()
         # Use a tiny shell fixture until/without a real compositor. All other
         # distribution code is the actual source under test.
-        for relative in ('installer', 'manifests', 'bin', 'config', 'assets/backgrounds', 'apps/python', 'apps/tools', 'apps/recorder'):
+        for relative in ('installer', 'manifests', 'bin', 'config', 'assets/backgrounds', 'apps/python', 'apps/tools', 'apps/qml', 'apps/recorder'):
             shutil.copytree(ROOT / relative, self.source / relative,
                             ignore=shutil.ignore_patterns('__pycache__', '*.pyc'))
         (self.source / 'apps/shell').mkdir()
@@ -145,6 +145,16 @@ class WaylandInstallTests(unittest.TestCase):
         self.assertEqual(config.read_text(), '-- personal bindings\n')
         self.assertEqual((self.home / '.local/share/wysun/quickshell/shell.qml').read_text(), '// new shell code\n')
         self.assertFalse((self.home / '.config/sxhkd').exists())
+
+    def test_qml_library_is_deployed_next_to_quickshell_and_updated_with_wysun_only(self):
+        self.assertEqual(self.install(), 0)
+        library = self.home / '.local/share/wysun/qml'
+        self.assertTrue((library / 'WysunM3/qmldir').is_file())
+        (self.source / 'apps/qml/WysunM3/Extra.qml').write_text('import QtQuick\nItem {}\n')
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(installer.main(['install', '--source', str(self.source),
+                '--target-home', str(self.home), '--wysun-only']), 0)
+        self.assertTrue((library / 'WysunM3/Extra.qml').is_file())
 
     def test_incompatible_packages_fail_before_journal_or_deployment(self):
         with patch.object(installer, 'host_supported', return_value={'ID': 'parrot'}), \
