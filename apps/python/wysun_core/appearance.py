@@ -16,6 +16,11 @@ def preference_path(home=None):
     return root / 'wysun/appearance.json'
 
 
+def invalidate():
+    """Forget the half-second read cache (a watcher saw the file change)."""
+    _cache.clear()
+
+
 def read_appearance(home=None):
     path = preference_path(home)
     now = time.monotonic()

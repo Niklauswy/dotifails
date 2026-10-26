@@ -134,6 +134,9 @@ class EngineTests(unittest.TestCase):
     def test_quick_shapes_import(self):
         self.load('import QtQuick\nimport QtQuick.Shapes\nItem {}')
 
+    def test_base_library_import(self):
+        self.load('import QtQuick\nimport WysunM3\nItem { property color c: Theme.m3primary }')
+
     def test_m3shapes_import(self):
         self.load('import QtQuick\nimport M3Shapes\nItem {}')
 

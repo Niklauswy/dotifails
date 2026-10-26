@@ -277,6 +277,19 @@ def overlay_material_roles(tokens, scheme):
 
 
 
+def active_scheme(home=None, environ=None):
+    """``{'mode', 'colours'}``: the wallpaper's Material roles, else the base palette's scheme of the active mode.
+
+    This is what a host hands to a Material consumer (the QML base's ``Theme``): direct role names,
+    one value per role, never partial (a missing or broken ``scheme.json`` gives the base palette).
+    """
+    mode = active_mode(home, environ)
+    scheme = None if _override(environ) else read_scheme(home)
+    if scheme is not None:
+        return {'mode': scheme['mode'], 'colours': dict(scheme['colours'])}
+    return {'mode': mode, 'colours': dict(data()['palettes'][mode]['scheme'])}
+
+
 def resolve_active(home=None, environ=None):
     """Tokens of the active mode with the wallpaper's colours on top (none under WYSUN_THEME)."""
     values = resolve(active_mode(home, environ))

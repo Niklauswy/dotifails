@@ -1,1 +1,6 @@
 module WysunM3
+singleton Theme 1.0 Theme.qml
+singleton Metrics 1.0 Metrics.qml
+Label 1.0 Label.qml
+Icon 1.0 Icon.qml
+ThemeFeed 1.0 ThemeFeed.qml
