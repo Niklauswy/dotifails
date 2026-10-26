@@ -18,4 +18,8 @@ QString monitorConfigDir() {
     return configDir() + u"/monitors"_s;
 }
 
+QString tokensPath() {
+    return QStandardPaths::locate(QStandardPaths::GenericDataLocation, u"wysun/theme/tokens.json"_s);
+}
+
 } // namespace wysun::config

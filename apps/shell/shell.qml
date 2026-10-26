@@ -48,6 +48,7 @@ ShellRoot {
     }
 
     FontLoader { source: Quickshell.shellPath("assets/fonts/MaterialSymbolsRounded.ttf") }
+    FontLoader { source: Quickshell.shellPath("assets/fonts/CaskaydiaCoveNerdFont-Regular.ttf") }
 
     // Modules
     Background {}

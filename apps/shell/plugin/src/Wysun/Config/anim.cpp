@@ -13,7 +13,7 @@ AnimTokens::AnimTokens(QObject* parent)
     : QObject(parent) {
     QQmlEngine::setObjectOwnership(this, QQmlEngine::CppOwnership);
     bindDurations(ConfigSingleton::instance()->appearance()->anim()->durations());
-    bindCurves(TokensSingleton::instance()->appearance()->curves());
+    bindCurves(TokensRoot::instance()->appearance()->curves());
 }
 
 AnimTokens* AnimTokens::instance() {

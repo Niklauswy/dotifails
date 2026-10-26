@@ -68,6 +68,7 @@ def configure(deployment):
     if any(p in d.conflicts for p in ('.local/share/orbit/app', '.local/share/wysun/quickshell')):
         return
     migrate_legacy_names(d)
+    deploy_tokens(d)
     ensure_runtime(d)
     d.deploy(d.source / 'config/.local/bin/orbit', Path('.local/bin/orbit'))
     for name in ('orbit-files', 'orbit-tools', 'wysun-shell',
@@ -127,6 +128,12 @@ def migrate_legacy_names(deployment):
         print('Wysun: configuración del shell copiada de ' + str(old) + ' a ' + str(new))
 
 
+def deploy_tokens(deployment):
+    """The shell reads the apps' design tokens from the XDG data dir, so it never depends on where the apps live."""
+    d = deployment
+    d.deploy(d.source / 'apps/wysun/wysun_core/tokens.json', Path('.local/share/wysun/theme/tokens.json'))
+
+
 def ensure_runtime(deployment):
     """Build or refresh the private Qt/Quickshell/plugin runtime (idempotent, stamped, no system changes)."""
     d = deployment
@@ -148,6 +155,7 @@ def update_runtime(deployment):
     d.deploy(d.source / 'apps/shell', Path('.local/share/wysun/quickshell'))
     if not d.conflicts:
         migrate_legacy_names(d)
+        deploy_tokens(d)
         ensure_runtime(d)
     for name in ('wysun-shell', 'wysun-session', 'wysun-session-services', 'wysun-lock', 'wysun-wm', 'wysun-control', 'wysun-workspaces', 'wysun-share-picker', 'wysun-recover', 'wysun-idle'):
         _publish(d, (d.source / 'bin' / name).read_text(), '.local/bin/' + name, executable=True)

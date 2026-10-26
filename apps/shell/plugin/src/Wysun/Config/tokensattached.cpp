@@ -39,13 +39,7 @@ void Tokens::inheritScreen(const QString& screen) {
 
     m_screen = screen;
 
-    if (m_screen.isEmpty()) {
-        m_config = nullptr;
-        m_tokens = nullptr;
-    } else {
-        m_config = ConfigSingleton::instance()->forScreen(m_screen);
-        m_tokens = TokensSingleton::instance()->forScreen(m_screen);
-    }
+    m_config = m_screen.isEmpty() ? nullptr : ConfigSingleton::instance()->forScreen(m_screen);
 
     propagateScreen();
     emit sourceChanged();
@@ -84,12 +78,8 @@ const AppearanceTransparency* Tokens::transparency() {
     return ConfigSingleton::instance()->appearance()->transparency(); // Transparency is always global
 }
 
-const SizeTokens* Tokens::sizes() const {
-    if (m_tokens)
-        return m_tokens->sizes();
-    if ((m_complete || !qobject_cast<QQuickItem*>(parent())) && parent())
-        qCWarning(lcConfig, "Tokens.sizes accessed without a screen set on %s", parent()->metaObject()->className());
-    return TokensSingleton::instance()->sizes();
+const SizeTokens* Tokens::sizes() {
+    return TokensRoot::instance()->sizes(); // Sizes are the same on every screen
 }
 
 const FontTokens* Tokens::font() const {
@@ -98,10 +88,6 @@ const FontTokens* Tokens::font() const {
 
 const AnimTokens* Tokens::anim() {
     return AnimTokens::instance();
-}
-
-TokensRoot* Tokens::forScreen(const QString& screen) {
-    return TokensSingleton::instance()->forScreen(screen);
 }
 
 Tokens* Tokens::qmlAttachedProperties(QObject* object) {

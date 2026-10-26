@@ -36,7 +36,7 @@ public:                                                                         
     [[nodiscard]] static TransitionShader name() {                                                                     \
         return {                                                                                                       \
             .url = QStringLiteral("qrc:/shaders/" file ".frag.qsb"),                                                   \
-            .duration = config::TokensSingleton::instance()->appearance()->animDurations()->durationName(),            \
+            .duration = config::TokensRoot::instance()->appearance()->animDurations()->durationName(),            \
             .easing = easingCurve,                                                                                     \
         };                                                                                                             \
     }                                                                                                                  \

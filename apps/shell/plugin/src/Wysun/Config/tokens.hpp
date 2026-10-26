@@ -67,17 +67,6 @@ class PaddingTokens : public settings::ObjectNode {
     CONFIG_PROPERTY(int, extraExtraLarge, 48)
 };
 
-class FontSizeTokens : public settings::ObjectNode {
-    CONFIG_NODE(FontSizeTokens, settings::ObjectNode)
-
-    CONFIG_PROPERTY(int, small, 11)
-    CONFIG_PROPERTY(int, smaller, 12)
-    CONFIG_PROPERTY(int, normal, 13)
-    CONFIG_PROPERTY(int, larger, 15)
-    CONFIG_PROPERTY(int, large, 18)
-    CONFIG_PROPERTY(int, extraLarge, 28)
-};
-
 class AnimDurationTokens : public settings::ObjectNode {
     CONFIG_NODE(AnimDurationTokens, settings::ObjectNode)
 
@@ -113,7 +102,6 @@ class AppearanceTokens : public settings::ObjectNode {
     CONFIG_SUBOBJECT(RoundingTokens, rounding)
     CONFIG_SUBOBJECT(SpacingTokens, spacing)
     CONFIG_SUBOBJECT(PaddingTokens, padding)
-    CONFIG_SUBOBJECT(FontSizeTokens, fontSize)
     CONFIG_SUBOBJECT(AnimDurationTokens, animDurations)
     CONFIG_SUBOBJECT(WallpaperMotionTokens, wallpaperMotion)
 };
