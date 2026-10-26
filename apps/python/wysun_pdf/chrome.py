@@ -272,6 +272,8 @@ class SelectionBar(QWidget):
             'highlight': IconButton('ink_highlighter', 'Resaltar · Ctrl H', lambda: self.action.emit('highlight'), size=size),
             'underline': IconButton('format_underlined', 'Subrayar · Ctrl U', lambda: self.action.emit('underline'), size=size),
             'copy': IconButton('content_copy', 'Copiar · Ctrl C', lambda: self.action.emit('copy'), size=size)}
+        self.buttons['study'] = PillButton('edit_note', 'Nota', lambda: self.action.emit('study'),
+                                          variant='tonal', height=metric('spacing.extraLargeIncreased'))
         self.ink = InkButton(ink_colours()[0][1])
         self.ink.clicked.connect(lambda: self.action.emit('ink'))
         self.buttons['ink'] = self.ink

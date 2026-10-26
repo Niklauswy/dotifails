@@ -91,6 +91,56 @@ class WindowTests(unittest.TestCase):
                                                             button, buttons, Qt.NoModifier))
         return view.selected_text()
 
+    def test_study_note_library_and_reopen(self):
+        window, source = self.open()
+        text = self.select_first_word(window)
+        window.study_note()
+        self.assertTrue(window.notebook.isVisible())
+        self.assertFalse(window.sidebar.isVisible())
+        window.notebook.editor.setPlainText('A reflection anchored to this passage')
+        self.assertTrue(window.notebook.save())
+        self.assertFalse(window.dirty, 'Study notes must not dirty the PDF')
+        identifier = window.study_document['id']
+        self.assertEqual(window.study.entries(identifier)[0]['quote'], text)
+        window.view.go(1)
+        window.show_library()
+        self.assertIs(window.workspace.currentWidget(), window.library)
+        self.assertEqual(window.study.entries(identifier)[0]['page'], 0)
+        window.open_recent(str(source))
+        self.assertIs(window.workspace.currentWidget(), window.reader)
+        self.assertEqual(window.view.current_page(), 1)
+        window.close()
+        reopened, _ = self.open(path=source)
+        self.assertEqual(reopened.study_document['id'], identifier)
+        self.assertEqual(reopened.study.entries(identifier)[0]['body'], 'A reflection anchored to this passage')
+
+    def test_study_unsaved_note_blocks_navigation_on_cancel(self):
+        from PySide6.QtWidgets import QMessageBox
+        window, source = self.open()
+        window.study_note()
+        window.notebook.editor.setPlainText('Do not lose this')
+        with mock.patch.object(QMessageBox, 'question', return_value=QMessageBox.Cancel):
+            window.show_library()
+            self.assertIs(window.workspace.currentWidget(), window.reader)
+            window.close()
+            self.assertTrue(window.isVisible())
+        self.assertEqual(window.notebook.editor.toPlainText(), 'Do not lose this')
+        window.notebook.save()
+
+    def test_study_narrow_window_keeps_editor_and_toolbar_accessible(self):
+        window, _ = self.open()
+        window.study_note()
+        window.resize(720, 480)
+        self.app.processEvents()
+        self.assertEqual(window.width(), 720)
+        self.assertEqual(window.height(), 480)
+        self.assertTrue(window.notebook.page_scroll.verticalScrollBar().maximum() > 0)
+        window.focus_search()
+        self.app.processEvents()
+        self.assertEqual(window.width(), 720)
+        self.assertTrue(window.search.isVisible())
+        self.assertTrue(window.notebook.editor.isEnabled())
+
     def test_reader_workflow_annotations_save_and_themes(self):
         window, source = self.open()
         self.assertEqual(window.pages, 3)

@@ -52,6 +52,14 @@ class WorkerTests(unittest.TestCase):
         self.assertEqual(len(render['blob']), render['stride'] * render['height'])
         self.assertEqual(self.replies[2][1]['result']['words'][0][4], 'Page')
 
+    def test_error_and_exit_emit_one_failure(self):
+        self.wait(lambda: len(self.replies) == 1)
+        failures = []
+        self.worker.failed.connect(failures.append)
+        self.worker.fail('error')
+        self.worker.exited()
+        self.assertEqual(failures, ['error'])
+
     def test_priority_runs_interactive_first(self):
         # 'open' is already in flight: everything below waits in the queue.
         self.worker.request('search', self.record('search'), priority=2, page=0, text='worker')

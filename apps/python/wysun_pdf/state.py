@@ -4,6 +4,7 @@ Both are private user state outside the repository. Documents are keyed by a SHA
 so the file never lists what the user reads.
 """
 import hashlib
+import math
 from pathlib import Path
 import time
 
@@ -21,13 +22,19 @@ def _key(document):
 
 def clamp(state, pages):
     """A remembered position made valid for the document as it is now."""
+    def number(name, default):
+        try:
+            value = float(state.get(name, default))
+            return value if math.isfinite(value) else default
+        except (ValueError, TypeError, OverflowError):
+            return default
     result = dict(state)
-    result['page'] = max(0, min(pages - 1, int(state.get('page', 0))))
-    result['zoom'] = clamp_zoom(float(state.get('zoom', 1.0)))
+    result['page'] = max(0, min(pages - 1, int(number('page', 0))))
+    result['zoom'] = clamp_zoom(number('zoom', 1.0))
     result['view'] = state.get('view') if state.get('view') in VIEWS else 'single'
     result['zoom_mode'] = state.get('zoom_mode') if state.get('zoom_mode') in ZOOM_MODES else 'width'
     for name in ('fx', 'fy'):
-        result[name] = max(0.0, min(1.0, float(state.get(name, 0.0))))
+        result[name] = max(0.0, min(1.0, number(name, 0.0)))
     return result
 
 
@@ -46,7 +53,11 @@ class Positions:
     def save(self, document, state):
         stored = self._read()
         stored[_key(document)] = dict(state, t=time.time())
-        newest = sorted(stored, key=lambda key: stored[key].get('t', 0) if isinstance(stored[key], dict) else 0)
+        def timestamp(key):
+            entry = stored[key]
+            value = entry.get('t', 0) if isinstance(entry, dict) else 0
+            return value if isinstance(value, (int, float)) and math.isfinite(value) else 0
+        newest = sorted(stored, key=timestamp)
         for key in newest[:-LIMIT]:
             del stored[key]
         jsonio.atomic_write_json(self.path, stored, mode=0o600)

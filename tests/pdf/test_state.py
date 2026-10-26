@@ -64,6 +64,18 @@ class StateTests(unittest.TestCase):
         self.assertEqual(json.loads(target.read_text()), {'mode': 'light', 'future': 1, 'sidebar': False})
         self.assertEqual(pdf_state.Preferences().get('missing', 7), 7)
 
+    def test_invalid_numbers_do_not_break_restore_or_history_pruning(self):
+        for invalid in (None, 'oops', [], {}, float('nan'), float('inf')):
+            result = pdf_state.clamp(dict(page=invalid, zoom=invalid, fx=invalid, fy=invalid), 10)
+            self.assertEqual(result['page'], 0)
+            self.assertEqual(result['zoom'], 1.)
+            self.assertEqual(result['fx'], 0.)
+        positions = pdf_state.Positions()
+        positions.path.parent.mkdir(parents=True, exist_ok=True)
+        positions.path.write_text('{"broken": {"t": "not a time"}}')
+        positions.save(self.doc, {'page': 1})
+        self.assertEqual(positions.load(self.doc)['page'], 1)
+
     def test_a_corrupt_file_reads_as_empty(self):
         target = Path(self.tmp.name) / 'state/wysun/pdf-reader/positions.json'
         target.parent.mkdir(parents=True)
