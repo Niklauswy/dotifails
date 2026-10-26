@@ -60,7 +60,7 @@ private:
     FontTokens* const m_fontTokens;
 };
 
-// The shape and motion tokens of apps/wysun/wysun_core/tokens.json, the source the Qt apps read too. The
+// The shape and motion tokens of apps/python/wysun_core/tokens.json, the source the Qt apps read too. The
 // installer copies it to $XDG_DATA_HOME/wysun/theme/tokens.json and it is read once at startup: whatever is
 // missing or of another type keeps its value from tokens.hpp, the fallback. Sizes and wallpaper motion are
 // shell-only and live only in tokens.hpp.

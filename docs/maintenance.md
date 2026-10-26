@@ -1,6 +1,6 @@
 # Mantenimiento
 
-`home/` contiene únicamente configuración portable. `apps/python/` es la fuente de la aplicación, separada del estado del usuario. `assets/` guarda fuentes e iconos; `backgrounds/` contiene los fondos de Severance, Tokyo y Space Black. `manifests/themes.json` define sus perfiles visuales y verifica el paquete local de recursos de Severance.
+`config/` contiene únicamente configuración portable. `apps/python/` es la fuente de la aplicación, separada del estado del usuario. `assets/` guarda iconos, cursores y el wallpaper por defecto (`assets/backgrounds/`); las fuentes van con `wysun_core/fonts` y el shell. No hay temas fijos: ver [themes.md](themes.md).
 
 `installer/` concentra la interfaz nativa y el motor de instalación. La selección, las dependencias y el plan se comparten entre interfaz y CLI; `manifests/packages.json` agrupa los paquetes por componente sin duplicar una lista monolítica de instalación completa. Consulta la [organización y el funcionamiento del instalador](installer.md). Usa `./instalar.sh --installer-only` para desplegar únicamente esta parte con respaldo.
 
@@ -8,7 +8,7 @@
 
 `manifests/artifacts.json` fija binarios y fuentes de shell; `config/.config/nvim/lazy-lock.json` fija plugins; `manifests/mason.json` y la copia `config/.config/nvim/mason-lock.json` deben coincidir. Para cambiar versiones, verificar la fuente oficial, descargar y comprobar los artefactos antes de actualizar sus sumas. No usar sumas inventadas ni un canal `latest` para herramientas fijadas.
 
-Los servicios de escritorio registran PID e inicio del proceso y se separan por display X. El arranque no termina todos los procesos Polybar del usuario. El historial usa almacenamiento local separado de la aplicación instalada.
+El historial usa almacenamiento local separado de la aplicación instalada.
 
 ## Cambiar Wysun y usar la misma versión en tu escritorio
 
@@ -20,7 +20,7 @@ Después de modificar y probar el código, desde la raíz del repositorio:
 ./instalar.sh --wysun-only && `wysun reload`
 ```
 
-Esto respalda y copia Wysun a `~/.local/share/wysun/app/`, actualiza el lanzador `wysun` y el gestor wysun-install. No reinstala paquetes ni modifica Neovim, BSPWM, atajos o los datos privados. `reload` conserva las notas pendientes antes de reiniciar la aplicación; si hay un conflicto con una edición externa, muestra la nota y cancela la recarga. En una sesión anterior a esta versión, cerrar sesión una vez permite arrancar el ejecutable nuevo.
+Esto respalda y copia Wysun a `~/.local/share/wysun/app/`, actualiza el lanzador `wysun` y el gestor wysun-install. No reinstala paquetes ni modifica Neovim, atajos o los datos privados. `reload` conserva las notas pendientes antes de reiniciar la aplicación; si hay un conflicto con una edición externa, muestra la nota y cancela la recarga. En una sesión anterior a esta versión, cerrar sesión una vez permite arrancar el ejecutable nuevo.
 
 Para traer una versión publicada en otro equipo ya configurado:
 

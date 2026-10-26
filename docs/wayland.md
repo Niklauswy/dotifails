@@ -29,7 +29,7 @@ Puedes ver el plan sin aplicar cambios:
 - `config/.config/xdg-desktop-portal/wysun-portals.conf` usa `hyprland` para `ScreenCast` y `Screenshot`, y `gtk` para el resto.
 - El instalador registra el portal `wysun-files` para el selector de archivos y lo prefiere en `portals.conf`; conserva las demás preferencias del usuario.
 - Wysun Recorder muestra el diálogo de consentimiento ScreenCast/PipeWire. Las capturas de pantalla las hace el shell con wlr-screencopy (sin portal ni diálogo), congelando cada salida al abrir el selector. Las ventanas ocultas o minimizadas dependen del compositor y pueden no ser capturables: no se promete su captura.
-- Diagnóstico sin reiniciar servicios: `~/.local/bin/wysun-session --check` y `tests/wayland_portal_probe.py`.
+- Diagnóstico sin reiniciar servicios: `~/.local/bin/wysun-session --check`.
 
 ## Actualización y recuperación
 
@@ -50,5 +50,5 @@ Puedes ver el plan sin aplicar cambios:
 
 - Suites generales: `python3 -m unittest discover -s tests -v`, `QT_QPA_PLATFORM=offscreen python3 tests/utility_ui.py`, `python3 tests/check_manifest.py`.
 - Captura: `python3 apps/recorder/run_tests.py` (HOME/XDG temporales y sin sesión gráfica heredada).
-- Sesión y compositor: las sondas `tests/wayland_*_probe.py` usan Hyprland anidado con medios sintéticos.
+- Compositor real: `python3 tests/wayland_media_case.py` valida el reproductor (OpenGL, ocultar/mostrar, fugas) en la sesión gráfica.
 - Las pruebas de medios y compositor se ejecutan en serie; un bloqueo del sandbox no demuestra un fallo del producto.

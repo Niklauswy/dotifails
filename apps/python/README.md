@@ -1,6 +1,6 @@
 # Wysun
 
-Lanzador nativo y local para BSPWM, inspirado en la interacción de Raycast.
+Lanzador nativo y local para la sesión Wysun / Hyprland, inspirado en la interacción de Raycast.
 No es Raycast ni incluye su tienda de extensiones, IA de pago o integración con calendarios.
 
 ## Uso
@@ -40,11 +40,6 @@ Código instalado: `~/.local/share/wysun/app/`. Dependencias: Python 3, PySide6 
 
 La barra muestra espacios de trabajo, red, volumen, batería, fecha y notificaciones.
 **Super + F** alterna pantalla completa y el estado anterior de la ventana.
-Polybar se oculta en el monitor con una ventana a pantalla completa, incluso si es
-transparente. Vuelve al salir o cambiar a un escritorio sin pantalla completa;
-las barras de los otros monitores siguen visibles. Funciona también con F11 en aplicaciones.
-`desktop-bar` inicia el controlador `bar_visibility.py` una sola vez por sesión gráfica.
-Icono inicial: abre Wysun; clic derecho: historial. Campana: última notificación; clic derecho: pausa/reanuda.
 Los cambios del instalador tienen respaldo en `~/.local/state/wysun/install/backups/`.
 Usa `wysun-install restore` para listar respaldos y `wysun-install restore ID` para recuperar uno.
 
@@ -161,6 +156,22 @@ abren directamente Displays, Workspaces y Wallpaper & style.
   **Test layout** aplica una prueba de 15 segundos; **Keep changes** guarda el perfil de la combinación
   de monitores, y **Revert** recupera la disposición anterior. Un watchdog independiente también
   restaura la configuración cuando la ventana se cierra o deja de responder.
+- **Displays › Widgets on** elige **All displays** o **Primary display** (`displays.widgetScreens`, `all` o
+  `primary`, en `~/.config/wysun/environment.json`; las instalaciones existentes siguen en todas hasta cambiarlo).
+  La pantalla principal sale del perfil guardado, nunca del foco del teclado; si se desconecta, se usa otra disponible
+  y al reconectar la configuración guardada vuelve la suya. Las salidas desactivadas en el shell se excluyen. En modo
+  principal, la superficie de cajones (barra, dashboard, sesión, notificaciones, OSD…) y sus zonas de exclusión solo
+  existen en esa pantalla, y los relojes y visualizadores de las secundarias se descargan, no solo se ocultan. Los
+  wallpapers siguen en todas las salidas activas; captura, overlays de grabación, overview y lanzador conservan su
+  comportamiento multimonitor. Los atajos de cajones desde otro monitor van a la principal; el lanzador sigue al foco.
+  `wysun-shell status` informa `primaryScreen`, `widgetMode`, `widgetScreens` y `openByScreen`.
+  Para comparar el coste, alterna el modo (desde Settings o con
+  `python3 ~/.local/share/wysun/quickshell/wysun/display_bridge.py displays.widgets '{"mode":"primary"}'`), espera
+  al menos 8 s y muestrea con `python3 tests/benchmark_shell.py --label primary-1 --seconds 30 --output SALIDA.json`;
+  repite cada modo dos veces con el mismo proceso de Quickshell y sin otras pruebas ni paneles abiertos. La CPU es
+  porcentaje de un procesador lógico; el RSS incluye cachés compartidas y los contadores DRM ausentes valen null.
+  Una medición de 2026-10-23 con tres salidas 1080p observó ≈43 % menos CPU de Quickshell y ≈52 % menos tiempo de
+  render en modo principal (con el navegador en uso: observación, no benchmark controlado).
 - **Workspaces**: grupos por monitor con recuentos y estado activo, asignación persistente de los
   números 1–10, traslado entre pantallas y retirada de asignaciones vacías. Workspace 10 aparece
   como 0 en la barra y usa Super+0. **Reset assignments** pide confirmación antes de restablecer.
@@ -229,6 +240,8 @@ Descargas permite continuar, pausar la cola y reintentar errores, con detalles o
 Audio en `~/Music/Wysun`; biblioteca y cola en `~/.local/share/wysun/music/library.json`; favoritos, sesión, referencias y variantes en `player.sqlite3`; portadas, fotos y letras en `metadata/`. Estos datos privados están separados del código instalado. `reference-manifest.json` conserva las duraciones originales de Spotify para distinguirlas de las de un videoclip.
 
 La instalación completa incluye mpv/ffmpeg/PySide6 y yt-dlp con versión y SHA-256 fijadas. `--wysun-only` actualiza la app, los ejecutables de acceso y su icono sin reinstalar el sistema. El atajo de la configuración distribuida abre el mini reproductor.
+
+Prueba de extremo a extremo: `QT_QPA_PLATFORM=offscreen python3 tests/music_ui.py` reproduce audio sintético con mpv real (`--ao=null`) y datos temporales, y recorre controles, reproductor completo, cola, favoritos, letras sincronizadas y la instancia única. Si hay bus de sesión y `playerctl`, publica también MPRIS en ese bus; ejecútala en serie con las demás pruebas de medios.
 
 ## Wayland nativo
 

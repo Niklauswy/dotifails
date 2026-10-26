@@ -2,7 +2,7 @@
 
     python3 tests/media_latency.py [--seeks 30] [--samples 20]
 
-Targets (see docs/multimedia-architecture-plan.md §8): a window with its first picture or frame in under 1 s from a cold
+Targets (see docs/player.md, "Rendimiento"): a window with its first picture or frame in under 1 s from a cold
 start and under 300 ms when the process is already running; seeks under 300 ms at p95; an already-decoded neighbour image
 in under 50 ms. Synthetic media only. ``WYSUN_PYSIDE_EXTRA`` supplies uninstalled PySide6 OpenGL modules.
 """

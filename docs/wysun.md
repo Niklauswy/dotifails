@@ -11,7 +11,7 @@ Wysun es el nombre público del escritorio y del lanzador antes llamado Órbita.
 - `installer/main.py` y `installer/capture_distribution.py`: instalación común, respaldos, conflictos y recuperación.
 - `bin/wysun`: punto de entrada público. `wysun --help` enumera sus modos.
 
-`./instalar.sh --wysun-only` y `./instalar.sh --wysun-only` actualizan toda la familia usando el mismo procedimiento que la instalación completa. No instalan dependencias, no modifican atajos y no reinician el escritorio. La instalación completa incluye las dependencias de captura en los componentes de escritorio y sesión: PySide6, FFmpeg, mpv, portal Wayland, audio y Tesseract.
+`./instalar.sh --wysun-only` actualiza toda la familia usando el mismo procedimiento que la instalación completa. No instala dependencias, no modifica atajos y no reinicia el escritorio. La instalación completa incluye las dependencias de captura en los componentes de escritorio y sesión: PySide6, FFmpeg, mpv, portal Wayland, audio y Tesseract.
 
 El código de captura se publica en `.local/share/wysun/capture/releases/<hash>/`. Cada actualización conserva las versiones anteriores para no cambiar los módulos de un trabajador en ejecución. Actualizar no detiene una grabación ni cierra sus ventanas. Una ventana que ya está abierta conservará su versión y su título hasta cerrarla normalmente.
 

@@ -135,6 +135,7 @@ python3 -m unittest discover -s tests -p 'test_player_*.py'     # proceso (insta
 python3 apps/recorder/run_tests.py                               # incluye la página de reproducción de Recorder
 python3 tests/wayland_media_case.py                             # física: OpenGL, ocultar/mostrar, pérdida de contexto, fugas
 python3 tests/media_benchmark.py                                # CPU, memoria, primer fotograma y fotogramas perdidos
+python3 tests/media_latency.py                                  # latencias en el compositor real frente a los objetivos de abajo
 ```
 
 Los medios son sintéticos (`tests/media_fixtures.py`: H.264, VP9, HEVC, AV1, audio en seis formatos con y sin carátula, JPEG con las ocho
@@ -142,3 +143,27 @@ orientaciones EXIF, PNG con alfa, BMP, TIFF, WebP, GIF animado y archivos dañad
 (`QOpenGLWidget` no existe en esa plataforma): la ruta OpenGL se valida con `wayland_media_case.py` en la sesión real. Cada proceso de
 pruebas usa un bus D-Bus propio y desechable. `WYSUN_PYSIDE_EXTRA=<carpeta>` permite probar los módulos OpenGL de PySide6 extraídos de sus
 paquetes sin instalarlos.
+
+## Rendimiento
+
+Objetivos (mediciones en serie y con medios sintéticos):
+
+| Escenario | Objetivo |
+|---|---|
+| Abrir archivo con la instancia en marcha | Primer fotograma o imagen visible: p95 < 300 ms |
+| Arranque en frío de Wysun Player | Primer fotograma o imagen visible: p95 < 1 s |
+| Salto en archivo local indexado | p95 < 300 ms |
+| Siguiente/anterior imagen precargada | Visible en < 50 ms |
+| 1080p60 H.264 en el Intel de referencia | < 1 % de fotogramas perdidos |
+| En pausa u oculto | Sin bucle de repintado; CPU casi en reposo |
+| Hilo de UI | Ningún bloqueo de medios > 50 ms |
+| Abrir y cerrar 100 veces | Sin procesos, hilos ni descriptores que crezcan |
+
+Cada medición registra códec, resolución, decodificador, renderizador, versiones y hardware; no se exige AV1 por hardware donde no exista
+ni se afirma compatibilidad general de GPU a partir de una sola máquina.
+
+Última medición (2026-10-24, Intel i7-8565U, Hyprland, PySide6 6.8.2, mpv 0.40): con OpenGL + `vaapi-copy` un 1080p60 H.264 usa 77–152 %
+de CPU (el render por software, 199–293 %) sin fotogramas perdidos. Cumplen el arranque en frío (<1 s), abrir una imagen con el proceso en
+marcha (16–83 ms), los saltos (p95 172–317 ms), la pausa sin repintados y los 100 ciclos de apertura. **No cumplen** abrir un video con el
+proceso en marcha (0,28–0,92 s, mediana ≈400 ms: ventana y contexto GL nuevos) ni, siempre, la imagen precargada (24–130 ms). Una ejecución
+aislada tardó 51 s en mostrar el primer fotograma y no se ha reproducido; no está descartado un bloqueo intermitente.

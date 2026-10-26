@@ -10,6 +10,13 @@ VERSION='1.1.0'
 REPOSITORY='https://github.com/Niklauswy/dotifails.git'
 WYSUN_DESKTOP='[Desktop Entry]\nType=Application\nName=Wysun\nComment=Aplicaciones y herramientas del escritorio\nExec=wysun\nIcon=system-search\nCategories=Utility;\nKeywords=Wysun;lanzador;launcher;aplicaciones;\nStartupWMClass=wysun\n'
 PLAYER_DESKTOP='wysun-player.desktop'
+# The desktop's two families (tokens.json: font.family.sans/mono), installed for GTK and the terminal from the
+# copies the apps already bundle, with their licences: {installed name: source}.
+FONT_BUNDLE={'GoogleSansFlex.ttf':'apps/python/wysun_core/fonts/GoogleSansFlex.ttf',
+             'CaskaydiaCoveNerdFont-Regular.ttf':'apps/python/wysun_core/fonts/CaskaydiaCoveNerdFont-Regular.ttf',
+             'licenses/OFL-GoogleSansFlex.txt':'LICENSES/OFL-GoogleSansFlex.txt',
+             'licenses/OFL-CascadiaCode.txt':'LICENSES/OFL-CascadiaCode.txt',
+             'licenses/MIT-NerdFonts.txt':'LICENSES/MIT-NerdFonts.txt'}
 # Launchers earlier versions published; `wysun` replaces them all. An update removes the ones this installer
 # wrote and the user has not changed. One the user changed becomes theirs (kept, out of the receipt); one the
 # active Hyprland configuration still calls is kept until that configuration stops calling it.
@@ -158,6 +165,12 @@ class Deployment:
         write(self.state/'installed.json',self.receipt)
     def generated(self,text,relative,executable=False):
         temp=self.backup/'generated'/relative;temp.parent.mkdir(parents=True,exist_ok=True);temp.write_text(text);temp.chmod(0o755 if executable else 0o644);self.deploy(temp,relative)
+    def configure_fonts(self):
+        relative=Path('.local/share/fonts/wysun');staged=self.backup/'generated'/relative
+        for name,source in FONT_BUNDLE.items():
+            target=staged/name;target.parent.mkdir(parents=True,exist_ok=True)
+            shutil.copyfile(self.source/source,target);target.chmod(0o644)
+        self.deploy(staged,relative)
     def player_mime_types(self):
         """The types Wysun Player declares: the single source for its default associations."""
         entry=self.source/'config/.local/share/applications'/PLAYER_DESKTOP
@@ -328,7 +341,7 @@ class Deployment:
             # Ship the same music entry points as a --wysun-only update.
             for rel in ('.local/share/applications/wysun-music.desktop','.local/share/icons/hicolor/scalable/apps/musika.svg'):
                 if (self.source/'config'/rel).is_file():self.deploy(self.source/'config'/rel,Path(rel))
-        if selected & {'desktop','terminal'}:self.deploy(self.source/'assets/fonts',Path('.local/share/fonts/wysun'))
+        if selected & {'desktop','terminal'}:self.configure_fonts()
         if 'desktop' in selected:
             # The mode is the only choice: keep the user's (and any other key); a broken file starts automatic.
             try:stored=json.loads((self.home/'.config/wysun/theme.json').read_text())

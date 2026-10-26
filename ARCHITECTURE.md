@@ -203,7 +203,7 @@ Piezas: `main.py` (despliegue, restauración, `doctor`), `install_model.py` (com
 `session_registration.py` (entrada de sesión en el gestor de acceso, reversible), `boot*.py`, `gui.py`.
 `WYSUN_SKIP_RUNTIME=1` omite el runtime (pruebas).
 
-La nueva base gráfica se abre con `./wysun-installer`; `./wysun-installer-preview` recorre una instalación nueva con
+La nueva base gráfica se abre con `./wysun-installer`; `./wysun-installer --preview` recorre una instalación nueva con
 operaciones simuladas en memoria. `preview_process.py` separa esa demostración de `process_runner.py`. El gestor instalado
 lleva un subconjunto de los controles Material de Music/Files, fuentes y tokens mediante `ui_support.py`, por lo que puede
 abrir antes de instalar el escritorio y sin conservar el checkout. Recorrido y piezas visuales en `scenes.py`;
