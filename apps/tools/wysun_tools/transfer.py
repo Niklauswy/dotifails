@@ -337,7 +337,7 @@ def serve(args) -> int:
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(prog="file-share", description="Compartir archivos y recibir subidas con límites y acceso LAN explícito.")
+    parser = argparse.ArgumentParser(prog="wysun tools share", description="Compartir archivos y recibir subidas con límites y acceso LAN explícito.")
     server_flags(parser)
     return serve(parser.parse_args(argv))
 

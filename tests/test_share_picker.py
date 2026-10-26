@@ -67,7 +67,8 @@ class SharePickerTests(unittest.TestCase):
 
     def test_installer_publishes_picker(self):
         text = (ROOT / 'installer/wayland.py').read_text()
-        self.assertEqual(text.count("'wysun-share-picker'"), 2)
+        self.assertEqual(text.count("'wysun-share-picker'"), 1)
+        self.assertEqual(text.count('for name in SESSION_COMMANDS:'), 2)   # install and app-only update
 
 
 if __name__ == '__main__':

@@ -174,7 +174,7 @@ def preflight(options):
     if 'desktop' in options.components:
         required += ['apps/python/wysun_services/daemon.py']
     if 'tools' in options.components:
-        required += ['apps/tools/cli.py', 'bin/wysun-tools']
+        required += ['apps/tools/wysun_tools/__main__.py', 'bin/wysun']
     if 'wayland' in options.components:
         required += ['apps/shell/shell.qml', 'config/.config/wysun/hyprland.lua', 'bin/wysun-session', 'installer/session_registration.py']
     missing = [name for name in required if not (options.source / name).is_file()]

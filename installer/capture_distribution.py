@@ -1,36 +1,22 @@
 """Journaled Wysun Recorder deployment in immutable, hash-named releases.
 
 Immutable releases keep a running Recorder worker's imports available. User media,
-preferences, old releases and the original standalone manifests are never changed.
-Screenshots live in the shell now: the former Screenshot commands stay as thin
-redirects and its menu entry and icon are retired when this installer owns them.
+preferences and old releases are never changed.
 """
 import hashlib
-import json
 from pathlib import Path
 import shlex
 
 
-def _legacy_owned(deployment, relative, manifest, key):
+def _owned(deployment, relative):
+    """A file may be (re)written when it does not exist or this installer wrote it (Deployment checks its fingerprint)."""
     destination = deployment.destination(relative)
-    if not destination.exists() and not destination.is_symlink():
-        return True
-    if str(relative) in deployment.receipt['files']:
-        return True  # Deployment checks its recorded fingerprint before updating.
-    if destination.is_symlink() or not destination.is_file():
-        return False
-    try:
-        files = json.loads((deployment.home / manifest).read_text())['files']
-        expected = files.get(key) if key else files.get(str(destination))
-        return expected == hashlib.sha256(destination.read_bytes()).hexdigest()
-    except (OSError, ValueError, KeyError, TypeError):
-        return False
+    return (not destination.exists() and not destination.is_symlink()) or str(relative) in deployment.receipt['files']
 
 
-def _publish(deployment, text, relative, *, executable=False, legacy=None):
+def _publish(deployment, text, relative, *, executable=False):
     relative = Path(relative)
-    manifest, key = legacy or ('.local/share/wysun/no-legacy-manifest.json', None)
-    if not _legacy_owned(deployment, relative, manifest, key):
+    if not _owned(deployment, relative):
         # Keep the new version reviewable using the same incoming/ convention.
         incoming = deployment.backup / 'incoming' / relative
         incoming.parent.mkdir(parents=True, exist_ok=True)
@@ -90,26 +76,3 @@ def configure(deployment):
                 '<circle cx="32" cy="32" r="18" fill="#dc695b"/>'  # theme-exception: icono de aplicacion
                 '<circle cx="32" cy="32" r="7" fill="#f5f0df"/></svg>\n')  # theme-exception: icono de aplicacion
         _publish(deployment, icon, '.local/share/icons/hicolor/scalable/apps/wysun-recorder.svg')
-    retire_screenshot(deployment)
-
-
-def retire_screenshot(deployment):
-    """The screenshot tool is part of the shell; keep its commands as redirects only.
-
-    Launchers this installer (or the former standalone installer, by its manifest)
-    wrote become redirects; its menu entry and icon are retired. Anything else is
-    left alone and reported, like any other unowned file.
-    """
-    legacy = '.local/share/wybie-screenshot/install-manifest.json'
-    redirect = '#!/bin/sh\n# Screenshots are taken by the Wysun shell.\nexec "$(dirname "$0")/wysun" screenshot "$@"\n'
-    _publish(deployment, redirect, '.local/bin/wysun-screenshot', executable=True)
-    _publish(deployment, redirect, '.local/bin/wybie-screenshot', executable=True, legacy=(legacy, None))
-    for relative in ('.local/share/applications/wybie-screenshot.desktop',
-                     '.local/share/icons/hicolor/scalable/apps/wybie-screenshot.svg'):
-        relative = Path(relative)
-        if not deployment.destination(relative).exists():
-            continue
-        if str(relative) in deployment.receipt['files']:
-            deployment.retire(relative)
-        elif _legacy_owned(deployment, relative, legacy, None):
-            deployment.retire(relative, private=True)

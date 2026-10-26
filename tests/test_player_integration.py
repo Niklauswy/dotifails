@@ -49,7 +49,7 @@ class DesktopEntryTests(unittest.TestCase):
 
     def test_exec_protects_file_names_that_look_like_options(self):
         words = self.entry()['Exec'].split()
-        self.assertEqual(words[:2], ['wysun-player', '--'])
+        self.assertEqual(words[:3], ['wysun', 'player', '--'])
         self.assertEqual(words[-1], '%F')
 
     def test_every_declared_type_is_one_the_player_can_open(self):
@@ -69,23 +69,17 @@ class DesktopEntryTests(unittest.TestCase):
 
 
 class LaunchRouteTests(unittest.TestCase):
-    def test_wysun_player_and_image_commands_reach_the_player_launcher(self):
+    def test_wysun_player_runs_the_player_module_and_keeps_the_arguments(self):
         with tempfile.TemporaryDirectory() as root:
-            bin_dir = Path(root)
+            bin_dir = Path(root, 'bin'); bin_dir.mkdir()
             shutil.copy(ROOT / 'bin/wysun', bin_dir / 'wysun')
-            stub = bin_dir / 'wysun-player'
-            stub.write_text('#!/bin/sh\nprintf "%s\\n" "$@"\n')
-            stub.chmod(0o755)
-            for command in ('player', 'image'):
-                done = subprocess.run([sys.executable, str(bin_dir / 'wysun'), command, '--paused', '--', '-odd.png', 'b.mp4'],
-                                      capture_output=True, text=True, timeout=20)
-                self.assertEqual(done.stdout.split(), ['--paused', '--', '-odd.png', 'b.mp4'], command)
-
-    def test_launcher_runs_the_installed_application(self):
-        text = (ROOT / 'bin/wysun-player').read_text()
-        self.assertIn('app="$here/../share/wysun/app"', text)
-        self.assertIn('PYTHONPATH="$app" exec /usr/bin/python3 -P -m wysun_player "$@"', text)
-        self.assertTrue(os.access(ROOT / 'bin/wysun-player', os.X_OK))
+            package = Path(root, 'share/wysun/app/wysun_player'); package.mkdir(parents=True)
+            (package / '__init__.py').write_text('')
+            (package / '__main__.py').write_text('import sys\nprint("\\n".join(sys.argv[1:]))\n')
+            done = subprocess.run([sys.executable, str(bin_dir / 'wysun'), 'player', '--paused', '--', '-odd.png', 'b.mp4'],
+                                  capture_output=True, text=True, timeout=20, cwd='/')
+            self.assertEqual(done.stdout.split(), ['--paused', '--', '-odd.png', 'b.mp4'], done.stderr)
+            self.assertFalse((ROOT / 'bin/wysun-player').exists())
 
 
 class InstallerTests(unittest.TestCase):
@@ -141,8 +135,8 @@ class InstallerTests(unittest.TestCase):
         parser = mimeapps(home)
         self.assertEqual(parser['Default Applications']['image/png'], 'viewnior.desktop;')
         self.assertNotIn('video/mp4', parser['Default Applications'])
-        self.assertTrue((home / '.local/bin/wysun-player').is_file())
-        self.assertTrue(os.access(home / '.local/bin/wysun-player', os.X_OK))
+        self.assertTrue(os.access(home / '.local/bin/wysun', os.X_OK))
+        self.assertFalse((home / '.local/bin/wysun-player').exists())
         self.assertTrue((home / '.local/share/applications/wysun-player.desktop').is_file())
 
     def test_associating_twice_changes_nothing(self):

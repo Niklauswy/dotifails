@@ -18,8 +18,8 @@ hl.layer_rule({ name = "wysun-shell-layer", match = { namespace = "^wysun-.*$" }
 hl.on("hyprland.start", function () hl.exec_cmd("wysun-session-services") end)
 -- Fixed workspaces per output: rules need the outputs to exist, so the saved
 -- (or automatic 1-5 / 6-9 / 10) layout is pinned at login and on hotplug.
-hl.on("hyprland.start", function () hl.exec_cmd("wysun-workspaces") end)
-hl.on("monitor.added", function () hl.exec_cmd("wysun-workspaces") end)
+hl.on("hyprland.start", function () hl.exec_cmd("wysun workspaces") end)
+hl.on("monitor.added", function () hl.exec_cmd("wysun workspaces") end)
 -- Keep the primary Python launcher at its own responsive popup geometry.
 hl.window_rule({ name = "wysun-processes", match = { title = "^Wysun Processes$" }, float = true, center = true })
 hl.window_rule({ name = "wysun-panels", match = { class = "^(wysun-music|wysun-recorder)$" }, float = true, center = true, border_size = 0, rounding = 0, no_shadow = true })

@@ -76,11 +76,17 @@ class ToolboxTests(unittest.TestCase):
         findings,count=security.project_findings(self.root)
         self.assertEqual(count,1);self.assertEqual(findings[0]['rule'],'token GitHub')
         self.assertNotIn(value,json.dumps(findings))
-    def test_single_cli_routes_and_aliases_share_one_backend(self):
-        spec=importlib.util.spec_from_file_location('tools_cli',ROOT/'apps/tools/cli.py');cli=importlib.util.module_from_spec(spec);spec.loader.exec_module(cli)
+    def test_single_cli_routes_each_group_and_has_no_aliases(self):
+        from wysun_tools import cli
         with patch.object(web,'main',return_value=0) as main:
             self.assertEqual(cli.main(['dev','doctor']),0);main.assert_called_with(['doctor'])
-            self.assertEqual(cli.main(['web-dev','doctor']),0);main.assert_called_with(['doctor'])
+        for alias in ('web-dev','gvm','rezets','zzzz.py','gui'):
+            with self.assertRaises(common.ToolError):cli.main([alias])
+        self.assertFalse((ROOT/'apps/tools/cli.py').exists())
+        self.assertFalse((ROOT/'bin/wysun-tools').exists())
+    def test_wysun_tools_runs_the_package_from_its_root(self):
+        out=subprocess.run([str(ROOT/'bin/wysun'),'tools','--help'],cwd='/',capture_output=True,text=True,timeout=30)
+        self.assertEqual(out.returncode,0,out.stderr);self.assertIn('wysun tools <grupo>',out.stdout)
     def test_retire_preserves_local_edits_and_restore_recovers_removed_file(self):
         home=self.root/'home';home.mkdir();source=home/'legacy';source.write_text('old')
         d=installer.Deployment(home,ROOT);d.begin();d.receipt['files']['legacy']=installer.fingerprint(source)
@@ -167,23 +173,27 @@ class ToolboxTests(unittest.TestCase):
         with patch.object(rezets,'CONFIG_FILE',p),patch.object(rezets,'APP_DIR',p.parent):
             self.assertEqual(rezets.load_accounts(),[])
         self.assertEqual(p.read_text(),'[]\n');self.assertEqual(p.stat().st_mode&0o777,0o600)
-    def test_scripts_install_preserves_private_files_and_idempotence(self):
-        home=self.root/'home';private=home/'scripts/.rezets/accounts.json';private.parent.mkdir(parents=True);private.write_text('[]')
-        upload=home/'scripts/uploads/data';upload.parent.mkdir();upload.write_text('upload')
-        config=home/'.config/wysun/theme.json';config.parent.mkdir(parents=True);config.write_text('theme')
-        old=home/'scripts/gvm.sh';old.write_text('old script')
-        receipt=home/'.local/state/wysun/install/installed.json';receipt.parent.mkdir(parents=True);receipt.write_text(json.dumps({'files':{'scripts/gvm.sh':installer.fingerprint(old)}}))
+    def test_scripts_install_publishes_wysun_and_retires_the_old_launchers(self):
+        home=self.root/'home';config=home/'.config/wysun/theme.json';config.parent.mkdir(parents=True);config.write_text('theme')
+        old={}
+        for relative in ('.local/bin/gvm','.local/bin/wysun-tools','scripts/wysun-tools','scripts/README.md'):
+            path=home/relative;path.parent.mkdir(parents=True,exist_ok=True);path.write_text('old '+relative);old[relative]=installer.fingerprint(path)
+        mine=home/'.local/bin/web-dev';mine.write_text('my own script')   # not installed by Wysun: kept
+        receipt=home/'.local/state/wysun/install/installed.json';receipt.parent.mkdir(parents=True);receipt.write_text(json.dumps({'files':old}))
         args=['install','--source',str(ROOT),'--target-home',str(home),'--scripts-only']
         with contextlib.redirect_stdout(io.StringIO()):
             self.assertEqual(installer.main(args),0)
-            first=json.loads((home/'.local/state/wysun/install/installed.json').read_text())['last_backup']
+            first=json.loads(receipt.read_text())['last_backup']
             self.assertEqual(installer.main(args),0)
-        self.assertEqual((home/'.config/wysun/resets/accounts.json').read_text(),'[]');self.assertEqual((home/'.local/share/wysun/transfers/inbox/data').read_text(),'upload');self.assertEqual(config.read_text(),'theme')
-        receipt=json.loads((home/'.local/state/wysun/install/installed.json').read_text());journal=json.loads((home/'.local/state/wysun/install/backups'/receipt['last_backup']/'journal.json').read_text())
+        journal=json.loads((home/'.local/state/wysun/install/backups'/json.loads(receipt.read_text())['last_backup']/'journal.json').read_text())
         self.assertEqual(journal['operations'],[])
-        self.assertTrue((home/'.local/bin/wysun-tools').is_file());self.assertFalse((home/'scripts/gvm.sh').exists())
+        for relative in old:self.assertFalse((home/relative).exists(),relative)
+        self.assertEqual(mine.read_text(),'my own script');self.assertEqual(config.read_text(),'theme')
+        self.assertTrue((home/'.local/share/wysun/tools/wysun_tools/__main__.py').is_file())
+        out=subprocess.run([str(home/'.local/bin/wysun'),'tools','--help'],cwd='/',capture_output=True,text=True,timeout=30)
+        self.assertEqual(out.returncode,0,out.stderr)
         with contextlib.redirect_stdout(io.StringIO()):installer.restore(home,first)
-        self.assertEqual(old.read_text(),'old script');self.assertEqual(private.read_text(),'[]')
+        self.assertEqual((home/'.local/bin/gvm').read_text(),'old .local/bin/gvm')
 
 class TransferTests(unittest.TestCase):
     def setUp(self):

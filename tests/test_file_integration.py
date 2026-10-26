@@ -15,6 +15,9 @@ class FileIntegrationInstallerTests(unittest.TestCase):
    self.assertEqual(parser['Default Applications']['inode/directory'],'wysun-files.desktop;')
    self.assertIn('wysun-files.desktop',parser['Added Associations']['inode/directory'])
    import os,subprocess
+   # The entry runs `wysun files`; configure_wysun publishes `wysun`, here a stub stands in for it.
+   self.assertIn('Exec=wysun files %U',(home/'.local/share/applications/wysun-files.desktop').read_text())
+   stub=home/'.local/bin/wysun';stub.parent.mkdir(parents=True,exist_ok=True);stub.write_text('#!/bin/sh\n');stub.chmod(0o755)
    env=dict(os.environ,HOME=str(home),XDG_CONFIG_HOME=str(home/'.config'),XDG_DATA_HOME=str(home/'.local/share'),XDG_CURRENT_DESKTOP='Wysun:Hyprland',PATH=str(home/'.local/bin')+':/usr/bin:/bin')
    self.assertEqual(subprocess.check_output(['xdg-mime','query','default','inode/directory'],env=env,text=True).strip(),'wysun-files.desktop')
    self.assertTrue((home/'.local/share/applications/wysun-files.desktop').is_file())

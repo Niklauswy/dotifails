@@ -1,6 +1,0 @@
-#!/bin/sh
-# Wysun Player (`python3 -m wysun_player`): one process per user serves every image, video and audio window.
-here=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-app="$here/../share/wysun/app"
-[ -d "$app" ] || app="$here/../apps/python"
-PYTHONPATH="$app" exec /usr/bin/python3 -P -m wysun_player "$@"

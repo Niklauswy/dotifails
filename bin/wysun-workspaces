@@ -1,6 +1,0 @@
-#!/bin/sh
-# Login/hotplug restore of the fixed workspaces: `python3 -m wysun_settings.runtime workspaces`.
-here=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-app="$here/../share/wysun/app"
-[ -d "$app" ] || app="$here/../apps/python"
-PYTHONPATH="$app" exec /usr/bin/python3 -P -m wysun_settings.runtime workspaces "$@"
