@@ -150,12 +150,20 @@ Item {
             Column {
                 id: column
 
-                property real widest: 0
+                // The widest row sets the panel width; follows model changes (count) in both directions.
+                readonly property real widest: {
+                    let widest = 0;
+                    for (let i = 0; i < entries.count; ++i)
+                        widest = Math.max(widest, entries.itemAt(i)?.contentWidth ?? 0);
+                    return widest;
+                }
 
                 y: Theme.padding.small ?? 0
                 width: parent.width
 
                 Repeater {
+                    id: entries
+
                     model: root.model
 
                     Item {
@@ -163,6 +171,7 @@ Item {
 
                         required property var modelData
                         required property int index
+                        readonly property real contentWidth: modelData.divider ? 0 : row.contentWidth
 
                         width: column.width
                         height: modelData.divider ? 2 * (Theme.padding.small ?? 0) + Metrics.outlineWidth : Metrics.menuItemHeight
@@ -174,6 +183,8 @@ Item {
                         }
 
                         MenuItem {
+                            id: row
+
                             visible: !entry.modelData.divider
                             width: parent.width
                             entry: entry.modelData
@@ -183,7 +194,6 @@ Item {
                                 if (!disabled)
                                     root.currentIndex = entry.index;
                             }
-                            Component.onCompleted: column.widest = Math.max(column.widest, contentWidth)
                         }
                     }
                 }

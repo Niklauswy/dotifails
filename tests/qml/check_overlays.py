@@ -81,6 +81,18 @@ class MenuTests(Base):
         image = self.h.grab(view)
         support.close_to(self, self.h.pixel(image, 40 + menu.property('panelWidth') - 6, 40 + 4), c['surfaceContainer'], tolerance=6)
 
+    def test_width_follows_the_model_both_ways(self):
+        view = self.on_surface(self.BODY)
+        menu = self.menu(view)
+        self.h.call(view.rootObject(), 'popupAt', 40, 40)
+        self.h.pump()
+        wide = menu.property('panelWidth')
+        self.assertGreater(wide, 112)
+        self.h.call(menu, 'close')
+        menu.setProperty('model', [{'id': 'a', 'text': 'A'}])
+        self.h.pump()
+        self.assertEqual(menu.property('panelWidth'), 112, 'a short model shrinks the panel back to the minimum')
+
     def test_menu_keyboard_flow(self):
         view = self.on_surface(self.BODY)
         menu = self.menu(view)

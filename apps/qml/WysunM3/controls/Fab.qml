@@ -21,7 +21,6 @@ ButtonBase {
     implicitWidth: _open ? Metrics.fabExtendedLeading + glyph.width + (Theme.spacing.medium ?? 0) + label.implicitWidth + Metrics.fabExtendedTrailing : side
     width: implicitWidth
     height: implicitHeight
-    clip: extended
 
     elevation: Metrics.fabElevation
     restRadius: size === "small" && !extended ? Theme.rounding.medium ?? 0 : size === "large" && !extended ? Theme.rounding.extraLarge ?? 0 : Theme.rounding.large ?? 0
@@ -53,33 +52,40 @@ ButtonBase {
         kind: "fastSpatial"
     }
 
-    Icon {
-        id: glyph
+    // The label slides under the container's edge while the extended FAB folds; only the content clips, so the
+    // elevation shadow stays.
+    Item {
+        anchors.fill: parent
+        clip: root.extended
 
-        x: root._open ? Metrics.fabExtendedLeading : (root.side - width) / 2
-        anchors.verticalCenter: parent.verticalCenter
-        name: root.icon
-        size: root.iconSize
-        color: root.contentColor
+        Icon {
+            id: glyph
 
-        SpringBehavior on x {
-            kind: "fastSpatial"
+            x: root._open ? Metrics.fabExtendedLeading : (root.side - width) / 2
+            anchors.verticalCenter: parent.verticalCenter
+            name: root.icon
+            size: root.iconSize
+            color: root.contentColor
+
+            SpringBehavior on x {
+                kind: "fastSpatial"
+            }
         }
-    }
 
-    Label {
-        id: label
+        Label {
+            id: label
 
-        x: glyph.x + glyph.width + (Theme.spacing.medium ?? 0)
-        anchors.verticalCenter: parent.verticalCenter
-        visible: root.extended
-        opacity: root._open ? 1 : 0
-        role: "label.large"
-        text: root.text
-        color: root.contentColor
+            x: glyph.x + glyph.width + (Theme.spacing.medium ?? 0)
+            anchors.verticalCenter: parent.verticalCenter
+            visible: root.extended
+            opacity: root._open ? 1 : 0
+            role: "label.large"
+            text: root.text
+            color: root.contentColor
 
-        SpringBehavior on opacity {
-            kind: "fastEffects"
+            SpringBehavior on opacity {
+                kind: "fastEffects"
+            }
         }
     }
 }
