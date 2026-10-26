@@ -172,14 +172,14 @@ class ToolboxTests(unittest.TestCase):
         upload=home/'scripts/uploads/data';upload.parent.mkdir();upload.write_text('upload')
         config=home/'.config/wysun/theme.json';config.parent.mkdir(parents=True);config.write_text('theme')
         old=home/'scripts/gvm.sh';old.write_text('old script')
-        receipt=home/'.local/state/dotifails/installed.json';receipt.parent.mkdir(parents=True);receipt.write_text(json.dumps({'files':{'scripts/gvm.sh':installer.fingerprint(old)}}))
+        receipt=home/'.local/state/wysun/install/installed.json';receipt.parent.mkdir(parents=True);receipt.write_text(json.dumps({'files':{'scripts/gvm.sh':installer.fingerprint(old)}}))
         args=['install','--source',str(ROOT),'--target-home',str(home),'--scripts-only']
         with contextlib.redirect_stdout(io.StringIO()):
             self.assertEqual(installer.main(args),0)
-            first=json.loads((home/'.local/state/dotifails/installed.json').read_text())['last_backup']
+            first=json.loads((home/'.local/state/wysun/install/installed.json').read_text())['last_backup']
             self.assertEqual(installer.main(args),0)
         self.assertEqual((home/'.config/wysun/resets/accounts.json').read_text(),'[]');self.assertEqual((home/'.local/share/wysun/transfers/inbox/data').read_text(),'upload');self.assertEqual(config.read_text(),'theme')
-        receipt=json.loads((home/'.local/state/dotifails/installed.json').read_text());journal=json.loads((home/'.local/state/dotifails/backups'/receipt['last_backup']/'journal.json').read_text())
+        receipt=json.loads((home/'.local/state/wysun/install/installed.json').read_text());journal=json.loads((home/'.local/state/wysun/install/backups'/receipt['last_backup']/'journal.json').read_text())
         self.assertEqual(journal['operations'],[])
         self.assertTrue((home/'.local/bin/wysun-tools').is_file());self.assertFalse((home/'scripts/gvm.sh').exists())
         with contextlib.redirect_stdout(io.StringIO()):installer.restore(home,first)

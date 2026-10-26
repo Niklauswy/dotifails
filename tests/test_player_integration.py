@@ -167,7 +167,7 @@ class InstallerTests(unittest.TestCase):
         (home / '.config/mimeapps.list').write_text(edited)
         installer.restore(home, identifier)
         self.assertEqual((home / '.config/mimeapps.list').read_text(), original)
-        rescued = next((home / '.local/state/dotifails/backups' / identifier / 'changes-before-restore').rglob('mimeapps.list'))
+        rescued = next((home / '.local/state/wysun/install/backups' / identifier / 'changes-before-restore').rglob('mimeapps.list'))
         self.assertEqual(rescued.read_text(), edited, 'a change made after installing is rescued, not lost')
 
     def test_packages_for_opengl_are_declared_for_every_desktop_component(self):

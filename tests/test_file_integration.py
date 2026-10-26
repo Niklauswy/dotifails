@@ -3,9 +3,6 @@ from pathlib import Path
 root=Path(__file__).resolve().parents[1]
 if not (root/'installer/main.py').is_file():root=Path(__file__).resolve().parent
 spec=importlib.util.spec_from_file_location('file_integration_installer',root/'installer/main.py');module=importlib.util.module_from_spec(spec)
-# The staging directory can use the unchanged installer helpers from the checkout.
-import sys
-if not (root/'installer/install_model.py').exists():sys.path.insert(0,str(Path.home()/'dotifails/installer'))
 spec.loader.exec_module(module)
 class FileIntegrationInstallerTests(unittest.TestCase):
  def test_clean_home_defaults_and_dependencies(self):

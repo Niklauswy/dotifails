@@ -106,8 +106,8 @@ class RepositoryPreparationTests(unittest.TestCase):
         self.assertLess(index('update'), index('--simulate'))
         self.assertLess(index('--simulate'), index('upgrade'))
         self.assertLess(index('upgrade'), next(i for i, c in enumerate(commands) if 'install' in c and '--simulate' not in c))
-        receipt = json.loads((home/'.local/state/dotifails/installed.json').read_text())
-        journal = json.loads((home/'.local/state/dotifails/backups'/receipt['last_backup']/'journal.json').read_text())
+        receipt = json.loads((home/'.local/state/wysun/install/installed.json').read_text())
+        journal = json.loads((home/'.local/state/wysun/install/backups'/receipt['last_backup']/'journal.json').read_text())
         self.assertEqual(journal['status'], 'complete')
 
     def test_dependency_failure_stops_before_upgrade_or_configuration_changes(self):
@@ -125,7 +125,7 @@ class RepositoryPreparationTests(unittest.TestCase):
                 backend.main(['install', '--source', str(SOURCE), '--components', 'terminal', '--upgrade-system'])
         upgrade.assert_not_called()
         self.assertFalse((home/'.config').exists())
-        journal = next((home/'.local/state/dotifails/backups').glob('*/journal.json'))
+        journal = next((home/'.local/state/wysun/install/backups').glob('*/journal.json'))
         self.assertEqual(json.loads(journal.read_text())['status'], 'failed')
 
 

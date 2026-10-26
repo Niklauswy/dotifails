@@ -37,7 +37,7 @@ FACTS = {
 
 
 def receipt_at(home):
-    value = load_json(Path(home) / '.local/state/dotifails/installed.json', {})
+    value = load_json(Path(home) / '.local/state/wysun/install/installed.json', {})
     return value if isinstance(value, dict) else {}
 
 
@@ -784,7 +784,7 @@ class InstallerWindow(FramelessResize, QWidget):
         if result.get('message'):
             self.result_box.addWidget(CheckRow(dict(level='error', title='Motivo', detail=result['message'])))
         if result.get('conflicts'):
-            backup = self.home / '.local/state/dotifails/backups' / str(result.get('backup', ''))
+            backup = self.home / '.local/state/wysun/install/backups' / str(result.get('backup', ''))
             self.result_box.addWidget(CheckRow(dict(level='warning', title=f"{len(result['conflicts'])} archivos con cambios tuyos",
                 detail='Revisa las versiones nuevas en ' + str(backup / 'incoming') + ':\n' + '\n'.join(result['conflicts'][:12]))))
         plan = self.last_plan or {}
@@ -996,7 +996,7 @@ def launch(source=None, home=None, preview=False):
     app = QApplication.instance() or QApplication(['wysun-installer'])
     app.setApplicationName('wysun-installer')
     app.setApplicationDisplayName('Instalador de Wysun')
-    app.setDesktopFileName('wysun-installer-preview' if preview else 'dotifails-installer')
+    app.setDesktopFileName('wysun-installer-preview' if preview else 'wysun-installer')
     app.setOrganizationName('Wysun')
     app.setStyle('Fusion')
     window = InstallerWindow(source, home, preview=preview)

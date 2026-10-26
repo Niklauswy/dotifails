@@ -215,7 +215,7 @@ def preflight(options):
         unsafe.append(str(ancestor))
     add('paths', 'error' if unsafe else 'ok', 'Destino y configuración',
         'Revisa permisos o enlaces: ' + ', '.join(unsafe) if unsafe else 'Las configuraciones existentes se respaldan antes de reemplazarlas.')
-    lock = options.home / '.local/state/dotifails/install.lock'
+    lock = options.home / '.local/state/wysun/install/install.lock'
     if lock.is_file():
         try:
             with lock.open('r') as stream:
@@ -247,7 +247,7 @@ def preflight(options):
 
 
 def backups(home):
-    root = Path(home) / '.local/state/dotifails/backups'
+    root = Path(home) / '.local/state/wysun/install/backups'
     entries = []
     for path in root.glob('*/journal.json'):
         record = load_json(path, {})

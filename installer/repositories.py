@@ -64,7 +64,7 @@ def ensure(fields, root=Path('/')):
     if target.exists() or target.is_symlink():
         raise RuntimeError('Ya existe ' + str(target) + ' con otra configuración. Revísala antes de continuar.')
     ident = datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%S.%fZ')
-    backup = root / 'var/lib/dotifails/repositories/backups' / ident
+    backup = root / 'var/lib/wysun/repositories/backups' / ident
     backup.mkdir(parents=True, mode=0o700)
     journal = backup / 'journal.json'
     journal.write_text(json.dumps({'path': str(target.relative_to(root)), 'before': None,

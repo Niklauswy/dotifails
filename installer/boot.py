@@ -225,7 +225,7 @@ class BootDeployment:
     def __init__(self, source, root=Path('/'), runner=None, components=None):
         self.source = Path(source).resolve()
         self.root = Path(root)
-        self.state = self.path('var/lib/dotifails/boot')
+        self.state = self.path('var/lib/wysun/boot')
         self.receipt = {}
         if os.geteuid()==0 or self.root!=Path('/'):
             self.receipt = read(self.state/'installed.json', {})
@@ -468,7 +468,7 @@ def main():
     parser.add_argument('--list',action='store_true',help='Listar respaldos del arranque')
     parser.add_argument('--events',action='store_true',help=argparse.SUPPRESS)
     args=parser.parse_args()
-    if args.events:os.environ['DOTIFAILS_EVENTS']='1'
+    if args.events:os.environ['WYSUN_EVENTS']='1'
     deployment=BootDeployment(args.source,components=args.components.split(','))
     if args.dry_run:
         for group,rel,_ in deployment.plan():print(f'{group}: /{rel}')

@@ -18,7 +18,7 @@ from install_model import InstallOptions, backups, normalize_components, package
 
 class VisualInstallerBackendTests(unittest.TestCase):
     def setUp(self):
-        self.temp = tempfile.TemporaryDirectory(prefix='dotifails-installer-test-')
+        self.temp = tempfile.TemporaryDirectory(prefix='wysun-installer-test-')
         self.home = Path(self.temp.name)
 
     def tearDown(self):
@@ -50,7 +50,7 @@ class VisualInstallerBackendTests(unittest.TestCase):
 
     def test_backups_use_creation_time_not_random_id_suffix(self):
         for ident, created in (('20261012T120000Z-zzzzzz','2026-10-12T12:00:00.100000+00:00'),('20261012T120000Z-aaaaaa','2026-10-12T12:00:00.900000+00:00')):
-            backend.write(self.home/'.local/state/dotifails/backups'/ident/'journal.json',dict(id=ident,created_at=created,status='complete',operations=[]))
+            backend.write(self.home/'.local/state/wysun/install/backups'/ident/'journal.json',dict(id=ident,created_at=created,status='complete',operations=[]))
         self.assertTrue(backups(self.home)[0]['id'].endswith('aaaaaa'))
 
     def test_plan_matches_backend_arguments_and_selected_packages(self):
@@ -72,19 +72,19 @@ class VisualInstallerBackendTests(unittest.TestCase):
         app = self.home/'.local/share/wysun/app/wysun_services/daemon.py'
         app.parent.mkdir(parents=True)
         app.write_text('unchanged app')
-        state = self.home/'.local/state/dotifails/installed.json'
+        state = self.home/'.local/state/wysun/install/installed.json'
         backend.write(state, {'files':{}, 'components':['desktop','terminal'], 'last_selection':['desktop','terminal']})
         with contextlib.redirect_stdout(io.StringIO()):
             code = backend.main(['install','--source',str(SOURCE),'--target-home',str(self.home),'--installer-only'])
         self.assertEqual(code, 0)
         self.assertEqual(app.read_text(), 'unchanged app')
         self.assertEqual(backend.read(state)['last_selection'], ['desktop','terminal'])
-        self.assertTrue((self.home/'.local/share/dotifails/installer/gui.py').exists())
+        self.assertTrue((self.home/'.local/share/wysun/installer/gui.py').exists())
         self.assertFalse((self.home/'.config').exists())
 
     def test_terminal_only_keeps_desktop_editor_private_data_and_profile(self):
         originals = {'.config/nvim/init.lua':'my editor', '.config/other-desktop/wmrc':'my desktop',
-                     '.config/dotifails/theme.json':'{"name":"personal"}',
+                     '.config/wysun/theme.json':'{"name":"personal"}',
                      '.local/share/wysun/notes/private.md':'private note'}
         for relative, content in originals.items():
             path = self.home/relative
@@ -96,17 +96,17 @@ class VisualInstallerBackendTests(unittest.TestCase):
         self.assertFalse((self.home/'.local/share/wysun/app').exists())
         self.assertFalse((self.home/'.local/share/backgrounds').exists())
         self.assertTrue((self.home/'.config/ghostty/config').is_file())
-        self.assertTrue((self.home/'.local/share/applications/dotifails-installer.desktop').is_file())
+        self.assertTrue((self.home/'.local/share/applications/wysun-installer.desktop').is_file())
 
     def test_repeat_is_idempotent_then_conflict_and_restore_keep_edits(self):
         zsh = self.home/'.zshrc'
         zsh.write_text('original shell')
         self.assertEqual(self.install('terminal'), 0)
-        receipt = backend.read(self.home/'.local/state/dotifails/installed.json')
+        receipt = backend.read(self.home/'.local/state/wysun/install/installed.json')
         first = receipt['last_backup']
         self.assertEqual(self.install('terminal'), 0)
-        receipt = backend.read(self.home/'.local/state/dotifails/installed.json')
-        journal = backend.read(self.home/'.local/state/dotifails/backups'/receipt['last_backup']/'journal.json')
+        receipt = backend.read(self.home/'.local/state/wysun/install/installed.json')
+        journal = backend.read(self.home/'.local/state/wysun/install/backups'/receipt['last_backup']/'journal.json')
         self.assertEqual(journal['operations'], [])
         zsh.write_text('my edited shell')
         self.assertEqual(self.install('terminal'), 2)
@@ -114,7 +114,7 @@ class VisualInstallerBackendTests(unittest.TestCase):
         with contextlib.redirect_stdout(io.StringIO()):
             backend.restore(self.home, first)
         self.assertEqual(zsh.read_text(), 'original shell')
-        rescued = self.home/'.local/state/dotifails/backups'/first/'changes-before-restore/.zshrc'
+        rescued = self.home/'.local/state/wysun/install/backups'/first/'changes-before-restore/.zshrc'
         self.assertEqual(rescued.read_text(), 'my edited shell')
 
     def test_preflight_detects_incomplete_source_and_symlink_parent(self):
@@ -127,10 +127,10 @@ class VisualInstallerBackendTests(unittest.TestCase):
     def test_cancel_before_start_changes_no_files(self):
         cancel = self.home/'cancel'
         cancel.touch()
-        with patch.dict(os.environ, DOTIFAILS_CANCEL_FILE=str(cancel)):
+        with patch.dict(os.environ, WYSUN_CANCEL_FILE=str(cancel)):
             with self.assertRaises(InstallationCancelled):
                 self.install('terminal')
-        self.assertFalse((self.home/'.local/state/dotifails').exists())
+        self.assertFalse((self.home/'.local/state/wysun/install').exists())
 
     def test_cancelled_authorization_is_reported_as_cancelled(self):
         import subprocess
@@ -138,7 +138,7 @@ class VisualInstallerBackendTests(unittest.TestCase):
         def cancelled_command(*args, **kwargs):
             cancel.touch()
             raise subprocess.CalledProcessError(1, args[0])
-        with patch.dict(os.environ, DOTIFAILS_CANCEL_FILE=str(cancel)), patch.object(backend.subprocess, 'run', cancelled_command):
+        with patch.dict(os.environ, WYSUN_CANCEL_FILE=str(cancel)), patch.object(backend.subprocess, 'run', cancelled_command):
             with contextlib.redirect_stdout(io.StringIO()), self.assertRaises(InstallationCancelled):
                 backend.run(['sudo', 'true'])
 
@@ -149,10 +149,10 @@ class VisualInstallerBackendTests(unittest.TestCase):
             original(deployment, source, relative)
             if deployment.journal['operations']:
                 cancel.touch()
-        with patch.dict(os.environ, DOTIFAILS_CANCEL_FILE=str(cancel)), patch.object(backend.Deployment, 'deploy', stop_after_one):
+        with patch.dict(os.environ, WYSUN_CANCEL_FILE=str(cancel)), patch.object(backend.Deployment, 'deploy', stop_after_one):
             with self.assertRaises(InstallationCancelled):
                 self.install('terminal')
-        journal_path = next((self.home/'.local/state/dotifails/backups').glob('*/journal.json'))
+        journal_path = next((self.home/'.local/state/wysun/install/backups').glob('*/journal.json'))
         journal = backend.read(journal_path)
         self.assertEqual(journal['status'], 'cancelled')
         self.assertGreater(len(journal['operations']), 0)

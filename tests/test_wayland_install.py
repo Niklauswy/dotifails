@@ -92,8 +92,8 @@ class WaylandInstallTests(unittest.TestCase):
             self.assertEqual(self.install(), 0)
             host_run.assert_not_called()
             self.assertEqual(self.install(), 0)
-        receipt = installer.read(self.home / '.local/state/dotifails/installed.json')
-        journal = installer.read(self.home / '.local/state/dotifails/backups' / receipt['last_backup'] / 'journal.json')
+        receipt = installer.read(self.home / '.local/state/wysun/install/installed.json')
+        journal = installer.read(self.home / '.local/state/wysun/install/backups' / receipt['last_backup'] / 'journal.json')
         self.assertEqual(journal['operations'], [])
         config = self.home / '.config/wysun/hyprland.lua'
         config.write_text('personal Lua configuration')
@@ -103,8 +103,8 @@ class WaylandInstallTests(unittest.TestCase):
         before_launcher = (self.home / '.local/bin/wysun').read_text()
         (self.source / 'bin/wysun').write_text(before_launcher + '\n# new dispatcher\n')
         self.assertEqual(self.install(), 2)
-        receipt = installer.read(self.home / '.local/state/dotifails/installed.json')
-        backup = self.home / '.local/state/dotifails/backups' / receipt['last_backup']
+        receipt = installer.read(self.home / '.local/state/wysun/install/installed.json')
+        backup = self.home / '.local/state/wysun/install/backups' / receipt['last_backup']
         self.assertEqual(config.read_text(), 'personal Lua configuration')
         self.assertEqual(app.read_text(), '# local app customization\n')
         self.assertTrue((backup / 'incoming/.local/share/wysun/app/wysun_services/daemon.py').is_file())
@@ -238,7 +238,7 @@ class WaylandInstallTests(unittest.TestCase):
         with patch.object(session_registration.shutil, 'copy2', side_effect=OSError('synthetic interruption')):
             with self.assertRaisesRegex(OSError, 'synthetic interruption'):
                 session_registration.register(ROOT / 'installer', root)
-        self.assertTrue((root / 'var/lib/dotifails/wayland-session/installed.json').exists())
+        self.assertTrue((root / 'var/lib/wysun/wayland-session/installed.json').exists())
         with contextlib.redirect_stdout(io.StringIO()):
             self.assertEqual(session_registration.register(ROOT / 'installer', root), 0)
             self.assertEqual(session_registration.register(ROOT / 'installer', root, restore=True), 0)

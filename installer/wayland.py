@@ -118,7 +118,7 @@ def _publish_asset(deployment, source, relative):
 
 
 def migrate_legacy_names(deployment):
-    """Copy (never move) state stored under the former Caelestia names; the old copies are left for `dotifails clean`."""
+    """Copy (never move) state stored under the former Caelestia names; the old copies are left for `wysun-install clean`."""
     import shutil
     d = deployment
     old, new = d.home / '.config/wysun/caelestia', d.home / '.config/wysun/shell'

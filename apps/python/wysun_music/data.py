@@ -102,7 +102,7 @@ def retry_failed():
 
 
 def ytdlp():
-    private = Path.home()/'.local/share/dotifails/tools/yt-dlp/yt-dlp'
+    private = Path.home()/'.local/share/wysun/artifacts/yt-dlp/yt-dlp'
     if not private.exists():private = Path.home()/'.local/share/musica-terminal/bin/yt-dlp'
     binary = str(private) if private.exists() else shutil.which('yt-dlp')
     if not binary:

@@ -13,7 +13,7 @@ from wysun_core.qt_theme import apply_style  # noqa: E402
 
 
 def main():
-    app = QApplication(['dotifails-authorization'])
+    app = QApplication(['wysun-authorization'])
     app.setApplicationName('Autorización de Wysun')
     dialog = QDialog()
     dialog.setWindowTitle('Autorizar instalación · Wysun')
@@ -41,7 +41,7 @@ def main():
     layout.addWidget(buttons)
     apply_style(dialog, 'QDialog{background:@canvas;color:@text} QLabel{color:@text} QLineEdit{background:@well;color:@text;border:@border.width solid @line_strong;border-radius:@rounding.medium;padding:12px} QLineEdit:focus{border-color:@focus_input} QPushButton{padding:10px 20px;background:@fill;color:@control_text;border-radius:@rounding.medium} QPushButton:hover{background:@hover} QPushButton:focus{border:@border.focus solid @focus}')
     password.setFocus(Qt.OtherFocusReason)
-    cancel_path=os.environ.get('DOTIFAILS_CANCEL_FILE')
+    cancel_path=os.environ.get('WYSUN_CANCEL_FILE')
     cancel_timer=QTimer(dialog)
     if cancel_path:
         cancel_timer.timeout.connect(lambda:dialog.reject() if Path(cancel_path).is_file() else None)

@@ -52,7 +52,7 @@ class InstallerTests(unittest.TestCase):
    self.assertEqual(m.main(['install','--source',str(source),'--target-home',tmp,'--wysun-only']),0)
    self.assertEqual(nvim.read_text(),'my editor');self.assertEqual(note.read_text(),'private');self.assertFalse((home/'.local/share/wysun/app/notes_window.py').exists());self.assertFalse((home/'.config/sxhkd').exists());self.assertTrue((home/'.local/share/icons/hicolor/scalable/apps/musika.svg').is_file());self.assertIn('Name=Wysun Music',(home/'.local/share/applications/wysun-music.desktop').read_text())
    self.assertEqual(m.main(['install','--source',str(source),'--target-home',tmp,'--wysun-only']),0)
-   backup=json.loads((home/'.local/state/dotifails/installed.json').read_text())['last_backup'];journal=json.loads((home/'.local/state/dotifails/backups'/backup/'journal.json').read_text());self.assertEqual(journal['operations'],[])
+   backup=json.loads((home/'.local/state/wysun/install/installed.json').read_text())['last_backup'];journal=json.loads((home/'.local/state/wysun/install/backups'/backup/'journal.json').read_text());self.assertEqual(journal['operations'],[])
  def setUp(self):
   self.temp=tempfile.TemporaryDirectory();self.root=Path(self.temp.name);self.home=self.root/'home';self.home.mkdir();self.source=self.root/'source';self.source.mkdir();self.input=self.source/'file';self.input.write_text('new')
  def tearDown(self):self.temp.cleanup()
@@ -61,7 +61,7 @@ class InstallerTests(unittest.TestCase):
   dest=self.home/'.config/app';dest.parent.mkdir();dest.write_text('original');d=self.deploy();d.deploy(self.input,Path('.config/app'));d.finish();first=d.journal['id'];d.lock.close();self.assertEqual(dest.read_text(),'new')
   d=self.deploy();d.deploy(self.input,Path('.config/app'));self.assertEqual(d.journal['operations'],[]);d.finish();d.lock.close()
   dest.write_text('my changes');self.input.write_text('updated');d=self.deploy();d.deploy(self.input,Path('.config/app'));self.assertEqual(d.conflicts,['.config/app']);self.assertEqual(dest.read_text(),'my changes');self.assertEqual((d.backup/'incoming/.config/app').read_text(),'updated');d.finish();d.lock.close()
-  m.restore(self.home,first);self.assertEqual(dest.read_text(),'original');self.assertEqual((self.home/'.local/state/dotifails/backups'/first/'changes-before-restore/.config/app').read_text(),'my changes')
+  m.restore(self.home,first);self.assertEqual(dest.read_text(),'original');self.assertEqual((self.home/'.local/state/wysun/install/backups'/first/'changes-before-restore/.config/app').read_text(),'my changes')
  def test_managed_symlink_replaces_without_following(self):
   outside=self.root/'outside';outside.write_text('untouched');dest=self.home/'file';dest.symlink_to(outside);d=self.deploy();d.deploy(self.input,Path('file'));d.finish();d.lock.close();self.assertEqual(outside.read_text(),'untouched');m.restore(self.home,d.journal['id']);self.assertTrue(dest.is_symlink())
  def test_parent_symlink_rejected(self):
@@ -70,7 +70,7 @@ class InstallerTests(unittest.TestCase):
  def test_interrupted_rename_recovers(self):
   dest=self.home/'file';dest.write_text('original');d=self.deploy();original=Path.rename
   def fail(path,target):
-   if '.dotifails-' in path.name:raise OSError('simulated interruption')
+   if '.wysun-' in path.name:raise OSError('simulated interruption')
    return original(path,target)
   with patch.object(Path,'rename',fail):
    with self.assertRaises(OSError):d.deploy(self.input,Path('file'))

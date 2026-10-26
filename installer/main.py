@@ -63,7 +63,7 @@ def copy(source,target):
 def run(argv,env=None):
     checkpoint()
     argv=list(map(str,argv))
-    if argv and argv[0]=='sudo' and os.environ.get('DOTIFAILS_EVENTS')=='1':
+    if argv and argv[0]=='sudo' and os.environ.get('WYSUN_EVENTS')=='1':
         argv.insert(1,'-A')
     print('+ '+' '.join(map(str,argv)),flush=True)
     try:subprocess.run(argv,check=True,env=env)
@@ -90,7 +90,7 @@ def default_wallpaper(source):
 
 class Deployment:
     def __init__(self,home,source):
-        self.home=Path(home).absolute();self.source=Path(source).resolve();self.state=self.home/'.local/state/dotifails';self.data=self.home/'.local/share/dotifails';self.receipt=read(self.state/'installed.json',{'files':{}});self.journal=None;self.conflicts=[]
+        self.home=Path(home).absolute();self.source=Path(source).resolve();self.state=self.home/'.local/state/wysun/install';self.data=self.home/'.local/share/wysun';self.receipt=read(self.state/'installed.json',{'files':{}});self.journal=None;self.conflicts=[]
     def begin(self):
         checkpoint()
         for relative in ('.config/probe','.local/share/probe','.local/state/probe','.cache/probe'):
@@ -124,7 +124,7 @@ class Deployment:
         before=self.backup/'before'/relative
         if exists(dest):copy(dest,before)
         op={'path':key,'before':current,'after':wanted};self.journal['operations'].append(op);self.flush()
-        temporary=dest.with_name('.'+dest.name+'.dotifails-'+uuid.uuid4().hex)
+        temporary=dest.with_name('.'+dest.name+'.wysun-'+uuid.uuid4().hex)
         copy(source,temporary)
         # Existing directories need a rename first. The durable journal can recover an interruption here.
         displaced=dest.with_name('.'+dest.name+'.previous-'+self.journal['id'])
@@ -253,15 +253,13 @@ class Deployment:
             else:
                 text='#!/bin/sh\nbase=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)\nexec "$base/wysun-tools" '+group+' "$@"\n'
             self.generated(text,Path('.local/bin')/name,True)
-        candidates=[self.home/'.config/dotifails/rezets/accounts.json',self.home/'scripts/.rezets/accounts.json']
-        legacy=next((p for p in candidates if p.is_file()),candidates[-1])
+        legacy=self.home/'scripts/.rezets/accounts.json'
         target=Path('.config/wysun/resets/accounts.json')
         if legacy.is_file() and not exists(self.destination(target)):
             payload=legacy.read_text()
             if not isinstance(json.loads(payload),list):raise RuntimeError('Cuentas antiguas inválidas; se conservaron.')
             stage=self.backup/'generated/private-accounts.json';stage.parent.mkdir(parents=True,exist_ok=True);stage.write_text(payload);stage.chmod(0o600)
             self.deploy(stage,target)
-        if (self.home/'.config/dotifails/rezets').is_dir():self.retire(Path('.config/dotifails/rezets'),private=True)
         if (self.home/'scripts/.rezets').is_dir():self.retire(Path('scripts/.rezets'),private=True)
         uploads=self.home/'scripts/uploads';inbox=Path('.local/share/wysun/transfers/inbox')
         if uploads.is_dir() and not exists(self.destination(inbox)):
@@ -269,21 +267,19 @@ class Deployment:
         for relative in ('scripts/__pycache__','scripts/.codex'):
             dest=self.destination(relative)
             if dest.is_dir() or (dest.is_file() and dest.stat().st_size==0):self.retire(Path(relative),private=True)
-        if '.local/share/dotifails/toolbox' in self.receipt['files']:
-            self.retire(Path('.local/share/dotifails/toolbox'))
     def configure_manager(self):
         from ui_support import package_runtime
         manager=self.backup/'generated/manager'
         shutil.copytree(self.source/'installer',manager,ignore=shutil.ignore_patterns('__pycache__','*.pyc','ui_runtime'))
         package_runtime(self.source,manager/'ui_runtime')
-        self.deploy(manager,Path('.local/share/dotifails/installer'))
-        self.deploy(self.source/'manifests',Path('.local/share/dotifails/manifests'))
-        self.generated('#!/bin/sh\nexec python3 "$HOME/.local/share/dotifails/installer/main.py" "$@"\n',Path('.local/bin/dotifails'),True)
-        self.generated('#!/bin/sh\nexec /usr/bin/python3 "$HOME/.local/share/dotifails/installer/main.py" gui "$@"\n',Path('.local/bin/wysun-installer'),True)
+        self.deploy(manager,Path('.local/share/wysun/installer'))
+        self.deploy(self.source/'manifests',Path('.local/share/wysun/manifests'))
+        self.generated('#!/bin/sh\nexec python3 "$HOME/.local/share/wysun/installer/main.py" "$@"\n',Path('.local/bin/wysun-install'),True)
+        self.generated('#!/bin/sh\nexec /usr/bin/python3 "$HOME/.local/share/wysun/installer/main.py" gui "$@"\n',Path('.local/bin/wysun-installer'),True)
         for preview in (False,True):
             name='Vista previa del instalador de Wysun' if preview else 'Instalador de Wysun'
             suffix=' --preview' if preview else ''
-            filename='wysun-installer-preview.desktop' if preview else 'dotifails-installer.desktop'
+            filename='wysun-installer-preview.desktop' if preview else 'wysun-installer.desktop'
             self.generated('[Desktop Entry]\nType=Application\nName='+name+'\nComment=Instalar, actualizar y recuperar tu entorno Wysun\nExec=wysun-installer'+suffix+'\nIcon=system-software-install\nCategories=System;Settings;\nKeywords=Wysun;instalador;installer;dotfiles;\nTerminal=false\nStartupWMClass=wysun-installer\n',Path('.local/share/applications')/filename)
 
     def configure(self,profile=None,components=None):
@@ -323,7 +319,7 @@ class Deployment:
             # Ship the same music entry points as a --wysun-only update.
             for rel in ('.local/share/applications/wysun-music.desktop','.local/share/icons/hicolor/scalable/apps/musika.svg'):
                 if (self.source/'config'/rel).is_file():self.deploy(self.source/'config'/rel,Path(rel))
-        if selected & {'desktop','terminal'}:self.deploy(self.source/'assets/fonts',Path('.local/share/fonts/dotifails'))
+        if selected & {'desktop','terminal'}:self.deploy(self.source/'assets/fonts',Path('.local/share/fonts/wysun'))
         if 'desktop' in selected:
             # The mode is the only choice: keep the user's (and any other key); a broken file starts automatic.
             try:stored=json.loads((self.home/'.config/wysun/theme.json').read_text())
@@ -336,7 +332,7 @@ class Deployment:
                 preferences['wallpaper']=dict(default=str(self.home/'.local/share/backgrounds'/default_wallpaper(self.source)),mode='fill',monitors={},folders=preferences.get('wallpaper',{}).get('folders',[]))
                 self.generated(json.dumps(preferences,indent=2)+'\n',Path('.config/wysun/environment.json'))
         self.configure_manager()
-        if profile:self.deploy(self.source/'machines'/f'{profile}.sh',Path('.config/dotifails/machine.sh'))
+        if profile:self.deploy(self.source/'machines'/f'{profile}.sh',Path('.config/wysun/machine.sh'))
         if 'desktop' in selected:
             self.generated(WYSUN_DESKTOP,Path('.local/share/applications/wysun.desktop'))
             (self.home/'Screenshots').mkdir(exist_ok=True)
@@ -378,34 +374,34 @@ def extract(archive,target,kind,executable=None):
 
 
 def install_tools(deployment,components=None):
-    d=deployment;d.stage('Herramientas con versión y SHA-256 fijadas');lock=read(d.source/'manifests/artifacts.json');root=d.data/'tools';root.mkdir(parents=True,exist_ok=True);cache=d.home/'.cache/dotifails/downloads'
+    d=deployment;d.stage('Herramientas con versión y SHA-256 fijadas');lock=read(d.source/'manifests/artifacts.json');root=d.data/'artifacts';root.mkdir(parents=True,exist_ok=True);cache=d.home/'.cache/wysun/install/downloads'
     wanted=set(lock) if components is None else set().union(*(ARTIFACTS[key] for key in components))
     lock={name:spec for name,spec in lock.items() if name in wanted}
     for name,spec in lock.items():
-        version=root/(name+'-'+spec['version']);marker=version/'.dotifails-sha256'
+        version=root/(name+'-'+spec['version']);marker=version/'.wysun-sha256'
         if not marker.is_file() or marker.read_text()!=spec['sha256']:
             archive=fetch(spec,cache);temp=root/(name+'-staging-'+uuid.uuid4().hex)
             try:
-                extract(archive,temp,spec['kind'],spec.get('executable'));(temp/'.dotifails-sha256').write_text(spec['sha256'])
+                extract(archive,temp,spec['kind'],spec.get('executable'));(temp/'.wysun-sha256').write_text(spec['sha256'])
                 if version.exists():raise RuntimeError(f'Versión existente incompleta: {version}; se conservó para inspección.')
                 temp.rename(version)
             finally:
                 if exists(temp):remove(temp)
         # Switch only stable pointers; old versions remain available for restoration.
         link=d.backup/'links'/name;link.parent.mkdir(exist_ok=True);link.symlink_to(version.name)
-        d.deploy(link,Path('.local/share/dotifails/tools')/name)
+        d.deploy(link,Path('.local/share/wysun/artifacts')/name)
     for name,target in [('node','node/bin/node'),('npm','node/bin/npm'),('npx','node/bin/npx'),('nvim','nvim/bin/nvim'),('starship','starship/starship'),('yt-dlp','yt-dlp/yt-dlp')]:
         if target.split('/')[0] not in lock:continue
-        d.generated('#!/bin/sh\nexport PATH="$HOME/.local/bin:$PATH"\nexec "$HOME/.local/share/dotifails/tools/'+target+'" "$@"\n',Path('.local/bin')/name,True)
+        d.generated('#!/bin/sh\nexport PATH="$HOME/.local/bin:$PATH"\nexec "$HOME/.local/share/wysun/artifacts/'+target+'" "$@"\n',Path('.local/bin')/name,True)
     # Mise shims dispatch by argv[0]; a shell wrapper would lose that name.
     if 'mise' in lock:
-        mise_link=d.backup/'links/mise-bin';mise_link.symlink_to('../share/dotifails/tools/mise/bin/mise');d.deploy(mise_link,Path('.local/bin/mise'))
-    if 'ghostty' in lock:d.generated('#!/bin/sh\nexport PATH="$HOME/.local/bin:$PATH"\nexec "$HOME/.local/share/dotifails/tools/ghostty/AppRun" "$@"\n',Path('.local/bin/ghostty'),True)
+        mise_link=d.backup/'links/mise-bin';mise_link.symlink_to('../share/wysun/artifacts/mise/bin/mise');d.deploy(mise_link,Path('.local/bin/mise'))
+    if 'ghostty' in lock:d.generated('#!/bin/sh\nexport PATH="$HOME/.local/bin:$PATH"\nexec "$HOME/.local/share/wysun/artifacts/ghostty/AppRun" "$@"\n',Path('.local/bin/ghostty'),True)
     if components is None or 'terminal' in components:
         for command,system in [('fd','fdfind'),('bat','batcat')]:d.generated(f'#!/bin/sh\nexec /usr/bin/{system} "$@"\n',Path('.local/bin')/command,True)
     for name in ('zsh-autosuggestions','zsh-syntax-highlighting'):
         if name not in lock:continue
-        link=d.backup/'links'/('plugin-'+name);link.symlink_to('../../tools/'+name);d.deploy(link,Path('.local/share/dotifails/zsh-custom/plugins')/name)
+        link=d.backup/'links'/('plugin-'+name);link.symlink_to('../../artifacts/'+name);d.deploy(link,Path('.local/share/wysun/zsh-custom/plugins')/name)
 
 
 def packages(source,extras,components=None,boot_components=None,refresh=True):
@@ -449,7 +445,7 @@ def wayland_session(source):
 def boot_appearance(source,dry_run=False,components=None):
     command=['/usr/bin/python3',str(source/'installer/boot.py'),'--source',str(source)]
     if components:command+=['--components',','.join(components)]
-    if os.environ.get('DOTIFAILS_EVENTS')=='1':command+=['--events']
+    if os.environ.get('WYSUN_EVENTS')=='1':command+=['--events']
     if dry_run:command+=['--dry-run']
     elif os.geteuid()!=0:command=['sudo']+command
     run(command)
@@ -472,9 +468,9 @@ def nvim_setup(d,env):
     run(['make','-C',d.home/'.local/share/nvim/lazy/telescope-fzf-native.nvim'],env)
     run([d.home/'.local/bin/nvim','--headless','-u','NONE','-n','-i','NONE','-l',d.source/'installer/bootstrap-nvim.lua'],env)
     # The config's install=false keeps startup inert; this explicit phase performs installation.
-    env=dict(env,DOTIFAILS_NVIM_SCRIPT=str(d.home/'.config/nvim/scripts/install.lua'))
+    env=dict(env,WYSUN_NVIM_SCRIPT=str(d.home/'.config/nvim/scripts/install.lua'))
     run([d.home/'.local/bin/nvim','--headless','-n','-i','NONE','-c',
-         "lua local ok,err=pcall(dofile,vim.env.DOTIFAILS_NVIM_SCRIPT); if not ok then print(err); vim.cmd('cquit 1') end",'-c','qa'],env)
+         "lua local ok,err=pcall(dofile,vim.env.WYSUN_NVIM_SCRIPT); if not ok then print(err); vim.cmd('cquit 1') end",'-c','qa'],env)
     d.receipt['files']['.config/nvim']=fingerprint(d.home/'.config/nvim')
     write(d.state/'installed.json',d.receipt)
 
@@ -498,7 +494,7 @@ def required_files(home,selected):
 
 def doctor(home,components=None):
     home=Path(home);env=dict(os.environ,HOME=str(home),PATH=str(home/'.local/bin')+':'+os.environ.get('PATH',''));failed=[]
-    selected=set(normalize_components(components or read(home/'.local/state/dotifails/installed.json',{}).get('components')))
+    selected=set(normalize_components(components or read(home/'.local/state/wysun/install/installed.json',{}).get('components')))
     checks={'Python Qt':(['/usr/bin/python3','-c','from PySide6 import QtCore,QtGui,QtWidgets,QtSvg; import dbus,gi'],None),
       'Neovim':([str(home/'.local/bin/nvim'),'--version'],'0.11.5'),
       'Node':([str(home/'.local/bin/node'),'--version'],'v24.19.0'),'Mise':([str(home/'.local/bin/mise'),'--version'],'2026.9.14'),'Ghostty':([str(home/'.local/bin/ghostty'),'--version'],'1.2.3'),
@@ -542,7 +538,7 @@ def restore(home,ident):
     if not ident:
         for p in sorted((state/'backups').glob('*/journal.json')):
             j=read(p);print(j['id'],j['status'])
-        print('Restaurar: dotifails restore ID');return 0
+        print('Restaurar: wysun-install restore ID');return 0
     if Path(ident).name!=ident or ident in ('.','..'):raise ValueError('Identificador inválido')
     backup=state/'backups'/ident;j=read(backup/'journal.json')
     if not j:raise RuntimeError('No existe ese respaldo')
@@ -610,7 +606,7 @@ def main(argv=None):
         if args.wysun_only or args.scripts_only or args.config_only or args.extras or args.profile:
             raise ValueError('--boot-only se usa por separado.')
         if args.target_home!=Path.home():raise ValueError('--boot-only modifica el sistema, no otro hogar.')
-        previous=read(args.target_home/'.local/state/dotifails/installed.json',{}).get('source')
+        previous=read(args.target_home/'.local/state/wysun/install/installed.json',{}).get('source')
         source=(args.source or (Path(previous) if previous else Path(__file__).resolve().parent.parent)).resolve()
         if not (source/'system/boot/grub/theme.txt').is_file():raise RuntimeError('Indica el repositorio completo con --source.')
         if not args.dry_run:host_supported()
@@ -629,14 +625,14 @@ def main(argv=None):
     if args.installer_only:selected=()
     if args.plan:
         if args.command=='update' and not args.source:raise ValueError('Para revisar un plan exacto de actualización, indica la copia local con --source.')
-        previous=read(args.target_home/'.local/state/dotifails/installed.json',{}).get('source')
+        previous=read(args.target_home/'.local/state/wysun/install/installed.json',{}).get('source')
         source=(args.source or (Path(previous) if previous else Path(__file__).resolve().parent.parent))
         options=InstallOptions(source,args.target_home,selected,tuple(filter(None,args.extras.split(','))),tuple(args.boot_components.split(',')),args.config_only,args.skip_nvim_tools,args.profile,args.upgrade_system,args.prepare_repositories)
         print(json.dumps(options.summary(),ensure_ascii=False,indent=2));return 0
     if args.dry_run:
         if args.installer_only:print('Plan: respaldar y actualizar solo el instalador, sus manifiestos y el acceso en el menú de aplicaciones.');return 0
         if args.scripts_only:print('Plan: instalar wysun-tools y su motor; respaldar y retirar lanzadores duplicados; migrar recordatorios y subidas a sus carpetas de Wysun; conservar aliases en el PATH. Los datos privados no se añaden al repositorio.');return 0
-        if args.wysun_only:print('Plan: respaldar y actualizar la familia Wysun, incluidos Recorder y Screenshot, y el gestor dotifails. No cambia atajos, notas, historial ni colores.');return 0
+        if args.wysun_only:print('Plan: respaldar y actualizar la familia Wysun, incluidos Recorder y Screenshot, y el gestor wysun-install. No cambia atajos, notas, historial ni colores.');return 0
         if 'wayland' in selected and not args.config_only:
             from wayland import simulate_packages
             fields=host_supported()
@@ -653,7 +649,7 @@ def main(argv=None):
     names=[n.strip() for n in args.extras.split(',') if n.strip()]
     if any(n not in EXTRAS for n in names):raise ValueError('Extras válidos: brave,discord,obsidian')
     if args.command=='update' and not args.source:
-        cache=home/'.cache/dotifails';cache.mkdir(parents=True,exist_ok=True);checkout=Path(tempfile.mkdtemp(prefix='update-',dir=cache))
+        cache=home/'.cache/wysun/install';cache.mkdir(parents=True,exist_ok=True);checkout=Path(tempfile.mkdtemp(prefix='update-',dir=cache))
         run(['git','clone','--depth','1','--branch',args.ref,REPOSITORY,checkout]);args.source=checkout
         # Execute the new installer, so update also receives installer fixes.
         if not (checkout/'installer/main.py').is_file():raise RuntimeError('La referencia remota aún no contiene el nuevo instalador; usa --source con el repositorio preparado.')
@@ -670,9 +666,9 @@ def main(argv=None):
         if args.components:command+=['--components',args.components]
         if args.boot_components!='grub,plymouth,greeter':command+=['--boot-components',args.boot_components]
         run(command);return 0
-    previous_source=read(home/'.local/state/dotifails/installed.json',{}).get('source')
+    previous_source=read(home/'.local/state/wysun/install/installed.json',{}).get('source')
     source=(args.source or (Path(previous_source) if previous_source else Path(__file__).resolve().parent.parent)).resolve()
-    if not (source/'config/.config/wysun/hyprland.lua').is_file():raise RuntimeError('Indica un repositorio completo: dotifails install --source /ruta/dotifails')
+    if not (source/'config/.config/wysun/hyprland.lua').is_file():raise RuntimeError('Indica un repositorio completo: wysun-install install --source /ruta/wysun-shell')
     if not (args.wysun_only or args.scripts_only or args.installer_only):
         InstallOptions(source,home,selected,tuple(names),tuple(args.boot_components.split(',')),args.config_only,args.skip_nvim_tools,args.profile,args.upgrade_system,args.prepare_repositories).validate()
     if not args.config_only and 'wayland' in selected and not args.prepare_repositories:

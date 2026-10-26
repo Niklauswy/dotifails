@@ -31,7 +31,7 @@ def save(path, value):
 
 
 def register(source, root, restore=False, dry_run=False, *, files=None,
-             state_relative='var/lib/dotifails/wayland-session'):
+             state_relative='var/lib/wysun/wayland-session'):
     files = FILES if files is None else files
     root = Path(root).absolute()
     if root.resolve() != root:
@@ -51,7 +51,7 @@ def register(source, root, restore=False, dry_run=False, *, files=None,
 
 
 def _register(source, root, restore=False, dry_run=False, files=FILES,
-              state_relative='var/lib/dotifails/wayland-session'):
+              state_relative='var/lib/wysun/wayland-session'):
     source, root = Path(source), Path(root).absolute()
     state = root / state_relative
     receipt_path = state / 'installed.json'

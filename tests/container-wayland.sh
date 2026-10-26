@@ -47,8 +47,8 @@ run('wysun','session-check')
 run('wysun','recorder','--version')
 run('/usr/bin/python3',str(source_path/'installer/main.py'),'install','--source',str(source_path),'--components','wayland','--config-only')
 check()
-receipt=json.loads((home/'.local/state/dotifails/installed.json').read_text())
-journal=json.loads((home/'.local/state/dotifails/backups'/receipt['last_backup']/'journal.json').read_text())
+receipt=json.loads((home/'.local/state/wysun/install/installed.json').read_text())
+journal=json.loads((home/'.local/state/wysun/install/backups'/receipt['last_backup']/'journal.json').read_text())
 assert journal['operations']==[],journal['operations']
 config=home/'.config/wysun/hyprland.lua';config.write_text('-- synthetic local bindings\n')
 run('/usr/bin/python3',str(source_path/'installer/main.py'),'install','--source',str(source_path),'--wysun-only')
@@ -59,7 +59,7 @@ for relative in ('installer','manifests','apps','bin','home','backgrounds'):
     shutil.copytree(source_path/relative,source/relative,ignore=shutil.ignore_patterns('__pycache__','*.pyc'))
 entry=source/'apps/recorder/wysun_recorder/__main__.py';entry.write_text(entry.read_text()+'\n# synthetic upgrade\n')
 run('/usr/bin/python3',str(source/'installer/main.py'),'install','--source',str(source),'--wysun-only')
-receipt=json.loads((home/'.local/state/dotifails/installed.json').read_text());upgrade=receipt['last_backup']
+receipt=json.loads((home/'.local/state/wysun/install/installed.json').read_text());upgrade=receipt['last_backup']
 releases=home/'.local/share/wysun/capture/releases';assert len(list(releases.iterdir()))==2
 run('/usr/bin/python3',str(source_path/'installer/main.py'),'restore',upgrade)
 assert len(list(releases.iterdir()))==2

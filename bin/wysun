@@ -76,7 +76,7 @@ def main():
     args = sys.argv[1:]
     if args and args[0] in ('--help', '-h', 'help'):
         print('Wysun · aplicaciones del escritorio\n'
-              'Uso: wysun [scheme|wallpaper|shell|recover|lock|session-check|doctor|audio|calendar|recorder|screenshot|pdf|music|music-mini|files|player|image|settings|processes|colors|color-pick|power|activate CLASE] [opciones]\n'
+              'Uso: wysun [scheme|wallpaper|shell|recover|lock|session-check|doctor|install|audio|calendar|recorder|screenshot|pdf|music|music-mini|files|player|image|settings|processes|colors|color-pick|power|activate CLASE] [opciones]\n'
               'Sin argumentos abre el lanzador. Recorder y Screenshot abren su biblioteca;\n'
               'wysun player [--paused] [--fullscreen] [--start S] [--] ARCHIVO... abre imágenes, video y audio (alias: wysun image);\n'
               'wysun recorder --quick-record abre la barra de preparación sin grabar.\n'
@@ -97,7 +97,7 @@ def main():
         return screenshot(args)
     if command == 'activate':
         os.execv(str(Path(__file__).resolve().parent / 'wysun-wm'), ['wysun-wm', 'activate', *args])
-    commands = {'doctor': 'dotifails', 'shell': 'wysun-shell', 'lock': 'wysun-lock', 'recover': 'wysun-recover', 'session-check': 'wysun-session', 'recorder': 'wysun-recorder',
+    commands = {'doctor': 'wysun-install', 'install': 'wysun-install', 'shell': 'wysun-shell', 'lock': 'wysun-lock', 'recover': 'wysun-recover', 'session-check': 'wysun-session', 'recorder': 'wysun-recorder',
                 'tools-cli': 'wysun-tools', 'player': 'wysun-player', 'image': 'wysun-player'}
     if command not in commands:
         # Clipboard resident and the remaining app routes (music, daemon, reload…); the Plan 05 dispatcher replaces it.
