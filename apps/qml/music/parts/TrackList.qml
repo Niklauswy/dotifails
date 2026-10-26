@@ -11,6 +11,8 @@ ListView {
     property string contextId
     // The list a click plays in; by default the rows shown (a search shows 5 but plays among all matches).
     property var contextKeys: null
+    // Replaces what a click/Enter does with a row (e.g. the queue jumps instead of starting a context).
+    property var playHandler: null
     property bool numbered: true
     property bool covers: true
     property bool albums: true
@@ -29,6 +31,10 @@ ListView {
     }
 
     function play(index) {
+        if (playHandler) {
+            playHandler(index);
+            return;
+        }
         const key = model.keyAt(index);
         if (key !== "")
             player.play(key, keys(), contextId);

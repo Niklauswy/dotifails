@@ -105,10 +105,17 @@ Window {
         return target;
     }
 
-    // «Ahora suena» on a tab (now / lyrics / queue); the same tab again closes it.
+    // «Ahora suena» on a tab (now / lyrics / queue); the same key again closes it.
     property string panel: ""
     function togglePanel(tab) {
-        panel = tab === "" || tab === panel ? "" : tab;
+        if (tab === "" || (tab === panel && nowPlaying.open)) {
+            panel = "";
+            return;
+        }
+        panel = tab;
+        nowPlaying.tab = tab === "queue" ? "queue" : "lyrics";
+        nowPlaying.chosen = tab !== "now";
+        nowPlaying.forceActiveFocus();
     }
 
     function focusContent() {
@@ -341,6 +348,24 @@ Window {
                 width: parent.width
                 onPanelRequested: tab => window.togglePanel(tab)
             }
+        }
+
+        NowPlaying {
+            id: nowPlaying
+
+            anchors.fill: parent
+            app: window
+            open: window.panel !== ""
+            onCloseRequested: {
+                window.panel = "";
+                root.forceActiveFocus();
+            }
+        }
+
+        Binding {
+            target: lyrics
+            property: "active"
+            value: nowPlaying.open
         }
 
         MusicMenus {
