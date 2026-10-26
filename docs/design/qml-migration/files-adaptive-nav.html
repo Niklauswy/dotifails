@@ -1,0 +1,110 @@
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Google+Sans+Flex:opsz,wght@6..144,400..700&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400,0..1,0&display=swap">
+<style>
+  .m3 { --surface:#0e0e0e; --scl:#131313; --sc:#191919; --sch:#1f1f1f; --schh:#252525; --on:#e5e5e5; --onv:#ababab;
+        --primary:#c6c6c6; --onprimary:#404040; --pc:#464646; --onpc:#d0d0d0; --sec:#3b3b3b; --onsec:#bfbfbf;
+        --tc:#e6e1e7; --ontc:#535156; --outline:#757575; --ov:#474747; font-family:'Google Sans Flex',system-ui,sans-serif; color:var(--on); }
+  .m3.tinted { --surface:#121318; --scl:#1a1b21; --sc:#1e1f25; --sch:#292a2f; --schh:#33343a; --on:#e3e1e9; --onv:#c5c6d0;
+        --primary:#b0c6ff; --onprimary:#152e60; --pc:#2e4578; --onpc:#d9e2ff; --sec:#3e4759; --onsec:#dae2f9;
+        --tc:#593d59; --ontc:#fdd7fa; --outline:#8f909a; --ov:#44464f; }
+  .ms { font-family:'Material Symbols Rounded'; font-size:24px; line-height:1; font-variation-settings:'FILL' 0; }
+  .ms.fill { font-variation-settings:'FILL' 1; }
+  .win { background:var(--surface); border-radius:16px; overflow:hidden; display:flex; height:440px; border:1px solid var(--ov); }
+  .rail { width:80px; flex:none; display:flex; flex-direction:column; align-items:center; gap:12px; padding:12px 0; }
+  .rail .menu { width:56px; height:56px; display:grid; place-items:center; border-radius:16px; color:var(--onv); }
+  .rail .fab { width:56px; height:56px; display:grid; place-items:center; border-radius:16px; background:var(--tc); color:var(--ontc); margin-bottom:8px; }
+  .rail .item { display:flex; flex-direction:column; align-items:center; gap:4px; font-size:12px; font-weight:500; color:var(--onv); }
+  .rail .ind { width:56px; height:32px; border-radius:16px; display:grid; place-items:center; }
+  .rail .item.on { color:var(--on); } .rail .item.on .ind { background:var(--sec); color:var(--onsec); }
+  .drawer { width:280px; flex:none; background:var(--scl); border-radius:0 16px 16px 0; padding:12px; display:flex; flex-direction:column; gap:0; }
+  .drawer .head { font-size:14px; font-weight:500; color:var(--onv); padding:18px 16px 8px; }
+  .drawer .item { height:56px; border-radius:28px; display:flex; align-items:center; gap:12px; padding:0 16px; font-size:14px; font-weight:500; color:var(--onv); }
+  .drawer .item.on { background:var(--sec); color:var(--onsec); }
+  .drawer .item .trail { margin-left:auto; font-size:12px; color:var(--onv); }
+  .drawer hr { border:0; border-top:1px solid var(--ov); margin:8px 16px; }
+  .drawer .fab { height:56px; border-radius:16px; background:var(--tc); color:var(--ontc); display:flex; align-items:center; gap:12px; padding:0 20px; font-weight:500; font-size:14px; margin:4px 4px 8px; width:fit-content; }
+  .bar { height:4px; border-radius:2px; background:var(--schh); margin:0 16px 0 52px; position:relative; top:-14px; }
+  .bar i { display:block; height:100%; width:72%; border-radius:2px; background:var(--primary); }
+  .main { flex:1; min-width:0; display:flex; flex-direction:column; padding:12px 16px; gap:12px; }
+  .search { height:56px; border-radius:28px; background:var(--sch); display:flex; align-items:center; gap:16px; padding:0 16px; color:var(--onv); font-size:16px; }
+  .search .ms:first-child { color:var(--on); }
+  .search .crumb { color:var(--on); }
+  .chips { display:flex; gap:8px; flex-wrap:wrap; }
+  .chip { height:32px; border-radius:8px; border:1px solid var(--ov); display:flex; align-items:center; gap:8px; padding:0 16px; font-size:14px; font-weight:500; color:var(--onv); }
+  .chip.on { background:var(--sec); border-color:transparent; color:var(--onsec); padding-left:8px; }
+  .chip .ms { font-size:18px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(92px,1fr)); gap:8px; }
+  .tile { border-radius:16px; padding:10px 6px; display:flex; flex-direction:column; align-items:center; gap:6px; font-size:13px; }
+  .tile .ic { width:64px; height:52px; border-radius:12px; background:var(--pc); color:var(--onpc); display:grid; place-items:center; }
+  .tile.sel { background:var(--sec); color:var(--onsec); }
+  .lbl { font-size:12px; color:var(--onv); margin:4px 0 6px; }
+  .widths { display:grid; grid-template-columns: 330px 1fr; gap:16px; }
+  .toggle { display:flex; gap:8px; margin:6px 0 14px; }
+  .toggle button { border:1px solid #666; background:transparent; color:inherit; border-radius:8px; padding:6px 12px; cursor:pointer; }
+</style>
+
+<h2>Wysun Files · navegación según el ancho</h2>
+<p class="subtitle">Barra lateral Material 3 adaptable: <b>rail</b> en ventana mediana, <b>drawer</b> en ventana ancha. Búsqueda de 56 px y chips de filtro M3.</p>
+<div class="toggle">
+  <button onclick="document.querySelectorAll('.m3').forEach(e=>e.classList.remove('tinted'))">Tu wallpaper (gris)</button>
+  <button onclick="document.querySelectorAll('.m3').forEach(e=>e.classList.add('tinted'))">Ejemplo con wallpaper de color</button>
+</div>
+
+<div class="widths">
+  <div>
+    <div class="lbl">Ventana mediana (600–839 px) · navigation rail</div>
+    <div class="m3"><div class="win">
+      <div class="rail">
+        <div class="menu"><span class="ms">menu</span></div>
+        <div class="fab"><span class="ms">add</span></div>
+        <div class="item on"><div class="ind"><span class="ms fill">home</span></div>Inicio</div>
+        <div class="item"><div class="ind"><span class="ms">download</span></div>Descargas</div>
+        <div class="item"><div class="ind"><span class="ms">description</span></div>Docs</div>
+        <div class="item"><div class="ind"><span class="ms">image</span></div>Imágenes</div>
+        <div class="item"><div class="ind"><span class="ms">delete</span></div>Papelera</div>
+      </div>
+      <div class="main">
+        <div class="search"><span class="ms">search</span><span>Buscar en Inicio</span></div>
+        <div class="chips"><div class="chip on"><span class="ms">check</span>Todo</div><div class="chip">Carpetas</div><div class="chip">Imágenes</div></div>
+        <div class="grid">
+          <div class="tile sel"><div class="ic"><span class="ms fill">folder</span></div>bin</div>
+          <div class="tile"><div class="ic"><span class="ms fill">folder</span></div>clases</div>
+          <div class="tile"><div class="ic"><span class="ms fill">folder</span></div>Latex</div>
+        </div>
+      </div>
+    </div></div>
+  </div>
+
+  <div>
+    <div class="lbl">Ventana ancha (≥ 840 px) · navigation drawer estándar</div>
+    <div class="m3"><div class="win">
+      <div class="drawer">
+        <div class="fab"><span class="ms">add</span>Nuevo</div>
+        <div class="head">Favoritos</div>
+        <div class="item on"><span class="ms fill">home</span>Inicio</div>
+        <div class="item"><span class="ms">desktop_windows</span>Escritorio</div>
+        <div class="item"><span class="ms">download</span>Descargas</div>
+        <div class="item"><span class="ms">description</span>Documentos</div>
+        <hr>
+        <div class="head">Dispositivos</div>
+        <div class="item"><span class="ms">hard_drive</span>Sistema<span class="trail">25 GB libres</span></div>
+        <div class="bar"><i></i></div>
+        <div class="item"><span class="ms">delete</span>Papelera</div>
+      </div>
+      <div class="main">
+        <div class="search"><span class="ms">search</span><span class="crumb">Inicio</span><span style="margin-left:auto" class="ms">tune</span></div>
+        <div class="chips"><div class="chip on"><span class="ms">check</span>Todo</div><div class="chip">Carpetas</div><div class="chip">Imágenes</div><div class="chip">Vídeos</div><div class="chip">Documentos</div></div>
+        <div class="grid">
+          <div class="tile sel"><div class="ic"><span class="ms fill">folder</span></div>bin</div>
+          <div class="tile"><div class="ic"><span class="ms fill">folder</span></div>clases</div>
+          <div class="tile"><div class="ic"><span class="ms fill">folder</span></div>Desktop</div>
+          <div class="tile"><div class="ic"><span class="ms fill">folder</span></div>Downloads</div>
+          <div class="tile"><div class="ic"><span class="ms fill">folder</span></div>Latex</div>
+          <div class="tile"><div class="ic"><span class="ms fill">folder</span></div>Music</div>
+          <div class="tile"><div class="ic"><span class="ms fill">folder</span></div>proyects</div>
+          <div class="tile"><div class="ic"><span class="ms fill">folder</span></div>repos</div>
+        </div>
+      </div>
+    </div></div>
+  </div>
+</div>
+<p class="subtitle" style="margin-top:14px">Por debajo de 600 px el drawer se abre como panel modal desde el botón de menú. Medidas de los tokens oficiales: indicador del drawer 56 px en <code>secondaryContainer</code>, rail de 80 px con indicador 56×32, búsqueda 56 px en <code>surfaceContainerHigh</code>, chips de 32 px con esquina 8.</p>
