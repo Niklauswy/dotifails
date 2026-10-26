@@ -98,5 +98,5 @@ python3 tests/check_manifest.py
 python3 apps/recorder/run_tests.py
 python3 -m unittest discover -s tests/shell_bridge -t tests
 python3 tests/wysun_installed_smoke.py
-QT_QPA_PLATFORM=offscreen python3 tests/theme_snapshots.py SALIDA --theme dark   # capturas para comparar
+MUSIC_SNAPSHOT_DIR=SALIDA python3 tests/test_music_material.py   # capturas de Music por esquema (claro y oscuro)
 ```
