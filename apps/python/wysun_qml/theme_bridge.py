@@ -10,6 +10,10 @@ files are followed the way ``wysun_core.qt_theme.watch_theme`` does for the Widg
 """
 import copy
 
+from . import bootstrap
+
+bootstrap.preload_qt()                    # PySide6 must find the runtime's Qt already loaded
+
 from PySide6.QtCore import Property, QFileSystemWatcher, QObject, QTimer, Signal, Slot
 
 from wysun_core import appearance, theme

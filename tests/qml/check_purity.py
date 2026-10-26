@@ -17,6 +17,10 @@ def sources():
     return sorted(path for path in LIBRARY.rglob('*.qml'))
 
 
+def scripts():
+    return sorted(path for path in LIBRARY.rglob('*.js'))
+
+
 def code_lines(path):
     for number, line in enumerate(path.read_text().splitlines(), 1):
         if not MARK.search(line):
@@ -33,9 +37,14 @@ class PurityTests(unittest.TestCase):
                 match = re.match(r'\s*import\s+([\w.]+)', line)
                 if match:
                     self.assertIn(match.group(1), ALLOWED_IMPORTS, f'{path.relative_to(ROOT)}:{number}')
+                quoted = re.match(r'\s*import\s+"([^"]*)"', line)
+                if quoted:       # only a helper script next to the file, never a path into another tree
+                    target = quoted.group(1)
+                    self.assertRegex(target, r'^[\w-]+\.js$', f'{path.relative_to(ROOT)}:{number}')
+                    self.assertTrue((path.parent / target).is_file(), f'{path.relative_to(ROOT)}:{number}')
 
     def test_no_literal_colours(self):
-        for path in sources():
+        for path in sources() + scripts():
             for number, line in code_lines(path):
                 self.assertIsNone(HEX.search(line) or CALLS.search(line), f'{path.relative_to(ROOT)}:{number}: {line.strip()}')
 

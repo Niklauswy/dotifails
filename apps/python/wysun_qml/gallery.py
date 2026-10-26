@@ -141,7 +141,7 @@ def main(argv=None):
     argv = list(sys.argv[1:] if argv is None else argv)
     options = parse(argv)
     bootstrap.ensure_runtime_python('wysun_qml', argv)
-    bootstrap.preload_qt()
+    bootstrap.require_qt()
     from PySide6.QtCore import QTimer
     from PySide6.QtQuick import QQuickWindow  # noqa: F401  (window objects come back as QQuickWindow)
     app, engine, window, controller = build(options)

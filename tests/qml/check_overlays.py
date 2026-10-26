@@ -286,6 +286,15 @@ class TooltipTests(Base):
         self.h.pump()
         self.assertEqual(self.child(view, 'tooltipPanel').property('opacity'), 1)
 
+    def test_rich_tooltip_has_room_for_its_text(self):
+        view = self.on_surface('Rectangle { id: target; x: 100; y: 100; width: 40; height: 40\n'
+                               '  Tooltip { objectName: "tip"; rich: true; title: "Título"; text: "Un texto de ayuda algo largo" } }')
+        self.h.call(self.child(view, 'tip'), 'show')
+        self.h.pump()
+        panel = self.child(view, 'tooltipPanel')
+        self.assertGreater(panel.property('width'), 100)
+        self.assertGreater(panel.property('height'), 40)
+
     def test_plain_tooltip_colours(self):
         self.h.use('green-light')
         c = self.colours('green-light')

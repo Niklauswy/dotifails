@@ -44,6 +44,12 @@ Item {
         return page;
     }
 
+    readonly property bool _reduced: Motion.reduced
+    on_ReducedChanged: {
+        if (_reduced && anim.running)
+            anim.complete();
+    }
+
     function close(): void {
         if (!_opened)
             return;

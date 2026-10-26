@@ -93,6 +93,38 @@ class ReexecTests(unittest.TestCase):
         self.assertEqual(argv, [str(venv / 'bin/python3'), '-P', '-m', 'wysun_qml', '--page', 'buttons'])
         self.assertEqual(env['PYTHONPATH'], str(ROOT / 'apps/python'))
 
+    def test_reexec_marks_the_environment_and_never_loops(self):
+        venv = Path('/fake/venv')
+        with patch.object(bootstrap, 'qml_runtime_python', return_value=venv / 'bin/python3'), \
+                patch.object(sys, 'prefix', '/usr'), patch('os.execve') as execve:
+            bootstrap.ensure_runtime_python('wysun_qml', [])
+            self.assertEqual(execve.call_args.args[2][bootstrap.REEXEC], '1')
+            with patch.dict(os.environ, {bootstrap.REEXEC: '1'}), patch('sys.stderr'), self.assertRaises(SystemExit):
+                bootstrap.ensure_runtime_python('wysun_qml', [])
+        self.assertEqual(execve.call_count, 1)
+
+    def test_a_relative_venv_path_is_recognised(self):
+        cwd = Path.cwd()
+        venv = Path(sys.prefix)
+        relative = Path(os.path.relpath(venv, cwd)) / 'bin/python3'
+        with patch.object(bootstrap, 'qml_runtime_python', return_value=relative), patch('os.execve') as execve, \
+                patch.dict(os.environ, {bootstrap.REEXEC: '1'}):
+            bootstrap.ensure_runtime_python('wysun_qml', [])
+            self.assertNotIn(bootstrap.REEXEC, os.environ, 'the marker is dropped once in the venv')
+        execve.assert_not_called()
+
+    def test_require_qt_exits_without_the_runtime(self):
+        with patch.object(bootstrap, 'preload_qt', return_value=[]), patch('sys.stderr') as err, \
+                self.assertRaises(SystemExit) as raised:
+            bootstrap.require_qt()
+        self.assertEqual(raised.exception.code, 2)
+        self.assertIn('instalar.sh', ''.join(call.args[0] for call in err.write.call_args_list))
+
+    def test_library_path_is_the_sibling_qml_folder(self):
+        with patch.dict(os.environ, {}, clear=False):
+            os.environ.pop('WYSUN_QML_LIB', None)
+            self.assertEqual(bootstrap.library_path(), ROOT / 'apps/qml')
+
     def test_no_reexec_when_already_in_the_venv(self):
         venv = Path('/fake/venv')
         with patch.object(bootstrap, 'qml_runtime_python', return_value=venv / 'bin/python3'), \

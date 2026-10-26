@@ -17,6 +17,9 @@ from wysun_core import launch, paths
 PRELOAD = ('Core', 'Gui', 'DBus', 'Network', 'OpenGL', 'Qml', 'QmlMeta', 'QmlModels', 'QmlWorkerScript', 'Quick',
            'WaylandClient')
 STAMP = 'WYSUN_QML_RUNTIME.json'
+REEXEC = 'WYSUN_QML_REEXEC'
+RUNTIME_HINT = ('Wysun: falta el runtime del shell (Qt privado); sin él PySide6 cargaría otro Qt. Instálalo con '
+                './instalar.sh --wysun-only.\n')
 HINT = ('Wysun: falta el runtime QML (venv de PySide6). Créalo con: python3 installer/qml_runtime.py '
         '(o ./instalar.sh --wysun-only).\n')
 
@@ -59,9 +62,13 @@ def ensure_runtime_python(module, argv=None):
     if python is None:
         sys.stderr.write(HINT)
         raise SystemExit(2)
-    if Path(sys.prefix) == python.parent.parent:
+    if Path(sys.prefix).resolve() == python.parent.parent.resolve():
+        os.environ.pop(REEXEC, None)          # children (another Wysun app) may re-exec on their own
         return
-    os.execve(str(python), launch.argv(module, *argv, python=str(python)), launch.environment())
+    if os.environ.get(REEXEC):                # already re-executed once: never loop
+        sys.stderr.write(f'Wysun: {python} no es el Python de este proceso ({sys.executable}); revisa WYSUN_QML_RUNTIME.\n')
+        raise SystemExit(2)
+    os.execve(str(python), launch.argv(module, *argv, python=str(python)), {**launch.environment(), REEXEC: '1'})
 
 
 def preload_qt(prefix=None):
@@ -77,14 +84,21 @@ def preload_qt(prefix=None):
 
 
 def library_path():
-    """The WysunM3 library: override, the installed copy, or the repository's apps/qml."""
+    """The WysunM3 library: the override, else the qml/ folder next to this package's tree (apps/qml in the
+    repository, ~/.local/share/wysun/qml when installed next to ~/.local/share/wysun/app)."""
     override = os.environ.get('WYSUN_QML_LIB')
     if override:
         return Path(override)
-    installed = _data_home() / 'wysun/qml'
-    if (installed / 'WysunM3').is_dir():
-        return installed
     return Path(__file__).resolve().parents[2] / 'qml'
+
+
+def require_qt():
+    """preload_qt(), exiting with a hint when the runtime's QtCore is missing (PySide6 would find another Qt)."""
+    loaded = preload_qt()
+    if 'Core' not in loaded:
+        sys.stderr.write(RUNTIME_HINT)
+        raise SystemExit(2)
+    return loaded
 
 
 def configure_qt(prefix=None):

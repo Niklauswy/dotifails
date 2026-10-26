@@ -68,7 +68,8 @@ Item {
             id: panel
 
             objectName: "tooltipPanel"
-            width: root.rich ? Math.min(Metrics.richTooltipMaxWidth, richColumn.implicitWidth + 2 * (Theme.padding.large ?? 0)) : plain.implicitWidth + 2 * (Theme.padding.small ?? 0)
+            // The column's labels take its width, so the rich width is measured from their implicit widths.
+            width: root.rich ? Math.min(Metrics.richTooltipMaxWidth, Math.max(richTitle.implicitWidth, richBody.implicitWidth) + 2 * (Theme.padding.large ?? 0)) : plain.implicitWidth + 2 * (Theme.padding.small ?? 0)
             height: root.rich ? richColumn.implicitHeight + 2 * (Theme.padding.medium ?? 0) : Metrics.tooltipHeight
             radius: root.rich ? Theme.rounding.medium ?? 0 : Theme.rounding.extraSmall ?? 0
             color: root.rich ? Theme.m3surfaceContainer : Theme.m3inverseSurface
@@ -98,6 +99,8 @@ Item {
                 spacing: Theme.spacing.extraSmall ?? 0
 
                 Label {
+                    id: richTitle
+
                     width: parent.width
                     visible: root.title !== ""
                     role: "title.small"
@@ -105,6 +108,8 @@ Item {
                     color: Theme.m3onSurfaceVariant
                 }
                 Label {
+                    id: richBody
+
                     width: parent.width
                     role: "body.medium"
                     text: root.text

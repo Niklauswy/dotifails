@@ -16,7 +16,7 @@ def register_fonts():
 
 def create_engine(app_name, extra_imports=()):
     """``(QGuiApplication, QQmlApplicationEngine)``; an existing application is reused."""
-    bootstrap.preload_qt()
+    bootstrap.require_qt()
     from PySide6.QtGui import QGuiApplication
     from PySide6.QtQml import QQmlApplicationEngine
     imports = bootstrap.configure_qt()

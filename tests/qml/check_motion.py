@@ -121,6 +121,19 @@ class FadeThroughTests(Base):
             'Component { id: pageB; Rectangle { objectName: "pageB"; color: Theme.m3tertiary } }\n'
             'function a() { return ft.show(pageA) }\nfunction b() { return ft.show(pageB) }')
 
+    def test_reduced_motion_mid_transition_finishes_it(self):
+        view = self.h.view(self.BODY, 200, 100)
+        ft = self.child(view, 'ft')
+        self.h.call(view.rootObject(), 'a')
+        self.h.call(view.rootObject(), 'b')
+        self.h.pump(30)
+        self.assertTrue(ft.property('running'))
+        self.h.bridge.setReducedMotion(True)
+        self.h.pump(20)
+        self.assertFalse(ft.property('running'), 'the grouped sequence ends at once')
+        self.assertIsNone(self.child(view, 'pageA'))
+        self.assertEqual(self.child(view, 'pageB').property('opacity'), 1)
+
     def test_swaps_content_and_ends_clean(self):
         view = self.h.view(self.BODY, 200, 100)
         ft = self.child(view, 'ft')
@@ -248,6 +261,18 @@ class ContainerTransformTests(Base):
         self.assertFalse(ct.property('opened'))
         self.assertFalse(container.property('visible'))
         self.assertIsNone(self.child(view, 'detail'), 'the detail page is destroyed on close')
+
+    def test_reduced_motion_mid_open_finishes_it(self):
+        view = self.h.view(self.BODY, 300, 200)
+        ct = self.child(view, 'ct')
+        self.h.call(view.rootObject(), 'open')
+        self.h.pump(30)
+        self.assertTrue(ct.property('running'))
+        self.h.bridge.setReducedMotion(True)
+        self.h.pump(20)
+        self.assertFalse(ct.property('running'))
+        container = self.child(view, 'container')
+        self.assertEqual((container.property('width'), container.property('height')), (300, 200))
 
     def test_the_corner_morphs_from_the_source_radius(self):
         view = self.h.view(self.BODY, 300, 200)

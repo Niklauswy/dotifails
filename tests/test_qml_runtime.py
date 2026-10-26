@@ -76,6 +76,8 @@ class QmlRuntimeTests(unittest.TestCase):
         self.assertEqual(venv[1:], ['-m', 'venv', '--system-site-packages', str(self.prefix)])
         self.assertEqual(pip[0], str(self.prefix / 'bin/python3'))
         self.assertIn('--no-deps', pip)
+        self.assertIn('--only-binary=:all:', pip)          # never a source build on this machine
+        self.assertIn('--no-cache-dir', pip)
         self.assertEqual(pip[-2:], ['PySide6_Essentials==6.9.3', 'shiboken6==6.9.3'])
         self.assertEqual(qml_runtime.stamp(self.prefix), {'pyside6': '6.9.3', 'qt': '6.9.3'})
 

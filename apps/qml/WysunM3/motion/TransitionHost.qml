@@ -74,6 +74,13 @@ Item {
         return incoming;
     }
 
+    // Grouped animations do not see Anim's own reduced-motion handling: finish the whole sequence here.
+    readonly property bool _reduced: Motion.reduced
+    on_ReducedChanged: {
+        if (_reduced && seq.running)
+            seq.complete();
+    }
+
     function _finish(): void {
         if (_outgoing) {
             _outgoing.destroy();

@@ -88,7 +88,8 @@ def ensure(prefix, version, *, runner=_run):
         return False
     if not (prefix / 'bin/python3').exists():
         runner([sys.executable, '-m', 'venv', '--system-site-packages', prefix])
-    runner([prefix / 'bin/python3', '-m', 'pip', 'install', '--no-deps', '--disable-pip-version-check',
+    runner([prefix / 'bin/python3', '-m', 'pip', 'install', '--no-deps', '--only-binary=:all:', '--no-cache-dir',
+            '--disable-pip-version-check',
             f'PySide6_Essentials=={version}', f'shiboken6=={version}'])
     prune(prefix)
     tmp = prefix / (STAMP + '.tmp')
