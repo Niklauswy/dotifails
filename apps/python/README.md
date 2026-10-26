@@ -230,6 +230,8 @@ Audio en `~/Music/Wysun`; biblioteca y cola en `~/.local/share/wysun/music/libra
 
 La instalación completa incluye mpv/ffmpeg/PySide6 y yt-dlp con versión y SHA-256 fijadas. `--wysun-only` actualiza la app, los ejecutables de acceso y su icono sin reinstalar el sistema. El atajo de la configuración distribuida abre el mini reproductor.
 
+Prueba de extremo a extremo: `QT_QPA_PLATFORM=offscreen python3 tests/music_ui.py` reproduce audio sintético con mpv real (`--ao=null`) y datos temporales, y recorre controles, reproductor completo, cola, favoritos, letras sincronizadas y la instancia única. Si hay bus de sesión y `playerctl`, publica también MPRIS en ese bus; ejecútala en serie con las demás pruebas de medios.
+
 ## Wayland nativo
 
 `wysun daemon` inicia el residente sin abrir ventana. El backend usa Hyprland 0.55
