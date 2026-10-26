@@ -132,5 +132,31 @@ QtObject {
     readonly property int tabIndicatorPrimary: 3
     readonly property int tabIndicatorSecondary: 2
     readonly property int tabIndicatorMinWidth: 24
+
+    // Menus (md-comp-menu): items 48 high, container 112-280 wide, level 2; they grow in from 80 %
+    readonly property int menuItemHeight: 48
+    readonly property int menuMinWidth: 112
+    readonly property int menuMaxWidth: 280
+    readonly property int menuElevation: 2
+    readonly property real menuEnterScale: 0.8
+
+    // Dialogs (md-comp-dialog): 280-560 wide, 24 padding, level 3
+    readonly property int dialogMinWidth: 280
+    readonly property int dialogMaxWidth: 560
+    readonly property int dialogPadding: 24
+    readonly property int dialogElevation: 3
+
+    // Snackbar (md-comp-snackbar): 48 high, 68 with two lines, level 3; at most 600 wide on large windows
+    readonly property int snackbarHeight: 48
+    readonly property int snackbarTwoLineHeight: 68
+    readonly property int snackbarMaxWidth: 600
+    readonly property int snackbarElevation: 3
+    // M3 guidance: 4 s, 10 s for longer messages, as multiples of the extraLarge duration token (1000 ms)
+    readonly property int snackbarShortFactor: 4
+    readonly property int snackbarLongFactor: 10
+
+    // Tooltips (md-comp-plain-tooltip): plain 24 high; rich ones use the medium corner
+    readonly property int tooltipHeight: 24
+    readonly property int richTooltipMaxWidth: 320
 }
 

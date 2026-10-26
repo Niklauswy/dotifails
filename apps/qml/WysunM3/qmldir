@@ -38,3 +38,10 @@ NavigationDrawer 1.0 navigation/NavigationDrawer.qml
 NavigationRail 1.0 navigation/NavigationRail.qml
 AdaptiveNavigation 1.0 navigation/AdaptiveNavigation.qml
 TabBar 1.0 navigation/TabBar.qml
+OverlayLayer 1.0 feedback/OverlayLayer.qml
+Menu 1.0 feedback/Menu.qml
+MenuItem 1.0 feedback/MenuItem.qml
+Dialog 1.0 feedback/Dialog.qml
+Snackbar 1.0 feedback/Snackbar.qml
+SnackbarHost 1.0 feedback/SnackbarHost.qml
+Tooltip 1.0 feedback/Tooltip.qml
