@@ -100,6 +100,12 @@ Window {
         return target;
     }
 
+    // «Ahora suena» on a tab (now / lyrics / queue); the same tab again closes it.
+    property string panel: ""
+    function togglePanel(tab) {
+        panel = tab === "" || tab === panel ? "" : tab;
+    }
+
     function focusContent() {
         (details.currentItem ?? pages.currentItem)?.forceActiveFocus(Qt.TabFocusReason);
     }
@@ -150,7 +156,32 @@ Window {
         anchors.fill: parent
         focus: true
 
-        Keys.onEscapePressed: music.requestHide()
+        Keys.onEscapePressed: {
+            if (window.panel !== "")
+                window.panel = "";
+            else
+                music.requestHide();
+        }
+        // Space and M act on playback unless something focused (a text field, a button) took the key first.
+        Keys.onPressed: event => {
+            if (event.modifiers !== Qt.NoModifier && event.modifiers !== Qt.KeypadModifier)
+                return;
+            if (event.key === Qt.Key_Space) {
+                player.toggle();
+                event.accepted = true;
+            } else if (event.key === Qt.Key_M) {
+                player.toggleMute();
+                event.accepted = true;
+            }
+        }
+
+        Connections {
+            target: player
+
+            function onMessage(text) {
+                snackbars.show(text);
+            }
+        }
 
         ThemeFeed {
             scheme: bridge.scheme
@@ -300,8 +331,10 @@ Window {
             PlayerCapsule {
                 id: capsule
 
+                app: window
                 anchors.bottom: parent.bottom
                 width: parent.width
+                onPanelRequested: tab => window.togglePanel(tab)
             }
         }
 
@@ -366,6 +399,50 @@ Window {
             Shortcut {
                 sequence: "Ctrl+N"
                 onActivated: dialogs.newPlaylist([])
+            }
+            Shortcut {
+                sequence: "Ctrl+Left"
+                onActivated: player.previous()
+            }
+            Shortcut {
+                sequence: "Ctrl+Right"
+                onActivated: player.next()
+            }
+            Shortcut {
+                sequence: "Ctrl+Up"
+                onActivated: player.changeVolume(5)
+            }
+            Shortcut {
+                sequence: "Ctrl+Down"
+                onActivated: player.changeVolume(-5)
+            }
+            Shortcut {
+                sequences: ["Ctrl+Space", "Media Play", "Media Pause", "Toggle Media Play/Pause"]
+                onActivated: player.toggle()
+            }
+            Shortcut {
+                sequence: "Ctrl+S"
+                onActivated: player.setShuffle(!player.shuffle)
+            }
+            Shortcut {
+                sequence: "Ctrl+R"
+                onActivated: player.cycleRepeat()
+            }
+            Shortcut {
+                sequence: "Ctrl+Shift+F"
+                onActivated: player.toggleFavorite()
+            }
+            Shortcut {
+                sequence: "Ctrl+P"
+                onActivated: window.togglePanel("now")
+            }
+            Shortcut {
+                sequence: "Ctrl+L"
+                onActivated: window.togglePanel("lyrics")
+            }
+            Shortcut {
+                sequence: "Ctrl+Q"
+                onActivated: window.togglePanel("queue")
             }
             Shortcut {
                 sequence: "Alt+1"

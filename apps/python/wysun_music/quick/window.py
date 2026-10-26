@@ -34,7 +34,9 @@ class QmlMusicWindow:
         self.window = roots[-1]
 
     def _extend(self):
-        """Hook for the bridges the later parts add (player, lyrics, add music)."""
+        from .playback import PlayerBridge
+        self.playback = PlayerBridge(self.library, self.player, self.urls, self.engine)
+        self.bridges['player'] = self.playback
 
     # ----------------------------------------------------------------- window
     def present(self):
