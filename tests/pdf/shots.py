@@ -127,6 +127,20 @@ def capture(output, name):
     window.grab().save(str(output / f'{name}-focus.png'))
     window.focus_session.finish()
     window.toggle_focus()
+    window.toggle_quiet()
+    settle()
+    window.grab().save(str(output / f'{name}-quiet.png'))
+    window.toggle_quiet()
+    from wysun_pdf.review_ui import ReviewDialog
+    window.study.save_entry(window.study_document['id'], 1, 'Una cita sintética para volver al pasaje.',
+        {}, '¿Cómo se relaciona la justicia con la libertad? #filosofía', 'question')
+    review = ReviewDialog(window.study, window)
+    review.show()
+    review.toggle()
+    settle()
+    review.grab().save(str(output / f'{name}-review.png'))
+    review.close()
+
     window.consult_selection()
     window.lookup_panel.term.setText('justice')
     window.lookup_panel.results([dict(title='Justice · muestra de prueba', body='justicia',

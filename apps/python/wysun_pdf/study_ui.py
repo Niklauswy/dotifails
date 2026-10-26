@@ -1,13 +1,15 @@
 """Study-specific compositions on the shared Material You kit, not a second theme."""
 import json
 import sqlite3
+import uuid
+from pathlib import Path
 from wysun_pdf.study import StudyConflict
 
-from PySide6.QtCore import Qt, QRectF, Signal, QVariantAnimation, QPropertyAnimation, QParallelAnimationGroup, QPoint
+from PySide6.QtCore import Qt, QRectF, Signal, QTimer, QVariantAnimation, QPropertyAnimation, QParallelAnimationGroup, QPoint
 from PySide6.QtGui import QPainter, QPen
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QScrollArea,
                                QAbstractButton, QPlainTextEdit, QMenu, QMessageBox, QGraphicsOpacityEffect,
-                               QDialog, QCheckBox)
+                               QDialog, QCheckBox, QInputDialog)
 
 from wysun_core.qt_theme import color, tokens, easing, extend_style
 from wysun_core.ui.panels import Panel, SearchField
@@ -145,9 +147,9 @@ class ReadingArt(QWidget):
 
 
 class BookRow(QAbstractButton):
-    def __init__(self, book, open_book, forget):
+    def __init__(self, book, open_book, forget, collection=None):
         super().__init__()
-        self.book, self.forget = book, forget
+        self.book, self.forget, self.collection = book, forget, collection
         self.layer = StateLayer(self)
         self.setMinimumHeight(metric('spacing.extraExtraLarge', 2))
         self.setFocusPolicy(Qt.StrongFocus)
@@ -166,6 +168,8 @@ class BookRow(QAbstractButton):
 
     def contextMenuEvent(self, event):
         menu = QMenu(self)
+        if self.collection:
+            menu.addAction('Asignar colección…', lambda: self.collection(self.book))
         menu.addAction('Quitar de recientes (conservar notas)', lambda: self.forget(self.book['id']))
         menu.exec(event.globalPos())
 
@@ -201,7 +205,7 @@ class BookRow(QAbstractButton):
         p.drawText(title_box, Qt.AlignVCenter, p.fontMetrics().elidedText(self.book['title'], Qt.ElideRight, int(title_box.width())))
         p.setFont(text_font('body.small'))
         p.setPen(color('muted'))
-        details = f'Página {self.book["page"]+1} de {self.book["pages"]}  ·  {self.book["notes"]} notas'
+        details = (self.book.get('collection', '') + ' · ' if self.book.get('collection') else '') + f'Página {self.book["page"]+1} de {self.book["pages"]}  ·  {self.book["notes"]} notas'
         p.drawText(QRectF(left, box.height()/2, title_box.width(), box.height()/2-pad), Qt.AlignVCenter, details)
         paint_symbol(p, QRectF(box.width()-right, 0, right, box.height()), 'arrow_forward', 'accent', metric('icon.size'))
 
@@ -210,18 +214,20 @@ class LibraryView(QWidget):
     open_requested = Signal(str)
     choose_requested = Signal()
     settings_requested = Signal()
+    review_requested = Signal()
     message = Signal(str)
 
     def __init__(self, store):
         super().__init__()
         self.store, self.books = store, []
+        self.visible_limit = 100
         outer = layout(self, padding='padding.extraLarge')
         top = QHBoxLayout()
         top.addWidget(label('Wysun PDF', 'title.medium'))
         top.addStretch()
         self.search = SearchField('Buscar en biblioteca')
         self.search.setPlaceholderText('Buscar en tu biblioteca')
-        self.search.setToolTip('Buscar por título')
+        self.search.setToolTip('Buscar por título o colección')
         self.search.setMaximumWidth(metric('spacing.extraExtraLarge', 8))
         self.search.textChanged.connect(self.filter)
         top.addWidget(self.search)
@@ -254,9 +260,12 @@ class LibraryView(QWidget):
         self.art = ReadingArt()
         hero.addWidget(self.art)
         body.addWidget(self.hero)
+        body.addWidget(PillButton('auto_stories', 'Cuaderno global y repaso', self.review_requested.emit, 'tonal', control_height()))
         section = QHBoxLayout()
         section.addWidget(label('Tu biblioteca', 'title.large'))
         section.addStretch()
+        self.collections_button = PillButton('folder', 'Colecciones', self.show_collections, 'tonal', control_height())
+        section.addWidget(self.collections_button)
         self.open_button = PillButton('add', 'Abrir PDF', self.choose_requested.emit, 'tonal', control_height())
         section.addWidget(self.open_button)
         body.addLayout(section)
@@ -282,7 +291,7 @@ class LibraryView(QWidget):
 
     def refresh(self):
         try:
-            self.books = self.store.recent() if self.store else []
+            self.books = [b for b in self.store.documents() if b['recent'] or b['collection']] if self.store else []
         except STORAGE_ERRORS as error:
             self.message.emit(str(error))
             return
@@ -305,12 +314,38 @@ class LibraryView(QWidget):
             item = self.rows.takeAt(0)
             item.widget().hide()
             item.widget().deleteLater()
-        books = [b for b in self.books if self.search.text().casefold() in b['title'].casefold()]
+        books = [b for b in self.books if self.search.text().casefold() in (b['title'] + ' ' + b.get('collection', '')).casefold()]
         self.status.setText(f'{len(books)} documentos · Ordenados por última apertura' if books else
                             'No hay resultados. Prueba otro título.' if self.search.text() else
                             'Los documentos que abras aparecerán aquí. Tus originales permanecen en su carpeta.')
-        for book in books:
-            self.rows.addWidget(BookRow(book, self.open_requested.emit, self.forget))
+        for book in books[:self.visible_limit]:
+            self.rows.addWidget(BookRow(book, self.open_requested.emit, self.forget, self.assign_collection))
+        if len(books) > self.visible_limit:
+            self.rows.addWidget(PillButton('expand_more', f'Mostrar más · {len(books) - self.visible_limit} restantes',
+                self.show_more, 'tonal', control_height()))
+
+    def show_more(self):
+        self.visible_limit += 100
+        self.filter()
+
+    def show_collections(self):
+        menu = QMenu(self)
+        menu.addAction('Todos los documentos', self.search.clear)
+        for name in sorted({b.get('collection', '') for b in self.books} - {''}):
+            menu.addAction(name, lambda checked=False, n=name: self.search.setText(n))
+        hint = menu.addAction('Clic derecho en un libro para asignarle una colección')
+        hint.setEnabled(False)
+        menu.exec(self.collections_button.mapToGlobal(self.collections_button.rect().bottomLeft()))
+
+    def assign_collection(self, book):
+        name, accepted = QInputDialog.getText(self, 'Colección', 'Nombre de la colección (vacío para quitar):',
+                                             text=book.get('collection', ''))
+        if accepted:
+            try:
+                self.store.collection(book['id'], name)
+                self.refresh()
+            except STORAGE_ERRORS as error:
+                self.message.emit(str(error))
 
     def forget(self, identifier):
         try:
@@ -343,6 +378,10 @@ class Notebook(Panel):
         self.store, self.document, self.entry = store, None, None
         self.anchor, self.quote, self.page = {}, '', 0
         self.unsaved = False
+        self.draft_id = uuid.uuid4().hex
+        self.deleted_entry = None
+        self.autosave = QTimer(self, singleShot=True, interval=900)
+        self.autosave.timeout.connect(self.save)
         self.setMinimumWidth(metric('spacing.extraExtraLarge', 6))
         self.setMaximumWidth(metric('spacing.extraExtraLarge', 8))
         shell = QVBoxLayout(self)
@@ -394,16 +433,34 @@ class Notebook(Panel):
         actions.addWidget(self.copy_button)
         actions.addWidget(IconButton('add', 'Nueva reflexión', self.new_requested.emit, variant='tonal', size=control_height()))
         outer.addLayout(actions)
+        tools = QHBoxLayout()
+        self.recover_button = PillButton('restore', 'Borradores', self.recover_drafts, 'tonal', control_height())
+        tools.addWidget(self.recover_button)
+        self.undo_button = IconButton('undo', 'Deshacer eliminación', self.undo_remove, size=control_height())
+        self.undo_button.setEnabled(False)
+        tools.addWidget(self.undo_button)
+        outer.addLayout(tools)
+        self.filter_field = SearchField('Buscar notas o #etiquetas')
+        self.filter_field.setPlaceholderText('Buscar notas o #etiquetas')
+        self.filter_field.textChanged.connect(self.refresh)
+        outer.addWidget(self.filter_field)
         self.list_widget = QWidget()
         self.items = layout(self.list_widget, padding='padding.extraSmall')
         outer.addWidget(self.list_widget, 1)
-        # Deliberately explicit Save in this first slice: no background draft overwrite.
-        # Navigation calls can_leave; failed writes leave the editor intact.
 
     def changed(self):
         self.unsaved = True
         self.save_button.setEnabled(bool(self.editor.toPlainText().strip()) and bool(self.document))
-        self.status.setText('Nota sin guardar · el PDF se guarda por separado')
+        self.status.setText('Guardando cuaderno… · el PDF se guarda por separado')
+        if self.document:
+            try:
+                self.store.draft(self.draft_id, self.document['id'], dict(page=self.page, quote=self.quote,
+                    anchor=self.anchor, entry=self.entry, body=self.editor.toPlainText(), kind=self.kind))
+            except STORAGE_ERRORS as error:
+                self.status.setText('No se pudo proteger el borrador: ' + str(error))
+                return
+            if self.editor.toPlainText().strip():
+                self.autosave.start()
 
     def toggle_kind(self):
         self.kind = 'question' if self.kind == 'note' else 'note'
@@ -413,6 +470,7 @@ class Notebook(Panel):
             self.changed()
 
     def can_leave(self):
+        self.autosave.stop()
         if not self.unsaved:
             return True
         choice = QMessageBox.question(self, 'Nota sin guardar', '¿Guardar tu reflexión antes de continuar?',
@@ -420,6 +478,11 @@ class Notebook(Panel):
         if choice == QMessageBox.Save:
             return self.save()
         if choice == QMessageBox.Discard:
+            try:
+                self.store.discard_draft(self.draft_id)
+            except STORAGE_ERRORS as error:
+                self.message.emit(str(error))
+                return False
             self.reset_editor(self.page, self.quote, self.anchor, self.entry)
             return True
         return False
@@ -429,13 +492,24 @@ class Notebook(Panel):
         self.entry = None
         self.reset_editor()
         self.refresh()
+        if document:
+            try:
+                count = len(self.store.drafts(document['id']))
+                if count:
+                    self.status.setText(f'{count} borradores recuperables · pulsa Borradores')
+            except STORAGE_ERRORS as error:
+                self.message.emit(str(error))
 
     def reset_editor(self, page=0, quote='', anchor=None, entry=None):
+        self.autosave.stop()
+        self.draft_id = uuid.uuid4().hex
         self.entry, self.page, self.quote, self.anchor = entry, page, quote, anchor or {}
         self.kind = entry['kind'] if entry else 'note'
         self.kind_button.set_content('help' if self.kind == 'question' else 'edit_note',
                                      'Pregunta' if self.kind == 'question' else 'Reflexión')
+        self.editor.blockSignals(True)
         self.editor.setPlainText(entry['body'] if entry else '')
+        self.editor.blockSignals(False)
         self.quote_label.setText(quote)
         self.quote_label.setVisible(bool(quote))
         self.source.setText(f'Página {page+1} · Este libro')
@@ -452,6 +526,7 @@ class Notebook(Panel):
         return True
 
     def save(self):
+        self.autosave.stop()
         if not self.document or not self.editor.toPlainText().strip():
             self.status.setText('Escribe una idea antes de guardarla.')
             return False
@@ -465,6 +540,10 @@ class Notebook(Panel):
         except STORAGE_ERRORS as error:
             self.status.setText(str(error))
             return False
+        try:
+            self.store.discard_draft(self.draft_id)
+        except STORAGE_ERRORS as error:
+            self.message.emit('Nota guardada; no se pudo retirar el borrador: ' + str(error))
         self.unsaved = False
         self.save_button.setEnabled(False)
         self.copy_button.hide()
@@ -489,6 +568,8 @@ class Notebook(Panel):
         except STORAGE_ERRORS as error:
             self.message.emit(str(error))
             return
+        query = self.filter_field.text().casefold()
+        entries = [e for e in entries if query in (e['body'] + ' ' + e['quote']).casefold()]
         self.items.addWidget(label(f'{len(entries)} ideas para volver a pensar', 'label.small', 'muted'))
         for entry in entries:
             button = PillButton('help' if entry['kind'] == 'question' else 'edit_note',
@@ -527,12 +608,50 @@ class Notebook(Panel):
             return
         try:
             self.store.delete_entry(entry)
+            self.deleted_entry = entry
+            self.undo_button.setEnabled(True)
         except STORAGE_ERRORS as error:
             self.message.emit(str(error))
             return
         if self.entry and self.entry['id'] == entry['id']:
             self.reset_editor()
         self.refresh()
+
+    def undo_remove(self):
+        if not self.deleted_entry:
+            return
+        try:
+            self.store.restore_entry(self.deleted_entry)
+        except STORAGE_ERRORS as error:
+            self.message.emit(str(error))
+            return
+        self.deleted_entry = None
+        self.undo_button.setEnabled(False)
+        self.refresh()
+
+    def recover_drafts(self):
+        if not self.document or not self.can_leave():
+            return
+        try:
+            drafts = self.store.drafts(self.document['id'])
+            if not drafts:
+                self.message.emit('No hay borradores pendientes.')
+                return
+            menu = QMenu(self)
+            for draft in drafts:
+                payload = json.loads(draft['payload'])
+                action = menu.addAction(payload.get('body', '')[:80] or 'Borrador vacío')
+                action.triggered.connect(lambda checked=False, d=draft, p=payload: self.restore_draft(d, p))
+            menu.exec(self.recover_button.mapToGlobal(self.recover_button.rect().bottomLeft()))
+        except STORAGE_ERRORS as error:
+            self.message.emit(str(error))
+
+    def restore_draft(self, draft, payload):
+        self.reset_editor(payload['page'], payload['quote'], payload['anchor'], payload.get('entry'))
+        self.draft_id = draft['id']
+        self.kind = payload.get('kind', 'note')
+        self.editor.setPlainText(payload.get('body', ''))
+        self.editor.setFocus()
 
 
 class StudySettings(QDialog):

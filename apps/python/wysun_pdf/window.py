@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 
 from PySide6.QtCore import QEvent, QProcess, QProcessEnvironment, Qt, QTimer, QUrl
 from PySide6.QtGui import QActionGroup, QImage, QKeySequence, QShortcut
-from PySide6.QtWidgets import (QApplication, QColorDialog, QFileDialog, QHBoxLayout, QInputDialog, QLabel, QPlainTextEdit,
+from PySide6.QtWidgets import (QApplication, QColorDialog, QHBoxLayout, QInputDialog, QLabel, QPlainTextEdit,
                                QLineEdit, QMainWindow, QMenu, QMessageBox, QStackedLayout, QVBoxLayout, QWidget)
 
 from wysun_core.ui_theme import paint_surface
@@ -29,6 +29,8 @@ from wysun_pdf.state import Positions, Preferences, clamp
 from wysun_pdf.theme import shared as shared_mode
 from wysun_pdf.view import DocumentView
 from wysun_pdf.worker import PdfWorker
+from wysun_pdf.file_picker import pick_file
+from wysun_pdf.review_ui import ReviewDialog
 from wysun_pdf.study import StudyStore
 from wysun_pdf.study_ui import LibraryView, Notebook, STORAGE_ERRORS, control_height, reveal, navigate, StudySettings
 from wysun_core import jsonio
@@ -133,7 +135,16 @@ class PdfWindow(FramelessResize, WindowMotion, QMainWindow):
         reader_layout = QVBoxLayout(self.reader)
         reader_layout.setContentsMargins(0, 0, 0, 0)
         reader_layout.setSpacing(margin)
-        reader_layout.addLayout(self._top_bar())
+        self.reader_header = QWidget()
+        self.reader_header.setLayout(self._top_bar())
+        reader_layout.addWidget(self.reader_header)
+        self.quiet_bar = QWidget()
+        quiet = QHBoxLayout(self.quiet_bar)
+        self.quiet_clock = QLabel('Lectura concentrada')
+        quiet.addWidget(self.quiet_clock, 1)
+        quiet.addWidget(PillButton('fullscreen_exit', 'Volver · F8', self.toggle_quiet, 'tonal', control_height()))
+        reader_layout.addWidget(self.quiet_bar)
+        self.quiet_bar.hide()
         body = QHBoxLayout()
         body.setSpacing(margin)
         self.sidebar = Sidebar()
@@ -197,6 +208,7 @@ class PdfWindow(FramelessResize, WindowMotion, QMainWindow):
         self.library.choose_requested.connect(self.choose)
         self.library.open_requested.connect(self.open_recent)
         self.library.settings_requested.connect(self.study_settings)
+        self.library.review_requested.connect(self.show_review)
         self.library.message.connect(self.say)
         self.workspace.addWidget(self.library)
 
@@ -295,6 +307,7 @@ class PdfWindow(FramelessResize, WindowMotion, QMainWindow):
                              ('F1', self.show_shortcuts), ('Escape', self.escape)):
             QShortcut(QKeySequence(keys), self).activated.connect(action)
         QShortcut(QKeySequence('Ctrl+Shift+N'), self).activated.connect(self.study_note)
+        QShortcut(QKeySequence('F8'), self).activated.connect(self.toggle_quiet)
         QShortcut(QKeySequence('Alt+Home'), self).activated.connect(self.show_library)
 
     # --------------------------------------------------------------- study
@@ -349,8 +362,17 @@ class PdfWindow(FramelessResize, WindowMotion, QMainWindow):
 
     def open_recent(self, path):
         if not Path(path).is_file():
-            self.say('No se encuentra el archivo. Ábrelo desde su nueva ubicación; tus notas se conservan.')
-            return
+            replacement = pick_file(self, 'Localizar el PDF movido', initial=path)
+            if not replacement:
+                return
+            try:
+                book = next((b for b in self.study.documents() if b['path'] == path), None)
+                if book:
+                    self.study.relocate(book['id'], replacement)
+                path = replacement
+            except STORAGE_ERRORS as error:
+                self.say('No se pudo vincular el archivo: ' + str(error))
+                return
         if path == self.path:
             navigate(self.workspace, self.reader)
             return
@@ -387,6 +409,21 @@ class PdfWindow(FramelessResize, WindowMotion, QMainWindow):
         else:
             self.view.setFocus()
 
+    def toggle_quiet(self):
+        if not self.path or not self.notebook.can_leave():
+            return
+        active = self.quiet_bar.isHidden()
+        self.reader_header.setVisible(not active)
+        self.quiet_bar.setVisible(active)
+        if active:
+            self.hide_lookup()
+            self.notebook.hide()
+            self.focus_panel.hide()
+            self.notebook_button.setChecked(False)
+            self.set_sidebar(False, persist=False)
+        self.adapt_panels()
+        self.view.setFocus()
+
     def toggle_focus(self):
         if not self.path:
             return
@@ -410,6 +447,7 @@ class PdfWindow(FramelessResize, WindowMotion, QMainWindow):
         text = clock(math.ceil(session.remaining)) if session.state != 'idle' else 'Sesión'
         symbol = 'pause' if session.state == 'paused' else 'timer'
         self.focus_button.set_content(symbol, text)
+        self.quiet_clock.setText('Lectura concentrada · ' + text)
         self.focus_button.setAccessibleName('Sesión de concentración: ' + text)
         self.adapt_header()
 
@@ -456,7 +494,7 @@ class PdfWindow(FramelessResize, WindowMotion, QMainWindow):
     def export_notebook(self):
         if not self.study_document or not self.notebook.can_leave():
             return
-        path, _ = QFileDialog.getSaveFileName(self, 'Exportar el cuaderno', 'cuaderno.md', 'Markdown (*.md)')
+        path = pick_file(self, 'Exportar el cuaderno', save=True, initial=str(Path.home() / 'cuaderno.md'), suffix='md')
         if path:
             try:
                 jsonio.atomic_write_text(path, self.study.export(self.study_document['id']))
@@ -464,6 +502,19 @@ class PdfWindow(FramelessResize, WindowMotion, QMainWindow):
                 self.say(str(error))
             else:
                 self.say('Cuaderno exportado')
+
+    def show_review(self):
+        dialog = ReviewDialog(self.study, self)
+        def passage(entry):
+            dialog.accept()
+            if self.path == entry['path']:
+                navigate(self.workspace, self.reader)
+                self.return_to_passage(entry)
+            else:
+                self.pending_passage = entry
+                self.open_recent(entry['path'])
+        dialog.passage_requested.connect(passage)
+        dialog.exec()
 
     def study_settings(self):
         StudySettings(self.preferences, self.study, self).exec()
@@ -555,7 +606,7 @@ class PdfWindow(FramelessResize, WindowMotion, QMainWindow):
     def choose(self):
         if self.busy:
             return
-        path, _ = QFileDialog.getOpenFileName(self, 'Abrir documento', '', 'PDF (*.pdf)')
+        path = pick_file(self, 'Abrir documento')
         if path:
             self.open_path(path)
 
@@ -598,6 +649,13 @@ class PdfWindow(FramelessResize, WindowMotion, QMainWindow):
                 self.view.restore(clamp(saved, self.pages))
             else:
                 self.view.set_fit('width')
+                if self.study:
+                    try:
+                        previous = next((b for b in self.study.documents() if b['path'] == self.path), None)
+                        if previous:
+                            self.view.go(min(max(0, previous['page']), self.pages - 1))
+                    except STORAGE_ERRORS as error:
+                        self.say('No se pudo recuperar la posición: ' + str(error))
             self.view_switch.set_mode(self.view.mode)
             self.study_document = None
             if self.study:
@@ -616,6 +674,10 @@ class PdfWindow(FramelessResize, WindowMotion, QMainWindow):
             self.controls()
             self.refresh_annotations()
             self.load_thumbnails()
+            pending = getattr(self, 'pending_passage', None)
+            self.pending_passage = None
+            if pending and self.study_document and pending['document'] == self.study_document['id']:
+                QTimer.singleShot(0, lambda e=pending: self.return_to_passage(e))
             if not self.editable:
                 self.say('Documento de solo lectura')
         self.worker.request('open', opened, path=str(path), password=password)
@@ -657,7 +719,10 @@ class PdfWindow(FramelessResize, WindowMotion, QMainWindow):
 
     def remember(self):
         if self.path and self.sizes:
-            self.positions.save(self.path, self.view.position())
+            try:
+                self.positions.save(self.path, self.view.position())
+            except STORAGE_ERRORS as error:
+                self.say('No se pudo guardar la posición: ' + str(error))
             if self.study_document:
                 try:
                     self.study.position(self.study_document['id'], self.view.current_page())
@@ -848,14 +913,10 @@ class PdfWindow(FramelessResize, WindowMotion, QMainWindow):
             return
         target, expected = self.path, None
         if copy:
-            dialog = QFileDialog(self, 'Guardar copia anotada')
-            dialog.setAcceptMode(QFileDialog.AcceptSave)
-            dialog.setNameFilter('PDF (*.pdf)')
-            dialog.setDefaultSuffix('pdf')
-            dialog.selectFile(str(Path(self.path).with_stem(Path(self.path).stem + ' — anotado')))
-            if not dialog.exec():
+            target = pick_file(self, 'Guardar copia anotada', save=True,
+                               initial=str(Path(self.path).with_stem(Path(self.path).stem + ' — anotado')))
+            if not target:
                 return
-            target = dialog.selectedFiles()[0]
             if Path(target).exists():
                 info = Path(target).stat()
                 expected = [info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns]
@@ -1032,6 +1093,7 @@ class PdfWindow(FramelessResize, WindowMotion, QMainWindow):
             action.setCheckable(True)
             action.setChecked(self.reader_mode.pinned == mode)
             group.addAction(action)
+        menu.addAction('Lectura concentrada  F8', self.toggle_quiet)
         menu.addAction('Atajos de teclado  F1', self.show_shortcuts)
         menu.exec(self.more_button.mapToGlobal(self.more_button.rect().bottomLeft()))
 
@@ -1039,6 +1101,9 @@ class PdfWindow(FramelessResize, WindowMotion, QMainWindow):
         QMessageBox.information(self, 'Atajos de Wysun PDF', SHORTCUTS)
 
     def escape(self):
+        if not self.quiet_bar.isHidden():
+            self.toggle_quiet()
+            return
         if self.notebook.editor.hasFocus():
             self.view.setFocus()
             return
@@ -1081,10 +1146,13 @@ class PdfWindow(FramelessResize, WindowMotion, QMainWindow):
             return
         if self.busy and self.worker.process.state() != QProcess.NotRunning:
             if self.saving:
-                self.say('Guardando el PDF. Espera antes de cerrar.')
-                event.ignore()
-                return
-            if QMessageBox.question(self, 'Interrumpir operación',
+                if QMessageBox.question(self, 'Guardado en curso',
+                        'El guardado no ha terminado. ¿Interrumpir y cerrar? Los últimos cambios podrían no estar guardados. '
+                        'El archivo original se reemplaza solo al completar la escritura.',
+                        QMessageBox.Discard | QMessageBox.Cancel, QMessageBox.Cancel) != QMessageBox.Discard:
+                    event.ignore()
+                    return
+            elif QMessageBox.question(self, 'Interrumpir operación',
                     'El motor está ocupado. ¿Interrumpir la operación y cerrar?',
                     QMessageBox.Discard | QMessageBox.Cancel, QMessageBox.Cancel) != QMessageBox.Discard:
                 event.ignore()

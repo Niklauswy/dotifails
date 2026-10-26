@@ -1,8 +1,9 @@
 """A quiet study session, composed from shared controls and shape tokens."""
 import math
+from datetime import datetime
 from PySide6.QtCore import QRectF, Qt, Signal
 from PySide6.QtGui import QPainter, QPen
-from PySide6.QtWidgets import QWidget, QHBoxLayout, QLineEdit, QSpinBox, QScrollArea, QVBoxLayout
+from PySide6.QtWidgets import QWidget, QDialog, QHBoxLayout, QLineEdit, QSpinBox, QScrollArea, QVBoxLayout
 from wysun_core.qt_theme import color, tokens, extend_style
 from wysun_core.ui.style import metric, text_font, paint_symbol, clock
 from wysun_core.ui.shapes import cookie
@@ -100,6 +101,23 @@ class FocusPanel(Panel):
                          'border-radius:@rounding.small;padding:@padding.small;}'
                          'QSpinBox:focus {border:@border.focus solid @focus;}')
         outer.addLayout(durations)
+        long_row = QHBoxLayout()
+        long_row.addWidget(label('Descanso largo · cada 4 bloques', 'body.small'), 1)
+        self.long_rest = QSpinBox()
+        self.long_rest.setRange(1, 180)
+        self.long_rest.setValue(controller.long_break_minutes)
+        self.long_rest.setSuffix(' min')
+        self.long_rest.setAccessibleName('Minutos de descanso largo')
+        self.long_rest.setFont(text_font('body.small'))
+        self.long_rest.setMinimumHeight(control_height())
+        extend_style(self.long_rest, 'QSpinBox {background:@well;color:@text;border:@border.width solid @line;'
+                     'border-radius:@rounding.small;padding:@padding.small;}'
+                     'QSpinBox:focus {border:@border.focus solid @focus;}')
+        long_row.addWidget(self.long_rest)
+        outer.addLayout(long_row)
+        self.history_label = label('', 'body.small', 'muted')
+        outer.addWidget(self.history_label)
+        outer.addWidget(PillButton('history', 'Historial de sesiones', self.show_history, 'tonal', control_height()))
         self.primary = PillButton('play_arrow', 'Empezar', self.toggle, height=control_height())
         outer.addWidget(self.primary)
         self.break_button = PillButton('coffee', 'Tomar un descanso', self.start_break, 'tonal', control_height())
@@ -115,15 +133,44 @@ class FocusPanel(Panel):
         controller.changed.connect(self.refresh)
         self.refresh()
 
+    def show_history(self):
+        dialog = QDialog(self)
+        dialog.setWindowTitle('Historial de estudio')
+        extend_style(dialog, 'QDialog {background:@surface;}')
+        outer = layout(dialog)
+        outer.addWidget(label('Tiempo para tus ideas', 'headline.small'))
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        content = QWidget()
+        items = layout(content)
+        for entry in reversed(self.controller.history):
+            try:
+                date = datetime.fromtimestamp(entry['ended']).strftime('%d/%m · %H:%M')
+                minutes = max(0, int(entry['seconds'])) // 60
+            except (KeyError, ValueError, TypeError, OverflowError, OSError):
+                continue
+            items.addWidget(label(f'{date} · {minutes} min · ' +
+                ('Completado' if entry.get('completed') else 'Terminado antes'), 'label.small', 'accent'))
+            items.addWidget(label(str(entry.get('goal') or 'Lectura libre'), 'body.medium'))
+        if not self.controller.history:
+            items.addWidget(label('Tus sesiones aparecerán aquí al completarlas o terminarlas.', 'body.medium'))
+        items.addStretch()
+        scroll.setWidget(content)
+        outer.addWidget(scroll, 1)
+        outer.addWidget(PillButton('check', 'Listo', dialog.accept, height=control_height()))
+        dialog.resize(metric('spacing.extraExtraLarge', 11), metric('spacing.extraExtraLarge', 12))
+        dialog.exec()
+
     def toggle(self):
         if self.controller.clock.state in ('idle', 'finished'):
             self.controller.minutes, self.controller.break_minutes = self.minutes.value(), self.rest.value()
+            self.controller.long_break_minutes = self.long_rest.value()
             self.controller.start(self.minutes.value(), self.goal.text())
         else:
             self.controller.toggle()
 
     def start_break(self):
-        self.controller.start(self.rest.value(), self.goal.text(), 'break')
+        self.controller.start(self.controller.next_break, self.goal.text(), 'break')
 
     def refresh(self):
         state = self.controller.clock.state
@@ -134,11 +181,15 @@ class FocusPanel(Panel):
         text = {'idle': 'Un espacio para leer sin prisa.', 'running': 'Tiempo de descanso.' if phase == 'break' else 'Tu lectura tiene este momento.',
                 'paused': 'En pausa. Retoma cuando quieras.', 'finished': 'Bloque completado. ¿Qué idea te llevas?'}
         self.status.setText(text[state])
+        self.break_button.set_content('coffee', f'Descansar {self.controller.next_break} min')
+        self.history_label.setText(f'{self.controller.completed_blocks} bloques completados · '
+            f'{sum(h.get("seconds", 0) for h in self.controller.history) // 60} min de estudio registrados' +
+            ('\nÚltimo objetivo: ' + str(self.controller.history[-1].get('goal', '')) if self.controller.history else ''))
         self.finish_button.setVisible(state != 'idle')
         self.break_button.setVisible(state == 'finished' and phase == 'study')
         self.reflect_button.setVisible(state in ('paused', 'finished'))
         if state in ('running', 'paused'):
             self.goal.setText(self.controller.goal)
-        for widget in (self.goal, self.minutes, self.rest):
+        for widget in (self.goal, self.minutes, self.rest, self.long_rest):
             widget.setEnabled(state in ('idle', 'finished'))
         self.dial.refresh()

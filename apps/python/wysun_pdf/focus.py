@@ -1,5 +1,6 @@
 """A study clock with explicit transitions and one owner across reader processes."""
 import fcntl
+import math
 import os
 import time
 
@@ -75,12 +76,21 @@ class FocusController(QObject):
         self.owner = None
         self.windows = set()
         self.goal = ''
-        self.minutes, self.break_minutes = 25, 5
+        self.minutes, self.break_minutes, self.long_break_minutes = 25, 5, 15
+        self.completed_blocks, self.history = 0, []
         try:
             snapshot = jsonio.read_json(self.path, {})
             if isinstance(snapshot, dict):
                 self.clock.restore(snapshot)
                 self.goal = str(snapshot.get('goal', ''))[:500]
+                for key, default in (('minutes', 25), ('break_minutes', 5), ('long_break_minutes', 15), ('completed_blocks', 0)):
+                    value = snapshot.get(key, default)
+                    if isinstance(value, int) and 0 <= value <= (100000 if key == 'completed_blocks' else 180):
+                        setattr(self, key, value if key == 'completed_blocks' else max(1, value))
+                history = snapshot.get('history', [])
+                self.history = [h for h in history[-100:] if isinstance(h, dict) and
+                    all(isinstance(h.get(k), (int, float)) and math.isfinite(h[k]) and h[k] >= 0
+                        for k in ('seconds', 'ended'))] if isinstance(history, list) else []
         except OSError:
             pass
         self.timer = QTimer(self, interval=1000)
@@ -110,7 +120,9 @@ class FocusController(QObject):
         if self.owner is None:
             return
         try:
-            jsonio.atomic_write_json(self.path, dict(self.clock.snapshot(), goal=self.goal), mode=0o600)
+            jsonio.atomic_write_json(self.path, dict(self.clock.snapshot(), goal=self.goal,
+                minutes=self.minutes, break_minutes=self.break_minutes, long_break_minutes=self.long_break_minutes,
+                completed_blocks=self.completed_blocks, history=self.history[-100:]), mode=0o600)
         except OSError as error:
             self.message.emit('No se pudo guardar la sesión: ' + str(error))
 
@@ -153,6 +165,8 @@ class FocusController(QObject):
         if self.clock.state != 'running':
             self.timer.stop()
             if before == 'running':
+                if self.clock.state == 'finished':
+                    self.record(True)
                 self.message.emit('Bloque completado. Puedes descansar o seguir leyendo.' if self.clock.state == 'finished'
                                   else 'Sesión pausada tras una interrupción. Reanuda cuando quieras.')
             self.persist()
@@ -160,7 +174,25 @@ class FocusController(QObject):
             self.persist()
         self.changed.emit()
 
+    @property
+    def next_break(self):
+        return self.long_break_minutes if self.completed_blocks and self.completed_blocks % 4 == 0 else self.break_minutes
+
+    def record(self, completed):
+        if self.clock.phase != 'study':
+            return
+        elapsed = max(0, self.clock.duration - self.clock.remaining)
+        if not elapsed:
+            return
+        if completed:
+            self.completed_blocks += 1
+        self.history.append(dict(goal=self.goal, seconds=round(elapsed), completed=completed, ended=time.time()))
+        self.history = self.history[-100:]
+
     def finish(self):
+        if self.clock.state in ('running', 'paused'):
+            self.clock.pause()
+            self.record(self.clock.state == 'finished')
         self.clock.state = 'idle'
         self.clock.duration = self.clock.remaining = self.minutes * 60
         self.timer.stop()

@@ -76,6 +76,16 @@ class WindowTests(unittest.TestCase):
         window.busy = False
         window.close()
 
+    def test_quiet_mode_restores_header_and_canvas(self):
+        window, path = self.open()
+        window.toggle_quiet()
+        self.assertTrue(window.reader_header.isHidden())
+        self.assertFalse(window.quiet_bar.isHidden())
+        self.assertTrue(window.stage.isVisible())
+        window.escape()
+        self.assertFalse(window.reader_header.isHidden())
+        self.assertTrue(window.quiet_bar.isHidden())
+
     def select_first_word(self, window, page=0):
         view = window.view
         self.wait(lambda: view.source.info(page) is not None)

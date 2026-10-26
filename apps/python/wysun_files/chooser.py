@@ -72,6 +72,9 @@ class ChooserModel(QSortFilterProxyModel):
     def isDir(self, index):
         return self.sourceModel().isDir(self.mapToSource(index))
 
+    def size(self, index):
+        return self.sourceModel().size(self.mapToSource(index))
+
     def size_text(self, index):
         return self.sourceModel().size_text(self.mapToSource(index))
 
@@ -291,6 +294,10 @@ class FileChooser(FilesWindow):
             if not name or Path(name).name != name or name in ('.', '..'):
                 self.error.setText('Escribe un nombre de archivo válido.')
                 return
+            suffix = str(self.options.get('default_suffix', '')).lstrip('.')
+            if suffix and not Path(name).suffix:
+                name += '.' + suffix
+                self.filename.setText(name)
             targets = [folder / name]
             if targets[0].is_dir():
                 self.error.setText('El nombre corresponde a una carpeta.')

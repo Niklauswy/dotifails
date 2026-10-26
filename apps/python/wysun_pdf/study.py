@@ -30,7 +30,7 @@ class StudyStore:
             os.close(fd)
         with self.connect() as db:
             version = db.execute('PRAGMA user_version').fetchone()[0]
-            if version not in (0, 1):
+            if version not in (0, 1, 2):
                 raise ValueError('Esta biblioteca pertenece a una versión más reciente de Wysun PDF.')
             db.executescript('''
                 CREATE TABLE IF NOT EXISTS documents (
@@ -43,7 +43,15 @@ class StudyStore:
                     body TEXT NOT NULL, kind TEXT NOT NULL, revision INTEGER NOT NULL,
                     updated REAL NOT NULL);
                 CREATE INDEX IF NOT EXISTS entries_document ON entries(document, updated);
-                PRAGMA user_version=1;
+                CREATE TABLE IF NOT EXISTS collections (
+                    document TEXT PRIMARY KEY REFERENCES documents(id), name TEXT NOT NULL);
+                CREATE TABLE IF NOT EXISTS drafts (
+                    id TEXT PRIMARY KEY, document TEXT NOT NULL REFERENCES documents(id),
+                    payload TEXT NOT NULL, updated REAL NOT NULL);
+                CREATE TABLE IF NOT EXISTS reviews (
+                    entry TEXT PRIMARY KEY REFERENCES entries(id) ON DELETE CASCADE,
+                    answer TEXT NOT NULL DEFAULT '', understood INTEGER NOT NULL DEFAULT 0);
+                PRAGMA user_version=2;
             ''')
 
     @contextmanager
@@ -126,3 +134,51 @@ class StudyStore:
                 lines += ['> ' + entry['quote'].replace('\n', '\n> '), '']
             lines += [entry['body'], '']
         return '\n'.join(lines)
+
+    def documents(self):
+        with self.connect() as db:
+            return [dict(row) for row in db.execute("""SELECT d.*,
+                COALESCE(c.name, '') AS collection,
+                (SELECT COUNT(*) FROM entries e WHERE e.document=d.id) AS notes
+                FROM documents d LEFT JOIN collections c ON c.document=d.id ORDER BY opened DESC""")]
+
+    def collection(self, document, name):
+        with self.connect() as db:
+            db.execute('INSERT OR REPLACE INTO collections VALUES(?,?)', (document, name.strip()[:100]))
+
+    def relocate(self, document, path):
+        path = str(Path(path).resolve(strict=True))
+        with self.connect() as db:
+            db.execute('UPDATE documents SET path=? WHERE id=?', (path, document))
+
+    def draft(self, identifier, document, payload):
+        with self.connect() as db:
+            db.execute('INSERT OR REPLACE INTO drafts VALUES(?,?,?,?)',
+                       (identifier, document, json.dumps(payload), time.time()))
+
+    def drafts(self, document):
+        with self.connect() as db:
+            return [dict(row) for row in db.execute(
+                'SELECT * FROM drafts WHERE document=? ORDER BY updated DESC', (document,))]
+
+    def discard_draft(self, identifier):
+        with self.connect() as db:
+            db.execute('DELETE FROM drafts WHERE id=?', (identifier,))
+
+    def restore_entry(self, entry):
+        with self.connect() as db:
+            db.execute('INSERT INTO entries VALUES(?,?,?,?,?,?,?,?,?)', tuple(entry[key] for key in
+                       ('id', 'document', 'page', 'quote', 'anchor', 'body', 'kind', 'revision', 'updated')))
+
+    def all_entries(self, query='', questions=False):
+        with self.connect() as db:
+            rows = db.execute("""SELECT e.*, d.title, d.path,
+                COALESCE(r.answer, '') AS answer, COALESCE(r.understood, 0) AS understood
+                FROM entries e JOIN documents d ON d.id=e.document
+                LEFT JOIN reviews r ON r.entry=e.id ORDER BY e.updated DESC""").fetchall()
+        return [dict(row) for row in rows if (not questions or row['kind'] == 'question') and
+                query.casefold() in (row['title'] + ' ' + row['body'] + ' ' + row['quote']).casefold()]
+
+    def review(self, entry, answer, understood):
+        with self.connect() as db:
+            db.execute('INSERT OR REPLACE INTO reviews VALUES(?,?,?)', (entry, answer, int(understood)))

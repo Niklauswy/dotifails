@@ -85,3 +85,31 @@ class FocusTests(unittest.TestCase):
                     two.finish()
                     one.deleteLater()
                     two.deleteLater()
+
+    def test_four_blocks_long_break_and_history_survive_restart(self):
+        with tempfile.TemporaryDirectory() as home:
+            runtime = Path(home) / 'runtime'
+            runtime.mkdir(mode=0o700)
+            with mock.patch.dict(os.environ, XDG_RUNTIME_DIR=str(runtime), XDG_STATE_HOME=home):
+                controller = FocusController()
+                controller.minutes, controller.break_minutes, controller.long_break_minutes = 2, 3, 12
+                now = [0.]
+                controller.clock = FocusClock(lambda: now[0], lambda: now[0])
+                try:
+                    for block in range(4):
+                        controller.start(1, 'Synthetic goal')
+                        for second in range(60):
+                            now[0] += 1
+                            controller.tick()
+                    self.assertEqual(controller.next_break, 12)
+                    self.assertEqual(len(controller.history), 4)
+                    controller.finish()
+                    restored = FocusController()
+                    self.assertEqual(restored.completed_blocks, 4)
+                    self.assertEqual(restored.long_break_minutes, 12)
+                    self.assertEqual(restored.minutes, 2)
+                    self.assertEqual(len(restored.history), 4)
+                    restored.deleteLater()
+                finally:
+                    controller.finish()
+                    controller.deleteLater()
