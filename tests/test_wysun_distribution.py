@@ -56,6 +56,14 @@ class WysunDistributionTests(unittest.TestCase):
         self.assertFalse(update.conflicts)
         self.assertEqual(update.journal['operations'], [])
 
+    def test_a_full_installation_publishes_the_recorder_twice_in_one_run(self):
+        # The wayland component and the desktop profile both publish the Wysun family in a full installation.
+        deployment = self.deploy()
+        deployment.configure_wysun()
+        deployment.configure_wysun()
+        self.assertFalse(deployment.conflicts)
+        self.assertEqual(len(list((self.home / '.local/share/wysun/capture/releases').iterdir())), 1)
+
     def test_each_release_carries_its_own_player_and_runs_without_the_repository(self):
         deployment = self.deploy()
         deployment.configure_wysun()

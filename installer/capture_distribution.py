@@ -50,6 +50,9 @@ def configure(deployment):
         return
     deployment.stage('Actualizar Wysun Recorder')
     runtime = deployment.backup / 'generated/capture-release'
+    import shutil
+    if runtime.exists():
+        shutil.rmtree(runtime)   # a full installation publishes the family twice (wayland, then desktop)
     runtime.mkdir(parents=True)
     # Copy only distributable source, never a user's libraries or recording files.
     # wysun_media (the player) and wysun_core (paths, atomic files, single instance) are shared

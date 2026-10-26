@@ -104,7 +104,7 @@ def main():
         return run_module('wysun_services.client', [command, *args])
     executable = Path(__file__).resolve().parent / commands[command]
     if command == 'session-check':forwarded = ['--check', *args]
-    elif command == 'doctor':forwarded = ['doctor', *args]
+    elif command in ('doctor', 'install'):forwarded = [command, *args]
     else:forwarded = args
     os.execv(str(executable), [str(executable), *forwarded])
 
