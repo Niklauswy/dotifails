@@ -16,7 +16,7 @@ Desde la raíz del proyecto:
 
 ```sh
 ./wysun-installer
-./wysun-installer-preview
+./wysun-installer --preview
 # También: ./instalar.sh --gui o ./instalar.sh --preview
 ```
 
