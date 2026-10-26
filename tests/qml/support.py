@@ -170,19 +170,22 @@ class Harness:
         self.pump()
 
     def pump(self, ms=0):
-        from PySide6.QtCore import QCoreApplication, QElapsedTimer
+        from PySide6.QtCore import QCoreApplication, QElapsedTimer, QEvent
         timer = QElapsedTimer()
         timer.start()
         QCoreApplication.processEvents()
+        QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)    # QML destroy() is deferred
         while timer.elapsed() < ms:
             QCoreApplication.processEvents()
+            QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)
 
     def wait_for(self, condition, ms=2000):
-        from PySide6.QtCore import QCoreApplication, QElapsedTimer
+        from PySide6.QtCore import QCoreApplication, QElapsedTimer, QEvent
         timer = QElapsedTimer()
         timer.start()
         while timer.elapsed() < ms:
             QCoreApplication.processEvents()
+            QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)
             if condition():
                 return True
         return bool(condition())

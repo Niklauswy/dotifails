@@ -13,4 +13,9 @@ QtObject {
     readonly property real stateFocus: 0.12
     readonly property real statePressed: 0.12
     readonly property real stateDragged: 0.16
+
+    // Transition patterns (M3 motion: fade through starts at 92 % scale; shared axis Z scales 80 % <-> 110 %)
+    readonly property real fadeThroughScale: 0.92
+    readonly property real sharedAxisZSmall: 0.8
+    readonly property real sharedAxisZLarge: 1.1
 }

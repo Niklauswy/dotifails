@@ -4,3 +4,11 @@ singleton Metrics 1.0 Metrics.qml
 Label 1.0 Label.qml
 Icon 1.0 Icon.qml
 ThemeFeed 1.0 ThemeFeed.qml
+singleton Motion 1.0 Motion.qml
+SpringBehavior 1.0 SpringBehavior.qml
+Anim 1.0 Anim.qml
+CAnim 1.0 CAnim.qml
+TransitionHost 1.0 motion/TransitionHost.qml
+FadeThrough 1.0 motion/FadeThrough.qml
+SharedAxis 1.0 motion/SharedAxis.qml
+ContainerTransform 1.0 motion/ContainerTransform.qml
