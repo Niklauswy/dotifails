@@ -98,7 +98,7 @@ def main():
     if command == 'activate':
         os.execv(str(Path(__file__).resolve().parent / 'wysun-wm'), ['wysun-wm', 'activate', *args])
     commands = {'doctor': 'dotifails', 'shell': 'wysun-shell', 'lock': 'wysun-lock', 'recover': 'wysun-recover', 'session-check': 'wysun-session', 'recorder': 'wysun-recorder',
-                'tools-cli': 'orbit-tools', 'player': 'wysun-player', 'image': 'wysun-player'}
+                'tools-cli': 'wysun-tools', 'player': 'wysun-player', 'image': 'wysun-player'}
     if command not in commands:
         # Clipboard resident and the remaining app routes (music, daemon, reload…); the Plan 05 dispatcher replaces it.
         return run_module('wysun_services.client', [command, *args])

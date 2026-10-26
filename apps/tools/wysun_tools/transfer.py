@@ -150,7 +150,7 @@ class TransferHandler(SimpleHTTPRequestHandler):
             try:
                 decoded = base64.b64decode(supplied[6:], validate=True).decode()
                 user, secret = decoded.split(":", 1)
-                valid = user == "orbit" and hmac.compare_digest(
+                valid = user == "wysun" and hmac.compare_digest(
                     hashlib.sha256(secret.encode()).digest(), self.server.code_digest)
             except (ValueError, UnicodeError):
                 pass
@@ -306,7 +306,7 @@ def serve(args) -> int:
     elif args.ask_code or (not local and not args.public):
         if not sys.stdin.isatty():
             raise ToolError("Para acceso LAN no interactivo indica --key-file o --public.")
-        code = getpass.getpass("Código de acceso (usuario orbit): ")
+        code = getpass.getpass("Código de acceso (usuario wysun): ")
     if code is not None and (len(code) < 8 or len(code) > 4096 or ":" in code):
         raise ToolError("Usa un código de 8 a 4096 caracteres sin dos puntos.")
     upload_dir = None
@@ -327,7 +327,7 @@ def serve(args) -> int:
         print(f"Carpeta: {root}", flush=True)
         if upload_dir:
             print(f"Subidas: {upload_dir} · límite {args.max_mb} MiB por archivo", flush=True)
-        print("Acceso: usuario orbit y código" if code else "Acceso: sin autenticación", flush=True)
+        print("Acceso: usuario wysun y código" if code else "Acceso: sin autenticación", flush=True)
         print("Ctrl+C detiene el servidor.", flush=True)
         try:
             server.serve_forever()

@@ -7,9 +7,9 @@ from pathlib import Path
 import re
 from .common import ToolError, require, run, private_write, read_json
 
-TABLE = 'orbit_tailscale_lock'
-MARKER = 'dotifails-tailscale-killswitch-v1'
-STATE = Path('/var/lib/dotifails/tailscale-killswitch/state.json')
+TABLE = 'wysun_tailscale_lock'
+MARKER = 'wysun-tailscale-killswitch-v1'
+STATE = Path('/var/lib/wysun/tailscale-killswitch/state.json')
 
 
 def rules(interface='tailscale0'):
@@ -43,7 +43,7 @@ def owned_table():
     if done.returncode:
         if 'No such file' in done.stderr: return False
         raise ToolError('No se pudo inspeccionar nftables: '+done.stderr.strip())
-    if MARKER not in done.stdout: raise ToolError('La tabla existente no pertenece a dotifails.')
+    if MARKER not in done.stdout: raise ToolError('La tabla existente no pertenece a Wysun.')
     return True
 
 
@@ -140,8 +140,8 @@ def main(argv=None):
     if args.action == 'status':
         result = run([require('nft'),'list','table','inet',TABLE],check=False)
         if result.returncode:
-            if 'No such file' in result.stderr: print('Sin bloqueo de dotifails.'); return 0
+            if 'No such file' in result.stderr: print('Sin bloqueo de Wysun.'); return 0
             raise ToolError('No se pudo comprobar el firewall. Ejecuta status con sudo.')
-        if MARKER not in result.stdout: raise ToolError('Tabla ajena a dotifails.')
+        if MARKER not in result.stdout: raise ToolError('Tabla ajena a Wysun.')
         print('Tabla de bloqueo presente. Estado: '+str((read_json(STATE) or {}).get('phase','sin registro'))); return 0
     return on(args) if args.action == 'on' else off(args)

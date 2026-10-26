@@ -53,7 +53,7 @@ def audit_http(args) -> int:
     result = report("sec-audit http")
     opener = urllib.request.build_opener(ValidatedRedirect())
     started = time.monotonic()
-    request = urllib.request.Request(target, headers={"User-Agent": "dotifails-audit/1.0"}, method=args.method)
+    request = urllib.request.Request(target, headers={"User-Agent": "wysun-audit/1.0"}, method=args.method)
     try:
         try:
             response = opener.open(request, timeout=args.timeout)

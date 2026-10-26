@@ -60,7 +60,7 @@ def configure(deployment):
     d.stage('Sesión adicional Wysun / Hyprland')
     # Shared applications retain their existing storage and command identities.
     for source, target in (('apps/python', '.local/share/wysun/app'),
-                           ('apps/tools', '.local/share/orbit/tools'),
+                           ('apps/tools', '.local/share/wysun/tools'),
                            ('apps/shell', '.local/share/wysun/quickshell')):
         if not (d.source / source).is_dir():
             raise RuntimeError('Fuente incompleta: ' + source)
@@ -71,7 +71,7 @@ def configure(deployment):
     deploy_tokens(d)
     ensure_runtime(d)
     d.deploy(d.source / 'config/.local/bin/orbit', Path('.local/bin/orbit'))
-    for name in ('orbit-files', 'orbit-tools', 'wysun-shell',
+    for name in ('orbit-files', 'wysun-tools', 'wysun-shell',
                  'wysun-session', 'wysun-session-services', 'wysun-lock', 'wysun-wm', 'wysun-control', 'wysun-workspaces', 'wysun-share-picker', 'wysun-recover', 'wysun-idle'):
         _publish(d, (d.source / 'bin' / name).read_text(), '.local/bin/' + name, executable=True)
     # A terminal must remain reachable even without the optional terminal component.

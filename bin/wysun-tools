@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 base=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-for library in "$base/../share/orbit/tools" "$base/../.local/share/orbit/tools" "$base/../apps/tools"; do
+for library in "$base/../share/wysun/tools" "$base/../.local/share/wysun/tools" "$base/../apps/tools"; do
     if [ -f "$library/cli.py" ]; then
         exec python3 "$library/cli.py" "$@"
     fi

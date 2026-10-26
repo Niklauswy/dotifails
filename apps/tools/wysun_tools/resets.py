@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Display countdowns to Codex/Claude reset times.
 
-Config file: $XDG_CONFIG_HOME/orbit/resets/accounts.json.
+Config file: $XDG_CONFIG_HOME/wysun/resets/accounts.json.
 Legacy accounts are copied once on first use, without modifying the original.
 
 Each entry is an object with:
@@ -27,7 +27,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 
-APP_DIR = Path(os.environ.get("XDG_CONFIG_HOME", str(Path.home() / ".config"))) / "orbit/resets"
+APP_DIR = Path(os.environ.get("XDG_CONFIG_HOME", str(Path.home() / ".config"))) / "wysun/resets"
 CONFIG_FILE = APP_DIR / "accounts.json"
 
 def color(text: str, code: str) -> str:
@@ -62,15 +62,7 @@ def ensure_config() -> None:
     APP_DIR.mkdir(parents=True, exist_ok=True)
     if CONFIG_FILE.exists():
         return
-    candidates = [Path(os.environ.get("XDG_CONFIG_HOME",str(Path.home()/".config"))) / "dotifails/rezets/accounts.json",Path.home()/"scripts/.rezets/accounts.json"]
-    legacy = next((p for p in candidates if p.is_file()),candidates[-1])
-    if legacy.is_file() and CONFIG_FILE != legacy:
-        text = legacy.read_text(encoding="utf-8")
-        if not isinstance(json.loads(text), list):
-            raise ToolError("El archivo anterior no contiene una lista; se conserva sin cambios.")
-        private_write(CONFIG_FILE, text, overwrite=False)
-    else:
-        private_write(CONFIG_FILE, "[]\n", overwrite=False)
+    private_write(CONFIG_FILE, "[]\n", overwrite=False)
 
 
 def load_accounts() -> list[Account]:

@@ -213,7 +213,7 @@ class Deployment:
     def configure_orbit(self):
         self.stage('Actualizar solo Wysun (código y lanzador)')
         self.deploy(self.source/'apps/python',Path('.local/share/wysun/app'))
-        if (self.source/'apps/tools').is_dir():self.deploy(self.source/'apps/tools',Path('.local/share/orbit/tools'))
+        if (self.source/'apps/tools').is_dir():self.deploy(self.source/'apps/tools',Path('.local/share/wysun/tools'))
         if self.conflicts:return
         wallpaper=self.source/'assets/backgrounds'/default_wallpaper(self.source)
         if wallpaper.is_file():self.deploy(wallpaper,Path('.local/share/backgrounds')/wallpaper.name)
@@ -241,17 +241,17 @@ class Deployment:
         configure(self)
     def configure_scripts(self):
         self.stage('Herramientas de Wysun y migración de lanzadores')
-        self.deploy(self.source/'apps/tools',Path('.local/share/orbit/tools'))
-        self.deploy(self.source/'bin/orbit-tools',Path('.local/bin/orbit-tools'))
-        self.deploy(self.source/'bin/orbit-tools',Path('scripts/orbit-tools'))
+        self.deploy(self.source/'apps/tools',Path('.local/share/wysun/tools'))
+        self.deploy(self.source/'bin/wysun-tools',Path('.local/bin/wysun-tools'))
+        self.deploy(self.source/'bin/wysun-tools',Path('scripts/wysun-tools'))
         self.deploy(self.source/'docs/tools.md',Path('scripts/README.md'))
         aliases={'web-dev':'dev','sec-audit':'audit','file-share':'share','gvm':'cloud','gvm.sh':'cloud','tailscale-killswitch':'vpn','tailscale-killswitch.sh':'vpn','scrip.sh':'vpn','rezets':'resets','zzzz.py':'share'}
         for name,group in aliases.items():
             self.retire(Path('scripts')/name)
             if name=='zzzz.py':
-                text='#!/usr/bin/env python3\nimport os,sys\nfrom pathlib import Path\ncli=Path(__file__).resolve().parent.parent/"share/orbit/tools/cli.py"\nos.execv(sys.executable,[sys.executable,str(cli),"share",*sys.argv[1:]])\n'
+                text='#!/usr/bin/env python3\nimport os,sys\nfrom pathlib import Path\ncli=Path(__file__).resolve().parent.parent/"share/wysun/tools/cli.py"\nos.execv(sys.executable,[sys.executable,str(cli),"share",*sys.argv[1:]])\n'
             else:
-                text='#!/bin/sh\nbase=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)\nexec "$base/orbit-tools" '+group+' "$@"\n'
+                text='#!/bin/sh\nbase=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)\nexec "$base/wysun-tools" '+group+' "$@"\n'
             self.generated(text,Path('.local/bin')/name,True)
         candidates=[self.home/'.config/dotifails/rezets/accounts.json',self.home/'scripts/.rezets/accounts.json']
         legacy=next((p for p in candidates if p.is_file()),candidates[-1])
@@ -541,8 +541,8 @@ def doctor(home,components=None):
             print(('OK  ' if ok else 'FAIL ')+command)
             if not ok:failed.append(command)
     if 'tools' in selected:
-        ok=(home/'.local/bin/orbit-tools').is_file();print(('OK  ' if ok else 'FAIL ')+'orbit-tools')
-        if not ok:failed.append('orbit-tools')
+        ok=(home/'.local/bin/wysun-tools').is_file();print(('OK  ' if ok else 'FAIL ')+'wysun-tools')
+        if not ok:failed.append('wysun-tools')
     if 'wayland' in selected:
         try:
             result=subprocess.run([str(home/'.local/bin/wysun-session'),'--check'],env=env,timeout=25)
@@ -650,7 +650,7 @@ def main(argv=None):
         print(json.dumps(options.summary(),ensure_ascii=False,indent=2));return 0
     if args.dry_run:
         if args.installer_only:print('Plan: respaldar y actualizar solo el instalador, sus manifiestos y el acceso en el menú de aplicaciones.');return 0
-        if args.scripts_only:print('Plan: instalar orbit-tools y su motor; respaldar y retirar lanzadores duplicados; migrar recordatorios y subidas a sus carpetas de Wysun; conservar aliases en el PATH. Los datos privados no se añaden al repositorio.');return 0
+        if args.scripts_only:print('Plan: instalar wysun-tools y su motor; respaldar y retirar lanzadores duplicados; migrar recordatorios y subidas a sus carpetas de Wysun; conservar aliases en el PATH. Los datos privados no se añaden al repositorio.');return 0
         if args.orbit_only:print('Plan: respaldar y actualizar la familia Wysun, incluidos Recorder y Screenshot, y el gestor dotifails. No cambia atajos, notas, historial ni colores.');return 0
         if 'wayland' in selected and not args.config_only:
             from wayland import simulate_packages

@@ -17,8 +17,8 @@ from unittest.mock import patch
 
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'apps/tools'))
-from orbit_tools import common, web, security, transfer, cloud, vpn
-from orbit_tools import resets as rezets
+from wysun_tools import common, web, security, transfer, cloud, vpn
+from wysun_tools import resets as rezets
 spec=importlib.util.spec_from_file_location('toolbox_installer',ROOT/'installer/main.py')
 installer=importlib.util.module_from_spec(spec);spec.loader.exec_module(installer)
 
@@ -113,7 +113,7 @@ class ToolboxTests(unittest.TestCase):
         with patch.object(cloud,'run',side_effect=AssertionError('provider called')),contextlib.redirect_stdout(io.StringIO()):
             self.assertEqual(cloud.main(['delete','--vm','project/zone/vm','--dry-run']),0)
     def test_firewall_owned_rules_not_global_policies(self):
-        text=vpn.rules();self.assertIn('table inet orbit_tailscale_lock',text)
+        text=vpn.rules();self.assertIn('table inet wysun_tailscale_lock',text)
         self.assertIn('0xff0000 == 0x80000',text);self.assertIn('policy drop',text)
         self.assertNotIn('flush ruleset',text);self.assertNotIn('ct state established',text)
         with self.assertRaises(common.ToolError):vpn.rules('bad";accept')
@@ -162,13 +162,11 @@ class ToolboxTests(unittest.TestCase):
             self.assertEqual(rezets.load_accounts()[0].name,'lab');self.assertEqual(p.stat().st_mode&0o777,0o600)
             rezets.save_accounts([]);self.assertTrue(p.with_suffix('.json.bak').exists())
         with self.assertRaises(ValueError):rezets.parse_time_of_day('10:99',rezets.datetime.now().astimezone())
-    def test_rezets_migration_preserves_original(self):
-        home=self.root/'home';legacy=home/'scripts/.rezets/accounts.json';legacy.parent.mkdir(parents=True)
-        text='[{"name":"lab","service":"test","reset_at":"2027-01-01T10:00:00Z"}]';legacy.write_text(text)
+    def test_resets_start_with_an_empty_private_list(self):
         p=self.root/'new/accounts.json'
-        with patch.object(rezets.Path,'home',return_value=home),patch.object(rezets,'CONFIG_FILE',p),patch.object(rezets,'APP_DIR',p.parent):
-            self.assertEqual(rezets.load_accounts()[0].name,'lab')
-        self.assertEqual(legacy.read_text(),text);self.assertEqual(p.read_text(),text)
+        with patch.object(rezets,'CONFIG_FILE',p),patch.object(rezets,'APP_DIR',p.parent):
+            self.assertEqual(rezets.load_accounts(),[])
+        self.assertEqual(p.read_text(),'[]\n');self.assertEqual(p.stat().st_mode&0o777,0o600)
     def test_scripts_install_preserves_private_files_and_idempotence(self):
         home=self.root/'home';private=home/'scripts/.rezets/accounts.json';private.parent.mkdir(parents=True);private.write_text('[]')
         upload=home/'scripts/uploads/data';upload.parent.mkdir();upload.write_text('upload')
@@ -183,7 +181,7 @@ class ToolboxTests(unittest.TestCase):
         self.assertEqual((home/'.config/orbit/resets/accounts.json').read_text(),'[]');self.assertEqual((home/'.local/share/orbit/transfers/inbox/data').read_text(),'upload');self.assertEqual(config.read_text(),'theme')
         receipt=json.loads((home/'.local/state/dotifails/installed.json').read_text());journal=json.loads((home/'.local/state/dotifails/backups'/receipt['last_backup']/'journal.json').read_text())
         self.assertEqual(journal['operations'],[])
-        self.assertTrue((home/'.local/bin/orbit-tools').is_file());self.assertFalse((home/'scripts/gvm.sh').exists())
+        self.assertTrue((home/'.local/bin/wysun-tools').is_file());self.assertFalse((home/'scripts/gvm.sh').exists())
         with contextlib.redirect_stdout(io.StringIO()):installer.restore(home,first)
         self.assertEqual(old.read_text(),'old script');self.assertEqual(private.read_text(),'[]')
 
@@ -195,7 +193,7 @@ class TransferTests(unittest.TestCase):
         self.uploads=self.root/'uploads';self.uploads.mkdir()
         self.server=transfer.TransferServer(('127.0.0.1',0),self.share,uploads=self.uploads,max_bytes=16,code='test-access-code',quiet=True)
         self.thread=threading.Thread(target=self.server.serve_forever,daemon=True);self.thread.start()
-        self.auth='Basic '+base64.b64encode(b'orbit:test-access-code').decode()
+        self.auth='Basic '+base64.b64encode(b'wysun:test-access-code').decode()
     def tearDown(self):self.server.shutdown();self.server.server_close();self.thread.join();self.tmp.cleanup()
     def request(self,method,path,body=None,auth=True,**headers):
         conn=http.client.HTTPConnection('127.0.0.1',self.server.server_port,timeout=3)
