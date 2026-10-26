@@ -32,9 +32,9 @@ LINK_SCHEMES = ('http', 'https', 'mailto')
 SHORTCUTS = '''Ctrl+O abrir · Ctrl+S guardar · Ctrl+Shift+S guardar una copia
 Ctrl+F buscar · Enter / Shift+Enter (o F3 / Shift+F3) siguiente / anterior coincidencia · Esc limpiar
 Ctrl+C copiar · Ctrl+H resaltar · Ctrl+U subrayar · doble clic selecciona una palabra
-Ctrl+G ir a una página · Alt+← / Alt+→ o RePág / AvPág página anterior / siguiente · Inicio / Fin
+Ctrl+G ir a una página · Alt+← / Alt+→ página anterior / siguiente · RePág / AvPág, Espacio desplazan una pantalla · Inicio / Fin
 Ctrl+rueda, Ctrl++ y Ctrl+− zoom · Ctrl+0 ajustar al ancho · Ctrl+9 ajustar a la página
-Ctrl+2 una o dos páginas · F9 panel lateral · Ctrl+W cerrar'''
+Ctrl+2 una o dos páginas · F9 panel lateral · F1 atajos · Ctrl+W / Ctrl+Q cerrar'''
 
 
 class Stage(Panel):

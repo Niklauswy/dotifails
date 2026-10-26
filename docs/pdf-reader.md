@@ -45,7 +45,7 @@ predeterminada sin pedirla.
 
 - Resaltado (Ctrl+H) y subrayado (Ctrl+U) de la selección; sin selección, el siguiente arrastre se anota.
   Las notas se colocan con la herramienta Nota y un clic en la página.
-- Ctrl+S guarda; Ctrl+Shift+S guarda una copia. Las anotaciones son objetos PDF nativos, legibles en otros
+- Ctrl+S guarda; Ctrl+Shift+S guarda una copia y sigue trabajando sobre ella (como «Guardar como»). Las anotaciones son objetos PDF nativos, legibles en otros
   lectores; no se almacenan en archivos auxiliares. El color de una anotación se fija al crearla.
 
 ## Apariencia del lector (antiguo botón sol/luna)
@@ -61,8 +61,9 @@ reciben el entorno original. El papel y el contenido del PDF conservan los color
 
 Ctrl+O abrir · Ctrl+S guardar · Ctrl+Shift+S copia · Ctrl+F buscar · Enter/Shift+Enter, F3/Shift+F3
 coincidencias · Esc limpiar · Ctrl+C copiar · Ctrl+H resaltar · Ctrl+U subrayar · Ctrl+G ir a página ·
-Alt+←/→, RePág/AvPág, Espacio, Inicio/Fin · Ctrl+rueda, Ctrl++/− zoom · Ctrl+0 ancho · Ctrl+9 página ·
-Ctrl+2 una/dos páginas · F9 panel · F1 atajos · Ctrl+W cerrar.
+Alt+←/→ página anterior/siguiente · RePág/AvPág, Espacio/Shift+Espacio desplazan una pantalla · Inicio/Fin ·
+Ctrl+rueda, Ctrl++/− zoom · Ctrl+0 ancho · Ctrl+9 página · Ctrl+2 una/dos páginas · F9 panel · F1 atajos ·
+Ctrl+W / Ctrl+Q cerrar.
 
 La selección usa el orden de lectura del motor y coordenadas de palabras, compensando la rotación de la
 página. Los PDFs escaneados sin capa de texto se pueden leer y anotar con notas, pero no buscar ni subrayar;
