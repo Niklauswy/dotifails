@@ -14,3 +14,4 @@ ShortcutSheet 1.0 ShortcutSheet.qml
 TrackList 1.0 TrackList.qml
 TrackListModelProxy 1.0 TrackListModelProxy.qml
 TrackRow 1.0 TrackRow.qml
+Format 1.0 Format.js

@@ -108,6 +108,8 @@ Window {
     // «Ahora suena» on a tab (now / lyrics / queue); the same key again closes it.
     property string panel: ""
     function togglePanel(tab) {
+        nowLoader.active = true;              // built the first time it is needed, then kept
+        const nowPlaying = nowLoader.item;
         if (tab === "" || (tab === panel && nowPlaying.open)) {
             panel = "";
             return;
@@ -116,6 +118,11 @@ Window {
         nowPlaying.tab = tab === "queue" ? "queue" : "lyrics";
         nowPlaying.chosen = tab !== "now";
         nowPlaying.forceActiveFocus();
+    }
+
+    function openShortcuts() {
+        shortcutLoader.active = true;
+        shortcutLoader.item.open();
     }
 
     function focusContent() {
@@ -306,7 +313,7 @@ Window {
                     anchors.rightMargin: Theme.padding.small ?? 0
                     anchors.verticalCenter: parent.verticalCenter
                     icon: "keyboard"
-                    onClicked: shortcutSheet.open()
+                    onClicked: window.openShortcuts()
 
                     Tooltip {
                         text: "Atajos de teclado · F1"
@@ -358,22 +365,25 @@ Window {
             }
         }
 
-        NowPlaying {
-            id: nowPlaying
+        Loader {
+            id: nowLoader
 
             anchors.fill: parent
-            app: window
-            open: window.panel !== ""
-            onCloseRequested: {
-                window.panel = "";
-                root.forceActiveFocus();
+            active: false
+            sourceComponent: NowPlaying {
+                app: window
+                open: window.panel !== ""
+                onCloseRequested: {
+                    window.panel = "";
+                    root.forceActiveFocus();
+                }
             }
         }
 
         Binding {
             target: lyrics
             property: "active"
-            value: nowPlaying.open
+            value: window.panel !== ""
         }
 
         MusicMenus {
@@ -390,10 +400,13 @@ Window {
             host: overlay
         }
 
-        ShortcutSheet {
-            id: shortcutSheet
+        Loader {
+            id: shortcutLoader
 
-            host: overlay
+            active: false
+            sourceComponent: ShortcutSheet {
+                host: overlay
+            }
         }
 
         SnackbarHost {
@@ -443,7 +456,7 @@ Window {
             }
             Shortcut {
                 sequence: "F1"
-                onActivated: shortcutSheet.open()
+                onActivated: window.openShortcuts()
             }
             Shortcut {
                 sequence: "Ctrl+J"

@@ -186,7 +186,7 @@ Item {
                 Label {
                     anchors.verticalCenter: parent.verticalCenter
                     role: "label.small"
-                    text: player.positionText
+                    text: progress.pressed ? Format.clock(progress.value) : player.positionText
                     color: Theme.m3onSurfaceVariant
                 }
                 Slider {
