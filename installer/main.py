@@ -156,9 +156,6 @@ class Deployment:
         return []
     def configure_files(self,player=False):
         # The desktop profile owns folder opening, portal selection and reveal actions.
-        from capture_distribution import _publish
-        _publish(self,'#!/bin/sh\nexec "$HOME/.local/bin/wysun" files "$@"\n','.local/bin/wysun-files',executable=True)
-        self.deploy(self.source/'config/.local/share/applications/wysun-files.desktop',Path('.local/share/applications/wysun-files.desktop'))
         # Per-user activation is supported by xdg-desktop-portal >= 1.20.
         import configparser
         # Generate the association for target-home rather than running xdg-mime
@@ -179,12 +176,7 @@ class Deployment:
         if player:self.associate_player(mime)
         import io
         output=io.StringIO();mime.write(output,space_around_delimiters=False);self.generated(output.getvalue(),relative)
-        service='wysun-files-integration.service'
-        command='/usr/bin/env "PYTHONPATH='+str(self.home/'.local/share/wysun/app')+'" /usr/bin/python3 -P -m wysun_files.service'
-        self.generated('[Unit]\nDescription=Wysun file chooser and file manager integration\nAfter=graphical-session-pre.target\n\n[Service]\nType=dbus\nBusName=org.freedesktop.impl.portal.desktop.wysun\nExecStart='+command+'\nRestart=on-failure\nTimeoutStopSec=5\n',Path('.config/systemd/user')/service)
-        for name in ('org.freedesktop.impl.portal.desktop.wysun','org.freedesktop.FileManager1'):
-            self.generated('[D-BUS Service]\nName='+name+'\nExec='+command+'\nSystemdService='+service+'\n',Path('.local/share/dbus-1/services')/(name+'.service'))
-        self.generated('[portal]\nDBusName=org.freedesktop.impl.portal.desktop.wysun\nInterfaces=org.freedesktop.impl.portal.FileChooser;\nUseIn=Wysun;Hyprland;\n',Path('.local/share/xdg-desktop-portal/portals/wysun.portal'))
+        self.files_services()
         relative=Path('.config/xdg-desktop-portal/portals.conf')
         parser=configparser.ConfigParser(interpolation=None);parser.optionxform=str
         existing=self.destination(relative)
@@ -195,6 +187,17 @@ class Deployment:
         import io
         output=io.StringIO();parser.write(output);self.generated(output.getvalue(),relative)
         self.generated('GTK_USE_PORTAL=1\n',Path('.config/environment.d/60-wysun-files.conf'))
+    def files_services(self):
+        """The file manager's launcher, menu entry, D-Bus/systemd activation and portal backend; no associations."""
+        from capture_distribution import _publish
+        _publish(self,'#!/bin/sh\nexec "$HOME/.local/bin/wysun" files "$@"\n','.local/bin/wysun-files',executable=True)
+        self.deploy(self.source/'config/.local/share/applications/wysun-files.desktop',Path('.local/share/applications/wysun-files.desktop'))
+        service='wysun-files-integration.service'
+        command='/usr/bin/env "PYTHONPATH='+str(self.home/'.local/share/wysun/app')+'" /usr/bin/python3 -P -m wysun_files.service'
+        self.generated('[Unit]\nDescription=Wysun file chooser and file manager integration\nAfter=graphical-session-pre.target\n\n[Service]\nType=dbus\nBusName=org.freedesktop.impl.portal.desktop.wysun\nExecStart='+command+'\nRestart=on-failure\nTimeoutStopSec=5\n',Path('.config/systemd/user')/service)
+        for name in ('org.freedesktop.impl.portal.desktop.wysun','org.freedesktop.FileManager1'):
+            self.generated('[D-BUS Service]\nName='+name+'\nExec='+command+'\nSystemdService='+service+'\n',Path('.local/share/dbus-1/services')/(name+'.service'))
+        self.generated('[portal]\nDBusName=org.freedesktop.impl.portal.desktop.wysun\nInterfaces=org.freedesktop.impl.portal.FileChooser;\nUseIn=Wysun;Hyprland;\n',Path('.local/share/xdg-desktop-portal/portals/wysun.portal'))
 
     def associate_player(self,mime):
         """Make Wysun Player the default for its image, video and audio types.
@@ -214,11 +217,15 @@ class Deployment:
     def configure_app(self):
         self.stage('Actualizar solo Wysun (código y lanzador)')
         self.deploy(self.source/'apps/python',Path('.local/share/wysun/app'))
-        if (self.source/'apps/tools').is_dir():self.deploy(self.source/'apps/tools',Path('.local/share/wysun/tools'))
+        if (self.source/'apps/tools').is_dir():
+            self.deploy(self.source/'apps/tools',Path('.local/share/wysun/tools'))
+            self.deploy(self.source/'bin/wysun-tools',Path('.local/bin/wysun-tools'))
         if self.conflicts:return
         wallpaper=self.source/'assets/backgrounds'/default_wallpaper(self.source)
         if wallpaper.is_file():self.deploy(wallpaper,Path('.local/share/backgrounds')/wallpaper.name)
-        if 'wayland' not in self.receipt.get('components',[]):self.configure_files()
+        # The wayland component owns portal selection; the file manager's own services ship either way.
+        if 'wayland' in self.receipt.get('components',[]):self.files_services()
+        else:self.configure_files()
         if (self.source/'config/.local/share/icons/hicolor/scalable/apps/musika.svg').is_file():self.deploy(self.source/'config/.local/share/icons/hicolor/scalable/apps/musika.svg',Path('.local/share/icons/hicolor/scalable/apps/musika.svg'))
         if (self.source/'config/.local/share/applications/wysun-music.desktop').is_file():self.deploy(self.source/'config/.local/share/applications/wysun-music.desktop',Path('.local/share/applications/wysun-music.desktop'))
         self.configure_wysun()
@@ -577,7 +584,7 @@ def main(argv=None):
     for command in ('install','update'):
         p=sub.add_parser(command);p.add_argument('--source',type=Path);p.add_argument('--target-home',type=Path,default=Path.home());p.add_argument('--config-only',action='store_true');p.add_argument('--dry-run',action='store_true');p.add_argument('--extras',nargs='?',const='brave,discord,obsidian',default='');p.add_argument('--profile',choices=['samsung-touchscreen']);p.add_argument('--skip-nvim-tools',action='store_true');p.add_argument('--ref',default='master')
         p.add_argument('--scripts-only',action='store_true',help='Solo herramientas y migración respaldada de ~/scripts; sin cambiar el escritorio')
-        p.add_argument('--wysun-only','--wysun-only',dest='wysun_only',action='store_true',help='Solo código y lanzador de Wysun; conserva el resto del escritorio y los datos privados')
+        p.add_argument('--wysun-only',dest='wysun_only',action='store_true',help='Solo código y lanzador de Wysun; conserva el resto del escritorio y los datos privados')
         p.add_argument('--boot-only',action='store_true',help='Solo GRUB, Plymouth e inicio de sesión; conserva la sesión abierta y respalda /etc y /boot')
         p.add_argument('--installer-only',action='store_true',help='Actualizar solo el instalador visual, la CLI y sus manifiestos')
         p.add_argument('--components',help='Componentes separados por comas: desktop,wayland,terminal,editor,tools,boot')

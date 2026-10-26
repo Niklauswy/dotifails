@@ -56,6 +56,18 @@ class WysunDistributionTests(unittest.TestCase):
         self.assertFalse(update.conflicts)
         self.assertEqual(update.journal['operations'], [])
 
+    def test_app_update_keeps_file_integration_and_tools_with_the_wayland_component(self):
+        deployment = self.deploy()
+        deployment.receipt['components'] = ['desktop', 'wayland']
+        with patch.dict(os.environ, WYSUN_SKIP_RUNTIME='1'):
+            deployment.configure_app()
+        self.assertFalse(deployment.conflicts)
+        for relative in ('.local/bin/wysun-tools', '.local/bin/wysun-files', '.local/share/applications/wysun-files.desktop',
+                         '.config/systemd/user/wysun-files-integration.service',
+                         '.local/share/dbus-1/services/org.freedesktop.impl.portal.desktop.wysun.service',
+                         '.local/share/xdg-desktop-portal/portals/wysun.portal'):
+            self.assertTrue((self.home / relative).exists(), relative)
+
     def test_a_full_installation_publishes_the_recorder_twice_in_one_run(self):
         # The wayland component and the desktop profile both publish the Wysun family in a full installation.
         deployment = self.deploy()
