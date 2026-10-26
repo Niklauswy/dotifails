@@ -107,6 +107,14 @@ class FallbackParityTests(unittest.TestCase):
         self.assertIn('assets/fonts/CaskaydiaCoveNerdFont-Regular.ttf', shell)
 
 
+class ColoursTests(unittest.TestCase):
+    def test_colours_fallback_comes_from_tokens(self):
+        source = (ROOT / 'apps/shell/services/Colours.qml').read_text()
+        self.assertEqual(re.findall(r'#[0-9a-fA-F]{6}\b', source), [])
+        self.assertIn('/theme/tokens.json', source)
+        self.assertIn('palettes', source)
+
+
 class InstallerTests(unittest.TestCase):
     def test_installer_deploys_tokens(self):
         calls = []
@@ -180,6 +188,68 @@ class PluginTests(unittest.TestCase):
         values, output = self.probe('{"rounding": ')
         self.assertEqual(values['roundingSmall'], 8)
         self.assertIn('tokens.json', output)
+
+
+
+@unittest.skipUnless(os.environ.get('WYSUN_TEST_RUNTIME'), 'WYSUN_TEST_RUNTIME (runtime built from this tree) not set')
+class ColoursPluginTests(unittest.TestCase):
+    """Runs services/Colours.qml in an offscreen Quickshell with temporary XDG dirs."""
+
+    def probe(self, theme=None, scheme=None, with_tokens=True):
+        runtime = Path(os.environ['WYSUN_TEST_RUNTIME'])
+        with tempfile.TemporaryDirectory(prefix='wysun-colours-') as tmp:
+            home = Path(tmp)
+            shell = home / 'shell'
+            (shell / 'services').mkdir(parents=True)
+            (shell / 'services/Colours.qml').symlink_to(ROOT / 'apps/shell/services/Colours.qml')
+            (shell / 'services/Wallpapers.qml').write_text(
+                'pragma Singleton\nimport Quickshell\nSingleton { property string current: "" }\n')
+            (shell / 'utils').symlink_to(ROOT / 'apps/shell/utils')
+            (shell / 'shell.qml').write_text((ROOT / 'tests/shell_colours_probe.qml').read_text())
+            env = dict(os.environ, HOME=tmp, QT_QPA_PLATFORM='offscreen', WAYLAND_DISPLAY='',
+                       HYPRLAND_INSTANCE_SIGNATURE='', WYSUN_LIB_DIR=str(runtime / 'shell/lib/wysun'),
+                       QML_IMPORT_PATH=os.pathsep.join([str(runtime / 'shell/lib/qt6/qml'),
+                                                        str(runtime / 'deps/lib/qt6/qml')]))
+            for key, sub in (('XDG_CONFIG_HOME', 'config'), ('XDG_DATA_HOME', 'data'), ('XDG_STATE_HOME', 'state'),
+                             ('XDG_CACHE_HOME', 'cache'), ('XDG_RUNTIME_DIR', 'run')):
+                (home / sub).mkdir(mode=0o700)
+                env[key] = str(home / sub)
+            env['XDG_DATA_DIRS'] = str(home / 'none')
+            if with_tokens:
+                target = home / 'data/wysun/theme/tokens.json'
+                target.parent.mkdir(parents=True)
+                target.write_text(TOKENS.read_text())
+            if theme is not None:
+                (home / 'config/orbit').mkdir(parents=True)
+                (home / 'config/orbit/theme.json').write_text(json.dumps(theme))
+            if scheme is not None:
+                (home / 'state/wysun').mkdir(parents=True)
+                (home / 'state/wysun/scheme.json').write_text(json.dumps(scheme))
+            result = subprocess.run([str(runtime / 'quickshell/bin/quickshell'), '-p', str(shell)], env=env, text=True,
+                                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=60, cwd=tmp)
+        line = next((l for l in result.stdout.splitlines() if 'COLOURS ' in l), None)
+        self.assertIsNotNone(line, result.stdout)
+        return json.loads(line.split('COLOURS ', 1)[1])
+
+    def test_without_scheme_json_the_dark_base_applies(self):
+        base = tokens()['palettes']['dark']['scheme']
+        values = self.probe()
+        self.assertEqual(values['primary'], '#' + base['primary'].lower())
+        self.assertEqual(values['surface'], '#' + base['surface'].lower())
+        self.assertFalse(values['light'])
+
+    def test_light_mode_uses_the_light_base(self):
+        base = tokens()['palettes']['light']['scheme']
+        values = self.probe(theme={'mode': 'light'})
+        self.assertEqual(values['primary'], '#' + base['primary'].lower())
+        self.assertTrue(values['light'])
+
+    def test_scheme_json_wins_over_the_base(self):
+        palette = tokens()['palettes']['light']['scheme']
+        values = self.probe(theme={'mode': 'dark'},
+                            scheme={'name': 'test', 'flavour': 'tonalspot', 'mode': 'light', 'colours': palette})
+        self.assertEqual(values['primary'], '#' + palette['primary'].lower())
+        self.assertTrue(values['light'])
 
 
 if __name__ == '__main__':
