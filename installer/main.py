@@ -10,14 +10,16 @@ VERSION='1.1.0'
 REPOSITORY='https://github.com/Niklauswy/dotifails.git'
 WYSUN_DESKTOP='[Desktop Entry]\nType=Application\nName=Wysun\nComment=Aplicaciones y herramientas del escritorio\nExec=wysun\nIcon=system-search\nCategories=Utility;\nKeywords=Wysun;lanzador;launcher;aplicaciones;\nStartupWMClass=wysun\n'
 PLAYER_DESKTOP='wysun-player.desktop'
-# Launchers earlier versions published; `wysun` replaces them all. An update removes the ones this
-# installer wrote and the user has not changed (a changed one is a conflict, a foreign one is kept).
-RETIRED_COMMANDS=tuple('.local/bin/'+name for name in (
-    'wysun-tools','wysun-player','wysun-workspaces','wysun-files','wysun-music','wysun-pdf',
-    'wysun-screenshot','wybie-screenshot','web-dev','sec-audit','file-share','gvm','gvm.sh',
-    'tailscale-killswitch','tailscale-killswitch.sh','scrip.sh','rezets','zzzz.py'))+(
-    'scripts/wysun-tools','scripts/README.md','.local/share/applications/wybie-screenshot.desktop',
-    '.local/share/icons/hicolor/scalable/apps/wybie-screenshot.svg')
+# Launchers earlier versions published; `wysun` replaces them all. An update removes the ones this installer
+# wrote and the user has not changed. One the user changed becomes theirs (kept, out of the receipt); one the
+# active Hyprland configuration still calls is kept until that configuration stops calling it.
+DESKTOP_RETIRED=tuple('.local/bin/'+name for name in (
+    'wysun-player','wysun-workspaces','wysun-files','wysun-music','wysun-pdf','wysun-screenshot','wybie-screenshot'))+(
+    '.local/share/applications/wybie-screenshot.desktop','.local/share/icons/hicolor/scalable/apps/wybie-screenshot.svg')
+TOOLS_RETIRED=tuple('.local/bin/'+name for name in (
+    'wysun-tools','web-dev','sec-audit','file-share','gvm','gvm.sh','tailscale-killswitch','tailscale-killswitch.sh',
+    'scrip.sh','rezets','zzzz.py'))+('scripts/wysun-tools','scripts/README.md')
+RETIRED_COMMANDS=DESKTOP_RETIRED+TOOLS_RETIRED
 EXTRAS={'brave':'com.brave.Browser','discord':'com.discordapp.Discord','obsidian':'md.obsidian.Obsidian'}
 
 
@@ -240,9 +242,20 @@ class Deployment:
         """~/.local/bin/wysun, the single entry point; False when an unowned file is in the way."""
         from capture_distribution import _publish
         return _publish(self,(self.source/'bin/wysun').read_text(),'.local/bin/wysun',executable=True)
-    def retire_commands(self):
-        for relative in RETIRED_COMMANDS:
-            if relative in self.receipt['files']:self.retire(Path(relative))
+    def retire_commands(self,names=RETIRED_COMMANDS):
+        import re
+        folder=self.destination('.config/wysun')
+        active='\n'.join(path.read_text(errors='replace') for path in sorted(folder.glob('*.lua')) if path.is_file()) if folder.is_dir() else ''
+        for relative in names:
+            if relative not in self.receipt['files']:continue      # never ours: left alone
+            name=Path(relative).name
+            if relative.startswith('.local/bin/') and re.search(r'(?<![\w.-])'+re.escape(name)+r'(?![\w.-])',active):
+                print('Wysun: se conserva '+relative+' porque ~/.config/wysun lo sigue llamando; cámbialo por su orden de `wysun`.');continue
+            current=fingerprint(self.destination(relative))
+            if current is not None and current!=self.receipt['files'][relative]:
+                self.receipt['files'].pop(relative)
+                print('Wysun: '+relative+' tiene cambios tuyos; ya no lo administra el instalador y se conserva.');continue
+            self.retire(Path(relative))
     def configure_wysun(self):
         if not (self.source/'bin/wysun').is_file():return
         from capture_distribution import configure
@@ -253,10 +266,14 @@ class Deployment:
             source=self.source/'config/.local/share/applications'/name
             if source.is_file():self.deploy(source,Path('.local/share/applications')/name)
         configure(self)
-    def configure_scripts(self):
+    def configure_scripts(self,selected=('tools',)):
         self.stage('Herramientas de terminal (wysun tools)')
         self.deploy(self.source/'apps/tools',Path('.local/share/wysun/tools'))
-        if self.publish_dispatcher():self.retire_commands()
+        if set(selected)&{'desktop','wayland'}:return           # the desktop publishes `wysun` and retires the rest
+        if set(self.receipt.get('components',[]))&{'desktop','wayland'}:
+            # `wysun` belongs to the desktop here: a newer one without the rest of the desktop would break it.
+            print('Wysun: el lanzador wysun es parte del escritorio instalado; actualízalo con ./instalar.sh --wysun-only.');return
+        if self.publish_dispatcher():self.retire_commands(TOOLS_RETIRED)
     def configure_manager(self):
         from ui_support import package_runtime
         manager=self.backup/'generated/manager'
@@ -280,7 +297,7 @@ class Deployment:
             if selected == {'wayland'}:
                 self.configure_manager()
                 return
-        if 'tools' in selected:self.configure_scripts()
+        if 'tools' in selected:self.configure_scripts(selected)
         self.stage('Configuraciones y aplicaciones')
         home_source=self.backup/'generated/theme-home'
         shutil.copytree(self.source/'config',home_source)

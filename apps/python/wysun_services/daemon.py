@@ -76,7 +76,8 @@ def start_detached():
 
 def main(argv=None):
     parser=argparse.ArgumentParser(prog='wysun daemon');parser.add_argument('mode',nargs='?',choices=('daemon','reload'),default='daemon')
-    args=parser.parse_args(sys.argv[1:] if argv is None else argv)
+    # parse_known_args: a resident of an earlier version re-executes itself with options this one no longer has.
+    args,_=parser.parse_known_args(sys.argv[1:] if argv is None else argv)
     resident=owner()
     if args.mode=='reload':
         if not send(resident.endpoint,b'reload',timeout=.5):start_detached()

@@ -30,7 +30,7 @@ El cambio de nombre no mueve ni borra archivos personales. Se conservan:
 | Exportaciones | Las carpetas elegidas en cada aplicación |
 | Paquetes, sockets, nombres de escritorio y clases de ventana | `wysun_*`, `wysun-*` (ver `ARCHITECTURE.md` §7) |
 
-Recorder se incorpora sin depender del repositorio original `loom`. `wysun` es el único lanzador: una actualización retira los lanzadores anteriores que escribió el instalador (`wysun-screenshot`, `wybie-screenshot`, `wysun-player`, `wysun-tools`…) si no se modificaron; uno modificado se conserva y se informa como conflicto. Los instaladores independientes antiguos no deben usarse para administrar esta distribución.
+Recorder se incorpora sin depender del repositorio original `loom`. `wysun` es el único lanzador: una actualización retira los lanzadores anteriores que escribió el instalador (`wysun-screenshot`, `wybie-screenshot`, `wysun-player`, `wysun-tools`…) si no se modificaron; uno modificado pasa a ser tuyo y se conserva, y uno que tu `~/.config/wysun/*.lua` sigue llamando se conserva hasta que cambies esa llamada por su orden de `wysun`. Los instaladores independientes antiguos no deben usarse para administrar esta distribución.
 
 Los accesos del menú conservan sus IDs existentes y cambian su nombre visible; no se crean entradas duplicadas para el mismo producto. La configuración distribuida usa `wysun-shell screenshot` y `wysun-shell record`; un atajo propio que llame a un comando retirado debe cambiarse a su orden de `wysun` (respaldando el archivo y preservando las demás asignaciones).
 

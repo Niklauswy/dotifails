@@ -192,7 +192,7 @@ Python estándar (+ PySide6 para la GUI). Instala por **componentes** (`desktop,
 
 | Modo | Efecto |
 |---|---|
-| `--wysun-only` | Despliega `apps/python`, `apps/tools`, `apps/shell`, `apps/recorder`, `bin/*`, retira los lanzadores de versiones anteriores (`RETIRED_COMMANDS`) y reconstruye el runtime si cambió. No cambia atajos, notas, historial ni colores |
+| `--wysun-only` | Despliega `apps/python`, `apps/tools`, `apps/shell`, `apps/recorder`, `bin/*`, retira los lanzadores de versiones anteriores (`RETIRED_COMMANDS`: solo los suyos sin cambios y que `~/.config/wysun/*.lua` ya no llama) y reconstruye el runtime si cambió. No cambia atajos, notas, historial ni colores |
 | `--scripts-only` | Herramientas de terminal (`wysun tools`) y el lanzador `wysun` |
 | `--installer-only` | El propio instalador y su CLI `wysun-install` (`wysun install`) |
 | `--boot-only` | GRUB/Plymouth/greeter (respalda `/etc` y `/boot`) |

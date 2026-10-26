@@ -46,7 +46,7 @@ class DispatcherTests(unittest.TestCase):
         status, run, execute = self.invoke()
         self.assertEqual(status, 0)
         run.assert_called_once()
-        self.assertEqual(run.call_args.args[0], [SHELL, 'launcher'])
+        self.assertEqual(run.call_args.args[0], [SHELL, 'toggle', 'launcher'])
         execute.assert_not_called()
 
     def test_every_shell_surface_toggles_through_the_shell(self):
@@ -56,7 +56,7 @@ class DispatcherTests(unittest.TestCase):
         for name in names:
             status, run, execute = self.invoke((name,))
             self.assertEqual(status, 0, name)
-            self.assertEqual(run.call_args.args[0], [SHELL, name], name)
+            self.assertEqual(run.call_args.args[0], [SHELL, 'toggle', name], name)
             execute.assert_not_called()
             self.module.assert_not_called()
 
@@ -119,17 +119,34 @@ class DispatcherTests(unittest.TestCase):
 
     def test_removed_aliases_are_not_commands(self):
         # Each falls through to the shell as a surface name, which the shell does not know.
-        source = (ROOT / 'bin/wysun').read_text()
+        commands = {*wysun.MODULES, *wysun.PROGRAMS, *wysun.SHELL_ACTIONS, 'settings', 'music-mini'}
         for alias in ('image', 'color', 'screenshot', 'toggle', 'power', 'audio', 'calendar', 'system', 'tools-cli',
                       'network', 'settings-workspaces'):
-            self.assertNotIn(f"'{alias}'", source, alias)
+            self.assertNotIn(alias, commands)
             self.assertNotIn(alias, bridge_surfaces())
             status, run, execute = self.invoke((alias,), response='false\n', code=2)
             self.assertEqual(status, 1, alias)
-            self.assertEqual(run.call_args.args[0], [SHELL, alias])
+            self.assertEqual(run.call_args.args[0], [SHELL, 'toggle', alias])
             self.module.assert_not_called()
             execute.assert_not_called()
         self.assertFalse((ROOT / 'apps/python/wysun_services/client.py').exists())
+
+    def test_only_surfaces_reach_the_shell_as_bare_words(self):
+        # Quickshell's own commands (kill, log…) and wysun-shell's actions are never reached by a bare word.
+        for word in ('kill', 'log', 'status', 'screenshot', 'record'):
+            self.invoke((word,), response='false\n', code=2)
+        status, run, _ = self.invoke(('kill',), response='false\n', code=2)
+        self.assertEqual(run.call_args.args[0], [SHELL, 'toggle', 'kill'])
+        for option in ('--quick', '-x'):
+            status, run, _ = self.invoke((option,))
+            self.assertEqual(status, 2, option)
+            run.assert_not_called()
+
+    def test_a_program_missing_from_the_checkout_is_reported(self):
+        with patch.object(wysun.os, 'execv', side_effect=FileNotFoundError(2, 'No such file')):
+            with patch.object(sys, 'argv', ['wysun', 'install']), contextlib.redirect_stderr(io.StringIO()) as err:
+                self.assertEqual(wysun.main(), 127)
+        self.assertIn('wysun-install', err.getvalue())
 
     def test_a_surface_takes_no_arguments(self):
         status, run, _ = self.invoke(('processes', 'extra'))

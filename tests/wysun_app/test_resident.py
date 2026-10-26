@@ -47,6 +47,11 @@ class ResidentTests(unittest.TestCase):
         self.assertIn('wysun_services.daemon', argv)
         self.assertTrue(popen.call_args.kwargs['start_new_session'])
 
+    def test_a_resident_of_an_earlier_version_can_re_exec_into_this_one(self):
+        # Earlier residents restart themselves as `wysun_services.daemon daemon --daemon`.
+        with patch.object(daemon, 'send', return_value=True):
+            self.assertEqual(daemon.main(['daemon', '--daemon']), 0)
+
     def test_reload_with_a_resident_only_asks_it(self):
         with patch.object(daemon, 'send', return_value=True) as send, patch.object(daemon.subprocess, 'Popen') as popen:
             self.assertEqual(daemon.main(['reload']), 0)

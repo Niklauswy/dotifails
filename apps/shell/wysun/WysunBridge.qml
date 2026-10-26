@@ -19,6 +19,8 @@ Scope {
         colors: '', processes: '' })
     Processes { id: processes }
     Colors { id: colors }
+    // Own keys only: a name such as "toString" must not resolve through the prototype.
+    function fieldOf(kind) { return Object.prototype.hasOwnProperty.call(surfaces, kind) ? surfaces[kind] : undefined; }
     function current(kind) {
         if (Screens.widgetsOnlyPrimary && WidgetScreens.drawerSurface(kind))
             return ShellState.forScreen(Screens.widgetScreens[0]);
@@ -44,7 +46,7 @@ Scope {
             return colors.open(toggle);
         }
         if (kind === "processes") return processes.open(toggle);
-        const state = current(kind), field = surfaces[kind];
+        const state = current(kind), field = fieldOf(kind);
         if (!state || !field || !available(kind, state)) return false;
         const value = toggle ? !state[field] : true;
         close(); state[field] = value;
@@ -92,7 +94,7 @@ Scope {
     }
     // Diagnostic: open a surface on a named output (e.g. when the focused one has a fullscreen app).
     function showOn(name, kind) {
-        const field = surfaces[kind];
+        const field = fieldOf(kind);
         const requested = Quickshell.screens.find(s => s.name === name);
         if (!requested) return false;
         const screen = WidgetScreens.drawerSurface(kind) ? Screens.drawerScreen(requested) : requested;

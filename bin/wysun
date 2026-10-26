@@ -107,7 +107,11 @@ def main():
     if command in PROGRAMS:
         program, leading = PROGRAMS[command]
         executable = str(HERE / program)
-        os.execv(executable, [executable, *leading, *args])
+        try:
+            os.execv(executable, [executable, *leading, *args])
+        except OSError as exc:
+            print(f'Wysun: no se pudo ejecutar {program} ({exc.strerror}). ¿Está instalado? Prueba `./instalar.sh --wysun-only`.', file=sys.stderr)
+            return 127
         return 0
     if command == 'music-mini':
         return music_mini()
@@ -115,10 +119,11 @@ def main():
         return shell(['nexus', args[0] if args else 'home'])
     if command in SHELL_ACTIONS:
         return shell(SHELL_ACTIONS[command])
-    if args:
-        print(f'Wysun: «{command}» no admite argumentos ({" ".join(args)}). Consulta `wysun --help`.', file=sys.stderr)
+    if args or command.startswith('-'):
+        print(f'Wysun: orden desconocida o con argumentos: {" ".join([command, *args])}. Consulta `wysun --help`.', file=sys.stderr)
         return 2
-    return shell([command])
+    # Any other word is a surface; only the shell knows the list and answers false to a name it lacks.
+    return shell(['toggle', command])
 
 
 if __name__ == '__main__':

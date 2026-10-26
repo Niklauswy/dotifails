@@ -141,11 +141,34 @@ class WysunDistributionTests(unittest.TestCase):
         for relative in owned:
             self.assertFalse((self.home / relative).exists(), relative)
             self.assertNotIn(relative, deployment.receipt['files'])
+        # A launcher the user changed is theirs now: kept, dropped from the receipt, never a recurring conflict.
         self.assertEqual((self.home / edited).read_text(), 'changed by the user')
-        self.assertEqual(deployment.conflicts, [edited])
+        self.assertEqual(deployment.conflicts, [])
+        self.assertNotIn(edited, deployment.receipt['files'])
         self.assertEqual((self.home / foreign).read_text(), 'old ' + foreign)
         for name in private:
             self.assertEqual((self.home / name).read_bytes(), b'private fixture untouched')
+
+    def test_a_launcher_the_active_hyprland_config_still_calls_is_kept(self):
+        launcher = self.home / '.local/bin/wysun-workspaces'
+        launcher.parent.mkdir(parents=True)
+        launcher.write_text('old launcher')
+        config = self.home / '.config/wysun/hyprland.lua'
+        config.parent.mkdir(parents=True)
+        config.write_text('hl.on("hyprland.start", function () hl.exec_cmd("wysun-workspaces") end)\n')
+        deployment = self.deploy()
+        deployment.receipt['files']['.local/bin/wysun-workspaces'] = installer.fingerprint(launcher)
+        deployment.configure_wysun()
+        self.assertTrue(launcher.exists(), 'retiring it would break the active binds')
+        self.assertIn('.local/bin/wysun-workspaces', deployment.receipt['files'])
+        self.assertFalse(deployment.conflicts)
+        deployment.finish()
+        deployment.lock.close()
+        config.write_text('hl.on("hyprland.start", function () hl.exec_cmd("wysun workspaces") end)\n')
+        update = self.deploy()
+        update.receipt['files']['.local/bin/wysun-workspaces'] = installer.fingerprint(launcher)
+        update.configure_wysun()
+        self.assertFalse(launcher.exists())
 
     def test_unowned_commands_and_modified_legacy_are_kept(self):
         legacy = self.home / '.local/bin/wysun-recorder'

@@ -173,6 +173,16 @@ class ToolboxTests(unittest.TestCase):
         with patch.object(rezets,'CONFIG_FILE',p),patch.object(rezets,'APP_DIR',p.parent):
             self.assertEqual(rezets.load_accounts(),[])
         self.assertEqual(p.read_text(),'[]\n');self.assertEqual(p.stat().st_mode&0o777,0o600)
+    def test_scripts_only_on_a_managed_desktop_leaves_the_desktop_launchers(self):
+        home=self.root/'home';receipt=home/'.local/state/wysun/install/installed.json';receipt.parent.mkdir(parents=True)
+        files={}
+        for relative in ('.local/bin/wysun','.local/bin/wysun-player','.local/bin/gvm'):
+            path=home/relative;path.parent.mkdir(parents=True,exist_ok=True);path.write_text('old '+relative);files[relative]=installer.fingerprint(path)
+        receipt.write_text(json.dumps({'files':files,'components':['desktop','wayland']}))
+        with contextlib.redirect_stdout(io.StringIO()) as out:
+            self.assertEqual(installer.main(['install','--source',str(ROOT),'--target-home',str(home),'--scripts-only']),0)
+        for relative in files:self.assertEqual((home/relative).read_text(),'old '+relative,relative)
+        self.assertIn('--wysun-only',out.getvalue())
     def test_scripts_install_publishes_wysun_and_retires_the_old_launchers(self):
         home=self.root/'home';config=home/'.config/wysun/theme.json';config.parent.mkdir(parents=True);config.write_text('theme')
         old={}
