@@ -32,21 +32,21 @@ class Columns:
 
 
 def columns(rect, numbered=True, album=True, cover_size=40):
-    pad = metric('space_m')
+    pad = metric('spacing.medium')
     left = rect.left() + pad
     index = QRect(left, rect.top(), 32 if numbered else 0, rect.height())
     left = index.right() + (pad if numbered else 0)
     cover = QRect(left, rect.top() + (rect.height() - cover_size) // 2, cover_size, cover_size)
     if not cover_size:
-        cover = QRect(left - metric('space_m'), rect.top(), 0, rect.height())
+        cover = QRect(left - metric('spacing.medium'), rect.top(), 0, rect.height())
     more = QRect(rect.right() - pad - 32, rect.top(), 32, rect.height())
     duration = QRect(more.left() - 56, rect.top(), 52, rect.height())
     heart = QRect(duration.left() - 36, rect.top(), 32, rect.height())
-    title_left = cover.right() + metric('space_m')
-    free = heart.left() - metric('space_m') - title_left
+    title_left = cover.right() + metric('spacing.medium')
+    free = heart.left() - metric('spacing.medium') - title_left
     album_width = free * 2 // 5 if album and rect.width() > 720 else 0
     title = QRect(title_left, rect.top(), free - album_width, rect.height())
-    album = QRect(title.right() + metric('space_m'), rect.top(), max(0, album_width - metric('space_m')), rect.height())
+    album = QRect(title.right() + metric('spacing.medium'), rect.top(), max(0, album_width - metric('spacing.medium')), rect.height())
     return Columns(index, cover, title, album, heart, duration, more)
 
 
@@ -96,7 +96,7 @@ class TrackDelegate(QStyledItemDelegate):
         current = key == self.player.current
         painter.save()
         painter.setRenderHint(QPainter.Antialiasing)
-        radius = tokens()['radius_s']
+        radius = tokens()['rounding.small']
         if selected or hovered:
             painter.setPen(Qt.NoPen)
             painter.setBrush(color('row_selected' if selected else 'row_hover'))
@@ -115,21 +115,21 @@ class TrackDelegate(QStyledItemDelegate):
             elif current:
                 paint_symbol(painter, layout.index, 'graphic_eq' if self.player.playing else 'volume_up', 'accent', 18)
             else:
-                painter.setFont(text_font('body'))
+                painter.setFont(text_font('body.medium'))
                 painter.setPen(color('muted'))
                 painter.drawText(layout.index, Qt.AlignCenter, str(index.row() + 1))
-        size, cover_radius = layout.cover.width(), min(tokens()['radius_s'], 6)
+        size, cover_radius = layout.cover.width(), min(tokens()['rounding.small'], 6)
         if size:
             draw_art(painter, layout.cover, self.covers.pixmap(key, size, cover_radius,
                                                                painter.device().devicePixelRatioF()), cover_radius)
-        title_font = text_font('body', 500)
+        title_font = text_font('body.medium', 500)
         painter.setFont(title_font)
         metrics = painter.fontMetrics()
         line = layout.title
         top = QRect(line.left(), rect.top() + rect.height() // 2 - metrics.height() - 1, line.width(), metrics.height())
         painter.setPen(color('accent' if current else 'text'))
         painter.drawText(top, Qt.AlignLeft | Qt.AlignVCenter, metrics.elidedText(track.get('title', ''), Qt.ElideRight, line.width()))
-        painter.setFont(text_font('small'))
+        painter.setFont(text_font('body.small'))
         small = painter.fontMetrics()
         bottom = QRect(line.left(), rect.top() + rect.height() // 2 + 2, line.width(), small.height())
         painter.setPen(color('text' if hovered else 'muted'))
@@ -291,7 +291,7 @@ class TrackHeader(QWidget):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
         layout = columns(self.rect(), self.numbered, self.has_album, 40 if self.show_covers else 0)
-        painter.setFont(text_font('small', 500))
+        painter.setFont(text_font('body.small', 500))
         painter.setPen(color('muted'))
         if self.numbered:
             painter.drawText(layout.index, Qt.AlignCenter, '#')
@@ -302,4 +302,4 @@ class TrackHeader(QWidget):
             painter.drawText(layout.album, Qt.AlignLeft | Qt.AlignVCenter, 'Álbum')
         paint_symbol(painter, QRectF(layout.duration).adjusted(layout.duration.width() - 20, 0, 0, 0), 'schedule', 'muted', 16)
         painter.setPen(QPen(color('divider'), 1))
-        painter.drawLine(metric('space_m'), self.height() - 1, self.width() - metric('space_m'), self.height() - 1)
+        painter.drawLine(metric('spacing.medium'), self.height() - 1, self.width() - metric('spacing.medium'), self.height() - 1)

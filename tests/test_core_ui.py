@@ -21,8 +21,12 @@ class CoreUiTests(unittest.TestCase):
 
     def test_fonts_load_from_wysun_core(self):
         families = fonts.load_fonts()
-        self.assertIn(fonts.TEXT_FAMILY, families)
+        self.assertIn('Google Sans Flex', families)
+        self.assertIn('CaskaydiaCove Nerd Font', families)
         self.assertIn(fonts.SYMBOL_FAMILY, families)
+        self.assertNotIn('Rubik', families)
+        self.assertEqual(fonts.display_family(), tokens()['font.family.sans'])
+        self.assertEqual(fonts.mono_family(), tokens()['font.family.mono'])
         self.assertTrue(str(fonts.FONT_DIR).endswith('wysun_core/fonts'))
 
     def test_symbol_family_is_named_once_loaded(self):
@@ -70,8 +74,8 @@ class CoreUiTests(unittest.TestCase):
         self.assertNotEqual(render(), blank, 'the Lucide glyph is drawn where the symbol is missing')
 
     def test_text_font_and_metric_follow_tokens(self):
-        self.assertEqual(style.text_font('body').pixelSize(), tokens()['font_body'])
-        self.assertEqual(style.metric('space_m'), tokens()['space_m'])
+        self.assertEqual(style.text_font('body.medium').pointSizeF(), tokens()['font.body.medium.size'])
+        self.assertEqual(style.metric('spacing.medium'), tokens()['spacing.medium'])
 
     def test_clock_formats(self):
         self.assertEqual((style.clock(5), style.clock(3725), style.clock(None)), ('0:05', '1:02:05', '0:00'))

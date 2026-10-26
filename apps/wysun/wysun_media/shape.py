@@ -1,6 +1,6 @@
 """Material 3 shape: the corner scale from the theme tokens, drawn as paths, and morphing between corners.
 
-Corner radii come from ``corner_none … corner_full`` of the theme tokens.
+Corner radii are the shell's ``rounding.extraSmall … rounding.full`` theme tokens; ``'none'`` is square.
 """
 import math
 from functools import lru_cache
@@ -10,18 +10,21 @@ from PySide6.QtGui import QPainterPath, QTransform
 
 from . import host
 
-CORNERS = ('none', 'xs', 's', 'm', 'l', 'xl', 'full')
+CORNERS = ('none', 'extraSmall', 'small', 'medium', 'large', 'extraLarge', 'full')
 
 
 def radius(corner, rect=None):
-    """Pixels for a scale step (``'l'``), clamped to half the shorter side of ``rect`` when given."""
-    value = float(host.get().token('corner_' + corner)) if isinstance(corner, str) else float(corner)
+    """Pixels for a scale step (``'large'``), clamped to half the shorter side of ``rect`` when given."""
+    if corner == 'none':
+        value = 0.0
+    else:
+        value = float(host.get().token('rounding.' + corner)) if isinstance(corner, str) else float(corner)
     if rect is not None:
         value = min(value, min(rect.width(), rect.height()) / 2)
     return value
 
 
-def rounded(rect, corner='m', *, top=True, bottom=True):
+def rounded(rect, corner='medium', *, top=True, bottom=True):
     """Rounded rectangle; ``top=False`` / ``bottom=False`` square off that edge's corners."""
     rect = QRectF(rect)
     r = radius(corner, rect)
@@ -44,7 +47,7 @@ def rounded(rect, corner='m', *, top=True, bottom=True):
     return path
 
 
-def frame_outside(rect, corner='xl'):
+def frame_outside(rect, corner='extraLarge'):
     """The four corner slivers that lie outside a rounded ``rect``: painted in the parent's colour they
     round the corners of something that cannot be clipped (an OpenGL surface)."""
     outer = QPainterPath()
@@ -56,10 +59,14 @@ def lerp(a, b, t):
     return a + (b - a) * t
 
 
-def easing():
-    """The theme's motion curve (a QEasingCurve name such as 'OutCubic')."""
-    name = str(host.get().token('motion_easing'))
-    return QEasingCurve(getattr(QEasingCurve.Type, name, QEasingCurve.Type.OutCubic))
+def easing(name='anim.curves.emphasizedDecel'):
+    """A motion curve of the theme: the shell's cubic Bézier control points, as in AnimTokens::buildCurve."""
+    points = host.get().token(name)
+    curve = QEasingCurve(QEasingCurve.BezierSpline)
+    for index in range(0, len(points) - 5, 6):
+        curve.addCubicBezierSegment(QPointF(points[index], points[index + 1]), QPointF(points[index + 2], points[index + 3]),
+                                    QPointF(points[index + 4], points[index + 5]))
+    return curve
 
 
 class Morph(QObject):
@@ -67,7 +74,7 @@ class Morph(QObject):
 
     changed = Signal(float)
 
-    def __init__(self, parent=None, speed='motion_fast'):
+    def __init__(self, parent=None, speed='anim.durations.expressiveFastEffects'):
         super().__init__(parent)
         self.value = 0.0
         self._speed = speed

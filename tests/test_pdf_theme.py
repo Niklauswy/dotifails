@@ -44,8 +44,7 @@ class PdfThemeTests(unittest.TestCase):
     def test_every_size_the_reader_asks_for_resolves(self):
         from pdf_material import M
         source = ''.join((APP / name).read_text() for name in ('pdf_window.py', 'pdf_material.py'))
-        # Text sizes are looked up as M['font_' + role] for the roles the widgets are built with.
-        names = set(re.findall(r"\bM\['([a-z_]+)'\]", source)) | {f'font_{role}' for role in ('small', 'body', 'heading', 'title')}
+        names = set(re.findall(r"\bM\['([a-zA-Z_.]+)'\]", source))
         self.assertGreater(len(names), 10)
         for name in names:
             self.assertGreater(M[name], 0, name)
@@ -53,7 +52,7 @@ class PdfThemeTests(unittest.TestCase):
     def test_fonts_for_text_and_icons_load(self):
         from pdf_material import ReaderTheme
         theme = ReaderTheme()
-        self.assertTrue(theme.font('body', 500).pixelSize() > 0)
+        self.assertTrue(theme.font('body.medium', 500).pointSizeF() > 0)
         from wysun_core.ui.fonts import symbol_family
         self.assertEqual(symbol_family(), 'Material Symbols Rounded')
 

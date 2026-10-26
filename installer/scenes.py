@@ -74,7 +74,7 @@ class Stepper(Ticker, QWidget):
         self.hovered = -1
         self.setMouseTracking(True)
         self.setFocusPolicy(Qt.StrongFocus)
-        self.setFixedHeight(metric('space_xl') * 3)
+        self.setFixedHeight(metric('spacing.extraLarge') * 3)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self.setAccessibleName('Pasos de la instalación')
 
@@ -89,7 +89,7 @@ class Stepper(Ticker, QWidget):
         self.current = index
         self.setAccessibleDescription(self.steps[index][1] if self.steps else '')
         if animate_change and self.isVisible():
-            animate(self, tokens()['motion_enter'] * 2, self._move, start, float(index), QEasingCurve.OutBack)
+            animate(self, tokens()['anim.durations.expressiveFastSpatial'] * 2, self._move, start, float(index), QEasingCurve.OutBack)
         else:
             self._move(float(index))
 
@@ -99,14 +99,14 @@ class Stepper(Ticker, QWidget):
 
     def centres(self):
         count = max(1, len(self.steps))
-        spacing = min(self.width() / count, metric('space_xl') * 6)
+        spacing = min(self.width() / count, metric('spacing.extraLarge') * 6)
         left = (self.width() - spacing * (count - 1)) / 2
-        top = metric('space_xl') * .75 + metric('space_m')
+        top = metric('spacing.extraLarge') * .75 + metric('spacing.medium')
         return [QPointF(left + spacing * i, top) for i in range(count)]
 
     def _hit(self, point):
         for index, centre in enumerate(self.centres()):
-            if abs(point.x() - centre.x()) < metric('space_xl') * 1.6 and point.y() < self.height():
+            if abs(point.x() - centre.x()) < metric('spacing.extraLarge') * 1.6 and point.y() < self.height():
                 return index
         return -1
 
@@ -141,7 +141,7 @@ class Stepper(Ticker, QWidget):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
         centres = self.centres()
-        big, small = metric('space_xl') * 1.5, metric('space_l')
+        big, small = metric('spacing.extraLarge') * 1.5, metric('spacing.large')
         # Thread: the travelled part is accent.
         for index in range(len(centres) - 1):
             a, b = centres[index], centres[index + 1]
@@ -174,11 +174,11 @@ class Stepper(Ticker, QWidget):
             if index == self.hovered and index != self.current and index in self.reachable:
                 painter.setBrush(color('tint', 22))
                 painter.drawEllipse(box.adjusted(-4, -4, 4, 4))
-            font = text_font('small', 650 if near > .5 else 500)
+            font = text_font('body.small', 650 if near > .5 else 500)
             painter.setFont(font)
             painter.setPen(mix(color('muted'), color('text_strong'), near))
-            label = QRectF(centre.x() - metric('space_xl') * 3, centre.y() + big / 2 + 2, metric('space_xl') * 6, metric('space_l') + 2)
-            if near > .3 or self.width() > len(self.steps) * metric('space_xl') * 5:
+            label = QRectF(centre.x() - metric('spacing.extraLarge') * 3, centre.y() + big / 2 + 2, metric('spacing.extraLarge') * 6, metric('spacing.large') + 2)
+            if near > .3 or self.width() > len(self.steps) * metric('spacing.extraLarge') * 5:
                 painter.drawText(label, Qt.AlignHCenter | Qt.AlignTop, title)
         if self.hasFocus() and self.window().isActiveWindow():
             centre = centres[self.current]
@@ -198,7 +198,7 @@ class ScanScene(Ticker, QWidget):
         self.state = 'scanning'
         self.facts = []          # [(level, text, amount)]
         self.settle = 1.0
-        self.setFixedHeight(metric('space_xl') * 17)
+        self.setFixedHeight(metric('spacing.extraLarge') * 17)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
 
     def set_system(self, initial, name, detail):
@@ -220,9 +220,9 @@ class ScanScene(Ticker, QWidget):
             def grow(value, fact=fact):
                 fact[2] = value
                 self.update()
-            animate(self, tokens()['motion_enter'] + 120, grow, 0.0, 1.0, QEasingCurve.OutBack, delay=120 + index * 90)
+            animate(self, tokens()['anim.durations.expressiveFastSpatial'] + 120, grow, 0.0, 1.0, QEasingCurve.OutBack, delay=120 + index * 90)
         self.settle = 0.0
-        animate(self, tokens()['motion_enter'] * 2, self._settle, 0.0, 1.0, QEasingCurve.OutBack)
+        animate(self, tokens()['anim.durations.expressiveFastSpatial'] * 2, self._settle, 0.0, 1.0, QEasingCurve.OutBack)
         self.setAccessibleDescription(self.detail + '. ' + '. '.join(text for _level, text in facts))
         self.update()
 
@@ -234,8 +234,8 @@ class ScanScene(Ticker, QWidget):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
         rect = QRectF(self.rect())
-        side = min(rect.height() * .34, metric('space_xl') * 6.5)
-        centre = QPointF(rect.center().x(), metric('space_xl') + side * .9)
+        side = min(rect.height() * .34, metric('spacing.extraLarge') * 6.5)
+        centre = QPointF(rect.center().x(), metric('spacing.extraLarge') + side * .9)
         badge = QRectF(centre.x() - side / 2, centre.y() - side / 2, side, side)
         painter.setPen(Qt.NoPen)
         if self.state == 'scanning':
@@ -263,7 +263,7 @@ class ScanScene(Ticker, QWidget):
         painter.drawPath(cookie(badge.translated(0, side * .04), 9, self.clock * 12))
         painter.setBrush(color('danger' if self.state == 'error' else 'accent'))
         painter.drawPath(cookie(badge, 9, self.clock * 12))
-        painter.setFont(text_font('title', 800, side / max(1, metric('font_title')) * .4))
+        painter.setFont(text_font('title.large', 800, side / max(1, metric('font.title.large.size')) * .4))
         painter.setPen(color('on_accent'))
         painter.drawText(badge, Qt.AlignCenter, self.initial)
         if self.state != 'scanning' and self.settle > .01:
@@ -275,33 +275,33 @@ class ScanScene(Ticker, QWidget):
             painter.drawEllipse(spot)
             paint_symbol(painter, spot, {'ok': 'check', 'warning': 'priority_high', 'error': 'close'}[self.state],
                          'on_accent', mark * .7, filled=True)
-        y = badge.bottom() + metric('space_xl')
-        painter.setFont(text_font('title', 750, 1.25))
+        y = badge.bottom() + metric('spacing.extraLarge')
+        painter.setFont(text_font('title.large', 750, 1.25))
         painter.setPen(color('text_strong'))
         metrics = painter.fontMetrics()
         painter.drawText(QRectF(0, y, rect.width(), metrics.height()), Qt.AlignHCenter | Qt.AlignVCenter,
                          metrics.elidedText(self.name, Qt.ElideRight, int(rect.width() - 40)))
-        y += metrics.height() + metric('space_xs')
-        painter.setFont(text_font('body'))
+        y += metrics.height() + metric('spacing.extraSmall')
+        painter.setFont(text_font('body.medium'))
         painter.setPen(color('muted'))
         line = painter.fontMetrics().height()
         painter.drawText(QRectF(0, y, rect.width(), line), Qt.AlignHCenter | Qt.AlignVCenter,
                          'Leyendo tu equipo…' if self.state == 'scanning' else self.detail)
-        y += line + metric('space_l')
+        y += line + metric('spacing.large')
         self._paint_facts(painter, rect, y)
 
     def _paint_facts(self, painter, rect, top):
-        font = text_font('small', 600)
+        font = text_font('body.small', 600)
         painter.setFont(font)
         metrics = QFontMetrics(font)
-        height = metric('space_xl') + metric('space_xs')
-        gap = metric('space_s')
+        height = metric('spacing.extraLarge') + metric('spacing.extraSmall')
+        gap = metric('spacing.small')
         pills = []
         for level, text, amount in self.facts:
-            width = metrics.horizontalAdvance(text) + height + metric('space_m') * 2
+            width = metrics.horizontalAdvance(text) + height + metric('spacing.medium') * 2
             pills.append((level, text, amount, width))
         rows, row, used = [], [], 0
-        limit = rect.width() - metric('space_xl') * 2
+        limit = rect.width() - metric('spacing.extraLarge') * 2
         for pill in pills:
             if row and used + pill[3] > limit:
                 rows.append((row, used - gap))
@@ -331,7 +331,7 @@ class ScanScene(Ticker, QWidget):
                 paint_symbol(painter, dot, symbol, 'glyph' if level == 'info' else 'on_accent', dot.height() * .7,
                              filled=symbol in SOLID)
                 painter.setPen(color('text'))
-                painter.drawText(QRectF(dot.right() + metric('space_s'), box.top(), pill_width, height),
+                painter.drawText(QRectF(dot.right() + metric('spacing.small'), box.top(), pill_width, height),
                                  Qt.AlignLeft | Qt.AlignVCenter, text)
                 painter.restore()
                 x += pill_width + gap
@@ -349,7 +349,7 @@ class CoreCard(Ticker, QWidget):
         super().__init__(parent)
         self.init_ticker(40)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        self.setFixedHeight(metric('space_xl') * 7 + metric('space_s'))
+        self.setFixedHeight(metric('spacing.extraLarge') * 7 + metric('spacing.small'))
         self.setAccessibleName('Wysun, siempre incluido')
         self.setAccessibleDescription(', '.join(self.PARTS))
 
@@ -357,7 +357,7 @@ class CoreCard(Ticker, QWidget):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
         rect = QRectF(self.rect())
-        radius = tokens()['radius_l']
+        radius = tokens()['rounding.largeIncreased']
         clip = QPainterPath()
         clip.addRoundedRect(rect, radius, radius)
         painter.setClipPath(clip)
@@ -369,27 +369,27 @@ class CoreCard(Ticker, QWidget):
         painter.setBrush(color('on_accent', 38))
         small = side * .5
         painter.drawPath(cookie(QRectF(rect.right() - side * .42, rect.center().y() - small / 2, small, small), 9, -self.clock * 10))
-        painter.setFont(text_font('title', 800, small / max(1, metric('font_title')) * .38))
+        painter.setFont(text_font('title.large', 800, small / max(1, metric('font.title.large.size')) * .38))
         painter.setPen(color('on_accent'))
         painter.drawText(QRectF(rect.right() - side * .42, rect.center().y() - small / 2, small, small), Qt.AlignCenter, 'W')
-        pad = metric('space_xl')
-        font = text_font('caption', 700)
+        pad = metric('spacing.extraLarge')
+        font = text_font('label.small', 700)
         font.setLetterSpacing(font.SpacingType.AbsoluteSpacing, 1.1)
         painter.setFont(font)
         painter.drawText(QRectF(pad, pad, rect.width(), 16), Qt.AlignLeft | Qt.AlignVCenter, 'SIEMPRE INCLUIDO')
-        painter.setFont(text_font('title', 800, 1.35))
-        painter.drawText(QRectF(pad, pad + 20, rect.width(), metric('font_title') * 2), Qt.AlignLeft | Qt.AlignVCenter, 'Wysun')
-        font = text_font('small', 600)
+        painter.setFont(text_font('title.large', 800, 1.35))
+        painter.drawText(QRectF(pad, pad + 20, rect.width(), metric('font.title.large.size') * 2), Qt.AlignLeft | Qt.AlignVCenter, 'Wysun')
+        font = text_font('body.small', 600)
         painter.setFont(font)
         metrics = QFontMetrics(font)
-        height = metric('space_xl')
-        x, y = float(pad), pad + 20 + metric('font_title') * 2 + metric('space_s')
+        height = metric('spacing.extraLarge')
+        x, y = float(pad), pad + 20 + metric('font.title.large.size') * 2 + metric('spacing.small')
         limit = rect.width() - side * .55
         for index, part in enumerate(self.PARTS):
-            width = metrics.horizontalAdvance(part) + metric('space_l') * 2
+            width = metrics.horizontalAdvance(part) + metric('spacing.large') * 2
             if x + width > limit:
-                x, y = float(pad), y + height + metric('space_s')
-            if y + height > rect.height() - metric('space_s'):
+                x, y = float(pad), y + height + metric('spacing.small')
+            if y + height > rect.height() - metric('spacing.small'):
                 break
             bob = math.sin(self.clock * 1.6 + index * .9) * 1.5
             chip = QRectF(x, y + bob, width, height)
@@ -398,7 +398,7 @@ class CoreCard(Ticker, QWidget):
             painter.drawRoundedRect(chip, height / 2, height / 2)
             painter.setPen(color('on_accent'))
             painter.drawText(chip, Qt.AlignCenter, part)
-            x += width + metric('space_s')
+            x += width + metric('spacing.small')
 
 
 class AddonTile(QAbstractButton):
@@ -419,12 +419,12 @@ class AddonTile(QAbstractButton):
         self.setAccessibleName(title)
         self.setAccessibleDescription(detail)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        self.setFixedHeight(metric('space_xl') * 8)
+        self.setFixedHeight(metric('spacing.extraLarge') * 8)
         self.toggled.connect(self._toggled)
 
     def _toggled(self, on):
         self.pick.to(1.0 if on else 0.0)
-        animate(self, tokens()['motion_enter'] + 140, self._pop, .82, 1.0, QEasingCurve.OutBack)
+        animate(self, tokens()['anim.durations.expressiveFastSpatial'] + 140, self._pop, .82, 1.0, QEasingCurve.OutBack)
         self._sync()
 
     def _pop(self, value):
@@ -450,7 +450,7 @@ class AddonTile(QAbstractButton):
         self.update()
 
     def sizeHint(self):
-        return QSize(metric('space_xl') * 8, self.height())
+        return QSize(metric('spacing.extraLarge') * 8, self.height())
 
     def enterEvent(self, event):
         self.layer.to(1.0)
@@ -470,7 +470,7 @@ class AddonTile(QAbstractButton):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
         rect = QRectF(self.rect())
-        radius = tokens()['radius_l']
+        radius = tokens()['rounding.largeIncreased']
         on = self.pick.amount
         painter.setPen(Qt.NoPen)
         painter.setBrush(mix(color('well'), color('nav_selected'), on))
@@ -478,9 +478,14 @@ class AddonTile(QAbstractButton):
         if self.layer.amount and self.isEnabled():
             painter.setBrush(color('tint', round(12 * self.layer.amount)))
             painter.drawRoundedRect(rect, radius, radius)
-        pad = metric('space_l')
-        side = min(rect.height() * .5, rect.width() * .5) * self.pop
-        centre = QPointF(rect.center().x(), pad + rect.height() * .28)
+        pad = metric('spacing.large')
+        # The title and two lines of detail sit at the bottom; the cookie takes what is left above.
+        title_font, detail_font = text_font('title.medium', 700), text_font('body.small')
+        title = QFontMetrics(title_font).height()
+        y = rect.height() - pad - QFontMetrics(detail_font).lineSpacing() * 2 - 2 - title
+        room = y - metric('spacing.large') - pad
+        side = min(room, rect.width() * .5) * self.pop
+        centre = QPointF(rect.center().x(), pad + room / 2)
         box = QRectF(centre.x() - side / 2, centre.y() - side / 2, side, side)
         shape = cookie(box, self.sides, self.angle + 25 * self.layer.amount)
         if on > .01:
@@ -494,17 +499,15 @@ class AddonTile(QAbstractButton):
             painter.drawPath(shape)
             painter.setPen(Qt.NoPen)
         paint_symbol(painter, box, self.symbol, mix(color('glyph_muted'), color('on_accent'), on), side * .42)
-        badge = QRectF(rect.right() - pad - metric('space_xl'), pad, metric('space_xl'), metric('space_xl'))
+        badge = QRectF(rect.right() - pad - metric('spacing.extraLarge'), pad, metric('spacing.extraLarge'), metric('spacing.extraLarge'))
         painter.setBrush(mix(color('fill'), color('accent'), on))
         painter.drawEllipse(badge)
         paint_symbol(painter, badge, 'check' if self.isChecked() else 'add', 'on_accent' if self.isChecked() else 'glyph',
                      badge.height() * .7, filled=True)
-        y = box.bottom() + metric('space_l')
-        painter.setFont(text_font('heading', 700))
+        painter.setFont(title_font)
         painter.setPen(color('text_strong'))
-        title = painter.fontMetrics().height()
         painter.drawText(QRectF(pad, y, rect.width() - pad * 2, title), Qt.AlignHCenter | Qt.AlignVCenter, self.title)
-        painter.setFont(text_font('small'))
+        painter.setFont(detail_font)
         painter.setPen(color('muted'))
         painter.drawText(QRectF(pad, y + title + 2, rect.width() - pad * 2, rect.bottom() - y - title - pad),
                          Qt.AlignHCenter | Qt.AlignTop | Qt.TextWordWrap, self.detail)
@@ -527,12 +530,12 @@ class AppBubble(QAbstractButton):
         self.setAccessibleName(title)
         self.setAccessibleDescription(detail)
         self.setToolTip(f'{title} · {detail} · Flatpak')
-        self.setFixedSize(metric('space_xl') * 5, metric('space_xl') * 5)
+        self.setFixedSize(metric('spacing.extraLarge') * 5, metric('spacing.extraLarge') * 5)
         self.toggled.connect(self._toggled)
 
     def _toggled(self, on):
         self.pick.to(1.0 if on else 0.0)
-        animate(self, tokens()['motion_enter'] + 140, self._pop, .7, 1.0, QEasingCurve.OutBack)
+        animate(self, tokens()['anim.durations.expressiveFastSpatial'] + 140, self._pop, .7, 1.0, QEasingCurve.OutBack)
 
     def _pop(self, value):
         self.pop = value
@@ -558,7 +561,7 @@ class AppBubble(QAbstractButton):
         rect = QRectF(self.rect())
         on = self.pick.amount
         side = rect.width() * .62 * self.pop
-        box = QRectF(rect.center().x() - side / 2, metric('space_xs') + (rect.width() * .62 - side) / 2, side, side)
+        box = QRectF(rect.center().x() - side / 2, metric('spacing.extraSmall') + (rect.width() * .62 - side) / 2, side, side)
         painter.setPen(Qt.NoPen)
         painter.setBrush(mix(color('well'), color('accent'), on))
         painter.drawPath(blob(box, 9, .07 * on, 30 * on))
@@ -574,12 +577,12 @@ class AppBubble(QAbstractButton):
             painter.setBrush(color('accent'))
             painter.drawEllipse(spot)
             paint_symbol(painter, spot, 'check', 'on_accent', mark * .72, filled=True)
-        painter.setFont(text_font('body', 600))
+        painter.setFont(text_font('body.medium', 600))
         painter.setPen(color('text_strong'))
-        painter.drawText(QRectF(0, rect.width() * .66, rect.width(), metric('space_l') + 4), Qt.AlignHCenter | Qt.AlignVCenter, self.title)
-        painter.setFont(text_font('caption'))
+        painter.drawText(QRectF(0, rect.width() * .66, rect.width(), metric('spacing.large') + 4), Qt.AlignHCenter | Qt.AlignVCenter, self.title)
+        painter.setFont(text_font('label.small'))
         painter.setPen(color('muted'))
-        painter.drawText(QRectF(0, rect.width() * .66 + metric('space_l') + 4, rect.width(), metric('space_l')),
+        painter.drawText(QRectF(0, rect.width() * .66 + metric('spacing.large') + 4, rect.width(), metric('spacing.large')),
                          Qt.AlignHCenter | Qt.AlignVCenter, self.detail)
         if self.hasFocus() and self.window().isActiveWindow():
             focus_ring(painter, box.adjusted(-4, -4, 4, 4), side / 2 + 4)
@@ -603,9 +606,9 @@ class RunScene(Ticker, QWidget):
         self.settle = 1.0
         self.burst = 0.0
         self.dots = 0.0
-        self.setMinimumHeight(metric('space_xl') * 12)
+        self.setMinimumHeight(metric('spacing.extraLarge') * 12)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        self.setFixedHeight(metric('space_xl') * 13)
+        self.setFixedHeight(metric('spacing.extraLarge') * 13)
 
     def start(self, total, symbol='download'):
         self.state, self.symbol, self.index, self.total = 'active', symbol, 0, total
@@ -626,14 +629,14 @@ class RunScene(Ticker, QWidget):
                 self.symbol = symbol
             self.update()
         if self.isVisible() and not reduced_motion(self.window()):
-            animate(self, tokens()['motion_enter'] * 2, breathe, 0.0, 1.0, QEasingCurve.InOutCubic)
+            animate(self, tokens()['anim.durations.expressiveFastSpatial'] * 2, breathe, 0.0, 1.0, QEasingCurve.InOutCubic)
         else:
             self.lobes, self.symbol = self.LOBES[index % len(self.LOBES)], symbol
-        animate(self, tokens()['motion_enter'] * 2, self._dots, self.dots, float(index), QEasingCurve.OutCubic)
+        animate(self, tokens()['anim.durations.expressiveFastSpatial'] * 2, self._dots, self.dots, float(index), QEasingCurve.OutCubic)
         self.index = index
 
     def advance_dots(self, done):
-        animate(self, tokens()['motion_enter'], self._dots, self.dots, float(done), QEasingCurve.OutCubic)
+        animate(self, tokens()['anim.durations.expressiveFastSpatial'], self._dots, self.dots, float(done), QEasingCurve.OutCubic)
 
     def _dots(self, value):
         self.dots = value
@@ -642,7 +645,7 @@ class RunScene(Ticker, QWidget):
     def finish(self, state):
         self.state = state
         self.settle = 0.0
-        animate(self, tokens()['motion_enter'] * 3, self._settle, 0.0, 1.0, QEasingCurve.OutBack)
+        animate(self, tokens()['anim.durations.expressiveFastSpatial'] * 3, self._settle, 0.0, 1.0, QEasingCurve.OutBack)
         if state == 'done':
             self.dots = float(self.total)
             animate(self, 1300, self._burst, 0.0, 1.0, QEasingCurve.OutCubic)
@@ -663,9 +666,9 @@ class RunScene(Ticker, QWidget):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
         rect = QRectF(self.rect())
-        dots_height = metric('space_xl') * 1.5
+        dots_height = metric('spacing.extraLarge') * 1.5
         side = min((rect.height() - dots_height) / 1.6, rect.width() * .35)
-        centre = QPointF(rect.center().x(), (rect.height() - dots_height) / 2 + metric('space_s'))
+        centre = QPointF(rect.center().x(), (rect.height() - dots_height) / 2 + metric('spacing.small'))
         painter.setPen(Qt.NoPen)
         active = self.state == 'active'
         tone = {'error': 'danger', 'warning': 'warning', 'cancelled': 'fill'}.get(self.state, 'accent')
@@ -711,7 +714,7 @@ class RunScene(Ticker, QWidget):
             painter.setOpacity(1)
         if self.total:
             y = rect.height() - dots_height / 2
-            dot, pill, gap = metric('space_s'), metric('space_xl'), metric('space_s')
+            dot, pill, gap = metric('spacing.small'), metric('spacing.extraLarge'), metric('spacing.small')
             width = (self.total - 1) * (dot + gap) + pill
             x = rect.center().x() - width / 2
             for index in range(self.total):
@@ -737,12 +740,12 @@ class PillSwitch(QAbstractButton):
         self.setCursor(Qt.PointingHandCursor)
         self.setFocusPolicy(Qt.StrongFocus)
         self.setAccessibleName(text)
-        self.setFont(text_font('body', 600))
-        self.setFixedHeight(metric('space_xl') * 2 + metric('space_xs'))
+        self.setFont(text_font('body.medium', 600))
+        self.setFixedHeight(metric('spacing.extraLarge') * 2 + metric('spacing.extraSmall'))
         self.toggled.connect(lambda on: self.knob.to(1.0 if on else 0.0))
 
     def sizeHint(self):
-        return QSize(self.fontMetrics().horizontalAdvance(self.text()) + metric('space_xl') * 4 + metric('space_l'), self.height())
+        return QSize(self.fontMetrics().horizontalAdvance(self.text()) + metric('spacing.extraLarge') * 4 + metric('spacing.large'), self.height())
 
     def minimumSizeHint(self):
         return self.sizeHint()
@@ -776,13 +779,13 @@ class PillSwitch(QAbstractButton):
         if self.layer.amount and self.isEnabled():
             painter.setBrush(color('tint', round(14 * self.layer.amount)))
             painter.drawRoundedRect(rect, radius, radius)
-        pad = metric('space_s')
-        track = QRectF(pad + 2, (rect.height() - metric('space_xl') - metric('space_s')) / 2,
-                       metric('space_xl') * 2 + metric('space_xs'), metric('space_xl') + metric('space_s'))
+        pad = metric('spacing.small')
+        track = QRectF(pad + 2, (rect.height() - metric('spacing.extraLarge') - metric('spacing.small')) / 2,
+                       metric('spacing.extraLarge') * 2 + metric('spacing.extraSmall'), metric('spacing.extraLarge') + metric('spacing.small'))
         self._paint_switch(painter, track, self.knob.amount, self.isEnabled())
         painter.setFont(self.font())
         painter.setPen(color('text_strong' if self.isEnabled() else 'disabled'))
-        painter.drawText(QRectF(track.right() + metric('space_m'), 0, rect.width() - track.right() - metric('space_l'), rect.height()),
+        painter.drawText(QRectF(track.right() + metric('spacing.medium'), 0, rect.width() - track.right() - metric('spacing.large'), rect.height()),
                          Qt.AlignLeft | Qt.AlignVCenter, self.text())
         if self.hasFocus() and self.window().isActiveWindow():
             focus_ring(painter, rect, radius)

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <qjsonobject.h>
+
 #include "settings/rootnode.hpp"
 #include "settings/singleton.hpp"
 #include "appearanceconfig.hpp"
@@ -58,49 +60,32 @@ private:
     FontTokens* const m_fontTokens;
 };
 
-class TokensRoot : public settings::RootNode {
-    CONFIG_NODE_NO_CTOR(TokensRoot, settings::RootNode)
-    QML_ANONYMOUS
+// The shape and motion tokens of apps/wysun/wysun_core/tokens.json, the source the Qt apps read too. The
+// installer copies it to $XDG_DATA_HOME/wysun/theme/tokens.json and it is read once at startup: whatever is
+// missing or of another type keeps its value from tokens.hpp, the fallback. Sizes and wallpaper motion are
+// shell-only and live only in tokens.hpp.
+class TokensRoot : public settings::ObjectNode {
+    CONFIG_NODE_NO_CTOR(TokensRoot, settings::ObjectNode)
+    QML_NAMED_ELEMENT(TokenConfig)
+    QML_SINGLETON
 
     CONFIG_SUBOBJECT(AppearanceTokens, appearance)
     CONFIG_SUBOBJECT(SizeTokens, sizes)
 
 public:
-    explicit TokensRoot(const QString& path, TokensRoot* fallback = nullptr, QObject* parent = nullptr);
+    static TokensRoot* instance();
+    static TokensRoot* create(QQmlEngine*, QJSEngine*);
+
+private:
+    explicit TokensRoot(QObject* parent = nullptr);
+
+    void load(const QString& path);
 };
 
-namespace detail {
-
-enum class ConfigKind : quint8 {
-    Shell,
-    Tokens,
-};
-
-void loaded(ConfigKind kind, settings::RootNode* layer, const QString& screen);
-void loadFailed(ConfigKind kind, const QString& error, const QString& screen);
-void saveFailed(ConfigKind kind, const QString& error, const QString& screen);
-
-template <ConfigKind Kind> struct Handler {
-    static void loaded(settings::RootNode* layer, const QString& screen);
-    static void loadFailed(const QString& error, const QString& screen);
-    static void saveFailed(const QString& error, const QString& screen);
-};
-
-template <ConfigKind Kind> void Handler<Kind>::loaded(settings::RootNode* layer, const QString& screen) {
-    detail::loaded(Kind, layer, screen);
-}
-
-template <ConfigKind Kind> void Handler<Kind>::loadFailed(const QString& error, const QString& screen) {
-    detail::loadFailed(Kind, error, screen);
-}
-
-template <ConfigKind Kind> void Handler<Kind>::saveFailed(const QString& error, const QString& screen) {
-    detail::saveFailed(Kind, error, screen);
-}
-
-} // namespace detail
+// Maps tokens.json onto the TokensRoot tree: rounding, spacing and padding as they are, anim.durations and
+// anim.curves into appearance.animDurations and appearance.curves. The other groups are for the Qt apps.
+[[nodiscard]] QJsonObject shellTokens(const QJsonObject& tokens);
 
 SETTINGS_SINGLETON_DECL(ConfigSingleton, ConfigRoot, GlobalConfig)
-SETTINGS_SINGLETON_DECL(TokensSingleton, TokensRoot, TokenConfig)
 
 } // namespace wysun::config

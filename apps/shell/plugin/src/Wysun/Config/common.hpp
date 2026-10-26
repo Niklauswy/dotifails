@@ -30,6 +30,8 @@ Q_DECLARE_LOGGING_CATEGORY(lcConfig)
 
 QString configDir();
 QString monitorConfigDir();
+// The installed tokens.json (wysun/theme/tokens.json in the XDG data dirs), or empty when there is none.
+QString tokensPath();
 
 class ListEntry : public settings::ObjectNode {
     CONFIG_NODE(ListEntry, settings::ObjectNode)

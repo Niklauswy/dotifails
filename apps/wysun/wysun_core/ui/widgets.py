@@ -37,7 +37,7 @@ class StateLayer:
         if reduced_motion(self.widget.window()):
             self._set(target)
             return
-        self.animation.setDuration(metric('motion_fast'))
+        self.animation.setDuration(metric('anim.durations.expressiveFastEffects'))
         self.animation.setStartValue(self.amount)
         self.animation.setEndValue(float(target))
         self.animation.start()
@@ -120,7 +120,7 @@ class IconButton(QAbstractButton):
             painter.setBrush(color('tint', round(18 * self.layer.amount)))
             painter.drawPath(outline)
         if self.hasFocus() and self.focusPolicy() != Qt.NoFocus and self.window().isActiveWindow():
-            painter.setPen(QPen(color('focus'), tokens()['focus_width']))
+            painter.setPen(QPen(color('focus'), tokens()['border.focus']))
             painter.setBrush(Qt.NoBrush)
             painter.drawPath(outline)
         icon_rect = rect.adjusted(0, -2, 0, -2) if self.dot and active else rect
@@ -143,7 +143,7 @@ class PillButton(QAbstractButton):
         self.setAccessibleName(label)
         self.setCursor(Qt.PointingHandCursor)
         self.setFocusPolicy(Qt.StrongFocus)
-        self.setFont(text_font('body', 600))
+        self.setFont(text_font('body.medium', 600))
         self.setFixedHeight(height)
         if callback:
             self.clicked.connect(lambda _=False: callback())
@@ -157,7 +157,7 @@ class PillButton(QAbstractButton):
 
     def sizeHint(self):
         icon = round(self.height() * .5)
-        return QSize(self.fontMetrics().horizontalAdvance(self.text()) + icon + metric('space_l') * 2 + metric('space_s'),
+        return QSize(self.fontMetrics().horizontalAdvance(self.text()) + icon + metric('spacing.large') * 2 + metric('spacing.small'),
                      self.height())
 
     def enterEvent(self, event):
@@ -188,16 +188,16 @@ class PillButton(QAbstractButton):
             painter.setBrush(color('tint', round(18 * self.layer.amount)))
             painter.drawRoundedRect(rect, radius, radius)
         if self.hasFocus() and self.window().isActiveWindow():
-            painter.setPen(QPen(color('focus'), tokens()['focus_width']))
+            painter.setPen(QPen(color('focus'), tokens()['border.focus']))
             painter.setBrush(Qt.NoBrush)
             painter.drawRoundedRect(rect.adjusted(1, 1, -1, -1), radius - 1, radius - 1)
         icon = round(rect.height() * .5)
         text_width = self.fontMetrics().horizontalAdvance(self.text())
-        left = rect.center().x() - (icon + metric('space_s') + text_width) / 2
+        left = rect.center().x() - (icon + metric('spacing.small') + text_width) / 2
         paint_symbol(painter, QRectF(left, 0, icon, self.height()), self.symbol, ink, icon, filled=True)
         painter.setFont(self.font())
         painter.setPen(color(ink))
-        painter.drawText(QRectF(left + icon + metric('space_s'), 0, text_width + 2, self.height()),
+        painter.drawText(QRectF(left + icon + metric('spacing.small'), 0, text_width + 2, self.height()),
                          Qt.AlignLeft | Qt.AlignVCenter, self.text())
 
 
@@ -210,11 +210,11 @@ class Chip(QAbstractButton):
         self.setCheckable(True)
         self.setCursor(Qt.PointingHandCursor)
         self.layer = StateLayer(self)
-        self.setFont(text_font('small', 500))
+        self.setFont(text_font('body.small', 500))
         self.setFixedHeight(32)
 
     def sizeHint(self):
-        return QSize(self.fontMetrics().horizontalAdvance(self.text()) + metric('space_l', 2), 32)
+        return QSize(self.fontMetrics().horizontalAdvance(self.text()) + metric('spacing.large', 2), 32)
 
     def enterEvent(self, event):
         self.layer.to(1.0)
@@ -236,7 +236,7 @@ class Chip(QAbstractButton):
             painter.setBrush(color('tint', round(16 * self.layer.amount)))
             painter.drawRoundedRect(rect, radius, radius)
         if not self.isChecked():
-            painter.setPen(QPen(color('line'), tokens()['border']))
+            painter.setPen(QPen(color('line'), tokens()['border.width']))
             painter.setBrush(Qt.NoBrush)
             painter.drawRoundedRect(rect, radius, radius)
         painter.setPen(color('on_accent' if self.isChecked() else 'text'))
@@ -416,7 +416,7 @@ class Slider(QWidget):
 class ElidedLabel(QLabel):
     """One line, elided, with the complete text in tooltip and accessible name."""
 
-    def __init__(self, text='', role='body', weight=400, tint='text', scale=1.0, parent=None):
+    def __init__(self, text='', role='body.medium', weight=400, tint='text', scale=1.0, parent=None):
         super().__init__(parent)
         self._full = ''
         self.tint = tint

@@ -20,6 +20,7 @@ modules/dashboard/Media.qml, dashboard/media/Details.qml and
 components/widgets/CoverArt.qml. These are native PySide6 translations of shell
 widgets, not an upstream capture or full-screen music application. Existing
 models, portals, permission flow, projects and finalization are unchanged.
-Rubik (OFL) and Material Symbols Rounded (Apache-2.0) are bundled in the release's
+Google Sans Flex (OFL), CaskaydiaCove NF (OFL + MIT) and Material Symbols Rounded
+(Apache-2.0) are bundled in the release's
 wysun_core/fonts, with their licenses under assets/licenses. The capture
 release reads the shared scheme independently and imports no Orbit app code.

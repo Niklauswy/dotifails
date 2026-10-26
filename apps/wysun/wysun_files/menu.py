@@ -28,11 +28,11 @@ class ActionMenu(QWidget):
         self.index = -1
         self.pill = QRectF()
         self.progress = 1.0
-        self.glide = QVariantAnimation(self, duration=tokens()['motion_fast'] + 60)
+        self.glide = QVariantAnimation(self, duration=tokens()['anim.durations.expressiveFastEffects'] + 60)
         self.glide.setEasingCurve(QEasingCurve.OutCubic)
         self.glide.valueChanged.connect(self._glide_step)
         self._from = self._to = QRectF()
-        self.intro = QVariantAnimation(self, duration=tokens()['motion_enter'])
+        self.intro = QVariantAnimation(self, duration=tokens()['anim.durations.expressiveFastSpatial'])
         self.intro.setEasingCurve(QEasingCurve.OutCubic)
         self.intro.setStartValue(0.0)
         self.intro.setEndValue(1.0)
@@ -59,8 +59,8 @@ class ActionMenu(QWidget):
         return rows
 
     def _measure(self):
-        font = text_font('body', 500)
-        keys_font = text_font('caption', 650)
+        font = text_font('body.medium', 500)
+        keys_font = text_font('label.small', 650)
         label = QFontMetrics(font)
         caps = QFontMetrics(keys_font)
         widest = 0
@@ -196,7 +196,7 @@ class ActionMenu(QWidget):
         painter.setOpacity(min(1.0, p * 1.4))
         painter.translate(0, -8 * (1 - p))
         outer = QRectF(self.rect()).adjusted(.5, .5, -.5, -.5)
-        radius = tokens()['radius_l'] + 2
+        radius = tokens()['rounding.largeIncreased'] + 2
         painter.setPen(color('line_strong'))
         painter.setBrush(color('surface_raised'))
         painter.drawRoundedRect(outer, radius, radius)
@@ -205,7 +205,7 @@ class ActionMenu(QWidget):
             danger = 0 <= self.index < len(self.entries) and self.entries[self.index].get('danger')
             painter.setBrush(color('danger_soft', 70) if danger else color('nav_selected'))
             painter.drawRoundedRect(self.pill, 16, 16)
-        caps_font = text_font('caption', 650)
+        caps_font = text_font('label.small', 650)
         for number, rect in self._rows():
             entry = self.entries[number]
             if entry['separator']:
@@ -215,7 +215,7 @@ class ActionMenu(QWidget):
             ink = 'disabled' if not entry['enabled'] else 'danger' if entry['danger'] else 'text_strong' if number == self.index else 'text'
             paint_symbol(painter, QRectF(rect.left() + 8, rect.top(), 28, rect.height()), 'check' if entry['checked'] else entry['symbol'],
                          ink if not entry['checked'] else 'accent', 20, filled=number == self.index and entry['symbol'] in ('folder', 'delete'))
-            painter.setFont(text_font('body', 600 if number == self.index else 500))
+            painter.setFont(text_font('body.medium', 600 if number == self.index else 500))
             painter.setPen(color(ink))
             painter.drawText(QRectF(rect.left() + 46, rect.top(), rect.width() - 60, rect.height()), Qt.AlignLeft | Qt.AlignVCenter, entry['text'])
             right = rect.right() - 12

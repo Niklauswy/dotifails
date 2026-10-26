@@ -53,7 +53,7 @@ class FadeStack(QStackedWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.alpha = 0.0
-        self.veil = QVariantAnimation(self, duration=tokens()['motion_enter'])
+        self.veil = QVariantAnimation(self, duration=tokens()['anim.durations.expressiveFastSpatial'])
         self.veil.setStartValue(1.0)
         self.veil.setEndValue(0.0)
         self.veil.setEasingCurve(QEasingCurve.OutCubic)
@@ -86,7 +86,7 @@ class FadeStack(QStackedWidget):
         painter.setRenderHint(QPainter.Antialiasing)
         painter.setPen(Qt.NoPen)
         painter.setBrush(color('surface', round(255 * self.alpha)))
-        painter.drawRoundedRect(QRectF(self.cover.rect()), tokens()['radius_m'], tokens()['radius_m'])
+        painter.drawRoundedRect(QRectF(self.cover.rect()), tokens()['rounding.medium'], tokens()['rounding.medium'])
 
 
 class GlyphPage(QWidget):
@@ -114,7 +114,7 @@ class GlyphPage(QWidget):
         painter.drawPath(outline)
         paint_symbol(painter, box, self.symbol, self.tone, side * .42, filled=True)
         if self.caption:
-            painter.setFont(text_font('small', 500))
+            painter.setFont(text_font('body.small', 500))
             painter.setPen(color('muted'))
             painter.drawText(QRectF(8, box.bottom() + 10, self.width() - 16, 22), Qt.AlignHCenter | Qt.AlignVCenter, self.caption)
 
@@ -126,10 +126,10 @@ class ImageStage(ZoomCanvas):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
         shape = QPainterPath()
-        shape.addRoundedRect(QRectF(self.rect()), tokens()['radius_m'], tokens()['radius_m'])
+        shape.addRoundedRect(QRectF(self.rect()), tokens()['rounding.medium'], tokens()['rounding.medium'])
         painter.fillPath(shape, color('well'))
         if self.image is None or self.image.isNull():
-            painter.setFont(text_font('body', 500))
+            painter.setFont(text_font('body.medium', 500))
             painter.setPen(color('muted'))
             painter.drawText(self.rect(), Qt.AlignCenter, self.text())
             return
@@ -142,7 +142,7 @@ class ImageStage(ZoomCanvas):
         painter.setClipping(False)
         if abs(self.zoom - 1) > .02:
             label = f'{round(self.zoom * 100)} %'
-            painter.setFont(text_font('caption', 700))
+            painter.setFont(text_font('label.small', 700))
             width = painter.fontMetrics().horizontalAdvance(label) + 20
             badge = QRectF(self.width() - width - 10, 10, width, 24)
             painter.setPen(Qt.NoPen)
@@ -163,7 +163,7 @@ class Tag(QWidget):
 
     def sizeHint(self):
         from PySide6.QtGui import QFontMetrics
-        return QSize(QFontMetrics(text_font('caption', 600)).horizontalAdvance(self.text) + (46 if self.symbol else 24), 28)
+        return QSize(QFontMetrics(text_font('label.small', 600)).horizontalAdvance(self.text) + (46 if self.symbol else 24), 28)
 
     def paintEvent(self, _event):
         painter = QPainter(self)
@@ -177,7 +177,7 @@ class Tag(QWidget):
         if self.symbol:
             paint_symbol(painter, QRectF(8, 0, 20, 28), self.symbol, 'accent', 16)
             left = 30
-        painter.setFont(text_font('caption', 600))
+        painter.setFont(text_font('label.small', 600))
         painter.setPen(color('text'))
         painter.drawText(QRectF(left, 0, self.width() - left - 8, 28), Qt.AlignLeft | Qt.AlignVCenter, self.text)
 
@@ -191,22 +191,22 @@ class Details(QWidget):
         super().__init__(parent)
         column = QVBoxLayout(self)
         column.setContentsMargins(0, 0, 0, 0)
-        column.setSpacing(metric('space_xs'))
+        column.setSpacing(metric('spacing.extraSmall'))
         self.name = ElidedLabel('')
-        self.name.setFont(text_font('heading', 650))
+        self.name.setFont(text_font('title.medium', 650))
         self.name.setAccessibleName('Nombre')
         column.addWidget(self.name)
         self.line = ElidedLabel('')
         self.line.setObjectName('muted')
-        self.line.setFont(text_font('small'))
+        self.line.setFont(text_font('body.small'))
         column.addWidget(self.line)
         self.tags = QHBoxLayout()
-        self.tags.setContentsMargins(0, metric('space_xs'), 0, 0)
-        self.tags.setSpacing(metric('space_xs'))
+        self.tags.setContentsMargins(0, metric('spacing.extraSmall'), 0, 0)
+        self.tags.setSpacing(metric('spacing.extraSmall'))
         column.addLayout(self.tags)
         self.location = ElidedLabel('')
         self.location.setObjectName('muted')
-        self.location.setFont(text_font('caption'))
+        self.location.setFont(text_font('label.small'))
         self.location.setCursor(Qt.PointingHandCursor)
         self.location.setToolTip('Clic para copiar la ruta')
         self.location.mousePressEvent = lambda _e: self.copy_path.emit()
@@ -256,11 +256,11 @@ class SelectionPreview(QWidget):
         self.setObjectName('selectionPreview')
         column = QVBoxLayout(self)
         column.setContentsMargins(0, 0, 0, 0)
-        column.setSpacing(metric('space_m'))
+        column.setSpacing(metric('spacing.medium'))
 
         modes = QHBoxLayout()
         modes.setContentsMargins(0, 0, 0, 0)
-        modes.setSpacing(metric('space_xs'))
+        modes.setSpacing(metric('spacing.extraSmall'))
         self.view_chip, self.source_chip = Chip('Vista'), Chip('Código')
         self.view_chip.setChecked(True)
         self.view_chip.clicked.connect(lambda: self._markdown_mode(True))
@@ -291,7 +291,7 @@ class SelectionPreview(QWidget):
         self.previous = IconButton('chevron_left', 'Página anterior', lambda: self.turn(-1), variant='tonal', size=32)
         self.next = IconButton('chevron_right', 'Página siguiente', lambda: self.turn(1), variant='tonal', size=32)
         self.counter = QLabel()
-        self.counter.setFont(text_font('small', 600))
+        self.counter.setFont(text_font('body.small', 600))
         self.counter.setAlignment(Qt.AlignCenter)
         pager.addStretch()
         pager.addWidget(self.previous)
@@ -307,7 +307,7 @@ class SelectionPreview(QWidget):
         column.addWidget(self.details)
         actions = QHBoxLayout()
         actions.setContentsMargins(0, 0, 0, 0)
-        actions.setSpacing(metric('space_s'))
+        actions.setSpacing(metric('spacing.small'))
         self.open_button = PillButton('arrow_outward', 'Abrir', self.open_requested.emit, height=40)
         actions.addWidget(self.open_button, 1)
         self.copy_button = IconButton('content_copy', 'Copiar ruta', self.copy_path, variant='tonal', size=40)

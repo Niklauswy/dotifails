@@ -95,7 +95,7 @@ class ThemeTests(unittest.TestCase):
     def test_resolve_gives_shape_colours_and_metadata(self):
         values = theme.resolve('light')
         self.assertEqual(values['mode'], 'light')
-        for key in ('radius_m', 'space_m', 'font_family', 'motion_fast', 'canvas', 'accent', 'external', 'wallpaper', 'translucent'):
+        for key in ('rounding.medium', 'spacing.medium', 'font.family.sans', 'anim.durations.small', 'canvas', 'accent', 'external', 'wallpaper', 'translucent'):
             self.assertIn(key, values)
         with self.assertRaises(ValueError):
             theme.resolve('auto')

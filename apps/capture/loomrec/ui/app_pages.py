@@ -24,15 +24,15 @@ class PlayerPage(QWidget):
         media_host.install()
         from wysun_media.player import MediaPlayer
         column = QVBoxLayout(self)
-        margin = metric('space_xl')
-        column.setContentsMargins(margin, metric('space_l'), margin, metric('space_l'))
-        column.setSpacing(metric('space_m'))
+        margin = metric('spacing.extraLarge')
+        column.setContentsMargins(margin, metric('spacing.large'), margin, metric('spacing.large'))
+        column.setSpacing(metric('spacing.medium'))
         head = QHBoxLayout()
         self.back = IconButton('arrow_back', 'Volver a la biblioteca · Esc', self.closed.emit, size=36)
         self.title = QLabel('')
         self.title.setObjectName('subheading')
         head.addWidget(self.back)
-        head.addSpacing(metric('space_s'))
+        head.addSpacing(metric('spacing.small'))
         head.addWidget(self.title, 1)
         self.external = IconButton('open_in_new', 'Abrir en Wysun Player', self._external, size=36)
         head.addWidget(self.external)
@@ -73,7 +73,7 @@ class PlayerPage(QWidget):
 
 def section_label(text):
     label = _section_label(text)
-    label.setContentsMargins(0, metric('space_l'), 0, metric('space_xs'))
+    label.setContentsMargins(0, metric('spacing.large'), 0, metric('spacing.extraSmall'))
     return label
 
 
@@ -83,19 +83,19 @@ class Row(QWidget):
     def __init__(self, title, hint, control):
         super().__init__()
         line = QHBoxLayout(self)
-        line.setContentsMargins(0, metric('space_s'), 0, metric('space_s'))
+        line.setContentsMargins(0, metric('spacing.small'), 0, metric('spacing.small'))
         text = QVBoxLayout()
         text.setSpacing(0)
         label = QLabel(title)
         label.setObjectName('subheading')
-        label.setStyleSheet('font-size:%dpx;' % metric('font_body'))
+        label.setStyleSheet('font-size:%dpx;' % metric('font.body.medium.size'))
         note = QLabel(hint)
         note.setObjectName('muted')
         note.setWordWrap(True)
         text.addWidget(label)
         text.addWidget(note)
         line.addLayout(text, 1)
-        line.addSpacing(metric('space_l'))
+        line.addSpacing(metric('spacing.large'))
         line.addWidget(control, 0, Qt.AlignVCenter)
 
 
@@ -111,7 +111,7 @@ class SettingsPage(QScrollArea):
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         body = QWidget()
         column = QVBoxLayout(body)
-        margin = metric('space_xl')
+        margin = metric('spacing.extraLarge')
         column.setContentsMargins(margin, margin, margin, margin)
         column.setSpacing(0)
         title = QLabel('Ajustes')
@@ -221,7 +221,7 @@ class SettingsPage(QScrollArea):
                            ('Ctrl+Shift+R', 'Pausar o reanudar'), ('Ctrl+Shift+S', 'Terminar'),
                            ('Ctrl+Shift+A', 'Dibujar sobre la pantalla mientras grabas')):
             note = QLabel(f'<b>{keys}</b> &nbsp; {what}')
-            note.setContentsMargins(metric('space_m'), 2, 0, 2)
+            note.setContentsMargins(metric('spacing.medium'), 2, 0, 2)
             column.addWidget(note)
         column.addStretch()
         self.setWidget(body)

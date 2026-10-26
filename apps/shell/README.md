@@ -16,7 +16,7 @@ Barra, dashboard, lanzador, menús, notificaciones, sesión y bloqueo de Wysun, 
 | `plugin/` | Plugin C++/QML `Wysun.*` (Config, Services, Components, Models, Blobs, Images, I18n, Multimedia, Settings, State, Shaders) |
 | `extras/` | Pequeño ejecutable `version` |
 | `wysun/` | Puente con las apps Qt: `WysunBridge.qml` (IPC `wysunShell`), `backend.py`, `runtime.sh` |
-| `assets/` | Fuentes (Material Symbols, Google Sans Flex), PAM y recursos |
+| `assets/` | Fuentes (Material Symbols, Google Sans Flex, CaskaydiaCove), PAM y recursos |
 
 ## Runtime
 
@@ -34,7 +34,9 @@ bin/wysun-shell status                        # JSON: pantallas, superficies abi
 
 ## Configuración y estado
 
-- Configuración del usuario: `~/.config/wysun/shell/shell.json` (y `shell-tokens.json`, `monitors/<salida>/…` por pantalla).
+- Configuración del usuario: `~/.config/wysun/shell/shell.json` (y `monitors/<salida>/…` por pantalla).
+- Tokens de forma y movimiento: `~/.local/share/wysun/theme/tokens.json`, copia de `apps/wysun/wysun_core/tokens.json` que
+  hace el instalador; el plugin lo lee al arrancar y `plugin/src/Wysun/Config/tokens.hpp` es solo el respaldo.
 - Esquema de color: `~/.local/state/wysun/scheme.json` (lo escribe `wysun scheme`).
 - Capas de Layer Shell con espacio de nombres `wysun-*` (las reglas de Hyprland usan `^wysun-.*$`).
 

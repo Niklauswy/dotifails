@@ -13,7 +13,7 @@ class _Card(QWidget):
     def paintEvent(self, _event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
-        radius = tokens()['radius_l'] + 4
+        radius = tokens()['rounding.largeIncreased'] + 4
         rect = QRectF(self.rect()).adjusted(.5, .5, -.5, -.5)
         painter.setPen(color('line_strong'))
         painter.setBrush(color('surface_raised'))
@@ -32,8 +32,8 @@ class Sheet(QWidget):
         self.card = _Card(self)
         self.column = QVBoxLayout(self.card)
         self.column.setContentsMargins(24, 22, 24, 20)
-        self.column.setSpacing(metric('space_m'))
-        self.fade = QVariantAnimation(self, duration=tokens()['motion_enter'])
+        self.column.setSpacing(metric('spacing.medium'))
+        self.fade = QVariantAnimation(self, duration=tokens()['anim.durations.expressiveFastSpatial'])
         self.fade.setEasingCurve(QEasingCurve.OutCubic)
         self.fade.valueChanged.connect(self._animate)
         self.progress = 1.0
@@ -52,7 +52,7 @@ class Sheet(QWidget):
             elif item.layout():
                 self._drop(item.layout())
         heading = QLabel(title)
-        heading.setFont(text_font('heading', 650))
+        heading.setFont(text_font('title.medium', 650))
         self.column.addWidget(heading)
         self.card.setFixedWidth(width)
 
@@ -66,14 +66,14 @@ class Sheet(QWidget):
 
     def _buttons(self, buttons):
         row = QHBoxLayout()
-        row.setSpacing(metric('space_s'))
+        row.setSpacing(metric('spacing.small'))
         row.addStretch()
         for label, callback, variant in buttons:
             button = PillButton('check' if variant == 'filled' else 'close', label, callback, variant=variant, height=40)
             if variant == 'filled':
                 self.accept_button = button
             row.addWidget(button)
-        self.column.addSpacing(metric('space_xs'))
+        self.column.addSpacing(metric('spacing.extraSmall'))
         self.column.addLayout(row)
 
     def prompt(self, title, label, text, accept, callback, validate=None, select_stem=False):
@@ -85,7 +85,7 @@ class Sheet(QWidget):
         self.edit.setAccessibleName(label)
         self.error = QLabel()
         self.error.setStyleSheet(f'color:{color("danger").name()};')
-        self.error.setFont(text_font('small'))
+        self.error.setFont(text_font('body.small'))
         self.error.hide()
         self.column.addWidget(self.edit)
         self.column.addWidget(self.error)
@@ -179,7 +179,7 @@ class Sheet(QWidget):
         painter = QPainter(self)
         painter.setPen(Qt.NoPen)
         painter.setBrush(color('scrim', round(color('scrim').alpha() * self.progress)))
-        painter.drawRoundedRect(QRectF(self.rect()), tokens()['radius_l'], tokens()['radius_l'])
+        painter.drawRoundedRect(QRectF(self.rect()), tokens()['rounding.largeIncreased'], tokens()['rounding.largeIncreased'])
 
     def mousePressEvent(self, event):
         if not self.card.geometry().contains(event.position().toPoint()):

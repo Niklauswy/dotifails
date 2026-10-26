@@ -65,7 +65,7 @@ class Hero(QWidget):
         if reduced_motion(self.window()):
             self._set_progress(target)
             return
-        self.animation.setDuration(metric('motion_enter'))
+        self.animation.setDuration(metric('anim.durations.expressiveFastSpatial'))
         self.animation.setStartValue(self.progress)
         self.animation.setEndValue(target)
         self.animation.start()
@@ -77,11 +77,11 @@ class Hero(QWidget):
     def _title_font(self, width):
         """Largest display size whose title fits in two lines."""
         for scale in (2.4, 2.0, 1.65, 1.35):
-            font = text_font('title', 850, scale)
+            font = text_font('title.large', 850, scale)
             bounds = QFontMetrics(font).boundingRect(QRect(0, 0, width, 1000), Qt.TextWordWrap, self.collection.title)
             if bounds.height() <= QFontMetrics(font).height() * 2 + 2 and bounds.width() <= width:
                 return font
-        return text_font('title', 850, 1.2)
+        return text_font('title.large', 850, 1.2)
 
     def _paint_cover(self, painter, cover):
         kind = self.collection.kind
@@ -96,7 +96,7 @@ class Hero(QWidget):
                 painter.setBrush(color('surface_raised'))
                 painter.drawPath(outline)
             return
-        radius = min(tokens()['radius_m'], cover.width() / 8)
+        radius = min(tokens()['rounding.medium'], cover.width() / 8)
         if not self.progress:
             painter.setPen(Qt.NoPen)
             painter.setBrush(color('shadow'))
@@ -112,12 +112,12 @@ class Hero(QWidget):
             return
         painter = QPainter(self)
         painter.setRenderHints(QPainter.Antialiasing | QPainter.SmoothPixmapTransform)
-        pad = metric('space_xl') + metric('space_s')
+        pad = metric('spacing.extraLarge') + metric('spacing.small')
         if self.progress:
-            side = max(0, self.height() - 2 * metric('space_m'))
+            side = max(0, self.height() - 2 * metric('spacing.medium'))
             top = (self.height() - side) // 2
         else:
-            side = self.height() - pad - metric('space_s')
+            side = self.height() - pad - metric('spacing.small')
             top = pad
         cover = QRect(pad, top, side, side)
         self._paint_cover(painter, cover)
@@ -125,7 +125,7 @@ class Hero(QWidget):
         width = self.width() - left - pad
         fade = max(0.0, 1.0 - self.progress * 2)
         if self.progress:
-            font = text_font('heading', 800, 1.4)
+            font = text_font('title.medium', 800, 1.4)
             painter.setFont(font)
             painter.setPen(color('text_strong'))
             painter.drawText(QRect(left, 0, width, self.height()), Qt.AlignLeft | Qt.AlignVCenter,
@@ -137,7 +137,7 @@ class Hero(QWidget):
         title_box = title_metrics.boundingRect(QRect(0, 0, width, 1000), Qt.TextWordWrap, self.collection.title)
         y = cover.bottom() - 26 - 28 - title_box.height()
         painter.setOpacity(fade)
-        eyebrow = text_font('caption', 700)
+        eyebrow = text_font('label.small', 700)
         eyebrow.setLetterSpacing(eyebrow.SpacingType.AbsoluteSpacing, 1.2)
         painter.setFont(eyebrow)
         painter.setPen(color('muted'))
@@ -147,11 +147,11 @@ class Hero(QWidget):
         painter.drawText(QRect(left, y, width, title_box.height()), Qt.AlignLeft | Qt.TextWordWrap, self.collection.title)
         y += title_box.height() + 2
         if self.byline:
-            painter.setFont(text_font('heading', 600, 1.05))
+            painter.setFont(text_font('title.medium', 600, 1.05))
             painter.setPen(color('accent'))
             painter.drawText(QRect(left, y, width, 28), Qt.AlignLeft | Qt.AlignVCenter,
                              painter.fontMetrics().elidedText(self.byline, Qt.ElideRight, width))
-        painter.setFont(text_font('small', 500))
+        painter.setFont(text_font('body.small', 500))
         painter.setPen(color('muted'))
         painter.drawText(QRect(left, y + 28, width, 22), Qt.AlignLeft | Qt.AlignVCenter, self.meta)
         painter.setOpacity(1.0)
@@ -171,9 +171,9 @@ class CollectionPage(QWidget):
         layout.addWidget(self.hero)
 
         bar = QHBoxLayout()
-        pad = metric('space_xl') + metric('space_s')
-        bar.setContentsMargins(pad, metric('space_l'), pad, metric('space_m'))
-        bar.setSpacing(metric('space_m'))
+        pad = metric('spacing.extraLarge') + metric('spacing.small')
+        bar.setContentsMargins(pad, metric('spacing.large'), pad, metric('spacing.medium'))
+        bar.setSpacing(metric('spacing.medium'))
         self.play_button = PillButton('play_arrow', 'Reproducir', self._toggle, 'filled')
         self.shuffle_button = PillButton('shuffle', 'Aleatorio', self._shuffle, 'tonal')
         self.more_button = IconButton('more_horiz', 'Más opciones', self._more, 'tonal', 44)
@@ -191,7 +191,7 @@ class CollectionPage(QWidget):
         layout.addLayout(bar)
 
         body = QVBoxLayout()
-        body.setContentsMargins(metric('space_l'), 0, metric('space_l'), 0)
+        body.setContentsMargins(metric('spacing.large'), 0, metric('spacing.large'), 0)
         body.setSpacing(0)
         self.header = TrackHeader()
         body.addWidget(self.header)
@@ -287,7 +287,7 @@ class CollectionPage(QWidget):
             return
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
-        radius = tokens()['radius_l']
+        radius = tokens()['rounding.largeIncreased']
         clip = QPainterPath()
         clip.addRoundedRect(QRectF(self.rect()), radius, radius)
         painter.setClipPath(clip)

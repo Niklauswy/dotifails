@@ -34,7 +34,7 @@ def tint(color):
 def glyph(name,size=24,color='glyph'):
  color=tint(color)
  from wysun_core.qt_theme import tokens
- stroke=tokens()['icon_stroke']
+ stroke=tokens()['icon.stroke']
  path=ASSETS/(ALIASES.get(name,name)+'.svg')
  if not path.exists():path=ASSETS/'file-text.svg'
  data=path.read_text().replace('currentColor',color).replace('width="24"',f'width="{size*2}"').replace('height="24"',f'height="{size*2}"').replace('stroke-width="2"',f'stroke-width="{stroke:g}"')

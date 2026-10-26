@@ -56,7 +56,26 @@ class CorePackagingTests(unittest.TestCase):
 
 
     def test_capture_release_ships_the_fonts(self):
-        self.assertTrue((ROOT / 'apps/capture/wysun_core/fonts/MaterialSymbolsRounded.ttf').is_file())
+        for name in ('MaterialSymbolsRounded.ttf', 'GoogleSansFlex.ttf', 'CaskaydiaCoveNerdFont-Regular.ttf'):
+            self.assertTrue((ROOT / 'apps/capture/wysun_core/fonts' / name).is_file(), name)
+        self.assertFalse((ROOT / 'apps/wysun/wysun_core/fonts/Rubik-Variable.ttf').exists())
+
+    def test_shell_and_core_fonts_are_identical(self):
+        import hashlib
+        digest = lambda path: hashlib.sha256(path.read_bytes()).hexdigest()
+        core, shell = ROOT / 'apps/wysun/wysun_core/fonts', ROOT / 'apps/shell/assets'
+        for ours, theirs in (('MaterialSymbolsRounded.ttf', 'fonts/MaterialSymbolsRounded.ttf'),
+                             ('GoogleSansFlex.ttf', 'google-sans-flex/GoogleSansFlex-VariableFont_GRAD,ROND,opsz,slnt,wdth,wght.ttf'),
+                             ('CaskaydiaCoveNerdFont-Regular.ttf', 'fonts/CaskaydiaCoveNerdFont-Regular.ttf')):
+            self.assertEqual(digest(core / ours), digest(shell / theirs), ours)
+
+    def test_bundled_fonts_have_their_licences(self):
+        for name in ('OFL-GoogleSansFlex.txt', 'OFL-CascadiaCode.txt', 'MIT-NerdFonts.txt'):
+            self.assertTrue((ROOT / 'LICENSES' / name).is_file(), name)
+        self.assertFalse((ROOT / 'LICENSES/OFL-Rubik.txt').exists())
+        notes = (ROOT / 'THIRD_PARTY.md').read_text()
+        for needle in ('Google Sans Flex', 'CaskaydiaCove', 'Nerd Fonts v3.4.0'):
+            self.assertIn(needle, notes)
         self.assertFalse((ROOT / 'apps/capture/loomrec/ui/assets/fonts').exists())
         self.assertFalse((ROOT / 'apps/wysun/assets/fonts').exists())
 

@@ -65,7 +65,7 @@ def page(painter, rect, tone, suffix, selected=False):
     painter.setBrush(color(tone, 120))
     painter.drawPath(flap.intersected(outline))
     label = (suffix or 'file').upper()[:4]
-    painter.setFont(text_font('caption', 800, max(.7, h / 78)))
+    painter.setFont(text_font('label.small', 800, max(.7, h / 78)))
     width = painter.fontMetrics().horizontalAdvance(label) + h * .22
     badge = QRectF(sheet.left() + w * .12, sheet.bottom() - h * .30, width, h * .2)
     painter.setBrush(color(tone))

@@ -12,7 +12,7 @@ class Toast(QLabel):
         """``bottom``: distance from the parent's bottom edge to the pill's top."""
         super().__init__(parent)
         self.bottom = bottom
-        self.setFont(text_font('small', 600))
+        self.setFont(text_font('body.small', 600))
         self.setAlignment(Qt.AlignCenter)
         self.setAttribute(Qt.WA_TransparentForMouseEvents)
         self.timer = QTimer(self, singleShot=True, interval=duration)

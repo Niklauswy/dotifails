@@ -54,12 +54,12 @@ detectan por huella y se guardan como `incoming/`).
   Hyprland usan `^wysun-.*$`.
 - **Módulos QML del plugin** (`import Wysun.<X>`): `Config`, `Services`, `Components`, `Models`, `Blobs`, `Images`, `I18n`,
   `Multimedia`, `Settings`, `State`, `Shaders`, más `M3Shapes` (dependencia externa). Fuente en `apps/shell/plugin/src/Wysun/`.
-- **Configuración del shell** (dato del usuario): `~/.config/wysun/shell/shell.json`, `shell-tokens.json` y
+- **Configuración del shell** (dato del usuario): `~/.config/wysun/shell/shell.json` y
   `monitors/<salida>/…` (por pantalla). El instalador traslada una configuración anterior en `~/.config/wysun/caelestia`.
 - **Transición de fondos**: `background.wallpaperTransition = "ZoomBlurPull"` usa un acercamiento gradual del fondo
   anterior, fundido con la imagen nueva nítida y un asentamiento final. Sus parámetros viven en
   `appearance.wallpaperMotion` de los tokens nativos (`plugin/src/Wysun/Config/tokens.hpp`), con duración propia de
-  1400 ms, multiplicada por la escala de animaciones del usuario. Se pueden ajustar desde `shell-tokens.json`.
+  1400 ms, multiplicada por la escala de animaciones del usuario. Son exclusivos del shell y no están en `tokens.json`.
   El desenfoque solo muestrea cinco veces la imagen saliente; la entrante conserva su nitidez. Los demás efectos
   mantienen su duración y curva. Funciona con el mismo compositor de transición para imágenes, GIF y vídeo.
 - **Captura de pantalla** (`modules/areapicker`): `wysun-shell screenshot [--annotate] [--path DIR] [--no-save]` (IPC
@@ -100,7 +100,11 @@ detectan por huella y se guardan como `incoming/`).
   La última instantánea se guarda en `~/.cache/wysun/ai-usage/snapshot.json`, así el primer hover tras reiniciar ya tiene datos.
 - **Colores**: `~/.local/state/wysun/scheme.json`, producido por `wysun scheme` (`apps/wysun/wysun_scheme.py`) a partir de los
   tokens de `apps/wysun/wysun_core/tokens.json` (las releases del Recorder lo llevan dentro de su `wysun_core`).
-  El shell los lee solo desde `scheme.json` (`services/Colours.qml`); `Appearance.qml` ya no existe.
+  El shell los lee desde `scheme.json` (`services/Colours.qml`) y, mientras no exista, pinta la paleta base
+  `palettes.<modo>.scheme` de `~/.local/share/wysun/theme/tokens.json`; `Appearance.qml` ya no existe.
+- **Tokens de forma y movimiento del shell**: el instalador (`installer/wayland.py`, `deploy_tokens`) copia
+  `apps/wysun/wysun_core/tokens.json` a `~/.local/share/wysun/theme/tokens.json`; el plugin lo lee una vez al arrancar
+  (`TokenConfig`) y `plugin/src/Wysun/Config/tokens.hpp` es solo el respaldo (paridad en `tests/test_shell_tokens.py`).
   Ver `docs/themes.md`.
 
 ### Aplicaciones Qt (`apps/wysun`)
@@ -314,7 +318,7 @@ Nunca reiniciar Hyprland ni el login para actualizar un panel.
   Wi-Fi, VPN y Bluetooth usan Red y Dispositivos conectados. `wysun processes` se gestiona fuera de Nexus.
 - **Tema**: un solo estilo, Material You; el color sale del wallpaper (`scheme.json`) y la selección, en
   `~/.config/orbit/theme.json`, es solo el modo (`auto`, `light`, `dark`). Los tokens viven en `apps/wysun/wysun_core/tokens.json`; Quickshell lee los colores por
-  `apps/shell/services/Colours.qml` (vía `scheme.json`); `tests/test_theme_literals.py` rechaza colores literales
+  `apps/shell/services/Colours.qml` (vía `scheme.json`) y la forma del mismo `tokens.json` instalado; `tests/test_theme_literals.py` rechaza colores literales
   (excepciones: `theme-exception: motivo`). Guía: `docs/themes.md`.
 
 ## 7. Identidades técnicas heredadas (se conservan a propósito)

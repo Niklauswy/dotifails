@@ -1,4 +1,4 @@
-"""Packaged Material fonts: Rubik text and Material Symbols, loaded from wysun_core/fonts.
+"""Packaged fonts: Google Sans Flex text, CaskaydiaCove NF mono and Material Symbols, from wysun_core/fonts.
 
 Derivado de caelestia-dots/shell (GPL-3.0), modificado para Wysun.
 Source: https://github.com/caelestia-dots/shell
@@ -14,11 +14,9 @@ from PySide6.QtGui import QFont, QFontDatabase, QTextLayout
 from ..qt_theme import family as theme_family
 
 FONT_DIR = Path(__file__).resolve().parents[1] / 'fonts'
-FONT_FILES = ('Rubik-Variable.ttf', 'MaterialSymbolsRounded.ttf')
-TEXT_FAMILY = 'Rubik'
+FONT_FILES = ('GoogleSansFlex.ttf', 'CaskaydiaCoveNerdFont-Regular.ttf', 'MaterialSymbolsRounded.ttf')
 SYMBOL_FAMILY = 'Material Symbols Rounded'
 _font_ids = {}
-_display_family = []
 _known_families = set()
 
 
@@ -33,17 +31,13 @@ def load_fonts():
 
 
 def display_family():
-    """Rubik when packaged, otherwise the theme's own fallback list.
-
-    Painters ask for this on every draw call and ``QFontDatabase.families()`` is slow,
-    so a found Rubik is remembered (fonts load once; a missing one is retried).
-    """
-    if _display_family:
-        return _display_family[0]
-    if TEXT_FAMILY in set(QFontDatabase.families()):
-        _display_family.append(TEXT_FAMILY)
-        return TEXT_FAMILY
+    """The interface family of the tokens (``font.family.sans``, Google Sans Flex, packaged here)."""
     return theme_family()
+
+
+def mono_family():
+    """The monospaced family of the tokens (``font.family.mono``, CaskaydiaCove NF, packaged here)."""
+    return theme_family(kind='mono')
 
 
 def symbol_family():

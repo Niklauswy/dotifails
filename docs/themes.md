@@ -19,17 +19,20 @@ No hay variantes de Material (se elige sola según lo colorido que sea el fondo)
 
 ## Fuente única de tokens
 
-`apps/wysun/wysun_core/tokens.json` define una paleta base para `light` y otra para `dark` (~108 tokens semánticos cada una, horneados desde el esquema del fondo por defecto) y los tokens de forma y movimiento. El esquema del wallpaper se superpone a la paleta base de su modo (`wysun_core.theme.overlay_material_roles`): la base cubre lo que Material no define y es el respaldo mientras no exista `scheme.json`.
+`apps/wysun/wysun_core/tokens.json` (`schema: 3`) define una paleta base para `light` y otra para `dark` (~108 tokens semánticos cada una, horneados desde el esquema del fondo por defecto) y los tokens de forma, tipografía y movimiento con **los nombres y valores del shell**. Python los aplana con puntos (`rounding.medium`, `font.body.medium.size`), el mismo camino que en QML (`Tokens.rounding.medium`). El esquema del wallpaper se superpone a la paleta base de su modo (`wysun_core.theme.overlay_material_roles`): la base cubre lo que Material no define y es el respaldo mientras no exista `scheme.json`.
 
 - Colores: `canvas`, `surface`, `well`, `line`, `text`, `muted`, `accent`, `accent_hover`, `selection`, `disabled`, `danger`, `success`, `warning`, `scrim` y los derivados de estado (`hover`, `pressed`, `focus`, `*_soft`…), material (`material_top/mid/bottom/edge/glow/highlight`), categorías (`cat_*`) y los de superficies concretas (`tile`, `card`, `region_*`, `knob_off`…). La paleta de código y terminal (`external.palette`) también sigue al fondo.
-- Forma: `radius_s/control/m/l`, `corner_*` (escala M3), `space_*`, `border`, `focus_width`, `shadow_*`. Oscuro: cristal translúcido (`material: glass`); claro: perla opaca (`pearl`).
-- Tipografía: `font_family`, `font_mono`, `font_caption/small/body/heading/title`.
-- Movimiento: `motion_enter/exit/fast`, `motion_easing`, `motion_lift`, `motion_pulse`, `lock_enter/exit`.
-- Iconos: `icon_size`, `icon_stroke`; su color sale de los tokens y se regenera al cambiar de tema.
+- Forma: `rounding.*` (`extraSmall`, `small`, `medium`, `large`, `largeIncreased`, `extraLarge`, `extraLargeIncreased`, `extraExtraLarge`, `full`), `spacing.*` y `padding.*` (las mismas ocho claves sin `full`), `border.width`, `border.focus`. Oscuro: cristal translúcido (`material: glass`); claro: perla opaca (`pearl`).
+- Tipografía: `font.family.sans` (Google Sans Flex), `font.family.mono` (CaskaydiaCove Nerd Font), `font.family.icon` (Material Symbols Rounded) y la escala M3 `font.<headline|title|body|label|mono>.<large|medium|small>.{size,weight}`, en **puntos** como el shell. `qt_theme.font('body.medium')` da la `QFont` del rol. Las fuentes van empaquetadas en `wysun_core/fonts/` (apps, instalador y cada release del Recorder) y en `apps/shell/assets/` (el shell), con copias idénticas; licencias en `LICENSES/` y `THIRD_PARTY.md`.
+- Movimiento: `anim.durations.*` y `anim.curves.*` (las curvas M3 del shell; `qt_theme.easing('anim.curves.emphasizedDecel')`), `anim.lift`.
+- Iconos: `icon.size`, `icon.stroke`; su color sale de los tokens y se regenera al cambiar de tema.
+- `palettes.<modo>.scheme`: el esquema M3 completo (claves de `scheme.json`) del fondo por defecto en ese modo; una prueba lo regenera con `wysun_scheme.generate_dynamic`.
+
+`border`, `icon` y `anim.lift` solo los usan las apps Qt.
 
 Los colores se escriben en orden CSS: `#RRGGBB` o `#RRGGBBAA`.
 
-Hay **una sola copia**. Las releases del Recorder llevan su propio `wysun_core` (con `tokens.json`) y nunca importan `~/.local/share/orbit/app/`. Quickshell no usa el JSON: lee `scheme.json` (`apps/shell/services/Colours.qml`) y la forma sale de sus propios tokens (el plan 03 los une).
+Hay **una sola copia**. Las releases del Recorder llevan su propio `wysun_core` (con `tokens.json`) y nunca importan `~/.local/share/orbit/app/`. El shell usa la misma fuente: el instalador la copia a `~/.local/share/wysun/theme/tokens.json` y el plugin `Wysun.Config` la lee al arrancar (`rounding`, `spacing`, `padding`, `anim.durations`, `anim.curves` → `Tokens.*`); lo que falte o tenga otro tipo conserva el respaldo de `plugin/src/Wysun/Config/tokens.hpp`, que `tests/test_shell_tokens.py` compara con el JSON (también la escala tipográfica de `appearanceconfig.hpp`). No hay override de usuario (`shell-tokens.json` desapareció). `Colours.qml` pinta `palettes.<modo>.scheme` de ese archivo mientras no cargue `scheme.json` (`auto` empieza en oscuro).
 
 ## Adaptadores
 
@@ -40,14 +43,14 @@ Hay **una sola copia**. Las releases del Recorder llevan su propio `wysun_core` 
 | Apariencia | `wysun_core/appearance.py` | `read_appearance()`, `save_appearance()`, `reduced_motion()` |
 | Quickshell | `apps/shell/services/Colours.qml` | `Colours.palette.m3*`, `Colours.modePreference`, `Colours.setMode()` |
 
-Las plantillas de hoja de estilo usan `@token`, `@token/alpha` (0-255) y `@svg(nombre,token)`. `apply_style` guarda la plantilla en el widget y se vuelve a renderizar al cambiar de tema.
+Las plantillas de hoja de estilo usan `@token`, `@grupo.clave` (`@rounding.medium` → px, `@font.body.medium.size` → pt, `@font.family.sans` entre comillas), `@token/alpha` (0-255) y `@svg(nombre,token)`. `apply_style` guarda la plantilla en el widget y se vuelve a renderizar al cambiar de tema.
 
 ## Crear un widget que obedece el tema
 
 1. **Qt (Wysun)**:
    ```python
    from wysun_core.qt_theme import apply_style, color, on_theme_changed
-   apply_style(self, 'QFrame#mio { background:@surface; border:@border solid @line; border-radius:@radius_m; }')
+   apply_style(self, 'QFrame#mio { background:@surface; border:@border.width solid @line; border-radius:@rounding.medium; font-size:@font.body.medium.size; }')
    p.setBrush(color('accent'))           # al pintar, siempre se pide el color en ese momento
    on_theme_changed(self.refrescar)      # solo si guardas cachés (pixmaps, iconos, texto derivado)
    ```

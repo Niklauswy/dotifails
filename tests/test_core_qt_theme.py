@@ -45,16 +45,34 @@ class QtThemeTests(unittest.TestCase):
 
     def test_template_renders_tokens_alpha_and_pixels(self):
         values = qt_theme.tokens()
-        text = qt_theme.qss('color: @text; background: @accent/40; border-radius: @radius_m; font-family: @font_family;')
+        text = qt_theme.qss('color: @text; background: @accent/40; border-radius: @rounding.medium; '
+                            'font-family: @font.family.sans; font-size: @font.body.medium.size; padding: @spacing.small;')
         self.assertIn(values['text'][:7].lower(), text)
         self.assertIn(',40)', text)
-        self.assertIn(f"border-radius: {values['radius_m']:g}px", text)
-        self.assertIn(f'"{values["font_family"][0]}"', text)
+        self.assertIn('border-radius: 12px;', text)
+        self.assertIn('font-family: "Google Sans Flex";', text)
+        self.assertIn('font-size: 14pt;', text)
+        self.assertIn('padding: 8px;', text)
         self.assertNotIn('@', text)
+
+    def test_fonts_use_the_shell_type_scale_in_points(self):
+        body = qt_theme.font('body.medium')
+        self.assertEqual(body.pointSizeF(), 14)
+        self.assertEqual(body.weight(), 400)
+        self.assertEqual(qt_theme.font('title.medium').weight(), 500)
+        self.assertEqual(qt_theme.font('label.small', weight=600).weight(), 600)
+        self.assertEqual(qt_theme.font('mono.small').family(), qt_theme.family(kind='mono'))
+
+    def test_easing_is_the_shell_bezier_curve(self):
+        from PySide6.QtCore import QEasingCurve
+        curve = qt_theme.easing('anim.curves.standard')
+        self.assertEqual(curve.type(), QEasingCurve.BezierSpline)
+        self.assertAlmostEqual(curve.valueForProgress(1.0), 1.0)
+        self.assertGreater(curve.valueForProgress(.5), .5)
 
     def test_theme_switch_refreshes_existing_widgets(self):
         label = QLabel('Tema')
-        template = 'color: @text; background: @canvas; border-radius: @radius_l;'
+        template = 'color: @text; background: @canvas; border-radius: @rounding.large;'
         with patch.dict(os.environ, {'WYSUN_THEME': 'dark'}):
             qt_theme.refresh_widgets()
             qt_theme.apply_style(label, template)

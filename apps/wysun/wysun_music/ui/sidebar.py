@@ -44,7 +44,7 @@ class CollectionNavItem(NavItem):
         else:
             pixmap = self.covers.collection_pixmap(self.collection, side, 6, self.devicePixelRatioF())
             draw_art(painter, cover, pixmap, 6, 'queue_music')
-        return cover.right() + metric('space_m')
+        return cover.right() + metric('spacing.medium')
 
 
 class Sidebar(QWidget):
@@ -57,8 +57,8 @@ class Sidebar(QWidget):
         self.library, self.covers, self.player = library, covers, player
         self.route = None
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(metric('space_xs'), 0, 0, 0)
-        layout.setSpacing(metric('space_s'))
+        layout.setContentsMargins(metric('spacing.extraSmall'), 0, 0, 0)
+        layout.setSpacing(metric('spacing.small'))
 
         self.search = SearchField('Buscar en tu biblioteca')
         layout.addWidget(self.search)
@@ -68,7 +68,7 @@ class Sidebar(QWidget):
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         content = QWidget()
         self.column = QVBoxLayout(content)
-        self.column.setContentsMargins(0, 0, metric('space_xs'), metric('space_m'))
+        self.column.setContentsMargins(0, 0, metric('spacing.extraSmall'), metric('spacing.medium'))
         self.column.setSpacing(1)
         self.items = {}
         for title, entries in (('Escuchar', LISTEN), ('Biblioteca', LIBRARY)):

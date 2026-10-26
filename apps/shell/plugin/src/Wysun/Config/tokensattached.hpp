@@ -21,7 +21,7 @@ class Tokens : public QQuickAttachedPropertyPropagator, public QQmlParserStatus 
     Q_PROPERTY(const wysun::config::AppearanceSpacing* spacing READ spacing NOTIFY sourceChanged)
     Q_PROPERTY(const wysun::config::AppearancePadding* padding READ padding NOTIFY sourceChanged)
     Q_PROPERTY(const wysun::config::AppearanceTransparency* transparency READ transparency NOTIFY sourceChanged)
-    Q_PROPERTY(const wysun::config::SizeTokens* sizes READ sizes NOTIFY sourceChanged)
+    Q_PROPERTY(const wysun::config::SizeTokens* sizes READ sizes CONSTANT)
     Q_PROPERTY(const wysun::config::FontTokens* font READ font NOTIFY sourceChanged)
     Q_PROPERTY(const wysun::config::AnimTokens* anim READ anim CONSTANT)
 
@@ -36,11 +36,9 @@ public:
     [[nodiscard]] const AppearancePadding* padding() const;
     [[nodiscard]] static const AppearanceTransparency* transparency();
 
-    [[nodiscard]] const SizeTokens* sizes() const;
+    [[nodiscard]] static const SizeTokens* sizes();
     [[nodiscard]] const FontTokens* font() const;
     [[nodiscard]] static const AnimTokens* anim();
-
-    [[nodiscard]] Q_INVOKABLE static TokensRoot* forScreen(const QString& screen);
 
     static Tokens* qmlAttachedProperties(QObject* object);
 
@@ -60,7 +58,6 @@ private:
     bool m_complete = false;
     QString m_screen;
     ConfigRoot* m_config = nullptr;
-    TokensRoot* m_tokens = nullptr;
 };
 
 } // namespace wysun::config

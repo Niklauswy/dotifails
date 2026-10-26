@@ -63,9 +63,9 @@ class Note(QWidget):
         painter.fillRect(self.rect(), h.color('well'))
         box = QRectF(self.rect())
         h.symbol(painter, QRectF(box.center().x() - 28, box.center().y() - 56, 56, 56), 'error', 'muted', 44)
-        painter.setFont(h.font('body', 500))
+        painter.setFont(h.font('body.medium', 500))
         painter.setPen(h.color('muted'))
-        margin = float(h.token('space_xl'))
+        margin = float(h.token('spacing.extraLarge'))
         painter.drawText(QRectF(margin, box.center().y() + 8, box.width() - 2 * margin, 80),
                          Qt.AlignHCenter | Qt.AlignTop | Qt.TextWordWrap, self.text)
 
@@ -113,7 +113,7 @@ class MediaPlayer(QWidget):
         self.setFocusPolicy(Qt.StrongFocus)
         self.setMouseTracking(True)
         self.setAcceptDrops(mode == 'full')
-        self.rounding.set_corner('xl' if mode == 'embedded' else 'none', backdrop)
+        self.rounding.set_corner('extraLarge' if mode == 'embedded' else 'none', backdrop)
         self.bar.configure('video', mode)
         self.bar.hide()
         host.get().on_theme_changed(self._theme_changed)
@@ -480,7 +480,7 @@ class MediaPlayer(QWidget):
         if active == self._fullscreen or self.kind == 'audio' and active:
             return
         self._fullscreen = active
-        self.rounding.set_corner('none' if active or self.mode == 'full' else 'xl', self.backdrop)
+        self.rounding.set_corner('none' if active or self.mode == 'full' else 'extraLarge', self.backdrop)
         self.bar.sync_fullscreen(active)
         if notify:
             self.fullscreenRequested.emit(active)
@@ -638,7 +638,7 @@ class MediaPlayer(QWidget):
                 stage.setGeometry(area)
         self.note.setGeometry(area)
         self.rounding.setGeometry(area)
-        margin = round(float(host.get().token('space_m')))
+        margin = round(float(host.get().token('spacing.medium')))
         width = min(area.width() - 2 * margin, round(unit() * 46)) if self.mode == 'full' else area.width() - 2 * margin
         compact = width < unit() * 26
         if compact != self.bar.compact and self.kind:

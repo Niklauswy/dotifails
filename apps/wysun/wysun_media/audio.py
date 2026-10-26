@@ -55,8 +55,8 @@ class AudioStage(QWidget):
         painter.setRenderHint(QPainter.Antialiasing)
         painter.setRenderHint(QPainter.SmoothPixmapTransform)
         painter.fillRect(self.rect(), h.color('well'))
-        space = float(h.token('space_xl'))
-        text_height = float(h.token('space_xl')) * 2.2
+        space = float(h.token('spacing.extraLarge'))
+        text_height = float(h.token('spacing.extraLarge')) * 2.2
         side = max(40.0, min(self.width() - 2 * space, self.height() - 2 * space - text_height - self._bar_room(), 360.0))
         box = QRectF(0, 0, side, side)
         box.moveCenter(QRectF(self.rect()).center())
@@ -78,12 +78,12 @@ class AudioStage(QWidget):
             h.symbol(painter, box, 'music_note', 'accent', round(side * .36), True)
         top = box.bottom() + space / 2 + space
         painter.setPen(h.color('text_strong'))
-        painter.setFont(h.font('heading', 650))
+        painter.setFont(h.font('title.medium', 650))
         painter.drawText(QRectF(space, top, self.width() - 2 * space, space * 1.2), Qt.AlignHCenter | Qt.AlignVCenter,
                          painter.fontMetrics().elidedText(self.title, Qt.ElideMiddle, int(self.width() - 2 * space)))
         if self.subtitle:
             painter.setPen(h.color('muted'))
-            painter.setFont(h.font('small'))
+            painter.setFont(h.font('body.small'))
             painter.drawText(QRectF(space, top + space * 1.2, self.width() - 2 * space, space), Qt.AlignHCenter | Qt.AlignVCenter,
                              painter.fontMetrics().elidedText(self.subtitle, Qt.ElideRight, int(self.width() - 2 * space)))
 

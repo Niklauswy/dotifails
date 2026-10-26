@@ -21,7 +21,7 @@ class BrowseTile(Tile):
     def paintEvent(self, _event):
         painter = QPainter(self)
         painter.setRenderHints(QPainter.Antialiasing | QPainter.SmoothPixmapTransform)
-        radius = tokens()['radius_m']
+        radius = tokens()['rounding.medium']
         rect = QRectF(self.rect())
         shape = QPainterPath()
         shape.addRoundedRect(rect, radius, radius)
@@ -47,14 +47,14 @@ class BrowseTile(Tile):
         gradient.setColorAt(1, color('scrim', 200))
         painter.fillRect(rect, gradient)
         painter.restore()
-        pad = metric('space_m')
-        eyebrow = text_font('caption', 700)
+        pad = metric('spacing.medium')
+        eyebrow = text_font('label.small', 700)
         eyebrow.setLetterSpacing(eyebrow.SpacingType.AbsoluteSpacing, 1.1)
         painter.setFont(eyebrow)
         painter.setPen(color('on_hud', 200))
         painter.drawText(QRect(pad, pad, self.width() - 2 * pad, 16), Qt.AlignLeft | Qt.AlignVCenter,
                          self.collection.label.upper())
-        painter.setFont(text_font('heading', 800, 1.1))
+        painter.setFont(text_font('title.medium', 800, 1.1))
         painter.setPen(color('on_hud'))
         painter.drawText(QRect(pad, self.height() // 2, self.width() - 2 * pad, self.height() // 2 - pad),
                          Qt.AlignLeft | Qt.AlignBottom | Qt.TextWordWrap, self.title)
@@ -69,26 +69,26 @@ class TopResult(Tile):
         self.setMinimumHeight(240)
 
     def play_rect(self):
-        return QRect(self.width() - 56 - metric('space_l'), self.height() - 56 - metric('space_l'), 56, 56)
+        return QRect(self.width() - 56 - metric('spacing.large'), self.height() - 56 - metric('spacing.large'), 56, 56)
 
     def paintEvent(self, _event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
-        radius = tokens()['radius_m']
+        radius = tokens()['rounding.medium']
         painter.setPen(Qt.NoPen)
         painter.setBrush(color('tint', round(8 + 10 * self.layer.amount)))
         painter.drawRoundedRect(QRectF(self.rect()), radius, radius)
-        pad = metric('space_l')
+        pad = metric('spacing.large')
         side = 96
         self.draw_cover(painter, QRect(pad, pad, side, side), side / 2 if self.round_cover else 8)
-        painter.setFont(text_font('title', 800, 1.2))
+        painter.setFont(text_font('title.large', 800, 1.2))
         painter.setPen(color('text_strong'))
         width = self.width() - 2 * pad
-        painter.drawText(QRect(pad, pad + side + metric('space_m'), width, 40), Qt.AlignLeft | Qt.AlignVCenter,
+        painter.drawText(QRect(pad, pad + side + metric('spacing.medium'), width, 40), Qt.AlignLeft | Qt.AlignVCenter,
                          painter.fontMetrics().elidedText(self.title, Qt.ElideRight, width))
-        painter.setFont(text_font('small', 600))
+        painter.setFont(text_font('body.small', 600))
         label = self.subtitle
-        chip = QRectF(pad, pad + side + metric('space_m') + 46, painter.fontMetrics().horizontalAdvance(label) + 20, 26)
+        chip = QRectF(pad, pad + side + metric('spacing.medium') + 46, painter.fontMetrics().horizontalAdvance(label) + 20, 26)
         painter.setPen(Qt.NoPen)
         painter.setBrush(color('fill'))
         painter.drawRoundedRect(chip, 13, 13)
@@ -107,21 +107,21 @@ class SearchPage(QScrollArea):
         self.setWidgetResizable(True)
         content = QWidget()
         layout = QVBoxLayout(content)
-        pad = metric('space_xl')
+        pad = metric('spacing.extraLarge')
         layout.setContentsMargins(pad, pad, pad, pad)
-        layout.setSpacing(metric('space_xl'))
+        layout.setSpacing(metric('spacing.extraLarge'))
 
         self.browse = Shelf('Explorar', item_width=230, item_height=150, rows=0,
                             subtitle='Tus listas, álbumes y artistas más escuchados')
-        self.browse.title.setFont(text_font('title', 800, 1.4))
+        self.browse.title.setFont(text_font('title.large', 800, 1.4))
         layout.addWidget(self.browse)
 
         self.results = QWidget()
         results = QVBoxLayout(self.results)
         results.setContentsMargins(0, 0, 0, 0)
-        results.setSpacing(metric('space_xl'))
+        results.setSpacing(metric('spacing.extraLarge'))
         top_row = QHBoxLayout()
-        top_row.setSpacing(metric('space_l'))
+        top_row.setSpacing(metric('spacing.large'))
         top_column = QVBoxLayout()
         top_column.addWidget(self._heading('Resultado principal'))
         self.top_holder = QVBoxLayout()
@@ -162,7 +162,7 @@ class SearchPage(QScrollArea):
 
     def _heading(self, text):
         label = QLabel(text)
-        label.setFont(text_font('heading', 700, 1.25))
+        label.setFont(text_font('title.medium', 700, 1.25))
         return label
 
     def type_query(self, query):

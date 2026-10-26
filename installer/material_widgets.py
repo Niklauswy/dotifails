@@ -27,21 +27,21 @@ from wysun_core.ui.widgets import IconButton, PillButton, StateLayer
 STYLE = '''
 QLabel {background:transparent;}
 QWidget#page, QWidget#scrollBody {background:transparent;}
-QPlainTextEdit {background:@inset;color:@ink;border:0;border-radius:@radius_m;padding:@space_m;
-                font-family:@font_mono;font-size:@font_small;selection-background-color:@text_selection;}
-QListWidget {background:@well;color:@text;border:0;border-radius:@radius_m;padding:@space_s;outline:0;}
-QListWidget::item {padding:@space_m;border-radius:@radius_s;}
+QPlainTextEdit {background:@inset;color:@ink;border:0;border-radius:@rounding.medium;padding:@spacing.medium;
+                font-family:@font.family.mono;font-size:@font.body.small.size;selection-background-color:@text_selection;}
+QListWidget {background:@well;color:@text;border:0;border-radius:@rounding.medium;padding:@spacing.small;outline:0;}
+QListWidget::item {padding:@spacing.medium;border-radius:@rounding.small;}
 QListWidget::item:selected {background:@selection;color:@selection_text;}
 QDialog {background:@canvas;}
 '''
 
 ROLES = {
-    'display': ('title', 800, 1.6, 'text_strong'), 'hero': ('title', 750, 1.25, 'text_strong'),
-    'heading': ('title', 700, 1.0, 'text_strong'), 'section': ('heading', 650, 1, 'text_strong'),
-    'cardTitle': ('body', 600, 1, 'text_strong'), 'eyebrow': ('caption', 700, 1, 'accent'),
-    'small': ('small', 400, 1, 'muted'), 'body': ('body', 400, 1, 'muted'), 'strong': ('body', 500, 1, 'text'),
-    'success': ('body', 500, 1, 'success'), 'warning': ('body', 500, 1, 'warning'), 'error': ('body', 500, 1, 'danger'),
-    'mono': ('small', 400, 1, 'muted'),
+    'display': ('title.large', 800, 1.6, 'text_strong'), 'hero': ('title.large', 750, 1.25, 'text_strong'),
+    'heading': ('title.large', 700, 1.0, 'text_strong'), 'section': ('title.medium', 650, 1, 'text_strong'),
+    'cardTitle': ('body.medium', 600, 1, 'text_strong'), 'eyebrow': ('label.small', 700, 1, 'accent'),
+    'small': ('body.small', 400, 1, 'muted'), 'body': ('body.medium', 400, 1, 'muted'), 'strong': ('body.medium', 500, 1, 'text'),
+    'success': ('body.medium', 500, 1, 'success'), 'warning': ('body.medium', 500, 1, 'warning'), 'error': ('body.medium', 500, 1, 'danger'),
+    'mono': ('mono.small', 400, 1, 'muted'),
 }
 
 
@@ -58,7 +58,7 @@ def restyle_label(widget, role='body'):
     if role == 'eyebrow':
         font.setLetterSpacing(font.SpacingType.AbsoluteSpacing, 1.1)
     if role == 'mono':
-        font.setFamilies(tokens()['font_mono'])
+        font.setFamily(tokens()['font.family.mono'])
     widget.setFont(font)
     apply_tokens(widget, 'color:@' + ink + ';background:transparent;')
 
@@ -77,9 +77,9 @@ def surface(layout, role='panel'):
     """Compatibility helper for the boot recovery dialog: a padded tonal frame."""
     frame = Card(tone='well' if role == 'well' else 'surface_raised')
     inner = QVBoxLayout(frame)
-    gap = metric('space_l')
+    gap = metric('spacing.large')
     inner.setContentsMargins(gap, gap, gap, gap)
-    inner.setSpacing(metric('space_s'))
+    inner.setSpacing(metric('spacing.small'))
     layout.addWidget(frame)
     return inner
 
@@ -89,7 +89,7 @@ class Button(PillButton):
 
     def __init__(self, title, callback=None, role='', parent=None, symbol=None, height=None):
         super().__init__(symbol or ('arrow_forward' if role == 'primary' else 'more_horiz'), title, callback,
-                         'filled' if role == 'primary' else 'tonal', height or metric('space_xl') + metric('space_l'), parent)
+                         'filled' if role == 'primary' else 'tonal', height or metric('spacing.extraLarge') + metric('spacing.large'), parent)
         self.setObjectName(role)
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
 
@@ -142,7 +142,7 @@ def blob(rect, sides, depth, rotation=0.0):
 
 
 def focus_ring(painter, rect, radius):
-    painter.setPen(QPen(color('focus'), max(2, tokens()['focus_width'] + 1)))
+    painter.setPen(QPen(color('focus'), max(2, tokens()['border.focus'] + 1)))
     painter.setBrush(Qt.NoBrush)
     painter.drawRoundedRect(QRectF(rect).adjusted(1, 1, -1, -1), radius, radius)
 
@@ -171,18 +171,18 @@ class Entrance:
         def step(value):
             self.enter_amount = value
             self.update()
-        self._entrance = animate(self, tokens()['motion_enter'], step, delay=min(order, 12) * 28)
+        self._entrance = animate(self, tokens()['anim.durations.expressiveFastSpatial'], step, delay=min(order, 12) * 28)
 
     def apply_entrance(self, painter):
         if self.enter_amount < 1:
             painter.setOpacity(min(1.0, self.enter_amount * 1.4))
-            painter.translate(0, (1 - self.enter_amount) * metric('space_m'))
+            painter.translate(0, (1 - self.enter_amount) * metric('spacing.medium'))
 
 
 class Card(QWidget):
     """Rounded tonal container (``surface_raised``, ``well``, ``nav_selected``…)."""
 
-    def __init__(self, tone='surface_raised', parent=None, radius='radius_l'):
+    def __init__(self, tone='surface_raised', parent=None, radius='rounding.largeIncreased'):
         super().__init__(parent)
         self.tone, self.radius = tone, radius
 
@@ -278,14 +278,14 @@ class ToggleRow(Entrance, QAbstractButton):
         self.update()
 
     def _metrics(self):
-        pad = metric('space_m') if self.compact else metric('space_l')
-        lead = 0 if self.compact else metric('icon_size') * 2 + metric('space_s')
-        switch = QSize(metric('space_xl') * 2 + metric('space_xs'), metric('space_xl') + metric('space_s'))
+        pad = metric('spacing.medium') if self.compact else metric('spacing.large')
+        lead = 0 if self.compact else metric('icon.size') * 2 + metric('spacing.small')
+        switch = QSize(metric('spacing.extraLarge') * 2 + metric('spacing.extraSmall'), metric('spacing.extraLarge') + metric('spacing.small'))
         return pad, lead, switch
 
     def _text_width(self, width):
         pad, lead, switch = self._metrics()
-        return width - pad * 2 - lead - (metric('space_l') if lead else 0) - switch.width() - metric('space_l')
+        return width - pad * 2 - lead - (metric('spacing.large') if lead else 0) - switch.width() - metric('spacing.large')
 
     def hasHeightForWidth(self):
         return True
@@ -293,19 +293,19 @@ class ToggleRow(Entrance, QAbstractButton):
     def heightForWidth(self, width):
         pad, _lead, switch = self._metrics()
         inner = self._text_width(width)
-        height = QFontMetrics(text_font('body', 600)).height()
+        height = QFontMetrics(text_font('body.medium', 600)).height()
         if self.detail:
-            height += metric('space_xs') + wrapped_height(text_font('small'), self.detail, inner)
+            height += metric('spacing.extraSmall') + wrapped_height(text_font('body.small'), self.detail, inner)
         if self.note:
-            height += metric('space_xs') + QFontMetrics(text_font('caption', 600)).height()
+            height += metric('spacing.extraSmall') + QFontMetrics(text_font('label.small', 600)).height()
         return max(height, switch.height()) + pad * 2
 
     def sizeHint(self):
-        return QSize(metric('space_xl') * 16, self.heightForWidth(metric('space_xl') * 16))
+        return QSize(metric('spacing.extraLarge') * 16, self.heightForWidth(metric('spacing.extraLarge') * 16))
 
     def minimumSizeHint(self):
         # Layouts sum minimums; the real height comes from heightForWidth.
-        return QSize(metric('space_xl') * 8, self.heightForWidth(metric('space_xl') * 40))
+        return QSize(metric('spacing.extraLarge') * 8, self.heightForWidth(metric('spacing.extraLarge') * 40))
 
     def enterEvent(self, event):
         self.layer.to(1.0)
@@ -327,7 +327,7 @@ class ToggleRow(Entrance, QAbstractButton):
         self.apply_entrance(painter)
         pad, lead, switch = self._metrics()
         rect = QRectF(self.rect())
-        radius = tokens()['radius_m'] if not self.compact else tokens()['radius_control']
+        radius = tokens()['rounding.medium'] if not self.compact else tokens()['rounding.medium']
         on = self.isChecked()
         painter.setPen(Qt.NoPen)
         painter.setBrush(color('nav_selected' if on and not self.compact else 'well'))
@@ -337,15 +337,15 @@ class ToggleRow(Entrance, QAbstractButton):
             painter.drawRoundedRect(rect, radius, radius)
         left = pad
         if lead:
-            badge = QRectF(pad, pad, lead - metric('space_s'), lead - metric('space_s'))
+            badge = QRectF(pad, pad, lead - metric('spacing.small'), lead - metric('spacing.small'))
             painter.setPen(Qt.NoPen)
             painter.setBrush(color('accent' if on else 'fill'))
             painter.drawPath(squircle(badge, .35 + .65 * (1 - self.knob.amount)))
             paint_symbol(painter, badge, self.symbol, 'on_accent' if on else 'glyph', badge.height() * .52)
-            left = pad + lead + metric('space_s')
+            left = pad + lead + metric('spacing.small')
         width = self._text_width(self.width())
         y = pad
-        title = text_font('body', 600)
+        title = text_font('body.medium', 600)
         painter.setFont(title)
         painter.setPen(color('text_strong' if self.isEnabled() or self.locked else 'disabled'))
         height = QFontMetrics(title).height()
@@ -353,16 +353,16 @@ class ToggleRow(Entrance, QAbstractButton):
                          QFontMetrics(title).elidedText(self.title, Qt.ElideRight, int(width)))
         y += height
         if self.detail:
-            y += metric('space_xs')
-            font = text_font('small')
+            y += metric('spacing.extraSmall')
+            font = text_font('body.small')
             painter.setFont(font)
             painter.setPen(color('muted' if self.isEnabled() or self.locked else 'disabled'))
             block = wrapped_height(font, self.detail, width)
             painter.drawText(QRectF(left, y, width, block), Qt.AlignLeft | Qt.TextWordWrap, self.detail)
             y += block
         if self.note:
-            y += metric('space_xs')
-            font = text_font('caption', 600)
+            y += metric('spacing.extraSmall')
+            font = text_font('label.small', 600)
             painter.setFont(font)
             painter.setPen(color('accent'))
             painter.drawText(QRectF(left, y, width, QFontMetrics(font).height()), Qt.AlignLeft | Qt.AlignVCenter, self.note)
@@ -387,9 +387,9 @@ class OptionTile(Entrance, QAbstractButton):
         self.setFocusPolicy(Qt.StrongFocus)
         self.setAccessibleName(title)
         self.setAccessibleDescription(detail)
-        self.setMinimumHeight(metric('space_xl') * 4)
+        self.setMinimumHeight(metric('spacing.extraLarge') * 4)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        self.setFixedHeight(metric('space_xl') * 4 + metric('space_s'))
+        self.setFixedHeight(metric('spacing.extraLarge') * 4 + metric('spacing.small'))
         self.toggled.connect(lambda on: self.pick.to(1.0 if on else 0.0))
 
     def enterEvent(self, event):
@@ -411,7 +411,7 @@ class OptionTile(Entrance, QAbstractButton):
         painter.setRenderHint(QPainter.Antialiasing)
         self.apply_entrance(painter)
         rect = QRectF(self.rect())
-        radius = tokens()['radius_m']
+        radius = tokens()['rounding.medium']
         on = self.pick.amount
         painter.setPen(Qt.NoPen)
         painter.setBrush(color('nav_selected' if self.isChecked() else 'well'))
@@ -419,22 +419,22 @@ class OptionTile(Entrance, QAbstractButton):
         if self.layer.amount and self.isEnabled():
             painter.setBrush(color('tint', round(14 * self.layer.amount)))
             painter.drawRoundedRect(rect, radius, radius)
-        pad = metric('space_m')
-        side = metric('icon_size') * 2
+        pad = metric('spacing.medium')
+        side = metric('icon.size') * 2
         badge = QRectF(pad, pad, side, side)
         painter.setBrush(color('accent') if self.isChecked() else color('fill'))
         painter.drawPath(cookie(badge, 9, 40 * on + 12 * self.layer.amount))
         paint_symbol(painter, badge, 'check' if self.isChecked() else self.symbol,
                      'on_accent' if self.isChecked() else 'glyph', side * .5, filled=self.isChecked())
-        painter.setFont(text_font('body', 600))
+        painter.setFont(text_font('body.medium', 600))
         painter.setPen(color('text_strong' if self.isEnabled() else 'disabled'))
-        top = badge.bottom() + metric('space_s')
-        painter.drawText(QRectF(pad, top, rect.width() - pad * 2, metric('font_body') * 1.5),
+        top = badge.bottom() + metric('spacing.small')
+        painter.drawText(QRectF(pad, top, rect.width() - pad * 2, metric('font.body.medium.size') * 1.5),
                          Qt.AlignLeft | Qt.AlignVCenter, self.title)
-        painter.setFont(text_font('small'))
+        painter.setFont(text_font('body.small'))
         painter.setPen(color('muted' if self.isEnabled() else 'disabled'))
         metrics = painter.fontMetrics()
-        painter.drawText(QRectF(pad, top + metric('font_body') * 1.5, rect.width() - pad * 2, metrics.height()),
+        painter.drawText(QRectF(pad, top + metric('font.body.medium.size') * 1.5, rect.width() - pad * 2, metrics.height()),
                          Qt.AlignLeft | Qt.AlignVCenter, metrics.elidedText(self.detail, Qt.ElideRight, int(rect.width() - pad * 2)))
         if self.hasFocus() and self.window().isActiveWindow():
             focus_ring(painter, rect, radius)
@@ -455,13 +455,13 @@ class Segmented(QWidget):
         self.setFocusPolicy(Qt.StrongFocus)
         self.setCursor(Qt.PointingHandCursor)
         self.setMouseTracking(True)
-        self.setFont(text_font('body', 600))
-        self.setFixedHeight(metric('space_xl') + metric('space_l'))
+        self.setFont(text_font('body.medium', 600))
+        self.setFixedHeight(metric('spacing.extraLarge') + metric('spacing.large'))
         self.setAccessibleName('Selección rápida')
 
     def sizeHint(self):
         metrics = self.fontMetrics()
-        width = max(metrics.horizontalAdvance(text) for _, text in self.options) + metric('space_xl') * 2
+        width = max(metrics.horizontalAdvance(text) for _, text in self.options) + metric('spacing.extraLarge') * 2
         return QSize(width * len(self.options) + 8, self.height())
 
     def minimumSizeHint(self):
@@ -477,7 +477,7 @@ class Segmented(QWidget):
         end = float(self.index())
         self.setAccessibleDescription(dict(self.options)[key])
         if animate_change:
-            self._slide = animate(self, tokens()['motion_enter'], self._move, start, end, QEasingCurve.OutBack)
+            self._slide = animate(self, tokens()['anim.durations.expressiveFastSpatial'], self._move, start, end, QEasingCurve.OutBack)
         else:
             self._move(end)
 
@@ -562,7 +562,7 @@ class StatusMark(QWidget):
 
     def __init__(self, size=None, parent=None, halo=False):
         super().__init__(parent)
-        self.side = size or metric('space_xl') + metric('space_xs')
+        self.side = size or metric('spacing.extraLarge') + metric('spacing.extraSmall')
         self.halo = halo
         self.level = 'pending'
         self.symbol = None
@@ -580,7 +580,7 @@ class StatusMark(QWidget):
             return
         previous, self.level, self.symbol = self.level, level, symbol
         if previous == 'active' and level != 'active':
-            animate(self, tokens()['motion_enter'] * 2, self._settle, 0.0, 1.0, QEasingCurve.OutBack)
+            animate(self, tokens()['anim.durations.expressiveFastSpatial'] * 2, self._settle, 0.0, 1.0, QEasingCurve.OutBack)
         else:
             self.settle = 1.0
         self._sync()
@@ -670,7 +670,7 @@ class CheckRow(Entrance, QWidget):
     def __init__(self, check, parent=None):
         super().__init__(parent)
         self.init_entrance()
-        self.mark = StatusMark(metric('space_xl'), self)
+        self.mark = StatusMark(metric('spacing.extraLarge'), self)
         self.title, self.detail = check['title'], check.get('detail', '')
         self.mark.set_level(check['level'])
         self.level = check['level']
@@ -684,22 +684,22 @@ class CheckRow(Entrance, QWidget):
         return True
 
     def _width(self, width):
-        return width - metric('space_xl') - metric('space_m') * 3
+        return width - metric('spacing.extraLarge') - metric('spacing.medium') * 3
 
     def heightForWidth(self, width):
-        height = QFontMetrics(text_font('body', 600)).height()
+        height = QFontMetrics(text_font('body.medium', 600)).height()
         if self.detail:
-            height += metric('space_xs') + wrapped_height(text_font('small'), self.detail, self._width(width))
-        return max(height, metric('space_xl')) + metric('space_m') * 2
+            height += metric('spacing.extraSmall') + wrapped_height(text_font('body.small'), self.detail, self._width(width))
+        return max(height, metric('spacing.extraLarge')) + metric('spacing.medium') * 2
 
     def sizeHint(self):
-        return QSize(metric('space_xl') * 14, self.heightForWidth(metric('space_xl') * 14))
+        return QSize(metric('spacing.extraLarge') * 14, self.heightForWidth(metric('spacing.extraLarge') * 14))
 
     def minimumSizeHint(self):
-        return QSize(metric('space_xl') * 6, self.heightForWidth(metric('space_xl') * 40))
+        return QSize(metric('spacing.extraLarge') * 6, self.heightForWidth(metric('spacing.extraLarge') * 40))
 
     def resizeEvent(self, event):
-        self.mark.move(metric('space_m'), metric('space_m'))
+        self.mark.move(metric('spacing.medium'), metric('spacing.medium'))
         super().resizeEvent(event)
 
     def enter(self, order=0):
@@ -711,25 +711,25 @@ class CheckRow(Entrance, QWidget):
         painter.setRenderHint(QPainter.Antialiasing)
         self.apply_entrance(painter)
         rect = QRectF(self.rect())
-        radius = tokens()['radius_m']
+        radius = tokens()['rounding.medium']
         tone = {'error': 'danger_soft', 'warning': 'warning_soft'}.get(self.level, 'well')
         painter.setPen(Qt.NoPen)
         painter.setBrush(color(tone))
         painter.drawRoundedRect(rect, radius, radius)
-        left = metric('space_m') * 2 + metric('space_xl')
+        left = metric('spacing.medium') * 2 + metric('spacing.extraLarge')
         width = self._width(self.width())
-        y = metric('space_m')
-        font = text_font('body', 600)
+        y = metric('spacing.medium')
+        font = text_font('body.medium', 600)
         painter.setFont(font)
         painter.setPen(color('text_strong'))
         height = QFontMetrics(font).height()
         painter.drawText(QRectF(left, y, width, height), Qt.AlignLeft | Qt.AlignVCenter,
                          QFontMetrics(font).elidedText(self.title, Qt.ElideRight, int(width)))
         if self.detail:
-            font = text_font('small')
+            font = text_font('body.small')
             painter.setFont(font)
             painter.setPen(color('muted'))
-            y += height + metric('space_xs')
+            y += height + metric('spacing.extraSmall')
             painter.drawText(QRectF(left, y, width, wrapped_height(font, self.detail, width)),
                              Qt.AlignLeft | Qt.TextWordWrap, self.detail)
 
@@ -818,7 +818,7 @@ class PhaseRow(Entrance, QWidget):
         self.init_entrance()
         self.phase = phase
         self.level = 'pending'
-        self.mark = StatusMark(metric('space_xl'), self)
+        self.mark = StatusMark(metric('spacing.extraLarge'), self)
         self.mark.set_level('pending')
         self.setAccessibleName(phase['name'])
         policy = QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
@@ -833,28 +833,28 @@ class PhaseRow(Entrance, QWidget):
         self.update()
 
     def mark_centre(self):
-        return QPointF(metric('space_s') + metric('space_xl') / 2, metric('space_s') + metric('space_xl') / 2)
+        return QPointF(metric('spacing.small') + metric('spacing.extraLarge') / 2, metric('spacing.small') + metric('spacing.extraLarge') / 2)
 
     def hasHeightForWidth(self):
         return True
 
     def _width(self, width):
-        return width - metric('space_xl') - metric('space_s') - metric('space_l') * 2
+        return width - metric('spacing.extraLarge') - metric('spacing.small') - metric('spacing.large') * 2
 
     def heightForWidth(self, width):
-        height = QFontMetrics(text_font('body', 600)).height()
+        height = QFontMetrics(text_font('body.medium', 600)).height()
         if self.phase.get('detail'):
-            height += 2 + wrapped_height(text_font('small'), self.phase['detail'], self._width(width))
-        return max(height, metric('space_xl')) + metric('space_s') * 2 + metric('space_xs')
+            height += 2 + wrapped_height(text_font('body.small'), self.phase['detail'], self._width(width))
+        return max(height, metric('spacing.extraLarge')) + metric('spacing.small') * 2 + metric('spacing.extraSmall')
 
     def sizeHint(self):
-        return QSize(metric('space_xl') * 14, self.heightForWidth(metric('space_xl') * 14))
+        return QSize(metric('spacing.extraLarge') * 14, self.heightForWidth(metric('spacing.extraLarge') * 14))
 
     def minimumSizeHint(self):
-        return QSize(metric('space_xl') * 6, self.heightForWidth(metric('space_xl') * 40))
+        return QSize(metric('spacing.extraLarge') * 6, self.heightForWidth(metric('spacing.extraLarge') * 40))
 
     def resizeEvent(self, event):
-        self.mark.move(metric('space_s'), metric('space_s'))
+        self.mark.move(metric('spacing.small'), metric('spacing.small'))
         super().resizeEvent(event)
 
     def paintEvent(self, _event):
@@ -865,11 +865,11 @@ class PhaseRow(Entrance, QWidget):
         if self.level == 'active':
             painter.setPen(Qt.NoPen)
             painter.setBrush(color('nav_selected'))
-            painter.drawRoundedRect(rect, tokens()['radius_m'], tokens()['radius_m'])
-        left = metric('space_s') + metric('space_xl') + metric('space_l')
+            painter.drawRoundedRect(rect, tokens()['rounding.medium'], tokens()['rounding.medium'])
+        left = metric('spacing.small') + metric('spacing.extraLarge') + metric('spacing.large')
         width = self._width(self.width())
-        y = metric('space_s')
-        font = text_font('body', 600 if self.level == 'active' else 500)
+        y = metric('spacing.small')
+        font = text_font('body.medium', 600 if self.level == 'active' else 500)
         painter.setFont(font)
         painter.setPen(color('text_strong' if self.level in ('active', 'done', 'error') else
                              'muted' if self.level == 'pending' else 'subtle'))
@@ -877,7 +877,7 @@ class PhaseRow(Entrance, QWidget):
         painter.drawText(QRectF(left, y, width, height), Qt.AlignLeft | Qt.AlignVCenter,
                          QFontMetrics(font).elidedText(self.phase['name'], Qt.ElideRight, int(width)))
         if self.phase.get('detail'):
-            font = text_font('small')
+            font = text_font('body.small')
             painter.setFont(font)
             painter.setPen(color('muted' if self.level != 'skipped' else 'subtle'))
             painter.drawText(QRectF(left, y + height + 2, width, wrapped_height(font, self.phase['detail'], width)),
@@ -897,7 +897,7 @@ class RailItem(QAbstractButton):
         self.setCursor(Qt.PointingHandCursor)
         self.setFocusPolicy(Qt.StrongFocus)
         self.setAccessibleName(title)
-        self.setFixedHeight(metric('space_xl') + metric('space_m'))
+        self.setFixedHeight(metric('spacing.extraLarge') + metric('spacing.medium'))
 
     def enterEvent(self, event):
         self.layer.to(1.0)
@@ -924,22 +924,22 @@ class RailItem(QAbstractButton):
             painter.drawRoundedRect(rect, radius, radius)
         current = self.state == 'current'
         ink = 'text_strong' if current else 'disabled' if not self.isEnabled() else 'text'
-        icon = metric('icon_size') * 1.15
+        icon = metric('icon.size') * 1.15
         if self.compact:
             symbol_rect = QRectF(0, 0, rect.width(), rect.height())
         else:
-            symbol_rect = QRectF(metric('space_m'), 0, icon, rect.height())
+            symbol_rect = QRectF(metric('spacing.medium'), 0, icon, rect.height())
         done = self.state == 'done'
         paint_symbol(painter, symbol_rect, self.symbol, 'accent' if current else ink, icon, filled=current)
         if not self.compact:
-            painter.setFont(text_font('body', 600 if current else 500))
+            painter.setFont(text_font('body.medium', 600 if current else 500))
             painter.setPen(color(ink))
-            left = symbol_rect.right() + metric('space_m')
-            painter.drawText(QRectF(left, 0, rect.width() - left - metric('space_xl'), rect.height()),
+            left = symbol_rect.right() + metric('spacing.medium')
+            painter.drawText(QRectF(left, 0, rect.width() - left - metric('spacing.extraLarge'), rect.height()),
                              Qt.AlignLeft | Qt.AlignVCenter, self.title)
         if done:
-            side = metric('icon_size')
-            dot = QRectF(rect.right() - side - metric('space_s'), (rect.height() - side) / 2, side, side)
+            side = metric('icon.size')
+            dot = QRectF(rect.right() - side - metric('spacing.small'), (rect.height() - side) / 2, side, side)
             if self.compact:
                 dot = QRectF(rect.center().x() + icon * .3, rect.center().y() - icon * .95, side * .7, side * .7)
             painter.setPen(Qt.NoPen)
@@ -1010,7 +1010,7 @@ class Rail(QWidget):
             bottom = start.bottom() + (target.bottom() - start.bottom()) * (lead if target.top() > start.top() else tail)
             self.pill = QRectF(target.left(), top, target.width(), bottom - top)
             self.update()
-        self._glide = animate(self, tokens()['motion_enter'] + 80, step)
+        self._glide = animate(self, tokens()['anim.durations.expressiveFastSpatial'] + 80, step)
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
@@ -1073,7 +1073,7 @@ class PageStack(QWidget):
         effect = QGraphicsOpacityEffect(page)
         effect.setOpacity(0.0)
         page.setGraphicsEffect(effect)
-        shift = metric('space_xl') * 2
+        shift = metric('spacing.extraLarge') * 2
         overlay = self._overlay
 
         def step(value):
@@ -1091,7 +1091,7 @@ class PageStack(QWidget):
             overlay.hide()
         if self._motion is not None:
             self._motion.stop()
-        self._motion = animate(self, tokens()['motion_enter'] + 60, step, finished=done)
+        self._motion = animate(self, tokens()['anim.durations.expressiveFastSpatial'] + 60, step, finished=done)
 
     def resizeEvent(self, event):
         page = self.current()
@@ -1128,7 +1128,7 @@ class Crossfade(QWidget):
         self.setGeometry(host.rect())
         self.show()
         self.raise_()
-        animate(self, tokens()['motion_enter'] * 2, self._step, 1.0, 0.0, QEasingCurve.InOutCubic, self.deleteLater)
+        animate(self, tokens()['anim.durations.expressiveFastSpatial'] * 2, self._step, 1.0, 0.0, QEasingCurve.InOutCubic, self.deleteLater)
 
     def _step(self, value):
         self.amount = value
@@ -1154,13 +1154,13 @@ class Sheet(QWidget):
         self.card = Card('surface_raised', self)
         self.card.setAttribute(Qt.WA_StyledBackground, False)
         self.body = QVBoxLayout(self.card)
-        pad = metric('space_xl')
-        self.body.setContentsMargins(pad, pad, pad, metric('space_l'))
-        self.body.setSpacing(metric('space_m'))
+        pad = metric('spacing.extraLarge')
+        self.body.setContentsMargins(pad, pad, pad, metric('spacing.large'))
+        self.body.setSpacing(metric('spacing.medium'))
         heading = label(title, 'section')
         heading.setAccessibleName(title)
         self.body.addWidget(heading)
-        self.card_width = width or metric('space_xl') * 20
+        self.card_width = width or metric('spacing.extraLarge') * 20
         self.setFocusPolicy(Qt.StrongFocus)
         self.setAccessibleName(title)
         host.installEventFilter(self)
@@ -1171,7 +1171,7 @@ class Sheet(QWidget):
         self.show()
         self.raise_()
         self.previous_focus = self.host.focusWidget()
-        animate(self, tokens()['motion_enter'], self._step)
+        animate(self, tokens()['anim.durations.expressiveFastSpatial'], self._step)
         candidates = [w for w in self.card.findChildren(QAbstractButton) if w.isEnabled() and w.focusPolicy() != Qt.NoFocus]
         (candidates[-1] if candidates else self).setFocus(Qt.PopupFocusReason)
         return self
@@ -1180,7 +1180,7 @@ class Sheet(QWidget):
         if self.closing:
             return
         self.closing = True
-        animate(self, tokens()['motion_exit'], self._step, self.amount, 0.0, QEasingCurve.InCubic, self._closed)
+        animate(self, tokens()['anim.durations.small'], self._step, self.amount, 0.0, QEasingCurve.InCubic, self._closed)
 
     def _closed(self):
         self.hide()
@@ -1198,12 +1198,12 @@ class Sheet(QWidget):
         self.update()
 
     def _layout(self):
-        width = min(self.card_width, self.width() - metric('space_xl') * 2)
+        width = min(self.card_width, self.width() - metric('spacing.extraLarge') * 2)
         self.card.setFixedWidth(width)
-        height = min(self.card.sizeHint().height(), self.height() - metric('space_xl') * 2)
-        self.card.setFixedHeight(max(height, metric('space_xl') * 4))
+        height = min(self.card.sizeHint().height(), self.height() - metric('spacing.extraLarge') * 2)
+        self.card.setFixedHeight(max(height, metric('spacing.extraLarge') * 4))
         x = (self.width() - width) / 2
-        y = (self.height() - self.card.height()) / 2 + (1 - self.amount) * metric('space_xl')
+        y = (self.height() - self.card.height()) / 2 + (1 - self.amount) * metric('spacing.extraLarge')
         self.card.move(round(x), round(y))
 
     def eventFilter(self, watched, event):
@@ -1246,7 +1246,7 @@ class WaveBar(QWidget):
         self.sweep = 0.0
         self._timer = QTimer(self, interval=33)
         self._timer.timeout.connect(self._tick)
-        self.setFixedHeight(metric('space_l') + metric('space_xs'))
+        self.setFixedHeight(metric('spacing.large') + metric('spacing.extraSmall'))
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self.setAccessibleName('Progreso de la instalación')
 
@@ -1345,15 +1345,15 @@ class Keycaps(QWidget):
     def __init__(self, keys, parent=None):
         super().__init__(parent)
         self.keys = list(keys)
-        self.setFont(text_font('small', 600))
+        self.setFont(text_font('body.small', 600))
         self.setAccessibleName(' + '.join(self.keys))
-        self.setFixedHeight(metric('space_xl') + metric('space_xs'))
+        self.setFixedHeight(metric('spacing.extraLarge') + metric('spacing.extraSmall'))
 
     def sizeHint(self):
         metrics = self.fontMetrics()
-        pad = metric('space_s')
+        pad = metric('spacing.small')
         width = sum(max(metrics.horizontalAdvance(key) + pad * 2, self.height()) for key in self.keys)
-        return QSize(round(width + metric('space_xs') * (len(self.keys) - 1)), self.height())
+        return QSize(round(width + metric('spacing.extraSmall') * (len(self.keys) - 1)), self.height())
 
     def minimumSizeHint(self):
         return self.sizeHint()
@@ -1363,19 +1363,19 @@ class Keycaps(QWidget):
         painter.setRenderHint(QPainter.Antialiasing)
         painter.setFont(self.font())
         metrics = self.fontMetrics()
-        pad = metric('space_s')
+        pad = metric('spacing.small')
         x = 0.0
         for key in self.keys:
             width = max(metrics.horizontalAdvance(key) + pad * 2, self.height())
             cap = QRectF(x, 0, width, self.height() - 3)
             painter.setPen(Qt.NoPen)
             painter.setBrush(color('line_strong'))
-            painter.drawRoundedRect(cap.translated(0, 3), tokens()['radius_s'], tokens()['radius_s'])
+            painter.drawRoundedRect(cap.translated(0, 3), tokens()['rounding.small'], tokens()['rounding.small'])
             painter.setBrush(color('surface_raised'))
-            painter.drawRoundedRect(cap, tokens()['radius_s'], tokens()['radius_s'])
+            painter.drawRoundedRect(cap, tokens()['rounding.small'], tokens()['rounding.small'])
             painter.setPen(color('text'))
             painter.drawText(cap, Qt.AlignCenter, key)
-            x += width + metric('space_xs')
+            x += width + metric('spacing.extraSmall')
 
 
 # --------------------------------------------------------------------------- cards and art
@@ -1409,7 +1409,7 @@ class ActionCard(QAbstractButton):
         self.setFocusPolicy(Qt.StrongFocus)
         self.setAccessibleName(title)
         self.setAccessibleDescription(subtitle)
-        self.setMinimumHeight(metric('space_xl') * 6)
+        self.setMinimumHeight(metric('spacing.extraLarge') * 6)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
     def enterEvent(self, event):
@@ -1430,7 +1430,7 @@ class ActionCard(QAbstractButton):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
         rect = QRectF(self.rect())
-        radius = tokens()['radius_l']
+        radius = tokens()['rounding.largeIncreased']
         if self.isDown():
             painter.translate(rect.center())
             painter.scale(.985, .985)
@@ -1442,7 +1442,7 @@ class ActionCard(QAbstractButton):
         ink, soft = ('on_accent', 'on_accent') if self.accent else ('text_strong', 'muted')
         painter.fillRect(rect, color('accent' if self.accent else 'nav_selected'))
         painter.fillRect(rect, color('tint', round(10 * self.layer.amount)))
-        pad = metric('space_l')
+        pad = metric('spacing.large')
         side = min(self.height() * .62, self.width() * .42)
         badge = QRectF(self.width() - side - pad * .6, self.height() - side - pad * .6, side, side)
         painter.setPen(Qt.NoPen)
@@ -1452,21 +1452,21 @@ class ActionCard(QAbstractButton):
         painter.restore()
         width = self.width() - pad * 2
         y = pad
-        font = text_font('caption', 700)
+        font = text_font('label.small', 700)
         font.setLetterSpacing(font.SpacingType.AbsoluteSpacing, 1.1)
         painter.setFont(font)
         painter.setPen(color(soft))
         painter.drawText(QRectF(pad, y, width, 18), Qt.AlignLeft | Qt.AlignVCenter, self.eyebrow.upper())
         y += 22
-        painter.setFont(text_font('title', 750, .95))
+        painter.setFont(text_font('title.large', 750, .95))
         painter.setPen(color(ink))
         metrics = painter.fontMetrics()
         title = QRectF(pad, y, width - side * .35, metrics.height() * 2 + 4)
         painter.drawText(title, Qt.AlignLeft | Qt.AlignTop | Qt.TextWordWrap, self.title)
         bounds = metrics.boundingRect(title.toRect(), Qt.AlignLeft | Qt.TextWordWrap, self.title)
-        painter.setFont(text_font('small', 500))
+        painter.setFont(text_font('body.small', 500))
         painter.setPen(color(soft))
-        block = QRectF(pad, min(bounds.bottom(), title.bottom()) + metric('space_xs'), width - side * .55,
+        block = QRectF(pad, min(bounds.bottom(), title.bottom()) + metric('spacing.extraSmall'), width - side * .55,
                        self.height() - bounds.bottom() - pad)
         painter.drawText(block, Qt.AlignLeft | Qt.AlignTop | Qt.TextWordWrap, self.subtitle)
         if self.hasFocus() and self.window().isActiveWindow():
@@ -1488,7 +1488,7 @@ class Hero(QWidget):
         self._timer = QTimer(self, interval=40)
         self._timer.timeout.connect(self._tick)
         self.setMouseTracking(True)
-        self.setMinimumHeight(metric('space_xl') * (7 if compact else 9))
+        self.setMinimumHeight(metric('spacing.extraLarge') * (7 if compact else 9))
         self.setAccessibleName('Wysun')
 
     def showEvent(self, event):
@@ -1519,7 +1519,7 @@ class Hero(QWidget):
         painter.setRenderHints(QPainter.Antialiasing | QPainter.SmoothPixmapTransform)
         values = tokens()
         rect = QRectF(self.rect())
-        radius = values['radius_l']
+        radius = values['rounding.largeIncreased']
         clip = QPainterPath()
         clip.addRoundedRect(rect, radius, radius)
         painter.setClipPath(clip)
@@ -1531,18 +1531,18 @@ class Hero(QWidget):
         painter.fillRect(rect, color('surface', 120))
         painter.drawTiledPixmap(self.rect(), grain_tile())
         painter.save()
-        painter.translate(self.lean.x() * metric('space_xl'), self.lean.y() * metric('space_xl'))
+        painter.translate(self.lean.x() * metric('spacing.extraLarge'), self.lean.y() * metric('spacing.extraLarge'))
         self.drift.paint(painter, rect.adjusted(-40, -40, 40, 40), color('accent', 120), .55)
         painter.restore()
         side = min(self.height() * .58, self.width() * .34)
-        centre = rect.center() + QPointF(self.lean.x() * metric('space_m'), self.lean.y() * metric('space_m'))
+        centre = rect.center() + QPointF(self.lean.x() * metric('spacing.medium'), self.lean.y() * metric('spacing.medium'))
         mark = QRectF(centre.x() - side / 2, centre.y() - side / 2, side, side)
         painter.setPen(Qt.NoPen)
         painter.setBrush(color('shadow'))
         painter.drawPath(cookie(mark.translated(0, side * .05), 12, self.angle))
         painter.setBrush(color('accent'))
         painter.drawPath(cookie(mark, 12, self.angle))
-        font = text_font('title', 800, side / max(1, metric('font_title')) * .42)
+        font = text_font('title.large', 800, side / max(1, metric('font.title.large.size')) * .42)
         painter.setFont(font)
         painter.setPen(color('on_accent'))
         painter.drawText(mark, Qt.AlignCenter, 'W')
@@ -1566,11 +1566,11 @@ class FlowGrid(QWidget):
         self.updateGeometry()
 
     def _columns(self, width):
-        gap = metric('space_m')
+        gap = metric('spacing.medium')
         return max(1, min(self.maximum_columns, int((width + gap) // (self.minimum + gap))))
 
     def _cell(self, width):
-        gap = metric('space_m')
+        gap = metric('spacing.medium')
         columns = self._columns(width)
         return (width - gap * (columns - 1)) / columns
 
@@ -1586,17 +1586,17 @@ class FlowGrid(QWidget):
         if not self.cells:
             return 0
         rows = math.ceil(len(self.cells) / self._columns(width))
-        return round(rows * self._row_height(width) + (rows - 1) * metric('space_m'))
+        return round(rows * self._row_height(width) + (rows - 1) * metric('spacing.medium'))
 
     def sizeHint(self):
         return QSize(self.minimum * 2, self.heightForWidth(self.minimum * 2))
 
     def minimumSizeHint(self):
-        return QSize(self.minimum, self.heightForWidth(self.minimum * self.maximum_columns + metric('space_m') * 2))
+        return QSize(self.minimum, self.heightForWidth(self.minimum * self.maximum_columns + metric('spacing.medium') * 2))
 
     def resizeEvent(self, event):
         width = self.width()
-        gap = metric('space_m')
+        gap = metric('spacing.medium')
         columns = self._columns(width)
         cell = self._cell(width)
         height = self._row_height(width)
@@ -1610,10 +1610,10 @@ class StatTile(Card):
     """A figure and its caption (plan summary)."""
 
     def __init__(self, value, caption, parent=None):
-        super().__init__('well', parent, 'radius_m')
+        super().__init__('well', parent, 'rounding.medium')
         self.value, self.caption = str(value), caption
-        self.setMinimumWidth(metric('space_xl') * 4)
-        self.setFixedHeight(metric('space_xl') * 3 + metric('space_s'))
+        self.setMinimumWidth(metric('spacing.extraLarge') * 4)
+        self.setFixedHeight(metric('spacing.extraLarge') * 3 + metric('spacing.small'))
         self.setAccessibleName(f'{value} {caption}')
 
     def set_value(self, value):
@@ -1624,14 +1624,14 @@ class StatTile(Card):
     def paintEvent(self, event):
         super().paintEvent(event)
         painter = QPainter(self)
-        pad = metric('space_m')
-        painter.setFont(text_font('title', 750, 1.1))
+        pad = metric('spacing.medium')
+        painter.setFont(text_font('title.large', 750, 1.1))
         painter.setPen(color('text_strong'))
         top = QRectF(pad, pad, self.width() - pad * 2, self.height() * .55 - pad / 2)
         painter.drawText(top, Qt.AlignLeft | Qt.AlignBottom, self.value)
-        painter.setFont(text_font('small', 500))
+        painter.setFont(text_font('body.small', 500))
         painter.setPen(color('muted'))
-        painter.drawText(QRectF(pad, top.bottom() + 2, self.width() - pad * 2, metric('space_l') + 2),
+        painter.drawText(QRectF(pad, top.bottom() + 2, self.width() - pad * 2, metric('spacing.large') + 2),
                          Qt.AlignLeft | Qt.AlignVCenter, self.caption)
 
 
@@ -1641,7 +1641,7 @@ class IdentityCard(Card):
     def __init__(self, parent=None):
         super().__init__('nav_selected', parent)
         self.name, self.detail, self.initial, self.ok = '', '', '', None
-        self.setFixedHeight(metric('space_xl') * 4 + metric('space_s'))
+        self.setFixedHeight(metric('spacing.extraLarge') * 4 + metric('spacing.small'))
 
     def set_system(self, name, detail, initial, ok):
         self.name, self.detail, self.initial, self.ok = name, detail, initial, ok
@@ -1653,31 +1653,31 @@ class IdentityCard(Card):
         super().paintEvent(event)
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
-        pad = metric('space_l')
+        pad = metric('spacing.large')
         side = self.height() - pad * 2
         badge = QRectF(pad, pad, side, side)
         painter.setPen(Qt.NoPen)
         painter.setBrush(color('accent'))
         painter.drawPath(cookie(badge, 9))
-        painter.setFont(text_font('title', 800, 1.2))
+        painter.setFont(text_font('title.large', 800, 1.2))
         painter.setPen(color('on_accent'))
         painter.drawText(badge, Qt.AlignCenter, self.initial)
         left = badge.right() + pad
         chip_text = {True: 'Compatible', False: 'No compatible', None: 'Comprobando'}[self.ok]
-        painter.setFont(text_font('small', 650))
+        painter.setFont(text_font('body.small', 650))
         chip_width = painter.fontMetrics().horizontalAdvance(chip_text) + pad * 2
-        chip = QRectF(self.width() - pad - chip_width, (self.height() - metric('space_xl')) / 2, chip_width, metric('space_xl'))
+        chip = QRectF(self.width() - pad - chip_width, (self.height() - metric('spacing.extraLarge')) / 2, chip_width, metric('spacing.extraLarge'))
         painter.setBrush(color({True: 'accent', False: 'danger', None: 'fill'}[self.ok]))
         painter.drawRoundedRect(chip, chip.height() / 2, chip.height() / 2)
         painter.setPen(color('on_accent' if self.ok is not None else 'text'))
         painter.drawText(chip, Qt.AlignCenter, chip_text)
         width = chip.left() - left - pad
-        painter.setFont(text_font('heading', 700, 1.15))
+        painter.setFont(text_font('title.medium', 700, 1.15))
         painter.setPen(color('text_strong'))
         metrics = painter.fontMetrics()
         painter.drawText(QRectF(left, pad, width, side * .55), Qt.AlignLeft | Qt.AlignBottom,
                          metrics.elidedText(self.name, Qt.ElideRight, int(width)))
-        painter.setFont(text_font('body'))
+        painter.setFont(text_font('body.medium'))
         painter.setPen(color('muted'))
         metrics = painter.fontMetrics()
         painter.drawText(QRectF(left, pad + side * .58, width, side * .42), Qt.AlignLeft | Qt.AlignTop,
@@ -1695,7 +1695,7 @@ class InstalledCard(QAbstractButton):
         self.setFocusPolicy(Qt.StrongFocus)
         self.setAccessibleName('Actualizar Wysun')
         self.setAccessibleDescription(subtitle)
-        self.setFixedHeight(metric('space_xl') * 8)
+        self.setFixedHeight(metric('spacing.extraLarge') * 8)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
 
     def enterEvent(self, event):
@@ -1716,7 +1716,7 @@ class InstalledCard(QAbstractButton):
         painter = QPainter(self)
         painter.setRenderHints(QPainter.Antialiasing | QPainter.SmoothPixmapTransform)
         rect = QRectF(self.rect())
-        radius = tokens()['radius_l']
+        radius = tokens()['rounding.largeIncreased']
         shape = QPainterPath()
         shape.addRoundedRect(rect, radius, radius)
         painter.save()
@@ -1728,34 +1728,34 @@ class InstalledCard(QAbstractButton):
             painter.drawPixmap(self.rect(), backdrop)
         painter.fillRect(rect, color('surface', 150))
         painter.restore()
-        pad = metric('space_l')
+        pad = metric('spacing.large')
         side = self.height() - pad * 2
         art = QRectF(pad, pad, side, side)
         painter.setPen(Qt.NoPen)
         painter.setBrush(color('shadow'))
-        painter.drawRoundedRect(art.translated(0, 4), tokens()['radius_m'], tokens()['radius_m'])
+        painter.drawRoundedRect(art.translated(0, 4), tokens()['rounding.medium'], tokens()['rounding.medium'])
         painter.setBrush(color('accent'))
-        painter.drawRoundedRect(art, tokens()['radius_m'], tokens()['radius_m'])
+        painter.drawRoundedRect(art, tokens()['rounding.medium'], tokens()['rounding.medium'])
         painter.setBrush(color('on_accent', 40))
         painter.drawPath(cookie(art.adjusted(side * .16, side * .16, -side * .16, -side * .16), 12, 15 * self.layer.amount))
-        painter.setFont(text_font('title', 800, side / max(1, metric('font_title')) * .3))
+        painter.setFont(text_font('title.large', 800, side / max(1, metric('font.title.large.size')) * .3))
         painter.setPen(color('on_accent'))
         painter.drawText(art, Qt.AlignCenter, 'W')
         left = art.right() + pad
-        width = self.width() - left - pad - metric('space_xl') * 2
-        font = text_font('caption', 700)
+        width = self.width() - left - pad - metric('spacing.extraLarge') * 2
+        font = text_font('label.small', 700)
         font.setLetterSpacing(font.SpacingType.AbsoluteSpacing, 1.1)
         painter.setFont(font)
         painter.setPen(color('text'))
         painter.drawText(QRectF(left, pad, width, 18), Qt.AlignLeft | Qt.AlignVCenter, 'INSTALADO')
-        painter.setFont(text_font('title', 800, 1.05))
+        painter.setFont(text_font('title.large', 800, 1.05))
         painter.setPen(color('text_strong'))
         title = QRectF(left, pad + 22, width, painter.fontMetrics().height() * 2 + 4)
         painter.drawText(title, Qt.AlignLeft | Qt.AlignTop | Qt.TextWordWrap, self.title)
         bounds = painter.fontMetrics().boundingRect(title.toRect(), Qt.AlignLeft | Qt.TextWordWrap, self.title)
-        painter.setFont(text_font('body', 500))
+        painter.setFont(text_font('body.medium', 500))
         painter.setPen(color('text'))
-        painter.drawText(QRectF(left, bounds.bottom() + metric('space_xs'), width, self.height() - bounds.bottom() - pad),
+        painter.drawText(QRectF(left, bounds.bottom() + metric('spacing.extraSmall'), width, self.height() - bounds.bottom() - pad),
                          Qt.AlignLeft | Qt.AlignTop | Qt.TextWordWrap, self.subtitle)
         button = QRectF(self.width() - pad - 52, self.height() - pad - 52, 52, 52)
         painter.setBrush(color('accent'))
@@ -1779,7 +1779,7 @@ class ShortcutRow(QWidget):
         from PySide6.QtWidgets import QHBoxLayout
         row = QHBoxLayout(self)
         row.setContentsMargins(0, 0, 0, 0)
-        row.setSpacing(metric('space_m'))
+        row.setSpacing(metric('spacing.medium'))
         row.addWidget(Keycaps(keys))
         row.addWidget(label(action, 'strong', False), 1)
 
@@ -1797,8 +1797,8 @@ class Expander(QWidget):
         self.open = False
         box = QVBoxLayout(self)
         box.setContentsMargins(0, 0, 0, 0)
-        box.setSpacing(metric('space_m'))
-        self.toggle = Button(title, self.flip, symbol='expand_more', height=metric('space_xl') + metric('space_m'))
+        box.setSpacing(metric('spacing.medium'))
+        self.toggle = Button(title, self.flip, symbol='expand_more', height=metric('spacing.extraLarge') + metric('spacing.medium'))
         self.toggle.setAccessibleDescription('Plegado')
         from PySide6.QtWidgets import QHBoxLayout
         row = QHBoxLayout()
@@ -1833,7 +1833,7 @@ class Expander(QWidget):
                 content.setMaximumHeight(16777215)
             else:
                 content.hide()
-        animate(self, tokens()['motion_enter'], step, start, target, finished=done)
+        animate(self, tokens()['anim.durations.expressiveFastSpatial'], step, start, target, finished=done)
 
 
 class Divider(QFrame):

@@ -125,7 +125,7 @@ class IconButton(QAbstractButton):
         paint_symbol(painter, rect, self.symbol, ink, round(self.width() * .55), filled=self.variant in ('filled', 'danger'))
         if self.hasFocus() and self.window().isActiveWindow():
             painter.setBrush(Qt.NoBrush)
-            painter.setPen(QPen(color('focus'), tokens()['focus_width']))
+            painter.setPen(QPen(color('focus'), tokens()['border.focus']))
             painter.drawRoundedRect(rect, rect.height() / 2, rect.height() / 2)
 
 
@@ -144,11 +144,11 @@ class Button(QAbstractButton):
             self.clicked.connect(lambda _=False: callback())
 
     def _inner(self):
-        return metric('space_l')
+        return metric('spacing.large')
 
     def sizeHint(self):
         from PySide6.QtCore import QSize
-        text = QFontMetricsF(text_font('body', 600)).horizontalAdvance(self.text())
+        text = QFontMetricsF(text_font('body.medium', 600)).horizontalAdvance(self.text())
         icon = 28 if self.symbol else 0
         return QSize(round(text + icon + self._inner() * 2), 40)
 
@@ -186,7 +186,7 @@ class Button(QAbstractButton):
         if self.layer.amount and self.isEnabled():
             painter.setBrush(color('on_accent' if self.variant in ('primary', 'danger') else 'tint', round(30 * self.layer.amount)))
             painter.drawRoundedRect(rect, radius, radius)
-        font = text_font('body', 600)
+        font = text_font('body.medium', 600)
         painter.setFont(font)
         painter.setPen(color(ink))
         text_width = QFontMetricsF(font).horizontalAdvance(self.text())
@@ -199,7 +199,7 @@ class Button(QAbstractButton):
         painter.drawText(QRectF(left, rect.top(), text_width + 2, rect.height()), Qt.AlignLeft | Qt.AlignVCenter, self.text())
         if self.hasFocus() and self.window().isActiveWindow():
             painter.setBrush(Qt.NoBrush)
-            painter.setPen(QPen(color('focus'), tokens()['focus_width']))
+            painter.setPen(QPen(color('focus'), tokens()['border.focus']))
             painter.drawRoundedRect(rect, radius, radius)
 
 
@@ -240,7 +240,7 @@ class Switch(QAbstractButton):
         painter.drawEllipse(QRectF(x, rect.center().y() - thumb / 2, thumb, thumb))
         if self.hasFocus() and self.window().isActiveWindow():
             painter.setBrush(Qt.NoBrush)
-            painter.setPen(QPen(color('focus'), tokens()['focus_width']))
+            painter.setPen(QPen(color('focus'), tokens()['border.focus']))
             painter.drawRoundedRect(rect, rect.height() / 2, rect.height() / 2)
 
 
@@ -250,7 +250,7 @@ class Switch(QAbstractButton):
 def paint_surface(widget):
     """Window material. Dark: tinted glass; light: opaque pearl."""
     values = tokens()
-    radius = values['radius_l']
+    radius = values['rounding.largeIncreased']
     painter = QPainter(widget)
     painter.setRenderHint(QPainter.Antialiasing)
     rect = QRectF(.5, .5, widget.width() - 1, widget.height() - 1)
@@ -266,7 +266,7 @@ def paint_surface(widget):
         base.setColorAt(.52, color('material_mid', alpha))
         base.setColorAt(1, color('material_bottom', alpha))
     painter.setBrush(base)
-    painter.setPen(QPen(color('material_edge'), values['border']))
+    painter.setPen(QPen(color('material_edge'), values['border.width']))
     painter.drawRoundedRect(rect, radius, radius)
     if color('material_glow').alpha():
         glow = QRadialGradient(widget.width() * .8, -80, widget.width() * .7)
@@ -291,31 +291,31 @@ QScrollBar::handle:vertical {background:@scrollbar;border-radius:3px;min-height:
 QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {height:0;}
 QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {background:transparent;}
 QScrollBar:horizontal {height:0;}
-QLineEdit {background:@well;border:@border solid @line;border-radius:@radius_control;padding:@space_s @space_m;
+QLineEdit {background:@well;border:@border.width solid @line;border-radius:@rounding.medium;padding:@spacing.small @spacing.medium;
            selection-background-color:@text_selection;}
-QLineEdit:focus {border:@focus_width solid @focus_input;}
-QLineEdit#search {border-radius:18px;padding:0 @space_m 0 34px;min-height:36px;background:@well;}
-QMenu {background:@menu;color:@text;border:@border solid @line_strong;border-radius:@radius_m;padding:@space_xs;}
-QMenu::item {padding:@space_s @space_xl @space_s @space_m;border-radius:@radius_s;}
+QLineEdit:focus {border:@border.focus solid @focus_input;}
+QLineEdit#search {border-radius:18px;padding:0 @spacing.medium 0 34px;min-height:36px;background:@well;}
+QMenu {background:@menu;color:@text;border:@border.width solid @line_strong;border-radius:@rounding.medium;padding:@spacing.extraSmall;}
+QMenu::item {padding:@spacing.small @spacing.extraLarge @spacing.small @spacing.medium;border-radius:@rounding.small;}
 QMenu::item:selected {background:@menu_selected;}
 QMenu::item:disabled {color:@disabled;}
-QMenu::separator {height:1px;background:@divider;margin:@space_xs @space_s;}
-QToolTip {background:@tooltip;color:@on_tooltip;border:@border solid @tooltip_line;padding:@space_xs @space_s;}
+QMenu::separator {height:1px;background:@divider;margin:@spacing.extraSmall @spacing.small;}
+QToolTip {background:@tooltip;color:@on_tooltip;border:@border.width solid @tooltip_line;padding:@spacing.extraSmall @spacing.small;}
 QLabel {background:transparent;}
-QLabel#heading {font-size:@font_title;font-weight:700;}
-QLabel#subheading {font-size:@font_heading;font-weight:600;}
-QLabel#muted {color:@muted;font-size:@font_small;}
-QComboBox {min-width:220px;background:@well;border:@border solid @line;border-radius:@radius_control;padding:@space_s @space_m;min-height:24px;}
+QLabel#heading {font-size:@font.title.large.size;font-weight:700;}
+QLabel#subheading {font-size:@font.title.medium.size;font-weight:600;}
+QLabel#muted {color:@muted;font-size:@font.body.small.size;}
+QComboBox {min-width:220px;background:@well;border:@border.width solid @line;border-radius:@rounding.medium;padding:@spacing.small @spacing.medium;min-height:24px;}
 QComboBox::drop-down {border:0;width:24px;}
-QComboBox QAbstractItemView {background:@menu;border:@border solid @line_strong;border-radius:@radius_m;selection-background-color:@menu_selected;outline:0;}
-QSpinBox {background:@well;border:@border solid @line;border-radius:@radius_control;padding:@space_s @space_m;min-height:24px;}
-QSpinBox:focus, QComboBox:focus {border:@focus_width solid @focus_input;}
+QComboBox QAbstractItemView {background:@menu;border:@border.width solid @line_strong;border-radius:@rounding.medium;selection-background-color:@menu_selected;outline:0;}
+QSpinBox {background:@well;border:@border.width solid @line;border-radius:@rounding.medium;padding:@spacing.small @spacing.medium;min-height:24px;}
+QSpinBox:focus, QComboBox:focus {border:@border.focus solid @focus_input;}
 '''
 
 
 def apply_style(widget):
-    """Themed QSS for colours/shapes plus the Rubik body font, inherited by children."""
+    """Themed QSS for colours/shapes plus the theme's body font, inherited by children."""
     load_fonts()
     widget.setProperty(TEMPLATE, STYLE)
     widget.setStyleSheet(qss(STYLE))
-    widget.setFont(text_font('body'))
+    widget.setFont(text_font('body.medium'))

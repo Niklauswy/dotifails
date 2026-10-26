@@ -5,7 +5,7 @@ sit underneath on the page. Artists wear an M3 cookie that turns a little on
 hover; posters grow a caption block in their artwork's own colour.
 """
 from PySide6.QtCore import QRect, QRectF, QSize, Qt, Signal
-from PySide6.QtGui import QColor, QPainter, QPainterPath
+from PySide6.QtGui import QColor, QFontMetrics, QPainter, QPainterPath
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QSizePolicy, QVBoxLayout, QWidget
 
 from wysun_core.qt_theme import color, tokens
@@ -133,13 +133,13 @@ class Tile(QWidget):
 
     def draw_captions(self, painter, top, left, width, centered=False):
         align = (Qt.AlignHCenter if centered else Qt.AlignLeft) | Qt.AlignVCenter
-        painter.setFont(text_font('body', 600))
+        painter.setFont(text_font('body.medium', 600))
         metrics = painter.fontMetrics()
         painter.setPen(color('text'))
         painter.drawText(QRect(left, top, width, metrics.height()), align,
                          metrics.elidedText(self.title, Qt.ElideRight, width))
         if self.subtitle:
-            painter.setFont(text_font('small'))
+            painter.setFont(text_font('body.small'))
             small = painter.fontMetrics()
             painter.setPen(color('muted'))
             painter.drawText(QRect(left, top + metrics.height() + 1, width, small.height()), align,
@@ -171,7 +171,7 @@ class Card(Tile):
     def paintEvent(self, _event):
         painter = QPainter(self)
         painter.setRenderHints(QPainter.Antialiasing | QPainter.SmoothPixmapTransform)
-        radius = tokens()['radius_m']
+        radius = tokens()['rounding.medium']
         cover = self.cover_rect()
         if self.round_cover:
             self.draw_cookie(painter, cover, 9, 22 * self.layer.amount)
@@ -186,7 +186,7 @@ class Card(Tile):
                 painter.setBrush(color('scrim', round(40 * self.layer.amount)))
                 painter.drawRoundedRect(QRectF(cover), radius, radius)
         self.draw_play(painter, self.play_rect())
-        self.draw_captions(painter, cover.bottom() + metric('space_s'), 2, self.width() - 4, centered=self.round_cover)
+        self.draw_captions(painter, cover.bottom() + metric('spacing.small'), 2, self.width() - 4, centered=self.round_cover)
         self.paint_focus(painter, cover, radius)
 
 
@@ -203,7 +203,7 @@ class PosterCard(Tile):
     def paintEvent(self, _event):
         painter = QPainter(self)
         painter.setRenderHints(QPainter.Antialiasing | QPainter.SmoothPixmapTransform)
-        radius = tokens()['radius_m']
+        radius = tokens()['rounding.medium']
         rect = QRectF(self.rect())
         shape = QPainterPath()
         shape.addRoundedRect(rect, radius, radius)
@@ -218,15 +218,15 @@ class PosterCard(Tile):
         if self.layer.amount:
             painter.fillRect(rect, color('tint', round(14 * self.layer.amount)))
         painter.restore()
-        pad = metric('space_m')
-        top = side + metric('space_s')
+        pad = metric('spacing.medium')
+        top = side + metric('spacing.small')
         width = self.width() - 2 * pad - 44
-        painter.setFont(text_font('body', 700))
+        painter.setFont(text_font('body.medium', 700))
         metrics = painter.fontMetrics()
         painter.setPen(color('on_hud'))
         painter.drawText(QRect(pad, top, width, metrics.height()), Qt.AlignLeft | Qt.AlignVCenter,
                          metrics.elidedText(self.title, Qt.ElideRight, width))
-        painter.setFont(text_font('small', 500))
+        painter.setFont(text_font('body.small', 500))
         painter.setPen(color('on_hud', 190))
         painter.drawText(QRect(pad, top + metrics.height() + 2, self.width() - 2 * pad, self.height() - top - metrics.height()),
                          Qt.AlignLeft | Qt.AlignTop | Qt.TextWordWrap, self.subtitle)
@@ -246,23 +246,72 @@ class BentoTile(Tile):
         self.style, self.symbol, self.eyebrow = style, symbol, eyebrow
         self.setMinimumHeight(180)
 
+    @staticmethod
+    def _eyebrow_font():
+        font = text_font('label.small', 700)
+        font.setLetterSpacing(font.SpacingType.AbsoluteSpacing, 1.1)
+        return font
+
+    @staticmethod
+    def _title_font():
+        return text_font('title.large', 800, 1.05)
+
+    @staticmethod
+    def _subtitle_font():
+        return text_font('body.medium', 500)
+
+    def badge_rect(self):
+        """The corner cookie of the accent and tonal tiles (empty for ``resume``)."""
+        if self.style == 'resume':
+            return QRectF()
+        pad = metric('spacing.large')
+        side = min(self.height() * .62, self.width() * .42)
+        return QRectF(self.width() - side - pad * .6, self.height() - side - pad * .6, side, side)
+
+    def text_rects(self):
+        """Eyebrow, title (up to two lines) and subtitle boxes, sized from the fonts they are painted in.
+
+        The subtitle stops before the badge or the play button, so text never runs under them.
+        """
+        pad = metric('spacing.large')
+        gap = metric('spacing.extraSmall')
+        # The resume tile's square cover fills its height (see paintEvent).
+        text_left = (pad + (self.height() - 2 * pad) - 1) + pad if self.style == 'resume' else pad
+        width = self.width() - text_left - pad
+        y = pad
+        eyebrow = QRect(text_left, y, width, 0)
+        if self.eyebrow:
+            eyebrow.setHeight(QFontMetrics(self._eyebrow_font()).height())
+            y = eyebrow.bottom() + 1 + gap
+        title = QFontMetrics(self._title_font())
+        reserve = self.play_rect().width() + pad if self.style == 'resume' else 0
+        title_rect = QRect(text_left, y, width - reserve, title.height() * 2 + gap)
+        bounds = title.boundingRect(title_rect, Qt.AlignLeft | Qt.TextWordWrap, self.title)
+        top = min(bounds.bottom(), title_rect.bottom()) + gap
+        height = QFontMetrics(self._subtitle_font()).height()
+        obstacle = self.badge_rect() if self.style != 'resume' else QRectF(self.play_rect())
+        right = text_left + width
+        if obstacle.isValid() and top + height > obstacle.top():
+            right = min(right, int(obstacle.left()) - gap)
+        return eyebrow, title_rect, QRect(text_left, top, max(0, right - text_left), height)
+
     def play_rect(self):
         if self.style != 'resume':
             return QRect()
         side = 52
-        pad = metric('space_l')
+        pad = metric('spacing.large')
         return QRect(self.width() - side - pad, self.height() - side - pad, side, side)
 
     def paintEvent(self, _event):
         painter = QPainter(self)
         painter.setRenderHints(QPainter.Antialiasing | QPainter.SmoothPixmapTransform)
-        radius = tokens()['radius_l']
+        radius = tokens()['rounding.largeIncreased']
         rect = QRectF(self.rect())
         shape = QPainterPath()
         shape.addRoundedRect(rect, radius, radius)
         painter.save()
         painter.setClipPath(shape)
-        pad = metric('space_l')
+        pad = metric('spacing.large')
         if self.style == 'resume':
             ink, soft = 'text_strong', 'text'
             painter.fillRect(rect, color('surface_raised'))
@@ -277,9 +326,8 @@ class BentoTile(Tile):
             painter.restore()
             painter.setPen(Qt.NoPen)
             painter.setBrush(color('shadow'))
-            painter.drawRoundedRect(QRectF(cover).translated(0, 4), tokens()['radius_m'], tokens()['radius_m'])
-            self.draw_cover(painter, cover, tokens()['radius_m'])
-            text_left = cover.right() + pad
+            painter.drawRoundedRect(QRectF(cover).translated(0, 4), tokens()['rounding.medium'], tokens()['rounding.medium'])
+            self.draw_cover(painter, cover, tokens()['rounding.medium'])
             painter.save()
         else:
             accent = self.style == 'accent'
@@ -287,34 +335,25 @@ class BentoTile(Tile):
             painter.fillRect(rect, color('accent' if accent else 'nav_selected'))
             painter.fillRect(rect, color('tint', round(10 * self.layer.amount)))
             # A cookie badge in the corner, turning a little with the hover.
-            side = min(self.height() * .62, self.width() * .42)
-            badge = QRectF(self.width() - side - pad * .6, self.height() - side - pad * .6, side, side)
+            badge = self.badge_rect()
+            side = badge.width()
             painter.setPen(Qt.NoPen)
             painter.setBrush(color('on_accent' if accent else 'accent', 40 if accent else 52))
             painter.drawPath(cookie(badge, 12 if accent else 7, 20 * self.layer.amount))
             paint_symbol(painter, badge, self.symbol, ink, side * .42, filled=True)
-            text_left = pad
         painter.restore()
-        width = self.width() - text_left - pad
-        y = pad
+        eyebrow_rect, title_rect, sub_rect = self.text_rects()
         if self.eyebrow:
-            font = text_font('caption', 700)
-            font.setLetterSpacing(font.SpacingType.AbsoluteSpacing, 1.1)
-            painter.setFont(font)
+            painter.setFont(self._eyebrow_font())
             painter.setPen(color(soft))
-            painter.drawText(QRect(text_left, y, width, 18), Qt.AlignLeft | Qt.AlignVCenter, self.eyebrow.upper())
-            y += 22
-        painter.setFont(text_font('title', 800, 1.05))
-        metrics = painter.fontMetrics()
+            painter.drawText(eyebrow_rect, Qt.AlignLeft | Qt.AlignVCenter, self.eyebrow.upper())
+        painter.setFont(self._title_font())
         painter.setPen(color(ink))
-        title_rect = QRect(text_left, y, width - (60 if self.style == 'resume' else 0), metrics.height() * 2 + 4)
         painter.drawText(title_rect, Qt.AlignLeft | Qt.AlignTop | Qt.TextWordWrap, self.title)
-        bounds = metrics.boundingRect(title_rect, Qt.AlignLeft | Qt.TextWordWrap, self.title)
-        painter.setFont(text_font('body', 500))
+        painter.setFont(self._subtitle_font())
         painter.setPen(color(soft))
-        sub = painter.fontMetrics()
-        painter.drawText(QRect(text_left, min(bounds.bottom(), title_rect.bottom()) + 4, width - 64, sub.height()),
-                         Qt.AlignLeft | Qt.AlignVCenter, sub.elidedText(self.subtitle, Qt.ElideRight, width - 64))
+        painter.drawText(sub_rect, Qt.AlignLeft | Qt.AlignVCenter,
+                         painter.fontMetrics().elidedText(self.subtitle, Qt.ElideRight, sub_rect.width()))
         if self.style == 'resume':
             # Always visible on the hero, not only on hover.
             button = QRectF(self.play_rect())
@@ -347,7 +386,7 @@ class ChartRow(Tile):
     def paintEvent(self, _event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
-        radius = tokens()['radius_s']
+        radius = tokens()['rounding.small']
         if self.layer.amount:
             painter.setPen(Qt.NoPen)
             painter.setBrush(color('row_hover'))
@@ -362,18 +401,18 @@ class ChartRow(Tile):
             painter.setBrush(color('scrim', 120))
             painter.drawRoundedRect(QRectF(cover), min(8, radius), min(8, radius))
             paint_symbol(painter, cover, 'pause' if self.playing else 'play_arrow', 'on_hud', 24, filled=True)
-        rank = QRect(cover.right() + metric('space_s'), 0, 34, self.height())
-        painter.setFont(text_font('title', 800, .95))
+        rank = QRect(cover.right() + metric('spacing.small'), 0, 34, self.height())
+        painter.setFont(text_font('title.large', 800, .95))
         painter.setPen(color('accent'))
         painter.drawText(rank, Qt.AlignCenter, str(self.rank))
-        left = rank.right() + metric('space_s')
-        width = self.width() - left - metric('space_s')
-        painter.setFont(text_font('body', 600))
+        left = rank.right() + metric('spacing.small')
+        width = self.width() - left - metric('spacing.small')
+        painter.setFont(text_font('body.medium', 600))
         metrics = painter.fontMetrics()
         painter.setPen(color('text'))
         painter.drawText(QRect(left, self.height() // 2 - metrics.height(), width, metrics.height()),
                          Qt.AlignLeft | Qt.AlignVCenter, metrics.elidedText(self.title, Qt.ElideRight, width))
-        painter.setFont(text_font('small'))
+        painter.setFont(text_font('body.small'))
         small = painter.fontMetrics()
         painter.setPen(color('muted'))
         painter.drawText(QRect(left, self.height() // 2 + 1, width, small.height()), Qt.AlignLeft | Qt.AlignVCenter,
@@ -391,12 +430,12 @@ class QuickTile(Tile):
 
     def play_rect(self):
         side = 36
-        return QRect(self.width() - side - metric('space_m'), (self.height() - side) // 2, side, side)
+        return QRect(self.width() - side - metric('spacing.medium'), (self.height() - side) // 2, side, side)
 
     def paintEvent(self, _event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
-        radius = tokens()['radius_s']
+        radius = tokens()['rounding.small']
         rect = QRectF(self.rect())
         painter.setPen(Qt.NoPen)
         painter.setBrush(color('tint', round(10 + 12 * self.layer.amount)))
@@ -408,11 +447,11 @@ class QuickTile(Tile):
         painter.setClipPath(clip)
         self.draw_cover(painter, QRect(0, 0, side, side), 0)
         painter.restore()
-        painter.setFont(text_font('body', 600))
+        painter.setFont(text_font('body.medium', 600))
         play = self.play_rect()
-        width = (play.left() if self.layer.amount or self.playing else self.width()) - side - 2 * metric('space_m')
+        width = (play.left() if self.layer.amount or self.playing else self.width()) - side - 2 * metric('spacing.medium')
         painter.setPen(color('text'))
-        painter.drawText(QRect(side + metric('space_m'), 0, width, self.height()), Qt.AlignLeft | Qt.AlignVCenter,
+        painter.drawText(QRect(side + metric('spacing.medium'), 0, width, self.height()), Qt.AlignLeft | Qt.AlignVCenter,
                          painter.fontMetrics().elidedText(self.title, Qt.ElideRight, width))
         self.draw_play(painter, play)
         self.paint_focus(painter, self.rect(), radius)
@@ -440,7 +479,7 @@ class FlowRow(QWidget):
         self._layout()
 
     def _gap(self):
-        return self.gap if self.gap is not None else metric('space_l')
+        return self.gap if self.gap is not None else metric('spacing.large')
 
     def _columns(self):
         gap = self._gap()
@@ -452,7 +491,7 @@ class FlowRow(QWidget):
         width = (self.width() - gap * (columns - 1)) / columns
         height = self.item_height or round(width) + self.extra_height
         capacity = columns * self.rows if self.rows else len(self.items)
-        row_gap = gap if self.item_height is None or self.item_height > 100 else metric('space_xs')
+        row_gap = gap if self.item_height is None or self.item_height > 100 else metric('spacing.extraSmall')
         for index, widget in enumerate(self.items):
             if index >= capacity:
                 widget.hide()
@@ -479,19 +518,19 @@ class Shelf(QWidget):
         super().__init__(parent)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(metric('space_m'))
+        layout.setSpacing(metric('spacing.medium'))
         header = QHBoxLayout()
         titles = QVBoxLayout()
         titles.setSpacing(0)
         self.title = QLabel(title)
-        self.title.setFont(text_font('heading', 750, 1.3))
+        self.title.setFont(text_font('title.medium', 750, 1.3))
         titles.addWidget(self.title)
         self.caption = QLabel(subtitle)
         self.caption.setObjectName('muted')
         self.caption.setVisible(bool(subtitle))
         titles.addWidget(self.caption)
         header.addLayout(titles, 1)
-        self.more = LinkLabel('Ver todo', 'small', 600, 'muted')
+        self.more = LinkLabel('Ver todo', 'body.small', 600, 'muted')
         self.more.setFixedWidth(self.more.fontMetrics().horizontalAdvance('Ver todo') + 4)
         self.more.activated.connect(self.show_all.emit)
         self.more.hide()
@@ -506,4 +545,4 @@ class Shelf(QWidget):
         self.setVisible(bool(widgets))
 
     def refresh_fonts(self):
-        self.title.setFont(text_font('heading', 750, 1.3))
+        self.title.setFont(text_font('title.medium', 750, 1.3))

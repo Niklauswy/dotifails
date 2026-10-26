@@ -137,14 +137,14 @@ class InstallerWindow(FramelessResize, QWidget):
     # ------------------------------------------------------------------ frame
     def build_frame(self):
         outer = QVBoxLayout(self)
-        gap = metric('space_s')
+        gap = metric('spacing.small')
         outer.setContentsMargins(gap, gap, gap, gap)
         outer.setSpacing(gap)
         top = QHBoxLayout()
-        top.setContentsMargins(metric('space_xs'), metric('space_xs'), metric('space_xs'), 0)
-        side = metric('space_xl') * 6
+        top.setContentsMargins(metric('spacing.extraSmall'), metric('spacing.extraSmall'), metric('spacing.extraSmall'), 0)
+        side = metric('spacing.extraLarge') * 6
         left = QHBoxLayout()
-        left.setSpacing(metric('space_s'))
+        left.setSpacing(metric('spacing.small'))
         self.close_button = IconButton('close', 'Cerrar · Ctrl+Q', self.close, size=34)
         left.addWidget(self.close_button)
         self.mode_label = label('Vista previa' if self.preview else 'Mantenimiento' if self.updating else 'Instalador', 'eyebrow', False)
@@ -180,12 +180,12 @@ class InstallerWindow(FramelessResize, QWidget):
         inner.addWidget(self.stack)
         outer.addWidget(self.panel, 1)
         self.bar = Panel()
-        self.bar.setFixedHeight(metric('space_xl') * 3 + metric('space_s'))
+        self.bar.setFixedHeight(metric('spacing.extraLarge') * 3 + metric('spacing.small'))
         row = QHBoxLayout(self.bar)
-        pad = metric('space_l')
+        pad = metric('spacing.large')
         row.setContentsMargins(pad, 0, pad, 0)
-        row.setSpacing(metric('space_m'))
-        self.bar_mark = StatusMark(metric('space_xl'))
+        row.setSpacing(metric('spacing.medium'))
+        self.bar_mark = StatusMark(metric('spacing.extraLarge'))
         row.addWidget(self.bar_mark)
         text = QVBoxLayout()
         text.setSpacing(0)
@@ -217,9 +217,9 @@ class InstallerWindow(FramelessResize, QWidget):
         content = QWidget()
         content.setObjectName('scrollBody')
         layout = QVBoxLayout(content)
-        pad = metric('space_xl') + metric('space_s')
+        pad = metric('spacing.extraLarge') + metric('spacing.small')
         layout.setContentsMargins(pad, pad, pad, pad)
-        layout.setSpacing(metric('space_l'))
+        layout.setSpacing(metric('spacing.large'))
         layout.setAlignment(Qt.AlignTop)
         scroll.setWidget(content)
         self.stack.add(scroll)
@@ -242,25 +242,25 @@ class InstallerWindow(FramelessResize, QWidget):
             self.installed_card = InstalledCard(self.source, 'Wysun está en este equipo', subtitle + '.\nActualiza las aplicaciones y el shell sin tocar paquetes ni tus datos.')
             self.installed_card.clicked.connect(self.confirm_update)
             layout.addWidget(self.installed_card)
-            grid = FlowGrid(metric('space_xl') * 10, maximum_columns=2)
+            grid = FlowGrid(metric('spacing.extraLarge') * 10, maximum_columns=2)
             cards = (('tune', 'Instalación', 'Modificar', 'Añade o quita piezas o actualiza el sistema.', True, self.modify),
                      ('monitoring', 'Comprobar', 'Diagnóstico', 'Revisa dependencias, sesión y archivos instalados.', False, self.run_doctor),
                      ('history', 'Respaldos', 'Recuperación', 'Vuelve a una configuración anterior de Wysun o del arranque.', False, self.show_recovery),
                      ('visibility', 'Vista previa', 'Instalación nueva', 'Recorre la instalación completa sin cambiar nada.', False, self.open_preview))
             for symbol, eyebrow, title, subtitle, accent, callback in cards:
                 card = ActionCard(symbol, eyebrow, title, subtitle, accent)
-                card.setFixedHeight(metric('space_xl') * 7)
+                card.setFixedHeight(metric('spacing.extraLarge') * 7)
                 card.clicked.connect(callback)
                 grid.add(card)
             layout.addWidget(grid)
             return
         self.hero = Hero(self.source)
         layout.addWidget(self.hero, 1)
-        layout.addSpacing(metric('space_s'))
+        layout.addSpacing(metric('spacing.small'))
         row = QHBoxLayout()
-        row.setSpacing(metric('space_xl') + metric('space_s'))
+        row.setSpacing(metric('spacing.extraLarge') + metric('spacing.small'))
         text = QVBoxLayout()
-        text.setSpacing(metric('space_s'))
+        text.setSpacing(metric('spacing.small'))
         text.addWidget(label('Para Debian 13 y Parrot 7', 'eyebrow'))
         text.addWidget(label('Un escritorio completo sobre tu sistema.', 'hero'))
         text.addWidget(label('Hyprland, el shell de Wysun y sus aplicaciones, configurados como en el proyecto. '
@@ -268,13 +268,13 @@ class InstallerWindow(FramelessResize, QWidget):
         text.addStretch()
         row.addLayout(text, 5)
         points = QVBoxLayout()
-        points.setSpacing(metric('space_m'))
+        points.setSpacing(metric('spacing.medium'))
         for symbol, title, detail in (('desktop_windows', 'Escritorio', 'Sesión Wysun / Hyprland con barra, lanzador y Settings.'),
                                       ('library_music', 'Aplicaciones', 'Music, Files, Recorder, capturas con OCR y bloqueo.'),
                                       ('power_settings_new', 'Arranque', 'GRUB, carga y acceso como terminal de refinamiento.')):
             item = QHBoxLayout()
-            item.setSpacing(metric('space_m'))
-            mark = StatusMark(metric('space_xl') + metric('space_xs'))
+            item.setSpacing(metric('spacing.medium'))
+            mark = StatusMark(metric('spacing.extraLarge') + metric('spacing.extraSmall'))
             mark.set_level('info', symbol)
             item.addWidget(mark, 0, Qt.AlignTop)
             words = QVBoxLayout()
@@ -295,7 +295,7 @@ class InstallerWindow(FramelessResize, QWidget):
         self.scan.set_system((self.fields.get('ID') or '?')[:1].upper(), journey.system_name(self.fields), detail)
         layout.addWidget(self.scan)
         self.problems = QVBoxLayout()
-        self.problems.setSpacing(metric('space_s'))
+        self.problems.setSpacing(metric('spacing.small'))
         layout.addLayout(self.problems)
         row = QHBoxLayout()
         row.addStretch()
@@ -314,10 +314,10 @@ class InstallerWindow(FramelessResize, QWidget):
     def build_content(self):
         layout = self.scroll_page()
         layout.addWidget(CoreCard())
-        layout.addSpacing(metric('space_xs'))
+        layout.addSpacing(metric('spacing.extraSmall'))
         layout.addWidget(label('Añade si quieres', 'eyebrow'))
         row = QHBoxLayout()
-        row.setSpacing(metric('space_m'))
+        row.setSpacing(metric('spacing.medium'))
         self.addon_tiles = {}
         for key, (symbol, title, detail, sides) in journey.ADDONS.items():
             tile = AddonTile(symbol, title, detail, sides)
@@ -326,10 +326,10 @@ class InstallerWindow(FramelessResize, QWidget):
             self.addon_tiles[key] = tile
             row.addWidget(tile, 1)
         layout.addLayout(row)
-        layout.addSpacing(metric('space_xs'))
+        layout.addSpacing(metric('spacing.extraSmall'))
         layout.addWidget(label('Aplicaciones · Flatpak', 'eyebrow'))
         apps = QHBoxLayout()
-        apps.setSpacing(metric('space_l'))
+        apps.setSpacing(metric('spacing.large'))
         self.app_bubbles = {}
         for key, (title, detail, symbol) in journey.EXTRAS.items():
             bubble = AppBubble(symbol, title, detail)
@@ -350,7 +350,7 @@ class InstallerWindow(FramelessResize, QWidget):
             item.setAlignment(Qt.AlignHCenter)
             layout.addWidget(item)
         self.result_box = QVBoxLayout()
-        self.result_box.setSpacing(metric('space_m'))
+        self.result_box.setSpacing(metric('spacing.medium'))
         layout.addLayout(self.result_box)
         logs = QHBoxLayout()
         logs.addStretch()
@@ -361,7 +361,7 @@ class InstallerWindow(FramelessResize, QWidget):
         logs.addStretch()
         layout.addLayout(logs)
         self.logs = LogView()
-        self.logs.setMinimumHeight(metric('space_xl') * 9)
+        self.logs.setMinimumHeight(metric('spacing.extraLarge') * 9)
         self.logs.hide()
         layout.addWidget(self.logs)
         self.run_location = label('', 'small')
@@ -596,7 +596,7 @@ class InstallerWindow(FramelessResize, QWidget):
         self.update_bar()
 
     def show_details(self):
-        sheet = Sheet(self, 'Antes de instalar', metric('space_xl') * 26)
+        sheet = Sheet(self, 'Antes de instalar', metric('spacing.extraLarge') * 26)
         for check in self.checks:
             if check['level'] != 'ok':
                 sheet.body.addWidget(CheckRow(check))
@@ -608,7 +608,7 @@ class InstallerWindow(FramelessResize, QWidget):
             view.setAccessibleName('Detalles técnicos')
             view.setPlainText(shlex.join(['/usr/bin/python3', str(self.source / 'installer/main.py'), *plan['command']]) +
                               f'\n\nPaquetes APT ({len(plan["packages"])}):\n' + (' '.join(plan['packages']) or '—'))
-            view.setMinimumHeight(metric('space_xl') * 7)
+            view.setMinimumHeight(metric('spacing.extraLarge') * 7)
             sheet.body.addWidget(view)
         sheet.body.addWidget(label('Origen: ' + str(self.source), 'small'))
         row = self.sheet_buttons(sheet, ('Cerrar', sheet.close_sheet, 'primary'))
@@ -789,7 +789,7 @@ class InstallerWindow(FramelessResize, QWidget):
                 detail='Revisa las versiones nuevas en ' + str(backup / 'incoming') + ':\n' + '\n'.join(result['conflicts'][:12]))))
         plan = self.last_plan or {}
         actions = QHBoxLayout()
-        actions.setSpacing(metric('space_s'))
+        actions.setSpacing(metric('spacing.small'))
         actions.addStretch()
         shortcuts = None
         if state == 'complete' and kind == 'install' and 'wayland' in plan.get('components', []):
@@ -800,7 +800,7 @@ class InstallerWindow(FramelessResize, QWidget):
             note.setAlignment(Qt.AlignHCenter)
             self.result_box.addWidget(note)
             actions.addWidget(Button('Reiniciar ahora…', self.reboot, 'primary', symbol='restart_alt'))
-            shortcuts = FlowGrid(metric('space_xl') * 9, maximum_columns=3)
+            shortcuts = FlowGrid(metric('spacing.extraLarge') * 9, maximum_columns=3)
             for keys, action in journey.SHORTCUTS:
                 shortcuts.add(ShortcutRow(keys, action))
         if state in ('failed', 'cancelled', 'conflicts') or kind == 'doctor':
@@ -811,7 +811,7 @@ class InstallerWindow(FramelessResize, QWidget):
         actions.addStretch()
         self.result_box.addLayout(actions)
         if shortcuts is not None:
-            self.result_box.addSpacing(metric('space_s'))
+            self.result_box.addSpacing(metric('spacing.small'))
             heading = label('Tus primeros atajos', 'eyebrow')
             heading.setAlignment(Qt.AlignHCenter)
             self.result_box.addWidget(heading)
@@ -870,12 +870,12 @@ class InstallerWindow(FramelessResize, QWidget):
     @staticmethod
     def sheet_buttons(sheet, *buttons):
         row = QHBoxLayout()
-        row.setSpacing(metric('space_s'))
+        row.setSpacing(metric('spacing.small'))
         row.addStretch()
         for text, callback, role in buttons:
             symbol = {'Restaurar': 'history', 'Reiniciar': 'restart_alt'}.get(text, 'check' if role == 'primary' else 'close')
             row.addWidget(Button(text, callback, role, symbol=symbol))
-        sheet.body.addSpacing(metric('space_xs'))
+        sheet.body.addSpacing(metric('spacing.extraSmall'))
         sheet.body.addLayout(row)
         return row
 
@@ -886,7 +886,7 @@ class InstallerWindow(FramelessResize, QWidget):
         return sheet.open()
 
     def show_help(self):
-        sheet = Sheet(self, 'Atajos', metric('space_xl') * 22)
+        sheet = Sheet(self, 'Atajos', metric('spacing.extraLarge') * 22)
         sheet.body.addWidget(label('En este instalador', 'eyebrow'))
         for keys, action in ((('Alt', '→'), 'Continuar'), (('Alt', '←'), 'Volver'), (('Ctrl', 'Enter'), 'Acción principal'),
                              (('Ctrl', 'L'), 'Mostrar u ocultar el registro'), (('Tab',), 'Recorrer los controles'),
@@ -901,13 +901,13 @@ class InstallerWindow(FramelessResize, QWidget):
     def show_recovery(self):
         if self.runner.running:
             return
-        sheet = Sheet(self, 'Recuperación', metric('space_xl') * 24)
+        sheet = Sheet(self, 'Recuperación', metric('spacing.extraLarge') * 24)
         sheet.body.addWidget(label('Devuelve los archivos que cambió una operación. Las ediciones posteriores se guardan '
                                    'aparte; los paquetes y las actualizaciones del sistema permanecen.', 'body'))
         items = [] if self.preview else backups(self.home)
         listing = QListWidget()
         listing.setAccessibleName('Respaldos de configuraciones')
-        listing.setMinimumHeight(metric('space_xl') * 7)
+        listing.setMinimumHeight(metric('spacing.extraLarge') * 7)
         for item in items:
             stamp = time.strftime('%d/%m/%Y %H:%M', time.localtime(item['created_at']))
             status = {'complete': 'completa', 'restored': 'ya recuperada', 'cancelled': 'detenida',
@@ -922,7 +922,7 @@ class InstallerWindow(FramelessResize, QWidget):
                                        'Todavía no hay respaldos. Aparecerán aquí después de instalar o actualizar.', 'small'))
         latest = next((i for i, item in enumerate(items) if item['status'] != 'restored'), None)
         row = QHBoxLayout()
-        row.setSpacing(metric('space_s'))
+        row.setSpacing(metric('spacing.small'))
         if not self.preview:
             def boot():
                 from boot_recovery import BootRecoveryDialog
@@ -944,7 +944,7 @@ class InstallerWindow(FramelessResize, QWidget):
             self.start_operation('restore', '/usr/bin/python3', [str(Path(__file__).with_name('main.py')), 'restore', item['id'],
                                                                  '--target-home', str(self.home)])
         restore.clicked.connect(apply)
-        sheet.body.addSpacing(metric('space_xs'))
+        sheet.body.addSpacing(metric('spacing.extraSmall'))
         sheet.body.addLayout(row)
         if latest is not None:
             listing.setCurrentRow(latest)
@@ -1003,7 +1003,7 @@ def launch(source=None, home=None, preview=False):
     watch_theme()                      # follows the desktop's mode and wallpaper; it never writes
     app.setFont(text_font())
     geometry = app.primaryScreen().availableGeometry()
-    window.resize(min(1180, geometry.width() - metric('space_xl') * 2), min(800, geometry.height() - metric('space_xl') * 2))
+    window.resize(min(1180, geometry.width() - metric('spacing.extraLarge') * 2), min(800, geometry.height() - metric('spacing.extraLarge') * 2))
     window.show()
     return app.exec()
 

@@ -8,10 +8,12 @@ from . import motion, tokens
 from wysun_core.ui.fonts import load_fonts
 
 
-def _font(role, weight=400):
+def _font(role, weight=None):
+    """A role of the shell's type scale (``'body.medium'``) in the Recorder's family."""
+    values = tokens.tokens()
     font = QFont(tokens.family())
-    font.setPixelSize(int(tokens.tokens()['font_' + role]))
-    font.setWeight(QFont.Weight(int(weight)))
+    font.setPointSizeF(values[f'font.{role}.size'])
+    font.setWeight(QFont.Weight(int(values[f'font.{role}.weight'] if weight is None else weight)))
     return font
 
 

@@ -28,9 +28,11 @@ class ShapeTests(unittest.TestCase):
     def test_every_variant_defines_the_whole_scale(self):
         for pair in VARIANTS:
             values = theme.resolve(pair)
-            for step in shape.CORNERS:
-                self.assertIn('corner_' + step, values, (pair, step))
-            scale = [values['corner_' + step] for step in shape.CORNERS]
+            self.assertEqual(shape.CORNERS, ('none', 'extraSmall', 'small', 'medium', 'large', 'extraLarge', 'full'))
+            for step in shape.CORNERS[1:]:
+                self.assertIn('rounding.' + step, values, (pair, step))
+            with_tokens(values)
+            scale = [shape.radius(step) for step in shape.CORNERS]
             self.assertEqual(scale, sorted(scale), f'{pair}: the scale must grow')
             self.assertEqual(scale[0], 0)
 
@@ -38,8 +40,8 @@ class ShapeTests(unittest.TestCase):
         with_tokens(theme.resolve(VARIANTS[0]))
         rect = QRectF(0, 0, 100, 40)
         self.assertEqual(shape.radius('full', rect), 20)
-        self.assertEqual(shape.radius('xl'), theme.resolve(VARIANTS[0])['corner_xl'])
-        self.assertEqual(shape.radius('l', QRectF(0, 0, 10, 10)), 5)
+        self.assertEqual(shape.radius('extraLarge'), theme.resolve(VARIANTS[0])['rounding.extraLarge'])
+        self.assertEqual(shape.radius('large', QRectF(0, 0, 10, 10)), 5)
 
     def test_rounded_paths(self):
         with_tokens(theme.resolve(VARIANTS[0]))
@@ -48,13 +50,13 @@ class ShapeTests(unittest.TestCase):
         self.assertFalse(pill.contains(QPointF(1, 1)))                 # rounded corner
         square = shape.rounded(QRectF(0, 0, 100, 40), 'none')
         self.assertTrue(square.contains(QPointF(1, 1)))
-        flat = shape.rounded(QRectF(0, 0, 100, 40), 'xl', top=False)
+        flat = shape.rounded(QRectF(0, 0, 100, 40), 'extraLarge', top=False)
         self.assertTrue(flat.contains(QPointF(1, 1)))                  # top edge square
         self.assertFalse(flat.contains(QPointF(1, 39)))                # bottom edge rounded
 
     def test_frame_outside_covers_only_the_slivers(self):
         with_tokens(theme.resolve(VARIANTS[0]))
-        slivers = shape.frame_outside(QRectF(0, 0, 100, 100), 'xl')
+        slivers = shape.frame_outside(QRectF(0, 0, 100, 100), 'extraLarge')
         self.assertTrue(slivers.contains(QPointF(1, 1)))
         self.assertFalse(slivers.contains(QPointF(50, 50)))
 

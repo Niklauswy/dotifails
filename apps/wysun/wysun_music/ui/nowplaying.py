@@ -84,15 +84,15 @@ class LyricsView(QWidget):
 
     # ---------------------------------------------------------------- layout
     def _font(self):
-        return text_font('title', 750, 1.15 if self.synced else .9)
+        return text_font('title.large', 750, 1.15 if self.synced else .9)
 
     def _layout(self):
         if self._width == self.width():
             return
         self._width = self.width()
         metrics = QFontMetrics(self._font())
-        width = self.width() - 2 * metric('space_l')
-        gap = metric('space_l') if self.synced else metric('space_s')
+        width = self.width() - 2 * metric('spacing.large')
+        gap = metric('spacing.large') if self.synced else metric('spacing.small')
         self._heights = [metrics.boundingRect(QRect(0, 0, width, 10000), Qt.TextWordWrap, text).height() + gap
                          for _, text in self.rows]
 
@@ -112,7 +112,7 @@ class LyricsView(QWidget):
         if reduced_motion(self.window()):
             self._scroll_to(target)
             return
-        self.animation.setDuration(metric('motion_enter') * 3)
+        self.animation.setDuration(metric('anim.durations.expressiveFastSpatial') * 3)
         self.animation.setStartValue(self.offset)
         self.animation.setEndValue(target)
         self.animation.start()
@@ -169,13 +169,13 @@ class LyricsView(QWidget):
         if not self.rows:
             centre = self.rect().center()
             paint_symbol(painter, QRect(centre.x() - 40, centre.y() - 96, 80, 80), 'lyrics', 'subtle', 56)
-            painter.setFont(text_font('heading', 600))
+            painter.setFont(text_font('title.medium', 600))
             painter.setPen(color('muted'))
             painter.drawText(self.rect().adjusted(24, 0, -24, 0), Qt.AlignCenter | Qt.TextWordWrap, self.message)
             return
         self._layout()
         painter.setFont(self._font())
-        pad = metric('space_l')
+        pad = metric('spacing.large')
         y = self.height() * .3 - self.offset
         for index, (_, text) in enumerate(self.rows):
             height = self._heights[index]
@@ -206,9 +206,9 @@ class QueueView(QWidget):
         self.library, self.player = actions.library, actions.player
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(metric('space_s'))
-        self.note = ElidedLabel('', 'small', 500, 'muted')
-        self.note.setContentsMargins(metric('space_s'), 0, 0, 0)
+        layout.setSpacing(metric('spacing.small'))
+        self.note = ElidedLabel('', 'body.small', 500, 'muted')
+        self.note.setContentsMargins(metric('spacing.small'), 0, 0, 0)
         self.note.hide()
         layout.addWidget(self.note)
         layout.addWidget(self._heading('Sonando ahora'))
@@ -218,7 +218,7 @@ class QueueView(QWidget):
         header = QHBoxLayout()
         self.upcoming_label = self._heading('A continuación')
         header.addWidget(self.upcoming_label, 1)
-        self.context = ElidedLabel('', 'small', 500, 'muted')
+        self.context = ElidedLabel('', 'body.small', 500, 'muted')
         self.context.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         header.addWidget(self.context, 1)
         layout.addLayout(header)
@@ -239,8 +239,8 @@ class QueueView(QWidget):
 
     def _heading(self, text):
         label = QLabel(text)
-        label.setFont(text_font('heading', 700))
-        label.setContentsMargins(metric('space_s'), metric('space_s'), 0, 0)
+        label.setFont(text_font('title.medium', 700))
+        label.setContentsMargins(metric('spacing.small'), metric('spacing.small'), 0, 0)
         return label
 
     def refresh(self):
@@ -292,9 +292,9 @@ class FullPlayer(QWidget):
         self.setAttribute(Qt.WA_StyledBackground, False)
 
         outer = QVBoxLayout(self)
-        pad = metric('space_xl')
-        outer.setContentsMargins(pad, metric('space_m'), pad, pad)
-        outer.setSpacing(metric('space_m'))
+        pad = metric('spacing.extraLarge')
+        outer.setContentsMargins(pad, metric('spacing.medium'), pad, pad)
+        outer.setSpacing(metric('spacing.medium'))
         top = QHBoxLayout()
         top.addWidget(IconButton('expand_more', 'Cerrar · Esc', self.closed.emit, 'tonal', 40))
         top.addStretch()
@@ -309,7 +309,7 @@ class FullPlayer(QWidget):
         outer.addLayout(top)
 
         body = QHBoxLayout()
-        body.setSpacing(metric('space_xl') * 2)
+        body.setSpacing(metric('spacing.extraLarge') * 2)
         self.body = QWidget()
         self.body.setLayout(body)
         self.body.setMaximumWidth(1440)
@@ -321,19 +321,19 @@ class FullPlayer(QWidget):
 
         # Left: the record.
         left = QVBoxLayout()
-        left.setSpacing(metric('space_s'))
+        left.setSpacing(metric('spacing.small'))
         left.addStretch(1)
         self.cover = CoverArt(self.covers, 320, shape='cookie')
         self.cover.turned.connect(self._breathe)
         left.addWidget(self.cover, 0, Qt.AlignHCenter)
-        left.addSpacing(metric('space_l'))
+        left.addSpacing(metric('spacing.large'))
         row = QHBoxLayout()
         titles = QVBoxLayout()
         titles.setSpacing(2)
-        self.title = ElidedLabel('', 'title', 800, 'text_strong', scale=1.05)
-        self.artist = LinkLabel('', 'heading', 500, 'accent')
+        self.title = ElidedLabel('', 'title.large', 800, 'text_strong', scale=1.05)
+        self.artist = LinkLabel('', 'title.medium', 500, 'accent')
         self.artist.activated.connect(self._open_artist)
-        self.album = ElidedLabel('', 'small', 400, 'muted')
+        self.album = ElidedLabel('', 'body.small', 400, 'muted')
         titles.addWidget(self.title)
         titles.addWidget(self.artist)
         titles.addWidget(self.album)
@@ -350,14 +350,14 @@ class FullPlayer(QWidget):
         self.total = TimeLabel(Qt.AlignRight)
         times.addWidget(self.elapsed)
         times.addStretch()
-        self.quality = ElidedLabel('', 'caption', 500, 'subtle')
+        self.quality = ElidedLabel('', 'label.small', 500, 'subtle')
         self.quality.setAlignment(Qt.AlignCenter)
         times.addWidget(self.quality, 1)
         times.addStretch()
         times.addWidget(self.total)
         left.addLayout(times)
         transport = QHBoxLayout()
-        transport.setSpacing(metric('space_m'))
+        transport.setSpacing(metric('spacing.medium'))
         transport.addStretch()
         player = self.player
         self.shuffle = IconButton('shuffle', 'Aleatorio', lambda: player.set_shuffle(not player.shuffle),
@@ -398,11 +398,11 @@ class FullPlayer(QWidget):
         lyrics_layout.setContentsMargins(0, 0, 0, 0)
         lyrics_layout.addWidget(self.lyrics, 1)
         offsets = QHBoxLayout()
-        offsets.setContentsMargins(metric('space_l'), 0, 0, 0)
-        self.lyric_source = ElidedLabel('', 'caption', 400, 'muted')
+        offsets.setContentsMargins(metric('spacing.large'), 0, 0, 0)
+        self.lyric_source = ElidedLabel('', 'label.small', 400, 'muted')
         offsets.addWidget(self.lyric_source, 1)
         offsets.addWidget(IconButton('remove', 'Adelantar la letra 0.5 s', lambda: self._offset(-.5), 'tonal', 28))
-        self.offset_label = ElidedLabel('0.0 s', 'caption', 600, 'muted')
+        self.offset_label = ElidedLabel('0.0 s', 'label.small', 600, 'muted')
         self.offset_label.setFixedWidth(52)
         self.offset_label.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Preferred)  # Ignored overlaps the buttons
         self.offset_label.setAlignment(Qt.AlignCenter)
@@ -522,7 +522,7 @@ class FullPlayer(QWidget):
         pixmap.fill(Qt.transparent)
         painter = QPainter(pixmap)
         painter.setRenderHint(QPainter.Antialiasing)
-        radius = tokens()['radius_l']
+        radius = tokens()['rounding.largeIncreased']
         clip = QPainterPath()
         clip.addRoundedRect(QRectF(self.rect()), radius, radius)
         painter.setClipPath(clip)
@@ -615,7 +615,7 @@ class FullPlayer(QWidget):
             self._entered()
             return
         self.entrance.stop()
-        self.entrance.setDuration(metric('motion_enter') * 2)
+        self.entrance.setDuration(metric('anim.durations.expressiveFastSpatial') * 2)
         self.entrance.setStartValue(1.0)
         self.entrance.setEndValue(0.0)
         self.entrance.start()

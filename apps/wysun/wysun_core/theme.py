@@ -4,7 +4,8 @@ Wysun has one style, Material You. Colours come from the wallpaper
 (<state>/wysun/scheme.json, written by ``wysun scheme``, which also resolves ``auto``
 to light or dark); the user only chooses the mode in <config>/orbit/theme.json as
 {"mode": "auto"|"light"|"dark"}. ``tokens.json`` holds the shape, type and motion
-tokens plus the base palette of each mode, used for every token the scheme does not
+tokens, under the shell's names (``rounding``, ``spacing``, ``padding``, ``font``, ``anim``),
+plus the base palette of each mode, used for every token the scheme does not
 define and while no scheme exists. ``WYSUN_THEME=light|dark`` forces a base palette
 (tests and screenshots).
 """
@@ -18,6 +19,7 @@ from . import paths
 from .jsonio import atomic_write_json, atomic_write_text
 
 DATA_PATH = Path(__file__).with_name('tokens.json')
+SHAPE_GROUPS = ('rounding', 'spacing', 'padding', 'font', 'anim', 'border', 'icon')
 MODES = ('auto', 'light', 'dark')
 DEFAULT_MODE = 'dark'           # what ``auto`` gives before the first scheme exists
 _data = None
@@ -194,17 +196,32 @@ def active_mode(home=None, environ=None):
     return mode if mode != 'auto' else DEFAULT_MODE
 
 
+def flatten(group, prefix):
+    """``{'body': {'medium': {'size': 14}}}`` under ``'font'`` → ``{'font.body.medium.size': 14}``.
+
+    The dotted names are the shell's paths (``Tokens.font.body.medium``); lists stay values.
+    """
+    flat = {}
+    for key, value in group.items():
+        name = prefix + '.' + key
+        if isinstance(value, dict):
+            flat.update(flatten(value, name))
+        else:
+            flat[name] = value
+    return flat
+
+
 def resolve(mode):
-    """Flat tokens of a base palette ('light' or 'dark'): shape, colours and metadata."""
+    """Flat tokens of a base palette ('light' or 'dark'): shape (dotted names), colours and metadata."""
     if mode not in ('light', 'dark'):
         raise ValueError('Paleta desconocida: ' + str(mode))
-    shape = data()['shape']
     palette = data()['palettes'][mode]
-    tokens = dict(shape)
+    tokens = {}
+    for group in SHAPE_GROUPS:
+        tokens.update(flatten(data()[group], group))
     tokens.update(palette['colors'])
     tokens.update(mode=mode, external=palette['external'], wallpaper=default_wallpaper(),
-                  material=palette.get('material', shape['material']),
-                  translucent=palette.get('translucent', shape['translucent']))
+                  material=palette['material'], translucent=palette['translucent'])
     return tokens
 
 
