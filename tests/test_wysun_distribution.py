@@ -164,7 +164,8 @@ class WysunDistributionTests(unittest.TestCase):
         self.assertFalse(deployment.conflicts)
         deployment.finish()
         deployment.lock.close()
-        config.write_text('hl.on("hyprland.start", function () hl.exec_cmd("wysun workspaces") end)\n')
+        config.write_text('hl.on("hyprland.start", function () hl.exec_cmd("wysun workspaces") end)\n'
+                          'hl.window_rule({ match = { class = "^wysun-workspaces$" } })\n')   # a class is not a call
         update = self.deploy()
         update.receipt['files']['.local/bin/wysun-workspaces'] = installer.fingerprint(launcher)
         update.configure_wysun()

@@ -245,12 +245,14 @@ class Deployment:
     def retire_commands(self,names=RETIRED_COMMANDS):
         import re
         folder=self.destination('.config/wysun')
-        active='\n'.join(path.read_text(errors='replace') for path in sorted(folder.glob('*.lua')) if path.is_file()) if folder.is_dir() else ''
+        configs=[path.read_text(errors='replace') for path in sorted(folder.glob('*.lua')) if path.is_file()] if folder.is_dir() else []
+        # Only commands the configuration runs count, not window classes such as ^wysun-files$.
+        active='\n'.join(m.group(2) for text in configs for m in re.finditer(r'exec_cmd\(\s*(["\'])(.*?)\1',text))
         for relative in names:
             if relative not in self.receipt['files']:continue      # never ours: left alone
             name=Path(relative).name
             if relative.startswith('.local/bin/') and re.search(r'(?<![\w.-])'+re.escape(name)+r'(?![\w.-])',active):
-                print('Wysun: se conserva '+relative+' porque ~/.config/wysun lo sigue llamando; cámbialo por su orden de `wysun`.');continue
+                print('Wysun: se conserva '+relative+' porque ~/.config/wysun lo sigue ejecutando; cámbialo por su orden de `wysun`.');continue
             current=fingerprint(self.destination(relative))
             if current is not None and current!=self.receipt['files'][relative]:
                 self.receipt['files'].pop(relative)
