@@ -33,6 +33,11 @@ Item {
     property ShaderEffectSource currentCapture: capture1
     readonly property Item visual: live
     property real transitionProgress: 1
+    // The wallpaper picker covers this screen's change with its own animation: the new
+    // wallpaper is not loaded until the picker releases it, then it replaces the old one
+    // directly, with no transition, and `Wallpapers.shown` reports it on screen.
+    readonly property bool handoff: Wallpapers.handoffScreen !== "" && Wallpapers.handoffScreen === screenName
+    property bool handingOver
     property bool completed
     readonly property var motion: TokenConfig.appearance.wallpaperMotion
     readonly property bool cinematicZoom: shader.url.toString() === Shaders.zoomBlurPull.url.toString()
@@ -60,7 +65,15 @@ Item {
     onSourceChanged: {
         transitionAnim.stop();
         firstFrame.stop();
+        handingOver = false;
         aimRift();
+
+        if (completed && handoff) {
+            handingOver = true;
+            if (Wallpapers.handoffReleased)
+                takeOver();
+            return;
+        }
 
         // Nothing on screen yet (shell start): show the wallpaper without a transition
         // from an empty capture.
@@ -79,6 +92,24 @@ Item {
 
         currentCapture.visible = true;
         currentCapture.scheduleUpdate();
+    }
+
+    function takeOver(): void {
+        transitionAnim.complete();
+        // An uncached picture drops `ready` here and raises it once decoded (onReadyChanged);
+        // one the picker already decoded is ready at once.
+        live.source = source;
+        if (live.ready)
+            firstFrame.restart();
+    }
+
+    Connections {
+        target: Wallpapers
+
+        function onHandoffReleasedChanged(): void {
+            if (Wallpapers.handoffReleased && root.handingOver)
+                root.takeOver();
+        }
     }
 
     Component.onCompleted: {
@@ -211,8 +242,14 @@ Item {
 
         interval: 34
         onTriggered: {
-            if (live.ready && live.source === root.source)
+            if (!live.ready || live.source !== root.source)
+                return;
+            if (root.handingOver) {
+                root.handingOver = false;
+                Wallpapers.shown(root.screenName, root.source);
+            } else {
                 transitionAnim.start();
+            }
         }
     }
 

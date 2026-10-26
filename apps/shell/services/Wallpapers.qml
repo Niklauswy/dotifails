@@ -41,6 +41,29 @@ Searcher {
     property bool previewColourLock
     property bool pendingPreviewClear
 
+    // The wallpaper picker hands the change over from its own animation: on
+    // `handoffScreen` the background loads the new wallpaper but keeps showing the old
+    // one until the picker calls releaseHandoff(), then switches without a transition
+    // and reports `shown`.
+    property string handoffScreen
+    property bool handoffReleased
+    signal shown(screen: string, path: string)
+
+    function setWallpaperHandedOff(path: string, screen: string): void {
+        handoffScreen = screen;
+        handoffReleased = false;
+        setWallpaper(path);
+    }
+
+    function releaseHandoff(): void {
+        handoffReleased = true;
+    }
+
+    function endHandoff(): void {
+        handoffScreen = "";
+        handoffReleased = false;
+    }
+
     function setWallpaper(path: string): void {
         actualCurrent = path;
         Quickshell.execDetached(["wysun", "wallpaper", "set", path]);

@@ -12,6 +12,7 @@ qt_add_shaders(wysun-shaders "shaders"
     GLSL "300es,330"
     PREFIX "/shaders"
     FILES
+        card-bloom.frag
         crossfade.frag
         chromatic-bloom.frag
         colour-distance.frag
