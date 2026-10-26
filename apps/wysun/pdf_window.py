@@ -1,330 +1,261 @@
-"""Wysun's local reader: bounded page rendering and native PDF annotations."""
-import base64
+"""Wysun PDF: one window per document, a continuous virtualized view and native PDF annotations.
+
+The window composes kit widgets (wysun_core.ui) and the reader's own pieces (pdf_chrome, pdf_sidebar,
+pdf_view). All PDF work happens in the engine process behind pdf_worker; pdf_source asks it only for
+what is on screen.
+"""
 from pathlib import Path
 
-from PySide6.QtCore import Qt, QRectF, QPointF, QTimer, Signal, QPoint
-from PySide6.QtGui import QImage, QPainter, QKeySequence, QShortcut
-from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
-    QHBoxLayout, QScrollArea, QSplitter, QLineEdit, QSpinBox, QComboBox,
-    QListWidget, QListWidgetItem, QTabWidget, QFileDialog, QMessageBox, QInputDialog, QColorDialog, QStackedWidget, QFrame)
+from PySide6.QtCore import QEvent, QProcess, QProcessEnvironment, Qt, QTimer, QUrl
+from PySide6.QtGui import QActionGroup, QImage, QKeySequence, QShortcut
+from PySide6.QtWidgets import (QApplication, QColorDialog, QFileDialog, QHBoxLayout, QInputDialog, QLabel,
+                               QLineEdit, QMainWindow, QMenu, QMessageBox, QStackedLayout, QVBoxLayout, QWidget)
+
+from ui_theme import paint_surface
+from wysun_core.ui.frameless import FramelessResize
+from wysun_core.ui.motion import WindowMotion
+from wysun_core.ui.panels import Panel, SearchField
+from wysun_core.ui.style import apply_kit_style, metric
+from wysun_core.ui.toast import Toast
+from wysun_core.ui.widgets import ElidedLabel, IconButton, PillButton
+from pdf_chrome import (CONTROL, EmptyState, NoteDialog, PageIndicator, SelectionBar, ViewModeSwitch, ZoomControl,
+                        ink_colours, ink_menu)
+from pdf_sidebar import Sidebar
+from pdf_source import PageSource
+from pdf_state import Positions, Preferences, clamp
+from pdf_theme import shared as shared_mode
+from pdf_view import DocumentView
 from pdf_worker import PdfWorker
-from pdf_material import ReaderTheme, Panel, Text, Action, M, reader_list, thumbnail_view, Emblem, NoteDialog
+
+ZOOM_STEP = 1.2
+LINK_SCHEMES = ('http', 'https', 'mailto')
+SHORTCUTS = '''Ctrl+O abrir · Ctrl+S guardar · Ctrl+Shift+S guardar una copia
+Ctrl+F buscar · Enter / Shift+Enter (o F3 / Shift+F3) siguiente / anterior coincidencia · Esc limpiar
+Ctrl+C copiar · Ctrl+H resaltar · Ctrl+U subrayar · doble clic selecciona una palabra
+Ctrl+G ir a una página · Alt+← / Alt+→ página anterior / siguiente · RePág / AvPág, Espacio desplazan una pantalla · Inicio / Fin
+Ctrl+rueda, Ctrl++ y Ctrl+− zoom · Ctrl+0 ajustar al ancho · Ctrl+9 ajustar a la página
+Ctrl+2 una o dos páginas · F9 panel lateral · F1 atajos · Ctrl+W / Ctrl+Q cerrar'''
 
 
-class PageCanvas(QWidget):
-    selected = Signal()
-    selectionFinished = Signal()
-    noteRequested = Signal(object)
+class Stage(Panel):
+    """The raised surface that holds the document; floating pieces follow its size."""
 
-    def __init__(self, theme):
+    def __init__(self, on_resize):
         super().__init__()
-        self.theme=theme
-        self.image = QImage()
-        self.words = []
-        self.selection = []
-        self.hits = []
-        self.start = None
-        self.note_mode = False
-        self.page_width = 1
-        self.page_height = 1
-        self.setCursor(Qt.IBeamCursor)
-        self.setAccessibleName('Página PDF; arrastra sobre el texto para seleccionarlo')
+        self.on_resize = on_resize
 
-    def set_page(self, result, display_width):
-        self.image = QImage.fromData(base64.b64decode(result['png']))
-        self.words = result['words']
-        self.page_width, self.page_height = result['width'], result['height']
-        self.selection = []
-        self.hits = []
-        self.start = None
-        self.setFixedSize(display_width, round(display_width * self.page_height / self.page_width))
-        self.update()
-        self.selected.emit()
-
-    def point(self, position):
-        return QPointF(position.x() * self.page_width / self.width(),
-                       position.y() * self.page_height / self.height())
-
-    def paintEvent(self, event):
-        painter = QPainter(self)
-        painter.drawImage(self.rect(), self.image)
-        painter.scale(self.width() / self.page_width, self.height() / self.page_height)
-        painter.setPen(Qt.NoPen)
-        painter.setBrush(self.theme.color('primary', 65))
-        for r in self.hits:
-            painter.drawRect(QRectF(r[0], r[1], r[2] - r[0], r[3] - r[1]))
-        painter.setBrush(self.theme.color('primary', 95))
-        for index in self.selection:
-            w = self.words[index]
-            painter.drawRect(QRectF(w[0], w[1], w[2] - w[0], w[3] - w[1]))
-
-    def nearest(self, position):
-        if not self.words:
-            return None
-        p = self.point(position)
-        return min(range(len(self.words)), key=lambda i:
-            max(self.words[i][0] - p.x(), 0, p.x() - self.words[i][2]) ** 2 +
-            max(self.words[i][1] - p.y(), 0, p.y() - self.words[i][3]) ** 2)
-
-    def mousePressEvent(self, event):
-        if event.button() != Qt.LeftButton:
-            return
-        if self.note_mode:
-            self.noteRequested.emit(self.point(event.position()))
-            return
-        self.start = self.nearest(event.position())
-        self.selection = [] if self.start is None else [self.start]
-        self.selected.emit()
-        self.update()
-
-    def mouseMoveEvent(self, event):
-        if self.start is not None and event.buttons() & Qt.LeftButton:
-            end = self.nearest(event.position())
-            self.selection = list(range(min(self.start, end), max(self.start, end) + 1))
-            self.selected.emit()
-            self.update()
-
-    def mouseReleaseEvent(self, event):
-        self.start = None
-        self.selectionFinished.emit()
-
-    def text(self):
-        return ' '.join(self.words[i][4] for i in self.selection)
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self.on_resize()
 
 
-class PdfWindow(QMainWindow):
+class PdfWindow(FramelessResize, WindowMotion, QMainWindow):
+    drag_height = 56
+
     def __init__(self, path=None):
-        super().__init__()
+        super().__init__(None, Qt.Window | Qt.FramelessWindowHint)
+        self.setAttribute(Qt.WA_TranslucentBackground)
         self.setWindowTitle('Wysun PDF')
+        self.setMinimumSize(720, 480)
         self.resize(1280, 860)
-        self.path = None
-        self.pages = 0
-        self.page = 0
-        self.dirty = False
-        self.editable = False
-        self.ink = None
-        self.busy = False
+        self.setMouseTracking(True)
+        self.path, self.pages, self.sizes = None, 0, []
+        self.dirty = self.editable = self.busy = False
         self.generation = 0
-        self.search_generation = 0
-        self.search_hits = {}
-        self.render_serial = 0
-        self.displayed_page = None
         self.pending_markup = None
         self.thumbnail_pending = False
-        self.reader_theme = ReaderTheme(self)
+        self.search_term, self.search_generation, self.search_done = '', 0, True
+        self.hits, self.matches, self.match = {}, [], -1
+        self.preferences = Preferences()
+        self.positions = Positions()
+        self.reader_mode = shared_mode(self.preferences)
+        saved_ink = self.preferences.get('ink')
+        self.ink = None
+        if isinstance(saved_ink, list) and len(saved_ink) == 3:
+            self.ink = ink_colours()[0][1]
+            self.ink.setRgbF(*[max(0.0, min(1.0, float(v))) for v in saved_ink])
         self.worker = PdfWorker(self)
         self.worker.failed.connect(self.worker_failed)
-        t = self.reader_theme
-        root = Panel(t, 'canvas', None)
-        self.setCentralWidget(root)
-        shell = QHBoxLayout(root); shell.setContentsMargins(0, 0, M['spacing.large'], M['spacing.large']); shell.setSpacing(0)
-        rail = Panel(t, 'canvas', None); rail.setFixedWidth(M['rail'])
-        rail_layout = QVBoxLayout(rail); rail_layout.setContentsMargins(M['spacing.medium'], M['spacing.extraLarge'], M['spacing.medium'], M['spacing.large'])
-        rail_layout.setSpacing(M['spacing.medium'])
-        brand = Emblem(t)
-        brand.setToolTip('Wysun PDF'); brand.setFocusPolicy(Qt.NoFocus)
-        rail_layout.addWidget(brand)
-        rail_layout.addSpacing(M['spacing.extraLarge'])
-        self.nav_buttons = []
-        for index, symbol, label in ((0,'list','Índice'), (1,'search','Buscar'), (2,'notes','Anotaciones')):
-            control = Action(t, icon=symbol, callback=lambda i=index:self.navigate(i), size=M['control']+M['spacing.medium'])
-            control.setCheckable(True); control.setChecked(index==0)
-            control.setToolTip(label); control.setAccessibleName(label)
-            rail_layout.addWidget(control); self.nav_buttons.append(control)
-        rail_layout.addStretch()
-        self.theme_button = Action(t, icon='sun', callback=self.toggle_mode, size=M['control']+M['spacing.medium'])
-        self.theme_button.setToolTip('Cambiar entre claro y oscuro');self.theme_button.setAccessibleName('Cambiar modo claro u oscuro')
-        rail_layout.addWidget(self.theme_button)
-        shell.addWidget(rail)
-        main = QVBoxLayout(); main.setContentsMargins(0,0,0,0);main.setSpacing(M['spacing.large']);shell.addLayout(main,1)
-        header = QHBoxLayout();header.setContentsMargins(M['spacing.small'],M['spacing.large'],M['spacing.small'],0);header.setSpacing(M['spacing.medium'])
-        title_block=QVBoxLayout();title_block.setSpacing(0)
-        title_block.addWidget(Text(t,'Wysun PDF','body.small','muted',500))
-        self.title=Text(t,'Tu espacio de lectura','title.medium','text',500);title_block.addWidget(self.title)
-        header.addLayout(title_block,1)
-        self.open_button=Action(t,'Abrir',icon='folder-open',callback=self.choose,kind='tonal')
-        self.save_button=Action(t,'Guardar',icon='saved',callback=self.save,kind='filled')
-        self.copy_button=Action(t,icon='more',callback=lambda:self.save(copy=True))
-        self.copy_button.setToolTip('Guardar una copia · Ctrl Shift S');self.copy_button.setAccessibleName('Guardar una copia')
-        header.addWidget(self.open_button);header.addWidget(self.save_button);header.addWidget(self.copy_button)
-        main.addLayout(header)
-        self.split = QSplitter();self.split.setChildrenCollapsible(False);self.split.setHandleWidth(M['spacing.large'])
-        self.sidebar_panel=Panel(t,'surface_low','rounding.extraLarge')
-        side=QVBoxLayout(self.sidebar_panel);side.setContentsMargins(M['spacing.large'],M['spacing.extraLarge'],M['spacing.large'],M['spacing.large']);side.setSpacing(M['spacing.small'])
-        self.side_title=Text(t,'Documento','title.medium','text',500);side.addWidget(self.side_title)
-        self.side_meta=Text(t,'Todo empieza con una página','body.small','muted');side.addWidget(self.side_meta)
-        side.addSpacing(M['spacing.medium'])
-        self.tabs=QStackedWidget();side.addWidget(self.tabs,1)
-        document_panel=QWidget();document_layout=QVBoxLayout(document_panel);document_layout.setContentsMargins(0,0,0,0);document_layout.setSpacing(M['spacing.medium'])
-        sections=QHBoxLayout();sections.setSpacing(M['spacing.extraSmall'])
-        self.pages_tab=Action(t,'Páginas',callback=lambda:self.document_section(0));self.pages_tab.setCheckable(True);self.pages_tab.setChecked(True)
-        self.outline_tab=Action(t,'Índice',callback=lambda:self.document_section(1));self.outline_tab.setCheckable(True)
-        sections.addWidget(self.pages_tab);sections.addWidget(self.outline_tab);document_layout.addLayout(sections)
-        self.document_stack=QStackedWidget();document_layout.addWidget(self.document_stack,1)
-        self.thumbnails,self.page_model=thumbnail_view(t);self.document_stack.addWidget(self.thumbnails)
-        self.thumbnails.clicked.connect(lambda index:self.go(index.row()))
-        self.thumbnails.activated.connect(lambda index:self.go(index.row()))
-        self.thumbnails.verticalScrollBar().valueChanged.connect(self.load_thumbnails)
-        self.outline=reader_list(t);self.outline.itemClicked.connect(self.outline_go);self.outline.itemActivated.connect(self.outline_go)
-        self.document_stack.addWidget(self.outline)
-        self.tabs.addWidget(document_panel)
-        search_panel=QWidget();search_layout=QVBoxLayout(search_panel);search_layout.setContentsMargins(0,0,0,0);search_layout.setSpacing(M['spacing.medium'])
-        self.search=QLineEdit();self.search.setPlaceholderText('Buscar una idea…');self.search.setAccessibleName('Buscar en el documento')
-        self.search.returnPressed.connect(self.find);self.search.textChanged.connect(self.cancel_search)
-        search_layout.addWidget(self.search)
-        search_layout.addWidget(Action(t,'Buscar',icon='search',callback=self.find,kind='tonal'))
-        self.search_status=Text(t,'Enter para buscar','body.small','muted');search_layout.addWidget(self.search_status)
-        self.results=reader_list(t);self.results.itemClicked.connect(self.search_go);self.results.itemActivated.connect(self.search_go)
-        search_layout.addWidget(self.results,1);self.tabs.addWidget(search_panel)
-        notes_panel=QWidget();notes_layout=QVBoxLayout(notes_panel);notes_layout.setContentsMargins(0,0,0,0);notes_layout.setSpacing(M['spacing.medium'])
-        self.annotations=reader_list(t);notes_layout.addWidget(self.annotations,1)
-        self.delete_button=Action(t,'Eliminar',icon='trash',callback=self.delete_annotation,kind='tonal');notes_layout.addWidget(self.delete_button)
-        self.annotations.currentRowChanged.connect(self.controls)
-        self.annotations.itemActivated.connect(self.edit_note)
-        self.tabs.addWidget(notes_panel)
-        self.split.addWidget(self.sidebar_panel)
-        self.stage=Panel(t,'surface','rounding.extraLarge');stage_layout=QVBoxLayout(self.stage)
-        stage_layout.setContentsMargins(M['spacing.large'],M['spacing.large'],M['spacing.large'],M['spacing.medium']);stage_layout.setSpacing(M['spacing.large'])
-        tools_row=QHBoxLayout();tools_row.setSpacing(M['spacing.small'])
-        self.sidebar_button=Action(t,icon='sidebar',callback=self.toggle_sidebar)
-        self.sidebar_button.setToolTip('Mostrar u ocultar navegación · F9');tools_row.addWidget(self.sidebar_button)
-        tools_row.addStretch()
-        tool_group=Panel(t,'surface_high','rounding.extraLarge');tool_layout=QHBoxLayout(tool_group)
-        tool_layout.setContentsMargins(M['spacing.extraSmall'],M['spacing.extraSmall'],M['spacing.extraSmall'],M['spacing.extraSmall']);tool_layout.setSpacing(M['spacing.extraSmall'])
-        self.select_button=Action(t,icon='select',callback=self.select_mode);self.select_button.setCheckable(True);self.select_button.setChecked(True);self.select_button.setToolTip('Seleccionar texto')
-        self.highlight=Action(t,icon='highlight',callback=lambda:self.mark('highlight'));self.highlight.setCheckable(True);self.highlight.setToolTip('Resaltar · Ctrl H')
-        self.underline=Action(t,icon='underline',callback=lambda:self.mark('underline'));self.underline.setCheckable(True);self.underline.setToolTip('Subrayar · Ctrl U')
-        self.note=Action(t,icon='notes',callback=self.note_mode);self.note.setCheckable(True);self.note.setToolTip('Añadir nota')
-        self.ink_button=Action(t,icon='palette',callback=self.choose_ink);self.ink_button.setToolTip('Color de anotación')
-        for action in (self.select_button,self.highlight,self.underline,self.note,self.ink_button):tool_layout.addWidget(action)
-        tools_row.addWidget(tool_group);tools_row.addStretch()
-        self.zoom=QComboBox();self.zoom.addItems(['Ajustar','75%','100%','125%','150%','200%']);self.zoom.setAccessibleName('Zoom')
-        self.zoom.currentIndexChanged.connect(self.schedule_render);tools_row.addWidget(self.zoom)
-        stage_layout.addLayout(tools_row)
-        self.scroll=QScrollArea();self.scroll.setFrameShape(QFrame.NoFrame);self.scroll.setAlignment(Qt.AlignHCenter|Qt.AlignTop)
-        self.scroll.viewport().setAutoFillBackground(False)
-        self.canvas=PageCanvas(t);self.canvas.hide();self.scroll.setWidget(self.canvas)
-        self.canvas.selected.connect(self.controls);self.canvas.noteRequested.connect(self.add_note)
-        self.canvas.selectionFinished.connect(self.finish_selection)
-        stage_layout.addWidget(self.scroll,1)
-        bottom=QHBoxLayout();bottom.addStretch()
-        navigation=Panel(t,'surface_high','rounding.extraLarge');navigation_layout=QHBoxLayout(navigation)
-        navigation_layout.setContentsMargins(M['spacing.extraSmall'],M['spacing.extraSmall'],M['spacing.extraSmall'],M['spacing.extraSmall']);navigation_layout.setSpacing(M['spacing.small'])
-        self.previous=Action(t,icon='back',callback=lambda:self.go(self.page-1));self.previous.setToolTip('Página anterior · Alt ←')
-        self.page_input=QSpinBox();self.page_input.setRange(1,1);self.page_input.setButtonSymbols(QSpinBox.NoButtons)
-        self.page_input.setKeyboardTracking(False);self.page_input.setAccessibleName('Número de página');self.page_input.setFixedWidth(M['control']+M['spacing.medium'])
-        self.page_input.valueChanged.connect(lambda n:self.go(n-1))
-        self.page_count=Text(t,'/ —','body.small','muted');self.page_count.setFixedWidth(M['control'])
-        self.next=Action(t,icon='forward',callback=lambda:self.go(self.page+1));self.next.setToolTip('Página siguiente · Alt →')
-        for widget in (self.previous,self.page_input,self.page_count,self.next):navigation_layout.addWidget(widget)
-        bottom.addWidget(navigation);bottom.addStretch();stage_layout.addLayout(bottom)
-        self.split.addWidget(self.stage);self.split.setSizes([M['sidebar'],900]);main.addWidget(self.split,1)
-        self.empty=Panel(t,'surface','rounding.extraLarge');empty_layout=QVBoxLayout(self.empty)
-        empty_layout.setContentsMargins(M['spacing.extraLargeIncreased']*2,M['spacing.extraLargeIncreased'],M['spacing.extraLargeIncreased']*2,M['spacing.extraLargeIncreased']);empty_layout.addStretch()
-        emblem=Emblem(t,size=M['rail']);emblem.setFocusPolicy(Qt.NoFocus)
-        empty_layout.addWidget(emblem,0,Qt.AlignHCenter);empty_layout.addSpacing(M['spacing.extraLarge'])
-        intro=Text(t,'Menos ruido. Más lectura.','title.large','text',500);intro.setFixedHeight(M['font.title.large.size']+M['spacing.extraLarge']);empty_layout.addWidget(intro)
-        empty_layout.addWidget(Text(t,'Abre un documento, marca lo importante y guarda tus ideas.','body.medium','muted'))
-        empty_layout.addSpacing(M['spacing.extraLarge'])
-        empty_layout.addWidget(Action(t,'Abrir un PDF',icon='plus',callback=self.choose,kind='filled'),0,Qt.AlignLeft)
-        empty_layout.addStretch();empty_layout.addWidget(Text(t,'En tu equipo. Sin cuentas, sin subir archivos.','body.small','muted'))
-        main.addWidget(self.empty,1);self.split.hide()
-        self.status=Text(t,'Local · Tus documentos se quedan contigo','body.small','muted');main.addWidget(self.status)
-        self.resize_timer=QTimer(self);self.resize_timer.setSingleShot(True);self.resize_timer.setInterval(150);self.resize_timer.timeout.connect(self.render)
-        for keys,action in [('Ctrl+O',self.choose),('Ctrl+S',self.save),('Ctrl+Shift+S',lambda:self.save(copy=True)),
-                            ('Ctrl+F',self.focus_search),('Ctrl+C',self.copy_text),('Alt+Right',lambda:self.go(self.page+1)),
-                            ('Alt+Left',lambda:self.go(self.page-1)),('F9',self.toggle_sidebar),
-                            ('Ctrl+H',lambda:self.mark('highlight')),('Ctrl+U',lambda:self.mark('underline'))]:
-            QShortcut(QKeySequence(keys),self).activated.connect(action)
-        t.changed.connect(self.theme_changed);self.theme_changed()
-        self.setAcceptDrops(True);self.controls()
-        if path:QTimer.singleShot(0,lambda:self.open_path(path))
+        self.source = PageSource(self.worker, self)
+        apply_kit_style(self)
+        self.save_timer = QTimer(self, singleShot=True, interval=1000)
+        self.save_timer.timeout.connect(self.remember)
+        self.search_timer = QTimer(self, singleShot=True, interval=300)
+        self.search_timer.timeout.connect(self.start_search)
+        self._build()
+        self.toast = Toast(self.centralWidget(), duration=3200, bottom=112)
+        self._shortcuts()
+        self.setAcceptDrops(True)
+        self.set_sidebar(self.preferences.get('sidebar', True) is not False, persist=False)
+        self.controls()
+        self.empty.button.setFocus()
+        if path:
+            QTimer.singleShot(0, lambda: self.open_path(path))
 
-    def document_section(self, index):
-        self.document_stack.setCurrentIndex(index)
-        self.pages_tab.setChecked(index==0);self.outline_tab.setChecked(index==1)
-        if index==0:self.load_thumbnails()
+    # ------------------------------------------------------------------ build
+    def _build(self):
+        central = QWidget()
+        self.setCentralWidget(central)
+        outer = QVBoxLayout(central)
+        margin = metric('spacing.small')
+        outer.setContentsMargins(margin, margin, margin, margin)
+        outer.setSpacing(margin)
+        outer.addLayout(self._top_bar())
+        body = QHBoxLayout()
+        body.setSpacing(margin)
+        self.sidebar = Sidebar()
+        self.sidebar.page_requested.connect(lambda page: self.view.go(page))
+        self.sidebar.result_requested.connect(self.select_match)
+        self.sidebar.note_selected.connect(lambda note: self.view.go(note['page']))
+        self.sidebar.note_activated.connect(self.edit_note)
+        self.sidebar.delete_requested.connect(self.delete_annotation)
+        self.sidebar.thumbnails_wanted.connect(self.load_thumbnails)
+        self.sidebar.tab_changed.connect(lambda _: self.remember_sidebar())
+        body.addWidget(self.sidebar)
+        self.stage = Stage(self.place_overlays)
+        frame = QVBoxLayout(self.stage)
+        inset = metric('spacing.small')
+        frame.setContentsMargins(inset, inset, inset // 2, inset)
+        stack = self.stage_stack = QStackedLayout()
+        frame.addLayout(stack)
+        self.empty = EmptyState()
+        self.empty.open_requested.connect(self.choose)
+        stack.addWidget(self.empty)
+        self.view = DocumentView(self.source)
+        self.view.pageChanged.connect(self.page_changed)
+        self.view.zoomChanged.connect(lambda _: self.zoom_changed())
+        self.view.selectionChanged.connect(self.selection_changed)
+        self.view.selectionFinished.connect(self.selection_finished)
+        self.view.linkActivated.connect(self.follow_link)
+        self.view.noteRequested.connect(self.add_note)
+        self.view.scrolled.connect(self.place_selection_bar)
+        self.view.scrolled.connect(self.save_timer.start)
+        stack.addWidget(self.view)
+        self.indicator = PageIndicator(self.stage)
+        self.indicator.jump.connect(lambda page: (self.view.go(page), self.view.setFocus()))
+        self.selection_bar = SelectionBar(self.view.viewport())
+        self.selection_bar.action.connect(self.selection_action)
+        if self.ink is not None:
+            self.selection_bar.ink.set_ink(self.ink)
+        body.addWidget(self.stage, 1)
+        outer.addLayout(body, 1)
 
-    def load_thumbnails(self, *_):
-        if not self.path or self.busy or self.thumbnail_pending or not self.thumbnails.isVisible():
-            return
-        first=self.thumbnails.indexAt(QPoint(1,1)).row()
-        first=max(0,first)
-        count=max(2,self.thumbnails.viewport().height()//(M['rail']*3)+2)
-        missing=next((p for p in range(first,min(self.pages,first+count)) if p not in self.page_model.images),None)
-        if missing is None:return
-        self.thumbnail_pending=True;generation=self.generation
-        def loaded(reply):
-            self.thumbnail_pending=False
-            if generation!=self.generation:return
-            if 'result' in reply:
-                self.page_model.put(missing,QImage.fromData(base64.b64decode(reply['result']['png'])))
-                QTimer.singleShot(0,self.load_thumbnails)
-        self.worker.request('thumbnail',loaded,page=missing)
+    def _top_bar(self):
+        bar = QHBoxLayout()
+        bar.setContentsMargins(metric('spacing.extraSmall'), metric('spacing.extraSmall'), metric('spacing.extraSmall'), 0)
+        bar.setSpacing(metric('spacing.small'))
+        self.close_button = IconButton('close', 'Cerrar · Ctrl+W', self.close, size=34)
+        self.sidebar_button = IconButton('left_panel_close', 'Panel lateral · F9', self.toggle_sidebar, size=CONTROL)
+        self.sidebar_button.outline = True
+        bar.addWidget(self.close_button)
+        bar.addWidget(self.sidebar_button)
+        title = QVBoxLayout()
+        title.setSpacing(0)
+        self.title = ElidedLabel('Wysun PDF', 'title.medium', 650)
+        self.subtitle = ElidedLabel('Lector local', 'body.small', 450, tint='muted')
+        title.addWidget(self.title)
+        title.addWidget(self.subtitle)
+        bar.addLayout(title, 1)
+        self.search = SearchField('Buscar en el documento', 'kitSearch')
+        self.search.setPlaceholderText('Buscar en el documento')
+        self.search.setToolTip('Buscar · Ctrl+F · Enter siguiente, Shift+Enter anterior')
+        self.search.setFixedWidth(280)
+        self.search.textChanged.connect(lambda _: self.search_timer.start())
+        self.search.returnPressed.connect(lambda: self.next_match(1))
+        self.search.installEventFilter(self)
+        bar.addWidget(self.search)
+        self.hit_count = QLabel('')
+        self.hit_count.setObjectName('muted')
+        self.hit_count.setAccessibleName('Coincidencias')
+        bar.addWidget(self.hit_count)
+        self.previous_hit = IconButton('keyboard_arrow_up', 'Coincidencia anterior · Shift+Enter', lambda: self.next_match(-1), size=CONTROL - 4)
+        self.next_hit = IconButton('keyboard_arrow_down', 'Siguiente coincidencia · Enter', lambda: self.next_match(1), size=CONTROL - 4)
+        bar.addWidget(self.previous_hit)
+        bar.addWidget(self.next_hit)
+        bar.addSpacing(metric('spacing.small'))
+        self.zoom = ZoomControl()
+        self.zoom.zoom_in.connect(self.zoom_in)
+        self.zoom.zoom_out.connect(self.zoom_out)
+        self.zoom.fit.connect(self.fit)
+        self.zoom.percent.connect(lambda value: self.view.set_zoom(value))
+        bar.addWidget(self.zoom)
+        self.view_switch = ViewModeSwitch()
+        self.view_switch.changed.connect(self.set_view_mode)
+        bar.addWidget(self.view_switch)
+        self.note_button = IconButton('edit_note', 'Nota: haz clic en la página para colocarla', self.toggle_note_tool,
+                                      variant='tonal', size=CONTROL, checkable=True)
+        bar.addWidget(self.note_button)
+        self.save_button = PillButton('save', 'Guardar', self.save, height=CONTROL)
+        self.save_button.setToolTip('Guardar · Ctrl+S')
+        bar.addWidget(self.save_button)
+        self.more_button = IconButton('more_vert', 'Más opciones', self.more_menu, size=CONTROL)
+        bar.addWidget(self.more_button)
+        return bar
 
-    def toggle_mode(self):
-        self.reader_theme.set_mode('light' if self.reader_theme.mode=='dark' else 'dark',persist=True)
-        self.theme_button.symbol='moon' if self.reader_theme.mode=='light' else 'sun'
-        self.theme_button.update()
+    def _shortcuts(self):
+        def page_step(step):
+            return lambda: self.view.go(self.view.current_page() + step * (2 if self.view.mode == 'spread' else 1))
+        for keys, action in (('Ctrl+O', self.choose), ('Ctrl+S', self.save), ('Ctrl+Shift+S', lambda: self.save(copy=True)),
+                             ('Ctrl+F', self.focus_search), ('Ctrl+C', self.copy_text), ('F3', lambda: self.next_match(1)),
+                             ('Shift+F3', lambda: self.next_match(-1)), ('Ctrl+H', lambda: self.mark('highlight')),
+                             ('Ctrl+U', lambda: self.mark('underline')), ('Ctrl+G', self.indicator.start_edit),
+                             ('Alt+Right', page_step(1)), ('Alt+Left', page_step(-1)), ('Ctrl++', self.zoom_in),
+                             ('Ctrl+=', self.zoom_in), ('Ctrl+-', self.zoom_out), ('Ctrl+0', lambda: self.fit('width')),
+                             ('Ctrl+9', lambda: self.fit('page')), ('Ctrl+2', self.toggle_view_mode),
+                             ('F9', self.toggle_sidebar), ('Ctrl+W', self.close), ('Ctrl+Q', self.close),
+                             ('F1', self.show_shortcuts), ('Escape', self.escape)):
+            QShortcut(QKeySequence(keys), self).activated.connect(action)
 
-    def navigate(self, index):
-        self.sidebar_panel.show();self.tabs.setCurrentIndex(index)
-        self.side_title.setText(('Documento','Buscar','Anotaciones')[index])
-        self.side_meta.setText(f'{self.pages} páginas' if index!=2 else f'Página {self.page+1}')
-        for i,control in enumerate(self.nav_buttons):control.setChecked(i==index)
-        if index==1:self.search.setFocus()
-        self.load_thumbnails();self.schedule_render()
-
-    def select_mode(self):
-        self.pending_markup=None;self.canvas.note_mode=False
-        self.note.setChecked(False);self.highlight.setChecked(False);self.underline.setChecked(False);self.select_button.setChecked(True)
-        self.canvas.setCursor(Qt.IBeamCursor)
-        self.status.setText('Selecciona texto · Ctrl C para copiar')
-
-    def finish_selection(self):
-        if self.pending_markup and self.canvas.selection:self.mark(self.pending_markup)
-
-    def theme_changed(self):
-        self.theme_button.symbol='moon' if self.reader_theme.mode=='light' else 'sun'
-        self.theme_button.update()
-        self.setPalette(self.reader_theme.palette())
-        self.setStyleSheet(self.reader_theme.inputs())
-        self.canvas.update()
-        self.update()
-
-    def controls(self, *_):
-        ready = bool(self.path) and not self.busy
-        displayed = ready and self.displayed_page == self.page
-        self.open_button.setEnabled(not self.busy)
-        self.save_button.setEnabled(ready and self.dirty)
-        self.copy_button.setEnabled(ready)
-        self.page_input.setEnabled(ready); self.zoom.setEnabled(ready)
-        self.previous.setEnabled(ready and self.page > 0)
-        self.next.setEnabled(ready and self.page + 1 < self.pages)
-        selection = displayed and self.editable
-        self.highlight.setEnabled(selection); self.underline.setEnabled(selection)
-        self.note.setEnabled(displayed and self.editable)
-        self.canvas.setEnabled(displayed)
-        self.delete_button.setEnabled(displayed and self.editable and self.annotations.currentItem() is not None)
-        self.title.setText((Path(self.path).name + (' •' if self.dirty else '')) if self.path else 'Un espacio para leer')
-        self.setWindowTitle((Path(self.path).name + (' *' if self.dirty else '') + ' — Wysun PDF') if self.path else 'Wysun PDF')
+    # --------------------------------------------------------------- feedback
+    def say(self, text):
+        self.toast.show_message(text)
 
     def error(self, reply):
         if 'error' not in reply:
             return False
-        self.status.setText(reply['error'])
+        self.say(reply['error'])
         QMessageBox.warning(self, 'Wysun PDF', reply['error'])
         return True
 
     def worker_failed(self, message):
         self.busy = True
         self.controls()
-        self.status.setText(message)
+        self.say(message)
 
+    def ready(self):
+        """A document is open and its first visible page is painted sharp."""
+        if not self.path or self.busy:
+            return False
+        page = max(0, self.view.current_page())
+        return self.source.image(page, self.view.pixel_width(page))[1]
+
+    def controls(self):
+        open_ = bool(self.path)
+        ready = open_ and not self.busy
+        self.save_button.setEnabled(ready and self.dirty)
+        self.note_button.setEnabled(ready and self.editable)
+        for widget in (self.zoom, self.view_switch, self.search, self.indicator, self.sidebar_button):
+            widget.setEnabled(open_)
+        searching = bool(self.search_term)
+        for widget in (self.previous_hit, self.next_hit, self.hit_count):
+            widget.setVisible(searching)
+        self.previous_hit.setEnabled(bool(self.matches))
+        self.next_hit.setEnabled(bool(self.matches))
+        self.selection_bar.set_editable(self.editable and not self.busy)
+        self.sidebar.editable = self.editable and not self.busy
+        self.sidebar._sync_delete()
+        name = Path(self.path).name if self.path else 'Wysun PDF'
+        self.title.setText(name + (' •' if self.dirty else ''))
+        if open_:
+            details = [f'{self.pages} páginas'] + ([] if self.editable else ['solo lectura'])
+            self.subtitle.setText(' · '.join(details + (['cambios sin guardar'] if self.dirty else [])))
+        self.setWindowTitle((name + (' *' if self.dirty else '') + ' — Wysun PDF') if open_ else 'Wysun PDF')
+
+    # ----------------------------------------------------------------- open
     def confirm_discard(self):
-        return not self.dirty or QMessageBox.question(self, 'Cambios sin guardar',
-            'Hay anotaciones sin guardar. ¿Descartarlas?', QMessageBox.Discard | QMessageBox.Cancel,
-            QMessageBox.Cancel) == QMessageBox.Discard
+        return not self.dirty or QMessageBox.question(
+            self, 'Cambios sin guardar', 'Hay anotaciones sin guardar. ¿Descartarlas?',
+            QMessageBox.Discard | QMessageBox.Cancel, QMessageBox.Cancel) == QMessageBox.Discard
 
     def choose(self):
         if self.busy:
@@ -336,152 +267,256 @@ class PdfWindow(QMainWindow):
     def open_path(self, path, password='', confirmed=False):
         if self.busy or (not confirmed and not self.confirm_discard()):
             return
-        self.busy = True; self.search_generation += 1
-        self.controls(); self.status.setText('Abriendo documento…')
+        self.remember()
+        self.busy = True
+        self.search_generation += 1
+        self.controls()
+
         def opened(reply):
             self.busy = False
             if self.error(reply):
-                self.controls(); return
+                self.controls()
+                return
             result = reply['result']
             if result.get('password_required'):
                 secret, ok = QInputDialog.getText(self, 'PDF protegido', 'Contraseña:', QLineEdit.Password)
                 if ok:
                     self.open_path(path, secret, True)
-                self.controls(); return
+                self.controls()
+                return
             self.generation += 1
-            self.path, self.pages = result['path'], result['pages']
-            self.page_model.reset(self.pages)
-            self.thumbnails.setCurrentIndex(self.page_model.index(0,0))
+            self.path, self.pages, self.sizes = result['path'], result['pages'], result['sizes']
             self.dirty, self.editable = False, result['editable']
-            self.page = 0; self.displayed_page = None
-            self.outline.clear(); self.results.clear(); self.annotations.clear(); self.search.clear()
-            self.page_input.setRange(1, self.pages); self.page_input.setValue(1)
-            self.page_count.setText(f'/ {self.pages}')
-            self.side_meta.setText(f'{self.pages} páginas')
-            for level, title, page in result['outline']:
-                item = QListWidgetItem('  ' * min(level - 1, 6) + title)
-                item.setData(Qt.UserRole, page - 1); self.outline.addItem(item)
-            if not self.outline.count():
-                item = QListWidgetItem('Este PDF no tiene índice.\nUsa el número de página o la búsqueda.')
-                item.setFlags(Qt.NoItemFlags); self.outline.addItem(item)
-            self.empty.hide(); self.split.show(); self.canvas.show()
-            self.status.setText('Selecciona texto para resaltar o subrayar · Ctrl S para guardar' if self.editable else 'Documento de solo lectura')
-            self.controls(); self.render(); self.load_thumbnails()
+            self.source.reset(self.sizes)
+            self.sidebar.reset(self.pages, self.editable)
+            self.sidebar.set_outline(result['outline'])
+            self.clear_search()
+            self.stage_stack.setCurrentWidget(self.view)
+            self.indicator.show()
+            self.set_sidebar(self.preferences.get('sidebar', True) is not False, persist=False)
+            self.view.set_document(self.sizes)
+            saved = self.positions.load(self.path)
+            if saved:
+                self.view.restore(clamp(saved, self.pages))
+            else:
+                self.view.set_fit('width')
+            self.view_switch.set_mode(self.view.mode)
+            self.zoom_changed()
+            self.page_changed(self.view.current_page())
+            self.view.setFocus()
+            self.controls()
+            self.refresh_annotations()
+            self.load_thumbnails()
+            if not self.editable:
+                self.say('Documento de solo lectura')
         self.worker.request('open', opened, path=str(path), password=password)
 
-    def go(self, page):
-        if not self.path or self.busy or not 0 <= page < self.pages:
+    # ------------------------------------------------------------- navigation
+    def page_changed(self, page):
+        if page < 0:
             return
-        self.page = page; self.displayed_page = None
-        self.thumbnails.setCurrentIndex(self.page_model.index(page,0))
-        self.thumbnails.scrollTo(self.page_model.index(page,0))
-        if self.tabs.currentIndex()==2:self.side_meta.setText(f'Página {page+1}')
-        self.page_input.blockSignals(True); self.page_input.setValue(page + 1); self.page_input.blockSignals(False)
-        self.scroll.verticalScrollBar().setValue(0)
-        self.controls(); self.render()
+        self.indicator.set_page(page, self.pages)
+        self.sidebar.set_current_page(page)
 
-    def outline_go(self, item):
-        page = item.data(Qt.UserRole)
-        if page is not None:
-            self.go(page)
+    def zoom_changed(self):
+        self.zoom.set_zoom(self.view.zoom, self.view.zoom_mode)
+        self.save_timer.start()
 
-    def schedule_render(self, *_):
-        if hasattr(self, 'resize_timer'):
-            self.resize_timer.start()
+    def zoom_in(self):
+        if self.path:
+            self.view.zoom_by(ZOOM_STEP)
 
-    def resizeEvent(self, event):
-        super().resizeEvent(event); self.schedule_render()
+    def zoom_out(self):
+        if self.path:
+            self.view.zoom_by(1 / ZOOM_STEP)
 
-    def render(self):
-        if not self.path or self.busy:
+    def fit(self, kind):
+        if self.path:
+            self.view.set_fit(kind)
+
+    def set_view_mode(self, mode):
+        if self.path:
+            self.view.set_mode(mode)
+        self.view_switch.set_mode(self.view.mode)
+
+    def toggle_view_mode(self):
+        self.set_view_mode('single' if self.view.mode == 'spread' else 'spread')
+
+    def place_overlays(self):
+        self.indicator.place()
+        self.place_selection_bar()
+
+    def remember(self):
+        if self.path and self.sizes:
+            self.positions.save(self.path, self.view.position())
+
+    def remember_sidebar(self):
+        if self.path:
+            self.preferences.set(sidebar=self.sidebar.isVisible())
+
+    def set_sidebar(self, visible, persist=True):
+        self.sidebar.setVisible(visible and bool(self.path))
+        self.sidebar_button.set_symbol('left_panel_close' if visible else 'left_panel_open')
+        if persist:
+            self.remember_sidebar()
+        if visible:
+            QTimer.singleShot(0, self.load_thumbnails)
+
+    def toggle_sidebar(self):
+        self.set_sidebar(not self.sidebar.isVisible())
+
+    # --------------------------------------------------------------- thumbnails
+    def load_thumbnails(self):
+        if not self.path or self.thumbnail_pending or self.sidebar.current_tab() != 0:
             return
-        width = max(200, self.scroll.viewport().width() - M['spacing.extraLarge'] * 2)
-        if self.zoom.currentIndex():
-            width = round(800 * int(self.zoom.currentText().rstrip('%')) / 100)
-        self.render_serial += 1
-        serial, generation, page = self.render_serial, self.generation, self.page
-        def rendered(reply):
-            if serial != self.render_serial or generation != self.generation or page != self.page:
+        missing = next((p for p in self.sidebar.visible_thumbnails() if p not in self.sidebar.page_model.images), None)
+        if missing is None:
+            return
+        self.thumbnail_pending = True
+        generation = self.generation
+
+        def loaded(reply):
+            self.thumbnail_pending = False
+            if generation != self.generation:
+                # A reply for the previous document: the new one's thumbnails still have to start.
+                QTimer.singleShot(0, self.load_thumbnails)
                 return
-            if self.error(reply):
+            if 'result' not in reply:
                 return
-            self.canvas.set_page(reply['result'], width)
-            self.displayed_page = page
-            self.canvas.hits = self.search_hits.get(page, [])
-            self.canvas.update()
-            self.annotations.clear()
-            for a in reply['result']['annotations']:
-                item = QListWidgetItem(a['type'] + ' · ' + a['text'])
-                item.setData(Qt.UserRole, a['xref']); item.setData(Qt.UserRole+1,a); self.annotations.addItem(item)
-            self.controls();self.load_thumbnails()
-        self.worker.request('render', rendered, page=page, width=round(width * self.devicePixelRatioF()))
+            result = reply['result']
+            image = QImage(result['blob'], result['width'], result['height'], result['stride'],
+                           QImage.Format_RGB888).copy()
+            self.sidebar.page_model.put(missing, image)
+            QTimer.singleShot(0, self.load_thumbnails)
+        self.worker.request('thumbnail', loaded, priority=1, key=('thumbnail',), page=missing)
 
-    def mark(self, kind):
-        if not self.highlight.isEnabled():
+    # ------------------------------------------------------------- selection
+    def selection_changed(self):
+        if self.view.selection[0] is None:
+            self.selection_bar.hide()
+
+    def selection_finished(self):
+        if self.pending_markup:
+            kind, self.pending_markup = self.pending_markup, None
+            self.mark(kind)
             return
-        self.pending_markup=kind
-        self.highlight.setChecked(kind=='highlight');self.underline.setChecked(kind=='underline')
-        self.select_button.setChecked(False);self.note.setChecked(False);self.canvas.note_mode=False
-        if not self.canvas.selection:
-            self.status.setText('Arrastra sobre el texto para '+('resaltar' if kind=='highlight' else 'subrayar'))
+        self.selection_bar.show()
+        self.place_selection_bar()
+
+    def place_selection_bar(self):
+        if not self.selection_bar.isVisible():
             return
-        self.edit('annotate', kind=kind, rects=[self.canvas.words[i][:4] for i in self.canvas.selection],
-                  text=self.canvas.text(), colour=self.annotation_colour())
+        rect = self.view.selection_rect()
+        if not rect.isValid() or not self.view.viewport().rect().intersects(rect):
+            self.selection_bar.hide()
+            return
+        self.selection_bar.place(rect)
+
+    def selection_action(self, action):
+        if action == 'copy':
+            self.copy_text()
+        elif action == 'ink':
+            ink_menu(self, self.set_ink, self.choose_ink).exec(
+                self.selection_bar.ink.mapToGlobal(self.selection_bar.ink.rect().bottomLeft()))
+        else:
+            self.mark(action)
+
+    def copy_text(self):
+        focus = QApplication.focusWidget()
+        if isinstance(focus, QLineEdit):
+            focus.copy()
+        elif self.view.selected_text():
+            QApplication.clipboard().setText(self.view.selected_text())
+            self.say('Texto copiado')
+
+    def set_ink(self, ink):
+        self.ink = ink
+        self.selection_bar.ink.set_ink(ink)
+        self.preferences.set(ink=[ink.redF(), ink.greenF(), ink.blueF()])
 
     def choose_ink(self):
-        chosen = QColorDialog.getColor(self.ink or self.reader_theme.color('primary'), self, 'Color de las anotaciones')
+        chosen = QColorDialog.getColor(self.annotation_ink(), self, 'Color de las anotaciones')
         if chosen.isValid():
-            self.ink = chosen
+            self.set_ink(chosen)
+
+    def annotation_ink(self):
+        return self.ink if self.ink is not None else ink_colours()[0][1]
 
     def annotation_colour(self):
-        c = self.ink or self.reader_theme.color('primary')
-        return [c.redF(), c.greenF(), c.blueF()]
+        ink = self.annotation_ink()
+        return [ink.redF(), ink.greenF(), ink.blueF()]
 
-    def note_mode(self):
-        self.pending_markup=None
-        self.highlight.setChecked(False);self.underline.setChecked(False);self.select_button.setChecked(not self.note.isChecked())
-        self.canvas.note_mode = self.note.isChecked()
-        self.canvas.setCursor(Qt.CrossCursor if self.canvas.note_mode else Qt.IBeamCursor)
-        self.status.setText('Haz clic en la página para colocar una nota.' if self.canvas.note_mode else 'Arrastra sobre el texto para seleccionarlo.')
-
-    def add_note(self, point):
-        if not self.note.isEnabled():
+    # ------------------------------------------------------------- annotations
+    def mark(self, kind):
+        if not self.path or self.busy or not self.editable:
             return
-        dialog=NoteDialog(self.reader_theme,self)
-        if dialog.exec():
-            self.edit('annotate', kind='note', point=[point.x(), point.y()], text=dialog.editor.toPlainText(),
-                      colour=self.annotation_colour())
-        self.note.setChecked(False); self.note_mode()
+        rects = self.view.selected_rects()
+        if not rects:
+            self.pending_markup = kind
+            self.say('Arrastra sobre el texto para ' + ('resaltarlo' if kind == 'highlight' else 'subrayarlo'))
+            return
+        page = self.view.selection[0]
+        self.edit('annotate', page, kind=kind, rects=rects, text=self.view.selected_text(),
+                  colour=self.annotation_colour())
 
-    def edit(self, operation, **args):
-        self.busy = True; self.controls()
+    def toggle_note_tool(self):
+        self.view.note_mode = self.note_button.isChecked()
+        if self.view.note_mode:
+            self.say('Haz clic en la página para colocar la nota')
+
+    def add_note(self, page, point):
+        self.note_button.setChecked(False)
+        self.view.note_mode = False
+        if not self.editable or self.busy:
+            return
+        dialog = NoteDialog(self)
+        if dialog.exec():
+            self.edit('annotate', page, kind='note', point=[point.x(), point.y()],
+                      text=dialog.editor.toPlainText(), colour=self.annotation_colour())
+
+    def edit_note(self, note):
+        if self.busy or not self.editable:
+            return
+        dialog = NoteDialog(self, text=note['text'], title='Editar anotación')
+        if dialog.exec():
+            self.edit('update_note', note['page'], xref=note['xref'], text=dialog.editor.toPlainText())
+
+    def delete_annotation(self, note):
+        if not self.busy and self.editable:
+            self.edit('delete', note['page'], xref=note['xref'])
+
+    def edit(self, operation, page, **args):
+        self.busy = True
+        self.controls()
+        generation = self.generation
+
         def edited(reply):
             self.busy = False
-            if not self.error(reply):
+            if generation == self.generation and not self.error(reply):
                 self.dirty = True
-                self.page_model.images.pop(self.page,None)
-                self.status.setText('Anotaciones sin guardar · Ctrl S')
-                self.render()
+                self.source.invalidate(page)
+                self.sidebar.page_model.forget(page)
+                self.view.clear_selection()
+                self.view.request()
+                self.refresh_annotations()
+                self.load_thumbnails()
+                self.say('Anotación sin guardar · Ctrl+S')
             self.controls()
-        self.worker.request(operation, edited, page=self.page, **args)
+        self.worker.request(operation, edited, page=page, **args)
 
-    def edit_note(self, item):
-        if self.busy or not self.editable or self.displayed_page!=self.page:return
-        annotation=item.data(Qt.UserRole+1)
-        dialog=NoteDialog(self.reader_theme,self,text=annotation['text'],title='Editar anotación')
-        if dialog.exec():
-            self.edit('update_note',xref=annotation['xref'],text=dialog.editor.toPlainText())
+    def refresh_annotations(self):
+        generation = self.generation
 
-    def delete_annotation(self):
-        item = self.annotations.currentItem()
-        if item and self.delete_button.isEnabled():
-            self.edit('delete', xref=item.data(Qt.UserRole))
+        def listed(reply):
+            if generation == self.generation and 'result' in reply:
+                self.sidebar.set_notes(reply['result']['items'])
+        self.worker.request('annotations', listed, key=('annotations',))
 
+    # ------------------------------------------------------------------ save
     def save(self, copy=False):
-        if not self.path or self.busy:
+        if not self.path or self.busy or (not copy and not self.dirty):
             return
-        target = self.path
-        expected = None
+        target, expected = self.path, None
         if copy:
             dialog = QFileDialog(self, 'Guardar copia anotada')
             dialog.setAcceptMode(QFileDialog.AcceptSave)
@@ -492,79 +527,177 @@ class PdfWindow(QMainWindow):
                 return
             target = dialog.selectedFiles()[0]
             if Path(target).exists():
-                s = Path(target).stat(); expected = [s.st_dev, s.st_ino, s.st_size, s.st_mtime_ns]
-        self.busy = True; self.controls(); self.status.setText('Guardando PDF…')
+                info = Path(target).stat()
+                expected = [info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns]
+        self.busy = True
+        self.controls()
+
         def saved(reply):
             self.busy = False
             if not self.error(reply):
-                self.path = reply['result']['path']; self.dirty = False
-                self.status.setText('PDF guardado · Anotaciones compatibles con otros lectores')
+                self.path = reply['result']['path']
+                self.dirty = False
+                self.say('PDF guardado · las anotaciones se ven en cualquier lector')
+                self.remember()
             self.controls()
         self.worker.request('save', saved, path=target, expected=expected)
 
+    # ---------------------------------------------------------------- search
+    def eventFilter(self, watched, event):
+        if watched is self.search and event.type() == QEvent.KeyPress:
+            if event.key() in (Qt.Key_Return, Qt.Key_Enter) and event.modifiers() & Qt.ShiftModifier:
+                self.next_match(-1)
+                return True
+            if event.key() == Qt.Key_Escape:
+                self.search.clear()
+                self.view.setFocus()
+                return True
+        return super().eventFilter(watched, event)
+
     def focus_search(self):
-        self.navigate(1); self.search.selectAll()
+        if self.path:
+            self.search.setFocus(Qt.ShortcutFocusReason)
+            self.search.selectAll()
 
-    def cancel_search(self):
+    def clear_search(self):
         self.search_generation += 1
-        self.search_hits.clear()
-        self.results.clear()
-        self.canvas.hits = []
-        self.canvas.update()
-        self.search_status.setText('Enter para buscar')
+        self.search_term, self.search_done = '', True
+        self.hits, self.matches, self.match = {}, [], -1
+        self.view.set_hits({})
+        self.sidebar.set_results('', [], 'Busca con Ctrl F')
+        self.hit_count.setText('')
+        self.controls()
 
-    def find(self):
-        if not self.path or self.busy:
+    def start_search(self):
+        self.search_timer.stop()
+        term = self.search.text().strip()
+        if not self.path or term == self.search_term:
             return
-        text = self.search.text().strip()
-        self.search_generation += 1
+        self.clear_search()
+        if not term:
+            return
+        self.search_term, self.search_done = term, False
+        self.controls()
         token, document = self.search_generation, self.generation
-        self.results.clear()
-        if not text:
-            self.canvas.hits = []; self.canvas.update(); return
+        origin = max(0, self.view.current_page())
+        if self.sidebar.isVisible():
+            self.sidebar.set_tab(3)
+
         def search_page(page):
-            if token != self.search_generation or document != self.generation or self.busy:
-                return
             def found(reply):
-                if token != self.search_generation or document != self.generation:
+                if token != self.search_generation or document != self.generation or self.error(reply):
                     return
-                if self.error(reply):
-                    return
-                hits = reply['result']['hits']
-                self.search_hits[page] = hits
-                if self.displayed_page == page:
-                    self.canvas.hits = hits; self.canvas.update()
-                if hits:
-                    item = QListWidgetItem(f'Página {page + 1} · {len(hits)} coincidencias')
-                    item.setData(Qt.UserRole, (page, hits)); self.results.addItem(item)
-                self.search_status.setText(f'{self.results.count()} páginas encontradas · {page + 1}/{self.pages}')
+                result = reply['result']
+                if result['hits']:
+                    self.hits[page] = result['hits']
+                    start = len(self.matches)
+                    self.matches += [(page, index) for index in range(len(result['hits']))]
+                    self.sidebar.add_results(term, [(page, context) for context in result['contexts']],
+                                             f'Buscando… página {page + 1} de {self.pages}')
+                    if self.match < 0 and page >= origin:
+                        self.select_match(start)
+                    else:
+                        self.view.set_hits(self.hits, self.view.current_hit)
                 if page + 1 < self.pages:
                     QTimer.singleShot(0, lambda: search_page(page + 1))
-            self.worker.request('search', found, page=page, text=text)
+                    return
+                self.search_done = True
+                if self.matches and self.match < 0:
+                    self.select_match(0)
+                self.sidebar.results_meta = f'{len(self.matches)} coincidencias' if self.matches else 'Sin coincidencias'
+                self.sidebar._meta()
+                self._count()
+            self.worker.request('search', found, priority=2, page=page, text=term)
         search_page(0)
 
-    def search_go(self, item):
-        if self.busy:
+    def _count(self):
+        if self.matches:
+            self.hit_count.setText(f'{self.match + 1}/{len(self.matches)}')
+        else:
+            self.hit_count.setText('' if not self.search_done else 'Sin resultados')
+        self.controls()
+
+    def select_match(self, index):
+        if not 0 <= index < len(self.matches):
             return
-        page, hits = item.data(Qt.UserRole)
-        self.go(page)
-        serial = self.render_serial
-        # Queue after the page render, using a tiny search response as a barrier.
-        def show(reply):
-            if serial == self.render_serial and not self.busy and 'result' in reply:
-                self.canvas.hits = hits; self.canvas.update()
-                if hits:
-                    self.scroll.ensureVisible(0, round(hits[0][1] * self.canvas.height() / self.canvas.page_height))
-        self.worker.request('search', show, page=page, text=self.search.text())
+        self.match = index
+        page, hit = self.matches[index]
+        self.view.set_hits(self.hits, (page, hit))
+        self.sidebar.select_result(index)
+        self._count()
 
-    def copy_text(self):
+    def next_match(self, step):
+        if self.search.text().strip() != self.search_term:
+            self.start_search()
+            return
+        if self.matches:
+            self.select_match((self.match + step) % len(self.matches))
+
+    # ----------------------------------------------------------------- links
+    def follow_link(self, link):
+        if 'page' in link:
+            self.view.go(link['page'], link.get('y') or None)
+            return
+        uri = link.get('uri', '')
+        if QUrl(uri).scheme().lower() not in LINK_SCHEMES:
+            self.say('Este enlace no se puede abrir desde el lector')
+            return
+        if self.confirm_link(uri):
+            self.launch_url(uri)
+
+    def confirm_link(self, uri):
+        box = QMessageBox(QMessageBox.Question, 'Abrir enlace externo',
+                          'El documento quiere abrir esta dirección fuera del lector:\n\n' + uri,
+                          QMessageBox.Open | QMessageBox.Cancel, self)
+        box.setDefaultButton(QMessageBox.Cancel)
+        return box.exec() == QMessageBox.Open
+
+    def launch_url(self, uri):
+        process = QProcess(self)
+        environment = QProcessEnvironment()
+        for key, value in self.reader_mode.environment().items():
+            environment.insert(key, value)
+        process.setProcessEnvironment(environment)
+        process.setProgram('xdg-open')
+        process.setArguments([uri])
+        if not process.startDetached()[0]:
+            self.say('No se pudo abrir el enlace')
+
+    # ----------------------------------------------------------------- menu
+    def more_menu(self):
+        menu = QMenu(self)
+        menu.addAction('Abrir…  Ctrl+O', self.choose)
+        copy = menu.addAction('Guardar una copia…  Ctrl+Shift+S', lambda: self.save(copy=True))
+        copy.setEnabled(bool(self.path) and not self.busy)
+        menu.addSeparator()
+        look = menu.addMenu('Apariencia del lector')
+        group = QActionGroup(look)
+        for mode, label in ((None, 'Como el escritorio'), ('light', 'Claro'), ('dark', 'Oscuro')):
+            action = look.addAction(label, lambda m=mode: self.reader_mode.set(m))
+            action.setCheckable(True)
+            action.setChecked(self.reader_mode.pinned == mode)
+            group.addAction(action)
+        menu.addAction('Atajos de teclado  F1', self.show_shortcuts)
+        menu.exec(self.more_button.mapToGlobal(self.more_button.rect().bottomLeft()))
+
+    def show_shortcuts(self):
+        QMessageBox.information(self, 'Atajos de Wysun PDF', SHORTCUTS)
+
+    def escape(self):
+        # The window's Escape shortcut wins over the search field's key filter, so clear it here too.
         if self.search.hasFocus():
-            self.search.copy()
-        elif self.canvas.selection:
-            QApplication.clipboard().setText(self.canvas.text())
+            self.search.clear()
+            self.view.setFocus()
+            return
+        if self.view.note_mode:
+            self.note_button.setChecked(False)
+            self.view.note_mode = False
+        self.pending_markup = None
+        self.view.clear_selection()
 
-    def toggle_sidebar(self):
-        self.sidebar_panel.setVisible(not self.sidebar_panel.isVisible()); self.schedule_render()
+    # ---------------------------------------------------------------- window
+    def paintEvent(self, _event):
+        paint_surface(self)
 
     def dragEnterEvent(self, event):
         if not self.busy and any(u.isLocalFile() and u.toLocalFile().lower().endswith('.pdf') for u in event.mimeData().urls()):
@@ -573,11 +706,18 @@ class PdfWindow(QMainWindow):
     def dropEvent(self, event):
         for url in event.mimeData().urls():
             if url.isLocalFile() and url.toLocalFile().lower().endswith('.pdf'):
-                self.open_path(url.toLocalFile()); event.acceptProposedAction(); break
+                self.open_path(url.toLocalFile())
+                event.acceptProposedAction()
+                break
 
     def closeEvent(self, event):
-        if self.busy and self.worker.process.state() != self.worker.process.NotRunning:
-            self.status.setText('Espera a que termine la operación antes de cerrar.'); event.ignore(); return
+        if self.busy and self.worker.process.state() != QProcess.NotRunning:
+            self.say('Espera a que termine la operación antes de cerrar.')
+            event.ignore()
+            return
         if not self.confirm_discard():
-            event.ignore(); return
-        self.worker.stop(); event.accept()
+            event.ignore()
+            return
+        self.remember()
+        self.worker.stop()
+        event.accept()

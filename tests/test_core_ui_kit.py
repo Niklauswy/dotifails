@@ -11,7 +11,6 @@ CORE_UI = ROOT / 'apps/wysun/wysun_core/ui'
 DISTINCT = {
     'apps/capture/loomrec/ui/app_window.py:NavItem': "Recorder's own rail item (65 % like the kit row)",
     'installer/material_widgets.py:Panel': "the installer's hero panel, unrelated to the kit surface",
-    'apps/wysun/pdf_material.py:Panel': "the PDF reader's own ReaderTheme-driven panel (to review with the reader)",
     'apps/wysun/wysun_media/controls.py:Toast': 'the player HUD pill, part of the wysun_media Host contract',
 }
 

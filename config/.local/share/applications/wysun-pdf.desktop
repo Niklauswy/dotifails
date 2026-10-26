@@ -7,6 +7,7 @@ Exec=wysun pdf %F
 Icon=application-pdf
 Terminal=false
 Categories=Office;Viewer;
+Keywords=pdf;documento;lector;anotar;resaltar;document;reader;annotate;
 MimeType=application/pdf;
 StartupNotify=true
 StartupWMClass=wysun-pdf
