@@ -795,4 +795,3 @@ class StudySettings(QDialog):
             self.status.setText('Lista de recientes vaciada. Los archivos y las notas se conservan.')
         except STORAGE_ERRORS as error:
             self.status.setText(str(error))
-
