@@ -101,7 +101,7 @@ pdf_window.py     ventana: composición, atajos, flujo de apertura/guardado/anot
   **[Decisión propia]**, sustituye los 800 px fijos. Rango 10 %–800 %.
 - Modos `single` (una columna continua) y `spread` (dos páginas por fila: 1-2, 3-4…; **[Decisión propia]**:
   sin portada aislada). Las páginas de una fila se centran verticalmente; las filas, horizontalmente.
-- Separación entre páginas y margen = tokens de espaciado (`space_l`, `space_xl`) leídos vía
+- Separación entre páginas y margen = tokens de espaciado (`spacing.large`, `spacing.extraLarge`) leídos vía
   `wysun_core.ui.style.metric`.
 - `fit_width` (fila más ancha) y `fit_page` (la fila actual cabe entera). El ajuste se recalcula al
   redimensionar mientras el modo de zoom sea `width`/`page`.

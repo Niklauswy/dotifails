@@ -33,7 +33,7 @@ class ToolGroup(QWidget):
     def __init__(self, *widgets, parent=None):
         super().__init__(parent)
         row = QHBoxLayout(self)
-        inset = metric('space_xs') // 2
+        inset = metric('spacing.extraSmall') // 2
         row.setContentsMargins(inset, inset, inset, inset)
         row.setSpacing(0)
         for widget in widgets:
@@ -59,11 +59,11 @@ class TextButton(QAbstractButton):
         self.setToolTip(label)
         self.setCursor(Qt.PointingHandCursor)
         self.setFocusPolicy(Qt.StrongFocus)
-        self.setFont(text_font('small', 600))
+        self.setFont(text_font('body.small', 600))
         self.setFixedHeight(CONTROL - 4)
 
     def sizeHint(self):
-        return QSize(self.fontMetrics().horizontalAdvance('8888 %') + metric('space_m'), self.height())
+        return QSize(self.fontMetrics().horizontalAdvance('8888 %') + metric('spacing.medium'), self.height())
 
     def enterEvent(self, event):
         self.layer.to(1.0)
@@ -83,7 +83,7 @@ class TextButton(QAbstractButton):
             painter.setBrush(color('tint', round(18 * self.layer.amount)))
             painter.drawRoundedRect(rect, radius, radius)
         if self.hasFocus():
-            painter.setPen(QPen(color('focus'), tokens()['focus_width']))
+            painter.setPen(QPen(color('focus'), tokens()['border.focus']))
             painter.setBrush(Qt.NoBrush)
             painter.drawRoundedRect(rect, radius, radius)
         painter.setPen(color('text' if self.isEnabled() else 'disabled'))
@@ -161,7 +161,7 @@ class PageIndicator(QWidget):
         self.page, self.total = 0, 0
         self.setCursor(Qt.PointingHandCursor)
         self.setFocusPolicy(Qt.TabFocus)
-        self.setFont(text_font('small', 600))
+        self.setFont(text_font('body.small', 600))
         self.setFixedHeight(CONTROL - 2)
         self.editor = QLineEdit(self)
         self.editor.setAlignment(Qt.AlignCenter)
@@ -184,10 +184,10 @@ class PageIndicator(QWidget):
 
     def place(self):
         parent = self.parentWidget()
-        width = self.fontMetrics().horizontalAdvance(f'{self.total} / {self.total}') + metric('space_xl') * 2
-        self.setGeometry((parent.width() - width) // 2, parent.height() - self.height() - metric('space_l'),
+        width = self.fontMetrics().horizontalAdvance(f'{self.total} / {self.total}') + metric('spacing.extraLarge') * 2
+        self.setGeometry((parent.width() - width) // 2, parent.height() - self.height() - metric('spacing.large'),
                          width, self.height())
-        self.editor.setGeometry(self.rect().adjusted(metric('space_s'), 4, -metric('space_s'), -4))
+        self.editor.setGeometry(self.rect().adjusted(metric('spacing.small'), 4, -metric('spacing.small'), -4))
         self.raise_()
 
     def start_edit(self):
@@ -222,7 +222,7 @@ class PageIndicator(QWidget):
         painter.setRenderHint(QPainter.Antialiasing)
         rect = QRectF(self.rect()).adjusted(.5, .5, -.5, -.5)
         radius = rect.height() / 2
-        painter.setPen(QPen(color('focus') if self.hasFocus() else color('line'), tokens()['border']))
+        painter.setPen(QPen(color('focus') if self.hasFocus() else color('line'), tokens()['border.width']))
         painter.setBrush(color('surface_raised'))
         painter.drawRoundedRect(rect, radius, radius)
         if not self.editor.isVisible():
@@ -264,7 +264,7 @@ class SelectionBar(QWidget):
     def __init__(self, parent):
         super().__init__(parent)
         row = QHBoxLayout(self)
-        inset = metric('space_xs')
+        inset = metric('spacing.extraSmall')
         row.setContentsMargins(inset, inset, inset, inset)
         row.setSpacing(0)
         size = CONTROL - 4
@@ -289,7 +289,7 @@ class SelectionBar(QWidget):
         """Centre above ``rect`` (parent coordinates); below it when there is no room above."""
         self.adjustSize()
         parent = self.parentWidget()
-        gap = metric('space_s')
+        gap = metric('spacing.small')
         x = max(gap, min(parent.width() - self.width() - gap, rect.center().x() - self.width() // 2))
         y = rect.top() - self.height() - gap
         if y < gap:
@@ -302,7 +302,7 @@ class SelectionBar(QWidget):
         painter.setRenderHint(QPainter.Antialiasing)
         rect = QRectF(self.rect()).adjusted(.5, .5, -.5, -.5)
         radius = rect.height() / 2
-        painter.setPen(QPen(color('line'), tokens()['border']))
+        painter.setPen(QPen(color('line'), tokens()['border.width']))
         painter.setBrush(color('surface_raised'))
         painter.drawRoundedRect(rect, radius, radius)
 
@@ -349,18 +349,18 @@ class EmptyState(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         column = QVBoxLayout(self)
-        column.setSpacing(metric('space_m'))
+        column.setSpacing(metric('spacing.medium'))
         column.addStretch(3)
         column.addWidget(Emblem(), 0, Qt.AlignHCenter)
-        column.addSpacing(metric('space_m'))
+        column.addSpacing(metric('spacing.medium'))
         title = QLabel('Abre un PDF')
-        title.setFont(text_font('title', 600))
+        title.setFont(text_font('title.large', 600))
         body = QLabel('Lee de corrido y marca lo importante.\nTus notas se guardan dentro del propio PDF.')
         body.setObjectName('muted')
         for label in (title, body):
             label.setAlignment(Qt.AlignHCenter)
             column.addWidget(label, 0, Qt.AlignHCenter)
-        column.addSpacing(metric('space_s'))
+        column.addSpacing(metric('spacing.small'))
         self.button = PillButton('folder_open', 'Abrir un PDF', lambda: self.open_requested.emit(), height=44)
         column.addWidget(self.button, 0, Qt.AlignHCenter)
         hint = QLabel('o arrastra un archivo aquí · Ctrl O')
@@ -377,15 +377,15 @@ class NoteDialog(QDialog):
         apply_kit_style(self)
         from wysun_core.qt_theme import extend_style
         extend_style(self, 'QDialog {background:@surface_raised;} QPlainTextEdit {background:@well;'
-                           'border:@border solid @line;border-radius:@radius_control;padding:@space_s;'
+                           'border:@border.width solid @line;border-radius:@rounding.medium;padding:@spacing.small;'
                            'selection-background-color:@text_selection;}'
-                           'QPlainTextEdit:focus {border:@focus_width solid @focus_input;}')
+                           'QPlainTextEdit:focus {border:@border.focus solid @focus_input;}')
         self.setMinimumWidth(440)
         column = QVBoxLayout(self)
-        pad = metric('space_xl')
+        pad = metric('spacing.extraLarge')
         column.setContentsMargins(pad, pad, pad, pad)
-        column.setSpacing(metric('space_m'))
-        heading = ElidedLabel(title, 'heading', 650)
+        column.setSpacing(metric('spacing.medium'))
+        heading = ElidedLabel(title, 'title.medium', 650)
         column.addWidget(heading)
         self.editor = QPlainTextEdit()
         self.editor.setAccessibleName('Texto de la nota')

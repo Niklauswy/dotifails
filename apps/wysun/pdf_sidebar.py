@@ -80,7 +80,7 @@ class ThumbnailDelegate(QStyledItemDelegate):
             painter.setPen(Qt.NoPen)
             painter.setBrush(color('well'))
             painter.drawRect(area)
-        radius = tokens()['corner_xs']
+        radius = tokens()['rounding.extraSmall']
         if current:
             painter.setPen(QPen(color('accent'), 3))
             painter.setBrush(Qt.NoBrush)
@@ -90,10 +90,10 @@ class ThumbnailDelegate(QStyledItemDelegate):
             painter.setBrush(Qt.NoBrush)
             painter.drawRoundedRect(area.adjusted(-2, -2, 2, 2), radius, radius)
         if option.state & QStyle.State_HasFocus:
-            painter.setPen(QPen(color('focus'), tokens()['focus_width']))
+            painter.setPen(QPen(color('focus'), tokens()['border.focus']))
             painter.drawRoundedRect(cell, radius * 2, radius * 2)
         painter.setPen(color('accent' if current else 'muted'))
-        painter.setFont(text_font('small', 700 if current else 500))
+        painter.setFont(text_font('body.small', 700 if current else 500))
         painter.drawText(label, Qt.AlignCenter, index.data())
         painter.restore()
 
@@ -108,20 +108,20 @@ class RowDelegate(QStyledItemDelegate):
         painter.save()
         painter.setRenderHint(QPainter.Antialiasing)
         rect = QRectF(option.rect).adjusted(0, 1, 0, -1)
-        radius = tokens()['radius_m']
+        radius = tokens()['rounding.medium']
         selected = bool(option.state & QStyle.State_Selected)
         if selected or option.state & QStyle.State_MouseOver:
             painter.setPen(Qt.NoPen)
             painter.setBrush(color('row_selected' if selected else 'row_hover'))
             painter.drawRoundedRect(rect, radius, radius)
         if option.state & QStyle.State_HasFocus:
-            painter.setPen(QPen(color('focus'), tokens()['focus_width']))
+            painter.setPen(QPen(color('focus'), tokens()['border.focus']))
             painter.setBrush(Qt.NoBrush)
             painter.drawRoundedRect(rect.adjusted(1, 1, -1, -1), radius, radius)
-        inner = rect.adjusted(metric('space_m'), 0, -metric('space_m'), 0)
+        inner = rect.adjusted(metric('spacing.medium'), 0, -metric('spacing.medium'), 0)
         secondary = index.data(SECONDARY)
         if secondary:
-            painter.setFont(text_font('caption', 600))
+            painter.setFont(text_font('label.small', 600))
             painter.setPen(color('muted'))
             top = QRectF(inner.left(), inner.top() + 6, inner.width(), 18)
             painter.drawText(top, Qt.AlignLeft | Qt.AlignVCenter, secondary)
@@ -130,7 +130,7 @@ class RowDelegate(QStyledItemDelegate):
         painter.restore()
 
     def _text(self, painter, rect, text, term, selected):
-        regular, bold = text_font('body', 600 if selected else 400), text_font('body', 700)
+        regular, bold = text_font('body.medium', 600 if selected else 400), text_font('body.medium', 700)
         painter.setPen(color('text'))
         at = text.lower().find(term.lower()) if term else -1
         if at < 0:
@@ -174,10 +174,10 @@ class Sidebar(QWidget):
         super().__init__(parent)
         self.setFixedWidth(WIDTH)
         column = QVBoxLayout(self)
-        column.setContentsMargins(metric('space_xs'), 0, 0, 0)
-        column.setSpacing(metric('space_s'))
+        column.setContentsMargins(metric('spacing.extraSmall'), 0, 0, 0)
+        column.setSpacing(metric('spacing.small'))
         tabs = QHBoxLayout()
-        tabs.setSpacing(metric('space_xs'))
+        tabs.setSpacing(metric('spacing.extraSmall'))
         self.tabs = []
         for index, (symbol, label) in enumerate(TABS):
             button = IconButton(symbol, label, lambda i=index: self.set_tab(i), variant='tonal', size=40, checkable=True)
@@ -186,10 +186,10 @@ class Sidebar(QWidget):
             self.tabs.append(button)
         tabs.addStretch()
         column.addLayout(tabs)
-        self.heading = ElidedLabel('Páginas', 'heading', 650)
-        self.meta = ElidedLabel('', 'small', 450, tint='muted')
+        self.heading = ElidedLabel('Páginas', 'title.medium', 650)
+        self.meta = ElidedLabel('', 'body.small', 450, tint='muted')
         heading = QVBoxLayout()
-        heading.setContentsMargins(metric('space_s'), metric('space_s'), 0, 0)
+        heading.setContentsMargins(metric('spacing.small'), metric('spacing.small'), 0, 0)
         heading.setSpacing(2)
         heading.addWidget(self.heading)
         heading.addWidget(self.meta)

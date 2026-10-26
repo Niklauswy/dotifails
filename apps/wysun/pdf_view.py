@@ -63,10 +63,10 @@ class DocumentView(QAbstractScrollArea):
         self._emit_page()
 
     def gap(self):
-        return metric('space_l')
+        return metric('spacing.large')
 
     def margin(self):
-        return metric('space_xl')
+        return metric('spacing.extraLarge')
 
     def _fit(self):
         width, height = self.viewport().width(), self.viewport().height()
@@ -85,7 +85,7 @@ class DocumentView(QAbstractScrollArea):
                                   (self.verticalScrollBar(), self.layout.height, self.viewport().height())):
             bar.setRange(0, max(0, round(extent - page)))
             bar.setPageStep(page)
-            bar.setSingleStep(max(1, metric('space_xl') * 2))
+            bar.setSingleStep(max(1, metric('spacing.extraLarge') * 2))
         self.viewport().update()
         self.scrolled.emit()
 
@@ -229,7 +229,7 @@ class DocumentView(QAbstractScrollArea):
         painter.setRenderHints(QPainter.Antialiasing | QPainter.SmoothPixmapTransform)
         top = self.verticalScrollBar().value()
         ratio = self.devicePixelRatioF()
-        radius = tokens()['corner_xs']
+        radius = tokens()['rounding.extraSmall']
         for page in self.layout.visible(top, top + self.viewport().height()):
             rect = self.page_rect(page)
             painter.setPen(Qt.NoPen)
@@ -256,7 +256,7 @@ class DocumentView(QAbstractScrollArea):
                     for line in self._lines(info['words'], self.selection[1]):
                         painter.drawRect(self._box(line, rect, scale))
         if self._keyboard_focus and self.hasFocus() and self.window().isActiveWindow():
-            painter.setPen(QPen(color('focus'), tokens()['focus_width']))
+            painter.setPen(QPen(color('focus'), tokens()['border.focus']))
             painter.setBrush(Qt.NoBrush)
             painter.drawRect(QRectF(self.viewport().rect()).adjusted(1, 1, -1, -1))
 
