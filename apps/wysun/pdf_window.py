@@ -684,6 +684,11 @@ class PdfWindow(FramelessResize, WindowMotion, QMainWindow):
         QMessageBox.information(self, 'Atajos de Wysun PDF', SHORTCUTS)
 
     def escape(self):
+        # The window's Escape shortcut wins over the search field's key filter, so clear it here too.
+        if self.search.hasFocus():
+            self.search.clear()
+            self.view.setFocus()
+            return
         if self.view.note_mode:
             self.note_button.setChecked(False)
             self.view.note_mode = False

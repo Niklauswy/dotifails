@@ -16,7 +16,7 @@ AVAILABLE = all(importlib.util.find_spec(m) for m in ('fitz', 'PySide6'))
 if AVAILABLE:
     import fitz
     from PySide6.QtCore import QEvent, QPointF, Qt
-    from PySide6.QtGui import QKeyEvent, QMouseEvent
+    from PySide6.QtGui import QKeyEvent, QKeySequence, QMouseEvent, QShortcut
     from PySide6.QtWidgets import QApplication
     from pdf_window import PdfWindow
 
@@ -168,6 +168,18 @@ class WindowTests(unittest.TestCase):
         self.assertEqual(window.view.current_hit, (0, 1))
         window.sidebar.result_requested.emit(5)
         self.assertEqual(window.view.current_hit, (2, 1))
+
+    def test_escape_in_search_clears_it(self):
+        window, _ = self.open()
+        window.activateWindow()
+        window.focus_search()
+        self.wait(lambda: window.search.hasFocus())
+        window.search.setText('quieter')
+        # The window-level Escape shortcut is what fires for a real key press in the field.
+        escape = next(s for s in window.findChildren(QShortcut) if s.key() == QKeySequence('Escape'))
+        escape.activated.emit()
+        self.assertEqual(window.search.text(), '')
+        self.assertFalse(window.search.hasFocus())
 
     def test_new_query_discards_old_hits(self):
         window, _ = self.open('Long.pdf', pages=12)
