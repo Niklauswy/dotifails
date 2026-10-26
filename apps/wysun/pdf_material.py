@@ -100,7 +100,7 @@ class ReaderTheme(QObject):
         family = qt_theme.family(self.values())
         return f'''
 QDialog, QMessageBox {{background:{c('canvas')}; color:{c('text')};}}
-QLabel {{color:{c('text')}; font-family:"{family}"; font-size:{M['font.body.medium.size']}px;}}
+QLabel {{color:{c('text')}; font-family:"{family}"; font-size:{M['font.body.medium.size']}pt;}}
 QPushButton {{background:{c('primary_container')}; color:{c('on_primary_container')}; border:0; border-radius:{M['control']//2}px; min-height:{M['control']}px; padding:0 {M['spacing.extraLarge']}px;}}
 QPushButton:hover {{background:{c('selection')};}}
 QPushButton:default {{background:{c('primary')}; color:{c('on_primary')};}}
@@ -109,7 +109,7 @@ QLineEdit, QSpinBox, QComboBox, QPlainTextEdit {{
  background:{c('surface_high')}; color:{c('text')}; border:0;
  border-radius:{M['rounding.medium']}px; padding:{M['spacing.medium']}px;
  selection-background-color:{c('primary_container')}; selection-color:{c('on_primary_container')};
- font-family:"{family}"; font-size:{M['font.body.medium.size']}px;
+ font-family:"{family}"; font-size:{M['font.body.medium.size']}pt;
 }}
 QComboBox::drop-down {{border:0; width:{M['spacing.extraLarge']}px;}}
 QComboBox QAbstractItemView {{background:{c('surface_high')}; color:{c('text')}; selection-background-color:{c('primary_container')}; border:0;}}

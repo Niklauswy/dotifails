@@ -29,15 +29,15 @@ def code_colors():
 
 def mono_font(scale=.95):
     font = QFont()
-    font.setFamilies(list(tokens()['font.family.mono']))
+    font.setFamily(tokens()['font.family.mono'])
     font.setStyleHint(QFont.Monospace)
-    font.setPixelSize(round(tokens()['font.body.medium.size'] * scale))
+    font.setPointSizeF(tokens()['font.body.medium.size'] * scale)
     return font
 
 
 def ink():
     return {'link': color('accent').name(), 'code_bg': css(color('tint', 44)), 'code_fg': color('text_strong').name(),
-            'mono': ', '.join(f'"{family}"' for family in tokens()['font.family.mono']), 'muted': color('muted').name()}
+            'mono': f'"{tokens()["font.family.mono"]}"', 'muted': color('muted').name()}
 
 
 class CodeEdit(QPlainTextEdit):

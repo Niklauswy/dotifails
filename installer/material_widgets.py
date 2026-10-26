@@ -51,7 +51,7 @@ def apply_style(widget, template=STYLE):
     extend_style(widget, template)
 
 
-def restyle_label(widget, role='body.medium'):
+def restyle_label(widget, role='body'):
     size, weight, scale, ink = ROLES[role]
     widget.setProperty('installerRole', role)
     font = text_font(size, weight, scale)
@@ -63,7 +63,7 @@ def restyle_label(widget, role='body.medium'):
     apply_tokens(widget, 'color:@' + ink + ';background:transparent;')
 
 
-def label(text, role='body.medium', wrap=True):
+def label(text, role='body', wrap=True):
     widget = QLabel(text.upper() if role == 'eyebrow' else text)
     widget.setTextFormat(Qt.PlainText)
     widget.setWordWrap(wrap)

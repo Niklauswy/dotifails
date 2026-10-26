@@ -26,7 +26,7 @@ STYLE = '''
   QWidget { color:@text; }
   QMainWindow,QDialog { background:@canvas; }
   QLabel { background:transparent; }
-  QLabel[role="title.large"] { font-size:@font.title.large.size; font-weight:600; letter-spacing:-0.5px; }
+  QLabel[role="title"] { font-size:@font.title.large.size; font-weight:600; letter-spacing:-0.5px; }
   QLabel[role="subtitle"] { color:@muted; font-size:@font.body.medium.size; }
   QLabel[role="eyebrow"] { color:@muted; font-size:@font.body.small.size; font-weight:600; letter-spacing:1px; }
   QLabel[role="section"] { font-size:@font.title.medium.size; font-weight:600; }
@@ -98,7 +98,7 @@ STYLE = '''
 
 def _apply_font(app):
     font = QFont(family())
-    font.setPixelSize(int(tokens()['font.body.medium.size']))
+    font.setPointSizeF(tokens()['font.body.medium.size'])
     app.setFont(font)
 
 
