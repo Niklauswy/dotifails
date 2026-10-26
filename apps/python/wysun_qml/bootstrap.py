@@ -11,7 +11,7 @@ import os
 from pathlib import Path
 import sys
 
-from wysun_core import launch
+from wysun_core import launch, paths
 
 # Libraries PySide6's QtCore/QtGui/QtQml/QtQuick modules and the Wayland platform link against.
 PRELOAD = ('Core', 'Gui', 'DBus', 'Network', 'OpenGL', 'Qml', 'QmlMeta', 'QmlModels', 'QmlWorkerScript', 'Quick',
@@ -22,7 +22,7 @@ HINT = ('Wysun: falta el runtime QML (venv de PySide6). Créalo con: python3 ins
 
 
 def _data_home():
-    return Path(os.environ.get('XDG_DATA_HOME') or Path.home() / '.local/share')
+    return paths.data_home()
 
 
 def runtime_dir():
