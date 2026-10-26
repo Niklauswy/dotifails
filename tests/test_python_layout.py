@@ -10,7 +10,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 APP = ROOT / 'apps/python'
 PACKAGES = {'wysun_core', 'wysun_music', 'wysun_files', 'wysun_media', 'wysun_player', 'wysun_pdf',
-            'wysun_settings', 'wysun_services'}
+            'wysun_settings', 'wysun_services', 'wysun_qml'}
 # The vendored materialyoucolor is the only sys.path entry production code adds: next to the packages, never the app.
 SYS_PATH_ALLOWED = {'apps/python/wysun_services/scheme.py'}
 
