@@ -22,10 +22,11 @@ class PdfWorker(QObject):
         self.buffer = bytearray()
         self.header = None       # parsed reply waiting for its binary frame
         self.stopping = False
+        self.failure_reported = False
         self.process = QProcess(self)
         self.process.readyReadStandardOutput.connect(self.read)
         self.process.finished.connect(self.exited)
-        self.process.errorOccurred.connect(lambda _: self.failed.emit('No se pudo iniciar el motor PDF.'))
+        self.process.errorOccurred.connect(lambda _: self.fail('El motor PDF no está disponible. Vuelve a abrir el lector.'))
         self.process.started.connect(self.pump)
         environment = QProcessEnvironment.systemEnvironment()
         environment.insert('PYTHONPATH', str(launch.ROOT))
@@ -81,10 +82,15 @@ class PdfWorker(QObject):
             self.pump()
 
     def exited(self, *_):
-        if not self.stopping:
-            self.queue.clear()
-            self.active = None
-            self.failed.emit('El motor PDF se cerró. Vuelve a abrir el lector; los cambios sin guardar no se han escrito.')
+        self.fail('El motor PDF se cerró. Vuelve a abrir el lector; los cambios sin guardar no se han escrito.')
+
+    def fail(self, message):
+        if self.stopping or self.failure_reported:
+            return
+        self.failure_reported = True
+        self.queue.clear()
+        self.active = None
+        self.failed.emit(message)
 
     def stop(self):
         self.stopping = True

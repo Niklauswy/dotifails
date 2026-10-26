@@ -1,27 +1,110 @@
 # Wysun PDF
 
-Lector local de Linux en `apps/python/pdf_*`, construido sobre el kit compartido `wysun_core.ui`
+Lector local de Linux en `apps/python/wysun_pdf/`, construido sobre el kit compartido `wysun_core.ui`
 (controles, paneles, toasts, ventana sin bordes) y los tokens del tema, como Files y Music. Sigue en vivo el modo y los colores del
 wallpaper. Se abre con `wysun pdf [archivo.pdf ...]`, desde la entrada **Wysun PDF** de aplicaciones o
 arrastrando un PDF a la ventana. Cada documento abre su propia ventana. No registra una asociación
 predeterminada sin pedirla.
 
-## Interfaz
+## Biblioteca y espacio de estudio
 
-- **Barra superior compacta** (también arrastra la ventana): cerrar, panel lateral, título con punto de
-  cambios y número de páginas. Le siguen la búsqueda con contador y anterior/siguiente, el zoom
-  (− / porcentaje con menú de ajustes y porcentajes / +), el modo de vista (una página continua o dos
-  páginas), la herramienta Nota, Guardar (activo solo con cambios) y el menú ⋮ (Abrir, Guardar una copia,
-  Apariencia del lector, Atajos).
-- **Panel lateral plegable** (F9, se recuerda) con cuatro pestañas: *Páginas* (miniaturas
-  bajo demanda), *Índice* (el del PDF), *Notas* (todas las anotaciones del documento: clic salta,
-  Enter o doble clic edita, Supr o Eliminar borra) y *Resultados* (cada coincidencia con su página y la
-  línea donde aparece, con el término destacado).
-- **Indicador flotante de página** («3 / 40»): clic o Ctrl+G para escribir la página.
-- **Barra contextual** sobre la selección: Resaltar, Subrayar, Copiar y el color de la anotación
-  (acento del tema o cuatro colores de marcador; «Otro color…» abre el selector). En documentos de solo
-  lectura solo queda Copiar.
-- Los mensajes salen en el toast del kit. Sin documento se muestra un estado vacío con «Abrir un PDF».
+Sin argumentos, la aplicación abre la biblioteca: continuar la última lectura, buscar por título o
+colección, abrir un PDF y volver a los documentos recientes. Clic derecho en un libro asigna una
+colección (una por libro); **Colecciones** filtra por ellas y **Cuaderno global** abre todas las notas.
+Si un reciente se movió, abrirlo pide localizarlo con el selector de Wysun Files y conserva su cuaderno
+(si el archivo elegido ya tenía cuaderno propio, se abre sin fusionar notas). Alt+Home vuelve a ella sin cerrar el documento que
+estabas leyendo. Las aperturas nuevas crean el historial; las rutas no pueden reconstruirse desde los
+hashes del almacén antiguo de posiciones. Ajustes permite desactivar o limpiar los recientes sin borrar
+los originales ni las notas.
+
+La cabecera agrupa zoom, una/dos páginas y nota PDF bajo **Lectura**. La búsqueda se abre con Ctrl+F
+(o la lupa). **Guardar PDF** aparece cuando hay anotaciones pendientes. A la derecha están Cuaderno
+y Sesión. El panel de páginas/índice/anotaciones PDF/resultados sigue disponible mediante F9.
+Un solo panel auxiliar se muestra a la vez. En ventanas estrechas el panel de estudio ocupa el área
+central; al cerrarlo vuelve el documento, evitando reducir el texto a una columna ilegible.
+
+La selección ofrece resaltar, subrayar, copiar, color, **Nota** y **Consultar**. Las dos últimas acciones
+abren el cuaderno y la consulta lateral. El contenido PDF y sus colores originales se conservan.
+
+### Cuaderno
+
+Ctrl+Shift+N o Nota guarda una reflexión/pregunta junto a la cita, página y posición del pasaje.
+El cuaderno **se guarda solo**: cada cambio queda como borrador local al instante y se guarda como nota
+tras una breve pausa al escribir, al cambiar de panel o documento y al cerrar; no modifica el PDF.
+Solo si el guardado falla (otra ventana cambió la nota, disco o base bloqueados) se pregunta qué hacer;
+un fallo de almacenamiento se reintenta. **Borradores** aparece cuando quedan borradores recuperables
+(p. ej. tras una caída) y el botón deshacer, tras eliminar una nota. Las ediciones concurrentes no se
+sobrescriben: el editor conserva tu texto y ofrece guardarlo como una entrada nueva. El panel filtra por
+texto o `#etiqueta`. El cuaderno se exporta a Markdown (selector de Wysun Files) con página y fuente.
+
+**Cuaderno global y repaso** busca en las notas de todos los libros, incluidos los quitados de recientes,
+y vuelve al pasaje (abriendo el libro si hace falta). En modo repaso muestra solo preguntas: escribes tu
+respuesta, la cita y la respuesta anterior se revelan a petición y marcas «Lo comprendí» o «Seguir
+estudiando». No hay algoritmo de repetición espaciada ni calificación automática. Esc no descarta una
+respuesta escrita sin confirmarlo.
+
+Los datos viven en `$XDG_DATA_HOME/wysun/pdf-reader/study.sqlite3` (0600, modo WAL, esquema 2: documentos,
+entradas, colecciones, borradores y repasos; la migración desde el esquema 1 solo añade tablas). Esta base contiene rutas
+para permitir reabrir recientes, a diferencia de `positions.json`. Quitar un reciente conserva sus notas.
+Guardar una copia del PDF abre un cuaderno distinto y ofrece copiar en él las notas del original (que las conserva). Si el archivo cambió desde que se guardó una cita,
+volver al pasaje pide confirmar un salto aproximado a la página; no afirma haber reconciliado el texto.
+
+### Traducción y referencias
+
+Consultar permite elegir **Traducir** o **Concepto** y alternar EN/ES. Abrir el panel o seleccionar texto
+no inicia ninguna petición. Al pulsar Buscar por primera vez para cada proveedor, se muestra exactamente
+el fragmento que se enviará y se pide consentimiento; se revoca en Ajustes → Consultas online.
+
+- Traducción: MyMemory, un fragmento de hasta 500 bytes UTF-8, un párrafo. El servicio tiene cuota
+  gratuita limitada; un fallo/cuota agotada se muestra sin bloquear la lectura.
+- Concepto: búsqueda de hasta tres referencias de Wikipedia en el idioma elegido, con fragmento,
+  título, URL y atribución. Son resultados de búsqueda, no una explicación generada ni un consenso.
+- Abrir fuente utiliza el navegador externo. Guardar en cuaderno conserva fuente, URL, idioma,
+  fecha y el ancla del pasaje desde el que se abrió la consulta, aunque luego cambie la página visible.
+
+La consulta usa un proceso auxiliar `wysun_pdf.lookup_worker` y la biblioteca estándar HTTPS de Python:
+no necesita `PySide6.QtNetwork`, WebEngine ni paquetes adicionales. Tiene timeout global de 15 segundos,
+respuesta HTTP máxima de 64 KiB y cancelación al cambiar consulta/documento/panel. Los redirects se rechazan.
+Los resultados se muestran como texto, sin ejecutar HTML remoto. No se envían el archivo PDF ni el cuaderno.
+
+Documentación de proveedores: [API MyMemory](https://mymemory.translated.net/doc/spec.php),
+[límites](https://mymemory.translated.net/doc/usagelimits.php),
+[condiciones](https://mymemory.translated.net/terms-and-conditions) y
+[MediaWiki REST](https://www.mediawiki.org/wiki/API:REST_API/Reference/en).
+
+### Sesiones de concentración
+
+Sesión abre un temporizador de estudio (25 minutos por defecto) y descanso (5), ajustables, con objetivo
+opcional. Permite empezar, pausar, reanudar, terminar y anotar lo aprendido. El reloj queda en la cabecera
+al cerrar el panel. No inicia automáticamente al abrir un libro ni impide seguir leyendo al terminar.
+
+Cada cuatro bloques completados el descanso propuesto es largo (15 minutos por defecto, ajustable).
+El panel muestra bloques completados y minutos registrados, y **Historial de sesiones** lista las últimas
+100 (objetivo, duración, completada o terminada antes). **Lectura concentrada** (F8 o menú ⋮) oculta la
+cabecera y los paneles, deja el reloj y «Volver · F8»; Esc también sale.
+
+El estado se guarda en `$XDG_STATE_HOME/wysun/pdf-reader/focus.json`. Las ventanas del proceso comparten
+una sesión; un bloqueo impide propietarios simultáneos en procesos diferentes, y quien toma el bloqueo
+adopta la sesión y el historial guardados por el anterior. Cerrar la última ventana pausa la sesión (sin
+preguntar). Tras suspensión/interrupción se recupera pausada, sin atribuir tiempo no observado al estudio.
+
+### Movimiento y validación visual
+
+La navegación biblioteca/lector anima una captura temporal de la vista saliente; no vuelve a renderizar
+el PDF en cada fotograma. Los paneles usan transiciones de opacidad, y la ilustración de biblioteca tiene
+movimiento finito al hover. Todo usa tokens del kit y respeta `WYSUN_REDUCED_MOTION`/ajustes del escritorio.
+Las capturas de `docs/design/pdf-study-shots/` se generan con PDFs y fondos sintéticos; las de consulta
+identifican explícitamente los resultados simulados. No son evidencia de despliegue en el escritorio.
+
+Abrir, guardar copia, localizar un PDF movido y exportar usan el selector de Wysun Files en un proceso
+aparte (`wysun_files.picker`, petición/respuesta JSON); la ventana queda deshabilitada mientras tanto y,
+si se cierra, primero se cierra el selector.
+
+Límites conocidos: una colección por libro; la relocalización no verifica huella del archivo; deshacer
+una eliminación no recupera la marca de repaso; la migración de esquema no hace copia previa (es
+aditiva); el SQLite corre en el hilo de interfaz con espera máxima de 1 s; el temporizador no se
+sincroniza en vivo entre procesos; cerrar la última ventana pausa sin ofrecer elección. Sin mediciones
+de RSS/fps con bibliotecas grandes.
 
 ## Lectura
 
@@ -52,7 +135,7 @@ predeterminada sin pedirla.
 
 Menú ⋮ → *Apariencia del lector*: *Como el escritorio* (por defecto), *Claro* u *Oscuro*. Se guarda en
 `$XDG_CONFIG_HOME/wysun/pdf-reader.json` junto con el panel lateral y el último color de anotación.
-`pdf_theme.ReaderMode` es una capa fina sobre `qt_theme`, no un segundo tema. Un modo distinto al del escritorio activa
+`wysun_pdf.theme.ReaderMode` es una capa fina sobre `qt_theme`, no un segundo tema. Un modo distinto al del escritorio activa
 la paleta base de ese modo (`WYSUN_THEME`) solo en el proceso del lector, sin los colores del wallpaper.
 Fijar el mismo modo que el escritorio conserva esos colores. Los programas que abre el lector (`xdg-open`)
 reciben el entorno original. El papel y el contenido del PDF conservan los colores del documento.
@@ -63,7 +146,7 @@ Ctrl+O abrir · Ctrl+S guardar · Ctrl+Shift+S copia · Ctrl+F buscar · Enter/S
 coincidencias · Esc limpiar · Ctrl+C copiar · Ctrl+H resaltar · Ctrl+U subrayar · Ctrl+G ir a página ·
 Alt+←/→ página anterior/siguiente · RePág/AvPág, Espacio/Shift+Espacio desplazan una pantalla · Inicio/Fin ·
 Ctrl+rueda, Ctrl++/− zoom · Ctrl+0 ancho · Ctrl+9 página · Ctrl+2 una/dos páginas · F9 panel · F1 atajos ·
-Ctrl+W / Ctrl+Q cerrar.
+Ctrl+Shift+N reflexión · Alt+Home biblioteca · F8 lectura concentrada · Ctrl+W / Ctrl+Q cerrar.
 
 La selección usa el orden de lectura del motor y coordenadas de palabras, compensando la rotación de la
 página. Los PDFs escaneados sin capa de texto se pueden leer y anotar con notas, pero no buscar ni subrayar;
@@ -71,7 +154,7 @@ no hay OCR integrado. No hay impresión, formularios ni firmas digitales.
 
 ## Motor, virtualización y seguridad de guardado
 
-`pdf_worker.py` mantiene un único proceso `pdf_engine.py` por ventana. MuPDF se usa exclusivamente allí:
+`wysun_pdf.worker` mantiene un único proceso `wysun_pdf.engine` por ventana. MuPDF se usa exclusivamente allí:
 apertura, extracción, renderizado, búsqueda y escritura no ejecutan trabajo PDF en el hilo de interfaz.
 
 - **Protocolo**: una línea JSON por respuesta. Los rasters (RGB888) siguen como trama binaria de `blob`
@@ -80,12 +163,12 @@ apertura, extracción, renderizado, búsqueda y escritura no ejecutan trabajo PD
   enlaces, anotaciones) se pide una vez por página y no se repite al cambiar el zoom.
 - **Cola**: estable por prioridad (interactivo, miniaturas, búsqueda), con claves que evitan duplicados
   y cancelación de lo encolado que ya no sirve.
-- **Virtualización** (`pdf_source.py`, `pdf_view.py`): solo se piden las páginas visibles, primero, y
+- **Virtualización** (`wysun_pdf.source`, `wysun_pdf.view`): solo se piden las páginas visibles, primero, y
   media ventana por encima y por debajo. Al desplazarse o hacer zoom se cancelan los renders encolados
   de páginas que ya no interesan, y se descartan las respuestas de otro documento o de una página editada
   desde entonces. Durante el zoom se escala lo que ya hay y se piden rasters nítidos tras 120 ms. El ancho
   pedido tiene en cuenta `devicePixelRatio`.
-- **Límites de memoria**: cada raster tiene como máximo 8 megapíxeles y 2800 px de ancho (`pdf_layout.raster_width`;
+- **Límites de memoria**: cada raster tiene como máximo 8 megapíxeles y 2800 px de ancho (`wysun_pdf.layout.raster_width`;
   por encima se escala). La caché de rasters ocupa como máximo 192 MiB y guarda hasta dos anchos por página.
   Se guarda el texto de 96 páginas y 48 miniaturas de hasta 120 px de ancho.
 
@@ -118,7 +201,7 @@ Verificación sin modificar paquetes del host:
 ```sh
 python3 -m venv --system-site-packages /tmp/wysun-pdf-venv
 /tmp/wysun-pdf-venv/bin/pip install PyMuPDF==1.26.7
-/tmp/wysun-pdf-venv/bin/python bin/wysun pdf
+PYTHONPATH=apps/python /tmp/wysun-pdf-venv/bin/python -P -m wysun_pdf
 QT_QPA_PLATFORM=offscreen /tmp/wysun-pdf-venv/bin/python -m unittest discover -s tests/pdf -v
 ```
 

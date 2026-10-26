@@ -76,6 +76,16 @@ class WindowTests(unittest.TestCase):
         window.busy = False
         window.close()
 
+    def test_quiet_mode_restores_header_and_canvas(self):
+        window, path = self.open()
+        window.toggle_quiet()
+        self.assertTrue(window.reader_header.isHidden())
+        self.assertFalse(window.quiet_bar.isHidden())
+        self.assertTrue(window.stage.isVisible())
+        window.escape()
+        self.assertFalse(window.reader_header.isHidden())
+        self.assertTrue(window.quiet_bar.isHidden())
+
     def select_first_word(self, window, page=0):
         view = window.view
         self.wait(lambda: view.source.info(page) is not None)
@@ -90,6 +100,146 @@ class WindowTests(unittest.TestCase):
             self.app.sendEvent(view.viewport(), QMouseEvent(kind, point, view.viewport().mapToGlobal(point),
                                                             button, buttons, Qt.NoModifier))
         return view.selected_text()
+
+    def test_study_note_library_and_reopen(self):
+        window, source = self.open()
+        text = self.select_first_word(window)
+        window.study_note()
+        self.assertTrue(window.notebook.isVisible())
+        self.assertFalse(window.sidebar.isVisible())
+        window.notebook.editor.setPlainText('A reflection anchored to this passage')
+        self.assertTrue(window.notebook.save())
+        self.assertFalse(window.dirty, 'Study notes must not dirty the PDF')
+        identifier = window.study_document['id']
+        self.assertEqual(window.study.entries(identifier)[0]['quote'], text)
+        window.view.go(1)
+        window.show_library()
+        self.assertIs(window.workspace.currentWidget(), window.library)
+        self.assertEqual(window.study.entries(identifier)[0]['page'], 0)
+        window.open_recent(str(source))
+        self.assertIs(window.workspace.currentWidget(), window.reader)
+        self.assertEqual(window.view.current_page(), 1)
+        window.close()
+        reopened, _ = self.open(path=source)
+        self.assertEqual(reopened.study_document['id'], identifier)
+        self.assertEqual(reopened.study.entries(identifier)[0]['body'], 'A reflection anchored to this passage')
+
+    def test_study_note_saves_itself_on_navigation(self):
+        from PySide6.QtWidgets import QMessageBox
+        window, _ = self.open()
+        window.study_note()
+        window.notebook.editor.setPlainText('Saved without asking')
+        with mock.patch.object(QMessageBox, 'question') as question:
+            window.show_library()
+            question.assert_not_called()
+        self.assertIs(window.workspace.currentWidget(), window.library)
+        self.assertEqual(window.study.entries(window.study_document['id'])[0]['body'], 'Saved without asking')
+        self.assertEqual(window.study.drafts(window.study_document['id']), [])
+
+    def test_study_failed_save_blocks_navigation_on_cancel(self):
+        import sqlite3
+        from PySide6.QtWidgets import QMessageBox
+        window, source = self.open()
+        window.study_note()
+        window.notebook.editor.setPlainText('Do not lose this')
+        with mock.patch.object(window.study, 'save_entry', side_effect=sqlite3.OperationalError('database is locked')), \
+                mock.patch.object(QMessageBox, 'question', return_value=QMessageBox.Cancel):
+            window.show_library()
+            self.assertIs(window.workspace.currentWidget(), window.reader)
+            window.close()
+            self.assertTrue(window.isVisible())
+        self.assertEqual(window.notebook.editor.toPlainText(), 'Do not lose this')
+        self.assertEqual(len(window.study.drafts(window.study_document['id'])), 1)
+        self.assertTrue(window.notebook.save())
+
+    def test_study_narrow_window_keeps_editor_and_toolbar_accessible(self):
+        window, _ = self.open()
+        window.study_note()
+        window.resize(720, 480)
+        self.app.processEvents()
+        self.assertEqual(window.width(), 720)
+        self.assertEqual(window.height(), 480)
+        self.assertTrue(window.notebook.page_scroll.verticalScrollBar().maximum() > 0)
+        window.focus_search()
+        self.app.processEvents()
+        self.assertEqual(window.width(), 720)
+        self.assertTrue(window.search.isVisible())
+        self.assertTrue(window.notebook.editor.isEnabled())
+
+    def test_lookup_opens_without_network_and_reference_keeps_original_page(self):
+        import json
+        window, _ = self.open()
+        selected = self.select_first_word(window)
+        with mock.patch.object(window.lookup_panel.client, 'search') as search:
+            window.consult_selection()
+            self.assertTrue(window.lookup_panel.isVisible())
+            self.assertEqual(window.lookup_panel.term.text(), selected)
+            search.assert_not_called()
+        original = window.view.current_page()
+        window.view.go(1)
+        window.save_reference(dict(title='Concept', body='An attributed excerpt', source='Wikipedia',
+            url='https://en.wikipedia.org/wiki/Concept', attribution='CC BY-SA', language='en',
+            term=selected, kind='concept'))
+        entry = window.study.entries(window.study_document['id'])[0]
+        self.assertEqual(entry['page'], original)
+        self.assertEqual(entry['quote'], selected)
+        self.assertIn('reference', json.loads(entry['anchor']))
+        self.assertFalse(window.dirty)
+        window.show_library()
+        self.assertIsNone(window.lookup_context)
+        window.save_reference(dict())
+        self.assertEqual(len(window.study.entries(window.study_document['id'])), 1)
+
+    def test_narrow_lookup_preserves_readable_canvas_on_return(self):
+        window, _ = self.open()
+        window.consult_selection()
+        window.resize(720, 480)
+        self.app.processEvents()
+        self.assertFalse(window.stage.isVisible())
+        self.assertTrue(window.lookup_panel.isVisible())
+        window.hide_lookup()
+        self.app.processEvents()
+        self.assertTrue(window.stage.isVisible())
+        self.assertEqual(window.width(), 720)
+
+    def test_discard_study_edits_restores_saved_body(self):
+        from PySide6.QtWidgets import QMessageBox
+        window, _ = self.open()
+        window.study_note()
+        window.notebook.editor.setPlainText('Idea guardada')
+        window.notebook.save()
+        window.notebook.editor.setPlainText('Cambio descartado')
+        with mock.patch.object(window.study, 'save_entry', side_effect=OSError('disk full')), \
+                mock.patch.object(QMessageBox, 'question', return_value=QMessageBox.Discard):
+            self.assertTrue(window.notebook.can_leave())
+        self.assertEqual(window.notebook.editor.toPlainText(), 'Idea guardada')
+        self.assertFalse(window.notebook.unsaved)
+
+    def test_lookup_consent_cancel_does_not_send_text(self):
+        from PySide6.QtWidgets import QMessageBox
+        window, _ = self.open()
+        window.preferences.set(lookup_allowed_translation=False)
+        window.consult_selection()
+        window.lookup_panel.term.setText('justice')
+        with mock.patch.object(QMessageBox, 'question', return_value=QMessageBox.Cancel), \
+                mock.patch.object(window.lookup_panel.client, 'search') as search:
+            window.lookup_panel.search()
+            search.assert_not_called()
+        self.assertFalse(window.preferences.get('lookup_allowed_translation', False))
+
+    def test_lookup_revocation_is_persistent(self):
+        from wysun_pdf.study_ui import StudySettings
+        from PySide6.QtWidgets import QCheckBox
+        window, _ = self.open()
+        window.preferences.set(lookup_allowed_translation=True)
+        dialog = StudySettings(window.preferences, window.study, window)
+        checkbox = next(box for box in dialog.findChildren(QCheckBox) if 'MyMemory' in box.text())
+        self.assertTrue(checkbox.isChecked())
+        checkbox.setChecked(False)
+        self.assertFalse(window.preferences.get('lookup_allowed_translation'))
+        checkbox.setChecked(True)
+        self.assertFalse(checkbox.isChecked(), 'Consent is only granted with the contextual query preview')
+        dialog.close()
 
     def test_reader_workflow_annotations_save_and_themes(self):
         window, source = self.open()
