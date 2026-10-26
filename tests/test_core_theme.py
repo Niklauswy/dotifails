@@ -43,6 +43,66 @@ class ThemeTests(unittest.TestCase):
             self.selection(text)
             self.assertEqual(theme.read_mode(self.home), 'auto', text)
 
+    def write_scheme(self, mode='light'):
+        theme.write_scheme(dict(SCHEME, mode=mode), self.home)
+
+    def test_active_scheme_is_the_wallpaper_scheme_when_it_exists(self):
+        self.write_scheme('light')
+        self.assertEqual(theme.active_scheme(self.home), {'mode': 'light', 'colours': SCHEME['colours']})
+
+    def test_active_scheme_falls_back_to_the_base_palette_of_the_active_mode(self):
+        self.selection('{"mode": "light"}')
+        scheme = theme.active_scheme(self.home)
+        self.assertEqual(scheme['mode'], 'light')
+        self.assertEqual(scheme['colours'], theme.data()['palettes']['light']['scheme'])
+        self.selection('{"mode": "auto"}')
+        self.assertEqual(theme.active_scheme(self.home)['mode'], theme.DEFAULT_MODE)
+
+    def test_active_scheme_ignores_a_broken_scheme_file(self):
+        path = theme.scheme_path(self.home)
+        path.parent.mkdir(parents=True)
+        path.write_text('{"colours": 3')
+        theme.invalidate()
+        self.assertEqual(theme.active_scheme(self.home)['colours'], theme.data()['palettes'][theme.DEFAULT_MODE]['scheme'])
+
+    def test_wysun_theme_forces_the_base_palette_over_the_scheme(self):
+        self.write_scheme('light')
+        scheme = theme.active_scheme(self.home, {'WYSUN_THEME': 'dark'})
+        self.assertEqual(scheme, {'mode': 'dark', 'colours': theme.data()['palettes']['dark']['scheme']})
+
+    def test_m3_roles_are_exposed_directly_for_both_base_palettes(self):
+        for mode in ('light', 'dark'):
+            values = theme.resolve(mode)
+            base = theme.data()['palettes'][mode]['scheme']
+            for role in ('primary', 'primaryContainer', 'secondaryContainer', 'onSecondaryContainer', 'tertiaryContainer',
+                         'surfaceContainerLow', 'surfaceContainerHigh', 'outlineVariant', 'onSurface'):
+                self.assertEqual(values['m3' + role], '#' + base[role].lower(), (mode, role))
+
+    def test_m3_roles_cover_every_listed_role_and_nothing_else(self):
+        roles = theme.m3_roles(theme.data()['palettes']['dark']['scheme'])
+        self.assertEqual(set(roles), {'m3' + name for name in theme.MATERIAL_ROLE_NAMES})
+        self.assertTrue(all(value.startswith('#') and len(value) == 7 and value == value.lower() for value in roles.values()))
+        self.assertNotIn('m3term0', roles)
+        self.assertEqual(theme.m3_roles({'primary': 'ABCDEF', 'junk': '000000'}), {'m3primary': '#abcdef'})
+
+    def test_wallpaper_scheme_replaces_the_m3_roles_but_keeps_missing_ones_from_the_base(self):
+        self.write_scheme('light')
+        values = theme.resolve_active(self.home)
+        self.assertEqual(values['m3primary'], '#334455')
+        self.assertEqual(values['m3surface'], '#abcdef')
+        self.assertEqual(values['m3tertiaryContainer'], '#' + theme.data()['palettes']['light']['scheme']['tertiaryContainer'].lower())
+
+    def test_wysun_theme_override_keeps_the_base_m3_roles(self):
+        self.write_scheme('light')
+        values = theme.resolve_active(self.home, {'WYSUN_THEME': 'dark'})
+        self.assertEqual(values['m3primary'], '#' + theme.data()['palettes']['dark']['scheme']['primary'].lower())
+
+    def test_existing_tokens_keep_their_values(self):
+        self.write_scheme('light')
+        values = theme.resolve_active(self.home)
+        self.assertEqual(values['accent'], '#334455')
+        self.assertEqual(values['surface'], '#abcdef')
+
     def test_write_mode_keeps_other_keys_and_backs_up(self):
         path = self.selection('{"mode": "dark", "x": 1}')
         theme.write_mode('light', self.home)

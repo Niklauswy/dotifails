@@ -25,6 +25,17 @@ class AppearanceTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 appearance.save_appearance(dict(opacity=90, reduced_motion=False), tmp)
 
+    def test_invalidate_drops_the_half_second_cache(self):
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(os.environ, {'WYSUN_REDUCED_MOTION': ''}):
+            path = Path(tmp) / '.config/wysun/appearance.json'
+            path.parent.mkdir(parents=True)
+            path.write_text('{"reduced_motion": false}')
+            self.assertFalse(appearance.reduced_motion(tmp))
+            path.write_text('{"reduced_motion": true}')
+            self.assertFalse(appearance.reduced_motion(tmp), 'still cached')
+            appearance.invalidate()
+            self.assertTrue(appearance.reduced_motion(tmp))
+
     def test_reduced_motion_from_environment_or_preference(self):
         with tempfile.TemporaryDirectory() as tmp, patch.dict(os.environ, {'WYSUN_REDUCED_MOTION': ''}):
             self.assertFalse(appearance.reduced_motion(tmp))

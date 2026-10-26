@@ -22,6 +22,7 @@ Qué significa para quien añade UI:
 - **Movimiento**: `anim.durations.small/normal/large/extraLarge` son las M3 *short4/medium4/long4/extraLong4* (200/400/600/1000 ms); `anim.curves.emphasized*` y `standard*` son las curvas M3 y `expressive*` las de los muelles M3 Expressive (*fast/default/slow spatial* y *effects*). En QML usa `Anim { type: Anim.… }`/`CAnim`; una duración o un `Easing.*` literal solo se justifica en animaciones continuas (indicadores, bucles) o coreografías propias (logo, bloqueo).
 - **Estados**: capa de estado `StateLayer` (hover 0,08 y onda al pulsar); deshabilitado con contenido al 38 % y contenedor al 10 % de `m3onSurface`, como `ButtonBase`.
 - **Componentes**: usa los compartidos de `apps/shell/components/` (botones, `Chip`, `Segmented`, filas, `MaterialIcon`) antes de crear uno; los iconos son Material Symbols Rounded.
+- **Apps QML**: usan la base compartida `apps/qml/WysunM3` (mismos roles y tokens, medidas de componente M3 en `Metrics.qml`); se prueban en claro y oscuro con la paleta base y tres semillas sintéticas (`tests/qml`). Hay un solo estilo (`Theme.style` = `material3`); las listas `STYLES` de las pruebas dejan sitio a Fluent 2 cuando exista.
 
 ## Dónde se guarda
 
@@ -55,6 +56,7 @@ Hay **una sola copia**. Las releases del Recorder llevan su propio `wysun_core` 
 | Qt (apps, Recorder, instalador) | `wysun_core/qt_theme.py` | `color()`, `font()`, `apply_style(widget, plantilla)`, `on_theme_changed()`, `watch_theme()` |
 | Apariencia | `wysun_core/appearance.py` | `read_appearance()`, `save_appearance()`, `reduced_motion()` |
 | Quickshell | `apps/shell/services/Colours.qml` | `Colours.palette.m3*`, `Colours.modePreference`, `Colours.setMode()` |
+| Apps QML (PySide6) | `wysun_qml/theme_bridge.py` + `apps/qml/WysunM3` | `ThemeFeed { scheme: bridge.scheme; tokens: bridge.tokens; reducedMotion: bridge.reducedMotion }`, luego `Theme.m3*`, `Theme.rounding.*`, `Label { role }`, `Metrics.*` (`docs/qml-base.md`) |
 
 Las plantillas de hoja de estilo usan `@token`, `@grupo.clave` (`@rounding.medium` → px, `@font.body.medium.size` → pt, `@font.family.sans` entre comillas), `@token/alpha` (0-255) y `@svg(nombre,token)`. `apply_style` guarda la plantilla en el widget y se vuelve a renderizar al cambiar de tema.
 

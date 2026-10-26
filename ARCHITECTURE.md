@@ -184,6 +184,27 @@ $XDG_DATA_HOME/wysun/runtime/            (por defecto ~/.local/share/wysun/runti
 - **Otra máquina**: `./instalar.sh` (componente `wayland`) instala paquetes de build, ejecuta `runtime_build.py` y despliega el
   shell. La construcción limpia Debian 13 terminó; el artefacto se revalidó tras corregir `libpulse0` (alcance en `docs/validation.md`).
 
+### Base QML compartida (`apps/qml`, `wysun_qml`)
+
+Las apps que pasan a QML (Music y Files primero) corren con **PySide6 solo como bindings sobre el Qt del runtime del
+shell**: un único Qt por proceso, compartido en memoria con el shell.
+
+```
+$XDG_DATA_HOME/wysun/qml-runtime/   venv --system-site-packages con PySide6_Essentials/shiboken6 == qt.version de
+                                    RUNTIME.json, sin PySide6/Qt (≈ 21 MB); sello WYSUN_QML_RUNTIME.json
+$XDG_DATA_HOME/wysun/qml/WysunM3/   la biblioteca (copia de apps/qml/WysunM3); qml/gallery/ la galería
+```
+
+- `installer/qml_runtime.py` crea o valida el venv (componente `wayland`, también con `--wysun-only`; solo si falta o
+  el sello difiere; un fallo de red es un aviso). `WYSUN_SKIP_RUNTIME=1` lo omite.
+- `wysun_qml.bootstrap` re-ejecuta la app con el Python del venv, precarga las `libQt6*` del runtime por ruta absoluta
+  antes de importar PySide6 y apunta plugins e imports QML al runtime (sin `LD_LIBRARY_PATH`).
+- `wysun_qml.theme_bridge.ThemeBridge` alimenta el singleton `Theme` (a través de `ThemeFeed`) con `scheme.json`,
+  `theme.json`, `tokens.json` y `appearance.json`, en vivo.
+- `apps/qml/WysunM3` es QML puro (`QtQuick`, `QtQuick.Shapes`, `M3Shapes` opcional), sin `Quickshell`, `qs.*` ni
+  `Wysun.*`, para que el shell pueda adoptarlo. Guía de uso y catálogo: `docs/qml-base.md`.
+- `python3 -m wysun_qml` abre la galería (`--shot`, `--bench`).
+
 ## 4. Instalador (`instalar.sh` → `installer/main.py`)
 
 Python estándar (+ PySide6 para la GUI). Instala por **componentes** (`desktop, wayland, terminal, editor, tools, boot`), con plan
@@ -372,6 +393,7 @@ python3 apps/recorder/run_tests.py                              # captura (medio
 python3 tests/wysun_installed_smoke.py                         # sobre la instalación real
 python3 -m unittest discover -s tests -p 'test_media_*.py'     # reproductor: componente, widget, tema y MPRIS (D-Bus propio)
 python3 tests/wayland_media_case.py                            # reproductor sobre el compositor real (OpenGL, fugas)
+python3 -m unittest tests.test_qml_runtime -v                  # venv qml-runtime + suites QML (tests/qml) con su Python
 ```
 
 Pruebas de sockets/compositor requieren acceso de sesión; un bloqueo de sandbox no prueba un fallo del producto. Las seis
