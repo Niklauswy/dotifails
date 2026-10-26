@@ -128,5 +128,5 @@
 ### Task 9: Screenshots, review, rebase
 
 - [x] Generate light/dark shots + two synthetic wallpaper schemes into `docs/superpowers/specs/pdf-shots/`.
-- [ ] Fresh reviewer (`superpowers:requesting-code-review`), fix Critical/Important.
+- [x] Fresh reviewer (`superpowers:requesting-code-review`), fix Critical/Important.
 - [ ] Rebase on `main`, adopt renamed tokens if plan 03 landed, rerun all suites.

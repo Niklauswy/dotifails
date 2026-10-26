@@ -247,3 +247,28 @@ esquemas generados con `wysun_scheme.generate_dynamic` a partir de dos fondos si
 | Barra de herramientas de anotación siempre visible y modal (seleccionar/resaltar/subrayar/nota) | Barra contextual sobre la selección; la herramienta Nota está en la barra superior |
 | Búsqueda en una pestaña del riel con lista «Página N · k coincidencias» | Campo en la barra superior con contador y ↑/↓; resultados con la línea de contexto y el término destacado; coincidencias resaltadas en el papel |
 | Línea de estado fija abajo | Toast del kit |
+
+## 11. Revisión final y pendientes
+
+La revisión final (2026-10-25) encontró dos fallos que se corrigieron con su prueba: los mensajes de
+MuPDF salían por el stdout del protocolo y desfasaban las respuestas con PDFs dañados, y las miniaturas
+no arrancaban al abrir otro documento en la misma ventana. También se corrigieron Esc en la búsqueda,
+el retardo de 120 ms del zoom y la lista de atajos de `docs/pdf-reader.md`.
+
+Pendientes menores, para el rediseño sobre la nueva base de componentes:
+
+- Cerrar la ventana se rechaza mientras `busy` también al abrir o editar; con un motor colgado no se
+  puede cerrar. Bloquear solo durante `save` o pedir confirmación y matar el worker.
+- Un error del motor en la búsqueda abre un `QMessageBox` por página y corta la búsqueda sin marcarla
+  como terminada. Usar un toast y continuar.
+- Si el motor se cae, `PdfWorker.failed` puede emitirse dos veces (`errorOccurred` y `finished`).
+- `pdf_state.clamp` no tolera valores no numéricos en `positions.json`; un archivo corrupto rompe la
+  apertura. Envolver en `try/except (TypeError, ValueError)` y no restaurar.
+- Medidas literales fuera de tokens: `CONTROL = 38`, botones de 34/40 px, alturas 44/40, búsqueda de
+  280 px, `WIDTH = 244`, celdas de miniatura 104×168 y 112×172, desplazamientos 4/6/22/26/9 px, trazos
+  de 2 y 3 px, `Toast(duration=3200, bottom=112)`. Derivarlas de `metric()` o de métricas de componente
+  cuando exista la nueva base.
+- No verificado sin ejecución: coordenadas en páginas rotadas fuera de las pruebas, `PDF_ENCRYPT_KEEP`
+  en el guardado de PDFs con contraseña y el valor real de `QProcess.startDetached` (las pruebas lo simulan).
+- Pendiente del plan: rebase sobre `main` (adoptar los tokens renombrados si llegó el plan 03) y repetir
+  todas las suites.
