@@ -67,8 +67,13 @@ class ModelTests(unittest.TestCase):
     def test_home(self):
         home = self.c.home
         self.assertIn(home['greeting'], ('Buenos días', 'Buenas tardes', 'Buenas noches'))
-        self.assertEqual([b['title'] for b in home['bento']][1:], ['Tus me gusta', 'Mezcla'])
-        self.assertEqual(home['bento'][0]['title'], 'Empieza por aquí')
+        self.assertEqual([b['title'] for b in home['bento']][1:3], ['Tus me gusta', 'Mezcla'])
+        resume = home['bento'][0]
+        if self.music.player.current:
+            self.assertIn(resume['eyebrow'], ('Sonando ahora', 'Sigue escuchando'))
+        else:
+            self.assertEqual(resume['title'], 'Empieza por aquí')
+        self.assertEqual(home['summary'], '3 canciones disponibles · 0 playlists')
 
     def test_favorites_follow(self):
         self.library.toggle_favorite(self.keys['first'])
