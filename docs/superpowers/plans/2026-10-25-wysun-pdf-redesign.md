@@ -1,6 +1,6 @@
 # Wysun PDF redesign Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Continuous, virtualized, zoomable PDF reader with links, search highlighting, two-page view and per-document memory, rebuilt on the shared `wysun_core.ui` kit.
 
@@ -49,11 +49,11 @@
   `annotations() -> {items: [{page,xref,type,text}]}`.
 - `main()` framing: writes `json.dumps({'result': header, 'blob': n})+'\n'` then `n` raw bytes when `_blob` is present.
 
-- [ ] Step 1: tests — `test_open_reports_rotated_sizes` (portrait page rotated 90 → `[h, w]`), `test_render_is_raw_rgb` (`len(_blob) == stride*height`, `width <= raster_width`), `test_page_info_words_and_links` (insert `page.insert_link({'kind': fitz.LINK_GOTO, 'page': 2, 'from': rect, 'to': fitz.Point(0, 100)})` and a `LINK_URI` `https://example.org`; assert one internal with `page == 2`, one external with `uri`), `test_search_returns_context` (context contains the matched word and is ≤ 120 chars), `test_annotations_lists_whole_document`, and the existing tests adapted (`render(...)['words']` → `page_info`).
-- [ ] Step 2: run, expect failures (`KeyError sizes`, `AttributeError page_info`).
-- [ ] Step 3: implement. Links: `p.get_links()`, rect `fitz.Rect(l['from']) * p.rotation_matrix`; internal `y = (fitz.Point(l['to']) * doc[l['page']].rotation_matrix).y` when present. Context: the words of the hit's `(block, line)` joined, trimmed to 120 chars around the term.
-- [ ] Step 4: run `tests/pdf/test_engine.py`, expect OK.
-- [ ] Step 5: commit `feat(pdf): engine sends raw rasters, page sizes, links and search context`.
+- [x] Step 1: tests — `test_open_reports_rotated_sizes` (portrait page rotated 90 → `[h, w]`), `test_render_is_raw_rgb` (`len(_blob) == stride*height`, `width <= raster_width`), `test_page_info_words_and_links` (insert `page.insert_link({'kind': fitz.LINK_GOTO, 'page': 2, 'from': rect, 'to': fitz.Point(0, 100)})` and a `LINK_URI` `https://example.org`; assert one internal with `page == 2`, one external with `uri`), `test_search_returns_context` (context contains the matched word and is ≤ 120 chars), `test_annotations_lists_whole_document`, and the existing tests adapted (`render(...)['words']` → `page_info`).
+- [x] Step 2: run, expect failures (`KeyError sizes`, `AttributeError page_info`).
+- [x] Step 3: implement. Links: `p.get_links()`, rect `fitz.Rect(l['from']) * p.rotation_matrix`; internal `y = (fitz.Point(l['to']) * doc[l['page']].rotation_matrix).y` when present. Context: the words of the hit's `(block, line)` joined, trimmed to 120 chars around the term.
+- [x] Step 4: run `tests/pdf/test_engine.py`, expect OK.
+- [x] Step 5: commit `feat(pdf): engine sends raw rasters, page sizes, links and search context`.
 
 ### Task 2: Worker transport (frames, priority, keys, cancellation)
 
@@ -64,10 +64,10 @@
 - `PdfWorker.cancel(predicate: Callable[[op, key], bool]) -> int` (removed count; callbacks of removed items are not called).
 - `PdfWorker.queued_keys() -> set`; `failed` signal unchanged; `stop()` unchanged.
 
-- [ ] Step 1: tests with the real engine — `test_binary_frame_roundtrip` (render returns `bytes` of `stride*height`), `test_priority_runs_interactive_first` (queue thumbnail(p=1), search(p=2), render(p=0) while `open` is active; completion order render, thumbnail, search), `test_same_key_replaces_queued`, `test_cancel_drops_queued_renders`.
-- [ ] Step 2: run, expect failures.
-- [ ] Step 3: implement: stable insert by priority; two-phase read (line, then `blob` bytes).
-- [ ] Step 4: run, expect OK. Step 5: commit `feat(pdf): prioritised, cancellable worker with binary frames`.
+- [x] Step 1: tests with the real engine — `test_binary_frame_roundtrip` (render returns `bytes` of `stride*height`), `test_priority_runs_interactive_first` (queue thumbnail(p=1), search(p=2), render(p=0) while `open` is active; completion order render, thumbnail, search), `test_same_key_replaces_queued`, `test_cancel_drops_queued_renders`.
+- [x] Step 2: run, expect failures.
+- [x] Step 3: implement: stable insert by priority; two-phase read (line, then `blob` bytes).
+- [x] Step 4: run, expect OK. Step 5: commit `feat(pdf): prioritised, cancellable worker with binary frames`.
 
 ### Task 3: Pure geometry, cache and state
 
@@ -81,8 +81,8 @@
 - `RenderCache(budget=192*2**20, per_page=2)`: `put(page, width, image, nbytes)`, `get(page, width)`, `best(page, width)`, `drop(page)`, `clear()`, `bytes`.
 - `pdf_state.Positions()`: `load(path) -> dict|None`, `save(path, state: dict)`; `Preferences()`: `get(key, default)`, `set(**values)` preserving unknown keys.
 
-- [ ] Step 1: tests — single stacking (`rects[1].y == rects[0].y + h0 + gap`), spread pairing (`rows == [[0,1],[2,3],[4]]`), `visible` only intersecting rows (60 pages, window over page 30 → `{29,30}`-ish set, never 0), `fit_width` makes widest row fill `viewport - 2*margin`, anchor round-trip after zoom change (same `(page,fx,fy)` maps to new coords; error < 1 px), cache evicts LRU over budget and keeps ≤ 2 widths per page, `best` returns nearest width, positions: 0600 file, SHA keys (no path text in file), cap 200, `test_restore_clamps_to_page_count` (load clamps via `clamp(state, pages)` helper → `pdf_state.clamp(state, pages) -> dict`), preferences keep unknown keys.
-- [ ] Step 2: run, fail. Step 3: implement. Step 4: run, OK. Step 5: commit `feat(pdf): pure layout, bounded raster cache and per-document memory`.
+- [x] Step 1: tests — single stacking (`rects[1].y == rects[0].y + h0 + gap`), spread pairing (`rows == [[0,1],[2,3],[4]]`), `visible` only intersecting rows (60 pages, window over page 30 → `{29,30}`-ish set, never 0), `fit_width` makes widest row fill `viewport - 2*margin`, anchor round-trip after zoom change (same `(page,fx,fy)` maps to new coords; error < 1 px), cache evicts LRU over budget and keeps ≤ 2 widths per page, `best` returns nearest width, positions: 0600 file, SHA keys (no path text in file), cap 200, `test_restore_clamps_to_page_count` (load clamps via `clamp(state, pages)` helper → `pdf_state.clamp(state, pages) -> dict`), preferences keep unknown keys.
+- [x] Step 2: run, fail. Step 3: implement. Step 4: run, OK. Step 5: commit `feat(pdf): pure layout, bounded raster cache and per-document memory`.
 
 ### Task 4: PageSource (virtualized requests)
 
@@ -91,42 +91,42 @@
 **Interfaces:**
 - `PageSource(worker)`, signals `changed(int page)`, `info_ready(int page)`.
 - `reset(generation_sizes: list)`; `want(requests: list[(page, width_px)])` — cancels queued `('render', key)` not in requests, enqueues missing renders (key `('render', page)`), enqueues `page_info` for each page in requests not cached (key `('info', page)`); `image(page, width) -> QImage|None` (exact or best); `info(page) -> dict|None`; `invalidate(page)` (bumps revision, drops caches); `requested: list[(page,width)]` log for tests.
-- [ ] Step 1: tests — `test_want_cancels_stale_renders`, `test_edit_revision_discards_inflight_render`, `test_image_falls_back_to_nearest_width`.
-- [ ] Steps 2–5 as usual; commit `feat(pdf): page source with cancellation and revisions`.
+- [x] Step 1: tests — `test_want_cancels_stale_renders`, `test_edit_revision_discards_inflight_render`, `test_image_falls_back_to_nearest_width`.
+- [x] Steps 2–5 as usual; commit `feat(pdf): page source with cancellation and revisions`.
 
 ### Task 5: Theme layer
 
 **Files:** Create `apps/wysun/pdf_theme.py`; rewrite `tests/test_pdf_theme.py`.
 
 **Interfaces:** `ReaderMode(prefs: pdf_state.Preferences)`: `.pinned -> 'light'|'dark'|None`, `.mode`, `set(mode|None)` (persists, applies), `apply()`; `SYMBOLS: tuple[str]` every Material glyph the reader paints.
-- [ ] Step 1: tests — following desktop (`WYSUN_THEME` unset → env untouched), pinning opposite sets env and `qt_theme.tokens()['mode']` flips, pinning same mode leaves env original, `set(None)` restores, persistence in `pdf-reader.json`, every name in `SYMBOLS` is `ligature_available`.
-- [ ] Steps 2–5; commit `refactor(pdf): reader mode is a thin layer over qt_theme`.
+- [x] Step 1: tests — following desktop (`WYSUN_THEME` unset → env untouched), pinning opposite sets env and `qt_theme.tokens()['mode']` flips, pinning same mode leaves env original, `set(None)` restores, persistence in `pdf-reader.json`, every name in `SYMBOLS` is `ligature_available`.
+- [x] Steps 2–5; commit `refactor(pdf): reader mode is a thin layer over qt_theme`.
 
 ### Task 6: DocumentView
 
 **Files:** Create `apps/wysun/pdf_view.py`; test `tests/pdf/test_view.py` (fake source with solid images; no fitz).
 
 **Interfaces:** `DocumentView(source)`: `set_document(sizes)`, `set_zoom(value, anchor=None)`, `zoom_mode` (`'width'|'page'|'custom'`), `set_fit(kind)`, `zoom_by(factor, viewport_point=None)`, `set_mode('single'|'spread')`, `go(page, y=None)`, `current_page()`, `position() -> dict`, `restore(dict)`, `set_hits(dict[page,list], current=(page, i)|None)`, `selection -> (page, [indices])`, `selected_text()`, `clear_selection()`, `selection_rect() -> QRect` (viewport); signals `pageChanged(int)`, `zoomChanged(float)`, `selectionChanged()`, `selectionFinished()`, `linkActivated(dict)`, `noteRequested(int, QPointF)`; `note_mode` bool.
-- [ ] Step 1: tests — `test_only_visible_pages_are_requested` (60 pages; after `go(30)` every requested page within visible±margin), `test_ctrl_wheel_keeps_point_under_cursor` (anchor error < 2 px), `test_spread_places_pairs_side_by_side`, `test_fit_width_tracks_resize`, `test_drag_selects_across_lines`, `test_click_on_link_emits`.
-- [ ] Steps 2–5; commit `feat(pdf): continuous virtualized document view`.
+- [x] Step 1: tests — `test_only_visible_pages_are_requested` (60 pages; after `go(30)` every requested page within visible±margin), `test_ctrl_wheel_keeps_point_under_cursor` (anchor error < 2 px), `test_spread_places_pairs_side_by_side`, `test_fit_width_tracks_resize`, `test_drag_selects_across_lines`, `test_click_on_link_emits`.
+- [x] Steps 2–5; commit `feat(pdf): continuous virtualized document view`.
 
 ### Task 7: Chrome & sidebar widgets
 
 **Files:** Create `apps/wysun/pdf_chrome.py`, `apps/wysun/pdf_sidebar.py`; extend `tests/test_pdf_theme.py` with offscreen construction checks (no fitz).
 
 **Interfaces:** `ToolGroup(*buttons)`, `ZoomControl` (signals `zoom_in`, `zoom_out`, `fit(str)`, `percent(float)`; `set_zoom(float, mode)`), `ViewModeSwitch` (signal `changed(str)`; `set_mode`), `PageIndicator` (signal `jump(int)`; `set_page(cur, total)`), `SelectionBar` (signals `action(str)`; `set_editable(bool)`, `place(QRect)`), `Emblem`, `NoteDialog(parent, text='', title=...)` with `.editor`, `INKS`. `Sidebar`: `tab(int)`, `pages_view`/`page_model`, `outline` (QListWidget), `notes` (QListWidget), `results` (QListWidget), `delete_button`, signals `page_requested(int)`, `hit_requested(int)`, `note_activated(dict)`, `delete_requested(dict)`, `thumbnails_wanted(list)`.
-- [ ] Step 1: tests — widgets build in light & dark, every control has an accessible name, no stylesheet contains `@`.
-- [ ] Steps 2–5; commit `feat(pdf): reader chrome and tabbed sidebar on the shared kit`.
+- [x] Step 1: tests — widgets build in light & dark, every control has an accessible name, no stylesheet contains `@`.
+- [x] Steps 2–5; commit `feat(pdf): reader chrome and tabbed sidebar on the shared kit`.
 
 ### Task 8: Window integration, remove pdf_material, docs
 
 **Files:** Rewrite `apps/wysun/pdf_window.py`; delete `apps/wysun/pdf_material.py`; adjust `apps/wysun/pdf_app.py`; rewrite `tests/pdf/test_window.py`; update `docs/pdf-reader.md`, `.desktop` (Actions? no — keep, add `Keywords`).
 
-- [ ] Step 1: tests with real engine — workflow (open, highlight, save, reopen annotations), `test_virtualization_in_window`, `test_search_highlights_and_enter_navigates`, `test_new_query_discards_old_hits`, `test_internal_and_external_links` (patch `window.confirm_link` → True and `window.launch_url`), `test_spread_mode_and_zoom`, `test_position_is_remembered`, screenshots when `WYSUN_PDF_SCREENSHOTS`.
-- [ ] Step 2–4; full suites; Step 5: commit `feat(pdf): redesigned reader window`.
+- [x] Step 1: tests with real engine — workflow (open, highlight, save, reopen annotations), `test_virtualization_in_window`, `test_search_highlights_and_enter_navigates`, `test_new_query_discards_old_hits`, `test_internal_and_external_links` (patch `window.confirm_link` → True and `window.launch_url`), `test_spread_mode_and_zoom`, `test_position_is_remembered`, screenshots when `WYSUN_PDF_SCREENSHOTS`.
+- [x] Step 2–4; full suites; Step 5: commit `feat(pdf): redesigned reader window`.
 
 ### Task 9: Screenshots, review, rebase
 
-- [ ] Generate light/dark shots + two synthetic wallpaper schemes into `docs/superpowers/specs/pdf-shots/`.
+- [x] Generate light/dark shots + two synthetic wallpaper schemes into `docs/superpowers/specs/pdf-shots/`.
 - [ ] Fresh reviewer (`superpowers:requesting-code-review`), fix Critical/Important.
 - [ ] Rebase on `main`, adopt renamed tokens if plan 03 landed, rerun all suites.
