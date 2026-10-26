@@ -18,7 +18,7 @@ OUTPUT = re.compile(r'[A-Za-z0-9._-]{1,64}')
 
 
 def request_path():
-    return Path(os.environ.get('XDG_RUNTIME_DIR') or '/run/user/%d' % os.getuid()) / 'loomrec-share-request.json'
+    return Path(os.environ.get('XDG_RUNTIME_DIR') or '/run/user/%d' % os.getuid()) / 'wysun-recorder-share-request.json'
 
 
 def claim(path=None, now=None):

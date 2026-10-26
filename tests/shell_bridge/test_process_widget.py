@@ -92,7 +92,7 @@ class ProcessWidgetTests(unittest.TestCase):
     def test_own_synthetic_child_priority_and_terminate(self):
         child = subprocess.Popen([sys.executable, '-c', 'import time;time.sleep(30)'])
         try:
-            from process_data import process_record
+            from wysun_services.process_data import process_record
             identity = process_record(child.pid)
             backend.action(dict(row=identity, action='priority', nice=7))
             self.assertEqual(os.getpriority(os.PRIO_PROCESS, child.pid), 7)

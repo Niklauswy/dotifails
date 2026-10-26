@@ -142,13 +142,13 @@ Upstream files have no individual copyright header; no notices were removed.
 - `modules/nexus/NavPane.qml`, `modules/dashboard/Media.qml`,
   `modules/dashboard/media/Details.qml`, `components/widgets/CoverArt.qml` and
   `components/{StyledRect,StyledText,StateLayer}.qml` inform
-  `apps/capture/loomrec/ui/material.py`. Library
+  `apps/recorder/loomrec/ui/material.py`. Library
   artwork/navigation and playback hierarchy change; capture/portal/media contracts stay
   in the existing backends. This is not an upstream full-screen music app.
 - The Wysun Qt apps package Google Sans Flex, CaskaydiaCove NF and the complete Material
   Symbols font in `apps/wysun/wysun_core/fonts/`; their OFL, MIT and Apache-2.0 notices are in
   `LICENSES/`. Each Recorder release carries them inside its own `wysun_core` copy, with
-  `apps/capture/assets/licenses/{OFL-GoogleSansFlex,OFL-CascadiaCode,MIT-NerdFonts,Apache-2.0,GPL-3.0}.txt`; it does not
+  `apps/recorder/assets/licenses/{OFL-GoogleSansFlex,OFL-CascadiaCode,MIT-NerdFonts,Apache-2.0,GPL-3.0}.txt`; it does not
   import the installed Orbit application. No download or host font installation
   is needed. Shared fonts and vendor provenance are described above.
 

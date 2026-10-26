@@ -3,8 +3,8 @@ from pathlib import Path
 import sys
 import unittest
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'apps/wysun'))
-from pdf_layout import (Layout, PX_PER_PT, ZOOM_MAX, ZOOM_MIN, anchor, fit_page, fit_width, locate,  # noqa: E402
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'apps/python'))
+from wysun_pdf.layout import (Layout, PX_PER_PT, ZOOM_MAX, ZOOM_MIN, anchor, fit_page, fit_width, locate,  # noqa: E402
                         raster_width)
 
 A4 = [595.0, 842.0]

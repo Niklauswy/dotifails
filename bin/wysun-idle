@@ -2,7 +2,7 @@
 """Wysun idle manager: lock / display-off timers and lock-before-sleep.
 
 `wysun-idle run` is the long-lived child of wysun-session-services. It owns a
-swayidle process built from ~/.config/orbit/idle.json and rebuilds it whenever
+swayidle process built from ~/.config/wysun/idle.json and rebuilds it whenever
 that file changes, so Settings applies new timers live without touching the
 session. If swayidle dies unexpectedly this process exits non-zero and the
 session supervisor locks the screen (fail closed).
@@ -34,7 +34,7 @@ LEGACY = [b'swayidle', b'-w', b'timeout', b'600', b'wysun-lock', b'before-sleep'
 
 def config_path():
     base = os.environ.get('XDG_CONFIG_HOME') or str(Path.home() / '.config')
-    return Path(base) / 'orbit' / 'idle.json'
+    return Path(base) / 'wysun' / 'idle.json'
 
 
 def pid_path():

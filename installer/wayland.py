@@ -59,19 +59,18 @@ def configure(deployment):
     d = deployment
     d.stage('Sesión adicional Wysun / Hyprland')
     # Shared applications retain their existing storage and command identities.
-    for source, target in (('apps/wysun', '.local/share/orbit/app'),
-                           ('apps/tools', '.local/share/orbit/tools'),
+    for source, target in (('apps/python', '.local/share/wysun/app'),
+                           ('apps/tools', '.local/share/wysun/tools'),
                            ('apps/shell', '.local/share/wysun/quickshell')):
         if not (d.source / source).is_dir():
             raise RuntimeError('Fuente incompleta: ' + source)
         _publish_asset(d, d.source / source, target)
-    if any(p in d.conflicts for p in ('.local/share/orbit/app', '.local/share/wysun/quickshell')):
+    if any(p in d.conflicts for p in ('.local/share/wysun/app', '.local/share/wysun/quickshell')):
         return
     migrate_legacy_names(d)
     deploy_tokens(d)
     ensure_runtime(d)
-    d.deploy(d.source / 'config/.local/bin/orbit', Path('.local/bin/orbit'))
-    for name in ('orbit-files', 'orbit-tools', 'wysun-shell',
+    for name in ('wysun-tools', 'wysun-shell',
                  'wysun-session', 'wysun-session-services', 'wysun-lock', 'wysun-wm', 'wysun-control', 'wysun-workspaces', 'wysun-share-picker', 'wysun-recover', 'wysun-idle'):
         _publish(d, (d.source / 'bin' / name).read_text(), '.local/bin/' + name, executable=True)
     # A terminal must remain reachable even without the optional terminal component.
@@ -84,11 +83,11 @@ def configure(deployment):
     _publish(d, '[preferred]\ndefault=hyprland;gtk;\n'
              'org.freedesktop.impl.portal.ScreenCast=hyprland;\n'
              'org.freedesktop.impl.portal.Screenshot=hyprland;\n'
-             'org.freedesktop.impl.portal.FileChooser=orbit;gtk;\n',
+             'org.freedesktop.impl.portal.FileChooser=wysun;gtk;\n',
              '.config/xdg-desktop-portal/wysun-portals.conf')
-    for relative in ('.local/share/applications/orbit-music.desktop',
+    for relative in ('.local/share/applications/wysun-music.desktop',
                      '.local/share/icons/hicolor/scalable/apps/musika.svg',
-                     '.local/share/applications/orbit-files.desktop'):
+                     '.local/share/applications/wysun-files.desktop'):
         _publish(d, (d.source / 'config' / relative).read_text(), relative)
     for path in sorted((d.source / 'assets/backgrounds').glob('*')):
         if path.is_file():_publish_asset(d, path, '.local/share/backgrounds/' + path.name)
@@ -119,7 +118,7 @@ def _publish_asset(deployment, source, relative):
 
 
 def migrate_legacy_names(deployment):
-    """Copy (never move) state stored under the former Caelestia names; the old copies are left for `dotifails clean`."""
+    """Copy (never move) state stored under the former Caelestia names; the old copies are left for `wysun-install clean`."""
     import shutil
     d = deployment
     old, new = d.home / '.config/wysun/caelestia', d.home / '.config/wysun/shell'
@@ -131,7 +130,7 @@ def migrate_legacy_names(deployment):
 def deploy_tokens(deployment):
     """The shell reads the apps' design tokens from the XDG data dir, so it never depends on where the apps live."""
     d = deployment
-    d.deploy(d.source / 'apps/wysun/wysun_core/tokens.json', Path('.local/share/wysun/theme/tokens.json'))
+    d.deploy(d.source / 'apps/python/wysun_core/tokens.json', Path('.local/share/wysun/theme/tokens.json'))
 
 
 def ensure_runtime(deployment):

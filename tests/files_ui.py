@@ -7,12 +7,12 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 root=Path(__file__).resolve().parents[1]
-if not (root/'apps/wysun').is_dir():root=Path(__file__).resolve().parent
-sys.path.insert(0,str(root/'apps/wysun'))
+if not (root/'apps/python').is_dir():root=Path(__file__).resolve().parent
+sys.path.insert(0,str(root/'apps/python'))
 from PySide6.QtCore import QItemSelectionModel, QUrl, QCoreApplication, QEvent, QSettings, Qt
 from PySide6.QtWidgets import QApplication
-from files_window import FilesWindow
-from files_app import local_paths
+from wysun_files.window import FilesWindow
+from wysun_files.app import local_paths
 
 
 def wait_for(predicate, timeout=4):
@@ -34,7 +34,7 @@ class FilesUITests(unittest.TestCase):
     def tearDownClass(cls):
         cls.app.clipboard().clear();QCoreApplication.sendPostedEvents(None,QEvent.DeferredDelete);cls.env.stop();cls.config.cleanup()
     def setUp(self):
-        QSettings('Orbita','Files').clear()        # preferences (hidden files, details panel) must not leak between tests
+        QSettings('Wysun','Files').clear()        # preferences (hidden files, details panel) must not leak between tests
         self.temp=tempfile.TemporaryDirectory();self.base=Path(self.temp.name)
         (self.base/'alpha.txt').write_text('unchanged source')
         (self.base/'destination').mkdir();(self.base/'.hidden').write_text('hidden')
@@ -199,7 +199,7 @@ class FilesUITests(unittest.TestCase):
         self.assertEqual(describe('x',True)[0],'folder');self.assertEqual(preview_kind('a.py'),'code');self.assertEqual(preview_kind('a.bin'),'')
     def test_reduced_motion_applies_hover_immediately(self):
         view=self.w.current().view()
-        with patch.dict(os.environ,{'ORBIT_REDUCED_MOTION':'1'}):
+        with patch.dict(os.environ,{'WYSUN_REDUCED_MOTION':'1'}):
             view.hover.point('x',1.0);self.assertEqual(view.hover.amount('x'),1.0)
             view.start_entrance();self.assertEqual(view.entrance(0),(1.0,0.0,0.0))
     def test_inspector_opens_only_for_files_with_a_preview(self):
@@ -272,7 +272,7 @@ class FilesUITests(unittest.TestCase):
         canvas.grab()
     def test_pdf_uses_browser_not_mime_handler(self):
         pdf=self.base/'document with spaces.pdf';pdf.write_bytes(b'%PDF-1.4')
-        with patch('files_browser.open_pdf') as browser,patch('files_window.QDesktopServices.openUrl') as desktop,patch('wysun_files.window.QDesktopServices.openUrl') as other:
+        with patch('wysun_files.browser.open_pdf') as browser,patch('wysun_files.window.QDesktopServices.openUrl') as desktop:
             self.w.open_path(str(pdf));browser.assert_called_once_with(str(pdf));desktop.assert_not_called();other.assert_not_called()
 
     # ----------------------------------------------------------------- media
@@ -306,7 +306,7 @@ class FilesUITests(unittest.TestCase):
         path=self.wav('long.wav',seconds=20);self.select(path);preview=self.w.inline_preview
         wait_for(lambda:preview.player is not None and preview.player.session.duration>10);player=preview.player
         player.session.seek(7.5);wait_for(lambda:abs(player.session.position-7.5)<.3)
-        with patch('player_client.launch') as launch:
+        with patch('wysun_player.client.launch') as launch:
             player.bar.expand.click()
         launch.assert_called_once()
         self.assertEqual(launch.call_args.args[0],[str(path)]);self.assertAlmostEqual(launch.call_args.kwargs['start'],7.5,delta=.4)

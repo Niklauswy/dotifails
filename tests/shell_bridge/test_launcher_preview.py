@@ -7,8 +7,8 @@ import unittest
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / 'apps/wysun'))
-import launcher_web
+sys.path.insert(0, str(ROOT / 'apps/python'))
+from wysun_services import launcher_web
 
 
 class PreviewTests(unittest.TestCase):

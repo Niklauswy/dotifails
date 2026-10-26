@@ -2,22 +2,22 @@
 import os,sys,tempfile,time,subprocess
 from pathlib import Path
 root=Path(__file__).resolve().parents[1]
-if not (root/'apps/wysun').is_dir():root=Path(__file__).resolve().parent
-sys.path.insert(0,str(root/'apps/wysun'))
+if not (root/'apps/python').is_dir():root=Path(__file__).resolve().parent
+sys.path.insert(0,str(root/'apps/python'))
 from dbus.mainloop.glib import DBusGMainLoop
 DBusGMainLoop(set_as_default=True)
 import dbus,dbus.service
 from gi.repository import GLib
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import QItemSelectionModel,QTimer,QEvent,QCoreApplication
-from files_service import Portal,Manager,PORTAL,MANAGER
+from wysun_files.service import Portal,Manager,PORTAL,MANAGER
 
 tmp=tempfile.TemporaryDirectory();base=Path(tmp.name);(base/'data/xdg-desktop-portal/portals').mkdir(parents=True);(base/'config/xdg-desktop-portal').mkdir(parents=True)
-(base/'data/xdg-desktop-portal/portals/orbit.portal').write_text('[portal]\nDBusName=org.freedesktop.impl.portal.desktop.orbit\nInterfaces=org.freedesktop.impl.portal.FileChooser;\n')
-(base/'config/xdg-desktop-portal/portals.conf').write_text('[preferred]\ndefault=none\norg.freedesktop.impl.portal.FileChooser=orbit\n')
+(base/'data/xdg-desktop-portal/portals/wysun.portal').write_text('[portal]\nDBusName=org.freedesktop.impl.portal.desktop.wysun\nInterfaces=org.freedesktop.impl.portal.FileChooser;\n')
+(base/'config/xdg-desktop-portal/portals.conf').write_text('[preferred]\ndefault=none\norg.freedesktop.impl.portal.FileChooser=wysun\n')
 file=base/'sample ñ.txt';file.write_text('fixture')
 app=QApplication([]);app.setQuitOnLastWindowClosed(False)
-bus=dbus.SessionBus();name=dbus.service.BusName('org.freedesktop.impl.portal.desktop.orbit',bus);portal=Portal(bus)
+bus=dbus.SessionBus();name=dbus.service.BusName('org.freedesktop.impl.portal.desktop.wysun',bus);portal=Portal(bus)
 manager_name=dbus.service.BusName(MANAGER,bus);manager=Manager(bus)
 env=dict(os.environ,XDG_DATA_HOME=str(base/'data'),XDG_CONFIG_HOME=str(base/'config'))
 log=(base/'portal.log').open('w');frontend=subprocess.Popen(['/usr/libexec/xdg-desktop-portal','--verbose'],env=env,stdout=log,stderr=log)
@@ -68,6 +68,6 @@ finally:
  for w in list(manager.windows):w.close();w.deleteLater()
  frontend.terminate();frontend.wait(timeout=5);app.processEvents();QCoreApplication.sendPostedEvents(None,QEvent.DeferredDelete)
  portal.remove_from_connection();manager.remove_from_connection()
- bus.release_name(MANAGER);bus.release_name("org.freedesktop.impl.portal.desktop.orbit")
+ bus.release_name(MANAGER);bus.release_name("org.freedesktop.impl.portal.desktop.wysun")
  log.close();tmp.cleanup();app.quit();client.close()
 print("PORTAL_INTEGRATION_OK",flush=True)

@@ -11,14 +11,14 @@ import time
 import unittest
 from unittest import mock
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'apps/wysun'))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'apps/python'))
 AVAILABLE = all(importlib.util.find_spec(m) for m in ('fitz', 'PySide6'))
 if AVAILABLE:
     import fitz
     from PySide6.QtCore import QEvent, QPointF, Qt
     from PySide6.QtGui import QKeyEvent, QKeySequence, QMouseEvent, QShortcut
     from PySide6.QtWidgets import QApplication
-    from pdf_window import PdfWindow
+    from wysun_pdf.window import PdfWindow
 
 LOREM = ('A quieter space for reading. Select a passage, keep an idea and return to what matters. '
          'Wysun lays every page out at once and paints only what you see.')
@@ -246,7 +246,7 @@ class WindowTests(unittest.TestCase):
 
     def test_note_and_delete_annotation(self):
         window, source = self.open()
-        with mock.patch('pdf_window.NoteDialog') as dialog:
+        with mock.patch('wysun_pdf.window.NoteDialog') as dialog:
             dialog.return_value.exec.return_value = True
             dialog.return_value.editor.toPlainText.return_value = 'Remember this'
             window.view.noteRequested.emit(1, QPointF(100, 100))

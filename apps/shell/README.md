@@ -35,7 +35,7 @@ bin/wysun-shell status                        # JSON: pantallas, superficies abi
 ## Configuración y estado
 
 - Configuración del usuario: `~/.config/wysun/shell/shell.json` (y `monitors/<salida>/…` por pantalla).
-- Tokens de forma y movimiento: `~/.local/share/wysun/theme/tokens.json`, copia de `apps/wysun/wysun_core/tokens.json` que
+- Tokens de forma y movimiento: `~/.local/share/wysun/theme/tokens.json`, copia de `apps/python/wysun_core/tokens.json` que
   hace el instalador; el plugin lo lee al arrancar y `plugin/src/Wysun/Config/tokens.hpp` es solo el respaldo.
 - Esquema de color: `~/.local/state/wysun/scheme.json` (lo escribe `wysun scheme`).
 - Capas de Layer Shell con espacio de nombres `wysun-*` (las reglas de Hyprland usan `^wysun-.*$`).

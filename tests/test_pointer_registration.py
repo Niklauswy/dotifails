@@ -17,7 +17,7 @@ class PointerRegistrationTests(unittest.TestCase):
         self.tmp=tempfile.TemporaryDirectory();self.addCleanup(self.tmp.cleanup)
         self.folder=Path(self.tmp.name);self.root=self.folder/'system';self.root.mkdir(mode=0o700)
         self.source=self.folder/'source'
-        helper=self.source/'apps/capture/privileged/wysun-pointer-helper';helper.parent.mkdir(parents=True)
+        helper=self.source/'apps/recorder/privileged/wysun-pointer-helper';helper.parent.mkdir(parents=True)
         helper.write_text('#!/usr/bin/python3 -I\nraise SystemExit("synthetic fixture: never run")\n')
         policy=self.source/'installer/wysun-pointer.policy';policy.parent.mkdir()
         policy.write_bytes((ROOT/'installer/wysun-pointer.policy').read_bytes())
@@ -33,7 +33,7 @@ class PointerRegistrationTests(unittest.TestCase):
         self.assertEqual(self.call(),0)
         helper.write_text('custom local edit')
         self.assertEqual(self.call(restore=True),2);self.assertTrue(policy.is_file())
-        helper.write_bytes((self.source/'apps/capture/privileged/wysun-pointer-helper').read_bytes())
+        helper.write_bytes((self.source/'apps/recorder/privileged/wysun-pointer-helper').read_bytes())
         self.assertEqual(self.call(restore=True),0);self.assertFalse(helper.exists());self.assertFalse(policy.exists())
 
     def test_unowned_files_and_writable_or_linked_parents_are_rejected(self):

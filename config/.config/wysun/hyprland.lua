@@ -22,12 +22,10 @@ hl.on("hyprland.start", function () hl.exec_cmd("wysun-workspaces") end)
 hl.on("monitor.added", function () hl.exec_cmd("wysun-workspaces") end)
 -- Keep the primary Python launcher at its own responsive popup geometry.
 hl.window_rule({ name = "wysun-processes", match = { title = "^Wysun Processes$" }, float = true, center = true })
-hl.window_rule({ name = "wysun-orbit-panels", match = { class = "^(orbit|Orbit|orbit-music|orbit-settings|wysun-recorder)$" }, float = true, center = true, border_size = 0, rounding = 0, no_shadow = true })
-hl.window_rule({ name = "wysun-launcher", match = { class = "^orbit$", title = "^Wysun$" }, float = true, center = true, border_size = 0 })
-hl.window_rule({ name = "wysun-power", match = { class = "^orbit$", title = "^Wysun Power( — Wysun)?$" }, float = true, center = true, border_size = 0 })
+hl.window_rule({ name = "wysun-panels", match = { class = "^(wysun-music|wysun-recorder)$" }, float = true, center = true, border_size = 0, rounding = 0, no_shadow = true })
 -- The consent provider is a native MainWindow, but behaves as a dialog.
 hl.window_rule({ name = "wysun-portal-picker", match = { class = "^hyprland-share-picker$", title = "^Select what to share$" }, float = true, center = true })
-hl.window_rule({ name = "wysun-file-chooser", match = { class = "^orbit-files$", title = ".*Wysun Selector" }, float = true, center = true })
+hl.window_rule({ name = "wysun-file-chooser", match = { class = "^wysun-files$", title = ".*Wysun Selector" }, float = true, center = true })
 -- Neovim opened from the launcher: mapped unseen (no animation, transparent) so the launcher's preview can fly onto
 -- its tile; the shell makes it visible on landing (apps/shell/modules/launcher/services/Editor.qml).
 hl.window_rule({ name = "wysun-edit-handoff", match = { class = "^wysun\\.edit$" }, no_anim = true, opacity = "0 override" })
@@ -205,7 +203,7 @@ hl.bind("SUPER + SHIFT + KP_0", hl.dsp.window.move({workspace=10,follow=false}),
 -- outside the distributed app and leave all BSPWM configuration untouched.
 local configHome = os.getenv("XDG_CONFIG_HOME") or (os.getenv("HOME") .. "/.config")
 for _, name in ipairs({"hypr-settings.lua", "hypr-theme.lua", "hypr-effects.lua", "hypr-workspaces.lua", "hypr-shortcuts.lua"}) do
-    local path = configHome .. "/orbit/" .. name
+    local path = configHome .. "/wysun/" .. name
     local file = io.open(path, "r")
     if file then file:close(); dofile(path) end
 end
@@ -216,6 +214,6 @@ local localPath = configHome .. "/wysun/local.lua"
 local localFile = io.open(localPath, "r")
 if localFile then localFile:close(); dofile(localPath) end
 -- The arrangement confirmed in Ajustes > Pantallas wins over automatic placement.
-local monitorsPath = configHome .. "/orbit/hypr-monitors.lua"
+local monitorsPath = configHome .. "/wysun/hypr-monitors.lua"
 local monitorsFile = io.open(monitorsPath, "r")
 if monitorsFile then monitorsFile:close(); dofile(monitorsPath) end

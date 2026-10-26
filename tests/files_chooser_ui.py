@@ -2,11 +2,11 @@ import os,sys,tempfile,time,unittest
 from pathlib import Path
 from unittest.mock import patch
 root=Path(__file__).resolve().parents[1]
-if not (root/'apps/wysun').is_dir():root=Path(__file__).resolve().parent
-sys.path.insert(0,str(root/'apps/wysun'))
+if not (root/'apps/python').is_dir():root=Path(__file__).resolve().parent
+sys.path.insert(0,str(root/'apps/python'))
 from PySide6.QtCore import Qt,QItemSelectionModel,QEvent,QCoreApplication
 from PySide6.QtWidgets import QApplication,QMessageBox
-from files_chooser import FileChooser
+from wysun_files.chooser import FileChooser
 class ChooserTests(unittest.TestCase):
  @classmethod
  def setUpClass(cls):

@@ -8,8 +8,8 @@ import tempfile
 import unittest
 from unittest import mock
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'apps/wysun'))
-import pdf_state  # noqa: E402
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'apps/python'))
+from wysun_pdf import state as pdf_state  # noqa: E402
 
 
 class StateTests(unittest.TestCase):

@@ -3,7 +3,7 @@ import json
 import os
 from pathlib import Path
 
-PREFIX = '@@DOTIFAILS@@'
+PREFIX = '@@WYSUN@@'
 
 
 class InstallationCancelled(RuntimeError):
@@ -11,11 +11,11 @@ class InstallationCancelled(RuntimeError):
 
 
 def emit(event, **payload):
-    if os.environ.get('DOTIFAILS_EVENTS') == '1':
+    if os.environ.get('WYSUN_EVENTS') == '1':
         print(PREFIX + json.dumps(dict(event=event, **payload), ensure_ascii=False), flush=True)
 
 
 def checkpoint():
-    path = os.environ.get('DOTIFAILS_CANCEL_FILE')
+    path = os.environ.get('WYSUN_CANCEL_FILE')
     if path and Path(path).is_file():
         raise InstallationCancelled('Instalación detenida entre operaciones. Los cambios realizados tienen respaldo.')

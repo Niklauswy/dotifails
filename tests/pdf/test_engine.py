@@ -7,12 +7,12 @@ import sys
 import tempfile
 import unittest
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'apps/wysun'))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'apps/python'))
 AVAILABLE = importlib.util.find_spec('fitz') is not None
 if AVAILABLE:
     import fitz
-    from pdf_engine import PdfEngine, fingerprint
-    from pdf_layout import raster_width
+    from wysun_pdf.engine import PdfEngine, fingerprint
+    from wysun_pdf.layout import raster_width
 
 
 @unittest.skipUnless(AVAILABLE, 'python3-fitz is required')
@@ -42,11 +42,10 @@ class EngineTests(unittest.TestCase):
         broken = Path(self.tmp.name) / 'broken.pdf'
         broken.write_bytes(doc.tobytes(deflate=False).replace(b'stream\n', b'stream\nGARBAGE((( ', 1))
         doc.close()
-        engine = Path(__file__).resolve().parents[2] / 'apps/wysun/pdf_engine.py'
         requests = [{'op': 'open', 'args': {'path': str(broken)}}, {'op': 'render', 'args': {'page': 0, 'width': 120}},
                     {'op': 'page_info', 'args': {'page': 0}}]
         env = dict(os.environ, PYTHONPATH=os.pathsep.join(sys.path))
-        out = subprocess.run([sys.executable, str(engine)], input=''.join(json.dumps(r) + '\n' for r in requests).encode(),
+        out = subprocess.run([sys.executable, '-P', '-m', 'wysun_pdf.engine'], input=''.join(json.dumps(r) + '\n' for r in requests).encode(),
                              capture_output=True, env=env, timeout=30, check=True).stdout
         replies = []
         while out:

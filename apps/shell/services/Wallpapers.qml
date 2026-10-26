@@ -144,7 +144,7 @@ Searcher {
     Process {
         id: getPreviewColoursProc
 
-        command: ["/usr/bin/python3", Quickshell.shellPath("wysun/backend.py"), "preview", root.previewPath]
+        command: Paths.python(Quickshell.shellPath("wysun/backend.py"), ["preview", root.previewPath])
         stdout: StdioCollector {
             onStreamFinished: {
                 Colours.load(text, true);

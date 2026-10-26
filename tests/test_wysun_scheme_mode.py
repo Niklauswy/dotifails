@@ -13,9 +13,9 @@ os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / 'apps/wysun'))
+sys.path.insert(0, str(ROOT / 'apps/python'))
 from wysun_core import theme  # noqa: E402
-import wysun_scheme  # noqa: E402
+from wysun_services import scheme as wysun_scheme  # noqa: E402
 
 MONITORS = [dict(name='DP-1', width=64, height=48, x=0, y=0, scale=1, refreshRate=60,
                  availableModes=['64x48@60.00Hz'], focused=True)]
@@ -32,7 +32,7 @@ class ModeTests(unittest.TestCase):
     def setUp(self):
         self.folder = tempfile.TemporaryDirectory()
         self.home = Path(self.folder.name)
-        self.config = self.home / '.config/orbit'
+        self.config = self.home / '.config/wysun'
         self.config.mkdir(parents=True)
         self.theme = self.config / 'theme.json'
         self.red = self.home / 'red.png'
@@ -51,7 +51,7 @@ class ModeTests(unittest.TestCase):
         self.folder.cleanup()
 
     def environment(self):
-        from environment_settings import EnvironmentSettings
+        from wysun_settings.environment import EnvironmentSettings
         calls = []
         return EnvironmentSettings(self.home, runner=fake_runner(calls)), calls
 
@@ -69,7 +69,7 @@ class ModeTests(unittest.TestCase):
         self.assertEqual(theme.read_mode(self.home), 'auto')
         wysun_scheme.set_scheme('dark', self.home)
         self.assertEqual(json.loads(self.theme.read_text()), {'mode': 'dark'})
-        backups = list((self.home / '.local/state/orbit/theme-backups').iterdir())
+        backups = list((self.home / '.local/state/wysun/theme-backups').iterdir())
         self.assertEqual([b.read_text() for b in backups], ['{broken'])
 
     def test_set_persists_the_mode_and_publishes_the_scheme_from_the_wallpaper(self):

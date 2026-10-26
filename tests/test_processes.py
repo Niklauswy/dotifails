@@ -5,8 +5,8 @@ import sys
 import time
 import unittest
 from pathlib import Path
-sys.path.insert(0,str(Path(__file__).parents[1]/'apps/wysun'))
-from process_data import Processes,process_record,safe_command,matched
+sys.path.insert(0,str(Path(__file__).parents[1]/'apps/python'))
+from wysun_services.process_data import Processes,process_record,safe_command,matched
 
 class ProcessTests(unittest.TestCase):
     def test_pause_resume_and_identity_guard(self):

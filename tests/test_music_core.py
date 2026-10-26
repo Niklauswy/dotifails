@@ -8,9 +8,9 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'apps/wysun'))
-import music_data
-from music_library import MusicStore
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'apps/python'))
+from wysun_music import data as music_data
+from wysun_music.store import MusicStore
 from wysun_music.queue import PlayQueue
 
 os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')

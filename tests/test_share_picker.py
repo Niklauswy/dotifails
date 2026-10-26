@@ -19,7 +19,7 @@ class SharePickerTests(unittest.TestCase):
         self.addCleanup(self.tmp.cleanup)
         self.runtime = Path(self.tmp.name)
         self.module = runpy.run_path(str(ROOT / 'bin/wysun-share-picker'))
-        self.path = self.runtime / 'loomrec-share-request.json'
+        self.path = self.runtime / 'wysun-recorder-share-request.json'
 
     def write(self, **data):
         self.path.write_text(json.dumps(data))

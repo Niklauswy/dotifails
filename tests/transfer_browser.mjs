@@ -5,8 +5,8 @@ import {tmpdir} from 'node:os';
 import path from 'node:path';
 import assert from 'node:assert/strict';
 const root=path.resolve(import.meta.dirname,'..');
-const temp=await mkdtemp(path.join(tmpdir(),'orbit-transfer-browser-'));
-const artifacts='/tmp/orbit-transfer-preview';await mkdir(artifacts,{recursive:true});
+const temp=await mkdtemp(path.join(tmpdir(),'wysun-transfer-browser-'));
+const artifacts='/tmp/wysun-transfer-preview';await mkdir(artifacts,{recursive:true});
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 let chrome,fixture,ws;const pending=new Map();let counter=0;const errors=[];
 async function cdp(method,params={}) {

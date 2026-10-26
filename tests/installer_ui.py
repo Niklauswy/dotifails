@@ -1,7 +1,7 @@
 """Native UI and real unprivileged installer flow, with no desktop replacement."""
 import os
 os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
-os.environ.setdefault('ORBIT_REDUCED_MOTION', '1')
+os.environ.setdefault('WYSUN_REDUCED_MOTION', '1')
 from pathlib import Path
 import sys
 import tempfile
@@ -19,9 +19,9 @@ from gui import CONTENT, HOME, RUN, SYSTEM, InstallerWindow
 from install_model import InstallOptions, load_json
 from material_widgets import Sheet
 
-APP = QApplication.instance() or QApplication(['dotifails-ui-test'])
+APP = QApplication.instance() or QApplication(['wysun-installer-ui-test'])
 APP.setStyle('Fusion')
-SHOTS = Path(os.environ.get('DOTIFAILS_SCREENSHOTS', tempfile.gettempdir() + '/dotifails-installer-qa'))
+SHOTS = Path(os.environ.get('WYSUN_SCREENSHOTS', tempfile.gettempdir() + '/wysun-installer-qa'))
 
 
 def settle(milliseconds=40):
@@ -72,7 +72,7 @@ def finish_preview(window):
 
 class InstallerUiTests(unittest.TestCase):
     def setUp(self):
-        self.temp = tempfile.TemporaryDirectory(prefix='dotifails-ui-test-')
+        self.temp = tempfile.TemporaryDirectory(prefix='wysun-installer-ui-test-')
         self.home = Path(self.temp.name)
         self.window = InstallerWindow(SOURCE, self.home)
         self.window.show()
@@ -155,7 +155,7 @@ class InstallerUiTests(unittest.TestCase):
         self.assertEqual(w.last_result['status'], 'cancelled', w.logs.toPlainText())
         self.assertEqual(w.run_scene.state, 'cancelled')
         self.assertTrue(w.runner.cancel_requested)
-        self.assertEqual(load_json(self.home/'.local/state/dotifails/backups'/w.last_result['backup']/'journal.json')['status'], 'cancelled')
+        self.assertEqual(load_json(self.home/'.local/state/wysun/install/backups'/w.last_result['backup']/'journal.json')['status'], 'cancelled')
 
     def test_failure_is_not_reported_as_success_and_offers_recovery(self):
         w = self.window
@@ -207,7 +207,7 @@ class InstallerUiTests(unittest.TestCase):
         settle(60)
         self.assertFalse(w.sheet_open())
 
-    def test_visible_text_says_wysun_never_orbit(self):
+    def test_visible_text_says_wysun_never_the_former_name(self):
         w = self.window
         for index in (HOME, SYSTEM, CONTENT):
             w.show_page(index, animate=False)
@@ -218,7 +218,7 @@ class InstallerUiTests(unittest.TestCase):
             texts += [str(getattr(widget, name, '')) for name in ('title', 'detail', 'subtitle', 'eyebrow')]
         import journey
         texts += [item['detail'] for item in journey.COMPONENTS.values()] + [item[1] for item in journey.ADDONS.values()]
-        offenders = [text for text in texts if 'orbit' in text.lower()]
+        offenders = [text for text in texts if 'or' + 'bit' in text.lower()]
         self.assertEqual(offenders, [])
         self.assertIn('Wysun Tools', [tile.title for tile in w.addon_tiles.values()])
 
@@ -238,7 +238,7 @@ class InstallerUiTests(unittest.TestCase):
                 w.grab().save(str(SHOTS/f'installer-{index}-{width}.png'))
 
     def test_preview_ignores_installed_receipt_and_never_executes_or_writes(self):
-        receipt = self.home / '.local/state/dotifails/installed.json'
+        receipt = self.home / '.local/state/wysun/install/installed.json'
         receipt.parent.mkdir(parents=True)
         receipt.write_text(json.dumps({'components': ['desktop'], 'source': str(SOURCE)}))
         before = snapshot(self.home)
@@ -295,7 +295,7 @@ class InstallerUiTests(unittest.TestCase):
             preview.deleteLater()
 
     def test_existing_installation_gets_maintenance_and_keeps_appearance(self):
-        receipt = self.home / '.local/state/dotifails/installed.json'
+        receipt = self.home / '.local/state/wysun/install/installed.json'
         receipt.parent.mkdir(parents=True)
         receipt.write_text(json.dumps({'components': ['desktop', 'wayland', 'terminal', 'boot'],
                                        'last_selection': ['desktop', 'wayland', 'terminal', 'boot']}))
@@ -318,9 +318,9 @@ class InstallerUiTests(unittest.TestCase):
                    '--source', str(SOURCE), '--target-home', str(self.home)]
         completed = subprocess.run(command, capture_output=True, text=True)
         self.assertEqual(completed.returncode, 0, completed.stderr)
-        manager = self.home / '.local/share/dotifails/installer'
+        manager = self.home / '.local/share/wysun/installer'
         self.assertTrue((manager/'ui_runtime/wysun_core/ui/widgets.py').is_file())
-        self.assertTrue((manager/'ui_runtime/ui_theme.py').is_file())
+        self.assertTrue((manager/'ui_runtime/wysun_core/ui_theme.py').is_file())
         self.assertTrue((manager/'scenes.py').is_file())
         code = '''import sys, time
 from pathlib import Path

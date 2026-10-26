@@ -9,7 +9,7 @@ import time
 
 
 def run_case(run_dir, env, command, start, wait_for):
-    from loomrec.capture import CaptureConfig,CaptureSession
+    from wysun_recorder.capture import CaptureConfig,CaptureSession
     sink='wysun-sync-only'
     command(['pactl','load-module','module-null-sink','sink_name='+sink,'channels=1','rate=48000'])
     clip=run_dir/'common-clock-flash-pulse.mkv'

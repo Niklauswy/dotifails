@@ -6,8 +6,8 @@ import signal
 import sys
 import tempfile
 ROOT=Path(__file__).resolve().parents[1];sys.path.insert(0,str(ROOT/'apps/tools'))
-from orbit_tools.transfer import TransferServer
-with tempfile.TemporaryDirectory(prefix='orbit-transfer-ui-') as temp:
+from wysun_tools.transfer import TransferServer
+with tempfile.TemporaryDirectory(prefix='wysun-transfer-ui-') as temp:
     root=Path(temp);share=root/'share';share.mkdir();inbox=root/'inbox';inbox.mkdir()
     (share/'Diseño').mkdir();(share/'Diseño/boceto.txt').write_text('fixture')
     (share/'Proyecto.zip').write_bytes(b'x'*32000)

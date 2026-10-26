@@ -13,7 +13,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 CORPUS_SUFFIXES = {'.py', '.qml', '.js', '.sh', '.lua', '.json', '.desktop', '.toml', ''}
-SKIPPED_PREFIXES = ('tests/', 'apps/capture/tests/', 'docs/')
+SKIPPED_PREFIXES = ('tests/', 'apps/recorder/tests/', 'docs/')
 # Run by hand, never invoked: optional registration of the root pointer helper for the Recorder.
 MANUAL_ENTRY_POINTS = {'installer/pointer_registration.py'}
 
@@ -39,7 +39,7 @@ def corpus_files(root):
 
 
 def references(stem, text, is_python, package=None, same_package=False):
-    """``package`` is the dotted parent a qualified name must carry (``loomrec.ui``); relative imports
+    """``package`` is the dotted parent a qualified name must carry (``wysun_recorder.ui``); relative imports
     count only for files of the same package, so ``from .components`` elsewhere is someone else's module."""
     qualified = rf'(\w+\.)*{re.escape(package)}\.' if package else None
     path_or_module = rf'(?<![\w-]){stem}\.py\b|-m\s+[\'"]?{stem}\b'
@@ -65,7 +65,7 @@ def alive_names(root):
 
 
 def dotted_package(package_dir):
-    """``apps/capture/loomrec/ui`` → ``loomrec.ui``; a flat directory without ``__init__.py`` has none."""
+    """``apps/recorder/wysun_recorder/ui`` → ``wysun_recorder.ui``; a flat directory without ``__init__.py`` has none."""
     parts = []
     current = package_dir
     while (current / '__init__.py').exists():
@@ -107,19 +107,19 @@ def unimported_shell_modules(files):
 
 class DeadCodeTests(unittest.TestCase):
     def test_every_wysun_module_is_used_outside_tests(self):
-        self.assertEqual(dead_python_modules(ROOT / 'apps/wysun'), [])
+        self.assertEqual(dead_python_modules(ROOT / 'apps/python'), [])
 
     def test_every_installer_module_is_used_outside_tests(self):
         self.assertEqual(dead_python_modules(ROOT / 'installer'), [])
 
     def test_every_recorder_ui_module_is_used_outside_tests(self):
-        self.assertEqual(dead_python_modules(ROOT / 'apps/capture/loomrec/ui'), [])
+        self.assertEqual(dead_python_modules(ROOT / 'apps/recorder/wysun_recorder/ui'), [])
 
     def test_every_recorder_module_is_used_outside_tests(self):
-        self.assertEqual(dead_python_modules(ROOT / 'apps/capture/loomrec'), [])
+        self.assertEqual(dead_python_modules(ROOT / 'apps/recorder/wysun_recorder'), [])
 
     def test_recorder_has_no_portal_colour_picker(self):
-        source = (ROOT / 'apps/capture/loomrec/__main__.py').read_text()
+        source = (ROOT / 'apps/recorder/wysun_recorder/__main__.py').read_text()
         self.assertNotIn('--pick-color', source)
 
     def test_every_shell_module_is_imported(self):
@@ -144,7 +144,7 @@ class DeadCodeTests(unittest.TestCase):
     DELETED = ('color_window.py', 'utility_material', 'notes_window.py', 'theme_demo', 'screen_lock',
                'wysun_fonts', 'clean_legacy', 'ui/components.py', 'ui/materials.py', 'apps/shell/modules/lock/',
                'Shortcuts.qml', '--pick-color', 'install-local.py', 'restore-materials.py',
-               'portal_shortcuts', 'loomrec/integration.py', 'loomrec/analysis.py', 'loomrec/editing.py',
+               'portal_shortcuts', 'wysun_recorder/integration.py', 'wysun_recorder/analysis.py', 'wysun_recorder/editing.py',
                'files_motion', 'files_visuals', 'desktop_common', 'link_preview', 'system_panels',
                'energy_data', 'clipboard_data')
 
@@ -157,7 +157,7 @@ class DeadCodeTests(unittest.TestCase):
 
     def test_subprocess_backends_count_as_alive(self):
         corpus = alive_names(ROOT)
-        for backend in ('launcher_data', 'process_data', 'wysun_scheme', 'code_preview'):
+        for backend in ('launcher_data', 'process_data', 'scheme', 'code_preview'):
             self.assertRegex(corpus, rf'\b{backend}\b')
 
 

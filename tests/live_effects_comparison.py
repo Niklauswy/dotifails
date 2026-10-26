@@ -14,7 +14,7 @@ import sys
 import tempfile
 
 ROOT=Path(__file__).resolve().parents[1]
-sys.path.insert(0,str(ROOT/'apps/capture/tests'))
+sys.path.insert(0,str(ROOT/'apps/recorder/tests'))
 from manual_live_effects_proof import run_case
 
 

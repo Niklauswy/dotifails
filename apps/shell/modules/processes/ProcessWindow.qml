@@ -11,6 +11,7 @@ import qs.components
 import qs.components.controls
 import qs.services
 import qs.modules.dashboard.performance
+import qs.utils
 
 FloatingWindow {
     id: win
@@ -78,7 +79,7 @@ FloatingWindow {
         const key = JSON.stringify(selectedKey);
         call({row: selected, action: 'details'}, data => { if (key === JSON.stringify(selectedKey)) details = data; }, error => { if (key === JSON.stringify(selectedKey)) message = error; });
     }
-    function call(args: var, done: var, failed: var): void { callComponent.createObject(win, {command: ['/usr/bin/python3', script, JSON.stringify(args)], done: done, failed: failed, running: true}); }
+    function call(args: var, done: var, failed: var): void { callComponent.createObject(win, {command: Paths.python(script, [JSON.stringify(args)]), done: done, failed: failed, running: true}); }
     function ask(action: string, nice: int): void { pending = {row: Object.assign({}, selected), action: action, nice: nice}; }
     function confirm(): void {
         const args = pending; pending = null; busy = true;
@@ -353,7 +354,7 @@ FloatingWindow {
     }
     Process {
         id: feed
-        command: ['/usr/bin/python3', win.script]
+        command: Paths.python(win.script)
         stdinEnabled: true
         running: win.visible
         onStarted: { win.started = true; win.failure = ''; win.send(); }

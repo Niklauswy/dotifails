@@ -33,7 +33,7 @@ ShellRoot {
             exitStyle: Quickshell.env("WYSUN_LOCK_EXIT") || "elevator"
             // Any image stands in for the desktop the doors open on (WYSUN_LOCK_DESKTOP, a path).
             desktop: Quickshell.env("WYSUN_LOCK_DESKTOP") ? "file://" + Quickshell.env("WYSUN_LOCK_DESKTOP") : ""
-            reducedMotion: Quickshell.env("ORBIT_REDUCED_MOTION") === "1"
+            reducedMotion: Quickshell.env("WYSUN_REDUCED_MOTION") === "1"
             detail: shell.snapshots ? "" : "Vista previa · prueba «wysun» · Esc borra"
             onSubmitted: password => {
                 scene.authState = "authenticating";

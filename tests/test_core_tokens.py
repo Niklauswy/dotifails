@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / 'apps/wysun'))
+sys.path.insert(0, str(ROOT / 'apps/python'))
 from wysun_core import theme  # noqa: E402
 
 MODES = ('light', 'dark')
@@ -79,7 +79,7 @@ class TokenSourceTests(unittest.TestCase):
         self.assertEqual(old, [])
 
     def test_base_scheme_is_the_default_wallpaper_scheme(self):
-        import wysun_scheme
+        from wysun_services import scheme as wysun_scheme
         wallpaper = ROOT / 'assets/backgrounds' / theme.default_wallpaper()
         for mode in MODES:
             self.assertEqual(theme.data()['palettes'][mode]['scheme'],

@@ -2,8 +2,8 @@ import json
 from pathlib import Path
 import sys
 import unittest
-sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'apps/wysun'))
-from music_spotify import spotify_entity,parse_embed
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'apps/python'))
+from wysun_music.spotify import spotify_entity,parse_embed
 
 class SpotifyImportTests(unittest.TestCase):
     def test_public_link_and_uri_validation(self):

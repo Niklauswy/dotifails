@@ -13,16 +13,16 @@ os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / 'apps/wysun'))
-import settings_data  # noqa: E402
+sys.path.insert(0, str(ROOT / 'apps/python'))
+from wysun_settings import data as settings_data  # noqa: E402
 from wysun_core import jsonio  # noqa: E402
 from wysun_core import theme  # noqa: E402
-from environment_settings import EnvironmentSettings  # noqa: E402
-from settings_data import PreferenceBackup, ShellPreferences  # noqa: E402
+from wysun_settings.environment import EnvironmentSettings  # noqa: E402
+from wysun_settings.data import PreferenceBackup, ShellPreferences  # noqa: E402
 
 MONITORS = [dict(name='DP-1', width=64, height=48, x=0, y=0, scale=1, refreshRate=60,
                  availableModes=['64x48@60.00Hz'], focused=True)]
-LEGACY = {'height': 40, 'opacity': 70, 'background': '#101118', 'left': ['orbit', 'workspaces'],
+LEGACY = {'height': 40, 'opacity': 70, 'background': '#101118', 'left': ['wysun', 'workspaces'],
           'center': ['title'], 'right': ['date', 'tray'], 'monitors': {'DP-1': True, 'eDP-1': False},
           'tray_monitor': 'DP-1', 'future_key': {'keep': True}}
 
@@ -35,8 +35,8 @@ class PreferenceCase(unittest.TestCase):
     def setUp(self):
         self.folder = tempfile.TemporaryDirectory()
         self.home = Path(self.folder.name)
-        self.orbit = self.home / '.config/orbit'
-        self.orbit.mkdir(parents=True)
+        self.config = self.home / '.config/wysun'
+        self.config.mkdir(parents=True)
         self.calls = []
         self.shell_alive = True
 
@@ -59,13 +59,13 @@ class PreferenceCase(unittest.TestCase):
         self.folder.cleanup()
 
     def write(self, name, text):
-        path = self.orbit / name
+        path = self.config / name
         path.write_bytes(text.encode() if isinstance(text, str) else text)
         return path
 
     def state(self):
         names = ('shell.json', 'hypr-bar.json', 'appearance.json', 'environment.json', 'theme.json')
-        return {n: digest(self.orbit / n) for n in names} | {'scheme.json': digest(theme.scheme_path(self.home))}
+        return {n: digest(self.config / n) for n in names} | {'scheme.json': digest(theme.scheme_path(self.home))}
 
 
 class MigrationTests(PreferenceCase):
@@ -74,34 +74,34 @@ class MigrationTests(PreferenceCase):
         before = digest(legacy)
         shell = ShellPreferences(self.home)
         self.assertTrue(shell.migrate())
-        written = digest(self.orbit / 'shell.json')
-        values = json.loads((self.orbit / 'shell.json').read_text())
+        written = digest(self.config / 'shell.json')
+        values = json.loads((self.config / 'shell.json').read_text())
         self.assertEqual((values['schema_version'], values['anchor']), (1, 'left'))
         self.assertEqual(values['monitors'], {'DP-1': True, 'eDP-1': False})
         self.assertEqual(values['tray_monitor'], 'DP-1')
-        self.assertEqual(values['rail_modules'], {'left': ['orbit', 'workspaces'], 'center': ['title'], 'right': ['date', 'tray']})
+        self.assertEqual(values['rail_modules'], {'left': ['wysun', 'workspaces'], 'center': ['title'], 'right': ['date', 'tray']})
         self.assertNotIn('height', values)
         self.assertEqual(digest(legacy), before)
-        self.assertEqual(oct((self.orbit / 'shell.json').stat().st_mode & 0o777), '0o600')
+        self.assertEqual(oct((self.config / 'shell.json').stat().st_mode & 0o777), '0o600')
         self.assertFalse(ShellPreferences(self.home).migrate())  # second run: no-op
-        self.assertEqual(digest(self.orbit / 'shell.json'), written)
-        self.assertEqual(shell.migration_backup.before['hypr-bar.json'], (self.orbit / 'hypr-bar.json').read_bytes())
+        self.assertEqual(digest(self.config / 'shell.json'), written)
+        self.assertEqual(shell.migration_backup.before['hypr-bar.json'], (self.config / 'hypr-bar.json').read_bytes())
         # Undo of the migration removes shell.json and leaves hypr-bar.json exact.
         shell.migration_backup.restore()
-        self.assertFalse((self.orbit / 'shell.json').exists())
+        self.assertFalse((self.config / 'shell.json').exists())
         self.assertEqual(digest(legacy), before)
 
     def test_new_profile_gets_defaults_without_files_or_legacy(self):
         values = ShellPreferences(self.home).values()
         self.assertEqual(values['rail_enabled'], True)
         self.assertEqual(values['monitors'], {})
-        self.assertFalse((self.orbit / 'shell.json').exists())
+        self.assertFalse((self.config / 'shell.json').exists())
 
     def test_disabled_tray_and_all_off_legacy_never_leave_the_desktop_empty(self):
         self.write('hypr-bar.json', json.dumps({'monitors': {'A': False, 'B': False}, 'tray_monitor': 'A'}))
         values = ShellPreferences(self.home).values()
         self.assertEqual((values['monitors'], values['tray_monitor']), ({}, 'A'))
-        (self.orbit / 'shell.json').unlink()
+        (self.config / 'shell.json').unlink()
         self.write('hypr-bar.json', json.dumps({'monitors': {'A': False, 'B': True}, 'tray_monitor': 'A'}))
         self.assertEqual(ShellPreferences(self.home).values()['tray_monitor'], '')
 
@@ -112,7 +112,7 @@ class MigrationTests(PreferenceCase):
             ShellPreferences(self.home).values()
         with self.assertRaises(ValueError):
             self.env.apply_shell({'low_power': True})
-        self.assertFalse((self.orbit / 'shell.json').exists())
+        self.assertFalse((self.config / 'shell.json').exists())
         self.assertEqual(digest(legacy), before)
 
     def test_unknown_version_blocks_reads_and_writes_without_touching_the_file(self):
@@ -123,7 +123,7 @@ class MigrationTests(PreferenceCase):
             with self.assertRaisesRegex(ValueError, 'Versión'):
                 action()
         self.assertEqual(digest(shell), before)
-        self.assertFalse((self.orbit / 'appearance.json').exists())
+        self.assertFalse((self.config / 'appearance.json').exists())
 
     def test_write_failure_during_migration_leaves_no_partial_state(self):
         legacy = self.write('hypr-bar.json', json.dumps(LEGACY))
@@ -137,7 +137,7 @@ class MigrationTests(PreferenceCase):
         with patch.object(jsonio, 'atomic_write_bytes', failing):
             with self.assertRaises(OSError):
                 ShellPreferences(self.home).migrate()
-        self.assertFalse((self.orbit / 'shell.json').exists())
+        self.assertFalse((self.config / 'shell.json').exists())
         self.assertEqual(digest(legacy), before)
         self.assertTrue(ShellPreferences(self.home).migrate())  # recovers on the next attempt
 
@@ -147,7 +147,7 @@ class SaveAndUndoTests(PreferenceCase):
         self.write('hypr-bar.json', json.dumps(LEGACY))
         appearance = self.write('appearance.json', '{"opacity": 80,\r\n "reduced_motion": false, "futuro": "ñ"}\r\n')
         ShellPreferences(self.home).migrate()
-        shell = self.write('shell.json', json.dumps(dict(json.loads((self.orbit / 'shell.json').read_text()), extra={'x': 1}), indent=4) + '\n')
+        shell = self.write('shell.json', json.dumps(dict(json.loads((self.config / 'shell.json').read_text()), extra={'x': 1}), indent=4) + '\n')
         before = self.state()
         backup = self.env.apply_panels({'frame_enabled': False, 'low_power': True, 'monitors': {'DP-1': True, 'eDP-1': True}},
                                        {'opacity': 90, 'reduced_motion': True},
@@ -164,10 +164,10 @@ class SaveAndUndoTests(PreferenceCase):
     def test_undo_refuses_to_discard_another_writers_change(self):
         self.write('appearance.json', '{"opacity": 80}\n')
         backup = self.env.apply_appearance({'opacity': 70, 'reduced_motion': False})
-        (self.orbit / 'appearance.json').write_text('{"opacity": 99}\n')
+        (self.config / 'appearance.json').write_text('{"opacity": 99}\n')
         with self.assertRaisesRegex(ValueError, 'otra ventana'):
             self.env.undo_preferences(backup)
-        self.assertEqual(json.loads((self.orbit / 'appearance.json').read_text())['opacity'], 99)
+        self.assertEqual(json.loads((self.config / 'appearance.json').read_text())['opacity'], 99)
 
     def test_sealed_receipt_can_be_reopened_for_undo_after_restart(self):
         self.write('appearance.json', '{"opacity": 80}\n')
@@ -178,7 +178,7 @@ class SaveAndUndoTests(PreferenceCase):
         reopened.restore()
         self.assertEqual(self.state(), before)
         with self.assertRaises(ValueError):  # a folder outside Settings' backups is refused
-            PreferenceBackup.open(self.home, paths, self.orbit)
+            PreferenceBackup.open(self.home, paths, self.config)
 
     def test_stale_form_and_invalid_values_are_rejected_before_writing(self):
         self.write('hypr-bar.json', json.dumps(LEGACY))
@@ -214,7 +214,7 @@ class SaveAndUndoTests(PreferenceCase):
         self.shell_alive = False
         backup = self.env.apply_shell({'low_power': True})
         self.assertIn('quickshell', backup.warning)
-        self.assertTrue(json.loads((self.orbit / 'shell.json').read_text())['low_power'])
+        self.assertTrue(json.loads((self.config / 'shell.json').read_text())['low_power'])
 
 
 class ColourPreferenceTests(PreferenceCase):
@@ -261,7 +261,7 @@ class ColourPreferenceTests(PreferenceCase):
         self.assertEqual(json.loads(theme.scheme_path(self.home).read_text())['mode'], 'light')
         self.env.apply_colour(dict(mode='dark'), None, self.env.colour_values())
         self.assertEqual(json.loads(theme.scheme_path(self.home).read_text())['mode'], 'dark')
-        self.assertEqual(json.loads((self.orbit / 'theme.json').read_text()), {'mode': 'dark'})
+        self.assertEqual(json.loads((self.config / 'theme.json').read_text()), {'mode': 'dark'})
 
     def test_invalid_theme_json_or_mode_blocks_the_save(self):
         environment = self.write('environment.json', '{oops')

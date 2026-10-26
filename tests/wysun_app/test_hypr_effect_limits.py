@@ -3,8 +3,8 @@ from pathlib import Path
 import sys
 import unittest
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'apps/wysun'))
-from hypr_settings import effects_script
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'apps/python'))
+from wysun_settings.hypr import effects_script
 
 
 class EffectBoundsTests(unittest.TestCase):

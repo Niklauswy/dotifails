@@ -6,12 +6,12 @@ import tempfile
 import time
 import unittest
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'apps/wysun'))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'apps/python'))
 AVAILABLE = all(importlib.util.find_spec(m) for m in ('fitz', 'PySide6'))
 if AVAILABLE:
     import fitz
     from PySide6.QtWidgets import QApplication
-    from pdf_worker import PdfWorker
+    from wysun_pdf.worker import PdfWorker
 
 
 @unittest.skipUnless(AVAILABLE, 'PySide6 and python3-fitz required')

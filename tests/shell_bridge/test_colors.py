@@ -19,7 +19,7 @@ class ColorsBridgeTests(unittest.TestCase):
     def test_existing_palette_parse_save_and_toggle(self):
         with tempfile.TemporaryDirectory() as directory:
             home = Path(directory)
-            path = home / '.local/share/orbit/colors.json'
+            path = home / '.local/share/wysun/colors.json'
             path.parent.mkdir(parents=True)
             path.write_text(json.dumps({'favorites': ['#123456'], 'recent': ['#ABCDEF']}))
             requests = [
@@ -32,7 +32,7 @@ class ColorsBridgeTests(unittest.TestCase):
                 {'action': 'favorite', 'color': '#123456'},
             ]
             run = subprocess.run(['/usr/bin/python3', str(BACKEND)], input=''.join(json.dumps(r)+'\n' for r in requests),
-                                 text=True, capture_output=True, env=dict(os.environ, HOME=directory), check=True)
+                                 text=True, capture_output=True, env=dict(os.environ, HOME=directory, PYTHONPATH=str(ROOT / 'apps/python')), check=True)
             rows = [json.loads(line) for line in run.stdout.splitlines()]
             self.assertEqual(rows[0]['data']['favorites'], ['#123456'])
             self.assertEqual(rows[1]['color'], '#FF0000')
@@ -47,6 +47,6 @@ class ColorsBridgeTests(unittest.TestCase):
     def test_bad_request_does_not_kill_service(self):
         with tempfile.TemporaryDirectory() as directory:
             run = subprocess.run(['/usr/bin/python3', str(BACKEND)], input='invalid\n[]\n{"action":"read"}\n',
-                                 text=True, capture_output=True, env=dict(os.environ, HOME=directory), check=True)
+                                 text=True, capture_output=True, env=dict(os.environ, HOME=directory, PYTHONPATH=str(ROOT / 'apps/python')), check=True)
             rows = [json.loads(line) for line in run.stdout.splitlines()]
             self.assertIn('error', rows[0]); self.assertIn('error', rows[1]); self.assertIn('data', rows[2])

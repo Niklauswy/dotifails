@@ -1,8 +1,8 @@
 # Integración de Archivos con el escritorio
 
-`./instalar.sh --orbit-only` registra por usuario el backend `orbit` de
+`./instalar.sh --wysun-only` registra por usuario el backend `wysun` de
 `org.freedesktop.impl.portal.FileChooser` y el servicio `org.freedesktop.FileManager1`.
-Configura además `inode/directory=orbit-files.desktop` en el hogar de destino, conservando las otras asociaciones MIME. La instalación completa incluye los paquetes del portal y `gio`. El código está en `apps/wysun/files_chooser.py` y `files_service.py`.
+Configura además `inode/directory=wysun-files.desktop` en el hogar de destino, conservando las otras asociaciones MIME. La instalación completa incluye los paquetes del portal y `gio`. El código está en `apps/python/wysun_files/chooser.py` y `files_service.py`.
 
 El selector usa las vistas de Wysun: abrir uno o varios archivos, elegir una
 carpeta, guardar, elegir filtros MIME/glob, opciones adicionales y cancelar.
@@ -12,11 +12,11 @@ Los diálogos no ofrecen los atajos de borrar, cortar o renombrar del gestor.
 Ctrl+H muestra archivos ocultos; Ctrl+L permite escribir una ruta.
 
 El portal requiere xdg-desktop-portal 1.20 o posterior para descubrir el backend
-en `~/.local/share/xdg-desktop-portal/portals/orbit.portal`. La preferencia
+en `~/.local/share/xdg-desktop-portal/portals/wysun.portal`. La preferencia
 `~/.config/xdg-desktop-portal/portals.conf` cambia solo FileChooser y conserva las
 otras preferencias, con GTK como alternativa. La activación se registra en
 `~/.local/share/dbus-1/services` y en el servicio de usuario
-`orbit-files-integration.service`.
+`wysun-files-integration.service`.
 
 Después de instalar, ejecutar `systemctl --user daemon-reload` y reiniciar
 `xdg-desktop-portal.service` cuando no haya un selector abierto. No reiniciar los
@@ -37,7 +37,7 @@ Comprobaciones:
 QT_QPA_PLATFORM=offscreen python3 tests/files_chooser_ui.py
 # El bus es temporal; no modifica el portal de la sesión gráfica.
 dbus-run-session -- env QT_QPA_PLATFORM=offscreen python3 tests/files_portal_dbus.py
-systemctl --user status orbit-files-integration.service
+systemctl --user status wysun-files-integration.service
 xdg-mime query default inode/directory
 ```
 

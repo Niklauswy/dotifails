@@ -1,18 +1,18 @@
 # Integración de Wysun Archivos
 
-La fuente de la aplicación está en `apps/wysun/files_app.py`; el instalador administra su copia en `~/.local/share/orbit/app/`. No editar directamente la copia instalada.
+La fuente de la aplicación está en `apps/python/wysun_files/app.py`; el instalador administra su copia en `~/.local/share/wysun/app/`. No editar directamente la copia instalada.
 
 ## Instalación
 
-Desde la raíz de dotifails, ejecutar `./instalar.sh --orbit-only`. El perfil completo `desktop` despliega los mismos archivos. Ambos usan el registro de respaldos y conflictos del instalador para instalar:
+Desde la raíz del repositorio, ejecutar `./instalar.sh --wysun-only`. El perfil completo `desktop` despliega los mismos archivos. Ambos usan el registro de respaldos y conflictos del instalador para instalar:
 
-- `bin/orbit-files` → `~/.local/bin/orbit-files` (ejecutable).
-- `config/.local/share/applications/orbit-files.desktop` → `~/.local/share/applications/orbit-files.desktop`.
-- La aplicación, junto con el resto de `apps/wysun/`.
+- `bin/wysun-files` → `~/.local/bin/wysun-files` (ejecutable).
+- `config/.local/share/applications/wysun-files.desktop` → `~/.local/share/applications/wysun-files.desktop`.
+- La aplicación, junto con el resto de `apps/python/`.
 
-Si el código de Wysun presenta conflictos, resolverlos antes de activar el nuevo gestor. Tras una instalación sin conflictos, ejecutar `~/.local/bin/orbit reload` y comprobar la apertura real. El lanzador independiente acepta rutas y URL `file://`, por ejemplo `orbit-files "$HOME/Downloads"`.
+Si el código de Wysun presenta conflictos, resolverlos antes de activar el nuevo gestor. Tras una instalación sin conflictos, ejecutar `wysun reload` y comprobar la apertura real. El lanzador independiente acepta rutas y URL `file://`, por ejemplo `wysun-files "$HOME/Downloads"`.
 
-El perfil de escritorio del instalador configura **Wysun Archivos como gestor predeterminado** para `inode/directory`, tanto en una instalación nueva como con `--orbit-only`. La asociación se escribe en el hogar de destino y participa en los respaldos y la recuperación del instalador. Las preferencias MIME de otros tipos de archivo se conservan.
+El perfil de escritorio del instalador configura **Wysun Archivos como gestor predeterminado** para `inode/directory`, tanto en una instalación nueva como con `--wysun-only`. La asociación se escribe en el hogar de destino y participa en los respaldos y la recuperación del instalador. Las preferencias MIME de otros tipos de archivo se conservan.
 
 También instala el selector de archivos de Wysun y el servicio «Mostrar en carpeta» para aplicaciones compatibles. En una instalación completa se incluyen `xdg-desktop-portal`, su alternativa GTK y `gio`. Véase [Integración con el escritorio](files-integration.md).
 
@@ -25,7 +25,7 @@ xdg-mime query default inode/directory
 xdg-open "$HOME/Downloads"
 ```
 
-La primera orden debe devolver `orbit-files.desktop`; la segunda debe abrir Wysun. Las aplicaciones que incorporan un selector propio o llaman directamente a otro ejecutable pueden mantener su comportamiento particular.
+La primera orden debe devolver `wysun-files.desktop`; la segunda debe abrir Wysun. Las aplicaciones que incorporan un selector propio o llaman directamente a otro ejecutable pueden mantener su comportamiento particular.
 
 ## Reversión
 
@@ -35,7 +35,7 @@ El instalador conserva su propio diario de recuperación para los archivos despl
 
 ## Uso
 
-- `Super + Alt + F` abre el gestor mediante el comando existente `orbit files`; no se reasignan teclas.
+- `Super + Alt + F` abre el gestor mediante el comando existente `wysun files`; no se reasignan teclas.
 - El lanzador ofrece «Wysun Archivos». La búsqueda interna anterior permanece disponible.
 - Ctrl+T/Ctrl+W: abrir/cerrar pestaña. Ctrl+L: escribir una ruta. Alt+flechas: historial y carpeta superior.
 - Ctrl+F filtra nombres en la carpeta actual; no es una búsqueda recursiva.

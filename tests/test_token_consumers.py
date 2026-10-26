@@ -8,7 +8,7 @@ from pathlib import Path
 os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'installer'))
-sys.path.insert(0, str(ROOT / 'apps/wysun'))
+sys.path.insert(0, str(ROOT / 'apps/python'))
 
 from PySide6.QtWidgets import QApplication
 

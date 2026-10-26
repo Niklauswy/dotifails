@@ -1,20 +1,23 @@
 pragma Singleton
 
 import Quickshell
+import qs.utils
 
 // Helpers shared by the launcher and the emoji drawer. Request streams belong to each widget.
 Singleton {
     id: root
 
-    readonly property string appDir: Quickshell.env("WYSUN_APP_DIR") || `${Quickshell.env("HOME")}/.local/share/orbit/app`
-    readonly property string script: `${appDir}/launcher_data.py`
-    // Neovim-coloured code previews, cached on disk (code_preview.py): `codePreview(path)` is the argv.
+    // argv of the launcher's data provider (wysun_services.launcher_data) with `args`.
+    function data(args: var): var {
+        return Paths.python("wysun_services.launcher_data", args);
+    }
+    // Neovim-coloured code previews, cached on disk (wysun_services.code_preview): `codePreview(path)` is the argv.
     function codePreview(path: string): var {
-        return ["python3", "-I", `${appDir}/code_preview.py`, path];
+        return Paths.python("wysun_services.code_preview", [path]);
     }
 
     function run(args: var): void {
-        Quickshell.execDetached(["python3", "-I", script, "act", ...args]);
+        Quickshell.execDetached(data(["act", ...args]));
     }
 
     function copy(row: var): void {

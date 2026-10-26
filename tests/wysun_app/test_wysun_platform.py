@@ -4,8 +4,8 @@ from pathlib import Path
 import sys
 import unittest
 from unittest.mock import Mock,patch
-sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'apps/wysun'))
-from desktop_backend import Desktop,wayland
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'apps/python'))
+from wysun_core.desktop import Desktop,wayland
 
 class DesktopTests(unittest.TestCase):
     def test_wayland_wins_over_xwayland_display(self):
@@ -52,7 +52,7 @@ class DesktopTests(unittest.TestCase):
         desktop.workspace_action('activate','-1337')
         self.assertEqual(desktop.run.call_args.args[0][-1],'hl.dsp.focus({ workspace = "name:-2" })')
     def test_hyprland_paste_targets_only_verified_previous_window(self):
-        from wayland_clipboard import paste_to
+        from wysun_services.wayland_clipboard import paste_to
         desktop=Desktop(Mock(return_value='ok'),'hyprland');desktop.focused=Mock(return_value='0x123')
         ok,_=paste_to('0x123',desktop)
         self.assertTrue(ok);self.assertIn('send_shortcut',desktop.run.call_args.args[0][-1])

@@ -8,10 +8,10 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / 'apps/wysun'))
+sys.path.insert(0, str(ROOT / 'apps/python'))
 sys.path.insert(0, str(ROOT / 'tests'))
 os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
-os.environ.setdefault('ORBIT_REDUCED_MOTION', '1')
+os.environ.setdefault('WYSUN_REDUCED_MOTION', '1')
 
 
 class SessionBus:
@@ -53,7 +53,7 @@ def app():
     if _app is None:
         _app = QApplication.instance() or QApplication(sys.argv[:1])
         _app.setStyle('Fusion')
-        import media_host
+        from wysun_player import host as media_host
         from wysun_core import qt_theme
         qt_theme.apply_palette(_app)
         media_host.install()

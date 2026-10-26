@@ -6,9 +6,9 @@ Esta revisión completa la migración del escritorio a **Wysun / Hyprland sobre 
 
 Cambios estructurales verificados:
 
-- `apps/wysun/` y `apps/shell/` son las fuentes activas; `config/` contiene las dotfiles y `assets/` los fondos y la apariencia.
+- `apps/python/` y `apps/shell/` son las fuentes activas; `config/` contiene las dotfiles y `assets/` los fondos y la apariencia.
 - El instalador distribuye la sesión `wayland` por defecto, registra solo sus dos archivos de sesión y no modifica el gestor de acceso.
-- Los ajustes del escritorio usan Hyprland (`hyprctl`, `hypr-settings.lua`, `hypr-shortcuts.lua`, `hypr-bar.json`) y el tema canónico es `~/.config/orbit/theme.json`.
+- Los ajustes del escritorio usan Hyprland (`hyprctl`, `hypr-settings.lua`, `hypr-shortcuts.lua`, `hypr-bar.json`) y el tema canónico es `~/.config/wysun/theme.json`.
 - Dunst usa `~/.config/wysun/dunstrc`. La barra y el escritorio de Quickshell se cargan desde `~/.local/share/wysun/quickshell`.
 - La captura usa los portales XDG en Wayland: Screenshot para imágenes sin cursor y ScreenCast/PipeWire para grabación, cursor y fuentes de ventana. Las herramientas de atajos basadas en el escritorio X11 se retiraron.
 
@@ -20,7 +20,7 @@ Cambios estructurales verificados:
 | Aplicaciones Wysun (`tests/wysun_app/`) | 52 pruebas correctas |
 | Lógica del shell (`apps/shell`: `tests.test_logic`) | 14 pruebas correctas |
 | Interfaz de utilidades (`tests/utility_ui.py`) | 6 pruebas correctas |
-| Captura (`apps/capture/run_tests.py`) | 354 pruebas correctas en 120,487 s |
+| Captura (`apps/recorder/run_tests.py`) | 354 pruebas correctas en 120,487 s |
 | Manifiesto (`tests/check_manifest.py`) | `MANIFEST_OK` y `TOOLS_OK` |
 | Humo de la instalación (`tests/wysun_installed_smoke.py`) | `WYSUN_INSTALLED_SMOKE_OK` |
 
@@ -28,13 +28,13 @@ Las suites de captura y compositor se ejecutaron en serie. Las pruebas de captur
 
 ## Despliegue y sesión activa
 
-- `./instalar.sh --orbit-only` terminó sin conflictos. Respaldo: `~/.local/state/dotifails/backups/20261019T171709Z-b34e4e`.
-- `~/.local/bin/orbit reload` completó correctamente y Quickshell mantiene la capa `wysun-desktop`.
-- Despliegue posterior de las correcciones de Screenshot y libmpv: respaldo `~/.local/state/dotifails/backups/20261019T194412Z-be2f10` y release `aceb815c873d1b5c38f8`; tras alinear los nombres visibles, respaldo `~/.local/state/dotifails/backups/20261019T195009Z-7a25ea` y release final `6075afe7c99700d9094b`. `orbit reload` correcto y `WYSUN_INSTALLED_SMOKE_OK`.
+- `./instalar.sh --wysun-only` terminó sin conflictos. Respaldo: `~/.local/state/wysun/install/backups/20261019T171709Z-b34e4e`.
+- `wysun reload` completó correctamente y Quickshell mantiene la capa `wysun-desktop`.
+- Despliegue posterior de las correcciones de Screenshot y libmpv: respaldo `~/.local/state/wysun/install/backups/20261019T194412Z-be2f10` y release `aceb815c873d1b5c38f8`; tras alinear los nombres visibles, respaldo `~/.local/state/wysun/install/backups/20261019T195009Z-7a25ea` y release final `6075afe7c99700d9094b`. recarga del residente correcta y `WYSUN_INSTALLED_SMOKE_OK`.
 - Comprobación real en la sesión Wayland activa: se abrió la ventana de Wysun, el menú de acciones, la lista de ventanas de Hyprland, el menú contextual del portapapeles y Ajustes con sus diez secciones.
 - Las herramientas instaladas (`wysun-terminal`, `wysun-session`, `wysun-session-services`) coinciden con el repositorio.
 - Se detuvo el proceso huérfano de la instalación X11 anterior y se migró Dunst a `~/.config/wysun/dunstrc`; `dunstctl` respondió y se mostró una notificación de prueba.
-- Las configuraciones X11 antiguas (`bspwm`, `dunst`, `picom`, `polybar`, `sxhkd`, `xsettingsd`) se conservaron en `~/.local/state/dotifails/backups/host-x11-cleanup-20261019T172249Z/` antes de retirarlas del hogar.
+- Las configuraciones X11 antiguas (`bspwm`, `dunst`, `picom`, `polybar`, `sxhkd`, `xsettingsd`) se conservaron en `~/.local/state/wysun/install/backups/host-x11-cleanup-20261019T172249Z/` antes de retirarlas del hogar.
 - Tras el reinicio de la sesión se repitieron las comprobaciones reales: la barra de Quickshell mantiene la capa `wysun-desktop`, Dunst arrancó con `~/.config/wysun/dunstrc` y la ventana, los menús y las diez secciones de Ajustes siguen abriéndose.
 
 La retirada de los paquetes del sistema requiere la contraseña del usuario y queda pendiente de ejecutar en una terminal:
@@ -51,13 +51,13 @@ La sonda pública se ejecutó en un Hyprland anidado y aislado con salida sinté
 - Selección de región, editor y guardado directo con píxeles sintéticos uniformes verificados.
 - Barra rápida, exportación automática al portapapeles y reapertura mientras el propietario anterior del portapapeles sigue vivo.
 - Cancelación con Escape durante una solicitud pendiente: la interfaz permanece visible, el lease se libera y el proveedor se cierra.
-- Evidencia privada: `~/.local/state/dotifails/evidence/screenshot-route-20261019T173118Z/`.
+- Evidencia privada: `~/.local/state/wysun/install/evidence/screenshot-route-20261019T173118Z/`.
 
 ## Correcciones posteriores
 
 - **Screenshot sin cursor.** La ruta regional por defecto congela el escritorio con el portal `Screenshot` (XDPH/grim) y muestra el marco propio de Wysun, sin el selector blanco de ScreenCast. La API se midió en la sesión real con respuestas de 0,3–0,5 s después de liberar portales bloqueados. También se abrió el marco real «Recortar imagen autorizada» en la sesión activa, sin selector ScreenCast, y se canceló sin guardar ni inspeccionar el contenido. La preferencia de cursor y las capturas de ventana/monitor conservan ScreenCast y su consentimiento. El caso E2E se actualizó para probar la ruta directa por defecto y mantener el selector para la rama con cursor; esta revisión concreta no se volvió a ejecutar en el compositor anidado.
 - **Reproducción de vídeo.** `libmpv` rechazaba `mpv_create()` con cualquier locale numérico distinto de `C` y el reproductor quedaba en duración 0 sin imagen. `MpvSurface.start` normaliza `LC_NUMERIC=C` antes de crear el handle. Verificado con un vídeo sintético de 3 s en la release instalada: duración 3,0 s, posición avanzando y fotograma no nulo.
-- **Nombres visibles.** El menú de aplicaciones muestra **Wysun Ajustes** y **Wysun Conexiones**; se retiraron las entradas «Órbita» y las palabras clave antiguas. Se conservan las rutas, los identificadores y el comando técnico `orbit` por compatibilidad.
+- **Nombres visibles.** El menú de aplicaciones muestra **Wysun Ajustes** y **Wysun Conexiones**; se retiraron las entradas «Órbita» y las palabras clave antiguas. (Las rutas e identificadores técnicos pasaron después a `wysun`: ver `ARCHITECTURE.md` §7.)
 
 ## Límites
 
@@ -107,7 +107,7 @@ migración de nombres, los guards de selección y la recuperación cooperativa.
 - Checks dirigidos: instalador 20/20, Screenshot 76/76 antes del follow-up,
   recovery final 4/4, guard final 12/12 y humo integrado correcto (2,92 s).
 - Instalador acotado sin conflictos; respaldo final
-  `~/.local/state/dotifails/backups/20261021T113642Z-a04229`.
+  `~/.local/state/wysun/install/backups/20261021T113642Z-a04229`.
   El respaldo anterior `20261021T113509Z-2fa8d6` incluye en `manual/` la preimagen
   de `hyprland.lua` antes de añadir únicamente el atajo de recuperación.
 - No se reconstruyó el runtime: su sello de plugin coincidía con la fuente.

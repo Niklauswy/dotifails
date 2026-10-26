@@ -51,7 +51,7 @@ archivos de más de 5 minutos se recuerdan (`~/.local/state/wysun/player/positio
 ## Arquitectura
 
 ```text
-apps/wysun/
+apps/python/
   wysun_media/                  componente reutilizable (sin dependencias de Files, Music ni Recorder)
     host.py        Host: lo que el anfitrión presta (colores, tokens, tipografía, símbolos, movimiento reducido)
     source.py      validación y clasificación de archivos locales; errors.py: vocabulario de errores
@@ -65,14 +65,14 @@ apps/wysun/
     mpris.py, integration.py  MPRIS, pista de pantalla encendida y pausa de Music
   player_app.py / player_client.py / player_window.py     línea de órdenes, cliente sin Qt y ventanas del proceso
   media_host.py                 adaptador al tema de Wysun
-apps/capture/wysun_media        enlace al mismo paquete (desarrollo); cada release de Recorder lleva su copia
-apps/capture/loomrec/ui/media_host.py    adaptador al tema de Recorder
+apps/recorder/wysun_media        enlace al mismo paquete (desarrollo); cada release de Recorder lleva su copia
+apps/recorder/wysun_recorder/ui/media_host.py    adaptador al tema de Recorder
 ```
 
 Uso desde cualquier anfitrión:
 
 ```python
-import media_host; media_host.install()                      # o loomrec.ui.media_host en Recorder
+import media_host; media_host.install()                      # o wysun_recorder.ui.media_host en Recorder
 from wysun_media.player import MediaPlayer
 player = MediaPlayer(mode='embedded', backdrop='surface')   # 'full' para una ventana propia
 player.enable_integration()                                  # MPRIS, pantalla encendida y pausa de Music
@@ -108,8 +108,8 @@ Decisiones:
 ## Dependencias y diagnóstico
 
 Requiere `libmpv2` y FFmpeg (ya instalados con mpv). La ruta de GPU necesita `python3-pyside6.qtopengl` y
-`python3-pyside6.qtopenglwidgets`, que la instalación completa añade; `--orbit-only` no instala dependencias y, si faltan, el reproductor
-funciona con el render por software y `dotifails doctor` lo avisa. Variables (solo diagnóstico):
+`python3-pyside6.qtopenglwidgets`, que la instalación completa añade; `--wysun-only` no instala dependencias y, si faltan, el reproductor
+funciona con el render por software y `wysun doctor` lo avisa. Variables (solo diagnóstico):
 
 | Variable | Efecto |
 |---|---|
@@ -122,17 +122,17 @@ renderizador y fotogramas perdidos.
 
 ### Instalación y asociaciones
 
-`./instalar.sh --orbit-only` actualiza el código, instala `wysun-player` y su entrada `.desktop`, y **no** toca asociaciones. La instalación
+`./instalar.sh --wysun-only` actualiza el código, instala `wysun-player` y su entrada `.desktop`, y **no** toca asociaciones. La instalación
 completa añade a `~/.config/mimeapps.list` Wysun Player como predeterminado de los tipos de su `.desktop` (imágenes, video y audio; no SVG);
 lo que era predeterminado queda como alternativa en «Abrir con». El respaldo del instalador guarda el archivo anterior y
-`dotifails restore ID` lo recupera, rescatando en `changes-before-restore/` lo que se haya editado después.
+`wysun-install restore ID` lo recupera, rescatando en `changes-before-restore/` lo que se haya editado después.
 
 ## Pruebas
 
 ```sh
 python3 -m unittest discover -s tests -p 'test_media_*.py'      # sesión, imágenes, controles, widget, tema, integración (D-Bus privado)
 python3 -m unittest discover -s tests -p 'test_player_*.py'     # proceso (instancia única con procesos reales), escritorio e instalador
-python3 apps/capture/run_tests.py                               # incluye la página de reproducción de Recorder
+python3 apps/recorder/run_tests.py                               # incluye la página de reproducción de Recorder
 python3 tests/wayland_media_case.py                             # física: OpenGL, ocultar/mostrar, pérdida de contexto, fugas
 python3 tests/media_benchmark.py                                # CPU, memoria, primer fotograma y fotogramas perdidos
 ```

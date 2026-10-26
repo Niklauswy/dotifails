@@ -14,7 +14,7 @@ external service.
   and its `shadow.png`. Plymouth moves them around the glass. `--farewell-only` rebuilds these and the two captions.
 - It paints with Qt: GRUB's 9-slice frames (`menu_*`, `select_*`, `bar_*`, `bar-fill_*`) and Plymouth's gauge
   `fill.png`; it builds GRUB's sans fonts from DejaVu with `grub-mkfont`.
-- It writes `grub/theme.txt` and `plymouth/orbit.script` from their `.in` templates with the Severance token colours
+- It writes `grub/theme.txt` and `plymouth/wysun.script` from their `.in` templates with the Severance token colours
   (plus the card's declared blue), and refuses a GRUB background over 400 KB.
 
 The Wysun mark is original (a globe of ellipses with the name). The style is inspired by *Severance*; no artwork, logo

@@ -15,7 +15,7 @@ import qs.modules.background
 import qs.services
 import qs.utils
 
-// Orbit wallpaper picker. Original Wysun code. The wallpapers turn on a tilted ring;
+// Ring wallpaper picker. Original Wysun code. The wallpapers turn on a tilted ring;
 // the front card is the selection, the backdrop is that wallpaper blurred, and the
 // accent follows its dominant colour. Opening drops the ring in spinning. Applying
 // flings the other cards away and throws the chosen one into the desktop, where it

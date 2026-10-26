@@ -224,7 +224,7 @@ Item {
                 headProc.command = ["head", "-c", "12000", r.path];
                 headProc.running = true;
             } else if (["video", "audio", "page"].includes(mode)) {
-                pyProc.command = ["python3", "-I", LauncherData.script, "preview", r.path];
+                pyProc.command = LauncherData.data(["preview", r.path]);
                 pyProc.running = true;
                 if (mode === "video") {
                     video.source = "file://" + r.path;
@@ -250,7 +250,7 @@ Item {
                     return;
                 }
                 webProc.requestKey = r.key;
-                webProc.command = ["python3", "-I", LauncherData.script, "preview-url", bodyText.trim()];
+                webProc.command = LauncherData.data(["preview-url", bodyText.trim()]);
                 webProc.running = true;
             }
         }

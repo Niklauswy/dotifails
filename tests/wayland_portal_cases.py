@@ -29,9 +29,9 @@ print('[SELECTION]/'+mode)
 
 
 def run_cases(run_dir, env, command, start, wait_for):
-    from loomrec.portal import Portal, PortalCancelled
-    from loomrec.portal_image import capture_frame
-    from loomrec.capture import CaptureConfig, CaptureSession
+    from wysun_recorder.portal import Portal, PortalCancelled
+    from wysun_recorder.portal_image import capture_frame
+    from wysun_recorder.capture import CaptureConfig, CaptureSession
     choice = prepare_picker(run_dir)
     results = {}
     def phase(name):
@@ -88,7 +88,7 @@ def run_cases(run_dir, env, command, start, wait_for):
         auto_finalize=False,backend='portal',source_type='region',
         mic='wysun-synthetic-mic.monitor',system_audio='wysun-synthetic-system.monitor')
     controller=run_dir/'detached-controller.py'
-    controller.write_text('from loomrec.capture import CaptureConfig,CaptureSession\n'
+    controller.write_text('from wysun_recorder.capture import CaptureConfig,CaptureSession\n'
         'import json\nCaptureSession(CaptureConfig(**json.loads('+repr(json.dumps(config.__dict__))+'))).start()\n')
     command(['/usr/bin/python3',controller])  # Exit the GUI/controller equivalent.
     recording=CaptureSession.attach(project)

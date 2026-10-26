@@ -4,8 +4,8 @@ if command -v nvim >/dev/null; then
 else
     export EDITOR=vim VISUAL=vim
 fi
-export ZSH="${XDG_DATA_HOME:-$HOME/.local/share}/dotifails/tools/ohmyzsh"
-export ZSH_CUSTOM="${XDG_DATA_HOME:-$HOME/.local/share}/dotifails/zsh-custom"
+export ZSH="${XDG_DATA_HOME:-$HOME/.local/share}/wysun/tools/ohmyzsh"
+export ZSH_CUSTOM="${XDG_DATA_HOME:-$HOME/.local/share}/wysun/zsh-custom"
 ZSH_THEME=""
 plugins=(sudo copypath copybuffer zsh-autosuggestions zsh-syntax-highlighting aliases dirhistory fancy-ctrl-z git)
 [[ -f "$ZSH/oh-my-zsh.sh" ]] && source "$ZSH/oh-my-zsh.sh"
@@ -21,8 +21,8 @@ export BAT_THEME=tokyonight_night
 [[ -f /usr/share/doc/fzf/examples/completion.zsh ]] && source /usr/share/doc/fzf/examples/completion.zsh
 [[ -f /usr/share/doc/fzf/examples/key-bindings.zsh ]] && source /usr/share/doc/fzf/examples/key-bindings.zsh
 [[ -f "${XDG_CONFIG_HOME:-$HOME/.config}/fzf/config.zsh" ]] && source "${XDG_CONFIG_HOME:-$HOME/.config}/fzf/config.zsh"
-export NVM_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/dotifails/tools/nvm"
+export NVM_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/wysun/tools/nvm"
 nvm() { unfunction nvm; source "$NVM_DIR/nvm.sh" --no-use; nvm "$@"; }
 command -v starship >/dev/null && eval "$(starship init zsh)"
-[[ -f "${XDG_CONFIG_HOME:-$HOME/.config}/dotifails/local.zsh" ]] && source "${XDG_CONFIG_HOME:-$HOME/.config}/dotifails/local.zsh"
-[[ -f "${XDG_CONFIG_HOME:-$HOME/.config}/dotifails/mise.zsh" ]] && source "${XDG_CONFIG_HOME:-$HOME/.config}/dotifails/mise.zsh"
+[[ -f "${XDG_CONFIG_HOME:-$HOME/.config}/wysun/local.zsh" ]] && source "${XDG_CONFIG_HOME:-$HOME/.config}/wysun/local.zsh"
+[[ -f "${XDG_CONFIG_HOME:-$HOME/.config}/wysun/mise.zsh" ]] && source "${XDG_CONFIG_HOME:-$HOME/.config}/wysun/mise.zsh"

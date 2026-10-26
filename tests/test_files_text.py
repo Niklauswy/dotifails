@@ -3,8 +3,8 @@ import sys
 import unittest
 from pathlib import Path
 root=Path(__file__).resolve().parents[1]
-if not (root/'apps/wysun').is_dir():root=Path(__file__).resolve().parent
-sys.path.insert(0,str(root/'apps/wysun'))
+if not (root/'apps/python').is_dir():root=Path(__file__).resolve().parent
+sys.path.insert(0,str(root/'apps/python'))
 from wysun_files import markdown
 from wysun_files.highlight import language_for_fence, language_for_path, tokenize
 

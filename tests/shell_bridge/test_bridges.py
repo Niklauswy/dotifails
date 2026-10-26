@@ -15,9 +15,9 @@ ROOT = Path(__file__).resolve().parents[2]
 SHELL = ROOT / 'apps/shell'
 spec = importlib.util.spec_from_file_location('wysun_cael_backend_b', SHELL / 'wysun/backend.py')
 backend = importlib.util.module_from_spec(spec); spec.loader.exec_module(backend)
-sys.path.insert(0, str(ROOT / 'apps/wysun'))
+sys.path.insert(0, str(ROOT / 'apps/python'))
 from wysun_core import theme  # noqa: E402
-import wysun_scheme  # noqa: E402
+from wysun_services import scheme as wysun_scheme  # noqa: E402
 from PIL import Image  # noqa: E402
 
 
@@ -56,7 +56,7 @@ class SchemeBridgeTests(unittest.TestCase):
         self.assertIn('${Paths.state}/scheme.json', source)
         self.assertIn('propertyKey(name)', source)
         self.assertIn('["wysun", "scheme", "set", mode]', source, 'the mode goes through the single producer')
-        self.assertIn('orbit/theme.json', source, 'the page shows the stored mode, not only the one the wallpaper gave')
+        self.assertIn('wysun/theme.json', source, 'the page shows the stored mode, not only the one the wallpaper gave')
         self.assertEqual(theme.scheme_path(Path('/x')).as_posix(), '/x/.local/state/wysun/scheme.json')
 
     def test_scheme_changes_never_call_the_original_project_cli(self):
@@ -86,7 +86,7 @@ class SchemeBridgeTests(unittest.TestCase):
 
     def test_wallpaper_bridge_reads_environment_json_by_monitor(self):
         qml = (SHELL / 'wysun/WysunBridge.qml').read_text()
-        self.assertIn("orbit/environment.json", qml)
+        self.assertIn("wysun/environment.json", qml)
         wall = (SHELL / 'services/Wallpapers.qml').read_text()
         self.assertIn('wysunWallpaper.monitors?.[name]?.path', wall)
         self.assertIn('"wysun", "wallpaper", "set"', wall)
@@ -106,7 +106,7 @@ class NotificationOwnershipTests(unittest.TestCase):
 
     def test_no_dunst_is_started_or_called(self):
         root = SHELL.parents[1]
-        for relative in ('bin/wysun-session-services', 'apps/shell/wysun/backend.py', 'apps/wysun/theme_runtime.py',
+        for relative in ('bin/wysun-session-services', 'apps/shell/wysun/backend.py', 'apps/python/wysun_settings/theme_runtime.py',
                          'config/.config/wysun/hyprland.lua'):
             self.assertNotIn('dunst', (root / relative).read_text().lower(), relative)
 

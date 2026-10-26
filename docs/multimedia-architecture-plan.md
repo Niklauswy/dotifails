@@ -30,7 +30,7 @@ Principios:
 |---|---|---|
 | Files | `wysun_files/player.py` + `mpv_embed.py`: render por software a `QImage`, sin decodificación por hardware, sondeo IPC cada 120 ms; `_probe_media()` llama a ffprobe en el hilo de UI | Se reemplaza por el componente |
 | Files, apertura | `wysun_files/window.py:open_path` usa `QDesktopServices.openUrl` | Se enruta a Wysun Player para tipos multimedia |
-| Recorder | `loomrec/ui/player.py`: superficie libmpv duplicada (Wayland) y proceso mpv hijo (X11) | Se reemplaza por el componente |
+| Recorder | `wysun_recorder/ui/player.py`: superficie libmpv duplicada (Wayland) y proceso mpv hijo (X11) | Se reemplaza por el componente |
 | Imágenes | Decodificación, EXIF, zoom y paneo existentes en Files (`file_media.py`, `files_zoom.py`) | Se extraen y se mejoran |
 | Instancia única | Music usa `local_ipc.LocalSettingsServer` con un socket en `$XDG_RUNTIME_DIR` | Wysun Player reutiliza el mismo patrón |
 | Runtime | Apps con PySide6 6.8 del sistema y shell con Qt 6.9.3 privado. Faltan `QtOpenGL` y `QtOpenGLWidgets` | Dependencia nueva en el instalador completo y respaldo por software sin ella |
@@ -48,7 +48,7 @@ Principios:
 
 La forma comunica jerarquía y estado, no decoración. Referencia: <https://m3.material.io/styles/shape/overview-principles>.
 
-**Escala de forma en tokens.** Se añade a `shape` en `apps/wysun/wysun_theme.json` y en su copia `apps/capture/loomrec/ui/` (lo comprueba `tests/test_theme_tokens.py`):
+**Escala de forma en tokens.** Se añade a `shape` en `apps/python/wysun_theme.json` y en su copia `apps/recorder/wysun_recorder/ui/` (lo comprueba `tests/test_theme_tokens.py`):
 
 | Token | Uso en el reproductor |
 |---|---|
@@ -110,7 +110,7 @@ Streaming y URLs remotas, discos, DRM, casting, edición, descarga de subtítulo
 
 ## 6. Arquitectura
 
-### Componente `apps/wysun/wysun_media/`
+### Componente `apps/python/wysun_media/`
 
 ```text
 wysun_media/
@@ -176,13 +176,13 @@ player.expandRequested.connect(lambda: launch_player(path, player.session.positi
 
 **Recorder**
 - `PlayerPage` embebe `MediaPlayer(mode='embedded')` con el adaptador de tema de Recorder. Tiene las mismas funciones (velocidad, fotograma a fotograma, avance) y una acción «Abrir en Wysun Player».
-- Las releases de Recorder son inmutables, así que `installer/capture_distribution.py` copia `wysun_media` dentro de cada release y lo incluye en el hash. Recorder nunca importa de `~/.local/share/orbit/app/`.
+- Las releases de Recorder son inmutables, así que `installer/capture_distribution.py` copia `wysun_media` dentro de cada release y lo incluye en el hash. Recorder nunca importa de `~/.local/share/wysun/app/`.
 - Se mantiene el contrato de grabación: solo se reproduce una salida finalizada (`ready` y el archivo existe), no se generan exportaciones extra, y cerrar el reproductor no detiene la captura ni la finalización.
 - `wysun recorder --show RUTA` sigue aceptando videos como hoy.
 
 **Escritorio y aplicación predeterminada**
 - El instalador completo registra `wysun-player.desktop` y lo fija como predeterminado para `image/*`, `video/*` y `audio/*` en `~/.config/mimeapps.list`. Antes guarda los valores previos en el journal, y el rollback los restaura sin pisar cambios posteriores del usuario.
-- `--orbit-only` no modifica `mimeapps.list` ni instala dependencias. Igual que los atajos, la migración en el escritorio activo se hace con respaldo y comprobando conflictos.
+- `--wysun-only` no modifica `mimeapps.list` ni instala dependencias. Igual que los atajos, la migración en el escritorio activo se hace con respaldo y comprobando conflictos.
 
 **Shell, Music y sistema (fase 4)**
 - **MPRIS** para Wysun Player y para la reproducción activada explícitamente en Files o Recorder; las vistas previas pasivas no se registran. Así funcionan las teclas multimedia y los controles del shell.
@@ -201,7 +201,7 @@ Cada fase requiere instrucción expresa para comenzar. Cada una termina con sus 
 | **2. Wysun Player y Files** | App, instancia única, `bin/wysun` y desktop file. Vista previa y apertura de Files. Predeterminado MIME en el instalador completo | Abrir desde Files, desde `xdg-open` y con una segunda llamada concurrente. La vista previa no reproduce sola. Las rutas no multimedia de Files siguen igual |
 | **3. Recorder** | `PlayerPage` sobre el componente y empaquetado en releases | Recorder funciona desde su release. Las grabaciones activas no se ven afectadas. Releases anteriores siguen funcionando tras actualizar |
 | **4. Sistema** | MPRIS, inhibición de reposo, pausa de Music, «Ver» en capturas | Teclas multimedia, inhibición y pausa de Music en el escritorio real. Un guardado fallido nunca abre un archivo inexistente |
-| **5. Limpieza** | Eliminar `mpv_embed.py`, `wysun_files/player.py` y `loomrec/ui/player.py` cuando nada los use. Actualizar `ARCHITECTURE.md`, `docs/themes.md` y créditos | Todas las suites requeridas pasan y la revisión visual en los modos claro y oscuro del tema actual está hecha |
+| **5. Limpieza** | Eliminar `mpv_embed.py`, `wysun_files/player.py` y `wysun_recorder/ui/player.py` cuando nada los use. Actualizar `ARCHITECTURE.md`, `docs/themes.md` y créditos | Todas las suites requeridas pasan y la revisión visual en los modos claro y oscuro del tema actual está hecha |
 
 Los puntos de entrada antiguos se mantienen como envoltorios hasta que su sustituto pase las pruebas instaladas.
 
@@ -229,7 +229,7 @@ Cada medición registra códec, resolución, decodificador, renderizador, versio
 - **Tema:** cada variante que defina el tema (las pruebas las recorren, sin nombrarlas), cambio en vivo, movimiento reducido, `tests/test_theme_literals.py` sin literales nuevos.
 - **Integración:** apertura desde Files sin recursión, releases de Recorder, MIME con journal y rollback, MPRIS y Music (fase 4).
 
-Se ejecutan las comprobaciones de `AGENTS.md` (unidad, `wysun_app`, `shell_bridge`, `utility_ui`, manifiesto, `apps/capture/run_tests.py` y `wysun_installed_smoke.py`). Las pruebas de medios y compositor se ejecutan en serie con HOME/XDG temporales. El éxito en offscreen no sustituye la verificación en Wayland real.
+Se ejecutan las comprobaciones de `AGENTS.md` (unidad, `wysun_app`, `shell_bridge`, `utility_ui`, manifiesto, `apps/recorder/run_tests.py` y `wysun_installed_smoke.py`). Las pruebas de medios y compositor se ejecutan en serie con HOME/XDG temporales. El éxito en offscreen no sustituye la verificación en Wayland real.
 
 ## 9. Riesgos aceptados
 

@@ -87,7 +87,7 @@ Los registros del greeter se conservan, con permisos privados, en
 
 ## Respaldos y recuperación
 
-Los respaldos del sistema viven en `/var/lib/dotifails/boot/backups/ID` (distintos de los del hogar). En el
+Los respaldos del sistema viven en `/var/lib/wysun/boot/backups/ID` (distintos de los del hogar). En el
 instalador: **Recuperación → Arranque…**. Desde la terminal:
 
 ```sh
@@ -101,12 +101,12 @@ vuelve a habilitar el anterior. Los cambios hechos después se guardan en `chang
 conservan los archivos administrados que hayas modificado: el instalador se detiene y muestra el conflicto.
 
 Si la pantalla de acceso no aparece: cambia a una TTY (Ctrl+Alt+F3), inicia sesión y ejecuta
-`sudo python3 ~/.local/share/dotifails/installer/boot.py --restore ID`, o habilita de nuevo el gestor anterior con
+`sudo python3 ~/.local/share/wysun/installer/boot.py --restore ID`, o habilita de nuevo el gestor anterior con
 `sudo systemctl disable greetd && sudo systemctl enable --force lightdm` y reinicia.
 
 ## Recursos y vistas previas
 
-Los PNG, `theme.txt` y `orbit.script` ya están incluidos; una instalación nueva no genera nada. Para regenerarlos
+Los PNG, `theme.txt` y `wysun.script` ya están incluidos; una instalación nueva no genera nada. Para regenerarlos
 (en una sesión Wysun con el runtime del shell):
 
 ```sh
@@ -116,7 +116,7 @@ python3 tests/grub_preview.py grub.png      # GRUB tal como lo compone theme.txt
 python3 tests/plymouth_preview.py salida/   # el script real en el intérprete de Plymouth, fotograma a fotograma
 ```
 
-`theme.txt.in` y `orbit.script.in` son plantillas (no se instalan). El script de Plymouth usa su propio generador
+`theme.txt.in` y `wysun.script.in` son plantillas (no se instalan). El script de Plymouth usa su propio generador
 Park–Miller: el `Math.Random()` de Plymouth en Debian devuelve valores cercanos a 1e-10. Las fuentes GRUB derivan de
 DejaVu y su licencia se incluye con el tema. Pruebas: `tests/test_boot.py` (incluye el intérprete real de Plymouth y la
 verificación de la configuración del greeter con `Hyprland --verify-config`).

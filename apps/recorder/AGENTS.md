@@ -1,0 +1,13 @@
+# Wysun Recorder
+
+- Wysun Screenshot (`wybieshot`) se retiró: las capturas de pantalla las hace el shell (`apps/shell/modules/areapicker`). No reintroducir aquí una app de capturas.
+
+- Esta carpeta es la fuente de desarrollo integrada en este repositorio. No modificar las copias instaladas ni la copia histórica del repositorio `loom`.
+- El instalador común distribuye ambos paquetes en versiones inmutables. Actualizar con `./instalar.sh --wysun-only`; no usar los instaladores históricos de `scripts/` para el escritorio integrado.
+- El paquete es `wysun_recorder`; sus datos viven en `~/.local/share/wysun/recorder`, `~/.config/wysun/recorder` y `~/.local/state/wysun/recorder`. Conservar los formatos de proyecto y no tocar los datos antiguos de `~/.local/share/wybie-screenshot`. Wysun es la identidad visible. No copiar bibliotecas, grabaciones, capturas, preferencias ni otros datos privados al repositorio.
+- El controlador de captura no depende de la GUI; los trabajadores deben poder finalizar una grabación aunque se cierre la ventana. No reiniciar ni terminar una grabación para actualizar el código.
+- FFmpeg usa un origen temporal compartido para pantalla, audio y cámara. No reiniciar los timestamps de cada flujo por separado.
+- En X11 se mantiene x11grab/píxeles visibles. En Wayland se usan los portales XDG: ScreenCast/PipeWire para vídeo y capturas con cursor, y Screenshot para imágenes sin cursor; nunca recurrir a XWayland ni presentar un crop de monitor como ventana independiente. La existencia del backend o una prueba mocked no demuestra una sesión nativa real. Ventanas ocultas/minimizadas dependen del portal/compositor; no prometer su captura.
+- Las fuentes multimedia son inmutables. Exportar a archivos temporales y publicar sin sobrescribir originales.
+- Ejecutar las pruebas de medios en serie: `python3 run_tests.py` desde esta carpeta. El ejecutor aísla HOME y XDG en directorios temporales; no usar preferencias personales al probar. Las pruebas físicas usan solo ventanas opacas sintéticas propias; nunca capturar pantallas privadas, micrófono o cámara como prueba automática.
+- No descargar modelos ni usar servicios externos silenciosamente. Mantener las operaciones largas fuera del hilo de la interfaz.

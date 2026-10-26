@@ -7,7 +7,7 @@
 - [Inter](https://github.com/rsms/inter): SIL OFL, `assets/fonts/Inter/OFL.txt`.
 - [Fira Code](https://github.com/tonsky/FiraCode) y [Nerd Fonts](https://github.com/ryanoasis/nerd-fonts): licencias y atribuciones en `assets/fonts/licenses/`.
 - Noto Color Emoji, Arc y Papirus se instalan mediante APT, con sus licencias en los paquetes correspondientes.
-- [mpv](https://mpv.io) (libmpv, LGPL-2.1+ en la compilación de Debian) y [FFmpeg](https://ffmpeg.org) reproducen y decodifican en Wysun Player, Files y Recorder; se enlazan de forma dinámica desde la distribución, sin copiar su código. El enlace ctypes de `apps/wysun/wysun_media/mpv.py` sigue la API pública documentada en `client.h` y `render.h`. Las formas «cookie» del reproductor de audio usan la misma receta que las del shell y Music.
+- [mpv](https://mpv.io) (libmpv, LGPL-2.1+ en la compilación de Debian) y [FFmpeg](https://ffmpeg.org) reproducen y decodifican en Wysun Player, Files y Recorder; se enlazan de forma dinámica desde la distribución, sin copiar su código. El enlace ctypes de `apps/python/wysun_media/mpv.py` sigue la API pública documentada en `client.h` y `render.h`. Las formas «cookie» del reproductor de audio usan la misma receta que las del shell y Music.
 - `backgrounds/purple-abstract-3840x3840-27445.jpg` conserva sin cambios el archivo elegido por el usuario; no se atribuye su autoría al instalador.
 
 El diseño y la interacción de Wysun están inspirados en lanzadores como Raycast. No incluye código, extensiones ni servicios de Raycast.

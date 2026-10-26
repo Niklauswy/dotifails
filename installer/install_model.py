@@ -26,7 +26,6 @@ ARTIFACTS = {
     'editor': {'nvim', 'node'},
     'tools': set(), 'boot': set(), 'wayland': set(),
 }
-WYSUN = Path(__file__).resolve().parents[1] / 'apps/wysun'
 
 
 def load_json(path, default=None):
@@ -169,13 +168,13 @@ def preflight(options):
     add('system', 'ok' if supported else ('warning' if options.config_only else 'error'),
         fields.get('PRETTY_NAME', 'Sistema no identificado'),
         platform.machine() + (' · compatible' if supported else ' · requiere Debian 13 o Parrot 7, x86_64'))
-    required = ['installer/main.py', 'manifests/packages.json', 'manifests/artifacts.json', 'apps/wysun/wysun_core/tokens.json']
+    required = ['installer/main.py', 'manifests/packages.json', 'manifests/artifacts.json', 'apps/python/wysun_core/tokens.json']
     if 'boot' in options.components:
-        required += ['installer/boot.py', 'system/boot/grub/theme.txt', 'system/boot/plymouth/orbit.script', 'apps/shell/greeter.qml']
+        required += ['installer/boot.py', 'system/boot/grub/theme.txt', 'system/boot/plymouth/wysun.script', 'apps/shell/greeter.qml']
     if 'desktop' in options.components:
-        required += ['apps/wysun/orbit.py']
+        required += ['apps/python/wysun_services/daemon.py']
     if 'tools' in options.components:
-        required += ['apps/tools/cli.py', 'bin/orbit-tools']
+        required += ['apps/tools/cli.py', 'bin/wysun-tools']
     if 'wayland' in options.components:
         required += ['apps/shell/shell.qml', 'config/.config/wysun/hyprland.lua', 'bin/wysun-session', 'installer/session_registration.py']
     missing = [name for name in required if not (options.source / name).is_file()]
@@ -216,7 +215,7 @@ def preflight(options):
         unsafe.append(str(ancestor))
     add('paths', 'error' if unsafe else 'ok', 'Destino y configuración',
         'Revisa permisos o enlaces: ' + ', '.join(unsafe) if unsafe else 'Las configuraciones existentes se respaldan antes de reemplazarlas.')
-    lock = options.home / '.local/state/dotifails/install.lock'
+    lock = options.home / '.local/state/wysun/install/install.lock'
     if lock.is_file():
         try:
             with lock.open('r') as stream:
@@ -248,7 +247,7 @@ def preflight(options):
 
 
 def backups(home):
-    root = Path(home) / '.local/state/dotifails/backups'
+    root = Path(home) / '.local/state/wysun/install/backups'
     entries = []
     for path in root.glob('*/journal.json'):
         record = load_json(path, {})

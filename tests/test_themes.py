@@ -4,15 +4,15 @@ import tempfile
 import unittest
 from pathlib import Path
 
-sys.path.insert(0,str(Path(__file__).parents[1]/'apps/wysun'))
-from environment_settings import EnvironmentSettings
+sys.path.insert(0,str(Path(__file__).parents[1]/'apps/python'))
+from wysun_settings.environment import EnvironmentSettings
 from wysun_core import theme
 
 
 class ThemeTests(unittest.TestCase):
     def test_wallpaper_defaults_to_the_shipped_one_and_respects_personal_choice(self):
         with tempfile.TemporaryDirectory() as tmp:
-            home=Path(tmp);config=home/'.config/orbit';config.mkdir(parents=True)
+            home=Path(tmp);config=home/'.config/wysun';config.mkdir(parents=True)
             images=home/'.local/share/backgrounds';images.mkdir(parents=True)
             name=theme.default_wallpaper()
             self.assertEqual(env_default(home),'','without the shipped file there is no default wallpaper')

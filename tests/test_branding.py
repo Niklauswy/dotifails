@@ -8,7 +8,7 @@ ROOT = Path(__file__).resolve().parents[1]
 FORMER = 'cae' + 'lestia'
 # Legal provenance: licence text, per-file import hashes, third-party notices and architecture notes.
 ALLOWED_FILES = {'THIRD_PARTY.md', 'ARCHITECTURE.md', 'apps/shell/UPSTREAM.json', 'apps/shell/LICENSE', 'apps/shell/README.md',
-                 'apps/capture/UPSTREAM.md', 'docs/credits.md', 'tests/test_branding.py',
+                 'apps/recorder/UPSTREAM.md', 'docs/credits.md', 'tests/test_branding.py',
                  # Migration/cleanup of state stored under the former name, and the tests of that migration.
                  'installer/wayland.py',
                  'tests/test_wayland_install.py', 'tests/check_manifest.py'}

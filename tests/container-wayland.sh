@@ -31,9 +31,9 @@ home=Path.home();(home/'run').mkdir(mode=0o700)
 fixtures={'.config/other-desktop/wmrc':'custom window manager fixture\n',
           '.config/other-desktop/compositor.conf':'custom compositor fixture\n',
           '.config/other-desktop/keysrc':'custom keybindings fixture\n',
-          '.config/orbit/personal.json':'{"fixture":true}\n',
-          '.local/share/orbit/notes/private.md':'synthetic note fixture\n',
-          '.local/share/loomrec/recordings/fixture/project.json':'synthetic project\n',
+          '.config/wysun/personal.json':'{"fixture":true}\n',
+          '.local/share/wysun/notes/private.md':'synthetic note fixture\n',
+          '.local/share/wysun/recorder/recordings/fixture/project.json':'synthetic project\n',
           '.local/share/wybie-screenshot/sessions/fixture/original.png':'synthetic image bytes\n'}
 for relative,text in fixtures.items():
     p=home/relative;p.parent.mkdir(parents=True,exist_ok=True);p.write_text(text)
@@ -47,8 +47,8 @@ run('wysun','session-check')
 run('wysun','recorder','--version')
 run('/usr/bin/python3',str(source_path/'installer/main.py'),'install','--source',str(source_path),'--components','wayland','--config-only')
 check()
-receipt=json.loads((home/'.local/state/dotifails/installed.json').read_text())
-journal=json.loads((home/'.local/state/dotifails/backups'/receipt['last_backup']/'journal.json').read_text())
+receipt=json.loads((home/'.local/state/wysun/install/installed.json').read_text())
+journal=json.loads((home/'.local/state/wysun/install/backups'/receipt['last_backup']/'journal.json').read_text())
 assert journal['operations']==[],journal['operations']
 config=home/'.config/wysun/hyprland.lua';config.write_text('-- synthetic local bindings\n')
 run('/usr/bin/python3',str(source_path/'installer/main.py'),'install','--source',str(source_path),'--wysun-only')
@@ -57,14 +57,14 @@ assert config.read_text()=='-- synthetic local bindings\n';check()
 source=home/'updated-source';source.mkdir()
 for relative in ('installer','manifests','apps','bin','home','backgrounds'):
     shutil.copytree(source_path/relative,source/relative,ignore=shutil.ignore_patterns('__pycache__','*.pyc'))
-entry=source/'apps/capture/loomrec/__main__.py';entry.write_text(entry.read_text()+'\n# synthetic upgrade\n')
+entry=source/'apps/recorder/wysun_recorder/__main__.py';entry.write_text(entry.read_text()+'\n# synthetic upgrade\n')
 run('/usr/bin/python3',str(source/'installer/main.py'),'install','--source',str(source),'--wysun-only')
-receipt=json.loads((home/'.local/state/dotifails/installed.json').read_text());upgrade=receipt['last_backup']
+receipt=json.loads((home/'.local/state/wysun/install/installed.json').read_text());upgrade=receipt['last_backup']
 releases=home/'.local/share/wysun/capture/releases';assert len(list(releases.iterdir()))==2
 run('/usr/bin/python3',str(source_path/'installer/main.py'),'restore',upgrade)
 assert len(list(releases.iterdir()))==2
 run('wysun','recorder','--version');check()
-app=home/'.local/share/orbit/app/orbit.py';app.write_text(app.read_text()+'\n# local app fixture\n')
+app=home/'.local/share/wysun/app/wysun_services/daemon.py';app.write_text(app.read_text()+'\n# local app fixture\n')
 current=app.read_bytes()
 result=subprocess.run(['/usr/bin/python3',str(source_path/'installer/main.py'),'install','--source',str(source),'--wysun-only'],cwd='/')
 assert result.returncode==2 and app.read_bytes()==current;check()

@@ -1,4 +1,4 @@
-"""The shell reads apps/wysun/wysun_core/tokens.json; tokens.hpp and appearanceconfig.hpp are only its fallback.
+"""The shell reads apps/python/wysun_core/tokens.json; tokens.hpp and appearanceconfig.hpp are only its fallback.
 
 ``test_plugin_reads_tokens_json`` runs the built plugin: point ``WYSUN_TEST_RUNTIME`` at a runtime prefix
 built from this tree (``installer/runtime_build.py --prefix …``); without it the test is skipped.
@@ -16,7 +16,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 CONFIG = ROOT / 'apps/shell/plugin/src/Wysun/Config'
-TOKENS = ROOT / 'apps/wysun/wysun_core/tokens.json'
+TOKENS = ROOT / 'apps/python/wysun_core/tokens.json'
 sys.path.insert(0, str(ROOT / 'installer'))
 import wayland  # noqa: E402
 
@@ -220,8 +220,8 @@ class ColoursPluginTests(unittest.TestCase):
                 target.parent.mkdir(parents=True)
                 target.write_text(TOKENS.read_text())
             if theme is not None:
-                (home / 'config/orbit').mkdir(parents=True)
-                (home / 'config/orbit/theme.json').write_text(json.dumps(theme))
+                (home / 'config/wysun').mkdir(parents=True)
+                (home / 'config/wysun/theme.json').write_text(json.dumps(theme))
             if scheme is not None:
                 (home / 'state/wysun').mkdir(parents=True)
                 (home / 'state/wysun/scheme.json').write_text(json.dumps(scheme))

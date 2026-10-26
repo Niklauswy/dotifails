@@ -168,13 +168,13 @@ Singleton {
     }
 
     function mutate(args: var): void {
-        actProc.command = ["python3", "-I", LauncherData.script, "act", ...args];
+        actProc.command = LauncherData.data(["act", ...args]);
         actProc.running = true;
     }
 
     function exportClip(id: int, callback: var): void {
         exportCallback = callback;
-        exportProc.command = ["python3", "-I", LauncherData.script, "clip-file", String(id)];
+        exportProc.command = LauncherData.data(["clip-file", String(id)]);
         exportProc.running = true;
     }
     property var exportCallback: null
@@ -234,7 +234,7 @@ Singleton {
     FileView {
         id: treeFile
 
-        path: `${root.home}/.local/share/orbit/launcher-files.idx`
+        path: `${root.home}/.local/share/wysun/launcher-files.idx`
         watchChanges: true
         printErrors: false
         onFileChanged: reload()
@@ -266,14 +266,14 @@ Singleton {
     Process {
         id: treeProc
 
-        command: ["python3", "-I", LauncherData.script, "files-index"]
+        command: LauncherData.data(["files-index"])
         onExited: if (!root.indexReady) treeFile.reload()
     }
 
     Process {
         id: ocrProc
 
-        command: ["python3", "-I", LauncherData.script, "act", "ocr-pending"]
+        command: LauncherData.data(["act", "ocr-pending"])
         stdout: SplitParser {
             onRead: ocrRefresh.restart()
         }
@@ -289,7 +289,7 @@ Singleton {
     Process {
         id: clipProc
 
-        command: ["python3", "-I", LauncherData.script, "query", "clip", ""]
+        command: LauncherData.data(["query", "clip", ""])
         stdout: StdioCollector {
             onStreamFinished: {
                 try { root.clips = root.decorateClips(JSON.parse(text)); } catch (e) { root.clips = []; }
@@ -335,7 +335,7 @@ Singleton {
     Process {
         id: recentProc
 
-        command: ["python3", "-I", LauncherData.script, "query", "files", ""]
+        command: LauncherData.data(["query", "files", ""])
         stdout: StdioCollector {
             onStreamFinished: {
                 try { root.recentFiles = JSON.parse(text).filter(r => r.kind === "file").map(r => Files.row(r.path, false, root.home)); } catch (e) { root.recentFiles = []; }
@@ -346,7 +346,7 @@ Singleton {
     Process {
         id: calcProc
 
-        command: ["python3", "-I", LauncherData.script, "query", "calc", ""]
+        command: LauncherData.data(["query", "calc", ""])
         stdout: StdioCollector {
             onStreamFinished: {
                 try {
@@ -359,7 +359,7 @@ Singleton {
     Process {
         id: statusProc
 
-        command: ["python3", "-I", LauncherData.script, "query", "status", ""]
+        command: LauncherData.data(["query", "status", ""])
         stdout: StdioCollector {
             onStreamFinished: {
                 try { root.capturePaused = !!JSON.parse(text)[0].paused; } catch (e) {}

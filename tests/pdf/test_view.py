@@ -5,15 +5,15 @@ from pathlib import Path
 import sys
 import unittest
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'apps/wysun'))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'apps/python'))
 os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
 AVAILABLE = importlib.util.find_spec('PySide6') is not None
 if AVAILABLE:
     from PySide6.QtCore import QEvent, QObject, QPoint, QPointF, Qt, Signal
     from PySide6.QtGui import QMouseEvent, QWheelEvent
     from PySide6.QtWidgets import QApplication
-    from pdf_layout import anchor, locate
-    from pdf_view import DocumentView
+    from wysun_pdf.layout import anchor, locate
+    from wysun_pdf.view import DocumentView
 
     class FakeSource(QObject):
         changed = Signal(int)

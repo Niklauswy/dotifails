@@ -8,7 +8,7 @@ import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
-SCRIPT = ROOT / 'apps/wysun/launcher_data.py'
+APP = ROOT / 'apps/python'
 LAUNCHER = ROOT / 'apps/shell/modules/launcher'
 
 
@@ -18,19 +18,19 @@ class ProviderTests(unittest.TestCase):
         self.addCleanup(self.home.cleanup)
         (Path(self.home.name) / 'Downloads').mkdir()
         (Path(self.home.name) / 'Downloads/informe-final.txt').write_text('x')
-        self.env = dict(os.environ, HOME=self.home.name, XDG_DATA_HOME=str(Path(self.home.name) / '.local/share'), XDG_CONFIG_HOME=str(Path(self.home.name) / '.config'), XDG_STATE_HOME=str(Path(self.home.name) / '.local/state'), XDG_CACHE_HOME=str(Path(self.home.name) / '.cache'))
-        sys.path.insert(0, str(ROOT / 'apps/wysun'))
+        self.env = dict(os.environ, PYTHONPATH=str(APP), HOME=self.home.name, XDG_DATA_HOME=str(Path(self.home.name) / '.local/share'), XDG_CONFIG_HOME=str(Path(self.home.name) / '.config'), XDG_STATE_HOME=str(Path(self.home.name) / '.local/state'), XDG_CACHE_HOME=str(Path(self.home.name) / '.cache'))
+        sys.path.insert(0, str(ROOT / 'apps/python'))
 
     def run_cli(self, *args):
-        result = subprocess.run([sys.executable, '-I', str(SCRIPT), *args], env=self.env,
+        result = subprocess.run([sys.executable, '-s', '-P', '-m', 'wysun_services.launcher_data', *args], env=self.env,
                                 capture_output=True, text=True, timeout=30)
         self.assertEqual(result.returncode, 0, result.stderr)
         return json.loads(result.stdout) if args[0] == 'query' else result.stdout
 
     def seed(self):
-        code = ('import sys; sys.path.insert(0, %r); from core import Store; s = Store();'
-                's.clip("text", "hola mundo"); s.clip("color", "#ff8800"); s.clip("url", "https://example.org")') % str(ROOT / 'apps/wysun')
-        subprocess.run([sys.executable, '-I', '-c', code], env=self.env, check=True, timeout=30)
+        code = ('from wysun_services.store import Store; s = Store();'
+                's.clip("text", "hola mundo"); s.clip("color", "#ff8800"); s.clip("url", "https://example.org")')
+        subprocess.run([sys.executable, '-s', '-P', '-c', code], env=self.env, check=True, timeout=30)
 
     def test_calculator_emoji_and_files(self):
         calc = self.run_cli('query', 'calc', '2+3*4')
@@ -64,16 +64,16 @@ class ProviderTests(unittest.TestCase):
         (home / 'proyecto/node_modules/dep').mkdir(parents=True)
         (home / 'proyecto/node_modules/dep/index.js').write_text('x')
         self.run_cli('files-index')
-        lines = (home / '.local/share/orbit/launcher-files.idx').read_text().split('\n')
+        lines = (home / '.local/share/wysun/launcher-files.idx').read_text().split('\n')
         self.assertIn('dDocuments/Facturas/2024', lines)
         self.assertIn('fDocuments/Facturas/2024/marzo.pdf', lines)
         self.assertIn('dproyecto', lines)
         self.assertFalse([x for x in lines if 'node_modules' in x or '.cache/' in x])
 
     def seed_image(self, text):
-        code = ('import sys; sys.path.insert(0, %r); from data_v2 import StoreV2; from core import STATE; s = StoreV2(STATE);'
-                'i = s.clip("image", "", b"\\x89PNG"); s.db.execute("UPDATE clips SET ocr=?, ocr_done=1 WHERE id=?", (%r, i)); s.db.commit()') % (str(ROOT / 'apps/wysun'), text)
-        subprocess.run([sys.executable, '-I', '-c', code], env=self.env, check=True, timeout=30)
+        code = ('from wysun_services.data_v2 import StoreV2; from wysun_services.store import STATE; s = StoreV2(STATE);'
+                'i = s.clip("image", "", b"\\x89PNG"); s.db.execute("UPDATE clips SET ocr=?, ocr_done=1 WHERE id=?", (%r, i)); s.db.commit()') % (text,)
+        subprocess.run([sys.executable, '-s', '-P', '-c', code], env=self.env, check=True, timeout=30)
 
     def test_images_are_found_by_their_recognized_text(self):
         self.seed()
@@ -100,7 +100,7 @@ return M''')
         (themes / 'demo.lua').write_text('M.base_16 = {' + ','.join(f'{k} = "{v}"' for k, v in base.items()) + '}')
         source = home / 'Downloads/sample.py'
         source.write_text('def f():\n    return "x"  # note\n')
-        result = subprocess.run([sys.executable, '-I', str(SCRIPT), 'code-preview', str(source)], env=self.env, capture_output=True, text=True, timeout=30)
+        result = subprocess.run([sys.executable, '-s', '-P', '-m', 'wysun_services.launcher_data', 'code-preview', str(source)], env=self.env, capture_output=True, text=True, timeout=30)
         data = json.loads(result.stdout)
         self.assertEqual((data['bg'], data['lineNr'], data['lexer'], data['transparent']), ('#0a0b0c', '#778899', 'Python', True))
         self.assertIn('<font color="#112233">def&nbsp;</font>', data['html'])  # keyword colour from changed_themes
@@ -108,15 +108,15 @@ return M''')
         self.assertNotIn('<span', data['html'])  # StyledText subset, not RichText
         self.assertEqual(data['lines'], 2)
         # A second preview of the unchanged file comes from the cache; editing the file refreshes it.
-        cached = subprocess.run([sys.executable, '-I', str(SCRIPT), 'code-preview', str(source)], env=self.env, capture_output=True, text=True, timeout=30)
+        cached = subprocess.run([sys.executable, '-s', '-P', '-m', 'wysun_services.launcher_data', 'code-preview', str(source)], env=self.env, capture_output=True, text=True, timeout=30)
         self.assertEqual(json.loads(cached.stdout), data)
         self.assertTrue(any((home / '.cache/wysun/code-preview').glob('*.json')))
         source.write_text('x = 1\n' * 500)
-        long = json.loads(subprocess.run([sys.executable, '-I', str(SCRIPT), 'code-preview', str(source)], env=self.env, capture_output=True, text=True, timeout=30).stdout)
+        long = json.loads(subprocess.run([sys.executable, '-s', '-P', '-m', 'wysun_services.launcher_data', 'code-preview', str(source)], env=self.env, capture_output=True, text=True, timeout=30).stdout)
         self.assertEqual((long['lines'], long['text'].count('\n') + 1), (500, 120))  # whole count, first lines shown
         source.write_text('def f():\n    return "x"  # note\n')
         # Without an Neovim setup the text still comes back and the launcher keeps its own colours.
-        plain = subprocess.run([sys.executable, '-I', str(SCRIPT), 'code-preview', str(source)], env=dict(self.env, XDG_CONFIG_HOME=str(home / 'none')), capture_output=True, text=True, timeout=30)
+        plain = subprocess.run([sys.executable, '-s', '-P', '-m', 'wysun_services.launcher_data', 'code-preview', str(source)], env=dict(self.env, XDG_CONFIG_HOME=str(home / 'none')), capture_output=True, text=True, timeout=30)
         self.assertNotIn('html', json.loads(plain.stdout))
         self.assertIn('def f()', json.loads(plain.stdout)['text'])
 
@@ -131,7 +131,7 @@ return M''')
         (home / '.local/share/junk').mkdir(parents=True)
         (home / '.local/share/junk/a').write_text('x')
         self.run_cli('files-index')
-        lines = (home / '.local/share/orbit/launcher-files.idx').read_text().split('\n')
+        lines = (home / '.local/share/wysun/launcher-files.idx').read_text().split('\n')
         self.assertIn('f.zshrc', lines)
         self.assertIn('f.config/nvim/init.lua', lines)
         self.assertFalse([x for x in lines if 'Brave/Cache' in x or '.local/share/junk/' in x])
@@ -168,7 +168,7 @@ return M''')
 
     def test_unknown_mode_and_action_fail_safely(self):
         self.assertEqual(self.run_cli('query', 'nope', '')[0]['kind'], 'error')
-        result = subprocess.run([sys.executable, '-I', str(SCRIPT), 'act', 'rm-rf'], env=self.env,
+        result = subprocess.run([sys.executable, '-s', '-P', '-m', 'wysun_services.launcher_data', 'act', 'rm-rf'], env=self.env,
                                 capture_output=True, text=True, timeout=30)
         self.assertEqual(result.returncode, 1)
 
@@ -192,7 +192,7 @@ class WiringTests(unittest.TestCase):
     def test_provider_runs_argv_without_a_shell_and_has_no_qt_fallback(self):
         service = (LAUNCHER / 'services/LauncherData.qml').read_text()
         self.assertNotIn('"sh", "-c", script', service)
-        self.assertIn('"python3", "-I", script', service)
+        self.assertIn('Paths.python("wysun_services.launcher_data", args)', service)
         wysun = (ROOT / 'bin/wysun').read_text()
         self.assertNotIn("WYSUN_LAUNCHER", wysun)
 

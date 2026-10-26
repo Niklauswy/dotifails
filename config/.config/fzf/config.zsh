@@ -21,8 +21,8 @@ fcd() {
 fif() {
     (( $# )) || { print 'Uso: fif texto que quieres buscar'; return 1; }
     local selected
-    local -x ORBIT_FZF_QUERY="$*"
-    IFS= read -r -d '' selected < <(rg -0 --files-with-matches --no-messages -- "$ORBIT_FZF_QUERY" | fzf --read0 --print0 --preview 'rg --color=always --context=8 -- "$ORBIT_FZF_QUERY" {}') || return
+    local -x WYSUN_FZF_QUERY="$*"
+    IFS= read -r -d '' selected < <(rg -0 --files-with-matches --no-messages -- "$WYSUN_FZF_QUERY" | fzf --read0 --print0 --preview 'rg --color=always --context=8 -- "$WYSUN_FZF_QUERY" {}') || return
     nvim -- "$selected" </dev/tty
 }
 
@@ -39,4 +39,4 @@ zle -N fzf_files_widget
 bindkey '^g' fzf_git_files
 bindkey '^e' fzf_files_widget
 alias ff=fv
-fkill() { orbit processes; }
+fkill() { wysun processes; }

@@ -171,7 +171,7 @@ def main(serial_diagnostic=False, stream_diagnostic=False, case_selector='all'):
         wait_for(lambda: any(w.get('title') == 'Wysun synthetic opaque fixture'
                              for w in json.loads(command(['hyprctl', '-j', 'clients']))), 'opaque native fixture')
         time.sleep(.4)
-        from loomrec.portal import Portal
+        from wysun_recorder.portal import Portal
         original_screencast=Portal.screencast
         branch_observations=[]
         def observed_screencast(portal,*args,**kwargs):
@@ -246,7 +246,7 @@ def main(serial_diagnostic=False, stream_diagnostic=False, case_selector='all'):
             from wayland_sync_case import run_case
             run_case(run_dir,env,command,start,wait_for)
             return
-        from loomrec.portal_image import capture_frame
+        from wysun_recorder.portal_image import capture_frame
         if stream_diagnostic:
             # Observe our installed producer without editing its immutable release.
             # Every queried server and log belongs to this guarded synthetic run.
@@ -256,7 +256,7 @@ def main(serial_diagnostic=False, stream_diagnostic=False, case_selector='all'):
             bootstrap = '''import json,sys,gi
 gi.require_version('Gst','1.0')
 from gi.repository import Gst
-from loomrec import pipewire_bridge as bridge
+from wysun_recorder import pipewire_bridge as bridge
 original=bridge.configure_pipewire_source
 def observed(source,*args):
  original(source,*args)
@@ -275,7 +275,7 @@ Gst.ElementFactory.make=make
 print('DIAGNOSTIC_ONLY: videorate drop-only=True',file=sys.stderr,flush=True)
 bridge.stream(**''')
             def diagnostic_popen(argv, *args, **kwargs):
-                if isinstance(argv, list) and argv[1:4] == ['-P','-m','loomrec.pipewire_bridge']:
+                if isinstance(argv, list) and argv[1:4] == ['-P','-m','wysun_recorder.pipewire_bridge']:
                     argv = [argv[0], '-P', '-c', bootstrap, argv[4]]
                     kwargs['stderr'] = bridge_debug
                 return original_popen(argv, *args, **kwargs)
@@ -305,7 +305,7 @@ bridge.stream(**''')
         screenshot_ms = round((time.monotonic() - began) * 1000, 1)
         print(json.dumps({'phase':'SCREENSHOT_FRAME_OK', 'rgb':rgb, 'width':image.width(),
                           'height':image.height(), 'screenshot_ms':screenshot_ms}), flush=True)
-        from loomrec.capture import CaptureConfig, CaptureSession
+        from wysun_recorder.capture import CaptureConfig, CaptureSession
         project = run_dir / 'synthetic-recording'
         recording = CaptureSession(CaptureConfig(str(project), 'portal', [0,0,320,240],
             fps=12, cursor=False, auto_finalize=False, backend='portal', source_type='monitor'))

@@ -34,7 +34,7 @@ class BootTests(unittest.TestCase):
         engine.script_parse_file.argtypes=[ctypes.c_char_p]
         engine.script_parse_file.restype=ctypes.c_void_p
         engine.script_parse_op_free.argtypes=[ctypes.c_void_p]
-        parsed=engine.script_parse_file(str(SOURCE/'system/boot/plymouth/orbit.script').encode())
+        parsed=engine.script_parse_file(str(SOURCE/'system/boot/plymouth/wysun.script').encode())
         self.assertTrue(parsed,'Plymouth rejected the custom animation')
         engine.script_parse_op_free(parsed)
 
@@ -117,7 +117,7 @@ class BootTests(unittest.TestCase):
         self.assertFalse(self.shown(sprites,'dialog.png'))
 
     def test_every_image_the_script_loads_is_shipped(self):
-        script=(SOURCE/'system/boot/plymouth/orbit.script').read_text()
+        script=(SOURCE/'system/boot/plymouth/wysun.script').read_text()
         theme=SOURCE/'system/boot/plymouth'
         self.assertIn('projects = 6;',script)
         self.assertIn('flip_frames = 4;',script)
@@ -182,7 +182,7 @@ class BootTests(unittest.TestCase):
         self.assertIn('vt = 7',(self.root/'etc/greetd/config.toml').read_text())
         self.assertIn('chvt 7',(self.root/'etc/systemd/system/greetd.service.d/wysun-vt.conf').read_text())
         self.assertFalse((self.root/'etc/systemd/system/plymouth-quit.service.d').exists(),'never retain the splash')
-        dropin=(self.root/'etc/default/grub.d/99-orbit-theme.cfg').read_text()
+        dropin=(self.root/'etc/default/grub.d/99-wysun-theme.cfg').read_text()
         self.assertIn('GRUB_GFXPAYLOAD_LINUX=keep',dropin);self.assertIn('vt.global_cursor_default=0',dropin)
         farewell=self.root/'usr/local/libexec/wysun-farewell'
         self.assertEqual(farewell.stat().st_mode & 0o777,0o755)
@@ -196,14 +196,14 @@ class BootTests(unittest.TestCase):
         self.assertIn('background_image -m stretch',quiet.read_text())
         self.assertEqual((self.root/'boot/grub/grub.cfg').stat().st_mode & 0o777,0o600)
         self.assertFalse(any('grub-install' in c for c in self.commands))
-        self.assertEqual(list((self.root/'boot/grub/themes/orbit').glob('*.in')),[])
+        self.assertEqual(list((self.root/'boot/grub/themes/wysun').glob('*.in')),[])
         self.commands=[];second=self.deployment().apply()
         self.assertEqual([c for c in self.commands if c[0]!='/'+str(self.root/'usr/lib/qt6/bin/qsb')[1:]],[])
         self.assertEqual(json.loads((d.state/'backups'/second/'journal.json').read_text())['operations'],[])
         self.commands=[];d.restore(ident)
         self.assertEqual((self.root/'boot/grub/grub.cfg').read_text(),'original working boot menu\n')
         self.assertEqual((self.root/'boot/grub/grub.cfg').stat().st_mode & 0o777,0o600)
-        self.assertFalse((self.root/'etc/default/grub.d/99-orbit-theme.cfg').exists())
+        self.assertFalse((self.root/'etc/default/grub.d/99-wysun-theme.cfg').exists())
         self.assertFalse((self.root/'etc/grub.d/06_wysun').exists())
         self.assertFalse((self.root/'etc/systemd/system/wysun-farewell.service').exists())
         self.assertEqual((self.root/'etc/X11/default-display-manager').read_text(),'/usr/sbin/lightdm\n')
@@ -236,8 +236,8 @@ class BootTests(unittest.TestCase):
         with self.assertRaises(subprocess.CalledProcessError):d.apply()
         self.assertEqual((self.root/'boot/grub/grub.cfg').read_text(),'original working boot menu\n')
         self.assertIn('Theme=parrot6',(self.root/'etc/plymouth/plymouthd.conf').read_text())
-        self.assertFalse((self.root/'boot/grub/themes/orbit').exists())
-        self.assertFalse((self.root/'boot/grub/grub.cfg.orbit-new').exists())
+        self.assertFalse((self.root/'boot/grub/themes/wysun').exists())
+        self.assertFalse((self.root/'boot/grub/grub.cfg.wysun-new').exists())
 
     def test_initramfs_failure_rolls_back_grub_exactly(self):
         failed=False
@@ -276,7 +276,7 @@ class BootTests(unittest.TestCase):
 
     def test_serial_console_is_preserved(self):
         self.put('etc/default/grub.d/serial.cfg','GRUB_TERMINAL_OUTPUT="console serial"\n')
-        payload=next(p for _,rel,p in self.deployment().plan() if rel.endswith('99-orbit-theme.cfg'))
+        payload=next(p for _,rel,p in self.deployment().plan() if rel.endswith('99-wysun-theme.cfg'))
         self.assertNotIn('GRUB_TERMINAL_OUTPUT=',payload)
 
     def test_parent_symlink_is_rejected(self):
@@ -286,11 +286,11 @@ class BootTests(unittest.TestCase):
 
     def test_verify_detects_an_incomplete_deployment(self):
         d=self.deployment();d.apply();d.verify()
-        (self.root/'usr/share/plymouth/themes/orbit/flip-2-3.png').unlink()
+        (self.root/'usr/share/plymouth/themes/wysun/flip-2-3.png').unlink()
         with self.assertRaisesRegex(RuntimeError,'incompleto'):d.verify()
 
     def test_shell_dropin_does_not_duplicate_splash_or_change_flags(self):
-        payload=next(p for _,rel,p in self.deployment().plan() if rel.endswith('99-orbit-theme.cfg'))
+        payload=next(p for _,rel,p in self.deployment().plan() if rel.endswith('99-wysun-theme.cfg'))
         drop=self.put('drop.cfg',payload)
         for flags in ('quiet splash cryptdevice=keep','cryptdevice=keep'):
             result=subprocess.check_output(['sh','-c','GRUB_CMDLINE_LINUX="$1"; GRUB_CMDLINE_LINUX_DEFAULT="resume=keep"; . "$2"; printf "%s" "$GRUB_CMDLINE_LINUX $GRUB_CMDLINE_LINUX_DEFAULT"','sh',flags,str(drop)],text=True)

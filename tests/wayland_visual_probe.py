@@ -38,7 +38,7 @@ def main():
     try:
         cmd(['/usr/bin/python3',ROOT/'installer/main.py','install','--source',ROOT,'--target-home',home,'--components','wayland','--config-only'],60)
         public=home/'.local/bin/wysun';env['PATH']=str(home/'.local/bin')+':'+env['PATH']
-        conf=Path(env['XDG_CONFIG_HOME'])/'orbit';conf.mkdir(parents=True,exist_ok=True)
+        conf=Path(env['XDG_CONFIG_HOME'])/'wysun';conf.mkdir(parents=True,exist_ok=True)
         (conf/'theme.json').write_text(json.dumps({'id':'severance'}))
         (conf/'appearance.json').write_text(json.dumps({'opacity':95,'reduced_motion':True}))
         # Replace only the runner's explicitly declared public-command fixture.
@@ -62,13 +62,13 @@ def main():
         click(273);time.sleep(.2);report['right_before_keyboard']=status();cmd([public,'shell','close'])
         time.sleep(.4);shot('wysun-synthetic-desktop')
         (folder/'visual-layers.json').write_text(json.dumps(hypr('layers'),indent=2))
-        click(272);endpoint=runtime/f'orbit-{os.getuid()}.sock'
+        click(272);endpoint=runtime/f'wysun-daemon-{os.getuid()}.sock'
         try:wait_for(endpoint.is_socket,'Python launcher from actual virtual-pointer bar click',timeout=2)
         except RuntimeError:
             report['bar_left_diagnostic']={'status':status(),'pointer':hypr('cursorpos'),'devices':hypr('devices')}
             cmd([public,'launcher']);wait_for(endpoint.is_socket,'Python launcher public CLI fallback')
         launcher_pid=peer_pid(endpoint);wait_for(focus,'primary Python native focus')
-        assert str(home/'.local/share/orbit/app/orbit.py').encode() in Path(f'/proc/{launcher_pid}/cmdline').read_bytes()
+        assert b'wysun_services.daemon' in Path(f'/proc/{launcher_pid}/cmdline').read_bytes()
         shot('wysun-python-launcher')
         report['phases'].append({'name':'primary_launcher','native':True,'trigger':'public CLI fallback' if 'bar_left_diagnostic' in report else 'bar click via native virtual pointer','pid':launcher_pid,'image':'wysun-python-launcher.png'})
         pointer.chord();wait_for(lambda:not mapped(),'SUPERspace toggles launcher closed');pointer.chord();wait_for(focus,'SUPERspace toggles launcher open');report['phases'].append({'name':'primary_global_shortcut','trigger':'SUPERspace native virtual keyboard','pass':True})

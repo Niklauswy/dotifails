@@ -16,7 +16,7 @@ Causa de hardware/enlace (HPD/alt-mode del dock o cable USB-C, ancho de banda de
 
 ## Ajuste de software recomendado (reversible)
 
-Si los apagones continúan, bajar DP-1 a 120 Hz reduce el ancho de banda del enlace. En `~/.config/orbit/hypr-monitors.lua` (se regenera desde Ajustes > Pantallas) cambiar el modo de DP-1 a `1920x1080@120.00`, o elegirlo en Ajustes. Para volver: restaurar `@144.00`. No se aplica por defecto porque no está demostrado que mejore.
+Si los apagones continúan, bajar DP-1 a 120 Hz reduce el ancho de banda del enlace. En `~/.config/wysun/hypr-monitors.lua` (se regenera desde Ajustes > Pantallas) cambiar el modo de DP-1 a `1920x1080@120.00`, o elegirlo en Ajustes. Para volver: restaurar `@144.00`. No se aplica por defecto porque no está demostrado que mejore.
 
 ## Captura del próximo apagón
 

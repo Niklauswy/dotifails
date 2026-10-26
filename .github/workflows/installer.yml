@@ -16,7 +16,7 @@ jobs:
     timeout-minutes: 15
     env:
       QT_QPA_PLATFORM: offscreen
-      ORBIT_REDUCED_MOTION: '1'
+      WYSUN_REDUCED_MOTION: '1'
       PYTHONDONTWRITEBYTECODE: '1'
     steps:
       - name: Native test dependencies

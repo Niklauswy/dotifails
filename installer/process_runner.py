@@ -45,7 +45,7 @@ class InstallerProcess(QObject):
         self._buffer = ''
         self._decoder = codecs.getincrementaldecoder('utf-8')('replace')
         ident = datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%SZ') + '-' + uuid.uuid4().hex[:6]
-        self.directory = self.home / '.local/state/dotifails/runs' / ident
+        self.directory = self.home / '.local/state/wysun/install/runs' / ident
         self.directory.mkdir(parents=True, mode=0o700)
         self.log = (self.directory / 'console.log').open('x', encoding='utf-8')
         os.chmod(self.log.name, 0o600)
@@ -55,8 +55,8 @@ class InstallerProcess(QObject):
             target.chmod(0o600)
         env = QProcessEnvironment.systemEnvironment()
         env.insert('PYTHONUNBUFFERED', '1')
-        env.insert('DOTIFAILS_EVENTS', '1')
-        env.insert('DOTIFAILS_CANCEL_FILE', str(self.directory / 'cancel'))
+        env.insert('WYSUN_EVENTS', '1')
+        env.insert('WYSUN_CANCEL_FILE', str(self.directory / 'cancel'))
         env.insert('SUDO_ASKPASS', str(Path(__file__).with_name('askpass.py')))
         env.insert('PATH', str(self.home / '.local/bin') + ':' + os.environ.get('PATH', ''))
         for key in self.private_environment:

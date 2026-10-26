@@ -1,0 +1,8 @@
+[Plymouth Theme]
+Name=Wysun Terminal
+Description=Wysun boot on an office CRT: the file is drawn by the beam with the real progress and opens at the end
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/wysun
+ScriptFile=/usr/share/plymouth/themes/wysun/wysun.script

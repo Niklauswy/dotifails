@@ -2,8 +2,8 @@ from pathlib import Path
 import sys
 import unittest
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'apps/wysun'))
-from pdf_cache import RenderCache  # noqa: E402
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'apps/python'))
+from wysun_pdf.cache import RenderCache  # noqa: E402
 
 
 class RenderCacheTests(unittest.TestCase):

@@ -12,7 +12,7 @@ import tempfile
 import time
 
 ROOT = Path(__file__).resolve().parents[2]
-APP = ROOT / 'apps/wysun'
+APP = ROOT / 'apps/python'
 # theme-exception-begin: colores de fondos sintéticos para generar esquemas de prueba, no interfaz
 WALLPAPERS = {'teal': ((14, 92, 98), (120, 200, 180)), 'amber': ((140, 60, 10), (240, 180, 70))}
 # theme-exception-end
@@ -42,7 +42,7 @@ def scheme(home, wallpaper, mode):
     sys.path.insert(0, str(APP))
     from PIL import Image
     from wysun_core import theme
-    import wysun_scheme
+    from wysun_services import scheme as wysun_scheme
     first, second = WALLPAPERS[wallpaper]
     image = Image.new('RGB', (96, 96))
     image.putdata([tuple(round(a + (b - a) * (x + y) / 190) for a, b in zip(first, second))
@@ -59,7 +59,7 @@ def capture(output, name):
     from PySide6.QtWidgets import QApplication
     app = QApplication([])
     app.setStyle('Fusion')
-    from pdf_window import PdfWindow
+    from wysun_pdf.window import PdfWindow
 
     def wait(condition, timeout=10):
         end = time.monotonic() + timeout
@@ -132,7 +132,7 @@ def main():
             environment.update(HOME=home, XDG_CONFIG_HOME=f'{home}/config', XDG_STATE_HOME=f'{home}/state',
                                XDG_DATA_HOME=f'{home}/data', XDG_CACHE_HOME=f'{home}/cache',
                                XDG_RUNTIME_DIR=f'{home}/runtime', QT_QPA_PLATFORM='offscreen',
-                               ORBIT_REDUCED_MOTION='1', **extra)
+                               WYSUN_REDUCED_MOTION='1', **extra)
             os.makedirs(f'{home}/runtime', mode=0o700)
             subprocess.run([sys.executable, __file__, str(output), name], env=environment, check=True)
             print('captura', name)

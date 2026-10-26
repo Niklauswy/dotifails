@@ -15,13 +15,13 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / 'apps/wysun'))
+sys.path.insert(0, str(ROOT / 'apps/python'))
 sys.path.insert(0, str(ROOT / 'tests'))
 os.environ.pop('QT_QPA_PLATFORM', None)
 if not os.environ.get('WAYLAND_DISPLAY'):
     raise SystemExit('wayland_media_case: no hay sesión Wayland activa')
 os.environ['QT_QPA_PLATFORM'] = 'wayland'
-os.environ.setdefault('ORBIT_REDUCED_MOTION', '1')
+os.environ.setdefault('WYSUN_REDUCED_MOTION', '1')
 extra = os.environ.get('WYSUN_PYSIDE_EXTRA')
 if extra:
     import PySide6
@@ -38,7 +38,7 @@ from wysun_media.video import GLVideoView, SoftwareVideoView, gl_available  # no
 app = QApplication.instance() or QApplication(sys.argv[:1])
 support._app = app
 app.setStyle('Fusion')
-import media_host  # noqa: E402
+from wysun_player import host as media_host  # noqa: E402
 from wysun_core import qt_theme
 qt_theme.apply_palette(app)
 media_host.install()

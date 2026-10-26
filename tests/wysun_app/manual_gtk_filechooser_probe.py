@@ -25,7 +25,7 @@ def run_cases(run_dir, env, command, start=None, wait_for=None):
     from gi.repository import Gtk,GdkWayland,GLib
     import dbus
     from dbus.mainloop.glib import DBusGMainLoop
-    from loomrec.portal import Portal,PortalCancelled
+    from wysun_recorder.portal import Portal,PortalCancelled
     DBusGMainLoop(set_as_default=True)
     Gtk.init();parent=Gtk.Window();parent.set_title('Wysun GTK synthetic parent');parent.set_default_size(420,220)
     parent.set_child(Gtk.Label(label='Own synthetic FileChooser parent. No private files.'));parent.present()

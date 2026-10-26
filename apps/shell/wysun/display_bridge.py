@@ -5,20 +5,8 @@ import sys
 from pathlib import Path
 
 
-def app_dir():
-    """Directory with the Wysun Python backends: checkout first, then the installed copy."""
-    candidates = [os.environ.get('WYSUN_APP_DIR'),
-                  str(Path(__file__).resolve().parents[2]/'wysun'),
-                  str(Path.home()/'.local/share/orbit/app')]   # where the installer always deploys
-    for candidate in candidates:
-        if candidate and (Path(candidate)/'settings_data.py').is_file():
-            return candidate
-    raise RuntimeError('Wysun display services are unavailable.')
-
-
-sys.path.insert(0, app_dir())
-
-from environment_settings import EnvironmentSettings, DisplayTrial, display_inventory, display_plan  # noqa: E402
+# The shell runs this with the Wysun package root in PYTHONPATH (Paths.python).
+from wysun_settings.environment import EnvironmentSettings, DisplayTrial, display_inventory, display_plan
 HOME = Path(os.environ.get('HOME') or Path.home())
 
 
@@ -28,7 +16,7 @@ def env():
 
 
 def layout_view(plan):
-    from display_layout import order, logical_size
+    from wysun_settings.display_layout import order, logical_size
     boxes = []
     for p in plan:
         w, h = logical_size(p)
@@ -37,10 +25,10 @@ def layout_view(plan):
 
 
 def displays_state(_args):
-    from display_layout import normalize, SCALES
+    from wysun_settings.display_layout import normalize, SCALES
     backend = env()
     outputs = display_inventory(backend.runner)
-    from environment_settings import profile_key
+    from wysun_settings.environment import profile_key
     saved = backend.section('displays').get('profiles', {}).get(profile_key(outputs), [])
     primary = next((p['name'] for p in saved if p.get('enabled') and p.get('primary')), None)
     if primary and any(o['name'] == primary and o['enabled'] for o in outputs):
@@ -69,7 +57,7 @@ def available_modes(backend):
 
 def displays_normalize(args):
     """Apply one edit (or a move) to a draft plan and return it normalised."""
-    from display_layout import normalize, move, fill_modes
+    from wysun_settings.display_layout import normalize, move, fill_modes
     # A display just switched on still says 0x0: give it a mode before it is laid out.
     plan = fill_modes(args['plan'], available_modes(env()))
     if args.get('move'):
@@ -80,7 +68,7 @@ def displays_normalize(args):
 
 
 def displays_try(args):
-    from display_layout import fill_modes
+    from wysun_settings.display_layout import fill_modes
     backend = env()
     trial = DisplayTrial(backend, fill_modes(args['plan'], available_modes(backend)))
     return dict(folder=str(trial.folder))
@@ -93,7 +81,7 @@ def displays_settle(args):
             raise ValueError('This display trial expired or was reverted. Test the layout again.')
         trial.accept()
         try:
-            from environment_settings import render_wallpaper
+            from wysun_settings.environment import render_wallpaper
             backend = env()
             if backend.section('wallpaper').get('default'):
                 render_wallpaper(backend.wallpaper_values(), display_inventory(backend.runner), backend.home, backend.runner)
