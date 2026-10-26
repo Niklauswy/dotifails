@@ -13,9 +13,9 @@ os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / 'apps/wysun'))
+sys.path.insert(0, str(ROOT / 'apps/python'))
 from wysun_core import theme  # noqa: E402
-import wysun_scheme  # noqa: E402
+from wysun_services import scheme as wysun_scheme  # noqa: E402
 
 MONITORS = [dict(name='DP-1', width=64, height=48, x=0, y=0, scale=1, refreshRate=60,
                  availableModes=['64x48@60.00Hz'], focused=True)]
@@ -51,7 +51,7 @@ class ModeTests(unittest.TestCase):
         self.folder.cleanup()
 
     def environment(self):
-        from environment_settings import EnvironmentSettings
+        from wysun_settings.environment import EnvironmentSettings
         calls = []
         return EnvironmentSettings(self.home, runner=fake_runner(calls)), calls
 

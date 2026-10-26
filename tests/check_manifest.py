@@ -2,11 +2,11 @@
 """Verify the distributable tree, wallpapers and portable references."""
 import hashlib,json,re,sys
 from pathlib import Path
-root=Path(__file__).resolve().parents[1];sys.path.insert(0,str(root/'apps/wysun'))
+root=Path(__file__).resolve().parents[1];sys.path.insert(0,str(root/'apps/python'))
 backgrounds=root/'assets/backgrounds'
 assert set(p.name for p in backgrounds.iterdir())=={'purple-abstract-3840x3840-27445.jpg'}
 assert hashlib.sha256((backgrounds/'purple-abstract-3840x3840-27445.jpg').read_bytes()).hexdigest()=='aeb9c5a195534fb47c7de1704a277a77f7a598ba0cee8d26b140e9f8991fc214'
-assert (backgrounds/json.loads((root/'apps/wysun/wysun_core/tokens.json').read_text())['wallpaper']).is_file(),'the base palettes go with the shipped wallpaper'
+assert (backgrounds/json.loads((root/'apps/python/wysun_core/tokens.json').read_text())['wallpaper']).is_file(),'the base palettes go with the shipped wallpaper'
 assert not (root/'manifests/themes.json').exists(),'there is one style: no theme manifest'
 assert json.loads((root/'manifests/mason.json').read_text())==json.loads((root/'config/.config/nvim/mason-lock.json').read_text())
 plugins=json.loads((root/'manifests/plugins.json').read_text())
@@ -14,7 +14,7 @@ lock=json.loads((root/'config/.config/nvim/lazy-lock.json').read_text())
 assert {n:p['commit'] for n,p in plugins.items()}=={n:p['commit'] for n,p in lock.items()}
 assert not (root/'config/.config/sxhkd').exists(),'the X11 shortcut configuration must not return'
 assert not (root/'config/.config/bspwm').exists(),'the X11 desktop configuration must not return'
-assert not (root/'apps/wysun').joinpath('polybar.ini').exists()
+assert not (root/'apps/python').joinpath('polybar.ini').exists()
 for name,artifact in json.loads((root/'manifests/artifacts.json').read_text()).items():
  assert artifact['url'].startswith('https://'),name
  assert re.fullmatch('[a-f0-9]{64}',artifact['sha256']),name

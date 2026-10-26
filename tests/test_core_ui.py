@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 
 os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'apps/wysun'))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'apps/python'))
 from PySide6.QtCore import QRectF  # noqa: E402
 from PySide6.QtGui import QImage, QPainter  # noqa: E402
 from PySide6.QtWidgets import QApplication  # noqa: E402
@@ -59,7 +59,7 @@ class CoreUiTests(unittest.TestCase):
         self.assertEqual(calls, ['no_such_ligature_xyz'])
 
     def test_kit_buttons_fall_back_to_lucide_in_wysun_apps(self):
-        import icons  # noqa: F401  (registers the Lucide fallback, as every Wysun app does)
+        from wysun_core import icons  # noqa: F401  (registers the Lucide fallback, as every Wysun app does)
         from wysun_core.ui.widgets import IconButton
         def render():
             with mock.patch('wysun_core.ui.style.ligature_available', return_value=False):

@@ -23,8 +23,8 @@ class NativePagesTests(unittest.TestCase):
 
     def test_qt_settings_connections_and_processes_windows_are_removed(self):
         for name in REMOVED:
-            self.assertFalse((ROOT / 'apps/wysun' / (name + '.py')).exists(), name)
-        sources = ' '.join(p.read_text(errors='ignore') for p in (ROOT / 'apps/wysun').glob('*.py')
+            self.assertFalse((ROOT / 'apps/python' / (name + '.py')).exists(), name)
+        sources = ' '.join(p.read_text(errors='ignore') for p in (ROOT / 'apps/python').glob('*.py')
                            if p.name not in ('desktop_bridge.py',))
         for name in REMOVED:
             self.assertNotRegex(sources, r'(from|import)\s+' + name + r'\b', name)

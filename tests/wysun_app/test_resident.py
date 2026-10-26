@@ -7,8 +7,8 @@ from unittest.mock import patch
 os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
 from PySide6.QtWidgets import QApplication
 
-from data_v2 import StoreV2
-import orbit
+from wysun_services.data_v2 import StoreV2
+from wysun_services import daemon as orbit
 
 
 class ResidentTests(unittest.TestCase):
@@ -23,7 +23,7 @@ class ResidentTests(unittest.TestCase):
         self.daemon = orbit.OrbitDaemon(self.store, test=True)
 
     def test_constructs_headless_and_hosts_clipboard_watch(self):
-        from wayland_clipboard import ClipboardWatch
+        from wysun_services.wayland_clipboard import ClipboardWatch
         with patch.object(ClipboardWatch, 'start'):
             watch = ClipboardWatch(self.daemon)
         self.assertIs(watch.owner, self.daemon)

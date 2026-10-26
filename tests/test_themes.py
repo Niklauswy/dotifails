@@ -4,8 +4,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-sys.path.insert(0,str(Path(__file__).parents[1]/'apps/wysun'))
-from environment_settings import EnvironmentSettings
+sys.path.insert(0,str(Path(__file__).parents[1]/'apps/python'))
+from wysun_settings.environment import EnvironmentSettings
 from wysun_core import theme
 
 

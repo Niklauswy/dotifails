@@ -6,7 +6,7 @@ class InstallerTests(unittest.TestCase):
  def test_the_mode_is_installed_in_the_new_format_and_kept_on_update(self):
   for name in ('config/.config','config/.local/bin','assets/icons','assets/backgrounds','manifests'):(self.source/name).mkdir(parents=True)
   (self.source/'config/.zshrc').write_text('preserved')
-  (self.source/'apps/wysun/wysun_core').mkdir(parents=True);(self.source/'apps/wysun/wysun_core/tokens.json').write_text(json.dumps({'schema':2,'wallpaper':'purple.jpg'}))
+  (self.source/'apps/python/wysun_core').mkdir(parents=True);(self.source/'apps/python/wysun_core/tokens.json').write_text(json.dumps({'schema':2,'wallpaper':'purple.jpg'}))
   # A fresh profile gets the automatic mode and the shipped wallpaper.
   d=self.deploy()
   try:
@@ -28,7 +28,7 @@ class InstallerTests(unittest.TestCase):
     self.assertNotIn('.config/orbit/environment.json',written,'the personal wallpaper is left alone')
    finally:d.lock.close()
  def test_doctor_checks_the_shipped_wallpaper_from_the_installed_tokens(self):
-  tokens=self.home/'.local/share/orbit/app/wysun_core/tokens.json';tokens.parent.mkdir(parents=True)
+  tokens=self.home/'.local/share/wysun/app/wysun_core/tokens.json';tokens.parent.mkdir(parents=True)
   tokens.write_text(json.dumps({'schema':2,'wallpaper':'purple.jpg'}))
   self.assertIn('.local/share/backgrounds/purple.jpg',m.required_files(self.home,{'desktop'}))
  def test_mise_shim_keeps_command_name(self):
@@ -50,7 +50,7 @@ class InstallerTests(unittest.TestCase):
    home=Path(tmp);nvim=home/'.config/nvim/init.lua';nvim.parent.mkdir(parents=True);nvim.write_text('my editor')
    note=home/'.local/share/orbit/notes/private.md';note.parent.mkdir(parents=True);note.write_text('private')
    self.assertEqual(m.main(['install','--source',str(source),'--target-home',tmp,'--orbit-only']),0)
-   self.assertEqual(nvim.read_text(),'my editor');self.assertEqual(note.read_text(),'private');self.assertFalse((home/'.local/share/orbit/app/notes_window.py').exists());self.assertFalse((home/'.config/sxhkd').exists());self.assertTrue((home/'.local/share/icons/hicolor/scalable/apps/musika.svg').is_file());self.assertIn('Name=Wysun Music',(home/'.local/share/applications/orbit-music.desktop').read_text())
+   self.assertEqual(nvim.read_text(),'my editor');self.assertEqual(note.read_text(),'private');self.assertFalse((home/'.local/share/wysun/app/notes_window.py').exists());self.assertFalse((home/'.config/sxhkd').exists());self.assertTrue((home/'.local/share/icons/hicolor/scalable/apps/musika.svg').is_file());self.assertIn('Name=Wysun Music',(home/'.local/share/applications/orbit-music.desktop').read_text())
    self.assertEqual(m.main(['install','--source',str(source),'--target-home',tmp,'--orbit-only']),0)
    backup=json.loads((home/'.local/state/dotifails/installed.json').read_text())['last_backup'];journal=json.loads((home/'.local/state/dotifails/backups'/backup/'journal.json').read_text());self.assertEqual(journal['operations'],[])
  def setUp(self):

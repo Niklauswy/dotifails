@@ -59,13 +59,13 @@ def configure(deployment):
     d = deployment
     d.stage('Sesión adicional Wysun / Hyprland')
     # Shared applications retain their existing storage and command identities.
-    for source, target in (('apps/wysun', '.local/share/orbit/app'),
+    for source, target in (('apps/python', '.local/share/wysun/app'),
                            ('apps/tools', '.local/share/orbit/tools'),
                            ('apps/shell', '.local/share/wysun/quickshell')):
         if not (d.source / source).is_dir():
             raise RuntimeError('Fuente incompleta: ' + source)
         _publish_asset(d, d.source / source, target)
-    if any(p in d.conflicts for p in ('.local/share/orbit/app', '.local/share/wysun/quickshell')):
+    if any(p in d.conflicts for p in ('.local/share/wysun/app', '.local/share/wysun/quickshell')):
         return
     migrate_legacy_names(d)
     deploy_tokens(d)
@@ -131,7 +131,7 @@ def migrate_legacy_names(deployment):
 def deploy_tokens(deployment):
     """The shell reads the apps' design tokens from the XDG data dir, so it never depends on where the apps live."""
     d = deployment
-    d.deploy(d.source / 'apps/wysun/wysun_core/tokens.json', Path('.local/share/wysun/theme/tokens.json'))
+    d.deploy(d.source / 'apps/python/wysun_core/tokens.json', Path('.local/share/wysun/theme/tokens.json'))
 
 
 def ensure_runtime(deployment):

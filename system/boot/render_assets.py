@@ -26,7 +26,7 @@ BOOT = ROOT / 'system/boot'
 SHELL = ROOT / 'apps/shell'
 RUNTIME = Path(os.environ.get('WYSUN_RUNTIME', Path.home() / '.local/share/wysun/runtime'))
 GRUB_BACKGROUND_LIMIT = 400 * 1024
-sys.path.insert(0, str(ROOT / 'apps/wysun'))
+sys.path.insert(0, str(ROOT / 'apps/python'))
 import theme_core  # noqa: E402
 
 # The boot art always wears the Severance palette of the lock (the desktop's colours follow the

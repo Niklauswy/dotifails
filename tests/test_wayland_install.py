@@ -33,7 +33,7 @@ class WaylandInstallTests(unittest.TestCase):
         self.source.mkdir()
         # Use a tiny shell fixture until/without a real compositor. All other
         # distribution code is the actual source under test.
-        for relative in ('installer', 'manifests', 'bin', 'config', 'assets/backgrounds', 'apps/wysun', 'apps/tools', 'apps/capture'):
+        for relative in ('installer', 'manifests', 'bin', 'config', 'assets/backgrounds', 'apps/python', 'apps/tools', 'apps/capture'):
             shutil.copytree(ROOT / relative, self.source / relative,
                             ignore=shutil.ignore_patterns('__pycache__', '*.pyc'))
         (self.source / 'apps/shell').mkdir()
@@ -98,7 +98,7 @@ class WaylandInstallTests(unittest.TestCase):
         config = self.home / '.config/wysun/hyprland.lua'
         config.write_text('personal Lua configuration')
         (self.source / 'config/.config/wysun/hyprland.lua').write_text('-- new proposed config\n')
-        app = self.home / '.local/share/orbit/app/orbit.py'
+        app = self.home / '.local/share/wysun/app/wysun_services/daemon.py'
         app.write_text('# local app customization\n')
         before_launcher = (self.home / '.local/bin/wysun').read_text()
         (self.source / 'bin/wysun').write_text(before_launcher + '\n# new dispatcher\n')
@@ -107,7 +107,7 @@ class WaylandInstallTests(unittest.TestCase):
         backup = self.home / '.local/state/dotifails/backups' / receipt['last_backup']
         self.assertEqual(config.read_text(), 'personal Lua configuration')
         self.assertEqual(app.read_text(), '# local app customization\n')
-        self.assertTrue((backup / 'incoming/.local/share/orbit/app/orbit.py').is_file())
+        self.assertTrue((backup / 'incoming/.local/share/wysun/app/wysun_services/daemon.py').is_file())
         for relative, value in private.items():
             self.assertEqual((self.home / relative).read_text(), value)
         # Recover the original clean install; preserve later user edits.
@@ -196,8 +196,10 @@ class WaylandInstallTests(unittest.TestCase):
         self.assertEqual(list(self.home.iterdir()),[])
 
     def test_code_launchers_resolve_managed_code_with_separate_xdg_data(self):
-        code = self.home / '.local/share/orbit/app/orbit-client'
-        code.parent.mkdir(parents=True); code.write_text('#!/bin/sh\nprintf managed-client\n'); code.chmod(0o755)
+        code = self.home / '.local/share/wysun/app/wysun_services/client.py'
+        code.parent.mkdir(parents=True); (code.parent / '__init__.py').write_text('')
+        code.write_text('import sys\nprint("managed-client", *sys.argv[1:], end="")\n')
+        launcher = self.home / '.local/bin/wysun'; launcher.parent.mkdir(parents=True); shutil.copy2(ROOT / 'bin/wysun', launcher)
         shell = self.home / '.local/share/wysun/quickshell'
         (shell / 'wysun').mkdir(parents=True); (shell / 'shell.qml').write_text('// fixture\n')
         shutil.copy2(ROOT / 'apps/shell/wysun/runtime.sh', shell / 'wysun/runtime.sh')
@@ -206,7 +208,7 @@ class WaylandInstallTests(unittest.TestCase):
         qs.write_text('#!/usr/bin/python3\nimport json,sys\nprint(json.dumps(sys.argv[1:]))\n'); qs.chmod(0o755)
         env = dict(os.environ, HOME=str(self.home), XDG_DATA_HOME=str(data), WYSUN_SHELL_CONFIG=str(shell),
                    PATH='/usr/bin:/bin')
-        self.assertEqual(subprocess.check_output([ROOT / 'config/.local/bin/orbit'], env=env, text=True), 'managed-client')
+        self.assertEqual(subprocess.check_output([launcher, 'reload'], env=env, text=True), 'managed-client reload')
         args = json.loads(subprocess.check_output([ROOT / 'bin/wysun-shell', 'status'], env=env, text=True))
         self.assertEqual(args, ['-p', str(shell), 'ipc', 'call', 'wysunShell', 'status'])
 

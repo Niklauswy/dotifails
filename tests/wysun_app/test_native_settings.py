@@ -7,12 +7,12 @@ import sys
 import tempfile
 import unittest
 from unittest.mock import Mock,patch
-sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'apps/wysun'))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'apps/python'))
 from PySide6.QtCore import QMimeData,QUrl,QObject,QByteArray
 from PySide6.QtGui import QImage,QColor
 from PySide6.QtWidgets import QApplication
-from hypr_settings import inventory,display_command,HyprShortcutFile,script,lua
-from clipboard_mime import from_packet,encode,restore
+from wysun_settings.hypr import inventory,display_command,HyprShortcutFile,script,lua
+from wysun_services.clipboard_mime import from_packet,encode,restore
 
 APP=QApplication.instance() or QApplication([])
 
@@ -20,21 +20,21 @@ class NativeSettingsTests(unittest.TestCase):
     def test_display_scale_negative_and_hotplug_modes(self):
         monitors=[dict(name='DP-1',width=1920,height=1080,x=-1280,y=0,scale=1.5,refreshRate=60,availableModes=['1920x1080@60.00Hz'],focused=True)]
         rows=inventory(lambda _:json.dumps(monitors));self.assertEqual(rows[0]['width'],1280)
-        from environment_settings import display_plan
+        from wysun_settings.environment import display_plan
         plan=display_plan(rows);self.assertEqual(plan[0]['scale'],1.5)
         cmd=display_command(plan,rows);self.assertEqual(cmd[:2],['hyprctl','eval']);self.assertIn('-1280x0',cmd[-1]);self.assertIn('1.5',cmd[-1])
         with self.assertRaises(ValueError):display_command(plan,[])
     def test_display_trial_reject_restores_native_plan(self):
-        from environment_settings import EnvironmentSettings,DisplayTrial
+        from wysun_settings.environment import EnvironmentSettings,DisplayTrial
         monitors=[dict(name='DP-1',width=800,height=600,x=0,y=0,scale=1,refreshRate=60,availableModes=['800x600@60.00Hz'],focused=True),
                   dict(name='DP-2',width=800,height=600,x=800,y=0,scale=1,refreshRate=60,availableModes=['800x600@60.00Hz'],focused=False)]
         calls=[]
         def runner(args):
             calls.append(args)
             return json.dumps(monitors) if args[:3]==['hyprctl','-j','monitors'] else 'ok'
-        with tempfile.TemporaryDirectory() as home,patch.dict(os.environ,{'WAYLAND_DISPLAY':'unit','HYPRLAND_INSTANCE_SIGNATURE':'unit'}),patch('environment_settings.subprocess.Popen'):
+        with tempfile.TemporaryDirectory() as home,patch.dict(os.environ,{'WAYLAND_DISPLAY':'unit','HYPRLAND_INSTANCE_SIGNATURE':'unit'}),patch('wysun_settings.environment.subprocess.Popen'):
             backend=EnvironmentSettings(home,runner=runner)
-            from environment_settings import display_plan
+            from wysun_settings.environment import display_plan
             # Swapped order (DP-2 dragged to the left, overlapping): applied edge to edge.
             old=display_plan(inventory(runner));changed=[dict(old[0],x=400),dict(old[1],x=-100)]
             trial=DisplayTrial(backend,changed);trial.reject()
@@ -70,7 +70,7 @@ class NativeSettingsTests(unittest.TestCase):
         with self.assertRaises(ValueError):from_packet({'formats':{'password-manager':base64.b64encode(b'x').decode()}})
         with self.assertRaises(ValueError):from_packet({'formats':{'text/plain':base64.b64encode(b'api_key=synthetic').decode()}})
     def test_wl_paste_slow_offer_is_killed_at_deadline(self):
-        import wayland_clipboard as clip
+        from wysun_services import wayland_clipboard as clip
         real_popen=subprocess.Popen;processes=[]
         def owned(*args,**kwargs):
             proc=real_popen([sys.executable,'-c','import time; time.sleep(5)'],stdout=subprocess.PIPE,stderr=subprocess.DEVNULL);processes.append(proc);return proc
@@ -78,13 +78,13 @@ class NativeSettingsTests(unittest.TestCase):
             with self.assertRaises(TimeoutError):clip.read_offer('text/plain',timeout=.03)
         self.assertIsNotNone(processes[0].poll())
     def test_split_ratio_uses_actual_default_split_ratio(self):
-        from hypr_settings import config,HyprDesktopSettings
+        from wysun_settings.hypr import config,HyprDesktopSettings
         self.assertEqual(config({'split_ratio':'.5'}),{'dwindle':{'default_split_ratio':1.0}})
         with tempfile.TemporaryDirectory() as home:
             model=HyprDesktopSettings(home,lambda _:json.dumps({'float':1.2}))
             self.assertEqual(float(model.values['split_ratio']),.6)
     def test_rule_only_save_does_not_override_live_theme_or_spacing(self):
-        from hypr_settings import HyprDesktopSettings
+        from wysun_settings.hypr import HyprDesktopSettings
         with tempfile.TemporaryDirectory() as home:
             calls=[]
             def runner(args):
@@ -100,7 +100,7 @@ class NativeSettingsTests(unittest.TestCase):
             generated=model.script.read_text();self.assertNotIn('active_border',generated);self.assertNotIn('gaps_in',generated);self.assertNotIn('border_size',generated)
             self.assertEqual(json.loads(model.path.read_text())['overrides'],{})
     def test_native_bar_and_theme_with_xdg_outside_home(self):
-        from environment_settings import EnvironmentSettings
+        from wysun_settings.environment import EnvironmentSettings
         from wysun_core.qt_theme import invalidate
         from wysun_core import theme
         from wysun_core.appearance import save_appearance,read_appearance
@@ -135,7 +135,7 @@ class NativeSettingsTests(unittest.TestCase):
             self.assertFalse(model.script.exists());self.assertFalse(model.path.exists())
             self.assertIn('bind:remove()',calls[-1][-1])
     def test_fragment_write_error_never_changes_runtime(self):
-        from hypr_settings import apply_fragment
+        from wysun_settings.hypr import apply_fragment
         with tempfile.TemporaryDirectory() as home:
             root=Path(home);one=root/'one';two=root/'two';one.write_text('before')
             from wysun_core import jsonio
@@ -148,7 +148,7 @@ class NativeSettingsTests(unittest.TestCase):
                 with self.assertRaises(OSError):apply_fragment(runner,{one:'after',two:'new'},'new runtime','old runtime')
             runner.assert_not_called();self.assertEqual(one.read_text(),'before');self.assertFalse(two.exists())
     def test_effects_observe_live_state_and_prepare_rollback(self):
-        from hypr_settings import effects_state
+        from wysun_settings.hypr import effects_state
         options={'decoration:rounding':10,'decoration:shadow.enabled':True,'decoration:shadow.range':16,'decoration:shadow.color':'rgba(00000080)','decoration:blur.enabled':False,'decoration:blur.size':3}
         animation=[dict(name=n,enabled=True,speed=2.5,bezier='default',style='') for n in ('windows','fade','windowsIn')]
         def runner(args):return json.dumps([animation,[]]) if args[-1]=='animations' else json.dumps({'str':options[args[-1]]})
@@ -176,7 +176,7 @@ class NativeSettingsTests(unittest.TestCase):
                 qt_theme.invalidate()
     def test_large_watch_offer_is_drained_before_rereading_formats(self):
         import threading
-        import wayland_clipboard as clip
+        from wysun_services import wayland_clipboard as clip
         read,write=os.pipe();data=b'x'*(256*1024);done=[]
         def source():
             try:
@@ -192,6 +192,6 @@ class NativeSettingsTests(unittest.TestCase):
     def test_player_package_in_recorder_is_the_same_source(self):
         root=Path(__file__).resolve().parents[2]
         link=root/'apps/capture/wysun_media'
-        self.assertTrue(link.is_symlink());self.assertEqual(link.resolve(),(root/'apps/wysun/wysun_media').resolve())
+        self.assertTrue(link.is_symlink());self.assertEqual(link.resolve(),(root/'apps/python/wysun_media').resolve())
 
 if __name__=='__main__':unittest.main()

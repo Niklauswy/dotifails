@@ -4,9 +4,9 @@ from unittest.mock import patch
 from PySide6.QtCore import Qt,QEvent,QTimer
 from PySide6.QtGui import QImage,QPainter,QFont,QColor,QKeyEvent
 from PySide6.QtWidgets import QApplication,QPushButton
-from orbit import STYLE
-from data_v2 import StoreV2
-from file_media import FileCache,index_image,preview_file,file_kind,FileOCRIndexer
+from wysun_services.daemon import STYLE
+from wysun_services.data_v2 import StoreV2
+from wysun_services.file_media import FileCache,index_image,preview_file,file_kind,FileOCRIndexer
 
 def wait(ms):
     end=time.monotonic()+ms/1000

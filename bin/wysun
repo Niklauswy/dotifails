@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Public Wysun entry point; retain the existing storage and IPC identities."""
+"""Public Wysun entry point: shell routes go to `wysun-shell`, apps run as `python3 -P -m <paquete>`."""
 import os
 from pathlib import Path
 import subprocess
@@ -40,6 +40,19 @@ def shell_command(command, args):
     return 0
 
 
+def app_root():
+    """Package root: the installed copy next to ~/.local/bin, else the checkout this script belongs to."""
+    here = Path(__file__).resolve().parent
+    installed = here.parent / 'share/wysun/app'
+    return installed if installed.is_dir() else here.parent / 'apps/python'
+
+
+def run_module(module, args):
+    """Replace this process with ``python3 -P -m module args`` importing from the package root."""
+    env = dict(os.environ, PYTHONPATH=str(app_root()))
+    os.execve('/usr/bin/python3', ['/usr/bin/python3', '-P', '-m', module, *args], env)
+
+
 # Settings and the network page use Nexus; Processes has its own shell module.
 NEXUS_DEFAULTS = {'settings': 'home', 'network': 'network'}
 
@@ -74,23 +87,10 @@ def main():
     if command in NEXUS_DEFAULTS or command.startswith('settings-'):
         return open_nexus(command, args)
     command = {'colors': 'color'}.get(command, command)
-    if command == 'pdf':
-        root = Path(__file__).resolve().parents[1]
-        app = root / 'apps/wysun'
-        if not app.is_dir():
-            app = root / 'share/orbit/app'
-        if not app.is_dir():
-            app = Path(os.environ.get('XDG_DATA_HOME', str(Path.home() / '.local/share'))) / 'orbit/app'
-        os.execv(sys.executable, [sys.executable, str(app / 'pdf_app.py'), *args])
-    if command in ('scheme', 'wallpaper'):
-        root = Path(__file__).resolve().parents[1]
-        app = root / 'apps/wysun'
-        if not app.is_dir():
-            data_home = Path(os.environ.get('XDG_DATA_HOME', str(Path.home() / '.local/share')))
-            app = data_home / 'orbit/app'
-        sys.path.insert(0, str(app))
-        import wysun_scheme
-        return (wysun_scheme.wallpaper_main if command == 'wallpaper' else wysun_scheme.main)(args)
+    modules = {'pdf': 'wysun_pdf', 'scheme': 'wysun_services.scheme', 'wallpaper': 'wysun_services.wallpaper',
+               'files': 'wysun_files'}
+    if command in modules:
+        return run_module(modules[command], args)
     if command in SHELL_ROUTES and (command != 'toggle' or not args):
         return shell_command(command, args)
     if command == 'screenshot':
@@ -98,12 +98,14 @@ def main():
     if command == 'activate':
         os.execv(str(Path(__file__).resolve().parent / 'wysun-wm'), ['wysun-wm', 'activate', *args])
     commands = {'doctor': 'dotifails', 'shell': 'wysun-shell', 'lock': 'wysun-lock', 'recover': 'wysun-recover', 'session-check': 'wysun-session', 'recorder': 'wysun-recorder',
-                'files': 'orbit-files', 'tools-cli': 'orbit-tools', 'player': 'wysun-player', 'image': 'wysun-player'}
-    executable = Path(__file__).resolve().parent / commands.get(command, 'orbit')
+                'tools-cli': 'orbit-tools', 'player': 'wysun-player', 'image': 'wysun-player'}
+    if command not in commands:
+        # Clipboard resident and the remaining app routes (music, daemon, reload…); the Plan 05 dispatcher replaces it.
+        return run_module('wysun_services.client', [command, *args])
+    executable = Path(__file__).resolve().parent / commands[command]
     if command == 'session-check':forwarded = ['--check', *args]
     elif command == 'doctor':forwarded = ['doctor', *args]
-    elif command in commands:forwarded = args
-    else:forwarded = [command, *args]
+    else:forwarded = args
     os.execv(str(executable), [str(executable), *forwarded])
 
 

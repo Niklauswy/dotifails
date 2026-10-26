@@ -1,10 +1,10 @@
 import json,sys,tempfile,unittest
 from pathlib import Path
-sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'apps/wysun'))
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'apps/python'))
 from wysun_core import theme
-import wysun_scheme
+from wysun_services import scheme as wysun_scheme
 from PIL import Image
-from theme_runtime import restore_theme,theme_files
+from wysun_settings.theme_runtime import restore_theme,theme_files
 from wysun_core.qt_theme import invalidate
 def external(mode):return theme.resolve(mode)['external']
 class PaletteFilesTests(unittest.TestCase):

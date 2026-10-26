@@ -10,7 +10,7 @@ PENDING = {
     # Runs in Claude Code's process on every status line refresh, outside the app: no PYTHONPATH, no fsync.
     'apps/shell/modules/aiusage/statusline-hook.py': '04',
 }
-SCOPES = ('apps/wysun', 'apps/shell', 'apps/capture/loomrec')
+SCOPES = ('apps/python', 'apps/shell', 'apps/capture/loomrec')
 ATOMIC = re.compile(r'os\.replace\(|mkstemp\(|\b\w+\.replace\(\s*(self\.)?\w*(path|target|dest|final)\w*\s*\)')
 XDG = re.compile(r'XDG_(CONFIG|DATA|STATE|CACHE)_HOME|XDG_RUNTIME_DIR')
 

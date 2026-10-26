@@ -15,11 +15,11 @@ import media_support as support
 
 support.app()
 from PySide6.QtWidgets import QFileDialog  # noqa: E402
-import player_client  # noqa: E402
-import player_window  # noqa: E402
+from wysun_player import client as player_client  # noqa: E402
+from wysun_player import window as player_window  # noqa: E402
 from wysun_media import mpv  # noqa: E402
 
-APP = support.ROOT / 'apps/wysun/player_app.py'
+APP = support.ROOT / 'apps/python'
 
 
 class Environment(unittest.TestCase):
@@ -80,7 +80,7 @@ class ClientTests(Environment):
 
 class SlowStartTests(Environment):
     def test_a_launch_during_startup_is_delivered_exactly_once(self):
-        import player_app
+        from wysun_player import app as player_app
         owner = player_client.instance()
         self.assertTrue(owner.claim())
         self.addCleanup(owner.close)
@@ -267,14 +267,14 @@ class SingleInstanceTests(Environment):
     """Real processes: the second launch must hand over its files and exit, whatever the timing."""
 
     def env(self):
-        env = dict(os.environ, HOME=str(self.root), QT_QPA_PLATFORM='offscreen', ORBIT_REDUCED_MOTION='1',
+        env = dict(os.environ, PYTHONPATH=str(APP), HOME=str(self.root), QT_QPA_PLATFORM='offscreen', ORBIT_REDUCED_MOTION='1',
                    XDG_CONFIG_HOME=str(self.root / 'config'), XDG_DATA_HOME=str(self.root / 'data'), XDG_CACHE_HOME=str(self.root / 'cache'))
         for variable in ('WAYLAND_DISPLAY', 'DISPLAY', 'HYPRLAND_INSTANCE_SIGNATURE'):
             env.pop(variable, None)
         return env
 
     def spawn(self, *files):
-        process = subprocess.Popen([sys.executable, str(APP), '--', *map(str, files)], env=self.env(), cwd=str(self.root),
+        process = subprocess.Popen([sys.executable, '-P', '-m', 'wysun_player', '--', *map(str, files)], env=self.env(), cwd=str(self.root),
                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         self.addCleanup(self.reap, process)
         return process
@@ -297,7 +297,7 @@ class SingleInstanceTests(Environment):
             environment = Path(f'/proc/{pid}/environ').read_bytes()
         except OSError:
             return False
-        return str(APP).encode() in command and str(self.run_dir).encode() in environment
+        return b'wysun_player' in command and str(self.run_dir).encode() in environment
 
     def test_second_launch_hands_over_and_exits_quickly(self):
         first = self.spawn(self.files / 'tone.mp3')
@@ -333,7 +333,7 @@ class SingleInstanceTests(Environment):
         self.assertEqual(len(self.serving()), 1)
 
     def test_help_does_not_start_a_player(self):
-        done = subprocess.run([sys.executable, str(APP), '--help'], env=self.env(), capture_output=True, text=True, timeout=20)
+        done = subprocess.run([sys.executable, '-P', '-m', 'wysun_player', '--help'], env=self.env(), capture_output=True, text=True, timeout=20)
         self.assertEqual(done.returncode, 0)
         self.assertIn('wysun player', done.stdout)
         self.assertFalse(player_client.endpoint().exists())

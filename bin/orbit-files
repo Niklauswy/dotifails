@@ -1,2 +1,2 @@
 #!/bin/sh
-exec /usr/bin/python3 "$HOME/.local/share/orbit/app/files_app.py" "$@"
+exec "$(dirname -- "$0")/wysun" files "$@"

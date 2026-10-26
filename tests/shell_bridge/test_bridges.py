@@ -15,9 +15,9 @@ ROOT = Path(__file__).resolve().parents[2]
 SHELL = ROOT / 'apps/shell'
 spec = importlib.util.spec_from_file_location('wysun_cael_backend_b', SHELL / 'wysun/backend.py')
 backend = importlib.util.module_from_spec(spec); spec.loader.exec_module(backend)
-sys.path.insert(0, str(ROOT / 'apps/wysun'))
+sys.path.insert(0, str(ROOT / 'apps/python'))
 from wysun_core import theme  # noqa: E402
-import wysun_scheme  # noqa: E402
+from wysun_services import scheme as wysun_scheme  # noqa: E402
 from PIL import Image  # noqa: E402
 
 
@@ -106,7 +106,7 @@ class NotificationOwnershipTests(unittest.TestCase):
 
     def test_no_dunst_is_started_or_called(self):
         root = SHELL.parents[1]
-        for relative in ('bin/wysun-session-services', 'apps/shell/wysun/backend.py', 'apps/wysun/theme_runtime.py',
+        for relative in ('bin/wysun-session-services', 'apps/shell/wysun/backend.py', 'apps/python/wysun_settings/theme_runtime.py',
                          'config/.config/wysun/hyprland.lua'):
             self.assertNotIn('dunst', (root / relative).read_text().lower(), relative)
 

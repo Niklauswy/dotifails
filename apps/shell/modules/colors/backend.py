@@ -1,16 +1,11 @@
 #!/usr/bin/env python3
 """Small serialized JSON service for the native Colors panel's existing store."""
 import json
-from pathlib import Path
 import sys
 
-source = Path(__file__).resolve().parents[3] / 'wysun'
-if not (source / 'utility_data.py').exists():
-    # Installed copy: the installer always deploys under ~/.local/share (plan 04 replaces this lookup with PYTHONPATH).
-    source = Path.home() / '.local/share/orbit/app'
-sys.path.insert(0, str(source))
-from utility_data import Colors
-from color_data import parse_color
+# The shell runs this with the Wysun package root in PYTHONPATH (Paths.python).
+from wysun_services.utility_data import Colors
+from wysun_services.color_data import parse_color
 
 
 def handle(request, store):

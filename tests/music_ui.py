@@ -15,7 +15,7 @@ import threading
 import time
 
 root = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(root / 'apps/wysun'))
+sys.path.insert(0, str(root / 'apps/python'))
 
 with tempfile.TemporaryDirectory(prefix='wysun-music-qa-') as folder:
     temp = Path(folder)
@@ -34,7 +34,7 @@ with tempfile.TemporaryDirectory(prefix='wysun-music-qa-') as folder:
     from PySide6.QtCore import QEvent, QPointF, Qt
     from PySide6.QtGui import QKeyEvent, QMouseEvent
     from PySide6.QtWidgets import QApplication
-    import music_data
+    from wysun_music import data as music_data
     music_data.import_files([temp / f'{n}.ogg' for n in ('first', 'second', 'third')])
     app = QApplication([])
     from wysun_music.app import build
@@ -170,14 +170,15 @@ with tempfile.TemporaryDirectory(prefix='wysun-music-qa-') as folder:
     runtime.mkdir()
     environment = dict(os.environ, XDG_RUNTIME_DIR=str(runtime), QT_QPA_PLATFORM='offscreen')
     log = (temp / 'app.log').open('w')
-    launcher = root / 'apps/wysun/music_app.py'
-    dedicated = subprocess.Popen([sys.executable, str(launcher)], env=environment, stdout=log, stderr=log)
+    environment['PYTHONPATH'] = str(root / 'apps/python')
+    launcher = ['-P', '-m', 'wysun_music']
+    dedicated = subprocess.Popen([sys.executable, *launcher], env=environment, stdout=log, stderr=log)
     endpoint = runtime / f'orbit-music-app-{os.getuid()}.sock'
     started = time.monotonic()
     try:
         wait_until(endpoint.exists, 5, 'dedicated socket')
         assert time.monotonic() - started < 3, 'Dedicated startup should take less than three seconds'
-        duplicate = subprocess.run([sys.executable, str(launcher)], env=environment, timeout=3, stdout=log, stderr=log)
+        duplicate = subprocess.run([sys.executable, *launcher], env=environment, timeout=3, stdout=log, stderr=log)
         assert duplicate.returncode == 0 and dedicated.poll() is None
         with socket.socket(socket.AF_UNIX) as client:
             client.connect(str(endpoint))

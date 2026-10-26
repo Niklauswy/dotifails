@@ -69,7 +69,7 @@ class VisualInstallerBackendTests(unittest.TestCase):
         self.assertNotIn('slick-greeter', boot['packages'])
 
     def test_installer_only_preserves_application_and_selected_components(self):
-        app = self.home/'.local/share/orbit/app/orbit.py'
+        app = self.home/'.local/share/wysun/app/wysun_services/daemon.py'
         app.parent.mkdir(parents=True)
         app.write_text('unchanged app')
         state = self.home/'.local/state/dotifails/installed.json'
@@ -93,7 +93,7 @@ class VisualInstallerBackendTests(unittest.TestCase):
         self.assertEqual(self.install('terminal'), 0)
         for relative, content in originals.items():
             self.assertEqual((self.home/relative).read_text(), content)
-        self.assertFalse((self.home/'.local/share/orbit/app').exists())
+        self.assertFalse((self.home/'.local/share/wysun/app').exists())
         self.assertFalse((self.home/'.local/share/backgrounds').exists())
         self.assertTrue((self.home/'.config/ghostty/config').is_file())
         self.assertTrue((self.home/'.local/share/applications/dotifails-installer.desktop').is_file())

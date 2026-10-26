@@ -12,7 +12,7 @@ import time
 def environment():
     env = dict(os.environ)
     for key in ('LD_LIBRARY_PATH', 'QT_PLUGIN_PATH', 'QML_IMPORT_PATH', 'QML2_IMPORT_PATH',
-                'QT_QPA_PLATFORM_PLUGIN_PATH', 'QTDIR'):
+                'QT_QPA_PLATFORM_PLUGIN_PATH', 'QTDIR', 'PYTHONPATH'):
         env.pop(key, None)
     return env
 
@@ -69,13 +69,9 @@ def main():
             parser.error('Acción no permitida')
         os.execvpe('wysun', ['wysun', args.value], environment())
     else:
-        # Import the existing single producer, never a second colour authority.
-        source = Path(__file__).resolve().parents[2] / 'wysun'
-        if not source.is_dir():
-            source = Path.home() / '.local/share/orbit/app'
-        sys.path.insert(0, str(source))
+        # Import the existing single producer, never a second colour authority (PYTHONPATH from Paths.python).
         from wysun_core import theme
-        import wysun_scheme
+        from wysun_services import scheme as wysun_scheme
         mode = theme.read_mode()
         print(json.dumps(wysun_scheme.generate_dynamic(Path(args.value), None if mode == 'auto' else mode)))
 

@@ -27,7 +27,7 @@ Item {
         property int revision
         function start(): void {
             revision = root.generation;
-            command = ["python3", "-I", LauncherData.script, "query", root.mode, root.query];
+            command = LauncherData.data(["query", root.mode, root.query]);
             running = true;
         }
         stdout: StdioCollector {

@@ -75,7 +75,7 @@ class ScreenAwakeTests(unittest.TestCase):
 
     def test_the_metadata_key_matches_what_the_player_publishes(self):
         import sys
-        sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'apps/wysun'))
+        sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'apps/python'))
         from wysun_media import mpris
         self.assertEqual(mpris.VISIBLE_VIDEO, 'wysun:visibleVideo')
 

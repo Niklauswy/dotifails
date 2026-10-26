@@ -13,8 +13,8 @@ from contextlib import redirect_stdout
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
-os.environ['WYSUN_APP_DIR'] = str(ROOT / 'apps/wysun')
-sys.path.insert(0, str(ROOT / 'apps/wysun'))
+os.environ['WYSUN_APP_DIR'] = str(ROOT / 'apps/python')
+sys.path.insert(0, str(ROOT / 'apps/python'))
 sys.path.insert(0, str(ROOT / 'apps/shell/wysun'))
 import display_bridge  # noqa: E402
 
@@ -85,7 +85,7 @@ class DisplayTests(BridgeCase):
         self.assertFalse((folder / 'accepted').exists())
 
     def test_resumed_trial_rejects_and_restores_the_previous_layout(self):
-        from environment_settings import DisplayTrial, EnvironmentSettings
+        from wysun_settings.environment import DisplayTrial, EnvironmentSettings
         folder = self.home / '.cache/orbit/display-trials/t1'
         folder.mkdir(parents=True)
         (folder / 'trial.json').write_text(json.dumps({'old': self.PLAN, 'deadline': 0}))
@@ -94,10 +94,10 @@ class DisplayTests(BridgeCase):
         backend = EnvironmentSettings(self.home, lambda args: calls.append(list(args)) or 'ok')
         trial = DisplayTrial.resume(backend, folder)
         self.assertFalse(trial.done)
-        with patch('environment_settings.display_inventory', return_value=[
+        with patch('wysun_settings.environment.display_inventory', return_value=[
                 dict(name=p['name'], connected=True, enabled=True, primary=p['primary'], mode=p['mode'], rate=p['rate'],
                      rotation=p['rotation'], x=0, y=0, scale=p['scale'], modes=[dict(name=p['mode'], rates=[p['rate']])])
-                for p in self.PLAN]), patch('environment_settings.after_display_change'):
+                for p in self.PLAN]), patch('wysun_settings.environment.after_display_change'):
             trial.reject()
         self.assertTrue((folder / 'reverted').exists())
         self.assertTrue(trial.done)
@@ -127,10 +127,10 @@ class ProtocolTests(unittest.TestCase):
         self.assertLessEqual(called, set(display_bridge.ACTIONS))
 
     def test_bridge_does_not_import_qt(self):
-        code = ('import os, sys; os.environ["WYSUN_APP_DIR"] = %r; sys.path.insert(0, %r); import display_bridge; '
-                'sys.exit(1 if any(m.startswith(("PySide6", "PyQt")) for m in sys.modules) else 0)') % (
-            str(ROOT / 'apps/wysun'), str(ROOT / 'apps/shell/wysun'))
-        self.assertEqual(subprocess.run([sys.executable, '-I', '-c', code], capture_output=True, text=True).returncode, 0)
+        code = ('import sys; import display_bridge; '
+                'sys.exit(1 if any(m.startswith(("PySide6", "PyQt")) for m in sys.modules) else 0)')
+        env = dict(os.environ, PYTHONPATH=os.pathsep.join([str(ROOT / 'apps/python'), str(ROOT / 'apps/shell/wysun')]))
+        self.assertEqual(subprocess.run([sys.executable, '-s', '-P', '-c', code], env=env, capture_output=True, text=True).returncode, 0)
 
 
 if __name__ == '__main__':

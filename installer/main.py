@@ -86,7 +86,7 @@ def host_supported():
 
 def default_wallpaper(source):
     """File name of the wallpaper the distribution ships (wysun_core/tokens.json)."""
-    return read(Path(source)/'apps/wysun/wysun_core/tokens.json')['wallpaper']
+    return read(Path(source)/'apps/python/wysun_core/tokens.json')['wallpaper']
 
 class Deployment:
     def __init__(self,home,source):
@@ -179,7 +179,7 @@ class Deployment:
         import io
         output=io.StringIO();mime.write(output,space_around_delimiters=False);self.generated(output.getvalue(),relative)
         service='orbit-files-integration.service'
-        command='/usr/bin/python3 "'+str(self.home/'.local/share/orbit/app/files_service.py')+'"'
+        command='/usr/bin/env "PYTHONPATH='+str(self.home/'.local/share/wysun/app')+'" /usr/bin/python3 -P -m wysun_files.service'
         self.generated('[Unit]\nDescription=Wysun file chooser and file manager integration\nAfter=graphical-session-pre.target\n\n[Service]\nType=dbus\nBusName=org.freedesktop.impl.portal.desktop.orbit\nExecStart='+command+'\nRestart=on-failure\nTimeoutStopSec=5\n',Path('.config/systemd/user')/service)
         for name in ('org.freedesktop.impl.portal.desktop.orbit','org.freedesktop.FileManager1'):
             self.generated('[D-BUS Service]\nName='+name+'\nExec='+command+'\nSystemdService='+service+'\n',Path('.local/share/dbus-1/services')/(name+'.service'))
@@ -212,7 +212,7 @@ class Deployment:
                 mime.set('Removed Associations',mimetype,';'.join(removed)+(';' if removed else ''))
     def configure_orbit(self):
         self.stage('Actualizar solo Wysun (código y lanzador)')
-        self.deploy(self.source/'apps/wysun',Path('.local/share/orbit/app'))
+        self.deploy(self.source/'apps/python',Path('.local/share/wysun/app'))
         if (self.source/'apps/tools').is_dir():self.deploy(self.source/'apps/tools',Path('.local/share/orbit/tools'))
         if self.conflicts:return
         wallpaper=self.source/'assets/backgrounds'/default_wallpaper(self.source)
@@ -298,13 +298,10 @@ class Deployment:
         self.stage('Configuraciones y aplicaciones')
         home_source=self.backup/'generated/theme-home'
         shutil.copytree(self.source/'config',home_source)
-        if (self.source/'apps/wysun/theme_runtime.py').exists():
-            sys.path.insert(0,str(self.source/'apps/wysun'))
-            from theme_runtime import theme_files
-            themed=theme_files(home_source)
-            for path,text in themed.items():
-                path.parent.mkdir(parents=True,exist_ok=True)
-                path.write_text(text)
+        app=self.source/'apps/python'
+        if (app/'wysun_settings/theme_runtime.py').exists():
+            subprocess.run([sys.executable,'-P','-m','wysun_settings.theme_runtime','render',str(home_source)],
+                           env=dict(os.environ,PYTHONPATH=str(app)),check=True)
         owners={'nvim':'editor','ghostty':'terminal','fzf':'terminal','bat':'terminal','starship.toml':'terminal','dotifails':'terminal'}
         for base in ('.config','.local/bin'):
             for item in sorted((home_source/base).iterdir()):
@@ -332,8 +329,8 @@ class Deployment:
                 if owners.get(item.name,'desktop') in selected:self.deploy(item,Path(base)/item.name)
         if 'terminal' in selected:self.deploy(self.source/'config/.zshrc',Path('.zshrc'))
         if 'desktop' in selected:
-            self.deploy(self.source/'apps/wysun',Path('.local/share/orbit/app'))
-            if '.local/share/orbit/app' not in self.conflicts:
+            self.deploy(self.source/'apps/python',Path('.local/share/wysun/app'))
+            if '.local/share/wysun/app' not in self.conflicts:
                 self.configure_files(player=True)
                 self.configure_wysun()
             for item in sorted((self.source/'assets/icons').iterdir()):self.deploy(item,Path('.local/share/icons')/item.name)
@@ -510,7 +507,7 @@ def install_extras(names,d,env):
 def required_files(home,selected):
     """Installed files doctor checks for the selected components (relative to home)."""
     required=[]
-    if 'desktop' in selected:required += ['.config/wysun/hyprland.lua','.local/share/orbit/app/orbit.py','.local/share/wysun/quickshell/shell.qml','.local/share/backgrounds/'+read(home/'.local/share/orbit/app/wysun_core/tokens.json',{}).get('wallpaper','')]
+    if 'desktop' in selected:required += ['.config/wysun/hyprland.lua','.local/share/wysun/app/wysun_services/daemon.py','.local/share/wysun/quickshell/shell.qml','.local/share/backgrounds/'+read(home/'.local/share/wysun/app/wysun_core/tokens.json',{}).get('wallpaper','')]
     return required
 
 

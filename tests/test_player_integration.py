@@ -83,7 +83,8 @@ class LaunchRouteTests(unittest.TestCase):
 
     def test_launcher_runs_the_installed_application(self):
         text = (ROOT / 'bin/wysun-player').read_text()
-        self.assertIn('exec /usr/bin/python3 "$HOME/.local/share/orbit/app/player_app.py" "$@"', text)
+        self.assertIn('app="$here/../share/wysun/app"', text)
+        self.assertIn('PYTHONPATH="$app" exec /usr/bin/python3 -P -m wysun_player "$@"', text)
         self.assertTrue(os.access(ROOT / 'bin/wysun-player', os.X_OK))
 
 

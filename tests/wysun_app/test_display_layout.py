@@ -4,8 +4,8 @@ from pathlib import Path
 import sys
 import tempfile
 import unittest
-sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'apps/wysun'))
-import display_layout as layout
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'apps/python'))
+from wysun_settings import display_layout as layout
 
 
 def monitor(name, x, y=0, mode='1920x1080', **extra):
@@ -106,8 +106,8 @@ class RuntimeTests(unittest.TestCase):
                     availableModes=['1920x1080@60.00Hz'], x=x, y=0, focused=False, disabled=False)
 
     def test_login_restore_applies_confirmed_profile_and_writes_fragment(self):
-        from environment_settings import EnvironmentSettings
-        import settings_runtime
+        from wysun_settings.environment import EnvironmentSettings
+        from wysun_settings import runtime as settings_runtime
         with tempfile.TemporaryDirectory(prefix='wysun-displays-') as folder:
             home = Path(folder)
             live = [self.hypr('eDP-1', 0), self.hypr('DP-1', 1920), self.hypr('DP-2', 3840)]
@@ -124,8 +124,8 @@ class RuntimeTests(unittest.TestCase):
             self.assertEqual(fragment, layout.monitors_fragment(layout.normalize(profile)))
 
     def test_without_profile_nothing_changes(self):
-        from environment_settings import EnvironmentSettings
-        import settings_runtime
+        from wysun_settings.environment import EnvironmentSettings
+        from wysun_settings import runtime as settings_runtime
         with tempfile.TemporaryDirectory(prefix='wysun-displays-') as folder:
             run = self.runner([self.hypr('eDP-1', 0)])
             self.assertFalse(settings_runtime.restore_displays(EnvironmentSettings(Path(folder), run)))
@@ -133,8 +133,8 @@ class RuntimeTests(unittest.TestCase):
             self.assertFalse((Path(folder) / '.config/orbit/hypr-monitors.lua').exists())
 
     def test_nothing_lit_switches_every_connected_display_back_on(self):
-        from environment_settings import EnvironmentSettings
-        import settings_runtime
+        from wysun_settings.environment import EnvironmentSettings
+        from wysun_settings import runtime as settings_runtime
         with tempfile.TemporaryDirectory(prefix='wysun-displays-') as folder:
             home = Path(folder)
             off = dict(self.hypr('eDP-1', -1), disabled=True, width=0, height=0)
@@ -152,8 +152,8 @@ class RuntimeTests(unittest.TestCase):
             self.assertNotIn('disabled', fragment)
 
     def test_a_lit_display_is_never_touched_by_the_safety_net(self):
-        from environment_settings import EnvironmentSettings
-        import settings_runtime
+        from wysun_settings.environment import EnvironmentSettings
+        from wysun_settings import runtime as settings_runtime
         with tempfile.TemporaryDirectory(prefix='wysun-displays-') as folder:
             off = dict(self.hypr('eDP-1', -1), disabled=True, width=0, height=0)
             run = self.runner([off, self.hypr('DP-1', 0)])
@@ -162,7 +162,7 @@ class RuntimeTests(unittest.TestCase):
 
     def test_trial_normalizes_saves_profile_fragment_and_refreshes(self):
         from unittest.mock import patch
-        import environment_settings as env
+        from wysun_settings import environment as env
         with tempfile.TemporaryDirectory(prefix='wysun-displays-') as folder:
             home = Path(folder)
             run = self.runner([self.hypr('eDP-1', 0), self.hypr('DP-1', 1920)])

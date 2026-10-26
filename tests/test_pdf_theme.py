@@ -11,7 +11,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-APP = Path(__file__).resolve().parents[1] / 'apps/wysun'
+APP = Path(__file__).resolve().parents[1] / 'apps/python'
 sys.path.insert(0, str(APP))
 os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
 
@@ -35,8 +35,8 @@ class PdfThemeTests(unittest.TestCase):
         self.addCleanup(qt_theme.invalidate)
 
     def reader_mode(self):
-        from pdf_state import Preferences
-        from pdf_theme import ReaderMode
+        from wysun_pdf.state import Preferences
+        from wysun_pdf.theme import ReaderMode
         mode = ReaderMode(Preferences())
         self.addCleanup(mode.release)
         return mode
@@ -81,7 +81,7 @@ class PdfThemeTests(unittest.TestCase):
         self.assertEqual(mode.environment()['WYSUN_THEME'], 'dark')
 
     def test_every_symbol_the_reader_paints_is_in_the_bundled_font(self):
-        from pdf_theme import SYMBOLS
+        from wysun_pdf.theme import SYMBOLS
         from wysun_core.ui.fonts import ligature_available, load_fonts
         load_fonts()
         self.assertGreater(len(SYMBOLS), 20)
@@ -108,8 +108,8 @@ class PdfChromeTests(unittest.TestCase):
 
     def widgets(self):
         from PySide6.QtWidgets import QWidget
-        from pdf_chrome import EmptyState, NoteDialog, PageIndicator, SelectionBar, ViewModeSwitch, ZoomControl
-        from pdf_sidebar import Sidebar
+        from wysun_pdf.chrome import EmptyState, NoteDialog, PageIndicator, SelectionBar, ViewModeSwitch, ZoomControl
+        from wysun_pdf.sidebar import Sidebar
         host = QWidget()
         host.resize(900, 700)
         self.addCleanup(host.deleteLater)
@@ -130,7 +130,7 @@ class PdfChromeTests(unittest.TestCase):
                         self.assertTrue(button.accessibleName(), f'{type(widget).__name__}: unnamed button')
 
     def test_zoom_control_shows_percent_and_reports_choices(self):
-        from pdf_chrome import ZoomControl
+        from wysun_pdf.chrome import ZoomControl
         control = ZoomControl()
         control.set_zoom(1.25, 'custom')
         self.assertEqual(control.label.text(), '125 %')
@@ -142,7 +142,7 @@ class PdfChromeTests(unittest.TestCase):
         self.assertEqual(chosen, ['width', 2.0])
 
     def test_view_mode_switch_is_exclusive(self):
-        from pdf_chrome import ViewModeSwitch
+        from wysun_pdf.chrome import ViewModeSwitch
         switch = ViewModeSwitch()
         modes = []
         switch.changed.connect(modes.append)
@@ -154,7 +154,7 @@ class PdfChromeTests(unittest.TestCase):
 
     def test_page_indicator_jumps_to_a_typed_page(self):
         from PySide6.QtWidgets import QWidget
-        from pdf_chrome import PageIndicator
+        from wysun_pdf.chrome import PageIndicator
         host = QWidget()
         indicator = PageIndicator(host)
         indicator.set_page(2, 40)
@@ -173,7 +173,7 @@ class PdfChromeTests(unittest.TestCase):
     def test_selection_bar_sits_above_the_selection_and_hides_edits(self):
         from PySide6.QtCore import QRect
         from PySide6.QtWidgets import QWidget
-        from pdf_chrome import SelectionBar
+        from wysun_pdf.chrome import SelectionBar
         host = QWidget()
         host.resize(800, 600)
         bar = SelectionBar(host)
@@ -186,7 +186,7 @@ class PdfChromeTests(unittest.TestCase):
         self.assertFalse(bar.buttons['copy'].isHidden())
 
     def test_sidebar_lists_results_with_context_and_emits(self):
-        from pdf_sidebar import Sidebar
+        from wysun_pdf.sidebar import Sidebar
         sidebar = Sidebar()
         sidebar.set_results('idea', [(4, 'una idea clara'), (9, 'otra idea')])
         self.assertEqual(sidebar.results.count(), 2)
@@ -203,7 +203,7 @@ class PdfChromeTests(unittest.TestCase):
         self.assertEqual(sidebar.meta.text(), 'Ninguna todavía')
 
     def test_inks_start_with_the_theme_accent(self):
-        from pdf_chrome import ink_colours
+        from wysun_pdf.chrome import ink_colours
         from wysun_core import qt_theme
         inks = ink_colours()
         self.assertEqual(inks[0][1], qt_theme.color('accent'))

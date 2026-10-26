@@ -1,4 +1,4 @@
-"""The shell reads apps/wysun/wysun_core/tokens.json; tokens.hpp and appearanceconfig.hpp are only its fallback.
+"""The shell reads apps/python/wysun_core/tokens.json; tokens.hpp and appearanceconfig.hpp are only its fallback.
 
 ``test_plugin_reads_tokens_json`` runs the built plugin: point ``WYSUN_TEST_RUNTIME`` at a runtime prefix
 built from this tree (``installer/runtime_build.py --prefix …``); without it the test is skipped.
@@ -16,7 +16,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 CONFIG = ROOT / 'apps/shell/plugin/src/Wysun/Config'
-TOKENS = ROOT / 'apps/wysun/wysun_core/tokens.json'
+TOKENS = ROOT / 'apps/python/wysun_core/tokens.json'
 sys.path.insert(0, str(ROOT / 'installer'))
 import wayland  # noqa: E402
 

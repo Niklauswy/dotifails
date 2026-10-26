@@ -22,7 +22,7 @@ from shiboken6 import isValid
 from PySide6.QtWidgets import (QApplication, QFileDialog, QHBoxLayout, QLabel, QListWidget, QScrollArea,
                                QSizePolicy, QVBoxLayout, QWidget)
 from wysun_core.qt_theme import on_theme_changed, watch_theme
-from icons import icon
+from wysun_core.icons import icon
 from install_model import COMPONENTS, InstallOptions, backups, load_json, preflight, read_os_release
 import journey
 from process_runner import InstallerProcess
@@ -93,7 +93,7 @@ class InstallerWindow(FramelessResize, QWidget):
         self.preview = preview
         self.receipt = {} if preview else receipt_at(self.home)
         self.updating = not preview and bool(self.receipt.get('components') or
-            (self.home / '.local/share/orbit/app/orbit.py').is_file() or
+            (self.home / '.local/share/wysun/app/wysun_services/daemon.py').is_file() or
             (self.home / '.local/share/wysun/quickshell/shell.qml').is_file())
         self.fields = read_os_release()
         self.machine = platform.machine()

@@ -4,11 +4,11 @@ from pathlib import Path
 import sys
 import unittest
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'apps/wysun'))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'apps/python'))
 AVAILABLE = importlib.util.find_spec('PySide6') is not None
 if AVAILABLE:
     from PySide6.QtWidgets import QApplication
-    from pdf_source import PageSource
+    from wysun_pdf.source import PageSource
 
 
 class FakeWorker:
@@ -124,7 +124,7 @@ class SourceTests(unittest.TestCase):
             self.worker.reply(item, {'page': page, 'words': [[0, 0, 1, 1, 'w', 0, 0]], 'links': [], 'annotations': []})
         self.assertEqual(len(ready), 40)
         self.assertEqual(self.source.info(39)['words'][0][4], 'w')
-        with unittest.mock.patch('pdf_source.INFO_LIMIT', 4):
+        with unittest.mock.patch('wysun_pdf.source.INFO_LIMIT', 4):
             self.source.reset([[595.0, 842.0]] * 40)
             for page in range(6):
                 self.source.want([(page, 100)])

@@ -107,7 +107,7 @@ def unimported_shell_modules(files):
 
 class DeadCodeTests(unittest.TestCase):
     def test_every_wysun_module_is_used_outside_tests(self):
-        self.assertEqual(dead_python_modules(ROOT / 'apps/wysun'), [])
+        self.assertEqual(dead_python_modules(ROOT / 'apps/python'), [])
 
     def test_every_installer_module_is_used_outside_tests(self):
         self.assertEqual(dead_python_modules(ROOT / 'installer'), [])
@@ -157,7 +157,7 @@ class DeadCodeTests(unittest.TestCase):
 
     def test_subprocess_backends_count_as_alive(self):
         corpus = alive_names(ROOT)
-        for backend in ('launcher_data', 'process_data', 'wysun_scheme', 'code_preview'):
+        for backend in ('launcher_data', 'process_data', 'scheme', 'code_preview'):
             self.assertRegex(corpus, rf'\b{backend}\b')
 
 

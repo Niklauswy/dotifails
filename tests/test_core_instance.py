@@ -8,7 +8,7 @@ import time
 import unittest
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'apps/wysun'))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'apps/python'))
 from wysun_core.instance import SingleInstance, send
 
 
@@ -127,7 +127,7 @@ class InstanceTests(unittest.TestCase):
             'from wysun_core.instance import SingleInstance, release_on_termination\n'
             'owner = SingleInstance("t", sys.argv[2]); owner.claim(); release_on_termination(owner)\n'
             'print("ready", flush=True); time.sleep(30)\n'),
-            str(Path(__file__).resolve().parents[1] / 'apps/wysun'), str(self.dir)], stdout=subprocess.PIPE, text=True)
+            str(Path(__file__).resolve().parents[1] / 'apps/python'), str(self.dir)], stdout=subprocess.PIPE, text=True)
         self.addCleanup(child.kill)
         self.assertEqual(child.stdout.readline().strip(), 'ready')
         self.assertTrue((self.dir / 't.sock').exists())

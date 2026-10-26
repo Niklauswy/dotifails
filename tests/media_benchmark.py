@@ -21,7 +21,7 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-APP = ROOT / 'apps/wysun'
+APP = ROOT / 'apps/python'
 SURFACES = ('opengl', 'software')
 
 
@@ -45,7 +45,7 @@ def run_child(kind, seconds, size, video):
     from PySide6.QtCore import QTimer
     from PySide6.QtWidgets import QApplication
     app = QApplication(sys.argv[:1])
-    import media_host
+    from wysun_player import host as media_host
     from wysun_media import mpv
     from wysun_media.session import MediaSession
     from wysun_media.source import open_source

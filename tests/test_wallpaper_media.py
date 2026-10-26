@@ -9,8 +9,8 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / 'apps/wysun'))
-import wallpaper_media  # noqa: E402
+sys.path.insert(0, str(ROOT / 'apps/python'))
+from wysun_services import wallpaper_media  # noqa: E402
 
 HAVE_FFMPEG = bool(shutil.which('ffmpeg') and shutil.which('ffprobe'))
 
@@ -75,22 +75,22 @@ class MediaTests(unittest.TestCase):
         self.assertEqual(wallpaper_media.scheme_frame(self.walls / 'still.png'), self.walls / 'still.png')
 
     def test_dynamic_scheme_accepts_video(self):
-        import wysun_scheme
+        from wysun_services import scheme as wysun_scheme
         scheme = wysun_scheme.generate_dynamic(self.walls / 'clip.mp4')
         self.assertEqual(scheme['name'], 'dynamic')
         self.assertIn('primary', scheme['colours'])
         self.assertEqual(scheme['wallpaper_hash'], wallpaper_media.content_hash(self.walls / 'clip.mp4'))
 
     def test_set_wallpaper_validates_video(self):
-        import wysun_scheme
+        from wysun_services import scheme as wysun_scheme
         broken = self.walls / 'broken.mp4'
         broken.write_bytes(b'not a video')
         with self.assertRaises(ValueError):
             wysun_scheme.set_wallpaper(broken, home=self.home)
 
     def test_list_command_prints_json(self):
-        result = subprocess.run([sys.executable, '-I', str(ROOT / 'apps/wysun/wallpaper_media.py'), 'list', str(self.walls)],
-                                capture_output=True, text=True, check=True, env={**os.environ})
+        result = subprocess.run([sys.executable, '-s', '-P', '-m', 'wysun_services.wallpaper_media', 'list', str(self.walls)],
+                                capture_output=True, text=True, check=True, env={**os.environ, 'PYTHONPATH': str(ROOT / 'apps/python')})
         self.assertTrue(json.loads(result.stdout))
 
 

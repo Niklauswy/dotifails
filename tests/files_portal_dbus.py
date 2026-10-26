@@ -2,15 +2,15 @@
 import os,sys,tempfile,time,subprocess
 from pathlib import Path
 root=Path(__file__).resolve().parents[1]
-if not (root/'apps/wysun').is_dir():root=Path(__file__).resolve().parent
-sys.path.insert(0,str(root/'apps/wysun'))
+if not (root/'apps/python').is_dir():root=Path(__file__).resolve().parent
+sys.path.insert(0,str(root/'apps/python'))
 from dbus.mainloop.glib import DBusGMainLoop
 DBusGMainLoop(set_as_default=True)
 import dbus,dbus.service
 from gi.repository import GLib
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import QItemSelectionModel,QTimer,QEvent,QCoreApplication
-from files_service import Portal,Manager,PORTAL,MANAGER
+from wysun_files.service import Portal,Manager,PORTAL,MANAGER
 
 tmp=tempfile.TemporaryDirectory();base=Path(tmp.name);(base/'data/xdg-desktop-portal/portals').mkdir(parents=True);(base/'config/xdg-desktop-portal').mkdir(parents=True)
 (base/'data/xdg-desktop-portal/portals/orbit.portal').write_text('[portal]\nDBusName=org.freedesktop.impl.portal.desktop.orbit\nInterfaces=org.freedesktop.impl.portal.FileChooser;\n')

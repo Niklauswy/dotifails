@@ -8,7 +8,8 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-SOURCE=Path(__file__).resolve().parents[2]/'apps/shell/wysun/backend.py'
+ROOT=Path(__file__).resolve().parents[2]
+SOURCE=ROOT/'apps/shell/wysun/backend.py'
 spec=importlib.util.spec_from_file_location('wysun_cael_backend',SOURCE)
 backend=importlib.util.module_from_spec(spec);spec.loader.exec_module(backend)
 
@@ -34,7 +35,7 @@ class AdapterTests(unittest.TestCase):
         from PIL import Image
         with tempfile.TemporaryDirectory() as home:
             image=Path(home,'bright.png');Image.new('RGB',(32,32),(245,240,225)).save(image)
-            env=dict(os.environ,HOME=home,XDG_CONFIG_HOME=home+'/config',XDG_STATE_HOME=home+'/state')
+            env=dict(os.environ,PYTHONPATH=str(ROOT/'apps/python'),HOME=home,XDG_CONFIG_HOME=home+'/config',XDG_STATE_HOME=home+'/state')
             env.pop('WYSUN_THEME',None)
             def preview():
                 result=subprocess.run(['/usr/bin/python3',str(SOURCE),'preview',str(image)],env=env,capture_output=True,text=True,check=True)

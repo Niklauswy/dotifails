@@ -6,7 +6,9 @@ from pathlib import Path
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import QApplication, QDialog, QDialogButtonBox, QLabel, QLineEdit, QVBoxLayout
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'apps/wysun'))  # same token file as the desktop
+from ui_support import prepare_imports
+
+prepare_imports()  # the installer's own copy of wysun_core, or the checkout's: same tokens as the desktop
 from wysun_core.qt_theme import apply_style  # noqa: E402
 
 

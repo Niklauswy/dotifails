@@ -19,10 +19,10 @@ from PySide6.QtCore import QEventLoop, QTimer
 from PySide6.QtWidgets import QApplication
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / 'apps/wysun'))
+sys.path.insert(0, str(ROOT / 'apps/python'))
 from wysun_core import theme  # noqa: E402
 from wysun_core import qt_theme
-import wysun_scheme  # noqa: E402
+from wysun_services import scheme as wysun_scheme  # noqa: E402
 
 
 TEXT_PAIRS = (

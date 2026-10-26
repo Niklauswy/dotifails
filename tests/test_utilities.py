@@ -1,7 +1,7 @@
 import os,sys,tempfile,subprocess,unittest
 from pathlib import Path
-sys.path.insert(0,str(Path(__file__).parents[1]/'apps/wysun'))
-from utility_data import Notes,Colors,Processes,digest,process_record
+sys.path.insert(0,str(Path(__file__).parents[1]/'apps/python'))
+from wysun_services.utility_data import Notes,Colors,Processes,digest,process_record
 class UtilityDataTests(unittest.TestCase):
  def test_legacy_notes_import_once_without_changing_original(self):
   with tempfile.TemporaryDirectory() as tmp:

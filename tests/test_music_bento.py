@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 
 os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'apps/wysun'))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'apps/python'))
 from PySide6.QtCore import QObject, Signal  # noqa: E402
 from PySide6.QtWidgets import QApplication  # noqa: E402
 

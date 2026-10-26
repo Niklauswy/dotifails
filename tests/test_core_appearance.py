@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'apps/wysun'))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'apps/python'))
 from wysun_core import appearance  # noqa: E402
 
 

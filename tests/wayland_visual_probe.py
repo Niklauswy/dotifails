@@ -68,7 +68,7 @@ def main():
             report['bar_left_diagnostic']={'status':status(),'pointer':hypr('cursorpos'),'devices':hypr('devices')}
             cmd([public,'launcher']);wait_for(endpoint.is_socket,'Python launcher public CLI fallback')
         launcher_pid=peer_pid(endpoint);wait_for(focus,'primary Python native focus')
-        assert str(home/'.local/share/orbit/app/orbit.py').encode() in Path(f'/proc/{launcher_pid}/cmdline').read_bytes()
+        assert b'wysun_services.daemon' in Path(f'/proc/{launcher_pid}/cmdline').read_bytes()
         shot('wysun-python-launcher')
         report['phases'].append({'name':'primary_launcher','native':True,'trigger':'public CLI fallback' if 'bar_left_diagnostic' in report else 'bar click via native virtual pointer','pid':launcher_pid,'image':'wysun-python-launcher.png'})
         pointer.chord();wait_for(lambda:not mapped(),'SUPERspace toggles launcher closed');pointer.chord();wait_for(focus,'SUPERspace toggles launcher open');report['phases'].append({'name':'primary_global_shortcut','trigger':'SUPERspace native virtual keyboard','pass':True})

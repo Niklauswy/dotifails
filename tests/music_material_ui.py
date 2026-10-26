@@ -11,15 +11,15 @@ import sys
 import time
 import wave
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'apps/wysun'))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'apps/python'))
 from PySide6.QtCore import QPoint
 from PySide6.QtGui import QColor, QFont, QImage, QRawFont, QTextLayout
 from PySide6.QtWidgets import QApplication
-import music_data as music
+from wysun_music import data as music
 from wysun_core import theme
 from wysun_core.ui.fonts import SYMBOL_FAMILY, display_family, ligature_available, load_fonts
 from wysun_core.qt_theme import tokens, watch_theme
-from wysun_scheme import generate_dynamic
+from wysun_services.scheme import generate_dynamic
 
 app = QApplication([])
 app.setStyle('Fusion')

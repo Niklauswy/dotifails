@@ -1,5 +1,2 @@
 #!/bin/sh
-app="${XDG_DATA_HOME:-$HOME/.local/share}/orbit/app/orbit-client"
-# The installer owns code under target-home; private XDG data can live elsewhere.
-[ -x "$app" ] || app="$HOME/.local/share/orbit/app/orbit-client"
-exec "$app" "$@"
+exec "$(dirname -- "$0")/wysun" "$@"

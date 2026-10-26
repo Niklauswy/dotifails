@@ -1,6 +1,6 @@
 import os,sys,unittest
 from pathlib import Path
-sys.path.insert(0,str(Path(__file__).parents[1]/'apps/wysun'))
+sys.path.insert(0,str(Path(__file__).parents[1]/'apps/python'))
 from PySide6.QtWidgets import QApplication
 
 import time

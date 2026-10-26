@@ -64,7 +64,7 @@ releases=home/'.local/share/wysun/capture/releases';assert len(list(releases.ite
 run('/usr/bin/python3',str(source_path/'installer/main.py'),'restore',upgrade)
 assert len(list(releases.iterdir()))==2
 run('wysun','recorder','--version');check()
-app=home/'.local/share/orbit/app/orbit.py';app.write_text(app.read_text()+'\n# local app fixture\n')
+app=home/'.local/share/wysun/app/wysun_services/daemon.py';app.write_text(app.read_text()+'\n# local app fixture\n')
 current=app.read_bytes()
 result=subprocess.run(['/usr/bin/python3',str(source_path/'installer/main.py'),'install','--source',str(source),'--wysun-only'],cwd='/')
 assert result.returncode==2 and app.read_bytes()==current;check()

@@ -2,7 +2,7 @@
 """Render Wysun windows offscreen for theme before/after comparisons.
 
 Usage:
-  QT_QPA_PLATFORM=offscreen python3 tests/theme_snapshots.py OUT_DIR [--source apps/wysun] [--theme light|dark]
+  QT_QPA_PLATFORM=offscreen python3 tests/theme_snapshots.py OUT_DIR [--source apps/python] [--theme light|dark]
   python3 tests/theme_snapshots.py --compare BEFORE_DIR AFTER_DIR
 
 Runs with a disposable HOME/XDG tree and synthetic data only. Clock, process and
@@ -63,7 +63,7 @@ def render(out, source, theme):
         shot(name, widget, size)
         return widget
 
-    import orbit
+    from wysun_services import daemon as orbit
     try:
         orbit.apply_style(app, orbit.STYLE)
     except Exception as error:
@@ -72,7 +72,7 @@ def render(out, source, theme):
     attempt('music', lambda: build(test=True).window)
     (home / 'Documentos').mkdir()
     (home / 'Documentos/nota.txt').write_text('hola')
-    from files_window import FilesWindow
+    from wysun_files.window import FilesWindow
     attempt('files', lambda: FilesWindow([str(home / 'Documentos')]))
     settle(100)
 
@@ -106,7 +106,7 @@ def compare(before, after):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('out', nargs='?')
-    parser.add_argument('--source', default=str(ROOT / 'apps/wysun'))
+    parser.add_argument('--source', default=str(ROOT / 'apps/python'))
     parser.add_argument('--theme', default='dark')
     parser.add_argument('--compare', nargs=2)
     args = parser.parse_args()

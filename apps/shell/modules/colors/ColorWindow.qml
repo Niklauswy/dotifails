@@ -7,6 +7,7 @@ import Wysun.Config
 import qs.components
 import qs.components.controls
 import qs.services
+import qs.utils
 
 // Created on demand by Colors.qml and destroyed on close; hidden while hyprpicker samples the screen.
 OverlayWindow {
@@ -89,7 +90,7 @@ OverlayWindow {
     Component.onCompleted: { entry.text = hex; service.running = true; background.forceActiveFocus(); }
     Process {
         id: service
-        command: ['/usr/bin/python3', Quickshell.shellPath('modules/colors/backend.py')]
+        command: Paths.python(Quickshell.shellPath('modules/colors/backend.py'))
         stdinEnabled: true
         onStarted: {
             win.ready = true; write(JSON.stringify({action:'read'}) + '\n');

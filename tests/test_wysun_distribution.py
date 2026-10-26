@@ -183,20 +183,26 @@ class WysunDistributionTests(unittest.TestCase):
         directory = self.home / 'bin'
         directory.mkdir()
         shutil.copy2(ROOT / 'bin/wysun', directory / 'wysun')
-        for name in ('orbit', 'wysun-recorder', 'wysun-shell', 'orbit-files'):
+        for name in ('wysun-recorder', 'wysun-shell'):
             path = directory / name
             path.write_text('#!/usr/bin/python3\nimport json,sys\nprint(json.dumps(sys.argv))\n')
             path.chmod(0o755)
+        app = self.home / 'share/wysun/app'
+        for module in ('wysun_services/client.py', 'wysun_files/__main__.py'):
+            path = app / module
+            path.parent.mkdir(parents=True, exist_ok=True)
+            (path.parent / '__init__.py').write_text('')
+            path.write_text('import json,sys\nprint(json.dumps(["-m " + __spec__.name, *sys.argv[1:]]))\n')
         for args, executable, forwarded in (
-            (['music'], 'orbit', ['music']),
-            (['files', '/tmp/a file'], 'orbit-files', ['/tmp/a file']),
+            (['music'], '-m wysun_services.client', ['music']),
+            (['files', '/tmp/a file'], '-m wysun_files.__main__', ['/tmp/a file']),
             (['recorder', '--quick-record'], 'wysun-recorder', ['--quick-record']),
             (['screenshot', '--region', '--delay', '0'], 'wysun-shell', ['screenshot', '--options', '--no-save']),
             (['screenshot', '--region', '--accept-on-select', '--clipboard', '--path', '/tmp/s'], 'wysun-shell',
              ['screenshot', '--path', '/tmp/s']),
         ):
             output = json.loads(subprocess.check_output([str(directory / 'wysun'), *args], cwd='/', text=True))
-            self.assertEqual(output, [str(directory / executable), *forwarded])
+            self.assertEqual(output, [executable if executable.startswith('-m ') else str(directory / executable), *forwarded])
 
     def test_full_configuration_repeat_preserves_private_preferences(self):
         import contextlib

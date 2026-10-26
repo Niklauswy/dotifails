@@ -13,12 +13,12 @@ os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / 'apps/wysun'))
-import settings_data  # noqa: E402
+sys.path.insert(0, str(ROOT / 'apps/python'))
+from wysun_settings import data as settings_data  # noqa: E402
 from wysun_core import jsonio  # noqa: E402
 from wysun_core import theme  # noqa: E402
-from environment_settings import EnvironmentSettings  # noqa: E402
-from settings_data import PreferenceBackup, ShellPreferences  # noqa: E402
+from wysun_settings.environment import EnvironmentSettings  # noqa: E402
+from wysun_settings.data import PreferenceBackup, ShellPreferences  # noqa: E402
 
 MONITORS = [dict(name='DP-1', width=64, height=48, x=0, y=0, scale=1, refreshRate=60,
                  availableModes=['64x48@60.00Hz'], focused=True)]

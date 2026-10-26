@@ -22,9 +22,10 @@ class LauncherDispatchTests(unittest.TestCase):
         run = Mock(return_value=subprocess.CompletedProcess([], code, response, ''), side_effect=error)
         with patch.dict(os.environ, env if env is not None else {'WAYLAND_DISPLAY': 'synthetic'}, clear=True), \
                 patch.object(sys, 'argv', ['wysun', *args]), patch.object(wysun.subprocess, 'run', run), \
-                patch.object(wysun.os, 'execv') as execute, patch.object(Path, 'is_file', return_value=True), \
-                contextlib.redirect_stderr(io.StringIO()):
+                patch.object(wysun.os, 'execv') as execute, patch.object(wysun.os, 'execve') as module, \
+                patch.object(Path, 'is_file', return_value=True), contextlib.redirect_stderr(io.StringIO()):
             status = wysun.main()
+        self.module = module
         return status, run, execute
 
     def test_launcher_commands_reach_the_shell_once_without_qt(self):
@@ -67,12 +68,22 @@ class LauncherDispatchTests(unittest.TestCase):
     def test_other_modes_never_toggle_launcher(self):
         for args, executable, forwarded in (
                 (('recover', '--help'), 'wysun-recover', ['--help']),
-                (('files', '/tmp/example'), 'orbit-files', ['/tmp/example']),
                 (('recorder', '--quick-record'), 'wysun-recorder', ['--quick-record'])):
             _, run, execute = self.invoke(args)
             run.assert_not_called()
             target = str(ROOT / 'bin' / executable)
             execute.assert_called_once_with(target, [target, *forwarded])
+
+    def test_apps_run_as_modules_from_the_package_root(self):
+        for args, module in ((('files', '/tmp/example'), 'wysun_files'), (('pdf', 'a.pdf'), 'wysun_pdf'),
+                             (('scheme', 'refresh'), 'wysun_services.scheme'), (('music',), 'wysun_services.client')):
+            _, run, execute = self.invoke(args)
+            run.assert_not_called()
+            execute.assert_not_called()
+            python, argv, env = self.module.call_args.args
+            forwarded = list(args) if module == 'wysun_services.client' else list(args[1:])
+            self.assertEqual((python, argv), ('/usr/bin/python3', [python, '-P', '-m', module, *forwarded]))
+            self.assertEqual(env['PYTHONPATH'], str(ROOT / 'apps/python'))
 
     def test_settings_and_network_open_native_pages(self):
         helper = str(ROOT / 'bin/wysun-shell')

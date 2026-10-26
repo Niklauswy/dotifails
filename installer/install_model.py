@@ -26,7 +26,6 @@ ARTIFACTS = {
     'editor': {'nvim', 'node'},
     'tools': set(), 'boot': set(), 'wayland': set(),
 }
-WYSUN = Path(__file__).resolve().parents[1] / 'apps/wysun'
 
 
 def load_json(path, default=None):
@@ -169,11 +168,11 @@ def preflight(options):
     add('system', 'ok' if supported else ('warning' if options.config_only else 'error'),
         fields.get('PRETTY_NAME', 'Sistema no identificado'),
         platform.machine() + (' · compatible' if supported else ' · requiere Debian 13 o Parrot 7, x86_64'))
-    required = ['installer/main.py', 'manifests/packages.json', 'manifests/artifacts.json', 'apps/wysun/wysun_core/tokens.json']
+    required = ['installer/main.py', 'manifests/packages.json', 'manifests/artifacts.json', 'apps/python/wysun_core/tokens.json']
     if 'boot' in options.components:
         required += ['installer/boot.py', 'system/boot/grub/theme.txt', 'system/boot/plymouth/orbit.script', 'apps/shell/greeter.qml']
     if 'desktop' in options.components:
-        required += ['apps/wysun/orbit.py']
+        required += ['apps/python/wysun_services/daemon.py']
     if 'tools' in options.components:
         required += ['apps/tools/cli.py', 'bin/orbit-tools']
     if 'wayland' in options.components:

@@ -2,6 +2,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import qs.utils
 
 Singleton {
     id: root
@@ -10,7 +11,7 @@ Singleton {
 
     // Run one bridge action. `done(data)` on success, `failed(message)` otherwise.
     function call(action: string, args: var, done: var, failed: var): void {
-        callComp.createObject(root, { command: ['/usr/bin/python3', root.script, action, JSON.stringify(args ?? {})], done: done, failed: failed, running: true });
+        callComp.createObject(root, { command: Paths.python(root.script, [action, JSON.stringify(args ?? {})]), done: done, failed: failed, running: true });
     }
 
     Component {

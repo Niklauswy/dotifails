@@ -18,7 +18,7 @@ from pathlib import Path
 T0 = time.monotonic()
 IMPORTED = [T0]
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / 'apps/wysun'))
+sys.path.insert(0, str(ROOT / 'apps/python'))
 sys.path.insert(0, str(ROOT / 'tests'))
 os.environ.setdefault('WYSUN_MPV_OPTIONS', 'ao=null')
 
@@ -39,8 +39,8 @@ def run(seeks, samples):
     from PySide6.QtWidgets import QApplication
     app = QApplication(['wysun-player', '-name', 'wysun-player'])
     app.setStyle('Fusion')
-    import media_host
-    import player_window
+    from wysun_player import host as media_host
+    from wysun_player import window as player_window
     player_window.apply_style(app, player_window.PALETTE_STYLE)
     player_window.watch_theme()
     media_host.install()

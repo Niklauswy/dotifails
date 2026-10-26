@@ -21,7 +21,7 @@ def main():
         subprocess.run([str(home/'.local/bin/wysun'),'daemon'],env=env,cwd='/',check=True,timeout=15)
         endpoint=runtime/f'orbit-{os.getuid()}.sock';wait_for(endpoint.is_socket,'installed daemon for rich clipboard')
         pid=peer_pid(endpoint)
-        if str(home/'.local/share/orbit/app/orbit.py').encode() not in Path(f'/proc/{pid}/cmdline').read_bytes():raise RuntimeError('Unexpected installed launcher peer')
+        if b'wysun_services.daemon' not in Path(f'/proc/{pid}/cmdline').read_bytes():raise RuntimeError('Unexpected installed launcher peer')
         run_rich_clipboard(env,pid)
     finally:
         pointer.close()

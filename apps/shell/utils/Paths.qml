@@ -24,6 +24,16 @@ Singleton {
     readonly property string wallsdir: Quickshell.env("WYSUN_WALLPAPERS_DIR") || absolutePath(GlobalConfig.paths.wallpaperDir)
     readonly property string recsdir: Quickshell.env("WYSUN_RECORDINGS_DIR") || `${videos}/Recordings`
     readonly property string libdir: Quickshell.env("WYSUN_LIB_DIR") || "/usr/lib/wysun"
+    // Root of the Wysun Python packages (apps/python, installed as <data>/app).
+    readonly property string app: Quickshell.env("WYSUN_APP_DIR") || `${data}/app`
+
+    // argv that runs a Wysun Python module (`module`, e.g. "wysun_services.launcher_data") or a script of the
+    // shell (a path ending in .py) with the package root in PYTHONPATH. `-s -P` keep the user's site
+    // packages and the current directory out of sys.path, as `-I` did; `-I` itself would ignore PYTHONPATH.
+    function python(target: string, args: var): var {
+        const entry = target.endsWith(".py") ? [target] : ["-m", target];
+        return ["/usr/bin/env", `PYTHONPATH=${app}`, "/usr/bin/python3", "-s", "-P", ...entry, ...(args ?? [])];
+    }
 
     function toLocalFile(path: url): string {
         path = Qt.resolvedUrl(path);
