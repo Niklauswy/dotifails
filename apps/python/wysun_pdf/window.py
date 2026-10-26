@@ -33,6 +33,7 @@ from wysun_pdf.file_picker import pick_file
 from wysun_pdf.review_ui import ReviewDialog
 from wysun_pdf.study import StudyStore
 from wysun_pdf.study_ui import LibraryView, Notebook, STORAGE_ERRORS, control_height, reveal, navigate, StudySettings
+from wysun_pdf.study_ui import label as study_label
 from wysun_core import jsonio
 from wysun_pdf.focus import shared_focus
 from wysun_pdf.focus_ui import FocusPanel
@@ -140,7 +141,7 @@ class PdfWindow(FramelessResize, WindowMotion, QMainWindow):
         reader_layout.addWidget(self.reader_header)
         self.quiet_bar = QWidget()
         quiet = QHBoxLayout(self.quiet_bar)
-        self.quiet_clock = QLabel('Lectura concentrada')
+        self.quiet_clock = study_label('Lectura concentrada', 'body.medium', 'muted')
         quiet.addWidget(self.quiet_clock, 1)
         quiet.addWidget(PillButton('fullscreen_exit', 'Volver · F8', self.toggle_quiet, 'tonal', control_height()))
         reader_layout.addWidget(self.quiet_bar)
@@ -447,7 +448,7 @@ class PdfWindow(FramelessResize, WindowMotion, QMainWindow):
         text = clock(math.ceil(session.remaining)) if session.state != 'idle' else 'Sesión'
         symbol = 'pause' if session.state == 'paused' else 'timer'
         self.focus_button.set_content(symbol, text)
-        self.quiet_clock.setText('Lectura concentrada · ' + text)
+        self.quiet_clock.setText('Lectura concentrada' + (' · ' + text if session.state != 'idle' else ''))
         self.focus_button.setAccessibleName('Sesión de concentración: ' + text)
         self.adapt_header()
 

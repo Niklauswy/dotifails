@@ -1,11 +1,11 @@
 """Search the whole notebook and practise questions without automatic grading."""
-from PySide6.QtCore import Signal
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import QDialog, QHBoxLayout, QPlainTextEdit, QScrollArea, QWidget
 from wysun_core.qt_theme import extend_style
 from wysun_core.ui.style import apply_kit_style, metric, text_font
 from wysun_core.ui.widgets import PillButton
 from wysun_core.ui.panels import SearchField
-from wysun_pdf.study_ui import label, layout, control_height, STORAGE_ERRORS
+from wysun_pdf.study_ui import label, layout, control_height, count, STORAGE_ERRORS
 
 
 class ReviewDialog(QDialog):
@@ -39,7 +39,7 @@ class ReviewDialog(QDialog):
         outer.addWidget(scroll, 1)
         self.status = label('', 'body.small', 'muted')
         outer.addWidget(self.status)
-        outer.addWidget(PillButton('check', 'Listo', self.accept, height=control_height()))
+        outer.addWidget(PillButton('check', 'Listo', self.accept, height=control_height()), 0, Qt.AlignRight)
         self.refresh()
 
     def toggle(self):
@@ -59,20 +59,29 @@ class ReviewDialog(QDialog):
         except STORAGE_ERRORS as error:
             self.status.setText(str(error))
             return
-        self.status.setText(f'{len(entries)} ideas' if entries else 'Sin resultados. Guarda preguntas desde el cuaderno de un libro.')
+        self.status.setText(count(len(entries), 'idea', 'ideas') if entries else
+                            'Sin resultados. Guarda preguntas desde el cuaderno de un libro.')
         for entry in entries[:self.visible_limit]:
-            self.items.addWidget(label(f'{entry["title"]} · página {entry["page"] + 1}', 'label.small', 'accent'))
-            self.items.addWidget(label(entry['body'], 'body.medium'))
+            card = QWidget()
+            column = layout(card, padding='padding.extraSmall')
+            column.setSpacing(metric('spacing.small'))
+            column.addWidget(label(f'{entry["title"]} · página {entry["page"] + 1}', 'label.small', 'accent'))
+            column.addWidget(label(entry['body'], 'body.medium'))
+            if entry['quote'] and not self.questions:
+                column.addWidget(label(entry['quote'], 'body.small', 'muted'))
+            actions = QHBoxLayout()
             if self.questions:
                 state = 'Comprendido' if entry['understood'] else 'Por estudiar'
-                self.items.addWidget(PillButton('psychology', state + ' · Responder',
+                actions.addWidget(PillButton('psychology', state + ' · Responder',
                     lambda checked=False, e=entry: self.answer(e), 'tonal', control_height()))
-            else:
-                self.items.addWidget(label(entry['quote'], 'body.small', 'muted'))
-            self.items.addWidget(PillButton('arrow_forward', 'Volver al pasaje',
+            actions.addWidget(PillButton('arrow_forward', 'Volver al pasaje',
                 lambda checked=False, e=entry: self.passage_requested.emit(e), 'tonal', control_height()))
+            actions.addStretch()
+            column.addLayout(actions)
+            self.items.addWidget(card)
         if len(entries) > self.visible_limit:
-            self.items.addWidget(PillButton('expand_more', 'Mostrar más ideas', self.show_more, 'tonal', control_height()))
+            self.items.addWidget(PillButton('expand_more', 'Mostrar más ideas', self.show_more, 'tonal', control_height()),
+                                 0, Qt.AlignLeft)
         self.items.addStretch()
 
     def show_more(self):
@@ -82,6 +91,8 @@ class ReviewDialog(QDialog):
     def answer(self, entry):
         dialog = QDialog(self)
         dialog.setWindowTitle('Repasar con tus propias palabras')
+        apply_kit_style(dialog)
+        extend_style(dialog, 'QDialog {background:@surface;}')
         outer = layout(dialog)
         outer.addWidget(label(entry['body'], 'title.medium'))
         editor = QPlainTextEdit()
@@ -100,7 +111,7 @@ class ReviewDialog(QDialog):
                 source.setText(source.text() + '\n\nRespuesta anterior: ' + entry['answer'])
             reveal_button.setEnabled(False)
         reveal_button = PillButton('visibility', 'Mostrar cita y respuesta anterior', reveal, 'tonal', control_height())
-        outer.addWidget(reveal_button)
+        outer.addWidget(reveal_button, 0, Qt.AlignLeft)
         status = label('', 'body.small', 'muted')
         outer.addWidget(status)
         def save(understood):
@@ -110,8 +121,11 @@ class ReviewDialog(QDialog):
                 status.setText(str(error))
                 return
             dialog.accept()
-        outer.addWidget(PillButton('check', 'Lo comprendí', lambda: save(True), height=control_height()))
-        outer.addWidget(PillButton('bookmark', 'Seguir estudiando', lambda: save(False), 'tonal', control_height()))
+        choices = QHBoxLayout()
+        choices.addStretch()
+        choices.addWidget(PillButton('bookmark', 'Seguir estudiando', lambda: save(False), 'tonal', control_height()))
+        choices.addWidget(PillButton('check', 'Lo comprendí', lambda: save(True), height=control_height()))
+        outer.addLayout(choices)
         dialog.resize(metric('spacing.extraExtraLarge', 11), metric('spacing.extraExtraLarge', 12))
         dialog.exec()
         self.refresh()

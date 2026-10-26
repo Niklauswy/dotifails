@@ -21,6 +21,11 @@ from wysun_core.ui.motion import reveal_content, reduced_motion
 STORAGE_ERRORS = (OSError, ValueError, sqlite3.Error)
 
 
+def count(number, one, many):
+    """'1 nota', '3 notas': Spanish plural for the counters shown in the interface."""
+    return f'{number} {one if number == 1 else many}'
+
+
 def control_height():
     return metric('spacing.extraExtraLarge')
 
@@ -205,7 +210,7 @@ class BookRow(QAbstractButton):
         p.drawText(title_box, Qt.AlignVCenter, p.fontMetrics().elidedText(self.book['title'], Qt.ElideRight, int(title_box.width())))
         p.setFont(text_font('body.small'))
         p.setPen(color('muted'))
-        details = (self.book.get('collection', '') + ' · ' if self.book.get('collection') else '') + f'Página {self.book["page"]+1} de {self.book["pages"]}  ·  {self.book["notes"]} notas'
+        details = (self.book.get('collection', '') + ' · ' if self.book.get('collection') else '') + f'Página {self.book["page"]+1} de {self.book["pages"]}  ·  ' + count(self.book['notes'], 'nota', 'notas')
         p.drawText(QRectF(left, box.height()/2, title_box.width(), box.height()/2-pad), Qt.AlignVCenter, details)
         paint_symbol(p, QRectF(box.width()-right, 0, right, box.height()), 'arrow_forward', 'accent', metric('icon.size'))
 
@@ -260,10 +265,12 @@ class LibraryView(QWidget):
         self.art = ReadingArt()
         hero.addWidget(self.art)
         body.addWidget(self.hero)
-        body.addWidget(PillButton('auto_stories', 'Cuaderno global y repaso', self.review_requested.emit, 'tonal', control_height()))
         section = QHBoxLayout()
         section.addWidget(label('Tu biblioteca', 'title.large'))
         section.addStretch()
+        self.review_button = PillButton('auto_stories', 'Cuaderno global', self.review_requested.emit, 'tonal', control_height())
+        self.review_button.setToolTip('Todas tus notas y el repaso de preguntas')
+        section.addWidget(self.review_button)
         self.collections_button = PillButton('folder', 'Colecciones', self.show_collections, 'tonal', control_height())
         section.addWidget(self.collections_button)
         self.open_button = PillButton('add', 'Abrir PDF', self.choose_requested.emit, 'tonal', control_height())
@@ -300,7 +307,7 @@ class LibraryView(QWidget):
             book = self.books[0]
             self.eyebrow.setText('CONTINÚA DONDE LO DEJASTE')
             self.book_title.setText(book['title'])
-            self.meta.setText(f'Página {book["page"]+1} de {book["pages"]}  ·  {book["notes"]} notas en tu cuaderno')
+            self.meta.setText(f'Página {book["page"]+1} de {book["pages"]}  ·  ' + count(book['notes'], 'nota', 'notas') + ' en tu cuaderno')
             self.continue_button.set_content('arrow_forward', 'Continuar lectura')
         else:
             self.eyebrow.setText('EMPIEZA POR LO QUE TE DA CURIOSIDAD')
@@ -315,7 +322,7 @@ class LibraryView(QWidget):
             item.widget().hide()
             item.widget().deleteLater()
         books = [b for b in self.books if self.search.text().casefold() in (b['title'] + ' ' + b.get('collection', '')).casefold()]
-        self.status.setText(f'{len(books)} documentos · Ordenados por última apertura' if books else
+        self.status.setText(count(len(books), 'documento', 'documentos') + ' · Ordenados por última apertura' if books else
                             'No hay resultados. Prueba otro título.' if self.search.text() else
                             'Los documentos que abras aparecerán aquí. Tus originales permanecen en su carpeta.')
         for book in books[:self.visible_limit]:
@@ -437,8 +444,9 @@ class Notebook(Panel):
         self.recover_button = PillButton('restore', 'Borradores', self.recover_drafts, 'tonal', control_height())
         tools.addWidget(self.recover_button)
         self.undo_button = IconButton('undo', 'Deshacer eliminación', self.undo_remove, size=control_height())
-        self.undo_button.setEnabled(False)
+        self.undo_button.hide()
         tools.addWidget(self.undo_button)
+        tools.addStretch()
         outer.addLayout(tools)
         self.filter_field = SearchField('Buscar notas o #etiquetas')
         self.filter_field.setPlaceholderText('Buscar notas o #etiquetas')
@@ -494,9 +502,9 @@ class Notebook(Panel):
         self.refresh()
         if document:
             try:
-                count = len(self.store.drafts(document['id']))
-                if count:
-                    self.status.setText(f'{count} borradores recuperables · pulsa Borradores')
+                drafts = len(self.store.drafts(document['id']))
+                if drafts:
+                    self.status.setText(count(drafts, 'borrador recuperable', 'borradores recuperables') + ' · pulsa Borradores')
             except STORAGE_ERRORS as error:
                 self.message.emit(str(error))
 
@@ -570,7 +578,8 @@ class Notebook(Panel):
             return
         query = self.filter_field.text().casefold()
         entries = [e for e in entries if query in (e['body'] + ' ' + e['quote']).casefold()]
-        self.items.addWidget(label(f'{len(entries)} ideas para volver a pensar', 'label.small', 'muted'))
+        self.update_tools()
+        self.items.addWidget(label(count(len(entries), 'idea', 'ideas') + ' para volver a pensar', 'label.small', 'muted'))
         for entry in entries:
             button = PillButton('help' if entry['kind'] == 'question' else 'edit_note',
                                 f'Página {entry["page"]+1}', lambda e=entry: self.edit(e), 'tonal', control_height())
@@ -609,13 +618,21 @@ class Notebook(Panel):
         try:
             self.store.delete_entry(entry)
             self.deleted_entry = entry
-            self.undo_button.setEnabled(True)
         except STORAGE_ERRORS as error:
             self.message.emit(str(error))
             return
         if self.entry and self.entry['id'] == entry['id']:
             self.reset_editor()
         self.refresh()
+
+    def update_tools(self):
+        """Recovery actions appear only when there is something to recover."""
+        try:
+            drafts = self.store.drafts(self.document['id']) if self.document and self.store else []
+        except STORAGE_ERRORS:
+            drafts = []
+        self.recover_button.setVisible(any(d['id'] != self.draft_id for d in drafts))
+        self.undo_button.setVisible(self.deleted_entry is not None)
 
     def undo_remove(self):
         if not self.deleted_entry:
@@ -626,7 +643,6 @@ class Notebook(Panel):
             self.message.emit(str(error))
             return
         self.deleted_entry = None
-        self.undo_button.setEnabled(False)
         self.refresh()
 
     def recover_drafts(self):
@@ -667,7 +683,7 @@ class StudySettings(QDialog):
                      'background:@well;border:@border.width solid @line; border-radius:@rounding.extraSmall;}'
                      'QCheckBox::indicator:checked {background:@accent;border:@border.width solid @accent;}')
         self.setMinimumWidth(metric('spacing.extraExtraLarge', 10))
-        shell = layout(self, padding='padding.small')
+        shell = layout(self, padding='padding.large')
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QScrollArea.NoFrame)
