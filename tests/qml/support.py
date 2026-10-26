@@ -255,6 +255,17 @@ class Harness:
             stack.extend(reversed(children))
         return found
 
+    def find_in(self, item, name):
+        """The first item named ``name`` under ``item`` (e.g. a QQuickWindow's contentItem()), or None."""
+        from PySide6.QtQuick import QQuickItem
+        stack = [item]
+        while stack:
+            current = stack.pop()
+            if current.objectName() == name:
+                return current
+            stack.extend(reversed(current.childItems() if isinstance(current, QQuickItem) else []))
+        return None
+
     def find(self, view, name):
         """The first item named ``name`` anywhere in the scene, or None."""
         found = self.items(view, name)
