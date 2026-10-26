@@ -80,6 +80,16 @@ class ViewTests(unittest.TestCase):
         expected = 595 * 4 / 3 * self.view.devicePixelRatioF()
         self.assertLessEqual(abs(width - expected), 8)
 
+    def test_zoom_defers_new_rasters_until_it_settles(self):
+        self.view.set_zoom(1.0)
+        self.view.request()
+        self.source.wants.clear()
+        self.view.zoom_by(1.1, QPointF(300, 200))
+        self.view.zoom_by(1.1, QPointF(300, 200))
+        self.assertEqual(self.source.wants, [], 'zoom steps scale what is there')
+        self.view.render_timer.timeout.emit()
+        self.assertEqual(len(self.source.wants), 1)
+
     def test_ctrl_wheel_keeps_point_under_cursor(self):
         self.view.set_zoom(1.0)
         self.view.go(10)

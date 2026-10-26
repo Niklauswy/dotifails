@@ -186,7 +186,8 @@ class DocumentView(QAbstractScrollArea):
 
     def scrollContentsBy(self, dx, dy):
         self.viewport().update()
-        self.request()
+        if not self.render_timer.isActive():  # mid-zoom the timer asks once the zoom settles
+            self.request()
         self._emit_page()
         self.scrolled.emit()
 
