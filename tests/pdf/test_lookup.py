@@ -5,6 +5,7 @@ import sys
 import time
 import unittest
 from unittest import mock
+from PySide6.QtCore import QEvent
 from PySide6.QtWidgets import QApplication
 from wysun_pdf.lookup import LookupClient, request_url, parse_results
 from wysun_pdf.lookup_worker import fetch, MAX_RESPONSE
@@ -31,6 +32,9 @@ class LookupTests(unittest.TestCase):
             if process:
                 process.waitForFinished(1000)
             self.app.processEvents()
+            # As the app's event loop would: delete finished processes while their client
+            # still exists, never later from Python GC with deletions queued (heap corruption).
+            QApplication.sendPostedEvents(None, QEvent.DeferredDelete)
         self.addCleanup(clean)
         return client
 

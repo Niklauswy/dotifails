@@ -8,7 +8,7 @@ from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'apps/python'))
 from PySide6.QtWidgets import QApplication, QWidget, QStackedLayout, QLabel
-from PySide6.QtCore import QAbstractAnimation
+from PySide6.QtCore import QAbstractAnimation, QEvent
 from wysun_pdf.study_ui import navigate, ReadingArt
 
 
@@ -26,7 +26,15 @@ class StudyMotionTests(unittest.TestCase):
         self.host.resize(720, 480)
         self.host.show()
         self.app.processEvents()
-        self.addCleanup(self.host.close)
+        self.addCleanup(self.release_host)
+
+    def release_host(self):
+        # Like the running app, let Qt delete the transition's overlay and group before the
+        # host goes away; otherwise Python GC destroys the host with deletions still queued
+        # and later Qt code aborts on a corrupted heap.
+        self.host.close()
+        self.host.deleteLater()
+        QApplication.sendPostedEvents(None, QEvent.DeferredDelete)
 
     def test_reduced_motion_does_not_allocate_snapshot(self):
         with mock.patch.dict(os.environ, WYSUN_REDUCED_MOTION='1'):
