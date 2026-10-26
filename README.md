@@ -62,7 +62,7 @@ El perfil Samsung es opcional y específico del equipo con pantalla táctil defe
 - NvChad con plugins fijados por `lazy-lock.json`, LSP, formato, búsqueda difusa, tareas, depuración y herramientas de JS/TS, C/C++ y Python. Las versiones de Mason están en `manifests/mason.json`.
 - Zsh, autocompletado/sugerencias, resaltado, fzf y prompt Starship. Mise **2026.9.14** cambia versiones por proyecto; Node está disponible directamente y NVM se conserva bajo demanda.
 - Apariencia: GTK Arc-Darker, iconos Win11-Dark, cursor Fluent y el prompt compacto de Starship.
-- Incluye la barra, notificaciones, paleta de Ghostty, Neovim, FiraCode Nerd Font, Inter, Noto Color Emoji, `eza`, `bat` y FZF. El fondo queda en la biblioteca de Wysun.
+- Incluye la barra, notificaciones, paleta de Ghostty, Neovim, CaskaydiaCove Nerd Font (terminal), Google Sans Flex (interfaz y GTK), Noto Color Emoji, `eza`, `bat` y FZF. El fondo queda en la biblioteca de Wysun.
 
 Los paquetes APT y las aplicaciones Flatpak reciben las versiones que publica cada distribución. Los binarios externos y plugins tienen versiones fijadas; los paquetes del sistema no forman una imagen inmutable.
 

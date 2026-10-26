@@ -97,6 +97,9 @@ class VisualInstallerBackendTests(unittest.TestCase):
         self.assertFalse((self.home/'.local/share/backgrounds').exists())
         self.assertTrue((self.home/'.config/ghostty/config').is_file())
         self.assertTrue((self.home/'.local/share/applications/wysun-installer.desktop').is_file())
+        fonts = self.home/'.local/share/fonts/wysun'
+        self.assertEqual(sorted(str(p.relative_to(fonts)) for p in fonts.rglob('*') if p.is_file()),
+                         sorted(backend.FONT_BUNDLE))
 
     def test_repeat_is_idempotent_then_conflict_and_restore_keep_edits(self):
         zsh = self.home/'.zshrc'

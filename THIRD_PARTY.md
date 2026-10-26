@@ -70,28 +70,28 @@ Not ported: `NotificationServer` was ported later: the shell owns the notificati
 
 - Repository: [T-Dynamos/materialyoucolor-python](https://github.com/T-Dynamos/materialyoucolor-python)
 - Source commit: `4e45f9f66552e2555bd39b6f7d3a145ec8a5624b` (version 3.0.4)
-- License: MIT; notice retained at `apps/wysun/vendor/materialyoucolor/LICENSE`.
-- `apps/wysun/vendor/materialyoucolor/` contains the pure-Python HCT, palette, dynamic color, scheme, blend, contrast, temperature, and utility modules used by the generator. The upstream native quantization sources and extension are excluded.
+- License: MIT; notice retained at `apps/python/vendor/materialyoucolor/LICENSE`.
+- `apps/python/vendor/materialyoucolor/` contains the pure-Python HCT, palette, dynamic color, scheme, blend, contrast, temperature, and utility modules used by the generator. The upstream native quantization sources and extension are excluded.
 
 ## Material Symbols Rounded
 
 - Source: [google/material-design-icons](https://github.com/google/material-design-icons), `variablefont/MaterialSymbolsRounded[FILL,GRAD,opsz,wght].ttf`.
 - License: Apache License 2.0; text in [`LICENSES/Apache-2.0.txt`](LICENSES/Apache-2.0.txt).
-- Bundled files: `apps/wysun/wysun_core/fonts/MaterialSymbolsRounded.ttf` (Wysun Qt apps and Recorder) and the identical `apps/shell/assets/fonts/MaterialSymbolsRounded.ttf` (Caelestia shell): the complete variable font.
+- Bundled files: `apps/python/wysun_core/fonts/MaterialSymbolsRounded.ttf` (Wysun Qt apps and Recorder) and the identical `apps/shell/assets/fonts/MaterialSymbolsRounded.ttf` (Caelestia shell): the complete variable font.
 - SHA-256: `32e4011709e055596eb8d2dd0f7cb547b47c1d40ac9ecb8fad54f7f7eac202e7`.
 
 ## Google Sans Flex
 
 - Source: the Caelestia shell's `assets/google-sans-flex/GoogleSansFlex-VariableFont_GRAD,ROND,opsz,slnt,wdth,wght.ttf` (Google Fonts).
 - License: SIL Open Font License 1.1; text in [`LICENSES/OFL-GoogleSansFlex.txt`](LICENSES/OFL-GoogleSansFlex.txt) (same as `apps/shell/assets/google-sans-flex/LICENSE`).
-- Bundled files: `apps/shell/assets/google-sans-flex/…ttf` (shell) and the identical `apps/wysun/wysun_core/fonts/GoogleSansFlex.ttf` (Wysun Qt apps, installer and Recorder). It is the interface family of `tokens.json` (`font.family.sans`).
+- Bundled files: `apps/shell/assets/google-sans-flex/…ttf` (shell) and the identical `apps/python/wysun_core/fonts/GoogleSansFlex.ttf` (Wysun Qt apps, installer and Recorder). It is the interface family of `tokens.json` (`font.family.sans`). The installer also copies it, with its licence, to `~/.local/share/fonts/wysun` for GTK (`gtk-font-name`, `xsettingsd`).
 - SHA-256: `2510a8b7a24beb1fe8163e9a49813ccfe96b5453444b9443d42665ca4fa320c9`.
 
 ## CaskaydiaCove Nerd Font
 
 - Source: [ryanoasis/nerd-fonts](https://github.com/ryanoasis/nerd-fonts) Nerd Fonts v3.4.0, `CascadiaCode.tar.xz` (SHA-256 `804b3d311665a059140466fe142cc76cf14ef0695b7c4d3a174f7f8fba46b6e3`), file `CaskaydiaCoveNerdFont-Regular.ttf` (family `CaskaydiaCove NF`): Microsoft's Cascadia Code patched with the Nerd Fonts glyphs.
 - License: SIL Open Font License 1.1 (Cascadia Code, Reserved Font Name «Cascadia Code»), text in [`LICENSES/OFL-CascadiaCode.txt`](LICENSES/OFL-CascadiaCode.txt); Nerd Fonts patcher and glyph sources in [`LICENSES/MIT-NerdFonts.txt`](LICENSES/MIT-NerdFonts.txt).
-- Bundled files: `apps/wysun/wysun_core/fonts/CaskaydiaCoveNerdFont-Regular.ttf` and the identical `apps/shell/assets/fonts/CaskaydiaCoveNerdFont-Regular.ttf`. It is the monospaced family of `tokens.json` (`font.family.mono`). Debian packages neither font, so both are bundled.
+- Bundled files: `apps/python/wysun_core/fonts/CaskaydiaCoveNerdFont-Regular.ttf` and the identical `apps/shell/assets/fonts/CaskaydiaCoveNerdFont-Regular.ttf`. It is the monospaced family of `tokens.json` (`font.family.mono`) and Ghostty's font; the installer copies it, with both licences, to `~/.local/share/fonts/wysun`. Debian packages neither font, so both are bundled.
 - SHA-256: `701d7ec08f58f07251c1758361c5d1ab57ba0a867dd378cbb0fa52e1d2beccad`.
 
 ## Lobe Icons (AI brand marks)
@@ -125,7 +125,7 @@ below have no individual copyright header; their project GPL notice is retained.
 - Repository: [caelestia-dots/shell](https://github.com/caelestia-dots/shell), commit `507d66285e9d9fde9330adc64159cfdebb28c19a`.
 - License: GPL-3.0; full text in [`LICENSES/GPL-3.0.txt`](LICENSES/GPL-3.0.txt). The reviewed upstream QML files contain no individual copyright headers; no upstream notice was removed.
 - `apps/wysun/music_app_window.py` translates the cover/details separation in `modules/dashboard/Media.qml`, title/artist/seek/transport hierarchy in `modules/dashboard/media/Details.qml`, cover clipping/fallback in `components/widgets/CoverArt.qml`, and navigation grouping in `modules/nexus/NavPane.qml` to native PySide6 widgets. The local library, mpv, queue, downloads and persistence remain Wysun's existing implementation.
-- `apps/wysun/wysun_core/ui/fonts.py` (with the kit in `wysun_core/ui/`) adapts the semantic surfaces, text roles and interaction-state layering of `components/StyledRect.qml`, `StyledText.qml` and `StateLayer.qml`. It uses the existing Wysun theme watcher and shared native motion/reduced-motion implementation. No QML, M3Shapes, visualiser, blur or C++ plugin is loaded by Music.
+- `apps/python/wysun_core/ui/fonts.py` (with the kit in `wysun_core/ui/`) adapts the semantic surfaces, text roles and interaction-state layering of `components/StyledRect.qml`, `StyledText.qml` and `StateLayer.qml`. It uses the existing Wysun theme watcher and shared native motion/reduced-motion implementation. No QML, M3Shapes, visualiser, blur or C++ plugin is loaded by Music.
 - These are adaptations of upstream **shell widgets**, not a port of an upstream full-screen music application. Both derived files carry “Derivado de caelestia-dots/shell (GPL-3.0), modificado para Wysun”. Offline Google Sans Flex, CaskaydiaCove Nerd Font and Material Symbols Rounded resources are described above; the Music adapter resolves packaged resources and does not download fonts.
 
 ## Wysun Files, utilities and capture native presentation (phase 7)
@@ -146,7 +146,7 @@ Upstream files have no individual copyright header; no notices were removed.
   artwork/navigation and playback hierarchy change; capture/portal/media contracts stay
   in the existing backends. This is not an upstream full-screen music app.
 - The Wysun Qt apps package Google Sans Flex, CaskaydiaCove NF and the complete Material
-  Symbols font in `apps/wysun/wysun_core/fonts/`; their OFL, MIT and Apache-2.0 notices are in
+  Symbols font in `apps/python/wysun_core/fonts/`; their OFL, MIT and Apache-2.0 notices are in
   `LICENSES/`. Each Recorder release carries them inside its own `wysun_core` copy, with
   `apps/recorder/assets/licenses/{OFL-GoogleSansFlex,OFL-CascadiaCode,MIT-NerdFonts,Apache-2.0,GPL-3.0}.txt`; it does not
   import the installed Orbit application. No download or host font installation

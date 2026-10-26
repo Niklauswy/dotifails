@@ -79,6 +79,19 @@ class CorePackagingTests(unittest.TestCase):
         self.assertFalse((ROOT / 'apps/recorder/wysun_recorder/ui/assets/fonts').exists())
         self.assertFalse((ROOT / 'apps/python/assets/fonts').exists())
 
+    def test_desktop_fonts_are_the_theme_families(self):
+        """GTK and Ghostty use the two families of tokens.json, installed from the bundled copies."""
+        import json
+        sys.path.insert(0, str(ROOT / 'installer'))
+        from main import FONT_BUNDLE
+        for source in FONT_BUNDLE.values():
+            self.assertTrue((ROOT / source).is_file(), source)
+        self.assertFalse((ROOT / 'assets/fonts').exists())
+        family = json.loads((CORE / 'tokens.json').read_text())['font']['family']
+        for relative in ('gtk-3.0/settings.ini', 'gtk-4.0/settings.ini', 'xsettingsd/xsettingsd.conf'):
+            self.assertIn(family['sans'] + ' 10', (ROOT / 'config/.config' / relative).read_text(), relative)
+        self.assertIn(f'font-family = "{family["mono"]}"', (ROOT / 'config/.config/ghostty/config').read_text())
+
 
 if __name__ == '__main__':
     unittest.main()
