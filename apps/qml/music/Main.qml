@@ -17,6 +17,11 @@ Window {
     readonly property string routeRest: route.indexOf(":") >= 0 ? route.slice(route.indexOf(":") + 1) : ""
     readonly property bool detail: routeKind === "collection"
     property bool _refining
+    // What pages reach through `app`.
+    readonly property var menus: musicMenus
+    readonly property var dialogs: playlistDialogs
+    readonly property var snackbarHost: snackbars
+    readonly property Item overlayHost: overlay
 
     function navigate(target, remember) {
         if (target === route) {
@@ -200,9 +205,9 @@ Window {
             onDestinationSelected: id => window.navigate(id === "search" ? "search:" + search.text : id)
             onHeaderAction: id => {
                 if (id === "new-playlist")
-                    dialogs.newPlaylist([]);
+                    playlistDialogs.newPlaylist([]);
             }
-            onContextRequested: (id, x, y) => menus.collectionMenu(id.slice("collection:".length), root, x, y)
+            onContextRequested: (id, x, y) => musicMenus.collectionMenu(id.slice("collection:".length), root, x, y)
 
             Item {
                 id: bar
@@ -339,14 +344,14 @@ Window {
         }
 
         MusicMenus {
-            id: menus
+            id: musicMenus
 
             app: window
             host: overlay
         }
 
         PlaylistDialogs {
-            id: dialogs
+            id: playlistDialogs
 
             app: window
             host: overlay
@@ -398,7 +403,7 @@ Window {
             }
             Shortcut {
                 sequence: "Ctrl+N"
-                onActivated: dialogs.newPlaylist([])
+                onActivated: playlistDialogs.newPlaylist([])
             }
             Shortcut {
                 sequence: "Ctrl+Left"

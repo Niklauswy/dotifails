@@ -8,4 +8,10 @@ Item {
 
     function collectionMenu(id, item, x, y) {
     }
+    function trackMenu(keys, collectionId, x, y) {
+    }
+    function playlistMenu(keys, x, y) {
+    }
+    function sortMenu(current, apply, x, y) {
+    }
 }

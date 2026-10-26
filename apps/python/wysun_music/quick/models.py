@@ -57,10 +57,27 @@ class TrackListModel(_KeyedModel):
     def __init__(self, library, player, urls, parent=None):
         super().__init__(parent)
         self.library, self.player, self.urls = library, player, urls
-        library.favorites_changed.connect(lambda: self._changed('favorite'))
-        player.track_changed.connect(lambda _: self._changed('current', 'playing'))
-        player.state_changed.connect(lambda: self._changed('playing'))
-        urls.revisionChanged.connect(lambda: self._changed('cover'))
+        # Bound slots (not lambdas): Qt drops these connections when a released model is deleted.
+        library.favorites_changed.connect(self._favorites)
+        player.track_changed.connect(self._track)
+        player.state_changed.connect(self._state)
+        urls.revisionChanged.connect(self._covers)
+
+    @Slot()
+    def _favorites(self):
+        self._changed('favorite')
+
+    @Slot(str)
+    def _track(self, _key):
+        self._changed('current', 'playing')
+
+    @Slot()
+    def _state(self):
+        self._changed('playing')
+
+    @Slot()
+    def _covers(self):
+        self._changed('cover')
 
     @Slot('QVariantList')
     def setKeys(self, keys):
@@ -109,9 +126,21 @@ class CardListModel(_KeyedModel):
         super().__init__(parent)
         self.library, self.player, self.urls = library, player, urls
         self._subtitles = {}
-        player.track_changed.connect(lambda _: self._changed('playing'))
-        player.state_changed.connect(lambda: self._changed('playing'))
-        urls.revisionChanged.connect(lambda: self._changed('covers'))
+        player.track_changed.connect(self._track)
+        player.state_changed.connect(self._state)
+        urls.revisionChanged.connect(self._covers)
+
+    @Slot(str)
+    def _track(self, _key):
+        self._changed('playing')
+
+    @Slot()
+    def _state(self):
+        self._changed('playing')
+
+    @Slot()
+    def _covers(self):
+        self._changed('covers')
 
     def set(self, collections, subtitle=None):
         collections = [c for c in collections if c is not None]

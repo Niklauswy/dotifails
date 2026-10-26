@@ -168,9 +168,19 @@ class MusicController(QObject):
                    dict(style='accent', eyebrow='Colección', title='Tus me gusta', subtitle=songs(len(favorites.keys)),
                         symbol='favorite', collection=FAVORITES, action='open'),
                    dict(style='tonal', eyebrow='Para ti', title='Mezcla', subtitle='Toda tu biblioteca, al azar',
-                        symbol='shuffle', action='mix', enabled=bool(library.all_keys()))],
+                        symbol='shuffle', action='mix', enabled=bool(library.all_keys())),
+                   dict(style='wide', eyebrow='Recientes', title='Lo último que escuchaste',
+                        subtitle=' · '.join(dict.fromkeys(library.track(k).get('title', '') for k in recent.keys[:3])),
+                        symbol='history', collection=RECENT, action='open', enabled=bool(recent.keys))],
+            summary=self._summary(),
             empty=not library.all_keys())
         self.homeChanged.emit()
+
+    def _summary(self):
+        count = len(self.library.all_keys())
+        playlists = sum(c.editable for c in self.library.collections())
+        return (f'{count} canción disponible' if count == 1 else f'{count} canciones disponibles') + \
+            f' · {playlists} playlist' + ('' if playlists == 1 else 's')
 
     @Property('QVariantMap', notify=homeChanged)
     def home(self):
@@ -290,6 +300,48 @@ class MusicController(QObject):
     @Property('QVariantMap', notify=searchChanged)
     def search(self):
         return self._search
+
+    # --------------------------------------------------------------- songs
+    @Slot(str, str, result='QVariantList')
+    def songs(self, which, sort):
+        """Library songs for the Canciones tab: all / recent / favorites, in library order or sorted."""
+        library = self.library
+        keys = (library.collection(RECENT).keys if which == 'recent' else
+                library.collection(FAVORITES).keys if which == 'favorites' else library.all_keys())
+        sorters = {'title': lambda k: normalize(library.track(k).get('title', '')),
+                   'artist': lambda k: normalize(library.track(k).get('artist', '')),
+                   'album': lambda k: normalize(library.album(k)), 'duration': library.duration}
+        return sorted(keys, key=sorters[sort]) if sort in sorters else list(keys)
+
+    @Slot(result=QObject)
+    def newTrackList(self):
+        """A TrackListModel owned by the controller for a page that filters on its own (released by the page)."""
+        model = TrackListModel(self.library, self.player, self.urls, self)
+        return model
+
+    @Slot(QObject)
+    def releaseTrackList(self, model):
+        if model is not None and model.parent() is self:
+            model.deleteLater()
+
+    # ------------------------------------------------------------ actions
+    @Slot(str)
+    def toggleFavorite(self, key):
+        self.library.toggle_favorite(key)
+
+    @Slot('QVariantList', bool)
+    def setFavorite(self, keys, favorite):
+        for key in keys:
+            if (key in self.library.favorites) != favorite:
+                self.library.toggle_favorite(key)
+
+    @Slot('QVariantList', result=bool)
+    def allFavorite(self, keys):
+        return bool(keys) and all(k in self.library.favorites for k in keys)
+
+    @Slot(str, result='QVariantList')
+    def trackArtists(self, key):
+        return artists(self.library.track(key))
 
     @Slot(str, result='QVariantList')
     def searchKeys(self, query):
