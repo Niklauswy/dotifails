@@ -180,6 +180,13 @@ PageBase {
             }
         }
 
+        SectionHeader {
+            text: Tr.tr("Design system")
+        }
+
+        // Material Design 3 (selected, the only one) and Fluent 2 (WIP, disabled).
+        DesignSystemPicker {}
+
         ToggleRow {
             Layout.topMargin: Tokens.spacing.small
 
