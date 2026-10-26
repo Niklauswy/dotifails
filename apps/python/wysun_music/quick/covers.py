@@ -3,7 +3,7 @@ QML loads the file itself, so no image provider is needed. ``revision`` rises wh
 re-evaluates the bindings that asked for one."""
 from pathlib import Path
 
-from PySide6.QtCore import Property, QObject, QUrl, Signal, Slot
+from PySide6.QtCore import Property, QObject, QTimer, QUrl, Signal, Slot
 
 
 class CoverUrls(QObject):
@@ -13,9 +13,16 @@ class CoverUrls(QObject):
         super().__init__(parent)
         self.covers = covers
         self._revision = 0
+        # A cached image can arrive while a binding is asking for it: announce new images on the next turn of
+        # the event loop, and once for a burst.
+        self._announce = QTimer(self, singleShot=True, interval=0)
+        self._announce.timeout.connect(self._bump)
         covers.updated.connect(self._updated)
 
     def _updated(self, _key):
+        self._announce.start()
+
+    def _bump(self):
         self._revision += 1
         self.revisionChanged.emit()
 
