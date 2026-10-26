@@ -120,7 +120,7 @@ def easing(name, values=None):
 def svg_asset(name, token, values=None):
     """Tinted copy of <asset dir>/<name>.svg for QSS url(); cached per colour."""
     rgb, _ = _hex((values or tokens())[token])
-    target = paths.runtime(f'orbit-theme-{os.getuid()}', f'{name}-{rgb[1:].lower()}.svg')
+    target = paths.runtime(f'wysun-theme-{os.getuid()}', f'{name}-{rgb[1:].lower()}.svg')
     if not target.is_file():
         source = next(directory / (name + '.svg') for directory in ASSET_DIRS if (directory / (name + '.svg')).is_file())
         text = re.sub(r'stroke="#[0-9a-fA-F]{6}"', f'stroke="{rgb}"', source.read_text())

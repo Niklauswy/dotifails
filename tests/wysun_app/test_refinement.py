@@ -14,7 +14,7 @@ def row(pid=20,start='10',ppid=1,**values):
 class DataTests(unittest.TestCase):
     def test_preferences_preserve_unknown_fields_and_clamp(self):
         with tempfile.TemporaryDirectory() as tmp:
-            path=Path(tmp)/'.config/orbit/appearance.json';path.parent.mkdir(parents=True);path.write_text('{"custom":"keep"}')
+            path=Path(tmp)/'.config/wysun/appearance.json';path.parent.mkdir(parents=True);path.write_text('{"custom":"keep"}')
             save_appearance(dict(opacity=2,reduced_motion=True),tmp)
             self.assertEqual(read_appearance(tmp)['opacity'],65);self.assertTrue(read_appearance(tmp)['reduced_motion']);self.assertIn('keep',path.read_text())
     def test_advanced_queries(self):

@@ -147,7 +147,7 @@ def script(values,rules):
 
 class HyprDesktopSettings:
     def __init__(self,home,runner):
-        self.home=Path(home);self.runner=runner;self.path=config_dir(self.home)/'orbit/hypr-desktop.json';self.script=config_dir(self.home)/'orbit/hypr-settings.lua';self.reload()
+        self.home=Path(home);self.runner=runner;self.path=config_dir(self.home)/'wysun/hypr-desktop.json';self.script=config_dir(self.home)/'wysun/hypr-settings.lua';self.reload()
     def reload(self):
         self.observed=self.path.read_text() if self.path.exists() else ''
         self.saved=json.loads(self.observed) if self.observed else {'values':{},'rules':[]}
@@ -191,7 +191,7 @@ class HyprShortcutFile:
     def __init__(self,home=None,runner=None):
         from wysun_core.desktop import run
         self.home=Path(home or Path.home());self.runner=runner or run
-        self.path=config_dir(self.home)/'orbit/hypr-shortcuts.json';self.script=config_dir(self.home)/'orbit/hypr-shortcuts.lua'
+        self.path=config_dir(self.home)/'wysun/hypr-shortcuts.json';self.script=config_dir(self.home)/'wysun/hypr-shortcuts.lua'
         self.reload()
     def reload(self):
         self.original=self.path.read_text() if self.path.exists() else ''

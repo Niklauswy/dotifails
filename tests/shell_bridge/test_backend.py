@@ -43,7 +43,7 @@ class AdapterTests(unittest.TestCase):
             scheme=preview()
             self.assertEqual((scheme['name'],scheme['mode']),('dynamic','light'),'auto: a bright wallpaper previews light')
             self.assertIn('primary',scheme['colours'])
-            Path(home,'config/orbit').mkdir(parents=True);Path(home,'config/orbit/theme.json').write_text('{"mode":"dark"}')
+            Path(home,'config/wysun').mkdir(parents=True);Path(home,'config/wysun/theme.json').write_text('{"mode":"dark"}')
             self.assertEqual(preview()['mode'],'dark')
             self.assertFalse(Path(home,'state').exists(),'a preview never writes the scheme')
 

@@ -19,7 +19,7 @@ class ColorsBridgeTests(unittest.TestCase):
     def test_existing_palette_parse_save_and_toggle(self):
         with tempfile.TemporaryDirectory() as directory:
             home = Path(directory)
-            path = home / '.local/share/orbit/colors.json'
+            path = home / '.local/share/wysun/colors.json'
             path.parent.mkdir(parents=True)
             path.write_text(json.dumps({'favorites': ['#123456'], 'recent': ['#ABCDEF']}))
             requests = [

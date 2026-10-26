@@ -2,7 +2,7 @@
 Type=Application
 Name=Wysun Files
 Comment=Explora y organiza tus archivos
-Exec=orbit-files %U
+Exec=wysun-files %U
 Icon=system-file-manager
 Terminal=false
 Categories=System;FileTools;FileManager;

@@ -55,7 +55,7 @@ def build(test=False, *, persist=None, network=None, publish=None):
 def main(argv=None):
     argv = sys.argv if argv is None else argv
     route = 'background' if '--background' in argv else 'present'
-    owner = SingleInstance(f'orbit-music-app-{os.getuid()}')
+    owner = SingleInstance(f'wysun-music-{os.getuid()}')
     if send(owner.endpoint, route.encode(), timeout=.3):
         return 0
     if not owner.claim():
@@ -63,11 +63,11 @@ def main(argv=None):
         return 0
     release_on_termination(owner)            # until the Qt handlers below take over
 
-    qt = QApplication(['Orbit', '-name', 'Orbit'])
+    qt = QApplication(['wysun-music', '-name', 'wysun-music'])
     qt.setStyle('Fusion')
-    qt.setApplicationName('Orbit')
+    qt.setApplicationName('Wysun Music')
     qt.setApplicationDisplayName('Wysun Music')
-    qt.setDesktopFileName('orbit-music')
+    qt.setDesktopFileName('wysun-music')
     qt.setQuitOnLastWindowClosed(False)
     from wysun_core.qt_theme import watch_theme
     watch_theme()

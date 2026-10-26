@@ -21,7 +21,7 @@ MODES=('light','dark')
 
 
 def write(mode):
-    path=Path(CONFIG.name)/'orbit/theme.json';path.parent.mkdir(parents=True,exist_ok=True)
+    path=Path(CONFIG.name)/'wysun/theme.json';path.parent.mkdir(parents=True,exist_ok=True)
     path.write_text(json.dumps({'mode':mode}))
 
 
@@ -67,7 +67,7 @@ class CaptureTheme(unittest.TestCase):
         for name in SYMBOLS:
             self.assertIsNotNone(symbol_pixmap(name, color('text'), 24), name)
     def test_auto_and_an_old_file_use_the_default_palette_without_a_scheme(self):
-        path=Path(CONFIG.name)/'orbit/theme.json'
+        path=Path(CONFIG.name)/'wysun/theme.json'
         for text in ('{"mode":"auto"}',json.dumps({'style':'fluent','variant':'tokyo'})):
             path.write_text(text);settle(self.app)
             self.assertEqual(theme.active_mode(),'dark','no scheme yet: the default palette')

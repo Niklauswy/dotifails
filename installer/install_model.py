@@ -170,7 +170,7 @@ def preflight(options):
         platform.machine() + (' · compatible' if supported else ' · requiere Debian 13 o Parrot 7, x86_64'))
     required = ['installer/main.py', 'manifests/packages.json', 'manifests/artifacts.json', 'apps/python/wysun_core/tokens.json']
     if 'boot' in options.components:
-        required += ['installer/boot.py', 'system/boot/grub/theme.txt', 'system/boot/plymouth/orbit.script', 'apps/shell/greeter.qml']
+        required += ['installer/boot.py', 'system/boot/grub/theme.txt', 'system/boot/plymouth/wysun.script', 'apps/shell/greeter.qml']
     if 'desktop' in options.components:
         required += ['apps/python/wysun_services/daemon.py']
     if 'tools' in options.components:

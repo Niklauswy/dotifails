@@ -21,7 +21,7 @@ def checked(args):
 
 def settings_backups(home=None):
     """Where Settings keeps copies of the files it rewrites; ``home`` is injected by tests and previews."""
-    return Path(home)/'.local/share/orbit/settings-backups' if home else paths.data('orbit','settings-backups')
+    return Path(home)/'.local/share/wysun/settings-backups' if home else paths.data('wysun','settings-backups')
 
 def backup_file(path,root=None):
     root=Path(root or settings_backups());root.mkdir(parents=True,exist_ok=True,mode=0o700)
@@ -157,7 +157,7 @@ class PreferenceBackup:
         self.paths = {key: Path(path) for key, path in paths.items()}
         self.before = {key: path.read_bytes() if path.exists() else None for key, path in self.paths.items()}
         self.modes = {key: path.stat().st_mode & 0o777 if path.exists() else 0o600 for key, path in self.paths.items()}
-        root = self.home / '.local/share/orbit/settings-backups'
+        root = self.home / '.local/share/wysun/settings-backups'
         root.mkdir(parents=True, exist_ok=True, mode=0o700)
         self.folder = Path(tempfile.mkdtemp(prefix=label + '-', dir=root))
         for key, content in self.before.items():
@@ -178,7 +178,7 @@ class PreferenceBackup:
 
     @classmethod
     def open(cls, home, paths, folder):
-        root = (Path(home) / '.local/share/orbit/settings-backups').resolve()
+        root = (Path(home) / '.local/share/wysun/settings-backups').resolve()
         folder = Path(folder).resolve()
         if folder.parent != root:
             raise ValueError('La copia no pertenece a Ajustes.')
@@ -259,7 +259,7 @@ class ShellPreferences:
     def __init__(self, home=None):
         from wysun_settings.hypr import config_dir
         self.home = Path(home or Path.home())
-        self.root = config_dir(self.home) / 'orbit'
+        self.root = config_dir(self.home) / 'wysun'
         self.path = self.root / 'shell.json'
         self.legacy = self.root / 'hypr-bar.json'
         self.migration_backup = None

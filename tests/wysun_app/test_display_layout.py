@@ -120,7 +120,7 @@ class RuntimeTests(unittest.TestCase):
             self.assertEqual(len(evals), 1)
             self.assertIn('["output"] = "DP-2"', evals[0][2])
             self.assertIn('["position"] = "0x0"', evals[0][2])
-            fragment = (home / '.config/orbit/hypr-monitors.lua').read_text()
+            fragment = (home / '.config/wysun/hypr-monitors.lua').read_text()
             self.assertEqual(fragment, layout.monitors_fragment(layout.normalize(profile)))
 
     def test_without_profile_nothing_changes(self):
@@ -130,7 +130,7 @@ class RuntimeTests(unittest.TestCase):
             run = self.runner([self.hypr('eDP-1', 0)])
             self.assertFalse(settings_runtime.restore_displays(EnvironmentSettings(Path(folder), run)))
             self.assertFalse(any(c[:2] == ['hyprctl', 'eval'] for c in run.calls))
-            self.assertFalse((Path(folder) / '.config/orbit/hypr-monitors.lua').exists())
+            self.assertFalse((Path(folder) / '.config/wysun/hypr-monitors.lua').exists())
 
     def test_nothing_lit_switches_every_connected_display_back_on(self):
         from wysun_settings.environment import EnvironmentSettings
@@ -148,7 +148,7 @@ class RuntimeTests(unittest.TestCase):
             self.assertIn('["output"] = "eDP-1"', evals[0][2])
             self.assertNotIn('disabled', evals[0][2])
             self.assertIn('["mode"] = "1920x1080@60.00"', evals[0][2])
-            fragment = (home / '.config/orbit/hypr-monitors.lua').read_text()
+            fragment = (home / '.config/wysun/hypr-monitors.lua').read_text()
             self.assertNotIn('disabled', fragment)
 
     def test_a_lit_display_is_never_touched_by_the_safety_net(self):
@@ -174,7 +174,7 @@ class RuntimeTests(unittest.TestCase):
             refresh.assert_called_once_with(backend)
             saved = backend.section('displays')['profiles']['DP-1|eDP-1']
             self.assertEqual({p['name']: p['x'] for p in saved}, {'DP-1': 0, 'eDP-1': 1920})
-            self.assertEqual((home / '.config/orbit/hypr-monitors.lua').read_text(), layout.monitors_fragment(saved))
+            self.assertEqual((home / '.config/wysun/hypr-monitors.lua').read_text(), layout.monitors_fragment(saved))
 
     def test_hyprland_config_loads_fragment_after_local_preferences(self):
         text = (Path(__file__).resolve().parents[2] / 'config/.config/wysun/hyprland.lua').read_text()

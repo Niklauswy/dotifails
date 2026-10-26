@@ -2,7 +2,7 @@
 
 Wysun has one style, Material You. Colours come from the wallpaper
 (<state>/wysun/scheme.json, written by ``wysun scheme``, which also resolves ``auto``
-to light or dark); the user only chooses the mode in <config>/orbit/theme.json as
+to light or dark); the user only chooses the mode in <config>/wysun/theme.json as
 {"mode": "auto"|"light"|"dark"}. ``tokens.json`` holds the shape, type and motion
 tokens, under the shell's names (``rounding``, ``spacing``, ``padding``, ``font``, ``anim``),
 plus the base palette of each mode, used for every token the scheme does not
@@ -61,7 +61,7 @@ def _root(home, kind):
 
 
 def selection_path(home=None):
-    return _root(home, 'config') / 'orbit/theme.json'
+    return _root(home, 'config') / 'wysun/theme.json'
 
 
 def scheme_path(home=None):
@@ -136,7 +136,7 @@ def invalidate():
 
 
 def _backup(path, home=None):
-    target = _root(home, 'state') / 'orbit/theme-backups' / (
+    target = _root(home, 'state') / 'wysun/theme-backups' / (
         'theme-' + datetime.datetime.now().strftime('%Y%m%d-%H%M%S-%f') + '.json')
     atomic_write_text(target, path.read_text(encoding='utf-8', errors='replace'), mode=0o600)
     return target

@@ -99,7 +99,7 @@ GRUB_QUIET_SCRIPT = r"""#!/bin/sh
 # Wysun · boot messages print on the card instead of in a black box (written by installer/boot.py).
 set -e
 . "$pkgdatadir/grub-mkconfig_lib"
-theme_dir=/boot/grub/themes/orbit
+theme_dir=/boot/grub/themes/wysun
 [ -f "$theme_dir/term_c.png" ] || exit 0
 card="$(make_system_path_relative_to_its_root "$theme_dir/term_c.png")"
 cat <<EOF
@@ -249,9 +249,9 @@ class BootDeployment:
     def plan(self):
         plans=[]
         if 'grub' in self.components and self.path('etc/default/grub').is_file() and self.path('boot/grub').is_dir():
-            plans.append(('grub','boot/grub/themes/orbit',self.source/'system/boot/grub'))
-            plans.append(('grub','etc/default/grub.d/99-orbit-theme.cfg',
-                'GRUB_THEME="/boot/grub/themes/orbit/theme.txt"\n'
+            plans.append(('grub','boot/grub/themes/wysun',self.source/'system/boot/grub'))
+            plans.append(('grub','etc/default/grub.d/99-wysun-theme.cfg',
+                'GRUB_THEME="/boot/grub/themes/wysun/theme.txt"\n'
                 'GRUB_BACKGROUND=""\nGRUB_GFXMODE=auto\n'
                 '# The kernel keeps GRUB\'s graphics mode: no mode switch flicker before the splash.\n'
                 'GRUB_GFXPAYLOAD_LINUX=keep\n'
@@ -272,10 +272,10 @@ class BootDeployment:
                        if line.strip().startswith(('GRUB_TERMINAL=', 'GRUB_TERMINAL_OUTPUT=')))
             if not serial: plans[-1]=(plans[-1][0],plans[-1][1],plans[-1][2]+'GRUB_TERMINAL_OUTPUT=gfxterm\n')
         if 'plymouth' in self.components and self.path('usr/share/plymouth/themes').is_dir():
-            plans.append(('plymouth','usr/share/plymouth/themes/orbit',self.source/'system/boot/plymouth'))
+            plans.append(('plymouth','usr/share/plymouth/themes/wysun',self.source/'system/boot/plymouth'))
             config=self.path('etc/plymouth/plymouthd.conf')
             # Show the splash at once instead of after the distribution's delay.
-            plans.append(('plymouth','etc/plymouth/plymouthd.conf',merged_ini(config,'Daemon',{'Theme':'orbit','ShowDelay':'0'})))
+            plans.append(('plymouth','etc/plymouth/plymouthd.conf',merged_ini(config,'Daemon',{'Theme':'wysun','ShowDelay':'0'})))
             plans.append(('plymouth','usr/local/libexec/wysun-farewell',FAREWELL))
             plans.append(('plymouth','etc/systemd/system/wysun-farewell.service',FAREWELL_UNIT))
             for target in ('poweroff','reboot','halt'):
@@ -299,7 +299,7 @@ class BootDeployment:
         if 'grub' in groups:
             # Generate to a temporary file; never replace a working configuration
             # if grub-mkconfig or its syntax check fails.
-            output=self.path('boot/grub/grub.cfg.orbit-new')
+            output=self.path('boot/grub/grub.cfg.wysun-new')
             target=self.path('boot/grub/grub.cfg')
             if backup is not None:
                 before=fingerprint(target)
@@ -442,17 +442,17 @@ class BootDeployment:
         for rel,digest in self.receipt.items():
             if fingerprint(self.path(rel))!=digest:raise RuntimeError(f'Archivo modificado o incompleto: /{rel}')
         if self.root==Path('/'):
-            if 'boot/grub/themes/orbit' in self.receipt:
+            if 'boot/grub/themes/wysun' in self.receipt:
                 self.runner(['grub-script-check','/boot/grub/grub.cfg'])
-                if 'themes/orbit/theme.txt' not in self.path('boot/grub/grub.cfg').read_text():
+                if 'themes/wysun/theme.txt' not in self.path('boot/grub/grub.cfg').read_text():
                     raise RuntimeError('GRUB no está usando el tema instalado.')
-            if 'usr/share/plymouth/themes/orbit' in self.receipt:
+            if 'usr/share/plymouth/themes/wysun' in self.receipt:
                 for kernel in sorted(self.path('boot').glob('vmlinuz-*')):
                     initrd=kernel.with_name(kernel.name.replace('vmlinuz-','initrd.img-',1))
                     listing=subprocess.check_output(['lsinitramfs',str(initrd)],text=True,
                         env=dict(os.environ,PATH='/usr/sbin:/usr/bin:/sbin:/bin'))
-                    for name in ['orbit.script',*[p.name for p in self.path('usr/share/plymouth/themes/orbit').glob('*.png')]]:
-                        if f'plymouth/themes/orbit/{name}' not in listing:
+                    for name in ['wysun.script',*[p.name for p in self.path('usr/share/plymouth/themes/wysun').glob('*.png')]]:
+                        if f'plymouth/themes/wysun/{name}' not in listing:
                             raise RuntimeError(f'Falta {name} en {initrd.name}')
                     print(f'OK Plymouth: {initrd.name}')
         print('OK: integridad de los temas instalados.')

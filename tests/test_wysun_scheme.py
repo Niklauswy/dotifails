@@ -100,11 +100,11 @@ class SchemeGeneratorTests(unittest.TestCase):
         state = self.root / 'state'
         home = self.root / 'home'
         home.mkdir()
-        orbit = config / 'orbit'
-        orbit.mkdir(parents=True)
-        theme_file = orbit / 'theme.json'
+        wysun = config / 'wysun'
+        wysun.mkdir(parents=True)
+        theme_file = wysun / 'theme.json'
         theme_file.write_text('{"mode":"auto","private":"keep"}\n', encoding='utf-8')
-        environment_file = orbit / 'environment.json'
+        environment_file = wysun / 'environment.json'
         env = {**os.environ, 'HOME': str(home), 'XDG_CONFIG_HOME': str(config), 'XDG_STATE_HOME': str(state)}
         generated = []
         for wallpaper in (self.red, self.blue):
@@ -142,8 +142,8 @@ class SchemeGeneratorTests(unittest.TestCase):
     def test_auto_mode_follows_the_wallpaper_and_an_explicit_mode_overrides_it(self):
         bright = _make_wallpaper(self.root / 'synthetic-bright.png', (245, 240, 225))
         home = self.root / 'home'
-        (home / '.config/orbit').mkdir(parents=True)
-        (home / '.config/orbit/environment.json').write_text(json.dumps({'wallpaper': {'default': str(bright), 'mode': 'fill'}}))
+        (home / '.config/wysun').mkdir(parents=True)
+        (home / '.config/wysun/environment.json').write_text(json.dumps({'wallpaper': {'default': str(bright), 'mode': 'fill'}}))
         self.assertEqual(wysun_scheme.generate_dynamic(bright)['mode'], 'light')
         self.assertEqual(wysun_scheme.generate_dynamic(self.blue)['mode'], 'dark')
         self.assertIn('automático', wysun_scheme.set_scheme('auto', home))
@@ -221,9 +221,9 @@ class SchemeGeneratorTests(unittest.TestCase):
         home = self.root / 'home'
         config = home / 'config'
         state = home / 'state'
-        (config / 'orbit').mkdir(parents=True)
+        (config / 'wysun').mkdir(parents=True)
         (state / 'wysun').mkdir(parents=True)
-        (config / 'orbit/theme.json').write_text('{"mode":"dark"}')
+        (config / 'wysun/theme.json').write_text('{"mode":"dark"}')
         previous = getattr(APP, 'wysunThemeWatcher', None)
         if previous is not None:
             del APP.wysunThemeWatcher

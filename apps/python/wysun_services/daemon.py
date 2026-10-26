@@ -28,7 +28,7 @@ def label(text='',name=''):
     if name:x.setObjectName(name)
     return x
 
-class OrbitDaemon(QObject):
+class ClipboardDaemon(QObject):
     """Headless resident: hosts the Qt utility windows and records clipboard history.
 
     The launcher itself is the shell widget (apps/shell/modules/launcher); no
@@ -94,14 +94,14 @@ class OrbitDaemon(QObject):
 def main():
     parser=argparse.ArgumentParser();parser.add_argument('mode',nargs='?',default='toggle');parser.add_argument('--daemon',action='store_true');args=parser.parse_args()
     os.umask(0o077)
-    app=QApplication(['Orbit','--name','Orbit']);app.setApplicationName('Orbit');app.setApplicationDisplayName('Wysun');app.setDesktopFileName('orbit');app.setWindowIcon(QIcon(str(ROOT/'wysun.png')));app.setQuitOnLastWindowClosed(False);app.setStyle('Fusion');apply_style(app,STYLE);QIcon.setThemeSearchPaths([str(HOME/'.local/share/icons'),str(HOME/'.icons'),'/usr/share/icons']);QIcon.setThemeName('Win11-Dark');QIcon.setFallbackThemeName('Adwaita')
+    app=QApplication(['wysun','--name','wysun']);app.setApplicationName('Wysun');app.setApplicationDisplayName('Wysun');app.setDesktopFileName('wysun');app.setWindowIcon(QIcon(str(ROOT/'wysun.png')));app.setQuitOnLastWindowClosed(False);app.setStyle('Fusion');apply_style(app,STYLE);QIcon.setThemeSearchPaths([str(HOME/'.local/share/icons'),str(HOME/'.icons'),'/usr/share/icons']);QIcon.setThemeName('Win11-Dark');QIcon.setFallbackThemeName('Adwaita')
     from wysun_core.qt_theme import watch_theme
     watch_theme()
-    owner=SingleInstance(f'orbit-{os.getuid()}')
+    owner=SingleInstance(f'wysun-daemon-{os.getuid()}')
     if send(owner.endpoint,args.mode.encode(),timeout=.5):return
     if not owner.claim():
         send(owner.endpoint,args.mode.encode(),timeout=.5,retry=2.0);return   # another resident is starting
-    win=OrbitDaemon()
+    win=ClipboardDaemon()
     def request(line):
         mode=line.decode('utf-8',errors='ignore').strip()
         if mode=='ping':return b'pong'

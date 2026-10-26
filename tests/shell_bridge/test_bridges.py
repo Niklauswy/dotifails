@@ -56,7 +56,7 @@ class SchemeBridgeTests(unittest.TestCase):
         self.assertIn('${Paths.state}/scheme.json', source)
         self.assertIn('propertyKey(name)', source)
         self.assertIn('["wysun", "scheme", "set", mode]', source, 'the mode goes through the single producer')
-        self.assertIn('orbit/theme.json', source, 'the page shows the stored mode, not only the one the wallpaper gave')
+        self.assertIn('wysun/theme.json', source, 'the page shows the stored mode, not only the one the wallpaper gave')
         self.assertEqual(theme.scheme_path(Path('/x')).as_posix(), '/x/.local/state/wysun/scheme.json')
 
     def test_scheme_changes_never_call_the_original_project_cli(self):
@@ -86,7 +86,7 @@ class SchemeBridgeTests(unittest.TestCase):
 
     def test_wallpaper_bridge_reads_environment_json_by_monitor(self):
         qml = (SHELL / 'wysun/WysunBridge.qml').read_text()
-        self.assertIn("orbit/environment.json", qml)
+        self.assertIn("wysun/environment.json", qml)
         wall = (SHELL / 'services/Wallpapers.qml').read_text()
         self.assertIn('wysunWallpaper.monitors?.[name]?.path', wall)
         self.assertIn('"wysun", "wallpaper", "set"', wall)

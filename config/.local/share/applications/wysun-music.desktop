@@ -7,4 +7,4 @@ Icon=musika
 Terminal=false
 Categories=AudioVideo;Audio;Player;
 Keywords=Wysun;musika;musica;music;audio;playlist;Spotify;YouTube;
-StartupWMClass=Orbit
+StartupWMClass=wysun-music

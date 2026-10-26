@@ -106,7 +106,7 @@ def natural_sizes():
 def run(mode, steps):
     engine = Engine()
     try:
-        engine.execute(natural_sizes() + RECORDING + '\ntest_mode="' + mode + '";\n' + (THEME / 'orbit.script').read_text())
+        engine.execute(natural_sizes() + RECORDING + '\ntest_mode="' + mode + '";\n' + (THEME / 'wysun.script').read_text())
         for step in steps:
             engine.execute(step)
         engine.execute('dump();')

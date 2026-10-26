@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'apps/python'))
 sys.path.insert(0, str(ROOT / 'tests'))
 os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
-os.environ.setdefault('ORBIT_REDUCED_MOTION', '1')
+os.environ.setdefault('WYSUN_REDUCED_MOTION', '1')
 
 
 class SessionBus:

@@ -1,7 +1,7 @@
 """Where Wysun keeps things, resolved from the environment on every call.
 
 XDG variables count only when set to an absolute path, as the specification says.
-Callers name their own namespace (``paths.data('orbit', 'colors.json')``).
+Callers name their own namespace (``paths.data('wysun', 'colors.json')``).
 """
 import os
 import stat

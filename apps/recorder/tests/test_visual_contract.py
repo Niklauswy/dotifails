@@ -34,9 +34,9 @@ class VisualContractTests(unittest.TestCase):
             self.assertGreaterEqual((values[1]+.05)/(values[0]+.05),3,background)
 
     def test_reduced_motion_environment_and_local_preference(self):
-        with tempfile.TemporaryDirectory() as d,patch.dict(os.environ,{'XDG_CONFIG_HOME':d,'ORBIT_REDUCED_MOTION':''}):
-            with patch.dict(os.environ,{'ORBIT_REDUCED_MOTION':'true'}):self.assertTrue(reduced_motion())
-            path=Path(d)/'orbit/appearance.json';path.parent.mkdir();path.write_text(json.dumps({'reduced_motion':True}))
+        with tempfile.TemporaryDirectory() as d,patch.dict(os.environ,{'XDG_CONFIG_HOME':d,'WYSUN_REDUCED_MOTION':''}):
+            with patch.dict(os.environ,{'WYSUN_REDUCED_MOTION':'true'}):self.assertTrue(reduced_motion())
+            path=Path(d)/'wysun/appearance.json';path.parent.mkdir();path.write_text(json.dumps({'reduced_motion':True}))
             self.assertTrue(reduced_motion())
 
 

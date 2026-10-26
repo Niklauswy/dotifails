@@ -21,7 +21,7 @@ os.environ.pop('QT_QPA_PLATFORM', None)
 if not os.environ.get('WAYLAND_DISPLAY'):
     raise SystemExit('wayland_media_case: no hay sesión Wayland activa')
 os.environ['QT_QPA_PLATFORM'] = 'wayland'
-os.environ.setdefault('ORBIT_REDUCED_MOTION', '1')
+os.environ.setdefault('WYSUN_REDUCED_MOTION', '1')
 extra = os.environ.get('WYSUN_PYSIDE_EXTRA')
 if extra:
     import PySide6

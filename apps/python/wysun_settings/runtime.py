@@ -29,7 +29,7 @@ def guard(folder,runner=run):
 def start_applications(backend):
     entries=[r for r in backend.autostart_entries() if r['managed'] and r['enabled']]
     if not entries:return
-    runtime=(paths.runtime_dir() if backend.home==Path.home() else backend.home/'.cache')/'orbit-settings-startup'
+    runtime=(paths.runtime_dir() if backend.home==Path.home() else backend.home/'.cache')/'wysun-settings-startup'
     runtime.mkdir(parents=True,exist_ok=True,mode=0o700)
     session=os.environ.get('XDG_SESSION_ID') or os.environ.get('HYPRLAND_INSTANCE_SIGNATURE') or os.environ.get('WAYLAND_DISPLAY')
     if not session:return
@@ -63,7 +63,7 @@ def restore_workspaces(backend):
             mapping=backend.effective_workspace_layout(outputs)
             if not mapping:return
             text=layouts.lua_fragment(mapping)
-            path=backend.config/'orbit/hypr-workspaces.lua'
+            path=backend.config/'wysun/hypr-workspaces.lua'
             if not path.is_file() or path.read_text()!=text:atomic_write_text(path,text)
             backend.runner(['hyprctl','eval',layouts.live_script(mapping,{})])
     except Exception as exc:print('Escritorios:',str(exc),file=sys.stderr)
@@ -82,7 +82,7 @@ def revive_displays(backend,inventory):
     plan=normalize(fill_modes(plan,{o['name']:o['modes'] for o in connected}))
     plan[0]['primary']=True
     backend.runner(display_command(plan,inventory))
-    atomic_write_text(backend.config/'orbit/hypr-monitors.lua',monitors_fragment(plan))
+    atomic_write_text(backend.config/'wysun/hypr-monitors.lua',monitors_fragment(plan))
     return True
 
 def restore_displays(backend):
@@ -100,7 +100,7 @@ def restore_displays(backend):
         plan=normalize(plan)
         current={p['name']:p for p in display_plan(inventory)}
         wanted={p['name']:p for p in plan}
-        path=backend.config/'orbit/hypr-monitors.lua';text=monitors_fragment(plan)
+        path=backend.config/'wysun/hypr-monitors.lua';text=monitors_fragment(plan)
         if not path.is_file() or path.read_text()!=text:atomic_write_text(path,text)
         keys=('enabled','mode','rate','rotation','x','y')
         if any(current.get(n,{}).get(k)!=wanted[n].get(k) for n in wanted for k in keys):
@@ -110,7 +110,7 @@ def restore_displays(backend):
 
 def restore(preserve_workspaces=False):
     backend=EnvironmentSettings()
-    if (backend.home/'.config/orbit/theme.json').exists():
+    if (backend.home/'.config/wysun/theme.json').exists():
         try:
             from wysun_settings.theme_runtime import restore_theme
             restore_theme(backend.home)

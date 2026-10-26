@@ -11,8 +11,8 @@ from wysun_settings.environment import set_values,run
 
 
 def replace_block(text,block):
-    text=re.sub(r'\n?# BEGIN ORBIT THEME\n.*?# END ORBIT THEME\n?', '',text,flags=re.S)
-    return text.rstrip()+'\n\n# BEGIN ORBIT THEME\n'+block+'\n# END ORBIT THEME\n'
+    text=re.sub(r'\n?# BEGIN WYSUN THEME\n.*?# END WYSUN THEME\n?', '',text,flags=re.S)
+    return text.rstrip()+'\n\n# BEGIN WYSUN THEME\n'+block+'\n# END WYSUN THEME\n'
 
 
 def editor_tint(value,tint):
@@ -54,9 +54,9 @@ def theme_files(home,mode='dark'):
     put('.config/ghostty/config',terminal)
     def starship(text):
         text=re.sub(r'^palette\s*=.*\n?','',text,flags=re.M)
-        text=re.sub(r'\n\[palettes\.orbit\]\n.*?(?=\n\[|\Z)','',text,flags=re.S)
+        text=re.sub(r'\n\[palettes\.wysun\]\n.*?(?=\n\[|\Z)','',text,flags=re.S)
         palette=dict(black=theme['background'],white=theme['foreground'],green=theme['accent'],blue=theme['palette'][4],purple=theme['palette'][5],cyan=theme['accent'],yellow=theme['palette'][3],red=theme['palette'][1])
-        return "palette = 'orbit'\n"+text.rstrip()+'\n\n[palettes.orbit]\n'+''.join(f"{name} = '{value}'\n" for name,value in palette.items())
+        return "palette = 'wysun'\n"+text.rstrip()+'\n\n[palettes.wysun]\n'+''.join(f"{name} = '{value}'\n" for name,value in palette.items())
     put('.config/starship.toml',starship)
     def editor(text):
         if 'M.base46' not in text:return text
@@ -71,9 +71,9 @@ def theme_files(home,mode='dark'):
     if theme.get('gtk_dark',True):gtk={'theme_bg_color':theme['background'],'theme_fg_color':theme['foreground'],'theme_selected_bg_color':theme['accent'],'theme_selected_fg_color':theme['background'],**gtk}
     for relative in ('.config/gtk-3.0/gtk.css','.config/gtk-4.0/gtk.css'):
         path=config/relative.removeprefix('.config/');text=path.read_text() if path.exists() else ''
-        text=re.sub(r'/\* BEGIN ORBIT THEME \*/.*?/\* END ORBIT THEME \*/\n?','',text,flags=re.S)
-        files[path]=text.rstrip()+'\n/* BEGIN ORBIT THEME */\n'+''.join(f'@define-color {name} {value};\n' for name,value in gtk.items())+'/* END ORBIT THEME */\n'
-    native=config/'orbit'
+        text=re.sub(r'/\* BEGIN WYSUN THEME \*/.*?/\* END WYSUN THEME \*/\n?','',text,flags=re.S)
+        files[path]=text.rstrip()+'\n/* BEGIN WYSUN THEME */\n'+''.join(f'@define-color {name} {value};\n' for name,value in gtk.items())+'/* END WYSUN THEME */\n'
+    native=config/'wysun'
     bar_path=native/'hypr-bar.json'
     if bar_path.is_file():
         # Older versions stored the theme's colours here; drop them so the bar

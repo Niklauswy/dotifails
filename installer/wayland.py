@@ -70,8 +70,7 @@ def configure(deployment):
     migrate_legacy_names(d)
     deploy_tokens(d)
     ensure_runtime(d)
-    d.deploy(d.source / 'config/.local/bin/orbit', Path('.local/bin/orbit'))
-    for name in ('orbit-files', 'wysun-tools', 'wysun-shell',
+    for name in ('wysun-tools', 'wysun-shell',
                  'wysun-session', 'wysun-session-services', 'wysun-lock', 'wysun-wm', 'wysun-control', 'wysun-workspaces', 'wysun-share-picker', 'wysun-recover', 'wysun-idle'):
         _publish(d, (d.source / 'bin' / name).read_text(), '.local/bin/' + name, executable=True)
     # A terminal must remain reachable even without the optional terminal component.
@@ -84,11 +83,11 @@ def configure(deployment):
     _publish(d, '[preferred]\ndefault=hyprland;gtk;\n'
              'org.freedesktop.impl.portal.ScreenCast=hyprland;\n'
              'org.freedesktop.impl.portal.Screenshot=hyprland;\n'
-             'org.freedesktop.impl.portal.FileChooser=orbit;gtk;\n',
+             'org.freedesktop.impl.portal.FileChooser=wysun;gtk;\n',
              '.config/xdg-desktop-portal/wysun-portals.conf')
-    for relative in ('.local/share/applications/orbit-music.desktop',
+    for relative in ('.local/share/applications/wysun-music.desktop',
                      '.local/share/icons/hicolor/scalable/apps/musika.svg',
-                     '.local/share/applications/orbit-files.desktop'):
+                     '.local/share/applications/wysun-files.desktop'):
         _publish(d, (d.source / 'config' / relative).read_text(), relative)
     for path in sorted((d.source / 'assets/backgrounds').glob('*')):
         if path.is_file():_publish_asset(d, path, '.local/share/backgrounds/' + path.name)

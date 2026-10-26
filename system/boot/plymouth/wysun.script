@@ -1,4 +1,4 @@
-// Wysun · the terminal. Template: system/boot/render_assets.py writes orbit.script with the Severance
+// Wysun · the terminal. Template: system/boot/render_assets.py writes wysun.script with the Severance
 // token colours. The office CRT is background.png; everything on its glass was rendered in phosphor
 // by BootArt.qml. Boot: the terminal leafs through the project index (one folder; each card falls
 // over the hinge and uncovers the next), stops on Cold Harbor, the cursor clicks it and the folder

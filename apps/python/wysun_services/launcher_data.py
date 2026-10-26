@@ -3,7 +3,7 @@
 
 Same sources as the clipboard resident (wysun_services.daemon): clipboard history, files, emoji and
 calculator history. Commands are argv arrays and results are
-JSON; nothing is evaluated by a shell. Private data stays in ~/.local/share/orbit.
+JSON; nothing is evaluated by a shell. Private data stays in ~/.local/share/wysun.
 """
 import datetime as dt, fcntl, json, os, re, sqlite3, subprocess, sys, tempfile, time, unicodedata
 from pathlib import Path

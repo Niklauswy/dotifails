@@ -57,7 +57,7 @@ class OperationJob(QThread):
 class FilesWindow(FramelessResize, WindowMotion, QMainWindow):
     def __init__(self, paths=None):
         super().__init__(None, Qt.Window | Qt.FramelessWindowHint)
-        self.settings = QSettings('Orbita', 'Files')
+        self.settings = QSettings('Wysun', 'Files')
         self.jobs, self.viewers = [], []
         self.hidden = self.settings.value('hidden', False, type=bool)
         self.grid_mode = self.settings.value('viewMode', 'icons') == 'icons'

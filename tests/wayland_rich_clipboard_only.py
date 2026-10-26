@@ -19,7 +19,7 @@ def main():
         subprocess.run(['/usr/bin/python3',str(ROOT/'installer/main.py'),'install','--source',str(ROOT),'--target-home',str(home),'--components','wayland','--config-only'],env=env,cwd='/',check=True,stdout=subprocess.DEVNULL,timeout=60)
         env['PATH']=str(home/'.local/bin')+':'+env['PATH']
         subprocess.run([str(home/'.local/bin/wysun'),'daemon'],env=env,cwd='/',check=True,timeout=15)
-        endpoint=runtime/f'orbit-{os.getuid()}.sock';wait_for(endpoint.is_socket,'installed daemon for rich clipboard')
+        endpoint=runtime/f'wysun-daemon-{os.getuid()}.sock';wait_for(endpoint.is_socket,'installed daemon for rich clipboard')
         pid=peer_pid(endpoint)
         if b'wysun_services.daemon' not in Path(f'/proc/{pid}/cmdline').read_bytes():raise RuntimeError('Unexpected installed launcher peer')
         run_rich_clipboard(env,pid)

@@ -170,7 +170,7 @@ class ToolboxTests(unittest.TestCase):
     def test_scripts_install_preserves_private_files_and_idempotence(self):
         home=self.root/'home';private=home/'scripts/.rezets/accounts.json';private.parent.mkdir(parents=True);private.write_text('[]')
         upload=home/'scripts/uploads/data';upload.parent.mkdir();upload.write_text('upload')
-        config=home/'.config/orbit/theme.json';config.parent.mkdir(parents=True);config.write_text('theme')
+        config=home/'.config/wysun/theme.json';config.parent.mkdir(parents=True);config.write_text('theme')
         old=home/'scripts/gvm.sh';old.write_text('old script')
         receipt=home/'.local/state/dotifails/installed.json';receipt.parent.mkdir(parents=True);receipt.write_text(json.dumps({'files':{'scripts/gvm.sh':installer.fingerprint(old)}}))
         args=['install','--source',str(ROOT),'--target-home',str(home),'--scripts-only']
@@ -178,7 +178,7 @@ class ToolboxTests(unittest.TestCase):
             self.assertEqual(installer.main(args),0)
             first=json.loads((home/'.local/state/dotifails/installed.json').read_text())['last_backup']
             self.assertEqual(installer.main(args),0)
-        self.assertEqual((home/'.config/orbit/resets/accounts.json').read_text(),'[]');self.assertEqual((home/'.local/share/orbit/transfers/inbox/data').read_text(),'upload');self.assertEqual(config.read_text(),'theme')
+        self.assertEqual((home/'.config/wysun/resets/accounts.json').read_text(),'[]');self.assertEqual((home/'.local/share/wysun/transfers/inbox/data').read_text(),'upload');self.assertEqual(config.read_text(),'theme')
         receipt=json.loads((home/'.local/state/dotifails/installed.json').read_text());journal=json.loads((home/'.local/state/dotifails/backups'/receipt['last_backup']/'journal.json').read_text())
         self.assertEqual(journal['operations'],[])
         self.assertTrue((home/'.local/bin/wysun-tools').is_file());self.assertFalse((home/'scripts/gvm.sh').exists())

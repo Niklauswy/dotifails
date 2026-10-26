@@ -8,7 +8,7 @@ os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
 from PySide6.QtWidgets import QApplication
 
 from wysun_services.data_v2 import StoreV2
-from wysun_services import daemon as orbit
+from wysun_services import daemon
 
 
 class ResidentTests(unittest.TestCase):
@@ -20,7 +20,7 @@ class ResidentTests(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.store = StoreV2(self.tmp.name)
-        self.daemon = orbit.OrbitDaemon(self.store, test=True)
+        self.daemon = daemon.ClipboardDaemon(self.store, test=True)
 
     def test_constructs_headless_and_hosts_clipboard_watch(self):
         from wysun_services.wayland_clipboard import ClipboardWatch
@@ -35,7 +35,7 @@ class ResidentTests(unittest.TestCase):
         self.assertTrue(self.daemon.paused)
 
     def test_launcher_modes_are_not_qt_menus_any_more(self):
-        with patch.object(orbit, 'run') as run:
+        with patch.object(daemon, 'run') as run:
             self.daemon.show_mode('power')
             run.assert_called_once()
             self.assertEqual(run.call_args.args[0][1], 'session')

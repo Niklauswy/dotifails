@@ -16,7 +16,7 @@ Scope {
     readonly property string statePath: Quickshell.env("WYSUN_GREETER_STATE") || "/var/lib/wysun-greeter/state.json"
     readonly property string sessionsDir: Quickshell.env("WYSUN_GREETER_SESSIONS") || "/usr/share/wayland-sessions"
     readonly property string passwdPath: Quickshell.env("WYSUN_GREETER_PASSWD") || "/etc/passwd"
-    readonly property bool reducedMotion: Quickshell.env("ORBIT_REDUCED_MOTION") === "1"
+    readonly property bool reducedMotion: Quickshell.env("WYSUN_REDUCED_MOTION") === "1"
 
     property var users: []          // [name]
     property var sessions: []       // [{name, exec}]

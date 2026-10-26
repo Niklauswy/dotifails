@@ -9,7 +9,7 @@ import qs.components
 import qs.modules.background
 import qs.services
 
-// One card on the orbit ring. `t` is the signed distance (in cards) from the
+// One card on the carousel ring. `t` is the signed distance (in cards) from the
 // selected card around the ring; angle, depth, tilt and fade all derive from it,
 // so the whole ring turns by moving a single number. `intro` drops the ring in
 // spinning from the distance; `outro` flings the others away, and `toss` lifts

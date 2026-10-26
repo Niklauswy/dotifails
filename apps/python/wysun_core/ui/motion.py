@@ -11,8 +11,8 @@ from PySide6.QtWidgets import QApplication, QPushButton, QStyle, QStyleOptionBut
 def reduced_motion(widget=None):
     from wysun_core.appearance import read_appearance
     app = QApplication.instance()
-    return (os.environ.get('ORBIT_REDUCED_MOTION', '').lower() in ('1', 'true', 'yes')
-            or read_appearance()['reduced_motion'] or bool(app and app.property('orbitReducedMotion')) or bool(getattr(widget, 'test', False)))
+    return (os.environ.get('WYSUN_REDUCED_MOTION', '').lower() in ('1', 'true', 'yes')
+            or read_appearance()['reduced_motion'] or bool(app and app.property('wysunReducedMotion')) or bool(getattr(widget, 'test', False)))
 
 
 class WindowMotion:

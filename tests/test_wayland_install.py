@@ -82,7 +82,7 @@ class WaylandInstallTests(unittest.TestCase):
                    '.config/other-desktop/keysrc': 'my bindings', '.config/hypr/hyprland.conf': 'other session',
                    '.config/wysun/local.lua': '-- synthetic per-machine scale preference',
                    '.config/xdg-desktop-portal/portals.conf': '[preferred]\ndefault=custom;\n',
-                   '.local/share/orbit/notes/private.md': 'private fixture',
+                   '.local/share/wysun/notes/private.md': 'private fixture',
                    '.config/wysun/recorder/preferences.json': '{"custom": true}',
                    '.local/share/wysun/recorder/recordings/fixture/project.json': 'recording fixture',
                    '.local/share/wybie-screenshot/sessions/fixture/original.png': 'image fixture'}

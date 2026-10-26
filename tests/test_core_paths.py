@@ -13,15 +13,15 @@ from wysun_core import paths
 class PathsTests(unittest.TestCase):
     def test_xdg_variables_win_when_absolute(self):
         with patch.dict(os.environ, {'XDG_CONFIG_HOME': '/x/cfg', 'XDG_STATE_HOME': 'relative'}):
-            self.assertEqual(paths.config('orbit', 'theme.json'), Path('/x/cfg/orbit/theme.json'))
+            self.assertEqual(paths.config('wysun', 'theme.json'), Path('/x/cfg/wysun/theme.json'))
             self.assertEqual(paths.state_home(), Path.home() / '.local/state')
 
     def test_defaults_follow_home(self):
         with tempfile.TemporaryDirectory() as home, patch.dict(os.environ, {'HOME': home}):
             for name in ('XDG_DATA_HOME', 'XDG_CACHE_HOME', 'XDG_CONFIG_HOME', 'XDG_STATE_HOME'):
                 os.environ.pop(name, None)
-            self.assertEqual(paths.data('orbit', 'colors.json'), Path(home) / '.local/share/orbit/colors.json')
-            self.assertEqual(paths.cache('orbit'), Path(home) / '.cache/orbit')
+            self.assertEqual(paths.data('wysun', 'colors.json'), Path(home) / '.local/share/wysun/colors.json')
+            self.assertEqual(paths.cache('wysun'), Path(home) / '.cache/wysun')
             self.assertEqual(paths.bin_home(), Path(home) / '.local/bin')
 
     def test_runtime_dir_falls_back_to_a_private_directory(self):

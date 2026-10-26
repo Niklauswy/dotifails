@@ -26,7 +26,7 @@ def render(out, source, theme):
         os.environ[key] = str(home / sub)
     os.environ['HOME'] = str(home)
     os.environ['WYSUN_THEME'] = theme
-    os.environ['ORBIT_REDUCED_MOTION'] = '1'
+    os.environ['WYSUN_REDUCED_MOTION'] = '1'
     backgrounds = home / '.local/share/backgrounds'
     shutil.copytree(ROOT / 'assets/backgrounds', backgrounds)
     sys.path.insert(0, str(Path(source).resolve()))
@@ -63,9 +63,9 @@ def render(out, source, theme):
         shot(name, widget, size)
         return widget
 
-    from wysun_services import daemon as orbit
+    from wysun_services import daemon
     try:
-        orbit.apply_style(app, orbit.STYLE)
+        daemon.apply_style(app, daemon.STYLE)
     except Exception as error:
         print('fail app-style', error)
     from wysun_music.app import build

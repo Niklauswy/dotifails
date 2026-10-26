@@ -42,7 +42,7 @@ class IdlePreferencesTest(unittest.TestCase):
         for args, code in ((['set', 'lock_minutes', '7'], 1), (['set', 'lock_before_sleep', 'maybe'], 1), (['set', 'nope', '5'], 2)):
             result = subprocess.run([str(IDLE), *args], env=self.env, capture_output=True, text=True)
             self.assertEqual(result.returncode, code, result.stderr)
-        self.assertFalse((Path(self.tmp.name) / 'config/orbit/idle.json').exists())
+        self.assertFalse((Path(self.tmp.name) / 'config/wysun/idle.json').exists())
 
     def test_run_rebuilds_swayidle_when_preferences_change(self):
         bin_dir = Path(self.tmp.name) / 'bin'

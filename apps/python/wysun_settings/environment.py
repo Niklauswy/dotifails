@@ -19,7 +19,7 @@ from wysun_core import launch
 from wysun_core.jsonio import atomic_write_json, atomic_write_text, read_json
 
 ROTATIONS = ('normal','left','right','inverted')
-BAR_MODULES = {'orbit':'Wysun','title':'Ventana activa','workspaces':'Escritorios','resources':'CPU y memoria','network':'Red','volume':'Volumen','battery':'Batería','date':'Fecha y hora','notifications':'Notificaciones','power':'Sesión','tray':'Bandeja'}
+BAR_MODULES = {'wysun':'Wysun','title':'Ventana activa','workspaces':'Escritorios','resources':'CPU y memoria','network':'Red','volume':'Volumen','battery':'Batería','date':'Fecha y hora','notifications':'Notificaciones','power':'Sesión','tray':'Bandeja'}
 
 def run(args):
     result = subprocess.run([str(a) for a in args],capture_output=True,text=True,timeout=12)
@@ -89,7 +89,7 @@ class DisplayTrial:
         plan = self.plan
         self.key = profile_key(inventory)
         command = display_command(plan,inventory)
-        folder = backend.home/'.cache/orbit/display-trials'
+        folder = backend.home/'.cache/wysun/display-trials'
         folder.mkdir(parents=True,exist_ok=True,mode=0o700)
         self.folder = Path(tempfile.mkdtemp(dir=folder))
         self.done=False
@@ -108,7 +108,7 @@ class DisplayTrial:
     def resume(cls, backend, folder):
         """Rebuild a running trial from its folder so another process can settle it."""
         folder = Path(folder)
-        if folder.parent != backend.home/'.cache/orbit/display-trials' or not (folder/'meta.json').is_file():
+        if folder.parent != backend.home/'.cache/wysun/display-trials' or not (folder/'meta.json').is_file():
             raise ValueError('Prueba de pantallas desconocida.')
         trial = cls.__new__(cls)
         meta = read_json(folder/'meta.json', {})
@@ -131,7 +131,7 @@ class DisplayTrial:
             section.setdefault('profiles',{})[self.key] = self.plan
             self.backend.save_section('displays',section)
             from wysun_settings.display_layout import monitors_fragment
-            atomic_write_text(self.backend.config/'orbit/hypr-monitors.lua',monitors_fragment(self.plan))
+            atomic_write_text(self.backend.config/'wysun/hypr-monitors.lua',monitors_fragment(self.plan))
             atomic_write_text(self.folder/'accepted','ok')
             self.done = True
         after_display_change(self.backend)
@@ -189,7 +189,7 @@ class EnvironmentSettings:
         self.runner = runner
         from wysun_settings.hypr import config_dir
         self.config = config_dir(self.home)
-        self.path = self.config/'orbit/environment.json'
+        self.path = self.config/'wysun/environment.json'
         self.reload()
 
     def reload(self):
@@ -219,7 +219,7 @@ class EnvironmentSettings:
 
     def preference_paths(self):
         from wysun_core import theme
-        return {name: self.config / 'orbit' / name for name in (
+        return {name: self.config / 'wysun' / name for name in (
             'shell.json', 'hypr-bar.json', 'appearance.json', 'environment.json', 'theme.json')} | {
             'scheme.json': theme.scheme_path(self.home)}
 
@@ -295,12 +295,12 @@ class EnvironmentSettings:
 
     def appearance_values(self):
         from wysun_settings.data import json_object
-        value = json_object(self.config / 'orbit/appearance.json')
+        value = json_object(self.config / 'wysun/appearance.json')
         return dict(opacity=value.get('opacity', 80), reduced_motion=value.get('reduced_motion', False))
 
     def apply_appearance(self, values, expected=None, snapshot=True):
         from wysun_settings.data import json_object, PreferenceBackup
-        path = self.config / 'orbit/appearance.json'
+        path = self.config / 'wysun/appearance.json'
         latest = json_object(path)
         if expected is not None and self.appearance_values() != expected:
             raise ValueError('La apariencia cambió en otra ventana. Recarga antes de guardar.')
@@ -366,8 +366,8 @@ class EnvironmentSettings:
         return {key:external[key].upper() for key in ('background','foreground','accent')}
 
     def bar_values(self):
-        defaults=dict(height=36,offset=10,radius=12,opacity=65,**self.bar_theme_colors(),left=['orbit','workspaces'],center=['title'],right=['resources','network','volume','battery','date','notifications','power','tray'],monitors={},tray_monitor='')
-        path=self.config/'orbit/hypr-bar.json'
+        defaults=dict(height=36,offset=10,radius=12,opacity=65,**self.bar_theme_colors(),left=['wysun','workspaces'],center=['title'],right=['resources','network','volume','battery','date','notifications','power','tray'],monitors={},tray_monitor='')
+        path=self.config/'wysun/hypr-bar.json'
         return defaults | read_json(path, {}) if path.exists() else defaults
 
     def apply_bar(self, values):
@@ -387,7 +387,7 @@ class EnvironmentSettings:
             raise ValueError('La bandeja debe ir en la sección derecha.')
         if not any(values[side] for side in ('left','center','right')):
             raise ValueError('Deja al menos un módulo en la barra.')
-        path=self.config/'orbit/hypr-bar.json';previous=path.read_text() if path.exists() else None
+        path=self.config/'wysun/hypr-bar.json';previous=path.read_text() if path.exists() else None
         backup_file(path,settings_backups(self.home))
         atomic_write_json(path, values)
         try:self.runner(['wysun','shell','reload-preferences'])
@@ -443,7 +443,7 @@ class EnvironmentSettings:
             self.edit_file(path,set_values(path.read_text() if path.exists() else '',clean),lambda:self.runner(['ghostty','+validate-config']))
         elif component == 'effects':
             from wysun_settings.hypr import effects_script,config_dir,effects_state,apply_fragment
-            text=effects_script(values);path=config_dir(self.home)/'orbit/hypr-effects.lua'
+            text=effects_script(values);path=config_dir(self.home)/'wysun/hypr-effects.lua'
             rollback=effects_state(self.runner)[1]
             self.path.parent.mkdir(parents=True,exist_ok=True,mode=0o700)
             with (self.path.parent/'environment.lock').open('a') as handle:
@@ -496,7 +496,7 @@ class EnvironmentSettings:
         text = layouts.lua_fragment(clean)
         live = layouts.live_script(clean,previous)
         rollback = layouts.live_script(previous,clean)
-        path = self.config/'orbit/hypr-workspaces.lua'
+        path = self.config/'wysun/hypr-workspaces.lua'
         self.path.parent.mkdir(parents=True,exist_ok=True,mode=0o700)
         with (self.path.parent/'environment.lock').open('a') as handle:
             fcntl.flock(handle,fcntl.LOCK_EX)
@@ -589,7 +589,7 @@ class EnvironmentSettings:
         if not name.strip() or '\n' in name or '\n' in command or not command.strip():raise ValueError('Escribe un nombre y un comando en una sola línea.')
         argv=shlex.split(command)
         if not argv or not (shutil.which(argv[0]) or Path(argv[0]).is_file()):raise ValueError('No se encuentra el programa del comando.')
-        ident='orbit-'+re.sub(r'[^a-z0-9]+','-',name.casefold()).strip('-')+'.desktop'
+        ident='wysun-'+re.sub(r'[^a-z0-9]+','-',name.casefold()).strip('-')+'.desktop'
         path=self.home/'.config/autostart'/ident
         if path.exists():raise ValueError('Ya existe una entrada con ese nombre.')
         atomic_write_text(path,'[Desktop Entry]\nType=Application\nName='+name+'\nExec='+command+'\nTerminal=false\nHidden=false\n')
@@ -614,7 +614,7 @@ def render_wallpaper(values, outputs, home=None, runner=run):
         selected_paths.append(path)
     # Quickshell owns wallpaper surfaces; publish validated preferences.
     from wysun_settings.hypr import config_dir
-    config=config_dir(home)/'orbit/environment.json';data=read_json(config, {});data['wallpaper']=copy.deepcopy(values)
+    config=config_dir(home)/'wysun/environment.json';data=read_json(config, {});data['wallpaper']=copy.deepcopy(values)
     atomic_write_json(config, data)
     try:runner(['wysun','shell','reload-preferences'])
     except Exception:pass  # the shell watches environment.json; a stopped shell is not a failed save

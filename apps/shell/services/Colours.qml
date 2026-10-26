@@ -111,7 +111,7 @@ Singleton {
     }
 
     FileView {
-        path: `${Quickshell.env("XDG_CONFIG_HOME") || `${Paths.home}/.config`}/orbit/theme.json`
+        path: `${Quickshell.env("XDG_CONFIG_HOME") || `${Paths.home}/.config`}/wysun/theme.json`
         watchChanges: true
         printErrors: false
         onFileChanged: reload()

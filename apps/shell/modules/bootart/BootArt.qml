@@ -34,11 +34,11 @@ Item {
     readonly property color text: scheme.text
     readonly property color card: scheme.pick("card", scheme.primary)
 
-    // Frames per falling card, of the dissolve and bullets of the passphrase; orbit.script.in expects them.
+    // Frames per falling card, of the dissolve and bullets of the passphrase; wysun.script.in expects them.
     readonly property int flipFrames: 4
     readonly property int fadeFrames: 4
     readonly property int passFrames: 17
-    // The glass on the 1920x1080 canvas; orbit.script.in places its sprites from the same numbers.
+    // The glass on the 1920x1080 canvas; wysun.script.in places its sprites from the same numbers.
     readonly property point glassCentre: Qt.point(930, 540)
     readonly property size glassHalf: Qt.size(585, 395)
 
@@ -63,7 +63,7 @@ Item {
             "maintenance": "MAINTENANCE IN PROGRESS",
             "skip": "PRESS ANY KEY TO SKIP"
         })
-    // The farewell: frames per motion (orbit.script.in expects the same numbers) and what the balloon says.
+    // The farewell: frames per motion (wysun.script.in expects the same numbers) and what the balloon says.
     readonly property int walkFrames: 12
     readonly property real walkTurn: 0.3
     readonly property int turnFrames: 4

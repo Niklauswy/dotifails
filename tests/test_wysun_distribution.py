@@ -44,14 +44,13 @@ class WysunDistributionTests(unittest.TestCase):
         entries = self.home / '.local/share/applications'
         self.assertFalse((entries / 'wybie-screenshot.desktop').exists())
         self.assertEqual(sorted(path.name for path in entries.glob('*.desktop')),
-                         ['orbit-settings.desktop', 'orbit.desktop', 'wysun-pdf.desktop', 'wysun-player.desktop', 'wysun-recorder.desktop'])
+                         ['wysun-pdf.desktop', 'wysun-player.desktop', 'wysun-recorder.desktop', 'wysun-settings.desktop', 'wysun.desktop'])
         self.assertTrue(os.access(launch.parent / 'wysun-player', os.X_OK))
         self.assertIn('Exec=wysun pdf %F', (entries / 'wysun-pdf.desktop').read_text())
         self.assertTrue((launch.parent / 'wysun-pdf').is_file())
         self.assertIn('Name=Wysun Recorder', (entries / 'wysun-recorder.desktop').read_text())
-        self.assertIn('Name=Wysun Settings', (entries / 'orbit-settings.desktop').read_text())
-        self.assertFalse((entries / 'orbit-connections.desktop').exists())
-        self.assertNotIn('Órbita', (entries / 'orbit-settings.desktop').read_text())
+        self.assertIn('Name=Wysun Settings', (entries / 'wysun-settings.desktop').read_text())
+        self.assertNotIn('Órbita', (entries / 'wysun-settings.desktop').read_text())
         update = self.deploy()
         update.configure_wysun()
         self.assertFalse(update.conflicts)
@@ -101,8 +100,8 @@ class WysunDistributionTests(unittest.TestCase):
     def test_adopt_verified_legacy_files_and_preserve_all_private_roots(self):
         private = ('.local/share/wysun/recorder/recordings/old/project.json',
                    '.local/share/wybie-screenshot/sessions/old/original.png',
-                   '.config/wysun/recorder/preferences.json', '.local/share/orbit/orbit.sqlite3',
-                   '.config/orbit/theme.json')
+                   '.config/wysun/recorder/preferences.json', '.local/share/wysun/wysun.sqlite3',
+                   '.config/wysun/theme.json')
         for name in private:
             path = self.home / name
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -212,8 +211,8 @@ class WysunDistributionTests(unittest.TestCase):
                 deployment.configure(components=('desktop',))
                 deployment.finish()
             self.assertFalse(deployment.conflicts)
-            self.assertEqual((self.home / '.local/share/applications/orbit.desktop').read_text(), installer.WYSUN_DESKTOP)
-            private = self.home / '.config/orbit/personal-layout.json'
+            self.assertEqual((self.home / '.local/share/applications/wysun.desktop').read_text(), installer.WYSUN_DESKTOP)
+            private = self.home / '.config/wysun/personal-layout.json'
             if iteration:
                 self.assertFalse(deployment.journal['operations'])
                 self.assertEqual(private.read_text(), 'private fixture')

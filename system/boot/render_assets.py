@@ -162,7 +162,7 @@ def write_templates():
         'CARD': css('card'), 'INFO_RGB': floats('info'), 'SANS': SANS,
     }
     for template, target in ((BOOT / 'grub/theme.txt.in', BOOT / 'grub/theme.txt'),
-                             (BOOT / 'plymouth/orbit.script.in', BOOT / 'plymouth/orbit.script')):
+                             (BOOT / 'plymouth/wysun.script.in', BOOT / 'plymouth/wysun.script')):
         text = template.read_text()
         for key, value in values.items():
             text = text.replace('@' + key + '@', value)

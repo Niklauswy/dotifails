@@ -15,7 +15,7 @@ Scope {
 
     readonly property string readyMarker: Quickshell.env("WYSUN_LOCK_READY") || ""
     readonly property string shaderDir: Quickshell.env("WYSUN_LOCK_SHADERS") || ""
-    readonly property bool reducedMotion: Quickshell.env("ORBIT_REDUCED_MOTION") === "1"
+    readonly property bool reducedMotion: Quickshell.env("WYSUN_REDUCED_MOTION") === "1"
     readonly property string username: Quickshell.env("USER") || ""
     // A snapshot of the primary monitor taken by wysun-lock before locking (private runtime dir); the
     // elevator opens on it when unlocking. Removed when the lock exits.

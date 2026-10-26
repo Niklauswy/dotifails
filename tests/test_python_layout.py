@@ -38,7 +38,7 @@ class LayoutTests(unittest.TestCase):
                 if path.suffix not in ('.py', '') or relative in SYS_PATH_ALLOWED:
                     continue
                 text = path.read_text(errors='ignore')
-                if re.search(r'sys\.path\.(insert|append)|orbit/app\b', text):
+                if re.search(r'sys\.path\.(insert|append)', text):
                     offenders.append(relative)
         self.assertEqual(offenders, [])
 

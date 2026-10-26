@@ -34,7 +34,7 @@ class FilesUITests(unittest.TestCase):
     def tearDownClass(cls):
         cls.app.clipboard().clear();QCoreApplication.sendPostedEvents(None,QEvent.DeferredDelete);cls.env.stop();cls.config.cleanup()
     def setUp(self):
-        QSettings('Orbita','Files').clear()        # preferences (hidden files, details panel) must not leak between tests
+        QSettings('Wysun','Files').clear()        # preferences (hidden files, details panel) must not leak between tests
         self.temp=tempfile.TemporaryDirectory();self.base=Path(self.temp.name)
         (self.base/'alpha.txt').write_text('unchanged source')
         (self.base/'destination').mkdir();(self.base/'.hidden').write_text('hidden')
@@ -199,7 +199,7 @@ class FilesUITests(unittest.TestCase):
         self.assertEqual(describe('x',True)[0],'folder');self.assertEqual(preview_kind('a.py'),'code');self.assertEqual(preview_kind('a.bin'),'')
     def test_reduced_motion_applies_hover_immediately(self):
         view=self.w.current().view()
-        with patch.dict(os.environ,{'ORBIT_REDUCED_MOTION':'1'}):
+        with patch.dict(os.environ,{'WYSUN_REDUCED_MOTION':'1'}):
             view.hover.point('x',1.0);self.assertEqual(view.hover.amount('x'),1.0)
             view.start_entrance();self.assertEqual(view.entrance(0),(1.0,0.0,0.0))
     def test_inspector_opens_only_for_files_with_a_preview(self):

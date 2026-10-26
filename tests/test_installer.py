@@ -12,20 +12,20 @@ class InstallerTests(unittest.TestCase):
   try:
    with patch.object(d,'deploy'),patch.object(d,'configure_scripts'),patch.object(d,'configure_manager'),patch.object(d,'generated') as generated:d.configure(components=('desktop',))
    written={str(call.args[1]):call.args[0] for call in generated.call_args_list}
-   self.assertEqual(json.loads(written['.config/orbit/theme.json']),{'mode':'auto'})
-   self.assertEqual(json.loads(written['.config/orbit/environment.json'])['wallpaper']['default'],str(self.home/'.local/share/backgrounds/purple.jpg'))
+   self.assertEqual(json.loads(written['.config/wysun/theme.json']),{'mode':'auto'})
+   self.assertEqual(json.loads(written['.config/wysun/environment.json'])['wallpaper']['default'],str(self.home/'.local/share/backgrounds/purple.jpg'))
   finally:d.lock.close()
   # An update keeps the mode, any other key and the wallpaper the user picked; a broken file starts automatic.
   for stored,expected in (('{"mode":"light","x":1}',{'mode':'light','x':1}),('{"style":"fluent","variant":"dark"}',{'style':'fluent','variant':'dark','mode':'auto'}),
                           ('[]',{'mode':'auto'}),('nope',{'mode':'auto'})):
-   active=self.home/'.config/orbit/theme.json';active.parent.mkdir(parents=True,exist_ok=True);active.write_text(stored)
-   (self.home/'.config/orbit/environment.json').write_text(json.dumps({'wallpaper':{'default':'/mine.jpg','folders':['/library']}}))
+   active=self.home/'.config/wysun/theme.json';active.parent.mkdir(parents=True,exist_ok=True);active.write_text(stored)
+   (self.home/'.config/wysun/environment.json').write_text(json.dumps({'wallpaper':{'default':'/mine.jpg','folders':['/library']}}))
    d=self.deploy()
    try:
     with patch.object(d,'deploy'),patch.object(d,'configure_scripts'),patch.object(d,'configure_manager'),patch.object(d,'generated') as generated:d.configure(components=('desktop',))
     written={str(call.args[1]):call.args[0] for call in generated.call_args_list}
-    self.assertEqual(json.loads(written['.config/orbit/theme.json']),expected,stored)
-    self.assertNotIn('.config/orbit/environment.json',written,'the personal wallpaper is left alone')
+    self.assertEqual(json.loads(written['.config/wysun/theme.json']),expected,stored)
+    self.assertNotIn('.config/wysun/environment.json',written,'the personal wallpaper is left alone')
    finally:d.lock.close()
  def test_doctor_checks_the_shipped_wallpaper_from_the_installed_tokens(self):
   tokens=self.home/'.local/share/wysun/app/wysun_core/tokens.json';tokens.parent.mkdir(parents=True)
@@ -44,14 +44,14 @@ class InstallerTests(unittest.TestCase):
    shim=self.home/'node';shim.symlink_to(self.home/'.local/bin/mise')
    self.assertEqual(subprocess.check_output([str(shim)],text=True).strip(),'node')
   finally:d.lock.close()
- def test_orbit_only_preserves_other_configs_and_private_data(self):
+ def test_wysun_only_preserves_other_configs_and_private_data(self):
   source=Path(__file__).parents[1]
   with tempfile.TemporaryDirectory() as tmp:
    home=Path(tmp);nvim=home/'.config/nvim/init.lua';nvim.parent.mkdir(parents=True);nvim.write_text('my editor')
-   note=home/'.local/share/orbit/notes/private.md';note.parent.mkdir(parents=True);note.write_text('private')
-   self.assertEqual(m.main(['install','--source',str(source),'--target-home',tmp,'--orbit-only']),0)
-   self.assertEqual(nvim.read_text(),'my editor');self.assertEqual(note.read_text(),'private');self.assertFalse((home/'.local/share/wysun/app/notes_window.py').exists());self.assertFalse((home/'.config/sxhkd').exists());self.assertTrue((home/'.local/share/icons/hicolor/scalable/apps/musika.svg').is_file());self.assertIn('Name=Wysun Music',(home/'.local/share/applications/orbit-music.desktop').read_text())
-   self.assertEqual(m.main(['install','--source',str(source),'--target-home',tmp,'--orbit-only']),0)
+   note=home/'.local/share/wysun/notes/private.md';note.parent.mkdir(parents=True);note.write_text('private')
+   self.assertEqual(m.main(['install','--source',str(source),'--target-home',tmp,'--wysun-only']),0)
+   self.assertEqual(nvim.read_text(),'my editor');self.assertEqual(note.read_text(),'private');self.assertFalse((home/'.local/share/wysun/app/notes_window.py').exists());self.assertFalse((home/'.config/sxhkd').exists());self.assertTrue((home/'.local/share/icons/hicolor/scalable/apps/musika.svg').is_file());self.assertIn('Name=Wysun Music',(home/'.local/share/applications/wysun-music.desktop').read_text())
+   self.assertEqual(m.main(['install','--source',str(source),'--target-home',tmp,'--wysun-only']),0)
    backup=json.loads((home/'.local/state/dotifails/installed.json').read_text())['last_backup'];journal=json.loads((home/'.local/state/dotifails/backups'/backup/'journal.json').read_text());self.assertEqual(journal['operations'],[])
  def setUp(self):
   self.temp=tempfile.TemporaryDirectory();self.root=Path(self.temp.name);self.home=self.root/'home';self.home.mkdir();self.source=self.root/'source';self.source.mkdir();self.input=self.source/'file';self.input.write_text('new')

@@ -234,7 +234,7 @@ Singleton {
     FileView {
         id: treeFile
 
-        path: `${root.home}/.local/share/orbit/launcher-files.idx`
+        path: `${root.home}/.local/share/wysun/launcher-files.idx`
         watchChanges: true
         printErrors: false
         onFileChanged: reload()

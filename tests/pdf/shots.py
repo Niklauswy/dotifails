@@ -132,7 +132,7 @@ def main():
             environment.update(HOME=home, XDG_CONFIG_HOME=f'{home}/config', XDG_STATE_HOME=f'{home}/state',
                                XDG_DATA_HOME=f'{home}/data', XDG_CACHE_HOME=f'{home}/cache',
                                XDG_RUNTIME_DIR=f'{home}/runtime', QT_QPA_PLATFORM='offscreen',
-                               ORBIT_REDUCED_MOTION='1', **extra)
+                               WYSUN_REDUCED_MOTION='1', **extra)
             os.makedirs(f'{home}/runtime', mode=0o700)
             subprocess.run([sys.executable, __file__, str(output), name], env=environment, check=True)
             print('captura', name)

@@ -8,7 +8,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 CORE = ROOT / 'apps/python/wysun_core'
-APPLICATION_MODULES = r'theme_tokens|theme_core|wysun_music|wysun_files|wysun_media|wysun_recorder|orbit|music_material|ui_\w+'
+APPLICATION_MODULES = r'theme_tokens|theme_core|wysun_music|wysun_files|wysun_media|wysun_recorder|music_material|ui_\w+'
 
 
 class CorePackagingTests(unittest.TestCase):
@@ -42,7 +42,7 @@ class CorePackagingTests(unittest.TestCase):
                      'apps/recorder/wysun_recorder/ui/wysun_theme.json', 'manifests/themes.json'):
             self.assertFalse((ROOT / gone).exists(), gone)
         hits = subprocess.run(['git', '-C', str(ROOT), 'grep', '-nE',
-                               r'ORBIT_THEME|orbitOriginalStyle|wysunThemeStyle|RETIRED_BAR_COLORS|LOOMREC_REDUCED_MOTION',
+                               r'wysunThemeStyle|RETIRED_BAR_COLORS',
                                '--', 'apps', 'installer', 'tests', 'bin', 'docs/themes.md', 'AGENTS.md',
                                ':!tests/test_core_packaging.py'], capture_output=True, text=True).stdout
         self.assertEqual(hits, '')

@@ -24,8 +24,8 @@ def local_paths(arguments):
 def main():
     app = QApplication([sys.argv[0]])
     app.setApplicationName('Wysun Files')
-    app.setOrganizationName('Orbita')
-    app.setDesktopFileName('orbit-files')
+    app.setOrganizationName('Wysun')
+    app.setDesktopFileName('wysun-files')
     app.setStyle('Fusion')
     try:
         paths = local_paths(sys.argv[1:])

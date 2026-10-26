@@ -3,7 +3,7 @@ from pathlib import Path
 import ast, configparser, hashlib, math, operator, os, re, sqlite3, time
 
 HOME = Path.home()
-STATE = HOME / '.local/share/orbit'
+STATE = HOME / '.local/share/wysun'
 SKIP = {'node_modules', '.git', 'venv', '.venv', '__pycache__', 'target', 'dist', 'build', 'vendor', 'go', 'miniconda3', 'anaconda3', 'snap', 'Trash'}
 
 def calculate(query):
@@ -48,7 +48,7 @@ def sensitive(text, formats=()):
 class Store:
     def __init__(self, root=STATE):
         self.root = Path(root); self.root.mkdir(parents=True, exist_ok=True, mode=0o700); self.root.chmod(0o700)
-        self.db = sqlite3.connect(self.root / 'orbit.sqlite3'); os.chmod(self.root/'orbit.sqlite3',0o600)
+        self.db = sqlite3.connect(self.root / 'wysun.sqlite3'); os.chmod(self.root/'wysun.sqlite3',0o600)
         self.db.row_factory = sqlite3.Row
         self.db.executescript('''PRAGMA secure_delete=ON;
         CREATE TABLE IF NOT EXISTS clips(id INTEGER PRIMARY KEY, digest TEXT UNIQUE, kind TEXT, text TEXT, blob BLOB, stamp REAL);

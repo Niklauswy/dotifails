@@ -75,7 +75,7 @@ class DisplayTests(BridgeCase):
             self.bridge.displays_settle({'folder': str(self.home / 'elsewhere'), 'accept': True})
 
     def test_expired_trial_cannot_be_reported_as_saved(self):
-        folder = self.home / '.cache/orbit/display-trials/expired'
+        folder = self.home / '.cache/wysun/display-trials/expired'
         folder.mkdir(parents=True)
         (folder / 'trial.json').write_text(json.dumps({'old': self.PLAN, 'deadline': 0}))
         (folder / 'meta.json').write_text(json.dumps({'plan': self.PLAN, 'key': 'A|B'}))
@@ -86,7 +86,7 @@ class DisplayTests(BridgeCase):
 
     def test_resumed_trial_rejects_and_restores_the_previous_layout(self):
         from wysun_settings.environment import DisplayTrial, EnvironmentSettings
-        folder = self.home / '.cache/orbit/display-trials/t1'
+        folder = self.home / '.cache/wysun/display-trials/t1'
         folder.mkdir(parents=True)
         (folder / 'trial.json').write_text(json.dumps({'old': self.PLAN, 'deadline': 0}))
         (folder / 'meta.json').write_text(json.dumps({'plan': self.PLAN, 'key': 'A|B'}))

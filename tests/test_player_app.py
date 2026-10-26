@@ -267,7 +267,7 @@ class SingleInstanceTests(Environment):
     """Real processes: the second launch must hand over its files and exit, whatever the timing."""
 
     def env(self):
-        env = dict(os.environ, PYTHONPATH=str(APP), HOME=str(self.root), QT_QPA_PLATFORM='offscreen', ORBIT_REDUCED_MOTION='1',
+        env = dict(os.environ, PYTHONPATH=str(APP), HOME=str(self.root), QT_QPA_PLATFORM='offscreen', WYSUN_REDUCED_MOTION='1',
                    XDG_CONFIG_HOME=str(self.root / 'config'), XDG_DATA_HOME=str(self.root / 'data'), XDG_CACHE_HOME=str(self.root / 'cache'))
         for variable in ('WAYLAND_DISPLAY', 'DISPLAY', 'HYPRLAND_INSTANCE_SIGNATURE'):
             env.pop(variable, None)

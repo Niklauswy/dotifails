@@ -145,7 +145,7 @@ Scope {
     }
     FileView {
         id: environment
-        path: (Quickshell.env('XDG_CONFIG_HOME') || Paths.home + '/.config') + '/orbit/environment.json'
+        path: (Quickshell.env('XDG_CONFIG_HOME') || Paths.home + '/.config') + '/wysun/environment.json'
         watchChanges: true
         printErrors: false
         onFileChanged: reload()

@@ -34,7 +34,7 @@ class ThemeTests(unittest.TestCase):
         return path
 
     def test_paths_follow_the_injected_home(self):
-        self.assertEqual(theme.selection_path(self.home), self.home / '.config/orbit/theme.json')
+        self.assertEqual(theme.selection_path(self.home), self.home / '.config/wysun/theme.json')
         self.assertEqual(theme.scheme_path(self.home), self.home / '.local/state/wysun/scheme.json')
 
     def test_old_or_broken_theme_file_reads_as_auto(self):
@@ -48,7 +48,7 @@ class ThemeTests(unittest.TestCase):
         theme.write_mode('light', self.home)
         self.assertEqual(json.loads(path.read_text()), {'mode': 'light', 'x': 1})
         self.assertEqual(path.stat().st_mode & 0o777, 0o600)
-        self.assertEqual(len(list((self.home / '.local/state/orbit/theme-backups').iterdir())), 1)
+        self.assertEqual(len(list((self.home / '.local/state/wysun/theme-backups').iterdir())), 1)
         self.assertEqual(theme.read_mode(self.home), 'light')
 
     def test_write_mode_replaces_a_broken_file_and_keeps_a_backup(self):
@@ -56,7 +56,7 @@ class ThemeTests(unittest.TestCase):
             path = self.selection(text)
             theme.write_mode('light', self.home)
             self.assertEqual(json.loads(path.read_text()), {'mode': 'light'})
-        backups = sorted((self.home / '.local/state/orbit/theme-backups').iterdir())
+        backups = sorted((self.home / '.local/state/wysun/theme-backups').iterdir())
         self.assertEqual([b.read_text() for b in backups], ['[]', 'nope'])
         with self.assertRaises(ValueError):
             theme.write_mode('sepia', self.home)

@@ -15,8 +15,8 @@ import unicodedata
 
 from wysun_core import launch
 
-DATA = Path(os.environ.get('ORBIT_MUSIC_HOME', str(Path.home()/'.local/share/orbit/music')))
-LIBRARY = Path(os.environ.get('ORBIT_MUSIC_LIBRARY', str(Path.home()/'Music/Orbita')))
+DATA = Path(os.environ.get('WYSUN_MUSIC_HOME', str(Path.home()/'.local/share/wysun/music')))
+LIBRARY = Path(os.environ.get('WYSUN_MUSIC_LIBRARY', str(Path.home()/'Music/Wysun')))
 SUFFIXES = {'.m4a', '.opus', '.mp3', '.flac', '.ogg', '.wav', '.aac'}
 
 

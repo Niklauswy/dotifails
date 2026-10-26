@@ -18,7 +18,7 @@ from PySide6.QtTest import QTest
 run=Path(sys.argv[1]);home=Path.home()
 assert str(run).startswith('/tmp/ws-') and home.is_relative_to(run)
 assert os.environ['PULSE_SERVER'].startswith('unix:'+str(run/'r'))
-sys.path.insert(0,str(home/'.local/share/orbit/app'))
+sys.path.insert(0,str(home/'.local/share/wysun/app'))
 app=QApplication([]);app.setQuitOnLastWindowClosed(False)
 from wysun_music import data as music
 assert music.DATA.is_relative_to(home)

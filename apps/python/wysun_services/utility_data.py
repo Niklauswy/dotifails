@@ -10,7 +10,7 @@ def digest(text):return hashlib.sha256(text.encode()).hexdigest()
 
 class Notes:
     def __init__(self,root=None):
-        self.root=Path(root or Path.home()/'.local/share/orbit/notes');self.root.mkdir(parents=True,exist_ok=True,mode=0o700)
+        self.root=Path(root or Path.home()/'.local/share/wysun/notes');self.root.mkdir(parents=True,exist_ok=True,mode=0o700)
         self.trash=self.root/'.trash';self.trash.mkdir(exist_ok=True,mode=0o700)
     def path(self,key,trash=False):
         if len(key)!=32 or any(c not in '0123456789abcdef' for c in key):raise ValueError('Nota inválida')
@@ -48,7 +48,7 @@ class Notes:
 
 
 class Colors:
-    def __init__(self,path=None):self.path=Path(path or Path.home()/'.local/share/orbit/colors.json')
+    def __init__(self,path=None):self.path=Path(path or Path.home()/'.local/share/wysun/colors.json')
     def read(self):
         try:return json.loads(self.path.read_text())
         except (OSError,ValueError):return dict(recent=[],favorites=[])

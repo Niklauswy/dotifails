@@ -19,7 +19,7 @@ sys.path.insert(0, str(root / 'apps/python'))
 
 with tempfile.TemporaryDirectory(prefix='wysun-music-qa-') as folder:
     temp = Path(folder)
-    os.environ.update(ORBIT_MUSIC_HOME=str(temp / 'state'), ORBIT_MUSIC_LIBRARY=str(temp / 'audio'),
+    os.environ.update(WYSUN_MUSIC_HOME=str(temp / 'state'), WYSUN_MUSIC_LIBRARY=str(temp / 'audio'),
                       XDG_RUNTIME_DIR=str(temp / 'run'))
     (temp / 'run').mkdir(mode=0o700)
     binary = temp / 'mpv'
@@ -173,7 +173,7 @@ with tempfile.TemporaryDirectory(prefix='wysun-music-qa-') as folder:
     environment['PYTHONPATH'] = str(root / 'apps/python')
     launcher = ['-P', '-m', 'wysun_music']
     dedicated = subprocess.Popen([sys.executable, *launcher], env=environment, stdout=log, stderr=log)
-    endpoint = runtime / f'orbit-music-app-{os.getuid()}.sock'
+    endpoint = runtime / f'wysun-music-{os.getuid()}.sock'
     started = time.monotonic()
     try:
         wait_until(endpoint.exists, 5, 'dedicated socket')

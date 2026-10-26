@@ -64,7 +64,7 @@ class DesktopEntryTests(unittest.TestCase):
         self.assertEqual(len(types), len(set(types)))
 
     def test_music_does_not_claim_audio_types_so_the_player_can_own_them(self):
-        music = (ROOT / 'config/.local/share/applications/orbit-music.desktop').read_text()
+        music = (ROOT / 'config/.local/share/applications/wysun-music.desktop').read_text()
         self.assertNotIn('MimeType', music)
 
 
@@ -114,7 +114,7 @@ class InstallerTests(unittest.TestCase):
         for name in deployment.player_mime_types():
             self.assertEqual(parser['Default Applications'][name], 'wysun-player.desktop;', name)
             self.assertIn('wysun-player.desktop', parser['Added Associations'][name])
-        self.assertEqual(parser['Default Applications']['inode/directory'], 'orbit-files.desktop;', 'Files keeps folders')
+        self.assertEqual(parser['Default Applications']['inode/directory'], 'wysun-files.desktop;', 'Files keeps folders')
         env = dict(os.environ, HOME=str(home), XDG_CONFIG_HOME=str(home / '.config'), XDG_DATA_HOME=str(home / '.local/share'),
                    XDG_CURRENT_DESKTOP='Wysun:Hyprland', PATH=str(home / '.local/bin') + ':/usr/bin:/bin')
         for name in ('image/png', 'video/mp4', 'audio/flac'):
@@ -135,7 +135,7 @@ class InstallerTests(unittest.TestCase):
     def test_updating_wysun_alone_never_changes_what_files_open_with(self):
         home = self.home('[Default Applications]\nimage/png=viewnior.desktop;\n')
         deployment = self.deployment(home)
-        deployment.configure_files()                                  # what an --orbit-only update runs on its own
+        deployment.configure_files()                                  # what an --wysun-only update runs on its own
         deployment.configure_wysun()
         deployment.finish()
         parser = mimeapps(home)

@@ -32,7 +32,7 @@ class ModeTests(unittest.TestCase):
     def setUp(self):
         self.folder = tempfile.TemporaryDirectory()
         self.home = Path(self.folder.name)
-        self.config = self.home / '.config/orbit'
+        self.config = self.home / '.config/wysun'
         self.config.mkdir(parents=True)
         self.theme = self.config / 'theme.json'
         self.red = self.home / 'red.png'
@@ -69,7 +69,7 @@ class ModeTests(unittest.TestCase):
         self.assertEqual(theme.read_mode(self.home), 'auto')
         wysun_scheme.set_scheme('dark', self.home)
         self.assertEqual(json.loads(self.theme.read_text()), {'mode': 'dark'})
-        backups = list((self.home / '.local/state/orbit/theme-backups').iterdir())
+        backups = list((self.home / '.local/state/wysun/theme-backups').iterdir())
         self.assertEqual([b.read_text() for b in backups], ['{broken'])
 
     def test_set_persists_the_mode_and_publishes_the_scheme_from_the_wallpaper(self):

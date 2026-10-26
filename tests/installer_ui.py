@@ -1,7 +1,7 @@
 """Native UI and real unprivileged installer flow, with no desktop replacement."""
 import os
 os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
-os.environ.setdefault('ORBIT_REDUCED_MOTION', '1')
+os.environ.setdefault('WYSUN_REDUCED_MOTION', '1')
 from pathlib import Path
 import sys
 import tempfile

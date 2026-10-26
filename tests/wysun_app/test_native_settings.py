@@ -105,7 +105,7 @@ class NativeSettingsTests(unittest.TestCase):
         from wysun_core import theme
         from wysun_core.appearance import save_appearance,read_appearance
         with tempfile.TemporaryDirectory() as home,tempfile.TemporaryDirectory() as xdg,patch.dict(os.environ,{'HOME':home,'XDG_CONFIG_HOME':xdg,'WAYLAND_DISPLAY':'fixture'}):
-            native=Path(xdg)/'orbit/hypr-bar.json';native.parent.mkdir(parents=True);native.write_text(json.dumps({'height':40,'background':theme.resolve('dark')['external']['background'],'opacity':65}))
+            native=Path(xdg)/'wysun/hypr-bar.json';native.parent.mkdir(parents=True);native.write_text(json.dumps({'height':40,'background':theme.resolve('dark')['external']['background'],'opacity':65}))
             calls=[]
             def runner(args):
                 calls.append(args)
@@ -113,8 +113,8 @@ class NativeSettingsTests(unittest.TestCase):
                 if args[:3]==['hyprctl','-j','monitors']:return json.dumps([dict(name='FIXTURE',width=800,height=600,scale=1,refreshRate=60,availableModes=['800x600@60.00Hz'])])
                 return 'ok'
             model=EnvironmentSettings(runner=runner);values=model.bar_values();self.assertEqual(values['height'],40)
-            values.update(left=['orbit'],center=['title'],right=['date','tray'],monitors={'DP-1':True},tray_monitor='DP-1')
-            model.apply_bar(values);native=Path(xdg)/'orbit/hypr-bar.json'
+            values.update(left=['wysun'],center=['title'],right=['date','tray'],monitors={'DP-1':True},tray_monitor='DP-1')
+            model.apply_bar(values);native=Path(xdg)/'wysun/hypr-bar.json'
             self.assertEqual(json.loads(native.read_text())['height'],40)
             # Theme colours are no longer copied into the bar file: the bar follows the theme.
             saved=json.loads(native.read_text());self.assertNotIn('background',saved);self.assertEqual(saved['monitors'],{'DP-1':True})
@@ -165,7 +165,7 @@ class NativeSettingsTests(unittest.TestCase):
             if previous is not None:del APP.wysunThemeWatcher
             qt_theme.invalidate();qt_theme.watch_theme();watcher=APP.wysunThemeWatcher
             try:
-                path=Path(home)/'config/orbit/theme.json';path.parent.mkdir(parents=True);path.write_text('{"mode":"light"}')
+                path=Path(home)/'config/wysun/theme.json';path.parent.mkdir(parents=True);path.write_text('{"mode":"light"}')
                 wait(120);self.assertEqual(watcher.revision[:2],('light','light'));self.assertEqual(refresh.call_count,1)
                 alternate=path.with_suffix('.new');alternate.write_text('{"mode":"dark"}');alternate.replace(path)
                 wait(120);self.assertEqual(watcher.revision[:2],('dark','dark'));self.assertEqual(refresh.call_count,2)

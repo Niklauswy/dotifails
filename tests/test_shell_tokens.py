@@ -220,8 +220,8 @@ class ColoursPluginTests(unittest.TestCase):
                 target.parent.mkdir(parents=True)
                 target.write_text(TOKENS.read_text())
             if theme is not None:
-                (home / 'config/orbit').mkdir(parents=True)
-                (home / 'config/orbit/theme.json').write_text(json.dumps(theme))
+                (home / 'config/wysun').mkdir(parents=True)
+                (home / 'config/wysun/theme.json').write_text(json.dumps(theme))
             if scheme is not None:
                 (home / 'state/wysun').mkdir(parents=True)
                 (home / 'state/wysun/scheme.json').write_text(json.dumps(scheme))

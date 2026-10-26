@@ -92,8 +92,8 @@ class Manager(dbus.service.Object):
 
 def main():
     DBusGMainLoop(set_as_default=True);bus=dbus.SessionBus()
-    app=QApplication([sys.argv[0]]);app.setApplicationName('Wysun Files');app.setOrganizationName('Orbita');app.setDesktopFileName('orbit-files');app.setStyle('Fusion');app.setQuitOnLastWindowClosed(False)
-    try:portal_name=dbus.service.BusName('org.freedesktop.impl.portal.desktop.orbit',bus,do_not_queue=True)
+    app=QApplication([sys.argv[0]]);app.setApplicationName('Wysun Files');app.setOrganizationName('Wysun');app.setDesktopFileName('wysun-files');app.setStyle('Fusion');app.setQuitOnLastWindowClosed(False)
+    try:portal_name=dbus.service.BusName('org.freedesktop.impl.portal.desktop.wysun',bus,do_not_queue=True)
     except dbus.NameExistsException:return 0
     portal=Portal(bus);manager_name=None;manager=None
     try:

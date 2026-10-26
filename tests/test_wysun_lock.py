@@ -59,8 +59,8 @@ class WysunLockLauncherTests(unittest.TestCase):
                    PATH=str(self.bin) + ':' + os.environ['PATH'], WYSUN_LOCK_WAIT='3')
         env.pop('WYSUN_LOCK_BACKEND', None)
         if config:
-            (self.root / 'config/orbit').mkdir(parents=True, exist_ok=True)
-            (self.root / 'config/orbit/lock.json').write_text(config)
+            (self.root / 'config/wysun').mkdir(parents=True, exist_ok=True)
+            (self.root / 'config/wysun/lock.json').write_text(config)
         return subprocess.run(['sh', str(LOCK), *args], env=env, capture_output=True, text=True, timeout=20)
 
     def calls(self):

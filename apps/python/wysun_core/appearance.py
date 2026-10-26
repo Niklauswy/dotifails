@@ -13,7 +13,7 @@ _cache = {}
 
 def preference_path(home=None):
     root = paths.config_home() if home is None or Path(home) == Path.home() else Path(home) / '.config'
-    return root / 'orbit/appearance.json'
+    return root / 'wysun/appearance.json'
 
 
 def read_appearance(home=None):
@@ -50,6 +50,6 @@ def save_appearance(values, home=None):
 
 
 def reduced_motion(home=None):
-    if os.environ.get('ORBIT_REDUCED_MOTION', '').lower() in ('1', 'true', 'yes'):
+    if os.environ.get('WYSUN_REDUCED_MOTION', '').lower() in ('1', 'true', 'yes'):
         return True
     return read_appearance(home)['reduced_motion']

@@ -29,7 +29,7 @@ esac
 
 # Backend. The Wysun lock (QML, ext-session-lock-v1) is the default; swaylock remains selectable and
 # is the fallback whenever the QML lock cannot confirm the lock. Invalid values select the default.
-config="${XDG_CONFIG_HOME:-$HOME/.config}/orbit/lock.json"
+config="${XDG_CONFIG_HOME:-$HOME/.config}/wysun/lock.json"
 backend=${WYSUN_LOCK_BACKEND:-}
 media=${WYSUN_LOCK_MEDIA:-}
 if [ -r "$config" ]; then

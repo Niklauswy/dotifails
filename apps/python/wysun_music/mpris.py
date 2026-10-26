@@ -128,7 +128,7 @@ def _service_class(dbus):
             return {
                 'CanQuit': dbus.Boolean(True), 'CanRaise': dbus.Boolean(True),
                 'HasTrackList': dbus.Boolean(False), 'Identity': dbus.String('Wysun Music'),
-                'DesktopEntry': dbus.String('orbit-music'),
+                'DesktopEntry': dbus.String('wysun-music'),
                 'SupportedUriSchemes': dbus.Array(['file'], signature='s'),
                 'SupportedMimeTypes': dbus.Array(['audio/mpeg', 'audio/ogg', 'audio/flac', 'audio/mp4',
                                                   'audio/opus', 'audio/x-wav', 'audio/aac'], signature='s'),

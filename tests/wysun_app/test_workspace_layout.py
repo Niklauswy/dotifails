@@ -86,9 +86,9 @@ class SettingsIntegrationTests(unittest.TestCase):
             home = Path(folder)
             backend = EnvironmentSettings(home, self.runner())
             backend.apply_workspace_layout({'DP-1': [1, 2], 'eDP-1': [10]})
-            stored = json.loads((home/'.config/orbit/environment.json').read_text())
+            stored = json.loads((home/'.config/wysun/environment.json').read_text())
             self.assertEqual(stored['workspaces'], {'DP-1': [1, 2], 'eDP-1': [10]})
-            fragment = (home/'.config/orbit/hypr-workspaces.lua').read_text()
+            fragment = (home/'.config/wysun/hypr-workspaces.lua').read_text()
             self.assertIn('["workspace"] = "10", ["monitor"] = "eDP-1", ["persistent"] = true', fragment)
 
     def test_assign_moves_number_to_the_chosen_output(self):
@@ -98,7 +98,7 @@ class SettingsIntegrationTests(unittest.TestCase):
             backend = EnvironmentSettings(home, self.runner())
             backend.apply_workspace_layout({'DP-1': list(range(1, 11))})
             backend.assign_workspace(10, 'eDP-1')
-            stored = json.loads((home/'.config/orbit/environment.json').read_text())
+            stored = json.loads((home/'.config/wysun/environment.json').read_text())
             self.assertEqual(stored['workspaces'], {'DP-1': list(range(1, 10)), 'eDP-1': [10]})
             scripts = [call for call in backend.runner.calls if call[:2] == ['hyprctl', 'eval']]
             self.assertIn('["workspace"] = "10", ["monitor"] = "eDP-1", ["persistent"] = true', scripts[-1][2])
@@ -137,25 +137,25 @@ class LoginRestoreTests(unittest.TestCase):
             home = Path(folder)
             runner = self.runner()
             scripts = self.restore(home, runner)
-            fragment = (home/'.config/orbit/hypr-workspaces.lua').read_text()
+            fragment = (home/'.config/wysun/hypr-workspaces.lua').read_text()
             self.assertEqual(fragment, layouts.lua_fragment({'DP-1': [1, 2, 3, 4, 5], 'eDP-1': [6, 7, 8, 9, 10]}))
             self.assertEqual(len(scripts), 1)
             self.assertIn('["workspace"] = "5", ["monitor"] = "DP-1", ["persistent"] = true', scripts[0][2])
             self.assertNotIn('persistent"] = false', scripts[0][2])
-            self.assertFalse((home/'.config/orbit/environment.json').exists())
+            self.assertFalse((home/'.config/wysun/environment.json').exists())
             # Hotplug events repeat the restore; the fragment stays identical.
             self.restore(home, runner)
-            self.assertEqual((home/'.config/orbit/hypr-workspaces.lua').read_text(), fragment)
+            self.assertEqual((home/'.config/wysun/hypr-workspaces.lua').read_text(), fragment)
 
     def test_saved_layout_wins_over_automatic_one(self):
         from wysun_settings.environment import EnvironmentSettings
         with tempfile.TemporaryDirectory(prefix='wysun-workspace-restore-') as folder:
             home = Path(folder)
             EnvironmentSettings(home, self.runner()).apply_workspace_layout({'eDP-1': [1], 'DP-1': [2]})
-            (home/'.config/orbit/hypr-workspaces.lua').unlink()
+            (home/'.config/wysun/hypr-workspaces.lua').unlink()
             scripts = self.restore(home, self.runner())
             self.assertIn('["workspace"] = "1", ["monitor"] = "eDP-1", ["persistent"] = true', scripts[0][2])
-            self.assertEqual((home/'.config/orbit/hypr-workspaces.lua').read_text(),
+            self.assertEqual((home/'.config/wysun/hypr-workspaces.lua').read_text(),
                              layouts.lua_fragment({'DP-1': [2], 'eDP-1': [1]}))
 
     def test_failure_is_reported_without_raising(self):
@@ -164,7 +164,7 @@ class LoginRestoreTests(unittest.TestCase):
         broken.calls = []
         with tempfile.TemporaryDirectory(prefix='wysun-workspace-restore-') as folder:
             self.restore(Path(folder), broken)
-            self.assertFalse((Path(folder)/'.config/orbit/hypr-workspaces.lua').exists())
+            self.assertFalse((Path(folder)/'.config/wysun/hypr-workspaces.lua').exists())
 
     def test_wrapper_runs_installed_runtime(self):
         root = Path(__file__).resolve().parents[2]
