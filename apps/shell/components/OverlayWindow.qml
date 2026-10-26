@@ -35,7 +35,9 @@ StyledWindow {
 
     name: surface
     screen: modelData
+    // The window is not an Item, so it does not inherit a screen: name it for Tokens and Config.
     Tokens.screen: modelData.name
+    Config.screen: modelData.name
     visible: active || reveal > 0.001
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.layer: WlrLayer.Overlay

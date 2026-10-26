@@ -1622,7 +1622,7 @@ Item {
         NumberAnimation {
             target: listBox
             property: "x"
-            from: Tokens.padding.extraLarge * 1.6 * root.navDir
+            from: root.Tokens.padding.extraLarge * 1.6 * root.navDir  // an Animation has no screen of its own
             to: 0
             duration: Tokens.anim.durations.expressiveDefaultSpatial
             easing: Tokens.anim.expressiveDefaultSpatial

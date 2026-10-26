@@ -80,9 +80,11 @@ Scope {
 
             surface: "emoji"
             anchors.bottom: true
-            margins.bottom: Tokens.padding.large
-            implicitWidth: Math.min(screen.width - Tokens.padding.extraExtraLarge * 2, Tokens.sizes.launcher.itemWidth * 1.15)
-            implicitHeight: Math.min(screen.height - Tokens.padding.extraExtraLarge * 2, Tokens.sizes.launcher.itemHeight * 10 + Tokens.padding.extraLarge * 3)
+            // Window-level sizes read the content item's tokens: that Item inherits the screen, while
+            // the window's own binding may not be set yet when these are first evaluated.
+            margins.bottom: contentItem.Tokens.padding.large
+            implicitWidth: Math.min(screen.width - contentItem.Tokens.padding.extraExtraLarge * 2, Tokens.sizes.launcher.itemWidth * 1.15)
+            implicitHeight: Math.min(screen.height - contentItem.Tokens.padding.extraExtraLarge * 2, Tokens.sizes.launcher.itemHeight * 10 + contentItem.Tokens.padding.extraLarge * 3)
 
             function pick(row: var, paste: bool): void {
                 if (!row) return;
