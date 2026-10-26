@@ -68,7 +68,7 @@ def env_keys(path: Path) -> tuple[set[str], list[str]]:
 
 
 def doctor(args) -> int:
-    result = report("web-dev doctor")
+    result = report("wysun tools dev doctor")
     for tool in ("node", "npm", "pnpm", "git", "python3"):
         location = executable(tool)
         check(result, tool, "pass" if location else ("fail" if tool in {"node", "git"} else "info"),
@@ -105,7 +105,7 @@ def tasks(args) -> int:
         except PermissionError:
             raise ToolError("No hay permisos para comprobar el puerto en este entorno.") from None
         except OSError:
-            raise ToolError(f"El puerto {args.port} está ocupado o la dirección no está disponible. Usa web-dev ports.") from None
+            raise ToolError(f"El puerto {args.port} está ocupado o la dirección no está disponible. Usa wysun tools dev ports.") from None
     if args.dry_run:
         print(f"Directorio: {root}")
         plan(command)
@@ -117,7 +117,7 @@ def tasks(args) -> int:
 
 
 def ports(args) -> int:
-    result = report("web-dev ports")
+    result = report("wysun tools dev ports")
     command = [require("ss"), "-H", "-ltnp"]
     if args.port:
         command += [f"sport = :{args.port}"]
@@ -169,7 +169,7 @@ def environment(args) -> int:
     missing = sorted(expected - actual)
     public_secrets = sorted(key for key in actual if key.startswith(("VITE_", "NEXT_PUBLIC_", "NUXT_PUBLIC_"))
                             and re.search("SECRET|PASSWORD|PRIVATE|TOKEN", key))
-    result = report("web-dev env")
+    result = report("wysun tools dev env")
     check(result, "Variables requeridas", "fail" if missing else "pass", ", ".join(missing))
     check(result, "Variables duplicadas", "warn" if duplicates else "pass", ", ".join(duplicates))
     check(result, "Nombres sensibles públicos", "warn" if public_secrets else "pass", ", ".join(public_secrets))
@@ -186,7 +186,7 @@ def init(args) -> int:
         "style.css": 'body{margin:0;background:#141416;color:#ededf0;font:16px/1.6 system-ui}main{max-width:960px;margin:12vh auto;padding:24px}h1{font-size:clamp(2rem,6vw,4rem);letter-spacing:-.04em}\n',
         "main.js": '"use strict";\n',
         ".gitignore": "node_modules/\ndist/\n.env\n.env.*\n!.env.example\n",
-        "README.md": "# Proyecto web\n\nEjecuta web-dev serve --directory . --port 5173.\n",
+        "README.md": "# Proyecto web\n\nEjecuta wysun tools dev serve --directory . --port 5173.\n",
     }
     if args.dry_run:
         print(f"PLAN Crear {target}: " + ", ".join(files))
@@ -200,7 +200,7 @@ def init(args) -> int:
 
 
 def main(argv=None) -> int:
-    parser = argparse.ArgumentParser(prog="web-dev", description="Desarrollo web reproducible, diagnóstico y tareas del proyecto.")
+    parser = argparse.ArgumentParser(prog="wysun tools dev", description="Desarrollo web reproducible, diagnóstico y tareas del proyecto.")
     sub = parser.add_subparsers(dest="command", required=True)
     p = sub.add_parser("doctor", help="Revisar proyecto y dependencias")
     p.add_argument("-C", "--directory", type=Path, default=Path.cwd())

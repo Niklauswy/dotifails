@@ -60,8 +60,8 @@ class PlayerPage(QWidget):
         session = self.player.session
         position, paused = session.position, session.paused
         session.set_paused(True)
-        launcher = shutil.which('wysun-player') or str(Path.home() / '.local/bin/wysun-player')
-        argv = [launcher, *(['--start', f'{position:.1f}'] if position else []), *(['--paused'] if paused else []), '--', str(self.path)]
+        launcher = shutil.which('wysun') or str(Path.home() / '.local/bin/wysun')
+        argv = [launcher, 'player', *(['--start', f'{position:.1f}'] if position else []), *(['--paused'] if paused else []), '--', str(self.path)]
         try:
             subprocess.Popen(argv, start_new_session=True, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         except OSError:

@@ -123,12 +123,14 @@ class NotificationOwnershipTests(unittest.TestCase):
 
 
 class DispatcherTests(unittest.TestCase):
-    def dispatch(self, *args):
+    def dispatch(self, *args, answer=None):
         with tempfile.TemporaryDirectory() as tmp:
             config = Path(tmp, 'shell'); (config / 'wysun').mkdir(parents=True)
             (config / 'UPSTREAM.json').write_text('{}')
             runtime = config / 'wysun/runtime.sh'
-            runtime.write_text('#!/bin/sh\nprintf "%s\\n" "$@"\n'); runtime.chmod(0o755)
+            # The fake runtime echoes its arguments, or answers like the shell's IPC would.
+            body = f'echo {answer}' if answer else 'printf "%s\\n" "$@"'
+            runtime.write_text('#!/bin/sh\n' + body + '\n'); runtime.chmod(0o755)
             env = dict(os.environ, WYSUN_SHELL_CONFIG=str(config))
             result = subprocess.run([str(ROOT / 'bin/wysun-shell'), *args], env=env, capture_output=True, text=True)
         return result.returncode, result.stdout.split(), result.stderr
@@ -156,20 +158,45 @@ class DispatcherTests(unittest.TestCase):
         for key in ('XF86AudioMicMute', 'XF86MonBrightnessUp', 'XF86AudioRaiseVolume'):
             self.assertIn(f'"{key}"', lua)
 
-    def test_unknown_surface_is_rejected(self):
-        code, out, err = self.dispatch('toggle', 'rm')
-        self.assertEqual(code, 2); self.assertEqual(out, [])
-
-    def test_every_dispatched_surface_exists_in_bridge(self):
+    def surfaces(self):
         qml = (SHELL / 'wysun/WysunBridge.qml').read_text()
+        body = re.search(r'property var surfaces: \((\{.*?\})\)', qml, re.S)[1]
+        return re.findall(r'(\w+):', body)
+
+    def test_unknown_surface_is_rejected_by_the_shell(self):
+        for args in (('toggle', 'rm'), ('rm',)):
+            code, out, err = self.dispatch(*args, answer='false')
+            self.assertEqual(code, 2, args)
+            self.assertIn('superficie desconocida', err)
+
+    def test_every_surface_toggles_in_short_and_long_form(self):
+        names = self.surfaces()
+        for name in ('colors', 'processes', 'launcher', 'emoji', 'session', 'dashboard'):
+            self.assertIn(name, names)
+        self.assertNotIn('test', names)
+        for name in names:
+            for args in ((name,), ('toggle', name)):
+                self.assertEqual(self.dispatch(*args)[:2], (0, ['ipc', 'call', 'wysunShell', 'toggle', name]), args)
+            self.assertEqual(self.dispatch('open', name)[1], ['ipc', 'call', 'wysunShell', 'open', name])
+
+    def test_the_launcher_script_does_not_repeat_the_surface_list(self):
         script = (ROOT / 'bin/wysun-shell').read_text()
-        names = re.search(r'test\|([\w|]+)\) ;;', script)[1].split('|') + ['test']
-        for name in set(names):
-            if name in ('processes', 'colors'):
-                self.assertIn(f'if (kind === "{name}")', qml)
-                self.assertIn(f'return {name}.open(toggle)', qml)
-            else:
-                self.assertRegex(qml, rf'\b{name}:')
+        for name in self.surfaces():
+            if name not in ('launcher', 'session'):   # launcher/session also name other words of the script
+                self.assertNotRegex(script, rf'\b{name}\b', name)
+
+    def test_start_and_quickshell_commands_still_reach_the_runtime(self):
+        self.assertEqual(self.dispatch()[:2], (0, ['--no-duplicate']))
+        self.assertEqual(self.dispatch('-d')[1], ['--no-duplicate', '-d'])
+        self.assertEqual(self.dispatch('ipc', 'call', 'editor', 'open', '/x')[1], ['ipc', 'call', 'editor', 'open', '/x'])
+        self.assertEqual(self.dispatch('surfaces')[1], ['ipc', 'call', 'wysunShell', 'surfaces'])
+
+    def test_bridge_routes_own_modules_and_lists_its_surfaces(self):
+        qml = (SHELL / 'wysun/WysunBridge.qml').read_text()
+        for name in ('processes', 'colors'):
+            self.assertIn(f'if (kind === "{name}")', qml)
+            self.assertIn(f'return {name}.open(toggle)', qml)
+        self.assertIn('function surfaces(): string', qml)
 
     def test_hyprland_shell_bindings_use_dispatcher_commands(self):
         lua = (ROOT / 'config/.config/wysun/hyprland.lua').read_text()

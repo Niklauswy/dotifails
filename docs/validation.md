@@ -8,7 +8,7 @@ Cambios estructurales verificados:
 
 - `apps/python/` y `apps/shell/` son las fuentes activas; `config/` contiene las dotfiles y `assets/` los fondos y la apariencia.
 - El instalador distribuye la sesión `wayland` por defecto, registra solo sus dos archivos de sesión y no modifica el gestor de acceso.
-- Los ajustes del escritorio usan Hyprland (`hyprctl`, `hypr-settings.lua`, `hypr-shortcuts.lua`, `hypr-bar.json`) y el tema canónico es `~/.config/wysun/theme.json`.
+- Los ajustes del escritorio usan Hyprland (`hyprctl`, `hypr-settings.lua`, `hypr-shortcuts.lua`, `shell/shell.json`) y el tema canónico es `~/.config/wysun/theme.json`.
 - Dunst usa `~/.config/wysun/dunstrc`. La barra y el escritorio de Quickshell se cargan desde `~/.local/share/wysun/quickshell`.
 - La captura usa los portales XDG en Wayland: Screenshot para imágenes sin cursor y ScreenCast/PipeWire para grabación, cursor y fuentes de ventana. Las herramientas de atajos basadas en el escritorio X11 se retiraron.
 

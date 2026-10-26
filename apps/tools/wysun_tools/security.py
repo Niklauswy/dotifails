@@ -50,7 +50,7 @@ def http_flags(parser):
 
 def audit_http(args) -> int:
     target = url(args.url)
-    result = report("sec-audit http")
+    result = report("wysun tools audit http")
     opener = urllib.request.build_opener(ValidatedRedirect())
     started = time.monotonic()
     request = urllib.request.Request(target, headers={"User-Agent": "wysun-audit/1.0"}, method=args.method)
@@ -115,7 +115,7 @@ def hostname(value: str) -> str:
 
 def audit_tls(args) -> int:
     host = hostname(args.host)
-    result = report("sec-audit tls")
+    result = report("wysun tools audit tls")
     context = ssl.create_default_context(cafile=str(args.ca_file) if args.ca_file else None)
     if args.allow_self_signed:
         context.check_hostname = False
@@ -200,7 +200,7 @@ def audit_ports(args) -> int:
         plan(command)
         return 0
     command[0] = require("nmap")
-    result = report("sec-audit ports")
+    result = report("wysun tools audit ports")
     xml = run(command, timeout=args.timeout + 5).stdout
     result["data"]["hosts"] = parse_nmap(xml)
     check(result, "Escaneo TCP", "pass", "Conexiones TCP; no se ejecutaron scripts NSE")
@@ -249,7 +249,7 @@ def project_findings(root: Path, *, include_untracked=False) -> tuple[list[dict]
 def audit_project(args) -> int:
     root = args.directory.expanduser().resolve()
     findings, scanned = project_findings(root, include_untracked=args.include_untracked)
-    result = report("sec-audit project")
+    result = report("wysun tools audit project")
     result["data"].update(directory=str(root), scanned_files=scanned, findings=findings)
     check(result, "Posibles secretos", "fail" if findings else "pass",
           f"{len(findings)} hallazgos; se muestran rutas y reglas, nunca valores")
@@ -258,7 +258,7 @@ def audit_project(args) -> int:
 
 
 def audit_host(args) -> int:
-    result = report("sec-audit host")
+    result = report("wysun tools audit host")
     result["data"]["kernel"] = os.uname().release
     for directory in (Path.home() / ".ssh", Path.home() / ".gnupg"):
         if directory.exists():
@@ -283,7 +283,7 @@ def audit_host(args) -> int:
 
 def dns(args) -> int:
     host = hostname(args.host)
-    result = report("sec-audit dns")
+    result = report("wysun tools audit dns")
     addresses = sorted({item[4][0] for item in socket.getaddrinfo(host, None, type=socket.SOCK_STREAM)})
     result["data"].update(host=host, addresses=addresses)
     check(result, "Resolución A/AAAA", "pass" if addresses else "fail")
@@ -295,14 +295,14 @@ def checksum(args) -> int:
     with args.file.open("rb") as stream:
         for chunk in iter(lambda: stream.read(1024 * 1024), b""):
             digest.update(chunk)
-    result = report("sec-audit hash")
+    result = report("wysun tools audit hash")
     result["data"].update(file=str(args.file), algorithm=args.algorithm, digest=digest.hexdigest())
     check(result, "Integridad", "pass" if not args.expect or digest.hexdigest() == args.expect.lower() else "fail")
     return emit(result, args)
 
 
 def doctor(args) -> int:
-    result = report("sec-audit doctor")
+    result = report("wysun tools audit doctor")
     for tool in ("nmap", "openssl", "git", "ip", "ss", "nft", "tailscale"):
         found = executable(tool)
         check(result, tool, "pass" if found else "info", found or "Opcional, no instalado")
@@ -324,7 +324,7 @@ def deps(args) -> int:
 
 
 def main(argv=None) -> int:
-    parser = argparse.ArgumentParser(prog="sec-audit", description="Auditoría de web, TLS, redes y proyectos con alcance explícito.")
+    parser = argparse.ArgumentParser(prog="wysun tools audit", description="Auditoría de web, TLS, redes y proyectos con alcance explícito.")
     sub = parser.add_subparsers(dest="command", required=True)
     p = sub.add_parser("http", help="Estado, redirecciones y cabeceras"); http_flags(p); p.set_defaults(fn=audit_http)
     p = sub.add_parser("tls", help="Certificado, caducidad, protocolo y cifrado")

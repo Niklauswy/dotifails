@@ -12,36 +12,41 @@ import "../services/WidgetScreens.js" as WidgetScreens
 
 Scope {
     id: root
-    readonly property var surfaces: ({ dashboard: 'dashboard', test: 'dashboard', windows: 'dashboard',
-        overview: 'overview', cheatsheet: 'cheatsheet', wallpapers: 'wallpapers', launcher: 'launcher', emoji: 'emoji', menu: 'utilities', quicksettings: 'utilities', notifications: 'sidebar', sidebar: 'sidebar', session: 'session', ai: 'aiUsage' })
+    // The only list of shell surfaces: `wysun SURFACE` / `wysun-shell SURFACE` toggle any of them
+    // (`wysun-shell surfaces` prints it). Each name maps to its ScreenState flag; '' = its own module.
+    readonly property var surfaces: ({ dashboard: 'dashboard', windows: 'dashboard',
+        overview: 'overview', cheatsheet: 'cheatsheet', wallpapers: 'wallpapers', launcher: 'launcher', emoji: 'emoji', menu: 'utilities', quicksettings: 'utilities', notifications: 'sidebar', sidebar: 'sidebar', session: 'session', ai: 'aiUsage',
+        colors: '', processes: '' })
     Processes { id: processes }
     Colors { id: colors }
+    // Own keys only: a name such as "toString" must not resolve through the prototype.
+    function fieldOf(kind) { return Object.prototype.hasOwnProperty.call(surfaces, kind) ? surfaces[kind] : undefined; }
     function current(kind) {
         if (Screens.widgetsOnlyPrimary && WidgetScreens.drawerSurface(kind))
             return ShellState.forScreen(Screens.widgetScreens[0]);
         return ShellState.forActive();
     }
     function available(kind, state) {
-        return kind !== 'launcher' || Config.launcher.enabled;
+        return kind !== 'launcher' || GlobalConfig.forScreen(state.modelData.name).launcher.enabled;
     }
     function close() {
         processes.close();
         colors.close();
         for (const screen of Quickshell.screens) {
             const state = ShellState.forScreen(screen);
-            if (state) for (const name of Object.values(surfaces)) state[name] = false;
+            if (state) for (const name of Object.values(surfaces)) if (name) state[name] = false;
         }
     }
     function show(kind, toggle) {
         if (kind === "colors") {
             for (const screen of Quickshell.screens) {
                 const state = ShellState.forScreen(screen);
-                if (state) for (const name of Object.values(surfaces)) state[name] = false;
+                if (state) for (const name of Object.values(surfaces)) if (name) state[name] = false;
             }
             return colors.open(toggle);
         }
         if (kind === "processes") return processes.open(toggle);
-        const state = current(kind), field = surfaces[kind];
+        const state = current(kind), field = fieldOf(kind);
         if (!state || !field || !available(kind, state)) return false;
         const value = toggle ? !state[field] : true;
         close(); state[field] = value;
@@ -89,7 +94,7 @@ Scope {
     }
     // Diagnostic: open a surface on a named output (e.g. when the focused one has a fullscreen app).
     function showOn(name, kind) {
-        const field = surfaces[kind];
+        const field = fieldOf(kind);
         const requested = Quickshell.screens.find(s => s.name === name);
         if (!requested) return false;
         const screen = WidgetScreens.drawerSurface(kind) ? Screens.drawerScreen(requested) : requested;
@@ -102,6 +107,7 @@ Scope {
     IpcHandler {
         target: 'wysunShell'
         function toggle(surface: string): bool { return root.show(surface, true); }
+        function surfaces(): string { return JSON.stringify(Object.keys(root.surfaces)); }
         function open(surface: string): bool { return root.show(surface, false); }
         function openOn(output: string, surface: string): bool { return root.showOn(output, surface); }
         function category(mode: string): bool {
@@ -128,8 +134,8 @@ Scope {
         function pickColor(): bool { return colors.pick(); }
         function close(): void { root.close(); }
         function reloadPreferences(): void { environment.reload(); }
-        // Preserve legacy process routes while opening the independent module.
-        function openRoute(route: string): bool { return route === "processes" ? processes.open(false) : WindowFactory.createRoute(route); }
+        // A Nexus page (Settings): `wysun settings [PÁGINA]`.
+        function openRoute(route: string): bool { return WindowFactory.createRoute(route); }
         function openThemeSettings(): bool { Quickshell.execDetached(['wysun', 'settings', 'theme']); return true; }
         function theme(): string { return JSON.stringify({ name: Colours.scheme, variant: Colours.flavour, mode: Colours.modePreference }); }
         function status(): string {

@@ -4,7 +4,7 @@ The Wysun UI reads tokens live; this module only produces the files owned by
 other programs (terminal, prompt, editor, GTK, borders) from the Material You
 palette, and re-applies the border colours of the active scheme.
 """
-import colorsys,json,re
+import colorsys,re
 from pathlib import Path
 from wysun_core.theme import resolve, resolve_active
 from wysun_settings.environment import set_values,run
@@ -25,11 +25,6 @@ def editor_tint(value,tint):
         rgb=colorsys.hls_to_rgb(tint['hue'],light,tint['saturation'])
         return '#'+''.join(f'{round(v*255):02x}' for v in rgb)
     return value
-
-
-def theme_colors():
-    """Every bar colour the base palettes generate, to tell them apart from user choices."""
-    return {resolve(mode)['external'][key].upper() for mode in ('light','dark') for key in ('background','foreground','accent')}
 
 
 def border_colors(theme):
@@ -74,16 +69,6 @@ def theme_files(home,mode='dark'):
         text=re.sub(r'/\* BEGIN WYSUN THEME \*/.*?/\* END WYSUN THEME \*/\n?','',text,flags=re.S)
         files[path]=text.rstrip()+'\n/* BEGIN WYSUN THEME */\n'+''.join(f'@define-color {name} {value};\n' for name,value in gtk.items())+'/* END WYSUN THEME */\n'
     native=config/'wysun'
-    bar_path=native/'hypr-bar.json'
-    if bar_path.is_file():
-        # Older versions stored the theme's colours here; drop them so the bar
-        # follows the theme. Colours chosen by the user are kept.
-        try:bar=json.loads(bar_path.read_text())
-        except ValueError:bar=None
-        if isinstance(bar,dict):
-            generated=theme_colors()
-            cleaned={k:v for k,v in bar.items() if not (k in ('background','foreground','accent') and str(v).upper() in generated)}
-            if cleaned!=bar:files[bar_path]=json.dumps(cleaned,ensure_ascii=False,indent=2)+'\n'
     files[native/'hypr-theme.lua']='-- Wysun theme colors\nhl.config('+lua({'general':{'col':border_colors(theme)}})+')\n'
     return files
 

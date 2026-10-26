@@ -10,6 +10,16 @@ VERSION='1.1.0'
 REPOSITORY='https://github.com/Niklauswy/dotifails.git'
 WYSUN_DESKTOP='[Desktop Entry]\nType=Application\nName=Wysun\nComment=Aplicaciones y herramientas del escritorio\nExec=wysun\nIcon=system-search\nCategories=Utility;\nKeywords=Wysun;lanzador;launcher;aplicaciones;\nStartupWMClass=wysun\n'
 PLAYER_DESKTOP='wysun-player.desktop'
+# Launchers earlier versions published; `wysun` replaces them all. An update removes the ones this installer
+# wrote and the user has not changed. One the user changed becomes theirs (kept, out of the receipt); one the
+# active Hyprland configuration still calls is kept until that configuration stops calling it.
+DESKTOP_RETIRED=tuple('.local/bin/'+name for name in (
+    'wysun-player','wysun-workspaces','wysun-files','wysun-music','wysun-pdf','wysun-screenshot','wybie-screenshot'))+(
+    '.local/share/applications/wybie-screenshot.desktop','.local/share/icons/hicolor/scalable/apps/wybie-screenshot.svg')
+TOOLS_RETIRED=tuple('.local/bin/'+name for name in (
+    'wysun-tools','web-dev','sec-audit','file-share','gvm','gvm.sh','tailscale-killswitch','tailscale-killswitch.sh',
+    'scrip.sh','rezets','zzzz.py'))+('scripts/wysun-tools','scripts/README.md')
+RETIRED_COMMANDS=DESKTOP_RETIRED+TOOLS_RETIRED
 EXTRAS={'brave':'com.brave.Browser','discord':'com.discordapp.Discord','obsidian':'md.obsidian.Obsidian'}
 
 
@@ -190,7 +200,6 @@ class Deployment:
     def files_services(self):
         """The file manager's launcher, menu entry, D-Bus/systemd activation and portal backend; no associations."""
         from capture_distribution import _publish
-        _publish(self,'#!/bin/sh\nexec "$HOME/.local/bin/wysun" files "$@"\n','.local/bin/wysun-files',executable=True)
         self.deploy(self.source/'config/.local/share/applications/wysun-files.desktop',Path('.local/share/applications/wysun-files.desktop'))
         service='wysun-files-integration.service'
         command='/usr/bin/env "PYTHONPATH='+str(self.home/'.local/share/wysun/app')+'" /usr/bin/python3 -P -m wysun_files.service'
@@ -217,9 +226,7 @@ class Deployment:
     def configure_app(self):
         self.stage('Actualizar solo Wysun (código y lanzador)')
         self.deploy(self.source/'apps/python',Path('.local/share/wysun/app'))
-        if (self.source/'apps/tools').is_dir():
-            self.deploy(self.source/'apps/tools',Path('.local/share/wysun/tools'))
-            self.deploy(self.source/'bin/wysun-tools',Path('.local/bin/wysun-tools'))
+        if (self.source/'apps/tools').is_dir():self.deploy(self.source/'apps/tools',Path('.local/share/wysun/tools'))
         if self.conflicts:return
         wallpaper=self.source/'assets/backgrounds'/default_wallpaper(self.source)
         if wallpaper.is_file():self.deploy(wallpaper,Path('.local/share/backgrounds')/wallpaper.name)
@@ -231,49 +238,44 @@ class Deployment:
         self.configure_wysun()
         from wayland import update_runtime
         update_runtime(self)
+    def publish_dispatcher(self):
+        """~/.local/bin/wysun, the single entry point; False when an unowned file is in the way."""
+        from capture_distribution import _publish
+        return _publish(self,(self.source/'bin/wysun').read_text(),'.local/bin/wysun',executable=True)
+    def retire_commands(self,names=RETIRED_COMMANDS):
+        import re
+        folder=self.destination('.config/wysun')
+        configs=[path.read_text(errors='replace') for path in sorted(folder.glob('*.lua')) if path.is_file()] if folder.is_dir() else []
+        # Only commands the configuration runs count, not window classes such as ^wysun-files$.
+        active='\n'.join(m.group(2) for text in configs for m in re.finditer(r'exec_cmd\(\s*(["\'])(.*?)\1',text))
+        for relative in names:
+            if relative not in self.receipt['files']:continue      # never ours: left alone
+            name=Path(relative).name
+            if relative.startswith('.local/bin/') and re.search(r'(?<![\w.-])'+re.escape(name)+r'(?![\w.-])',active):
+                print('Wysun: se conserva '+relative+' porque ~/.config/wysun lo sigue ejecutando; cámbialo por su orden de `wysun`.');continue
+            current=fingerprint(self.destination(relative))
+            if current is not None and current!=self.receipt['files'][relative]:
+                self.receipt['files'].pop(relative)
+                print('Wysun: '+relative+' tiene cambios tuyos; ya no lo administra el instalador y se conserva.');continue
+            self.retire(Path(relative))
     def configure_wysun(self):
-        # Keep established paths and desktop IDs so pinned launchers and data survive.
-        launcher=self.source/'bin/wysun'
-        if not launcher.is_file():return
-        from capture_distribution import _publish,configure
-        if not _publish(self,launcher.read_text(),'.local/bin/wysun',executable=True):return
-        for name,mode in (('wysun-music','music'),('wysun-files','files'),('wysun-pdf','pdf')):
-            _publish(self,'#!/bin/sh\nexec "$HOME/.local/bin/wysun" '+mode+' "$@"\n','.local/bin/'+name,executable=True)
-        player=self.source/'bin/wysun-player'
-        if player.is_file():_publish(self,player.read_text(),'.local/bin/wysun-player',executable=True)
+        if not (self.source/'bin/wysun').is_file():return
+        from capture_distribution import configure
+        if not self.publish_dispatcher():return
+        self.retire_commands()
         self.generated(WYSUN_DESKTOP,Path('.local/share/applications/wysun.desktop'))
         for name in ('wysun-settings.desktop',PLAYER_DESKTOP,'wysun-pdf.desktop'):
             source=self.source/'config/.local/share/applications'/name
             if source.is_file():self.deploy(source,Path('.local/share/applications')/name)
         configure(self)
-    def configure_scripts(self):
-        self.stage('Herramientas de Wysun y migración de lanzadores')
+    def configure_scripts(self,selected=('tools',)):
+        self.stage('Herramientas de terminal (wysun tools)')
         self.deploy(self.source/'apps/tools',Path('.local/share/wysun/tools'))
-        self.deploy(self.source/'bin/wysun-tools',Path('.local/bin/wysun-tools'))
-        self.deploy(self.source/'bin/wysun-tools',Path('scripts/wysun-tools'))
-        self.deploy(self.source/'docs/tools.md',Path('scripts/README.md'))
-        aliases={'web-dev':'dev','sec-audit':'audit','file-share':'share','gvm':'cloud','gvm.sh':'cloud','tailscale-killswitch':'vpn','tailscale-killswitch.sh':'vpn','scrip.sh':'vpn','rezets':'resets','zzzz.py':'share'}
-        for name,group in aliases.items():
-            self.retire(Path('scripts')/name)
-            if name=='zzzz.py':
-                text='#!/usr/bin/env python3\nimport os,sys\nfrom pathlib import Path\ncli=Path(__file__).resolve().parent.parent/"share/wysun/tools/cli.py"\nos.execv(sys.executable,[sys.executable,str(cli),"share",*sys.argv[1:]])\n'
-            else:
-                text='#!/bin/sh\nbase=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)\nexec "$base/wysun-tools" '+group+' "$@"\n'
-            self.generated(text,Path('.local/bin')/name,True)
-        legacy=self.home/'scripts/.rezets/accounts.json'
-        target=Path('.config/wysun/resets/accounts.json')
-        if legacy.is_file() and not exists(self.destination(target)):
-            payload=legacy.read_text()
-            if not isinstance(json.loads(payload),list):raise RuntimeError('Cuentas antiguas inválidas; se conservaron.')
-            stage=self.backup/'generated/private-accounts.json';stage.parent.mkdir(parents=True,exist_ok=True);stage.write_text(payload);stage.chmod(0o600)
-            self.deploy(stage,target)
-        if (self.home/'scripts/.rezets').is_dir():self.retire(Path('scripts/.rezets'),private=True)
-        uploads=self.home/'scripts/uploads';inbox=Path('.local/share/wysun/transfers/inbox')
-        if uploads.is_dir() and not exists(self.destination(inbox)):
-            self.deploy(uploads,inbox);self.retire(Path('scripts/uploads'),private=True)
-        for relative in ('scripts/__pycache__','scripts/.codex'):
-            dest=self.destination(relative)
-            if dest.is_dir() or (dest.is_file() and dest.stat().st_size==0):self.retire(Path(relative),private=True)
+        if set(selected)&{'desktop','wayland'}:return           # the desktop publishes `wysun` and retires the rest
+        if set(self.receipt.get('components',[]))&{'desktop','wayland'}:
+            # `wysun` belongs to the desktop here: a newer one without the rest of the desktop would break it.
+            print('Wysun: el lanzador wysun es parte del escritorio instalado; actualízalo con ./instalar.sh --wysun-only.');return
+        if self.publish_dispatcher():self.retire_commands(TOOLS_RETIRED)
     def configure_manager(self):
         from ui_support import package_runtime
         manager=self.backup/'generated/manager'
@@ -297,7 +299,7 @@ class Deployment:
             if selected == {'wayland'}:
                 self.configure_manager()
                 return
-        if 'tools' in selected:self.configure_scripts()
+        if 'tools' in selected:self.configure_scripts(selected)
         self.stage('Configuraciones y aplicaciones')
         home_source=self.backup/'generated/theme-home'
         shutil.copytree(self.source/'config',home_source)
@@ -529,8 +531,9 @@ def doctor(home,components=None):
             print(('OK  ' if ok else 'FAIL ')+command)
             if not ok:failed.append(command)
     if 'tools' in selected:
-        ok=(home/'.local/bin/wysun-tools').is_file();print(('OK  ' if ok else 'FAIL ')+'wysun-tools')
-        if not ok:failed.append('wysun-tools')
+        ok=(home/'.local/bin/wysun').is_file() and (home/'.local/share/wysun/tools/wysun_tools/__main__.py').is_file()
+        print(('OK  ' if ok else 'FAIL ')+'wysun tools')
+        if not ok:failed.append('wysun tools')
     if 'wayland' in selected:
         try:
             result=subprocess.run([str(home/'.local/bin/wysun-session'),'--check'],env=env,timeout=25)
@@ -583,7 +586,7 @@ def main(argv=None):
     sub=parser.add_subparsers(dest='command',required=True)
     for command in ('install','update'):
         p=sub.add_parser(command);p.add_argument('--source',type=Path);p.add_argument('--target-home',type=Path,default=Path.home());p.add_argument('--config-only',action='store_true');p.add_argument('--dry-run',action='store_true');p.add_argument('--extras',nargs='?',const='brave,discord,obsidian',default='');p.add_argument('--profile',choices=['samsung-touchscreen']);p.add_argument('--skip-nvim-tools',action='store_true');p.add_argument('--ref',default='master')
-        p.add_argument('--scripts-only',action='store_true',help='Solo herramientas y migración respaldada de ~/scripts; sin cambiar el escritorio')
+        p.add_argument('--scripts-only',action='store_true',help='Solo las herramientas de terminal (wysun tools); sin cambiar el escritorio')
         p.add_argument('--wysun-only',dest='wysun_only',action='store_true',help='Solo código y lanzador de Wysun; conserva el resto del escritorio y los datos privados')
         p.add_argument('--boot-only',action='store_true',help='Solo GRUB, Plymouth e inicio de sesión; conserva la sesión abierta y respalda /etc y /boot')
         p.add_argument('--installer-only',action='store_true',help='Actualizar solo el instalador visual, la CLI y sus manifiestos')
@@ -638,8 +641,8 @@ def main(argv=None):
         print(json.dumps(options.summary(),ensure_ascii=False,indent=2));return 0
     if args.dry_run:
         if args.installer_only:print('Plan: respaldar y actualizar solo el instalador, sus manifiestos y el acceso en el menú de aplicaciones.');return 0
-        if args.scripts_only:print('Plan: instalar wysun-tools y su motor; respaldar y retirar lanzadores duplicados; migrar recordatorios y subidas a sus carpetas de Wysun; conservar aliases en el PATH. Los datos privados no se añaden al repositorio.');return 0
-        if args.wysun_only:print('Plan: respaldar y actualizar la familia Wysun, incluidos Recorder y Screenshot, y el gestor wysun-install. No cambia atajos, notas, historial ni colores.');return 0
+        if args.scripts_only:print('Plan: instalar las herramientas de terminal (wysun tools) y el lanzador wysun; respaldar y retirar los lanzadores anteriores que instaló Wysun. Los datos privados no se añaden al repositorio.');return 0
+        if args.wysun_only:print('Plan: respaldar y actualizar la familia Wysun, incluido el Recorder, y el gestor wysun-install. No cambia atajos, notas, historial ni colores.');return 0
         if 'wayland' in selected and not args.config_only:
             from wayland import simulate_packages
             fields=host_supported()

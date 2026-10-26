@@ -108,7 +108,8 @@ class PlayerComponentTests(unittest.TestCase):
         with patch('subprocess.Popen') as popen:
             page.external.click()
         argv = popen.call_args.args[0]
-        self.assertTrue(argv[0].endswith('wysun-player'))
+        self.assertTrue(argv[0].endswith('wysun'))
+        self.assertEqual(argv[1], 'player')
         self.assertEqual(argv[argv.index('--') + 1], str(self.video))
         self.assertAlmostEqual(float(argv[argv.index('--start') + 1]), 2.0, delta=.5)
         self.assertTrue(pump(lambda: page.player.session.state == 'paused'))

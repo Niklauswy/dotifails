@@ -160,7 +160,7 @@ player.expandRequested.connect(lambda: launch_player(path, player.session.positi
 
 ### Aplicación Wysun Player
 
-- **Entrada:** `wysun player [--paused] [--fullscreen] [--start SEG] -- ARCHIVO...` y `wysun-player.desktop`. El alias `wysun image` abre lo mismo.
+- **Entrada:** `wysun player [--paused] [--fullscreen] [--start SEG] -- ARCHIVO...` y `wysun-player.desktop`.
 - **Instancia única por usuario mientras haya ventanas abiertas.** Socket en `$XDG_RUNTIME_DIR/wysun-player-{uid}.sock` con `local_ipc.LocalSettingsServer`, como Music. Una segunda llamada envía una línea JSON con los archivos y opciones (JSON para admitir rutas con saltos de línea), y la instancia existente abre una ventana nueva y la enfoca. Así se evitan el arranque de Python y PySide en cada apertura, y cada ventana tiene su propia sesión.
 - Al cerrar la última ventana el proceso termina; no queda nada residente. Si la medición del arranque en frío supera el objetivo, se evaluará mantener el proceso vivo sin ventanas.
 - El proceso es independiente de Files y del shell: un fallo del decodificador no los cierra.

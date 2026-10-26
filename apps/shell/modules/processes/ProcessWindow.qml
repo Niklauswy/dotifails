@@ -231,12 +231,13 @@ FloatingWindow {
                                 color: chosen ? Colours.palette.m3secondaryContainer : modelData.group ? Colours.tPalette.m3surfaceContainerHigh : 'transparent'
                                 StateLayer { radius: entry.radius; onClicked: win.choose(entry.modelData) }
                                 Row {
+                                    id: cells
                                     anchors.fill: parent
                                     anchors.leftMargin: Tokens.padding.medium
                                     anchors.rightMargin: Tokens.padding.medium
                                     readonly property real full: width
                                     Item {
-                                        width: parent.full * 0.34; height: parent.height
+                                        width: cells.full * 0.34; height: parent.height
                                         RowLayout {
                                             anchors.fill: parent
                                             anchors.rightMargin: Tokens.padding.small
@@ -262,12 +263,12 @@ FloatingWindow {
                                             {value: win.pct(entry.modelData.cpu), weight: 0.17, bar: Math.min(1, (entry.modelData.cpu ?? 0) / 100), tone: Colours.palette.m3primary},
                                             {value: win.size(entry.modelData.memory), weight: 0.17, bar: Math.min(1, (entry.modelData.memory ?? 0) / Math.max(1, win.summary.total_memory ?? 1)), tone: Colours.palette.m3tertiary},
                                             {value: win.pct(entry.modelData.gpu), weight: 0.10, bar: Math.min(1, (entry.modelData.gpu ?? 0) / 100), tone: Colours.palette.m3secondary},
-                                            {value: win.size(entry.modelData.read_rate), weight: 0.11, bar: -1},
-                                            {value: win.size(entry.modelData.write_rate), weight: 0.11, bar: -1}
+                                            {value: win.size(entry.modelData.read_rate), weight: 0.11, bar: -1, tone: Colours.palette.m3outline},
+                                            {value: win.size(entry.modelData.write_rate), weight: 0.11, bar: -1, tone: Colours.palette.m3outline}
                                         ]
                                         Item {
                                             required property var modelData
-                                            width: parent.full * modelData.weight; height: entry.height
+                                            width: cells.full * modelData.weight; height: entry.height
                                             ColumnLayout {
                                                 anchors.verticalCenter: parent.verticalCenter
                                                 width: parent.width - Tokens.spacing.large

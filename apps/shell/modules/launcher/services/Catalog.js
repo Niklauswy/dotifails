@@ -50,9 +50,9 @@ function tools(configured) {
         // Waits for the launcher to close so it is not in the frozen frame.
         w("screenshot", "Screenshot", "Copy, annotate or read the text of a region", "screenshot", ["sh", "-c", "sleep 0.25; exec wysun-shell screenshot"], "capture ocr annotate"),
         w("processes", "Processes", "Inspect running apps and resource usage", "memory", ["wysun", "processes"], "task manager cpu"),
-        w("sound", "Sound", "Volume and audio devices", "volume_up", ["wysun", "audio"], "audio"),
+        w("sound", "Sound", "Volume and audio devices", "volume_up", ["wysun", "quicksettings"], "audio"),
         w("notifications", "Notifications", "History and focus mode", "notifications", ["wysun", "notifications"], "do not disturb"),
-        w("calendar", "Calendar", "Dates and your desktop overview", "calendar_month", ["wysun", "calendar"], ""),
+        w("calendar", "Calendar", "Dates and your desktop overview", "calendar_month", ["wysun", "dashboard"], ""),
         w("terminal", "Terminal", "Open your configured terminal", "terminal", ["wysun-terminal"], "shell console")
     ];
     const known = {};

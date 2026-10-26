@@ -22,11 +22,11 @@ class LauncherActionsTests(unittest.TestCase):
 function check(v, why) { if (!v) throw Error(why); }
 var commands = globalThis.tools([]).map(a => a.argv.join(' '));
 for (var mode of ['files', 'music', 'music-mini', 'colors', 'processes',
-                  'audio', 'notifications', 'calendar', 'recorder', 'settings'])
+                  'quicksettings', 'notifications', 'dashboard', 'recorder', 'settings'])
     check(commands.includes('wysun ' + mode), 'lost utility: ' + mode);
 // Screenshots open in the shell once the launcher has closed.
 check(commands.some(c => c.includes('exec wysun-shell screenshot')), 'lost utility: screenshot');
-for (var gone of ['notes', 'tools', 'connections'])
+for (var gone of ['notes', 'tools', 'connections', 'audio', 'calendar', 'power'])
     check(!commands.includes('wysun ' + gone), 'removed utility is back: ' + gone);
 var views = globalThis.views();
 for (var view of ['clipboard', 'files', 'apps', 'calc-history'])

@@ -28,12 +28,11 @@ El cambio de nombre no mueve ni borra archivos personales. Se conservan:
 | Preferencias de Recorder | `~/.config/wysun/recorder/` |
 | Sesiones de la antigua app Screenshot (se conservan, ya no se usan) | `~/.local/share/wybie-screenshot/` |
 | Exportaciones | Las carpetas elegidas en cada aplicación |
-| Redirecciones de captura | `wysun-screenshot`, `wybie-screenshot` (los alias `musica`/`musika` se retiraron: usa `wysun music`) |
 | Paquetes, sockets, nombres de escritorio y clases de ventana | `wysun_*`, `wysun-*` (ver `ARCHITECTURE.md` §7) |
 
-Recorder se incorpora sin depender del repositorio original `loom`; los lanzadores antiguos de Screenshot se adoptan como redirecciones a la captura del shell. Sus lanzadores antiguos solo se adoptan automáticamente si su contenido coincide con el manifiesto del instalador anterior. Los archivos personalizados se conservan y la versión propuesta queda en `incoming/` dentro del respaldo del instalador. Los instaladores independientes antiguos quedan como herramientas históricas de compatibilidad; no deben usarse para administrar la nueva distribución.
+Recorder se incorpora sin depender del repositorio original `loom`. `wysun` es el único lanzador: una actualización retira los lanzadores anteriores que escribió el instalador (`wysun-screenshot`, `wybie-screenshot`, `wysun-player`, `wysun-tools`…) si no se modificaron; uno modificado pasa a ser tuyo y se conserva, y uno que tu `~/.config/wysun/*.lua` sigue llamando se conserva hasta que cambies esa llamada por su orden de `wysun`. Los instaladores independientes antiguos no deben usarse para administrar esta distribución.
 
-Los accesos del menú conservan sus IDs existentes y cambian su nombre visible; no se crean entradas duplicadas para el mismo producto. Los atajos activos que invocan los comandos antiguos siguen funcionando. La configuración distribuida usa `wysun-shell screenshot` y `wysun recorder --quick-record`; una migración de atajos activos debe respaldar el archivo y preservar las demás asignaciones.
+Los accesos del menú conservan sus IDs existentes y cambian su nombre visible; no se crean entradas duplicadas para el mismo producto. La configuración distribuida usa `wysun-shell screenshot` y `wysun-shell record`; un atajo propio que llame a un comando retirado debe cambiarse a su orden de `wysun` (respaldando el archivo y preservando las demás asignaciones).
 
 ## Alcance
 

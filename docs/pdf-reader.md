@@ -144,7 +144,7 @@ claro y oscuro.
 
 ## Integración en el escritorio
 
-La ruta pública `wysun pdf`, el wrapper `wysun-pdf` y la entrada
+La orden `wysun pdf` y la entrada
 `wysun-pdf.desktop` ya están conectados en el instalador. El lanzador del shell
 indexa esa entrada como cualquier aplicación; no requiere plugin QML/C++ nuevo.
 

@@ -99,25 +99,21 @@ class NativeSettingsTests(unittest.TestCase):
             model.apply(dict(model.values),[dict(**{'class':'own'},state='floating',border=True)])
             generated=model.script.read_text();self.assertNotIn('active_border',generated);self.assertNotIn('gaps_in',generated);self.assertNotIn('border_size',generated)
             self.assertEqual(json.loads(model.path.read_text())['overrides'],{})
-    def test_native_bar_and_theme_with_xdg_outside_home(self):
+    def test_native_shell_and_theme_with_xdg_outside_home(self):
         from wysun_settings.environment import EnvironmentSettings
         from wysun_core.qt_theme import invalidate
         from wysun_core import theme
         from wysun_core.appearance import save_appearance,read_appearance
         with tempfile.TemporaryDirectory() as home,tempfile.TemporaryDirectory() as xdg,patch.dict(os.environ,{'HOME':home,'XDG_CONFIG_HOME':xdg,'WAYLAND_DISPLAY':'fixture'}):
-            native=Path(xdg)/'wysun/hypr-bar.json';native.parent.mkdir(parents=True);native.write_text(json.dumps({'height':40,'background':theme.resolve('dark')['external']['background'],'opacity':65}))
             calls=[]
             def runner(args):
                 calls.append(args)
-                if args[:3]==['hyprctl','-j','getoption']:return json.dumps({'gradient':'rgb(112233)'})
                 if args[:3]==['hyprctl','-j','monitors']:return json.dumps([dict(name='FIXTURE',width=800,height=600,scale=1,refreshRate=60,availableModes=['800x600@60.00Hz'])])
                 return 'ok'
-            model=EnvironmentSettings(runner=runner);values=model.bar_values();self.assertEqual(values['height'],40)
-            values.update(left=['wysun'],center=['title'],right=['date','tray'],monitors={'DP-1':True},tray_monitor='DP-1')
-            model.apply_bar(values);native=Path(xdg)/'wysun/hypr-bar.json'
-            self.assertEqual(json.loads(native.read_text())['height'],40)
-            # Theme colours are no longer copied into the bar file: the bar follows the theme.
-            saved=json.loads(native.read_text());self.assertNotIn('background',saved);self.assertEqual(saved['monitors'],{'DP-1':True})
+            model=EnvironmentSettings(runner=runner)
+            model.apply_shell({'low_power':True,'monitors':{'DP-1':True},'tray_monitor':'DP-1'})
+            saved=json.loads((Path(xdg)/'wysun/shell.json').read_text());self.assertEqual((saved['low_power'],saved['monitors']),(True,{'DP-1':True}))
+            self.assertFalse((Path(xdg)/'wysun/hypr-bar.json').exists())
             self.assertFalse((Path(home)/'.config').exists())
             invalidate();self.assertEqual(theme.active_mode(Path.home()),'dark')
             save_appearance({'opacity':77,'reduced_motion':True},Path.home());self.assertEqual(read_appearance()['opacity'],77)

@@ -17,8 +17,8 @@ apps/
                 wysun_core, wysun_music, wysun_files, wysun_media, wysun_player, wysun_pdf,
                 wysun_settings, wysun_services (backends del shell y residente), vendor/
   recorder/     Wysun Recorder (paquete wysun_recorder)              → ~/.local/share/wysun/capture/releases/<hash>
-  tools/        `wysun-tools` (dev, audit, share, cloud, vpn, resets) → ~/.local/share/wysun/tools
-bin/            Lanzadores públicos (wysun, wysun-shell, wysun-session, wysun-lock, wysun-wm, …) → ~/.local/bin
+  tools/        `wysun tools` (dev, audit, share, cloud, vpn, resets) → ~/.local/share/wysun/tools
+bin/            `wysun` (único punto de entrada) y los programas de la sesión (wysun-shell, wysun-session, wysun-lock, wysun-wm, …) → ~/.local/bin
 config/         Configuración GENERAL (dotfiles): .config/{wysun,ghostty,nvim,gtk-*,…}, .local/{bin,share/applications,icons}
 machines/       Perfiles opcionales por equipo (p. ej. samsung-touchscreen.sh); nunca se aplican por defecto
 installer/      Instalador (CLI + GUI), constructor del runtime, registro de sesión, limpieza, arranque (GRUB/Plymouth)
@@ -32,6 +32,15 @@ tests/          Todas las pruebas (ver sección 8)
 Fuente única: el escritorio instalado es una **copia** de estos directorios. No se edita lo instalado (los conflictos se
 detectan por huella y se guardan como `incoming/`).
 
+**Punto de entrada único: `bin/wysun`** (solo biblioteca estándar; no importa la app). Superficies y acciones del shell van a
+`wysun-shell` por IPC (`wysun`, `wysun SUPERFICIE`, `clipboard`, `calculator`, `color-pick`, `settings [PÁGINA]`); apps y servicios
+se ejecutan con `python3 -P -m <módulo>` y `~/.local/share/wysun/app` (o `…/tools`) en `PYTHONPATH` (`music`, `music-mini`,
+`files`, `pdf`, `player`, `scheme`, `wallpaper`, `workspaces`, `tools`, `daemon`, `reload`); `shell`, `lock`, `recover`,
+`recorder`, `session-check`, `install`, `doctor` y `activate` pasan a su programa (`wysun-shell`, `wysun-lock`, `wysun-recover`,
+`wysun-recorder`, `wysun-session`, `wysun-install`, `wysun-wm`). No hay alias; `wysun --help` lista las órdenes y
+`tests/shell_bridge/test_dispatcher.py` lo comprueba. `wysun-install` sigue existiendo porque el instalador también se publica
+sin el componente `desktop`.
+
 ## 2. Componentes en ejecución
 
 | Componente | Qué es | Arranca |
@@ -39,7 +48,7 @@ detectan por huella y se guardan como `incoming/`).
 | Hyprland 0.55.x | Compositor, configuración Lua `~/.config/wysun/hyprland.lua` (de `config/.config/wysun/hyprland.lua`) | `wysun-session` (sesión “Wysun / Hyprland”) |
 | `wysun-session-services` | Supervisor: `wysun-shell`, `wysun-idle` (swayidle configurable: bloqueo/pantalla), `wysun daemon`, polkit | Hyprland `exec` |
 | Shell (`wysun-shell` → `runtime.sh` → Quickshell) | Barra, dashboard, lanzador QML, menús, notificaciones (vista), OSD, sesión, fondos | supervisor |
-| `wysun daemon` (`python3 -m wysun_services.daemon`) | Residente Qt sin ventanas: registra el historial del portapapeles y reenvía comandos; socket `$XDG_RUNTIME_DIR/wysun-daemon-<uid>.sock`. El lanzador, Colors, Processes y Settings son del shell; Music y Files son procesos propios | supervisor |
+| `wysun daemon` (`python3 -m wysun_services.daemon`) | Residente Qt sin ventanas: registra el historial del portapapeles; `wysun reload` lo reinicia con el código instalado; socket `$XDG_RUNTIME_DIR/wysun-daemon-<uid>.sock`. El lanzador, Colors, Processes y Settings son del shell; Music y Files son procesos propios | supervisor |
 | Shell (Quickshell) | Único dueño de D-Bus de notificaciones (`NotificationServer` en `apps/shell/services/Notifs.qml`); No molestar: `wysun-shell dnd on\|off\|toggle\|status` | supervisor |
 | Apps (Music, Files, Player, Recorder) | Ventanas Qt bajo demanda (`wysun <modo>`), cada una en su proceso | usuario |
 
@@ -48,15 +57,17 @@ detectan por huella y se guardan como `incoming/`).
 `shell.qml` carga `Background`, `Drawers` (barra y paneles por pantalla), `AreaPicker`, `WysunBridge` y los demonios
 `BatteryMonitor`, `IdleInhibit`. Los atajos viven en `hyprland.lua`.
 
-- **IPC**: `wysunShell` (en `apps/shell/wysun/WysunBridge.qml`): `toggle|open <superficie>`, `close`, `status`, `reloadPreferences`,
-  `theme`, `openThemeSettings`. Superficies: `dashboard, launcher, menu, quicksettings, notifications, sidebar, windows, session`.
-  Acceso: `wysun-shell <acción> [superficie]` (o `wysun shell …`). `wysun-shell status` devuelve JSON (pantallas, abiertas, esquema).
+- **IPC**: `wysunShell` (en `apps/shell/wysun/WysunBridge.qml`): `toggle|open <superficie>`, `surfaces`, `close`, `status`,
+  `reloadPreferences`, `theme`, `openThemeSettings`. La **única lista de superficies** es `surfaces` de ese archivo
+  (`wysun-shell surfaces` la imprime: dashboard, windows, overview, cheatsheet, wallpapers, launcher, emoji, menu, quicksettings,
+  notifications, sidebar, session, ai, colors, processes). `wysun SUPERFICIE` y `wysun-shell SUPERFICIE` la alternan; ningún
+  lanzador repite la lista y el shell responde `false` a un nombre que no conoce. `wysun-shell status` devuelve JSON.
 - **Capas Layer Shell**: espacio de nombres `wysun-*` (`wysun-drawers`, `wysun-background`, `wysun-border-exclusion`…). Las reglas de
   Hyprland usan `^wysun-.*$`.
 - **Módulos QML del plugin** (`import Wysun.<X>`): `Config`, `Services`, `Components`, `Models`, `Blobs`, `Images`, `I18n`,
   `Multimedia`, `Settings`, `State`, `Shaders`, más `M3Shapes` (dependencia externa). Fuente en `apps/shell/plugin/src/Wysun/`.
 - **Configuración del shell** (dato del usuario): `~/.config/wysun/shell/shell.json` y
-  `monitors/<salida>/…` (por pantalla). El instalador traslada una configuración anterior en `~/.config/wysun/caelestia`.
+  `monitors/<salida>/…` (por pantalla).
 - **Transición de fondos**: `background.wallpaperTransition = "ZoomBlurPull"` usa un acercamiento gradual del fondo
   anterior, fundido con la imagen nueva nítida y un asentamiento final. Sus parámetros viven en
   `appearance.wallpaperMotion` de los tokens nativos (`plugin/src/Wysun/Config/tokens.hpp`), con duración propia de
@@ -69,7 +80,7 @@ detectan por huella y se guardan como `incoming/`).
   cuelga de cuatro hilos atados a las esquinas (física de muelle, tokens `sizes.screenshot`). Clic = ventana, arrastrar =
   región, Enter = salida completa; luego se ajusta por sus nodos. Barra: copiar y guardar (Enter), anotar (A: lápiz,
   rotulador, línea, flecha, rectángulo, elipse, texto, numerador y pixelado, con deshacer) o texto por OCR (T, Tesseract
-  `spa+eng`, editable antes de copiar). `wysun screenshot` traduce las opciones de la app anterior.
+  `spa+eng`, editable antes de copiar).
 - **Uso de IA** (`modules/aiusage`, servicio `services/AiUsage.qml`): panel que baja de la esquina superior derecha al pasar
   el ratón (o `wysun-shell toggle ai`). Pestañas: Resumen y una por cuenta (Alt+1…9, Ctrl+Tab, Ctrl+R refresca, Esc cierra;
   mientras está abierto toma el teclado con el mismo `HyprlandFocusGrab` que los demás paneles). Cada cuenta muestra plan, límites
@@ -121,12 +132,12 @@ proceso que lanza otro módulo usa `wysun_core.launch` (misma raíz, `-P`). Ning
 `wysun_services.scheme`, que pone `vendor/` (materialyoucolor) junto a los paquetes. `wysun_settings` reúne Ajustes
 (`environment`, `hypr`, `data`, `runtime`, `display_layout`, `workspace_layout`, `theme_runtime`) y `wysun_services` los
 backends del shell (`launcher_data`, `code_preview`, `process_data`, `utility_data`, `color_data`, `scheme`, `wallpaper_media`…),
-el residente (`daemon`) y su cliente (`client`). Las preferencias de usuario viven en `~/.config/wysun/` y los datos en
+y el residente (`daemon`). Las preferencias de usuario viven en `~/.config/wysun/` y los datos en
 `~/.local/share/wysun/` (sección 7).
 
 ### Wysun Player y `wysun_media` (`apps/python/wysun_media`, `wysun_player`)
 
-Visor único de imágenes, video y audio (`wysun player`, alias `wysun image`) y el componente reutilizable que lo implementa
+Visor único de imágenes, video y audio (`wysun player`) y el componente reutilizable que lo implementa
 (`MediaPlayer`). Un proceso por usuario atiende todas las ventanas mientras haya alguna (socket en `$XDG_RUNTIME_DIR`); Files
 abre ahí cualquier medio y embebe el mismo componente en su panel de detalles; Recorder lo embebe en su página de reproducción.
 El paquete no importa ningún módulo del anfitrión: cada app instala un `Host` con su tema (`wysun_player.host` en Wysun,
@@ -139,9 +150,8 @@ diagnóstico: `docs/player.md`. `apps/recorder/wysun_media` es un enlace al mism
 Paquete `wysun_recorder` (Recorder). Se instala por **versiones inmutables** en
 `~/.local/share/wysun/capture/releases/<hash>/` con el wrapper `wysun-recorder`, que fija `PYTHONPATH` a la versión actual; no
 importa código de `~/.local/share/wysun/app`. Sus datos son independientes (`~/.local/share/wysun/recorder`). Tiene su propia suite:
-`python3 apps/recorder/run_tests.py`. La app Qt Wysun Screenshot (`wybieshot`) se retiró: el instalador deja
-`wysun-screenshot`/`wybie-screenshot` como redirecciones a `wysun screenshot`, retira su entrada de menú e icono si son suyos y no
-toca `~/.local/share/wybie-screenshot`.
+`python3 apps/recorder/run_tests.py`. Las capturas de pantalla son del shell
+(`wysun-shell screenshot`).
 
 **Grabación de pantalla**: la elección (ventana/región/pantalla), la cuenta atrás y el HUD viven en el shell
 (`wysun-shell record [start|toggle|pause|stop]`, IPC `recorder`; `modules/areapicker` en modo `record` + `modules/recorder`);
@@ -182,8 +192,8 @@ Python estándar (+ PySide6 para la GUI). Instala por **componentes** (`desktop,
 
 | Modo | Efecto |
 |---|---|
-| `--wysun-only` | Despliega `apps/python`, `apps/tools`, `apps/shell`, `apps/recorder`, `bin/*` y reconstruye el runtime si cambió. No cambia atajos, notas, historial ni colores |
-| `--scripts-only` | Herramientas y migración de scripts |
+| `--wysun-only` | Despliega `apps/python`, `apps/tools`, `apps/shell`, `apps/recorder`, `bin/*`, retira los lanzadores de versiones anteriores (`RETIRED_COMMANDS`: solo los suyos sin cambios y que `~/.config/wysun/*.lua` ya no llama) y reconstruye el runtime si cambió. No cambia atajos, notas, historial ni colores |
+| `--scripts-only` | Herramientas de terminal (`wysun tools`) y el lanzador `wysun` |
 | `--installer-only` | El propio instalador y su CLI `wysun-install` (`wysun install`) |
 | `--boot-only` | GRUB/Plymouth/greeter (respalda `/etc` y `/boot`) |
 | `--config-only` | Archivos de usuario sin paquetes |
@@ -221,8 +231,9 @@ Procedimiento seguro (el que se usó para el rebranding):
 2. **Respaldar**: `cp -a ~/.config/wysun ~/.local/bin/wysun* ~/.local/share/wysun-backups/<fecha>/`,
    más `tar` de `~/.local/share/wysun/{quickshell,app}`. El instalador además guarda su propio respaldo por ejecución.
 3. **Desplegar**: `./instalar.sh --wysun-only`. Si hay conflictos, no sobrescribe; revisar `incoming/` en el respaldo.
-4. **Reiniciar solo el shell** (no Hyprland): `pkill -x quickshell; setsid ~/.local/bin/wysun-shell >~/.local/state/wysun/shell.log 2>&1 &`.
-   `wysun reload` recarga solo el residente Qt.
+4. **Recargar**: `wysun reload` reinicia el residente del portapapeles con el código nuevo; las apps toman el código nuevo al
+   abrirse. Si cambió `apps/shell` o el plugin, reiniciar solo el shell (no Hyprland):
+   `pkill -x quickshell; setsid ~/.local/bin/wysun-shell >~/.local/state/wysun/shell.log 2>&1 &`.
 5. **Validar** en la sesión real: `wysun-shell status`, `hyprctl layers | grep wysun`, abrir dashboard/launcher/menu/session,
    comprobar cada monitor (`hyprctl monitors`), y hacer capturas con `grim -o <salida>`.
 
@@ -290,10 +301,10 @@ Nunca reiniciar Hyprland ni el login para actualizar un panel.
   Los emojis y números tienen composición ampliada; los enlaces muestran una cabecera de imagen con título y descripción.
   `launcher_web.py` entrega metadatos antes de la imagen, limita las descargas y guarda hasta 32 previews en
   `~/.cache/wysun/link-previews` (una hora; fallos, un minuto). El highlight lo posiciona el propio ListView para seguir el scroll. No hay snippets, vista de ventanas ni comandos de energía en el lanzador (Alt+Tab abre el overview).
-  `wysun clipboard|calculator` abren la vista correspondiente y `emoji` el cajón de emojis; `power|audio|notifications|calendar|system` abren las superficies del
-  shell. El residente Qt (`wysun_services.daemon`) ya no muestra menús ni aloja utilidades: registra el historial del portapapeles.
+  `wysun clipboard|calculator` abren la vista correspondiente y `wysun emoji` el cajón de emojis; cualquier otra superficie
+  (`session`, `quicksettings`, `notifications`, `dashboard`…) se alterna con `wysun SUPERFICIE`. El residente Qt (`wysun_services.daemon`) ya no muestra menús ni aloja utilidades: registra el historial del portapapeles.
   Music (`wysun_music`) y Files (`wysun_files`) se lanzan como procesos independientes.
-- **Colores** (`wysun colors`, `wysun color`): panel nativo de Quickshell en
+- **Colores** (`wysun colors`; cuentagotas directo `wysun color-pick`): panel nativo de Quickshell en
   `apps/shell/modules/colors/`, capa overlay `wysun-colors` en la pantalla enfocada. Usa los controles,
   tipografía, radios y paleta M3 del shell. Incluye plano HSV con teclado, formatos HEX/RGB/HSL,
   contraste de texto, recientes y favoritos. `backend.py` serializa las operaciones en el almacén
@@ -322,7 +333,7 @@ Nunca reiniciar Hyprland ni el login para actualizar un panel.
   reversión con watchdog independiente) y asignaciones persistentes de workspaces por monitor. Reutiliza
   `environment_settings.py`, `display_layout.py` y `hypr_settings.py`. No hay sección Escritorio ni páginas
   Terminal, Notificaciones, Inicio, Archivos y copias, Efectos, Ventanas, Atajos, SSH o Processes en Settings.
-  Wi-Fi, VPN y Bluetooth usan Red y Dispositivos conectados. `wysun processes` se gestiona fuera de Nexus.
+  Wi-Fi, VPN y Bluetooth usan Red y Dispositivos conectados. `wysun processes` alterna su propio panel, fuera de Nexus.
 - **Tema**: un solo estilo, Material You; el color sale del wallpaper (`scheme.json`) y la selección, en
   `~/.config/wysun/theme.json`, es solo el modo (`auto`, `light`, `dark`). Los tokens viven en `apps/python/wysun_core/tokens.json`; Quickshell lee los colores por
   `apps/shell/services/Colours.qml` (vía `scheme.json`) y la forma del mismo `tokens.json` instalado; `tests/test_theme_literals.py` rechaza colores literales
@@ -338,12 +349,14 @@ Nunca reiniciar Hyprland ni el login para actualizar un panel.
 | Estado (`scheme.json`, registros, respaldos de tema) / caché | `~/.local/state/wysun/` / `~/.cache/wysun/` |
 | Recorder | datos `~/.local/share/wysun/recorder`, preferencias `~/.config/wysun/recorder`, estado `~/.local/state/wysun/recorder`, releases `~/.local/share/wysun/capture/releases` |
 | Instalador | CLI `wysun-install` (`wysun install`), código `~/.local/share/wysun/installer`, estado y respaldos `~/.local/state/wysun/install`, artefactos fijados `~/.local/share/wysun/artifacts`, estado del sistema `/var/lib/wysun` |
-| Herramientas | `wysun-tools`, motor `~/.local/share/wysun/tools` |
+| Herramientas | `wysun tools`, motor `~/.local/share/wysun/tools` (`python3 -m wysun_tools`) |
 | Sockets / variables / desktop ids | `wysun-*` en `$XDG_RUNTIME_DIR`; `WYSUN_*`; `wysun`, `wysun-files`, `wysun-music`, `wysun-settings`, `wysun-recorder`, portal `org.freedesktop.impl.portal.desktop.wysun` |
 
 `tests/test_legacy_names.py` impide que vuelvan los nombres anteriores. La URL del repositorio en GitHub conserva su nombre.
 
-Retirados en esta parte: nombres Caelestia (módulos, plugin, rutas, IPC, namespaces de capa), alias `musica`/`musika`, perfiles
+Retirados: los nombres del proyecto de origen (módulos, plugin, rutas, IPC, namespaces de capa), todos los alias de comandos
+(`wysun image`, `wysun color`, `wysun screenshot`, `wysun power`…) y los lanzadores sueltos (`wysun-tools`, `wysun-player`,
+`wysun-files`, `wysun-music`, `wysun-pdf`, `wysun-workspaces`, `wysun-screenshot`), que una actualización retira; perfiles
 `profiles/` (ahora `machines/`), módulos Python sin uso (`files_preview`, `service_runtime`, `theme_widgets`), demonios QML sin
 uso (`GameMode`, `IdleMonitors`) y la infraestructura de CI/nix del shell original.
 

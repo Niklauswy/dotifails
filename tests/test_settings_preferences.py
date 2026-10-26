@@ -22,9 +22,9 @@ from wysun_settings.data import PreferenceBackup, ShellPreferences  # noqa: E402
 
 MONITORS = [dict(name='DP-1', width=64, height=48, x=0, y=0, scale=1, refreshRate=60,
                  availableModes=['64x48@60.00Hz'], focused=True)]
-LEGACY = {'height': 40, 'opacity': 70, 'background': '#101118', 'left': ['wysun', 'workspaces'],
-          'center': ['title'], 'right': ['date', 'tray'], 'monitors': {'DP-1': True, 'eDP-1': False},
-          'tray_monitor': 'DP-1', 'future_key': {'keep': True}}
+SHELL = {'schema_version': 1, 'monitors': {'DP-1': True, 'eDP-1': False}, 'tray_monitor': 'DP-1',
+         'rail_modules': {'left': ['wysun', 'workspaces'], 'center': ['title'], 'right': ['date', 'tray']},
+         'future_key': {'keep': True}}
 
 
 def digest(path):
@@ -64,56 +64,22 @@ class PreferenceCase(unittest.TestCase):
         return path
 
     def state(self):
-        names = ('shell.json', 'hypr-bar.json', 'appearance.json', 'environment.json', 'theme.json')
+        names = ('shell.json', 'appearance.json', 'environment.json', 'theme.json')
         return {n: digest(self.config / n) for n in names} | {'scheme.json': digest(theme.scheme_path(self.home))}
 
 
-class MigrationTests(PreferenceCase):
-    def test_migrates_once_keeps_legacy_bytes_and_is_idempotent(self):
-        legacy = self.write('hypr-bar.json', json.dumps(LEGACY, indent=1) + '\r\n')
-        before = digest(legacy)
-        shell = ShellPreferences(self.home)
-        self.assertTrue(shell.migrate())
-        written = digest(self.config / 'shell.json')
-        values = json.loads((self.config / 'shell.json').read_text())
-        self.assertEqual((values['schema_version'], values['anchor']), (1, 'left'))
-        self.assertEqual(values['monitors'], {'DP-1': True, 'eDP-1': False})
-        self.assertEqual(values['tray_monitor'], 'DP-1')
-        self.assertEqual(values['rail_modules'], {'left': ['wysun', 'workspaces'], 'center': ['title'], 'right': ['date', 'tray']})
-        self.assertNotIn('height', values)
-        self.assertEqual(digest(legacy), before)
-        self.assertEqual(oct((self.config / 'shell.json').stat().st_mode & 0o777), '0o600')
-        self.assertFalse(ShellPreferences(self.home).migrate())  # second run: no-op
-        self.assertEqual(digest(self.config / 'shell.json'), written)
-        self.assertEqual(shell.migration_backup.before['hypr-bar.json'], (self.config / 'hypr-bar.json').read_bytes())
-        # Undo of the migration removes shell.json and leaves hypr-bar.json exact.
-        shell.migration_backup.restore()
+class ShellFileTests(PreferenceCase):
+    def test_the_former_bar_file_is_not_read(self):
+        self.write('hypr-bar.json', json.dumps({'monitors': {'DP-1': False}, 'tray_monitor': 'DP-1'}))
+        self.assertEqual(ShellPreferences(self.home).values()['monitors'], {})
         self.assertFalse((self.config / 'shell.json').exists())
-        self.assertEqual(digest(legacy), before)
+        self.assertFalse(hasattr(ShellPreferences, 'migrate'))
 
     def test_new_profile_gets_defaults_without_files_or_legacy(self):
         values = ShellPreferences(self.home).values()
         self.assertEqual(values['rail_enabled'], True)
         self.assertEqual(values['monitors'], {})
         self.assertFalse((self.config / 'shell.json').exists())
-
-    def test_disabled_tray_and_all_off_legacy_never_leave_the_desktop_empty(self):
-        self.write('hypr-bar.json', json.dumps({'monitors': {'A': False, 'B': False}, 'tray_monitor': 'A'}))
-        values = ShellPreferences(self.home).values()
-        self.assertEqual((values['monitors'], values['tray_monitor']), ({}, 'A'))
-        (self.config / 'shell.json').unlink()
-        self.write('hypr-bar.json', json.dumps({'monitors': {'A': False, 'B': True}, 'tray_monitor': 'A'}))
-        self.assertEqual(ShellPreferences(self.home).values()['tray_monitor'], '')
-
-    def test_invalid_legacy_json_is_reported_and_nothing_is_created(self):
-        legacy = self.write('hypr-bar.json', '{"height": ')
-        before = digest(legacy)
-        with self.assertRaisesRegex(ValueError, 'JSON inválido'):
-            ShellPreferences(self.home).values()
-        with self.assertRaises(ValueError):
-            self.env.apply_shell({'low_power': True})
-        self.assertFalse((self.config / 'shell.json').exists())
-        self.assertEqual(digest(legacy), before)
 
     def test_unknown_version_blocks_reads_and_writes_without_touching_the_file(self):
         shell = self.write('shell.json', json.dumps({'schema_version': 2, 'future': 1}))
@@ -125,28 +91,11 @@ class MigrationTests(PreferenceCase):
         self.assertEqual(digest(shell), before)
         self.assertFalse((self.config / 'appearance.json').exists())
 
-    def test_write_failure_during_migration_leaves_no_partial_state(self):
-        legacy = self.write('hypr-bar.json', json.dumps(LEGACY))
-        before = digest(legacy)
-        real = jsonio.atomic_write_bytes
-
-        def failing(path, data, mode=None):
-            if Path(path).name == 'shell.json':
-                raise OSError(28, 'No space left on device')
-            return real(path, data, mode=mode)
-        with patch.object(jsonio, 'atomic_write_bytes', failing):
-            with self.assertRaises(OSError):
-                ShellPreferences(self.home).migrate()
-        self.assertFalse((self.config / 'shell.json').exists())
-        self.assertEqual(digest(legacy), before)
-        self.assertTrue(ShellPreferences(self.home).migrate())  # recovers on the next attempt
-
 
 class SaveAndUndoTests(PreferenceCase):
     def test_panels_save_keeps_unknown_keys_and_undo_is_byte_for_byte(self):
-        self.write('hypr-bar.json', json.dumps(LEGACY))
+        self.write('shell.json', json.dumps(SHELL))
         appearance = self.write('appearance.json', '{"opacity": 80,\r\n "reduced_motion": false, "futuro": "ñ"}\r\n')
-        ShellPreferences(self.home).migrate()
         shell = self.write('shell.json', json.dumps(dict(json.loads((self.config / 'shell.json').read_text()), extra={'x': 1}), indent=4) + '\n')
         before = self.state()
         backup = self.env.apply_panels({'frame_enabled': False, 'low_power': True, 'monitors': {'DP-1': True, 'eDP-1': True}},
@@ -156,7 +105,6 @@ class SaveAndUndoTests(PreferenceCase):
         self.assertEqual((saved['frame_enabled'], saved['low_power'], saved['extra']), (False, True, {'x': 1}))
         kept = json.loads(appearance.read_text())
         self.assertEqual((kept['opacity'], kept['reduced_motion'], kept['futuro']), (90, True, 'ñ'))
-        self.assertEqual(self.state()['hypr-bar.json'], before['hypr-bar.json'])
         self.env.undo_preferences(backup)
         self.assertEqual(self.state(), before)
         self.assertEqual(appearance.read_bytes(), b'{"opacity": 80,\r\n "reduced_motion": false, "futuro": "\xc3\xb1"}\r\n')
@@ -181,7 +129,7 @@ class SaveAndUndoTests(PreferenceCase):
             PreferenceBackup.open(self.home, paths, self.config)
 
     def test_stale_form_and_invalid_values_are_rejected_before_writing(self):
-        self.write('hypr-bar.json', json.dumps(LEGACY))
+        self.write('shell.json', json.dumps(SHELL))
         baseline = self.env.shell_values()
         self.env.apply_shell({'low_power': True}, baseline)
         before = self.state()
@@ -194,9 +142,8 @@ class SaveAndUndoTests(PreferenceCase):
         self.assertEqual(self.state(), before)
 
     def test_write_failure_rolls_back_every_file_of_the_combined_save(self):
-        self.write('hypr-bar.json', json.dumps(LEGACY))
+        self.write('shell.json', json.dumps(SHELL))
         appearance = self.write('appearance.json', '{"opacity": 80, "k": 1}\n')
-        ShellPreferences(self.home).migrate()
         before = self.state()
         real = jsonio.atomic_write_bytes
 

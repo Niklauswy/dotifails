@@ -28,9 +28,9 @@ Para traer una versión publicada en otro equipo ya configurado:
 wysun-install update --wysun-only && wysun reload
 ```
 
-La instalación completa utiliza exactamente el mismo `apps/python/`. Los atajos versionados en `config/.config/wysun/hyprland.lua` abren `wysun notes` y `wysun color`. Los cambios de atajos se distribuyen mediante la actualización completa de configuración, respetando los conflictos locales; `--wysun-only` no los sobrescribe.
+La instalación completa utiliza exactamente el mismo `apps/python/`. Los atajos versionados en `config/.config/wysun/hyprland.lua` usan las órdenes de `wysun` (`wysun --help`). Los cambios de atajos se distribuyen mediante la actualización completa de configuración, respetando los conflictos locales; `--wysun-only` no los sobrescribe.
 
-Notas importa una vez el antiguo `~/Documents/QuickNotes/notes.md`, conservando el archivo original. Color importa el historial antiguo de colores únicamente cuando aún no existe su almacenamiento nuevo. Esos datos permanecen en el hogar del usuario y nunca se copian al repositorio.
+Los datos de Notas y Colores permanecen en el hogar del usuario y nunca se copian al repositorio.
 
 ## Pruebas locales
 

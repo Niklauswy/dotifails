@@ -19,5 +19,5 @@ function primaryName(names, displays) {
 }
 
 function drawerSurface(kind) {
-    return ["dashboard", "test", "windows", "menu", "quicksettings", "notifications", "sidebar", "session", "ai"].includes(kind);
+    return ["dashboard", "windows", "menu", "quicksettings", "notifications", "sidebar", "session", "ai"].includes(kind);
 }

@@ -32,7 +32,7 @@ class SessionShortcutTests(unittest.TestCase):
         functions = '\n'.join(re.findall(r'^    function .*?^    }', source, re.M | re.S))
         script = """
 var screens = [{name: 'left'}, {name: 'right'}];
-var states = [{launcher: true}, {session: true}];
+var states = [{launcher: true, modelData: screens[0]}, {session: true, modelData: screens[1]}];
 var active = 0;
 var Quickshell = {screens: screens};
 var Screens = {widgetsOnlyPrimary: false, widgetScreens: [screens[1]],
@@ -44,7 +44,7 @@ var ShellState = {
     forScreen: function(screen) { return states[screens.indexOf(screen)]; },
     componentsFor: function(screen) { return {}; }
 };
-var Config = {launcher: {enabled: false}};
+var GlobalConfig = {launcher: {enabled: false}, forScreen: function(name) { return name ? this : null; }};
 var colors = { close: function() {}, open: function() { return true; } };
 var processes = { close: function() {}, open: function() { return true; } };
 var root = {surfaces: SURFACES};
@@ -66,10 +66,12 @@ check(!states[0].session && states[1].session, 'wrong focused output');
 active = -1;
 check(!show('session', true), 'missing focus must reject');
 check(!show('unknown', true), 'unknown surface must reject');
+check(!show('test', true), 'the test alias is gone');
+check(show('colors', true) && show('processes', false), 'own modules are surfaces');
 close(); check(!states[0].session && !states[1].session, 'close failed');
 active = 0;
 check(!show('launcher', true), 'disabled launcher must reject for fallback');
-Config.launcher.enabled = true;
+GlobalConfig.launcher.enabled = true;
 check(show('launcher', true) && states[0].launcher, 'native launcher not accepted');
 Screens.widgetsOnlyPrimary = true;
 check(show('session', false) && states[1].session && !states[0].session, 'drawer must use saved primary');

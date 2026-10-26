@@ -2,7 +2,7 @@
 
 Fuente integrada de Wysun Recorder dentro de este repositorio. El instalador común (`./instalar.sh --wysun-only` desde la raíz) lo actualiza con el resto de Wysun.
 
-Wysun Screenshot (`wybieshot`) se retiró: las capturas de pantalla las hace el shell (`apps/shell/modules/areapicker`) y `wysun screenshot` redirige allí. Las menciones a Screenshot que quedan más abajo describen la app anterior y son solo históricas. No ejecutar los instaladores históricos de `scripts/` para actualizar esta distribución.
+Wysun Screenshot (`wybieshot`) se retiró: las capturas de pantalla las hace el shell (`apps/shell/modules/areapicker`) (`wysun-shell screenshot`). Las menciones a Screenshot que quedan más abajo describen la app anterior y son solo históricas. No ejecutar los instaladores históricos de `scripts/` para actualizar esta distribución.
 
 El paquete es `wysun_recorder` (`python3 -m wysun_recorder`, lanzador `wysun-recorder`); sus datos viven en `~/.local/share/wysun/recorder`. La fuente original de `loom` queda como copia histórica; no es necesaria para instalar o ejecutar Wysun.
 

@@ -287,7 +287,7 @@ def print_table(accounts: list[Account]) -> None:
 
     if not rows:
         print(color("No hay cuentas guardadas.", YELLOW))
-        print(f"Agrega una con: {color('rezets add <nombre> <servicio> <reset_at> [nota]', BLUE)}")
+        print(f"Agrega una con: {color('wysun tools resets add <nombre> <servicio> <reset_at> [nota]', BLUE)}")
         return
 
     header = f"{'CUENTA':18} {'SERVICIO':10} {'TIPO':14} {'RESET':26} {'RESTA':20} {'ESTADO':8}"
@@ -386,7 +386,7 @@ def init_config(_args: argparse.Namespace) -> None:
     ensure_config()
     print(color(f"Archivo listo: {CONFIG_FILE}", GREEN))
     print("Editalo con:")
-    print(f"  {color('rezets edit', BLUE)}")
+    print(f"  {color('wysun tools resets edit', BLUE)}")
 
 
 def infer_service(block: str, fallback: str = "unknown") -> str:
@@ -483,7 +483,7 @@ def paste_import(args: argparse.Namespace) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="rezets",
+        prog="wysun tools resets",
         description="Muestra el tiempo restante para los resets de Codex y Claude.",
     )
     parser.add_argument("--config", type=Path, help="Archivo alternativo; no migra datos privados del usuario")

@@ -41,7 +41,7 @@ def instances(args):
             return project, values, None
         except (ValueError, KeyError, TypeError):
             return project, [], 'Respuesta JSON inválida.'
-    result = report('gvm list'); values = []
+    result = report('wysun tools cloud list'); values = []
     with ThreadPoolExecutor(max_workers=args.jobs) as pool:
         for project, rows, error in pool.map(fetch, sorted(set(projects))):
             check(result, project, 'fail' if error else 'pass', error or f'{len(rows)} instancias')
@@ -93,7 +93,7 @@ def execute(args):
     if args.action == 'ssh':
         os.execvp(commands[0][1][0], commands[0][1])
         return 0
-    result = report('gvm '+args.action)
+    result = report('wysun tools cloud '+args.action)
     def perform(item):
         vm, argv, body = item
         try:
@@ -131,7 +131,7 @@ def interactive():
     return main(argv)
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(prog='gvm', description='VMs de Google Cloud: selección explícita, operaciones paralelas y resultados verificables.')
+    parser = argparse.ArgumentParser(prog='wysun tools cloud', description='VMs de Google Cloud: selección explícita, operaciones paralelas y resultados verificables.')
     parser.add_argument('--account', help='Cuenta gcloud; no cambia la configuración global')
     parser.add_argument('--jobs',type=int,default=4,choices=range(1,9))
     sub = parser.add_subparsers(dest='action',required=True)

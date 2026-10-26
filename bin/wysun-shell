@@ -1,5 +1,5 @@
 #!/bin/sh
-# Control the Wysun shell (Quickshell): start it, toggle surfaces and send IPC calls.
+# Control the Wysun shell (Quickshell): start it, toggle surfaces (`wysun-shell SURFACE`) and send IPC calls.
 set -eu
 config="${WYSUN_SHELL_CONFIG:-${XDG_DATA_HOME:-$HOME/.local/share}/wysun/quickshell}"
 runtime="$config/wysun/runtime.sh"
@@ -8,21 +8,9 @@ case "${1:-}" in
     brightness) shift; exec "$runtime" ipc call wysunShell brightness "${1:-}" ;;
     category) shift; exec "$runtime" ipc call wysunShell category "${1:-all}" ;;
     search) shift; exec "$runtime" ipc call wysunShell search "${1:-}" ;;
-    emoji) exec "$runtime" ipc call wysunShell toggle emoji ;;
     media) shift; exec "$runtime" ipc call wysunShell media "${1:-}" ;;
     identify) exec "$runtime" ipc call wysunShell identify ;;
     color-pick) exec "$runtime" ipc call wysunShell pickColor ;;
-    launcher) exec "$runtime" ipc call wysunShell toggle launcher ;;
-    overview|cheatsheet|wallpapers|menu|windows|session|sidebar) kind="$1"; shift; exec "$runtime" ipc call wysunShell toggle "$kind" "$@" ;;
-    toggle|open)
-        action="$1"; shift
-        surface="${1:-}"
-        if [ $# -gt 0 ]; then shift; fi
-        case "$surface" in
-            test|overview|cheatsheet|wallpapers|dashboard|launcher|emoji|menu|quicksettings|notifications|windows|session|sidebar|processes|ai|colors) ;;
-            *) echo "wysun-shell: superficie desconocida: ${surface:-<vacía>}" >&2; exit 2 ;;
-        esac
-        exec "$runtime" ipc call wysunShell "$action" "$surface" "$@" ;;
     theme) shift; exec "$runtime" ipc call wysunShell theme "$@" ;;
     theme-settings) shift; exec "$runtime" ipc call wysunShell openThemeSettings "$@" ;;
     close|status) action="$1"; shift; exec "$runtime" ipc call wysunShell "$action" "$@" ;;
@@ -53,5 +41,22 @@ case "${1:-}" in
             shift
         done
         exec "$runtime" ipc call picker screenshot "$mode" "$dir" "$save" ;;
-    *) exec "$runtime" --no-duplicate "$@" ;;
+    surfaces) exec "$runtime" ipc call wysunShell surfaces ;;
+    # Start the shell, or hand a Quickshell command (ipc, log, list, kill) to the runtime.
+    ''|-*) exec "$runtime" --no-duplicate "$@" ;;
+    ipc|log|list|kill) exec "$runtime" "$@" ;;
+    *)
+        # [toggle|open] SURFACE: the shell owns the list of surfaces (`wysun-shell surfaces`) and
+        # answers false for a name it does not know.
+        action=toggle
+        case "$1" in toggle|open) action="$1"; shift ;; esac
+        surface="${1:-}"
+        if [ $# -gt 0 ]; then shift; fi
+        if [ $# -gt 0 ]; then echo "wysun-shell: $surface no admite argumentos: $*" >&2; exit 2; fi
+        answer=$("$runtime" ipc call wysunShell "$action" "$surface") || exit $?
+        if [ "$answer" = false ]; then
+            echo "wysun-shell: superficie desconocida o no disponible: ${surface:-<vacía>} (lista: wysun-shell surfaces)" >&2
+            exit 2
+        fi
+        printf '%s\n' "$answer" ;;
 esac

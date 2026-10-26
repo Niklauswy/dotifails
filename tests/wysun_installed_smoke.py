@@ -63,10 +63,12 @@ def main():
             text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=90)
         if update.returncode:raise RuntimeError(update.stdout)
         assert config.read_text() == '-- synthetic personal binding fixture\n'
-        for command in ('player', 'image'):       # the viewer's public entry points run from the installed copy and never start a window
-            help_text = subprocess.run(['wysun', command, '--help'], env=env, cwd='/', text=True, stdout=subprocess.PIPE,
-                                       stderr=subprocess.STDOUT, timeout=20)
-            assert help_text.returncode == 0 and 'wysun player' in help_text.stdout, (command, help_text.stdout)
+        # The viewer and the terminal tools run from the installed copy; `wysun` is the only launcher.
+        for argv, expected in ((['wysun', 'player', '--help'], 'wysun player'), (['wysun', 'tools', '--help'], 'wysun tools <grupo>')):
+            help_text = subprocess.run(argv, env=env, cwd='/', text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=20)
+            assert help_text.returncode == 0 and expected in help_text.stdout, (argv, help_text.stdout)
+        for retired in ('wysun-player', 'wysun-tools', 'wysun-files', 'wysun-workspaces', 'wysun-screenshot', 'wybie-screenshot'):
+            assert not (home / '.local/bin' / retired).exists(), retired
         assert (home / '.local/share/applications/wysun-player.desktop').is_file()
         assert not list((home / 'runtime').glob('wysun-player-*.sock'))
         assert not (home / '.config/bspwm').exists()

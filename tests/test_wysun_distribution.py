@@ -38,16 +38,15 @@ class WysunDistributionTests(unittest.TestCase):
         launch = self.home / '.local/bin/wysun'
         self.assertIn('Wysun Recorder', subprocess.check_output([str(launch), 'recorder', '--version'], cwd='/', text=True))
         self.assertIn('Wysun', subprocess.check_output([str(launch.parent / 'wysun-recorder'), '--version'], cwd='/', text=True))
-        # Screenshots are taken by the shell; the former commands only redirect there.
-        for old in ('wysun-screenshot', 'wybie-screenshot'):
-            self.assertIn('/wysun" screenshot "$@"', (launch.parent / old).read_text())
+        # `wysun` is the only launcher of the family.
+        for old in ('wysun-screenshot', 'wybie-screenshot', 'wysun-player', 'wysun-pdf', 'wysun-music', 'wysun-files'):
+            self.assertFalse((launch.parent / old).exists(), old)
         entries = self.home / '.local/share/applications'
         self.assertFalse((entries / 'wybie-screenshot.desktop').exists())
         self.assertEqual(sorted(path.name for path in entries.glob('*.desktop')),
                          ['wysun-pdf.desktop', 'wysun-player.desktop', 'wysun-recorder.desktop', 'wysun-settings.desktop', 'wysun.desktop'])
-        self.assertTrue(os.access(launch.parent / 'wysun-player', os.X_OK))
         self.assertIn('Exec=wysun pdf %F', (entries / 'wysun-pdf.desktop').read_text())
-        self.assertTrue((launch.parent / 'wysun-pdf').is_file())
+        self.assertIn('Exec=wysun player -- %F', (entries / 'wysun-player.desktop').read_text())
         self.assertIn('Name=Wysun Recorder', (entries / 'wysun-recorder.desktop').read_text())
         self.assertIn('Name=Wysun Settings', (entries / 'wysun-settings.desktop').read_text())
         self.assertNotIn('Órbita', (entries / 'wysun-settings.desktop').read_text())
@@ -62,7 +61,7 @@ class WysunDistributionTests(unittest.TestCase):
         with patch.dict(os.environ, WYSUN_SKIP_RUNTIME='1'):
             deployment.configure_app()
         self.assertFalse(deployment.conflicts)
-        for relative in ('.local/bin/wysun-tools', '.local/bin/wysun-files', '.local/share/applications/wysun-files.desktop',
+        for relative in ('.local/bin/wysun', '.local/share/wysun/tools/wysun_tools/__main__.py', '.local/share/applications/wysun-files.desktop',
                          '.config/systemd/user/wysun-files-integration.service',
                          '.local/share/dbus-1/services/org.freedesktop.impl.portal.desktop.wysun.service',
                          '.local/share/xdg-desktop-portal/portals/wysun.portal'):
@@ -117,7 +116,7 @@ class WysunDistributionTests(unittest.TestCase):
         self.assertEqual(len(list(releases.iterdir())), 2, 'the shared package is part of the release hash')
         self.assertNotIn('synthetic player change', (old / 'wysun_media/player.py').read_text())
 
-    def test_adopt_verified_legacy_files_and_preserve_all_private_roots(self):
+    def test_update_retires_old_launchers_it_wrote_and_keeps_private_roots(self):
         private = ('.local/share/wysun/recorder/recordings/old/project.json',
                    '.local/share/wybie-screenshot/sessions/old/original.png',
                    '.config/wysun/recorder/preferences.json', '.local/share/wysun/wysun.sqlite3',
@@ -126,27 +125,51 @@ class WysunDistributionTests(unittest.TestCase):
             path = self.home / name
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(b'private fixture untouched')
-        for command, base, absolute in (('wybie-screenshot', 'wybie-screenshot', True),):
-            owned = {}
-            for key, relative in (('launcher', '.local/bin/' + command),
-                                  ('desktop', '.local/share/applications/' + command + '.desktop'),
-                                  ('icon', '.local/share/icons/hicolor/scalable/apps/' + command + '.svg')):
-                path = self.home / relative
-                path.parent.mkdir(parents=True, exist_ok=True)
-                path.write_text('old managed ' + key)
-                owned[str(path) if absolute else key] = hashlib.sha256(path.read_bytes()).hexdigest()
-            manifest = self.home / ('.local/share/' + base + '/install-manifest.json')
-            manifest.write_text(json.dumps({'version': 1, 'files': owned}))
+        owned, edited, foreign = ('.local/bin/wysun-player', '.local/bin/wybie-screenshot',
+                                  '.local/share/applications/wybie-screenshot.desktop'), '.local/bin/gvm', '.local/bin/web-dev'
+        receipt = {}
+        for relative in (*owned, edited, foreign):
+            path = self.home / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text('old ' + relative)
+            if relative != foreign:
+                receipt[relative] = installer.fingerprint(path)
+        (self.home / edited).write_text('changed by the user')
         deployment = self.deploy()
+        deployment.receipt['files'].update(receipt)
         deployment.configure_wysun()
-        self.assertFalse(deployment.conflicts)
+        for relative in owned:
+            self.assertFalse((self.home / relative).exists(), relative)
+            self.assertNotIn(relative, deployment.receipt['files'])
+        # A launcher the user changed is theirs now: kept, dropped from the receipt, never a recurring conflict.
+        self.assertEqual((self.home / edited).read_text(), 'changed by the user')
+        self.assertEqual(deployment.conflicts, [])
+        self.assertNotIn(edited, deployment.receipt['files'])
+        self.assertEqual((self.home / foreign).read_text(), 'old ' + foreign)
         for name in private:
             self.assertEqual((self.home / name).read_bytes(), b'private fixture untouched')
-        self.assertIn('Wysun', subprocess.check_output([str(self.home / '.local/bin/wysun-recorder'), '--version'], text=True))
-        # The verified standalone Screenshot install is adopted: redirect, no menu entry or icon.
-        self.assertIn('/wysun" screenshot', (self.home / '.local/bin/wybie-screenshot').read_text())
-        self.assertFalse((self.home / '.local/share/applications/wybie-screenshot.desktop').exists())
-        self.assertFalse((self.home / '.local/share/icons/hicolor/scalable/apps/wybie-screenshot.svg').exists())
+
+    def test_a_launcher_the_active_hyprland_config_still_calls_is_kept(self):
+        launcher = self.home / '.local/bin/wysun-workspaces'
+        launcher.parent.mkdir(parents=True)
+        launcher.write_text('old launcher')
+        config = self.home / '.config/wysun/hyprland.lua'
+        config.parent.mkdir(parents=True)
+        config.write_text('hl.on("hyprland.start", function () hl.exec_cmd("wysun-workspaces") end)\n')
+        deployment = self.deploy()
+        deployment.receipt['files']['.local/bin/wysun-workspaces'] = installer.fingerprint(launcher)
+        deployment.configure_wysun()
+        self.assertTrue(launcher.exists(), 'retiring it would break the active binds')
+        self.assertIn('.local/bin/wysun-workspaces', deployment.receipt['files'])
+        self.assertFalse(deployment.conflicts)
+        deployment.finish()
+        deployment.lock.close()
+        config.write_text('hl.on("hyprland.start", function () hl.exec_cmd("wysun workspaces") end)\n'
+                          'hl.window_rule({ match = { class = "^wysun-workspaces$" } })\n')   # a class is not a call
+        update = self.deploy()
+        update.receipt['files']['.local/bin/wysun-workspaces'] = installer.fingerprint(launcher)
+        update.configure_wysun()
+        self.assertFalse(launcher.exists())
 
     def test_unowned_commands_and_modified_legacy_are_kept(self):
         legacy = self.home / '.local/bin/wysun-recorder'
@@ -206,18 +229,17 @@ class WysunDistributionTests(unittest.TestCase):
             path.write_text('#!/usr/bin/python3\nimport json,sys\nprint(json.dumps(sys.argv))\n')
             path.chmod(0o755)
         app = self.home / 'share/wysun/app'
-        for module in ('wysun_services/client.py', 'wysun_files/__main__.py'):
+        for module in ('wysun_music/__main__.py', 'wysun_files/__main__.py', 'wysun_player/__main__.py'):
             path = app / module
             path.parent.mkdir(parents=True, exist_ok=True)
             (path.parent / '__init__.py').write_text('')
             path.write_text('import json,sys\nprint(json.dumps(["-m " + __spec__.name, *sys.argv[1:]]))\n')
         for args, executable, forwarded in (
-            (['music'], '-m wysun_services.client', ['music']),
+            (['music'], '-m wysun_music.__main__', []),
             (['files', '/tmp/a file'], '-m wysun_files.__main__', ['/tmp/a file']),
+            (['player', '--start', '3', '--', '/tmp/a b.mp4'], '-m wysun_player.__main__', ['--start', '3', '--', '/tmp/a b.mp4']),
             (['recorder', '--quick-record'], 'wysun-recorder', ['--quick-record']),
-            (['screenshot', '--region', '--delay', '0'], 'wysun-shell', ['screenshot', '--options', '--no-save']),
-            (['screenshot', '--region', '--accept-on-select', '--clipboard', '--path', '/tmp/s'], 'wysun-shell',
-             ['screenshot', '--path', '/tmp/s']),
+            (['shell', 'screenshot', '--options'], 'wysun-shell', ['screenshot', '--options']),
         ):
             output = json.loads(subprocess.check_output([str(directory / 'wysun'), *args], cwd='/', text=True))
             self.assertEqual(output, [executable if executable.startswith('-m ') else str(directory / executable), *forwarded])

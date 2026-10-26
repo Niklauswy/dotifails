@@ -54,6 +54,11 @@ def simulate_packages(source, fields, wanted):
     return result.stdout
 
 
+# Programs of the session next to `wysun` (published by configure_wysun) in ~/.local/bin.
+SESSION_COMMANDS = ('wysun-shell', 'wysun-session', 'wysun-session-services', 'wysun-lock', 'wysun-wm', 'wysun-control',
+                    'wysun-share-picker', 'wysun-recover', 'wysun-idle')
+
+
 def configure(deployment):
     from capture_distribution import _publish
     d = deployment
@@ -67,11 +72,9 @@ def configure(deployment):
         _publish_asset(d, d.source / source, target)
     if any(p in d.conflicts for p in ('.local/share/wysun/app', '.local/share/wysun/quickshell')):
         return
-    migrate_legacy_names(d)
     deploy_tokens(d)
     ensure_runtime(d)
-    for name in ('wysun-tools', 'wysun-shell',
-                 'wysun-session', 'wysun-session-services', 'wysun-lock', 'wysun-wm', 'wysun-control', 'wysun-workspaces', 'wysun-share-picker', 'wysun-recover', 'wysun-idle'):
+    for name in SESSION_COMMANDS:
         _publish(d, (d.source / 'bin' / name).read_text(), '.local/bin/' + name, executable=True)
     # A terminal must remain reachable even without the optional terminal component.
     _publish(d, '#!/bin/sh\nif command -v ghostty >/dev/null 2>&1; then exec ghostty "$@"; fi\n'
@@ -117,16 +120,6 @@ def _publish_asset(deployment, source, relative):
     d.deploy(source, Path(relative))
 
 
-def migrate_legacy_names(deployment):
-    """Copy (never move) state stored under the former Caelestia names; the old copies are left for `wysun-install clean`."""
-    import shutil
-    d = deployment
-    old, new = d.home / '.config/wysun/caelestia', d.home / '.config/wysun/shell'
-    if old.is_dir() and not new.exists():
-        shutil.copytree(old, new, symlinks=True)
-        print('Wysun: configuración del shell copiada de ' + str(old) + ' a ' + str(new))
-
-
 def deploy_tokens(deployment):
     """The shell reads the apps' design tokens from the XDG data dir, so it never depends on where the apps live."""
     d = deployment
@@ -153,9 +146,8 @@ def update_runtime(deployment):
     from capture_distribution import _publish
     d.deploy(d.source / 'apps/shell', Path('.local/share/wysun/quickshell'))
     if not d.conflicts:
-        migrate_legacy_names(d)
         deploy_tokens(d)
         ensure_runtime(d)
-    for name in ('wysun-shell', 'wysun-session', 'wysun-session-services', 'wysun-lock', 'wysun-wm', 'wysun-control', 'wysun-workspaces', 'wysun-share-picker', 'wysun-recover', 'wysun-idle'):
+    for name in SESSION_COMMANDS:
         _publish(d, (d.source / 'bin' / name).read_text(), '.local/bin/' + name, executable=True)
 

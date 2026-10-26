@@ -166,13 +166,12 @@ class LoginRestoreTests(unittest.TestCase):
             self.restore(Path(folder), broken)
             self.assertFalse((Path(folder)/'.config/wysun/hypr-workspaces.lua').exists())
 
-    def test_wrapper_runs_installed_runtime(self):
+    def test_login_and_hotplug_run_wysun_workspaces(self):
         root = Path(__file__).resolve().parents[2]
-        text = (root/'bin/wysun-workspaces').read_text()
-        self.assertIn('app="$here/../share/wysun/app"', text)
-        self.assertIn('-m wysun_settings.runtime workspaces', text)
+        self.assertIn("'workspaces': ('app', 'wysun_settings.runtime', ['workspaces'])", (root/'bin/wysun').read_text())
         config = (root/'config/.config/wysun/hyprland.lua').read_text()
-        self.assertIn('hl.on("monitor.added", function () hl.exec_cmd("wysun-workspaces") end)', config)
+        self.assertIn('hl.on("hyprland.start", function () hl.exec_cmd("wysun workspaces") end)', config)
+        self.assertIn('hl.on("monitor.added", function () hl.exec_cmd("wysun workspaces") end)', config)
         self.assertIn('"hypr-workspaces.lua"', config)
 
 

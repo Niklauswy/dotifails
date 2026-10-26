@@ -63,7 +63,7 @@ Al completar la instalación real se ofrece un reinicio voluntario. La sesión r
 
 ## Wysun Player
 
-`--wysun-only` instala `~/.local/bin/wysun-player` y `wysun-player.desktop`, pero no cambia aplicaciones predeterminadas ni instala
+`--wysun-only` instala `wysun-player.desktop` (`wysun player`), pero no cambia aplicaciones predeterminadas ni instala
 dependencias. La instalación completa añade `python3-pyside6.qtopengl` y `python3-pyside6.qtopenglwidgets` (render por GPU) y fija
 Wysun Player como predeterminado de sus tipos de imagen, video y audio en `~/.config/mimeapps.list`, conservando lo anterior como
 alternativa; `wysun-install restore ID` lo deshace. `wysun doctor` avisa si falta OpenGL (el reproductor usa entonces el render por
