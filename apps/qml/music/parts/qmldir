@@ -4,6 +4,7 @@ ChartRow 1.0 ChartRow.qml
 CollectionCard 1.0 CollectionCard.qml
 Cover 1.0 Cover.qml
 EqBars 1.0 EqBars.qml
+ExploreTile 1.0 ExploreTile.qml
 MusicCard 1.0 MusicCard.qml
 MusicMenus 1.0 MusicMenus.qml
 PlaylistDialogs 1.0 PlaylistDialogs.qml

@@ -377,12 +377,27 @@ Window {
         // Window-wide shortcuts; playback ones come with the player capsule.
         Item {
             Shortcut {
-                sequences: ["Ctrl+F", "Ctrl+K"]
+                sequence: "Ctrl+F"
                 onActivated: {
                     if (window.routeKind !== "search")
                         window.navigate("search:" + search.text);
-                    search.forceFocus();
-                    search.input.selectAll();
+                    // After the page swap, which may move focus into the new page.
+                    Qt.callLater(() => {
+                        search.forceFocus();
+                        search.input.selectAll();
+                    });
+                }
+            }
+            Shortcut {
+                sequence: "Ctrl+K"
+                onActivated: {
+                    if (window.routeKind !== "search")
+                        window.navigate("search:" + search.text);
+                    // After the page swap, which may move focus into the new page.
+                    Qt.callLater(() => {
+                        search.forceFocus();
+                        search.input.selectAll();
+                    });
                 }
             }
             Shortcut {
@@ -422,7 +437,11 @@ Window {
                 onActivated: player.changeVolume(-5)
             }
             Shortcut {
-                sequences: ["Ctrl+Space", "Media Play", "Media Pause", "Toggle Media Play/Pause"]
+                sequence: "Ctrl+Space"
+                onActivated: player.toggle()
+            }
+            Shortcut {
+                sequence: "Media Play"
                 onActivated: player.toggle()
             }
             Shortcut {

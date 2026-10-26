@@ -9,6 +9,8 @@ ListView {
     id: root
 
     property string contextId
+    // The list a click plays in; by default the rows shown (a search shows 5 but plays among all matches).
+    property var contextKeys: null
     property bool numbered: true
     property bool covers: true
     property bool albums: true
@@ -23,7 +25,7 @@ ListView {
     signal contextRequested(var keys, real x, real y)
 
     function keys() {
-        return model ? model.keys : [];
+        return contextKeys ?? (model ? model.keys : []);
     }
 
     function play(index) {
@@ -59,7 +61,7 @@ ListView {
 
     function selectAll() {
         const next = {};
-        for (const key of keys())
+        for (const key of model.keys)
             next[key] = true;
         selection = next;
     }
