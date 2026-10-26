@@ -33,3 +33,8 @@ ListItem 1.0 containers/ListItem.qml
 Card 1.0 containers/Card.qml
 EmptyState 1.0 containers/EmptyState.qml
 TopAppBar 1.0 containers/TopAppBar.qml
+NavigationItem 1.0 navigation/NavigationItem.qml
+NavigationDrawer 1.0 navigation/NavigationDrawer.qml
+NavigationRail 1.0 navigation/NavigationRail.qml
+AdaptiveNavigation 1.0 navigation/AdaptiveNavigation.qml
+TabBar 1.0 navigation/TabBar.qml

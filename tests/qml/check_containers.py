@@ -85,7 +85,8 @@ class ListItemTests(Base):
         view = self.on_surface('ListView { id: list; objectName: "list"; anchors.fill: parent; model: 10000\n'
                                '  delegate: ListItem { required property int index; objectName: "row"; width: ListView.view.width; '
                                'headline: "Elemento " + index; supporting: "detalle"; leadingIcon: "description" } }', 320, 600)
-        rows = lambda: len([o for o in view.rootObject().findChildren(self.QObject, 'row')])
+        rows = lambda: len(self.h.items(view, 'row'))
+        self.assertGreater(rows(), 5)
         self.assertLess(rows(), 60)
         list_view = self.child(view, 'list')
         list_view.setProperty('contentY', 72 * 5000)

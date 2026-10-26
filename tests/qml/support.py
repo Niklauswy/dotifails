@@ -240,6 +240,23 @@ class Harness:
     def root(self, view):
         return view.rootObject()
 
+    def items(self, view, name=None):
+        """Every item of the scene in visual order (Loader and Repeater items are not QObject children)."""
+        from PySide6.QtQuick import QQuickItem
+        found, stack = [], [view.rootObject()]
+        while stack:
+            item = stack.pop()
+            if name is None or item.objectName() == name:
+                found.append(item)
+            children = item.childItems() if isinstance(item, QQuickItem) else []
+            stack.extend(reversed(children))
+        return found
+
+    def find(self, view, name):
+        """The first item named ``name`` anywhere in the scene, or None."""
+        found = self.items(view, name)
+        return found[0] if found else None
+
     def call(self, obj, method, *args):
         from PySide6.QtCore import Q_ARG, Q_RETURN_ARG, QMetaObject, Qt
         arguments = [Q_ARG('QVariant', a) for a in args]

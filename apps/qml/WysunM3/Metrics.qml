@@ -105,5 +105,32 @@ QtObject {
     readonly property int emptyEmblemSize: 112
     readonly property real emptyEmblemEnterScale: 0.6
     readonly property real emptyEmblemEnterTurn: -30
+
+    // Window size classes (M3 adaptive layout): compact < 600 -> modal drawer, medium 600-839 -> rail,
+    // expanded >= 840 -> standard drawer
+    readonly property int windowMedium: 600
+    readonly property int windowExpanded: 840
+    function windowClass(width: real): string {
+        return width < windowMedium ? "modal" : width < windowExpanded ? "rail" : "standard";
+    }
+
+    // Navigation drawer (md-comp-navigation-drawer): the token container width is 360; Wysun uses 280, the width
+    // of the approved mock-up (docs/design/qml-migration/files-adaptive-nav.html, decision D2). Items 56 high.
+    readonly property int drawerWidth: 280
+    readonly property int drawerItemHeight: 56
+    readonly property int modalDrawerElevation: 1
+    readonly property real scrimOpacity: 0.32
+
+    // Navigation rail (md-comp-navigation-rail): 80 wide; active indicator 56 x 32, grows from 32
+    readonly property int railWidth: 80
+    readonly property int railIndicatorWidth: 56
+    readonly property int railIndicatorHeight: 32
+
+    // Tabs (md-comp-primary/secondary-navigation-tab): 48 high (64 with icon and label); indicator 3 / 2
+    readonly property int tabHeight: 48
+    readonly property int tabHeightWithIcon: 64
+    readonly property int tabIndicatorPrimary: 3
+    readonly property int tabIndicatorSecondary: 2
+    readonly property int tabIndicatorMinWidth: 24
 }
 
