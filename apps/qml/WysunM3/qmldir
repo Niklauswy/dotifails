@@ -15,3 +15,8 @@ ContainerTransform 1.0 motion/ContainerTransform.qml
 StateLayer 1.0 StateLayer.qml
 FocusRing 1.0 FocusRing.qml
 Surface 1.0 Surface.qml
+internal ButtonBase controls/ButtonBase.qml
+Button 1.0 controls/Button.qml
+IconButton 1.0 controls/IconButton.qml
+Fab 1.0 controls/Fab.qml
+SegmentedButtons 1.0 controls/SegmentedButtons.qml

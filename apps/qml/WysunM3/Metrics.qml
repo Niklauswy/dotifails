@@ -33,4 +33,28 @@ QtObject {
     readonly property real disabledOutline: 0.12
     // Raised surfaces: stacked translucent layers of the shadow colour (no effects module needed)
     readonly property real shadowLayerOpacity: 0.06
+
+    // Buttons (md-comp-filled-button & co.): container height 40, icon 18, leading/trailing space 24 (16 next to an
+    // icon), text button 12; outlines are 1 dp
+    readonly property int buttonHeight: 40
+    readonly property int buttonIconSize: 18
+    readonly property int buttonPadding: 24
+    readonly property int buttonPaddingWithIcon: 16
+    readonly property int textButtonPadding: 12
+    readonly property int outlineWidth: 1
+
+    // Icon button (md-comp-icon-button): 40 target, 24 icon
+    readonly property int iconButtonSize: 40
+
+    // FAB (md-comp-fab*): small 40, regular 56, large 96 (icon 36); extended 56 high, 16 leading, 20 trailing
+    readonly property int fabSmall: 40
+    readonly property int fabRegular: 56
+    readonly property int fabLarge: 96
+    readonly property int fabLargeIconSize: 36
+    readonly property int fabExtendedLeading: 16
+    readonly property int fabExtendedTrailing: 20
+    readonly property int fabElevation: 3
+
+    // Segmented button (md-comp-outlined-segmented-button): 40 high, 18 icon, 1 dp outline
+    readonly property int segmentedHeight: 40
 }

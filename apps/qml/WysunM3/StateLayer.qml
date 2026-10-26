@@ -9,6 +9,12 @@ Item {
 
     property color tint: Theme.m3onSurface
     property real radius: 0
+    // Per-corner radii for layers in shapes that are not uniformly rounded (segmented buttons); the ripple keeps
+    // the uniform `radius`, so such owners turn it off.
+    property real topLeftRadius: radius
+    property real topRightRadius: radius
+    property real bottomLeftRadius: radius
+    property real bottomRightRadius: radius
     property bool disabled
     property bool focused               // keyboard focus, set by the owner
     property bool dragged
@@ -39,7 +45,10 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        radius: root.radius
+        topLeftRadius: root.topLeftRadius
+        topRightRadius: root.topRightRadius
+        bottomLeftRadius: root.bottomLeftRadius
+        bottomRightRadius: root.bottomRightRadius
         color: root.tint
         opacity: root.layerOpacity
 
