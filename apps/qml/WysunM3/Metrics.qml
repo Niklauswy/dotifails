@@ -77,5 +77,13 @@ QtObject {
 
     // Expressive emblem (a shaped container for an icon or artwork next to a title): 56 like a large avatar
     readonly property int emblemSize: 56
+
+    // Text fields (md-comp-outlined/filled-text-field): 56 high, 1 dp outline/indicator that grows to 2 on focus;
+    // 210 is the M3 guidance minimum width. Search bar (md-comp-search-bar): 56 high, full corner
+    readonly property int textFieldHeight: 56
+    readonly property int textFieldFocusWidth: 2
+    readonly property int textFieldMinWidth: 210
+    readonly property real disabledFilledField: 0.04       // md-comp-filled-text-field disabled container opacity
+    readonly property int searchBarHeight: 56
 }
 
