@@ -121,6 +121,17 @@ class WindowTests(unittest.TestCase):
                 window.grab().save(str(output / f'reader-{variant}.png'))
         window.reader_mode.set(None)
 
+    def test_thumbnails_load_after_opening_another_document(self):
+        window, _ = self.open(pages=12)
+        window.set_sidebar(True)
+        window.load_thumbnails()
+        self.wait(lambda: window.thumbnail_pending)
+        other = Path(self.tmp.name) / 'Other.pdf'
+        make_pdf(other, 5)
+        window.open_path(str(other), confirmed=True)
+        self.wait(lambda: window.ready() and window.pages == 5)
+        self.wait(lambda: bool(window.sidebar.page_model.images), message='thumbnails never loaded')
+
     def test_virtualization_in_window(self):
         window, _ = self.open('Long.pdf', pages=60)
         view = window.view

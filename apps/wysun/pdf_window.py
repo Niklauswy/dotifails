@@ -377,7 +377,11 @@ class PdfWindow(FramelessResize, WindowMotion, QMainWindow):
 
         def loaded(reply):
             self.thumbnail_pending = False
-            if generation != self.generation or 'result' not in reply:
+            if generation != self.generation:
+                # A reply for the previous document: the new one's thumbnails still have to start.
+                QTimer.singleShot(0, self.load_thumbnails)
+                return
+            if 'result' not in reply:
                 return
             result = reply['result']
             image = QImage(result['blob'], result['width'], result['height'], result['stride'],
