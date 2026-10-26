@@ -35,12 +35,10 @@ class PaletteFilesTests(unittest.TestCase):
    self.assertEqual(json.loads((self.home/'.config/wysun/environment.json').read_text())['workspaces']['names'],['keep'],'the staging never touches preferences')
    self.assertNotIn(self.home/'.config/wysun/theme.json',files,'the mode is the installer\'s and the shell\'s to write')
    self.assertFalse((self.home/'.config/wysun/dunstrc').exists())      # notifications follow the shell theme; no separate daemon config
- def test_theme_generated_bar_colours_are_dropped_but_custom_ones_kept(self):
-  bar=self.home/'.config/wysun/hypr-bar.json'
-  for generated in (external('dark')['background'],external('light')['accent']):
-   bar.write_text(json.dumps({'height':40,'background':generated,'foreground':'#123456'}))
-   saved=json.loads(theme_files(self.home,'light')[bar])
-   self.assertEqual(saved,{'height':40,'foreground':'#123456'},generated)
+ def test_the_former_bar_file_is_left_alone(self):
+  bar=self.home/'.config/wysun/hypr-bar.json';bar.parent.mkdir(parents=True,exist_ok=True)
+  bar.write_text(json.dumps({'background':external('dark')['background']}))
+  self.assertNotIn(bar,theme_files(self.home,'light'))
  def test_restore_theme_paints_the_borders_with_the_active_scheme(self):
   image=self.home/'blue.png';Image.new('RGB',(32,32),(25,82,224)).save(image)
   scheme=wysun_scheme.generate_dynamic(image,'dark');theme.write_scheme(scheme,self.home)
