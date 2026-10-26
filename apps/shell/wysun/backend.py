@@ -45,7 +45,7 @@ def active_recordings():
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('action', choices=('launch', 'preview', 'record-status', 'record-stop', 'record-pause'))
+    parser.add_argument('action', choices=('preview', 'record-status', 'record-stop', 'record-pause'))
     parser.add_argument('value', nargs='?')
     args = parser.parse_args()
     if args.action.startswith('record-'):
@@ -64,10 +64,6 @@ def main():
                 # Detached: says where the MP4 ended up once it is ready.
                 subprocess.Popen(['wysun', 'recorder', '--notify-when-ready', str(project)], start_new_session=True,
                                  stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    elif args.action == 'launch':
-        if args.value not in ('music', 'files', 'settings', 'colors', 'processes', 'power', 'recorder', 'screenshot', 'lock'):
-            parser.error('Acción no permitida')
-        os.execvpe('wysun', ['wysun', args.value], environment())
     else:
         # Import the existing single producer, never a second colour authority (PYTHONPATH from Paths.python).
         from wysun_core import theme

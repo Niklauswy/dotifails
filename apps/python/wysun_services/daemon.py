@@ -1,15 +1,19 @@
 #!/usr/bin/env python3
-"""Wysun resident: hosts the Qt utility windows and clipboard history. The launcher is the shell widget."""
-from wysun_core.qt_theme import apply_style, color, paint_color
+"""Wysun resident (`wysun daemon`): records the clipboard history the launcher shows.
+
+`wysun reload` makes the running resident start again with the installed code, or starts one in the
+background when none is running. Its only requests are `ping` and `reload`.
+"""
+from wysun_core.qt_theme import apply_style
 
 import argparse, os, re, subprocess, sys
 from pathlib import Path
 from PySide6.QtCore import Qt, QObject, QTimer
 from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import QApplication, QLabel, QFrame
+from PySide6.QtWidgets import QApplication
 
 from wysun_core.desktop import Desktop, wayland
-from wysun_services.store import STATE, HOME, sensitive
+from wysun_services.store import HOME, sensitive
 from wysun_core.instance import SingleInstance, send
 from wysun_core.qt_instance import InstanceNotifier
 from wysun_core import launch
@@ -17,28 +21,13 @@ from wysun_core import launch
 ROOT=Path(__file__).resolve().parent
 from wysun_core.ui_theme import PALETTE_STYLE as STYLE
 
-def run(args):
-    subprocess.Popen([str(a) for a in args],env=launch.environment(),stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,start_new_session=True)
-
-def divider():
-    w=QFrame();w.setFixedHeight(1);apply_style(w,'background: @divider;');return w
-
-def label(text='',name=''):
-    x=QLabel(text);x.setTextFormat(Qt.PlainText)
-    if name:x.setObjectName(name)
-    return x
 
 class ClipboardDaemon(QObject):
-    """Headless resident: hosts the Qt utility windows and records clipboard history.
-
-    The launcher itself is the shell widget (apps/shell/modules/launcher); no
-    Qt launcher palette exists any more.
-    """
-    UTILITIES=('color','music')
+    """Headless resident that records the clipboard history (the launcher itself is the shell widget)."""
     def __init__(self,store=None,test=False):
         super().__init__()
         from wysun_services.data_v2 import StoreV2
-        self.store=store or StoreV2();self.test=test;self.utilities={};self.ignore_clip=False;self._external_clipboard=None
+        self.store=store or StoreV2();self.test=test;self.ignore_clip=False;self._external_clipboard=None
         self.clipboard=QApplication.clipboard()
         if not test:self.clipboard.dataChanged.connect(self.capture_clip)
         self.wayland_clipboard=None
@@ -74,51 +63,39 @@ class ClipboardDaemon(QObject):
             if not text.strip() or sensitive(text,mime.formats()):return
             kind='color' if color_value(text) else 'url' if re.fullmatch(r'https?://\S+',text.strip()) else 'text'
             self.store.clip(kind,text,blob=rich,source=source,meta={'mime_envelope':True})
-    def show_utility(self,mode):
-        if mode == 'color':
-            run([str(HOME/'.local/bin/wysun'), 'colors']);return
-        if mode=='music' and not self.test:
-            run(launch.argv('wysun_services.client',mode));return
-        if mode not in self.utilities:
-            from wysun_music.app import build
-            self.utilities[mode]=build(test=self.test).window
-        window=self.utilities[mode]
-        if window.isVisible() and not getattr(window,'_motion_exiting',False):window.close();return
-        window.present()
-    def show_mode(self,mode='home'):
-        if mode=='power':run([str(HOME/'.local/bin/wysun-shell'),'session']);return
-        if mode in self.UTILITIES:self.show_utility(mode);return
-        if mode in ('toggle','home','daemon'):return
-        print(f'Wysun: «{mode}» ya no es un menú Qt; usa el lanzador del shell.',file=sys.stderr)
 
-def main():
-    parser=argparse.ArgumentParser();parser.add_argument('mode',nargs='?',default='toggle');parser.add_argument('--daemon',action='store_true');args=parser.parse_args()
+def owner():
+    return SingleInstance(f'wysun-daemon-{os.getuid()}')
+
+def start_detached():
+    """Start the resident in its own session, logging to the Wysun state directory."""
+    from wysun_core import paths
+    state=paths.state('wysun');state.mkdir(parents=True,exist_ok=True)
+    with (state/'daemon.log').open('a') as log:
+        subprocess.Popen(launch.argv('wysun_services.daemon'),env=launch.environment(),stdin=subprocess.DEVNULL,stdout=log,stderr=log,start_new_session=True)
+
+def main(argv=None):
+    parser=argparse.ArgumentParser(prog='wysun daemon');parser.add_argument('mode',nargs='?',choices=('daemon','reload'),default='daemon')
+    args=parser.parse_args(sys.argv[1:] if argv is None else argv)
+    resident=owner()
+    if args.mode=='reload':
+        if not send(resident.endpoint,b'reload',timeout=.5):start_detached()
+        return 0
+    if send(resident.endpoint,b'ping',timeout=.5):return 0   # already running
     os.umask(0o077)
+    if not resident.claim():return 0                          # another resident is starting
     app=QApplication(['wysun','--name','wysun']);app.setApplicationName('Wysun');app.setApplicationDisplayName('Wysun');app.setDesktopFileName('wysun');app.setWindowIcon(QIcon(str(ROOT/'wysun.png')));app.setQuitOnLastWindowClosed(False);app.setStyle('Fusion');apply_style(app,STYLE);QIcon.setThemeSearchPaths([str(HOME/'.local/share/icons'),str(HOME/'.icons'),'/usr/share/icons']);QIcon.setThemeName('Win11-Dark');QIcon.setFallbackThemeName('Adwaita')
     from wysun_core.qt_theme import watch_theme
     watch_theme()
-    owner=SingleInstance(f'wysun-daemon-{os.getuid()}')
-    if send(owner.endpoint,args.mode.encode(),timeout=.5):return
-    if not owner.claim():
-        send(owner.endpoint,args.mode.encode(),timeout=.5,retry=2.0);return   # another resident is starting
-    win=ClipboardDaemon()
+    resident_window=ClipboardDaemon()  # noqa: F841 (kept alive for the whole session)
     def request(line):
         mode=line.decode('utf-8',errors='ignore').strip()
         if mode=='ping':return b'pong'
-        if mode and mode!='daemon':QTimer.singleShot(0,lambda:receive(mode))
-    def receive(mode):
-        if mode=='reload':
-            # Preserve pending notes, and refuse reload if an external edit conflicts.
-            for window in win.utilities.values():
-                if hasattr(window,'save') and window.save() is False:
-                    window.present();return
-            for window in win.utilities.values():
-                if hasattr(window,'shutdown_jobs'):window.shutdown_jobs()
-            ipc.close();owner.close()
-            os.execve(sys.executable,launch.argv('wysun_services.daemon','daemon','--daemon'),launch.environment())
-        else:win.show_mode(mode)
-    app.aboutToQuit.connect(lambda:[w.shutdown_jobs() for w in win.utilities.values() if hasattr(w,'shutdown_jobs')])
-    ipc=InstanceNotifier(owner,request,app,limit=256,timeout=.5)
-    if not args.daemon:QTimer.singleShot(0,lambda:win.show_mode(args.mode))
-    sys.exit(app.exec())
-if __name__=='__main__':main()
+        if mode=='reload':QTimer.singleShot(0,restart)
+    def restart():
+        ipc.close();resident.close()
+        os.execve(sys.executable,launch.argv('wysun_services.daemon'),launch.environment())
+    ipc=InstanceNotifier(resident,request,app,limit=256,timeout=.5)
+    return app.exec()
+
+if __name__=='__main__':sys.exit(main())

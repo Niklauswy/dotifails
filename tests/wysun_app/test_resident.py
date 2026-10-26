@@ -1,4 +1,4 @@
-"""The resident hosts utilities and clipboard history; it has no launcher window."""
+"""The resident records the clipboard history; it has no windows."""
 import os
 import tempfile
 import unittest
@@ -34,15 +34,24 @@ class ResidentTests(unittest.TestCase):
         self.store.set('paused', '1')
         self.assertTrue(self.daemon.paused)
 
-    def test_launcher_modes_are_not_qt_menus_any_more(self):
-        with patch.object(daemon, 'run') as run:
-            self.daemon.show_mode('power')
-            run.assert_called_once()
-            self.assertEqual(run.call_args.args[0][1], 'session')
-        with patch.object(self.daemon, 'show_utility') as utility:
-            self.daemon.show_mode('clipboard')
-            self.daemon.show_mode('color')
-            utility.assert_called_once_with('color')
+    def test_the_resident_only_records_the_clipboard(self):
+        self.assertFalse(hasattr(self.daemon, 'show_mode'))
+        self.assertFalse(hasattr(self.daemon, 'utilities'))
+
+    def test_reload_without_a_resident_starts_one_in_the_background(self):
+        with tempfile.TemporaryDirectory() as state, patch.dict(os.environ, XDG_STATE_HOME=state), \
+                patch.object(daemon, 'send', return_value=False), patch.object(daemon.subprocess, 'Popen') as popen:
+            self.assertEqual(daemon.main(['reload']), 0)
+        argv = popen.call_args.args[0]
+        self.assertEqual(argv[1:], ['-P', '-m', 'wysun_services.daemon'])
+        self.assertIn('wysun_services.daemon', argv)
+        self.assertTrue(popen.call_args.kwargs['start_new_session'])
+
+    def test_reload_with_a_resident_only_asks_it(self):
+        with patch.object(daemon, 'send', return_value=True) as send, patch.object(daemon.subprocess, 'Popen') as popen:
+            self.assertEqual(daemon.main(['reload']), 0)
+        self.assertEqual(send.call_args.args[1], b'reload')
+        popen.assert_not_called()
 
 
 if __name__ == '__main__':

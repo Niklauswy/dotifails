@@ -206,18 +206,17 @@ class WysunDistributionTests(unittest.TestCase):
             path.write_text('#!/usr/bin/python3\nimport json,sys\nprint(json.dumps(sys.argv))\n')
             path.chmod(0o755)
         app = self.home / 'share/wysun/app'
-        for module in ('wysun_services/client.py', 'wysun_files/__main__.py'):
+        for module in ('wysun_music/__main__.py', 'wysun_files/__main__.py', 'wysun_player/__main__.py'):
             path = app / module
             path.parent.mkdir(parents=True, exist_ok=True)
             (path.parent / '__init__.py').write_text('')
             path.write_text('import json,sys\nprint(json.dumps(["-m " + __spec__.name, *sys.argv[1:]]))\n')
         for args, executable, forwarded in (
-            (['music'], '-m wysun_services.client', ['music']),
+            (['music'], '-m wysun_music.__main__', []),
             (['files', '/tmp/a file'], '-m wysun_files.__main__', ['/tmp/a file']),
+            (['player', '--start', '3', '--', '/tmp/a b.mp4'], '-m wysun_player.__main__', ['--start', '3', '--', '/tmp/a b.mp4']),
             (['recorder', '--quick-record'], 'wysun-recorder', ['--quick-record']),
-            (['screenshot', '--region', '--delay', '0'], 'wysun-shell', ['screenshot', '--options', '--no-save']),
-            (['screenshot', '--region', '--accept-on-select', '--clipboard', '--path', '/tmp/s'], 'wysun-shell',
-             ['screenshot', '--path', '/tmp/s']),
+            (['shell', 'screenshot', '--options'], 'wysun-shell', ['screenshot', '--options']),
         ):
             output = json.loads(subprocess.check_output([str(directory / 'wysun'), *args], cwd='/', text=True))
             self.assertEqual(output, [executable if executable.startswith('-m ') else str(directory / executable), *forwarded])

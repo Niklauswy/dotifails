@@ -1,131 +1,124 @@
 #!/usr/bin/env python3
-"""Public Wysun entry point: shell routes go to `wysun-shell`, apps run as `python3 -P -m <paquete>`."""
+"""Wysun, the single entry point: shell surfaces and actions go to `wysun-shell`, apps run as `python3 -P -m`.
+
+Standard library only and nothing imported from the app, so a shell route costs one IPC call.
+"""
 import os
 from pathlib import Path
 import subprocess
 import sys
 
+HERE = Path(__file__).resolve().parent
+PYTHON = '/usr/bin/python3'
 
-SHELL_ROUTES = {
-    # Former Qt menus, now served by the shell: command -> wysun-shell arguments.
-    'toggle': ['launcher'], 'launcher': ['launcher'],
-    'clipboard': ['category', 'clip'], 'emoji': ['emoji'],
-    'calculator': ['category', 'calc'], 'power': ['session'],
-    'color': ['open', 'colors'], 'color-pick': ['color-pick'],
-    'processes': ['open', 'processes'], 'cheatsheet': ['cheatsheet'], 'wallpapers': ['wallpapers'],
-    'audio': ['open', 'quicksettings'], 'notifications': ['open', 'notifications'],
-    'calendar': ['open', 'dashboard'], 'system': ['open', 'dashboard'],
+# Shell actions that are not surfaces: command -> wysun-shell arguments. Any other word is a
+# surface name, which only the shell knows (`wysun-shell surfaces`).
+SHELL_ACTIONS = {'clipboard': ['category', 'clip'], 'calculator': ['category', 'calc'], 'color-pick': ['color-pick']}
+# Apps and services: command -> (package root, module, leading arguments).
+MODULES = {
+    'music': ('app', 'wysun_music', []), 'files': ('app', 'wysun_files', []), 'pdf': ('app', 'wysun_pdf', []),
+    'player': ('app', 'wysun_player', []), 'scheme': ('app', 'wysun_services.scheme', []),
+    'wallpaper': ('app', 'wysun_services.wallpaper', []), 'workspaces': ('app', 'wysun_settings.runtime', ['workspaces']),
+    'daemon': ('app', 'wysun_services.daemon', []), 'reload': ('app', 'wysun_services.daemon', ['reload']),
+    'tools': ('tools', 'wysun_tools', []),
 }
+# Programs of their own next to this one: command -> (executable, leading arguments).
+PROGRAMS = {
+    'shell': ('wysun-shell', []), 'lock': ('wysun-lock', []), 'recover': ('wysun-recover', []),
+    'recorder': ('wysun-recorder', []), 'session-check': ('wysun-session', ['--check']),
+    'install': ('wysun-install', ['install']), 'doctor': ('wysun-install', ['doctor']),
+    'activate': ('wysun-wm', ['activate']),
+}
+HELP = '''Wysun · escritorio
+Uso: wysun [ORDEN] [opciones]
+
+  (sin orden)            abre o cierra el lanzador
+  SUPERFICIE             abre o cierra una superficie del shell (lista: wysun-shell surfaces)
+  clipboard | calculator el lanzador en esa categoría
+  color-pick             cuentagotas: copia el color en HEX
+  settings [PÁGINA]      Ajustes en el shell
+  music | music-mini     Wysun Music (music-mini: en el widget de media)
+  files | pdf | player   Files, el lector de PDF y Wysun Player ([--paused] [--fullscreen] [--start S] [--] ARCHIVO...)
+  recorder               biblioteca del Recorder (--quick-record: barra de grabación)
+  scheme | wallpaper     esquema de color y fondo
+  tools GRUPO ACCIÓN     herramientas de terminal (wysun tools --help)
+  daemon | reload        residente del portapapeles; reload lo reinicia con el código nuevo
+  shell ORDEN            wysun-shell (record, screenshot, dnd, status…)
+  lock | recover | session-check | workspaces | activate CLASE
+  install | doctor       instalador (wysun-install)
+
+Si el shell no responde, falla de forma visible: no hay ventanas alternativas.'''
 
 
-def shell_command(command, args):
-    """Run the shell widget for a command that used to be a Qt menu.
+def root(kind):
+    """Package root: the installed copy next to ~/.local/bin, else the checkout this script belongs to."""
+    installed = HERE.parent / 'share/wysun' / kind
+    return installed if installed.is_dir() else HERE.parent / ('apps/python' if kind == 'app' else 'apps/tools')
 
-    There is no Qt fallback: if the shell does not answer, fail visibly.
-    """
-    helper = Path(__file__).resolve().parent / 'wysun-shell'
+
+def module_argv(module, args):
+    return [PYTHON, '-P', '-m', module, *args]
+
+
+def module_env(kind):
+    return dict(os.environ, PYTHONPATH=str(root(kind)))
+
+
+def run_module(kind, module, args):
+    """Replace this process with ``python3 -P -m module args`` importing from the package root."""
+    os.execve(PYTHON, module_argv(module, args), module_env(kind))
+
+
+def shell(args, timeout=4):
+    """Ask the running shell; there is no Qt window to fall back to, so a failure is reported."""
     try:
-        result = subprocess.run([str(helper), *SHELL_ROUTES[command], *args], timeout=3,
+        result = subprocess.run([str(HERE / 'wysun-shell'), *args], timeout=timeout,
                                 capture_output=True, text=True, check=False)
     except subprocess.TimeoutExpired:
-        print('Wysun: el shell no respondió; no hay lanzador alternativo. Comprueba `wysun shell status`.', file=sys.stderr)
+        print('Wysun: el shell no respondió. Comprueba `wysun shell status` o prueba `wysun recover`.', file=sys.stderr)
         return 1
     except OSError as exc:
         print(f'Wysun: no se pudo contactar con el shell: {exc}', file=sys.stderr)
         return 1
     if result.returncode != 0 or result.stdout.strip() == 'false':
-        print('Wysun: el shell rechazó la apertura (¿sin pantalla enfocada o shell caído?). '
+        print(result.stderr.strip() or f'Wysun: el shell rechazó «{" ".join(args)}» (¿sin pantalla enfocada o shell caído?). '
               'Prueba `wysun recover`.', file=sys.stderr)
         return 1
     return 0
 
 
-def app_root():
-    """Package root: the installed copy next to ~/.local/bin, else the checkout this script belongs to."""
-    here = Path(__file__).resolve().parent
-    installed = here.parent / 'share/wysun/app'
-    return installed if installed.is_dir() else here.parent / 'apps/python'
-
-
-def run_module(module, args):
-    """Replace this process with ``python3 -P -m module args`` importing from the package root."""
-    env = dict(os.environ, PYTHONPATH=str(app_root()))
-    os.execve('/usr/bin/python3', ['/usr/bin/python3', '-P', '-m', module, *args], env)
-
-
-# Settings and the network page use Nexus; Processes has its own shell module.
-NEXUS_DEFAULTS = {'settings': 'home', 'network': 'network'}
-
-
-def open_nexus(command, args):
-    """Ask the running shell to show a Nexus page; there is no separate window to fall back to."""
-    route = command.removeprefix('settings-') if command.startswith('settings-') else (args[0] if args else NEXUS_DEFAULTS[command])
-    helper = Path(__file__).resolve().parent / 'wysun-shell'
-    try:
-        result = subprocess.run([str(helper), 'nexus', route], timeout=4, capture_output=True, text=True, check=False)
-    except (OSError, subprocess.TimeoutExpired):
-        print('Wysun: el shell no responde; inicia la sesión Wysun para abrir esta página.', file=sys.stderr)
-        return 1
-    if result.returncode != 0 or result.stdout.strip() != 'true':
-        print('Wysun: página desconocida o shell no disponible: ' + route, file=sys.stderr)
-        return 1
-    return 0
+def music_mini():
+    """Wysun Music in the shell's media widget: start the app hidden if needed, then show the widget."""
+    subprocess.Popen(module_argv('wysun_music', ['--background']), env=module_env('app'), start_new_session=True,
+                     stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    helper = str(HERE / 'wysun-shell')
+    os.execv(helper, [helper, 'media', 'Wysun Music'])
 
 
 def main():
     args = sys.argv[1:]
     if args and args[0] in ('--help', '-h', 'help'):
-        print('Wysun · aplicaciones del escritorio\n'
-              'Uso: wysun [scheme|wallpaper|shell|recover|lock|session-check|doctor|install|audio|calendar|recorder|screenshot|pdf|music|music-mini|files|player|image|settings|processes|colors|color-pick|power|activate CLASE] [opciones]\n'
-              'Sin argumentos abre el lanzador. Recorder y Screenshot abren su biblioteca;\n'
-              'wysun player [--paused] [--fullscreen] [--start S] [--] ARCHIVO... abre imágenes, video y audio (alias: wysun image);\n'
-              'wysun recorder --quick-record abre la barra de preparación sin grabar.\n'
-              'El lanzador es el widget inferior del shell; si el shell no responde,\n'
-              'falla de forma visible (sin lanzador Qt alternativo).')
+        print(HELP)
         return 0
-    command = args.pop(0) if args else 'toggle'
-    if command in NEXUS_DEFAULTS or command.startswith('settings-'):
-        return open_nexus(command, args)
-    command = {'colors': 'color'}.get(command, command)
-    modules = {'pdf': 'wysun_pdf', 'scheme': 'wysun_services.scheme', 'wallpaper': 'wysun_services.wallpaper',
-               'files': 'wysun_files'}
-    if command in modules:
-        return run_module(modules[command], args)
-    if command in SHELL_ROUTES and (command != 'toggle' or not args):
-        return shell_command(command, args)
-    if command == 'screenshot':
-        return screenshot(args)
-    if command == 'activate':
-        os.execv(str(Path(__file__).resolve().parent / 'wysun-wm'), ['wysun-wm', 'activate', *args])
-    commands = {'doctor': 'wysun-install', 'install': 'wysun-install', 'shell': 'wysun-shell', 'lock': 'wysun-lock', 'recover': 'wysun-recover', 'session-check': 'wysun-session', 'recorder': 'wysun-recorder',
-                'tools-cli': 'wysun-tools', 'player': 'wysun-player', 'image': 'wysun-player'}
-    if command not in commands:
-        # Clipboard resident and the remaining app routes (music, daemon, reload…); the Plan 05 dispatcher replaces it.
-        return run_module('wysun_services.client', [command, *args])
-    executable = Path(__file__).resolve().parent / commands[command]
-    if command == 'session-check':forwarded = ['--check', *args]
-    elif command in ('doctor', 'install'):forwarded = [command, *args]
-    else:forwarded = args
-    os.execv(str(executable), [str(executable), *forwarded])
-
-
-def screenshot(args):
-    """Screenshots live in the shell; translate the options of the former app.
-
-    --accept-on-select or --clipboard keep the quick flow (copy, and save to
-    --path, as soon as a region is chosen); otherwise the region offers copy,
-    save as, annotate and text.
-    """
-    forwarded = []
-    if '--accept-on-select' not in args and '--clipboard' not in args:
-        forwarded.append('--options')
-    if '--path' in args:
-        index = args.index('--path')
-        if index + 1 < len(args):
-            forwarded += ['--path', args[index + 1]]
-    else:
-        forwarded.append('--no-save')
-    os.execv(str(Path(__file__).resolve().parent / 'wysun-shell'), ['wysun-shell', 'screenshot', *forwarded])
+    command = args.pop(0) if args else 'launcher'
+    if command in MODULES:
+        kind, module, leading = MODULES[command]
+        return run_module(kind, module, [*leading, *args])
+    if command in PROGRAMS:
+        program, leading = PROGRAMS[command]
+        executable = str(HERE / program)
+        os.execv(executable, [executable, *leading, *args])
+        return 0
+    if command == 'music-mini':
+        return music_mini()
+    if command == 'settings':
+        return shell(['nexus', args[0] if args else 'home'])
+    if command in SHELL_ACTIONS:
+        return shell(SHELL_ACTIONS[command])
+    if args:
+        print(f'Wysun: «{command}» no admite argumentos ({" ".join(args)}). Consulta `wysun --help`.', file=sys.stderr)
+        return 2
+    return shell([command])
 
 
 if __name__ == '__main__':

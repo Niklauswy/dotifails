@@ -20,7 +20,7 @@ KEYS = {'Return': 'Enter', 'space': 'Space', 'period': '.', 'comma': ',', 'grave
         'XF86AudioMicMute': 'Mic mute', 'XF86AudioNext': 'Next', 'XF86AudioPrev': 'Previous',
         'XF86AudioPlay': 'Play', 'XF86AudioStop': 'Stop', 'XF86MonBrightnessUp': 'Bright +',
         'XF86MonBrightnessDown': 'Bright −', 'Left': '←', 'Right': '→', 'Up': '↑', 'Down': '↓'}
-WYSUN = {'launcher': 'Open the launcher', 'toggle': 'Open the launcher', 'clipboard': 'Clipboard history',
+WYSUN = {'launcher': 'Open the launcher', 'clipboard': 'Clipboard history',
          'calculator': 'Calculator', 'emoji': 'Emoji picker', 'processes': 'Processes',
          'colors': 'Colors', 'settings': 'Settings', 'files': 'Files',
          'music-mini': 'Wysun Music in the media widget', 'lock': 'Lock the screen', 'recover': 'Recover the shell',
@@ -48,8 +48,6 @@ def describe(action):
                 return ('Shell', SHELL[cmd[2]])
             if cmd[1] == 'recorder':
                 return ('Capture', 'Screen recorder')
-            if cmd[1] == 'screenshot':
-                return ('Capture', 'Screenshot' if '--accept-on-select' not in m.group(1) else 'Screenshot to clipboard')
             if cmd[1] in WYSUN:
                 return ('Shell' if cmd[1] in ('recover', 'cheatsheet', 'lock') else 'Apps', WYSUN[cmd[1]])
         if cmd[0] == 'wysun-terminal':
