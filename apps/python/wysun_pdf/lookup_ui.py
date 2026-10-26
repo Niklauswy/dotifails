@@ -44,11 +44,16 @@ class LookupPanel(Panel):
         self.term.returnPressed.connect(self.search)
         outer.addWidget(self.term)
         modes = QHBoxLayout()
-        self.mode_button = PillButton('translate', 'Traducción', self.toggle_mode, 'tonal', control_height())
+        self.mode_button = PillButton('translate', 'Traducir', lambda: self.set_kind('translation'), 'filled', control_height())
+        self.concept_button = PillButton('travel_explore', 'Concepto', lambda: self.set_kind('concept'), 'tonal', control_height())
         modes.addWidget(self.mode_button)
-        self.languages = PillButton('swap_horiz', 'EN → ES', self.swap, 'tonal', control_height())
-        modes.addWidget(self.languages)
+        modes.addWidget(self.concept_button)
         outer.addLayout(modes)
+        languages = QHBoxLayout()
+        languages.addWidget(label('Idioma', 'body.small', 'muted'), 1)
+        self.languages = PillButton('swap_horiz', 'EN → ES', self.swap, 'tonal', control_height())
+        languages.addWidget(self.languages)
+        outer.addLayout(languages)
         self.status = label('Solo se envía el texto que consultas, cuando pulsas Buscar.', 'body.small', 'muted')
         outer.addWidget(self.status)
         self.search_button = PillButton('search', 'Buscar', self.search, height=control_height())
@@ -79,10 +84,14 @@ class LookupPanel(Panel):
         self.term.setText(text)
         self.term.setFocus()
 
-    def toggle_mode(self):
-        self.kind = 'concept' if self.kind == 'translation' else 'translation'
-        self.mode_button.set_content('travel_explore' if self.kind == 'concept' else 'translate',
-                                     'Concepto' if self.kind == 'concept' else 'Traducción')
+    def set_kind(self, kind):
+        if kind == self.kind:
+            return
+        self.kind = kind
+        self.mode_button.variant = 'filled' if kind == 'translation' else 'tonal'
+        self.concept_button.variant = 'filled' if kind == 'concept' else 'tonal'
+        self.mode_button.update()
+        self.concept_button.update()
         self.update_language_label()
         self.invalidate()
 

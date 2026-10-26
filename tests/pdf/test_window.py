@@ -141,6 +141,80 @@ class WindowTests(unittest.TestCase):
         self.assertTrue(window.search.isVisible())
         self.assertTrue(window.notebook.editor.isEnabled())
 
+    def test_lookup_opens_without_network_and_reference_keeps_original_page(self):
+        import json
+        window, _ = self.open()
+        selected = self.select_first_word(window)
+        with mock.patch.object(window.lookup_panel.client, 'search') as search:
+            window.consult_selection()
+            self.assertTrue(window.lookup_panel.isVisible())
+            self.assertEqual(window.lookup_panel.term.text(), selected)
+            search.assert_not_called()
+        original = window.view.current_page()
+        window.view.go(1)
+        window.save_reference(dict(title='Concept', body='An attributed excerpt', source='Wikipedia',
+            url='https://en.wikipedia.org/wiki/Concept', attribution='CC BY-SA', language='en',
+            term=selected, kind='concept'))
+        entry = window.study.entries(window.study_document['id'])[0]
+        self.assertEqual(entry['page'], original)
+        self.assertEqual(entry['quote'], selected)
+        self.assertIn('reference', json.loads(entry['anchor']))
+        self.assertFalse(window.dirty)
+        window.show_library()
+        self.assertIsNone(window.lookup_context)
+        window.save_reference(dict())
+        self.assertEqual(len(window.study.entries(window.study_document['id'])), 1)
+
+    def test_narrow_lookup_preserves_readable_canvas_on_return(self):
+        window, _ = self.open()
+        window.consult_selection()
+        window.resize(720, 480)
+        self.app.processEvents()
+        self.assertFalse(window.stage.isVisible())
+        self.assertTrue(window.lookup_panel.isVisible())
+        window.hide_lookup()
+        self.app.processEvents()
+        self.assertTrue(window.stage.isVisible())
+        self.assertEqual(window.width(), 720)
+
+    def test_discard_study_edits_restores_saved_body(self):
+        from PySide6.QtWidgets import QMessageBox
+        window, _ = self.open()
+        window.study_note()
+        window.notebook.editor.setPlainText('Idea guardada')
+        window.notebook.save()
+        window.notebook.editor.setPlainText('Cambio descartado')
+        with mock.patch.object(QMessageBox, 'question', return_value=QMessageBox.Discard):
+            self.assertTrue(window.notebook.can_leave())
+        self.assertEqual(window.notebook.editor.toPlainText(), 'Idea guardada')
+        self.assertFalse(window.notebook.unsaved)
+
+    def test_lookup_consent_cancel_does_not_send_text(self):
+        from PySide6.QtWidgets import QMessageBox
+        window, _ = self.open()
+        window.preferences.set(lookup_allowed_translation=False)
+        window.consult_selection()
+        window.lookup_panel.term.setText('justice')
+        with mock.patch.object(QMessageBox, 'question', return_value=QMessageBox.Cancel), \
+                mock.patch.object(window.lookup_panel.client, 'search') as search:
+            window.lookup_panel.search()
+            search.assert_not_called()
+        self.assertFalse(window.preferences.get('lookup_allowed_translation', False))
+
+    def test_lookup_revocation_is_persistent(self):
+        from wysun_pdf.study_ui import StudySettings
+        from PySide6.QtWidgets import QCheckBox
+        window, _ = self.open()
+        window.preferences.set(lookup_allowed_translation=True)
+        dialog = StudySettings(window.preferences, window.study, window)
+        checkbox = next(box for box in dialog.findChildren(QCheckBox) if 'MyMemory' in box.text())
+        self.assertTrue(checkbox.isChecked())
+        checkbox.setChecked(False)
+        self.assertFalse(window.preferences.get('lookup_allowed_translation'))
+        checkbox.setChecked(True)
+        self.assertFalse(checkbox.isChecked(), 'Consent is only granted with the contextual query preview')
+        dialog.close()
+
     def test_reader_workflow_annotations_save_and_themes(self):
         window, source = self.open()
         self.assertEqual(window.pages, 3)

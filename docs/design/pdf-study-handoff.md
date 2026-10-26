@@ -1,3 +1,37 @@
+# Estado actual — 2026-10-26, continuación en pdf-v2
+
+Esta actualización prevalece sobre el registro histórico que sigue.
+
+- Trabajar exclusivamente en `/home/nicolas/orca/workspaces/wysun-shell/pdf-v2`, rama `pdf-v2`.
+- Base del worktree: `f2891df0`, portado a paquetes; no trabajar en el checkout principal.
+- Consultas YA integradas en `window.py`/`chrome.py`, disponibles desde selección y menú Lectura.
+- Se eliminó la dependencia QtNetwork: `lookup.py` usa QProcess, y `lookup_worker.py` hace una petición
+  HTTPS acotada con urllib estándar. La cancelación mata el proceso y descarta respuestas por generación.
+- Añadidas pruebas de transporte, límite UTF-8, parser, timeout, cancelación, consentimiento, revocación,
+  referencia vinculada a la página original y comportamiento adaptable.
+- Consulta real verificada por LookupClient→QProcess→HTTPS: «justice» → «justicia» en MyMemory;
+  búsqueda Wikipedia ES «justicia» devolvió tres referencias. Solo se enviaron términos sintéticos.
+- Permisos revocables en Ajustes. Guardar referencia conserva fuente/URL/idioma/fecha y pasaje original.
+- Guardar copia invalida contexto de consulta; descartar edición restaura texto guardado del cuaderno.
+- En ventanas estrechas el panel auxiliar usa el área central y al cerrarlo vuelve el PDF legible.
+- Ajustes tiene scroll y fondo tokenizado, corrigiendo contraste en oscuro.
+- `docs/pdf-reader.md` actualizado con lo implementado y pendientes; el plan completo aún NO está terminado.
+- Sin despliegue. No instalar dependencias ni modificar el checkout principal.
+
+Validación final de esta iteración (HOME/XDG temporales, offscreen, serial):
+- 102 tests PDF OK, 14 de tema OK, 9 de tokens/I/O/nombres heredados OK (125 total).
+- tests/check_manifest.py: MANIFEST_OK y TOOLS_OK. git diff --check OK.
+- Capturas regeneradas en seis paletas (base/teal/amber, claro/oscuro), más lookup a 720×480.
+  Inspeccionadas lookup en base claro, base oscuro estrecho, amber claro y teal oscuro;
+  Ajustes oscuro y variante estrecha nueva. No es validación del compositor físico.
+- Consulta real por el cliente completo: MyMemory y Wikipedia correctas (solo texto sintético).
+- Commit de transporte: ba685346. La integración/UI/docs se guarda en el siguiente commit.
+- Siguen pendientes las funciones de la propuesta amplia listadas en docs/pdf-reader.md; esta
+  entrega completa consultas, no declara terminado todo el producto ni autoriza desplegarlo.
+- No se ejecutaron suites de medios/Recorder/installed smoke, ni se modificó la instalación activa.
+
+---
+
 # Prompt de continuidad — Wysun PDF como espacio de estudio
 
 Actualizado al cerrar la iteración del 2026-10-25. Lee este documento completo antes de editar.

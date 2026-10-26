@@ -127,6 +127,19 @@ def capture(output, name):
     window.grab().save(str(output / f'{name}-focus.png'))
     window.focus_session.finish()
     window.toggle_focus()
+    window.consult_selection()
+    window.lookup_panel.term.setText('justice')
+    window.lookup_panel.results([dict(title='Justice · muestra de prueba', body='justicia',
+        source='Proveedor simulado para captura', url='https://example.org/reference',
+        attribution='Datos sintéticos · no es una consulta online')])
+    settle()
+    window.grab().save(str(output / f'{name}-lookup.png'))
+    if name.startswith('base-'):
+        window.resize(720, 480)
+        settle()
+        window.grab().save(str(output / f'{name}-narrow-lookup.png'))
+        window.resize(1280, 860)
+    window.hide_lookup()
     view.clear_selection()
     window.search.setText('tranquilo')
     window.start_search()

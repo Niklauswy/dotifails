@@ -336,6 +336,7 @@ class Notebook(Panel):
     message = Signal(str)
     export_requested = Signal()
     new_requested = Signal()
+    reference_open = Signal(str)
 
     def __init__(self, store):
         super().__init__()
@@ -419,7 +420,7 @@ class Notebook(Panel):
         if choice == QMessageBox.Save:
             return self.save()
         if choice == QMessageBox.Discard:
-            self.unsaved = False
+            self.reset_editor(self.page, self.quote, self.anchor, self.entry)
             return True
         return False
 
@@ -494,6 +495,15 @@ class Notebook(Panel):
                                 f'Página {entry["page"]+1}', lambda e=entry: self.edit(e), 'tonal', control_height())
             self.items.addWidget(button)
             self.items.addWidget(label(entry['body'][:240], 'body.small'))
+            try:
+                metadata = json.loads(entry['anchor'])
+                reference = metadata.get('reference') if isinstance(metadata, dict) else None
+            except (ValueError, TypeError):
+                reference = None
+            if isinstance(reference, dict) and isinstance(reference.get('url'), str):
+                self.items.addWidget(label('Referencia · ' + str(reference.get('source', '')), 'label.small', 'accent'))
+                self.items.addWidget(PillButton('open_in_new', 'Abrir referencia',
+                    lambda url=reference['url']: self.reference_open.emit(url), 'tonal', control_height()))
             row = QHBoxLayout()
             jump = IconButton('arrow_back', 'Volver al pasaje', lambda e=entry: self.jump.emit(e), size=control_height())
             row.addWidget(jump)
@@ -532,11 +542,25 @@ class StudySettings(QDialog):
         self.preferences, self.store = preferences, store
         self.setWindowTitle('Ajustes de estudio')
         apply_kit_style(self)
+        extend_style(self, 'QDialog {background:@canvas;}'
+                     'QCheckBox {color:@text;spacing:@spacing.small;}'
+                     'QCheckBox::indicator {width:@spacing.large;height:@spacing.large;'
+                     'background:@well;border:@border.width solid @line; border-radius:@rounding.extraSmall;}'
+                     'QCheckBox::indicator:checked {background:@accent;border:@border.width solid @accent;}')
         self.setMinimumWidth(metric('spacing.extraExtraLarge', 10))
-        outer = layout(self, padding='padding.extraLarge')
+        shell = layout(self, padding='padding.small')
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QScrollArea.NoFrame)
+        content = QWidget()
+        outer = layout(content, padding='padding.extraLarge')
+        scroll.setWidget(content)
+        shell.addWidget(scroll)
+        self.resize(metric('spacing.extraExtraLarge', 12), metric('spacing.extraExtraLarge', 14))
         outer.addWidget(label('A tu manera', 'headline.medium'))
         outer.addWidget(label('Biblioteca y datos', 'title.medium'))
         self.remember = QCheckBox('Recordar documentos recientes')
+        self.remember.setFont(text_font('body.medium'))
         self.remember.setChecked(preferences.get('remember_recent', True) is not False)
         self.remember.toggled.connect(self.set_remember)
         outer.addWidget(self.remember)
@@ -549,13 +573,39 @@ class StudySettings(QDialog):
         outer.addWidget(label('El cuaderno se guarda en tu biblioteca local. Los subrayados y las notas '
                               'colocadas en la página se guardan dentro del PDF. Puedes exportar el cuaderno '
                               'a Markdown desde su panel.', 'body.medium'))
+        outer.addWidget(label('Consultas online', 'title.medium'))
+        outer.addWidget(label('Permisos concedidos al consultar. Desmárcalos para revocarlos.', 'body.small', 'muted'))
+        for kind, title in (('translation', 'MyMemory · traducción'), ('concept', 'Wikipedia · referencias')):
+            box = QCheckBox(title)
+            box.setFont(text_font('body.medium'))
+            key = 'lookup_allowed_' + kind
+            box.setChecked(bool(preferences.get(key, False)))
+            box.toggled.connect(lambda checked, key=key, box=box: self.set_lookup_permission(key, checked, box))
+            outer.addWidget(box)
         outer.addWidget(label('Material You', 'title.medium'))
         outer.addWidget(label('La interfaz sigue los colores del escritorio. El papel conserva el aspecto '
                               'original del documento. Las transiciones respetan el movimiento reducido de Wysun.',
                               'body.small', 'muted'))
         self.status = label('', 'body.small', 'muted')
         outer.addWidget(self.status)
-        outer.addWidget(PillButton('check', 'Listo', self.accept, height=control_height()), 0, Qt.AlignRight)
+        shell.addWidget(PillButton('check', 'Listo', self.accept, height=control_height()), 0, Qt.AlignRight)
+
+    def set_lookup_permission(self, key, checked, box):
+        # Granting consent requires the contextual preview of the actual query.
+        if checked:
+            box.blockSignals(True)
+            box.setChecked(False)
+            box.blockSignals(False)
+            self.status.setText('El permiso se concede al consultar un texto, después de ver qué se enviará.')
+            return
+        try:
+            self.preferences.set(**{key: False})
+            self.status.setText('Permiso revocado. La próxima consulta volverá a pedirlo.')
+        except STORAGE_ERRORS as error:
+            self.status.setText(str(error))
+            box.blockSignals(True)
+            box.setChecked(True)
+            box.blockSignals(False)
 
     def set_remember(self, checked):
         try:

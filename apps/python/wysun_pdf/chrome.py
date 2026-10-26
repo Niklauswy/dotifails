@@ -274,6 +274,8 @@ class SelectionBar(QWidget):
             'copy': IconButton('content_copy', 'Copiar · Ctrl C', lambda: self.action.emit('copy'), size=size)}
         self.buttons['study'] = PillButton('edit_note', 'Nota', lambda: self.action.emit('study'),
                                           variant='tonal', height=metric('spacing.extraLargeIncreased'))
+        self.buttons['lookup'] = IconButton('translate', 'Consultar palabra o concepto',
+                                            lambda: self.action.emit('lookup'), size=size)
         self.ink = InkButton(ink_colours()[0][1])
         self.ink.clicked.connect(lambda: self.action.emit('ink'))
         self.buttons['ink'] = self.ink

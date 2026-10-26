@@ -7,6 +7,7 @@ what is on screen.
 from pathlib import Path
 import json
 import math
+from datetime import datetime, timezone
 
 from PySide6.QtCore import QEvent, QProcess, QProcessEnvironment, Qt, QTimer, QUrl
 from PySide6.QtGui import QActionGroup, QImage, QKeySequence, QShortcut
@@ -33,6 +34,7 @@ from wysun_pdf.study_ui import LibraryView, Notebook, STORAGE_ERRORS, control_he
 from wysun_core import jsonio
 from wysun_pdf.focus import shared_focus
 from wysun_pdf.focus_ui import FocusPanel
+from wysun_pdf.lookup_ui import LookupPanel
 from wysun_core.ui.style import clock
 
 ZOOM_STEP = 1.2
@@ -78,6 +80,7 @@ class PdfWindow(FramelessResize, WindowMotion, QMainWindow):
         self.preferences = Preferences()
         self.positions = Positions()
         self.study_document = None
+        self.lookup_context = None
         self.focus_session = shared_focus(self)
         self.study_error = ''
         try:
@@ -175,12 +178,19 @@ class PdfWindow(FramelessResize, WindowMotion, QMainWindow):
         self.notebook.message.connect(self.say)
         self.notebook.export_requested.connect(self.export_notebook)
         self.notebook.new_requested.connect(self.study_note)
+        self.notebook.reference_open.connect(lambda url: self.follow_link({'uri': url}))
         body.addWidget(self.notebook)
         self.focus_panel = FocusPanel(self.focus_session)
         self.focus_panel.hide()
         self.focus_panel.closed.connect(self.toggle_focus)
         self.focus_panel.reflection_requested.connect(self.study_note)
         body.addWidget(self.focus_panel)
+        self.lookup_panel = LookupPanel(self.preferences)
+        self.lookup_panel.hide()
+        self.lookup_panel.closed.connect(self.hide_lookup)
+        self.lookup_panel.open_url.connect(lambda url: self.follow_link({'uri': url}))
+        self.lookup_panel.save_requested.connect(self.save_reference)
+        body.addWidget(self.lookup_panel)
         reader_layout.addLayout(body, 1)
         self.workspace.addWidget(self.reader)
         self.library = LibraryView(self.study)
@@ -268,6 +278,7 @@ class PdfWindow(FramelessResize, WindowMotion, QMainWindow):
         menu.addSeparator()
         menu.addAction('Nota dentro del PDF', lambda: (self.note_button.setChecked(True), self.toggle_note_tool()))
         menu.addAction('Reflexión en cuaderno · Ctrl+Shift+N', self.study_note)
+        menu.addAction('Consultar palabra o concepto', self.consult_selection)
         menu.exec(self.reading_button.mapToGlobal(self.reading_button.rect().bottomLeft()))
 
     def _shortcuts(self):
@@ -287,6 +298,55 @@ class PdfWindow(FramelessResize, WindowMotion, QMainWindow):
         QShortcut(QKeySequence('Alt+Home'), self).activated.connect(self.show_library)
 
     # --------------------------------------------------------------- study
+    def hide_lookup(self):
+        self.lookup_panel.cancel()
+        self.lookup_panel.hide()
+        self.lookup_context = None
+        self.adapt_panels()
+
+    def consult_selection(self):
+        if not self.path or self.busy or not self.notebook.can_leave():
+            return
+        page = self.view.selection[0]
+        page = self.view.current_page() if page is None else page
+        quote = self.view.selected_text()
+        anchor = {'rects': self.view.selected_rects()}
+        try:
+            info = Path(self.path).stat()
+            anchor['file'] = [info.st_size, info.st_mtime_ns]
+        except OSError:
+            pass
+        self.lookup_context = dict(generation=self.generation, document=self.study_document,
+                                   page=page, quote=quote, anchor=anchor)
+        self.notebook.hide()
+        self.notebook_button.setChecked(False)
+        self.focus_panel.hide()
+        self.set_sidebar(False, persist=False)
+        self.lookup_panel.set_term(quote)
+        self.lookup_panel.show()
+        self.adapt_panels()
+        self.selection_bar.hide()
+        reveal(self.lookup_panel)
+        self.lookup_panel.term.setFocus()
+
+    def save_reference(self, reference):
+        context = self.lookup_context
+        if not context or context['generation'] != self.generation or not context['document'] or not self.study:
+            self.say('Abre una consulta en el documento actual para guardar su referencia.')
+            return
+        reference = dict(reference, date=datetime.now(timezone.utc).isoformat())
+        anchor = dict(context['anchor'], reference=reference)
+        body = '\n\n'.join((reference['title'], reference['body'],
+                            reference['source'] + ' · ' + reference['language'].upper(),
+                            reference['url'], reference['attribution'], 'Consultado: ' + reference['date']))
+        try:
+            self.study.save_entry(context['document']['id'], context['page'], context['quote'], anchor, body)
+        except STORAGE_ERRORS as error:
+            self.say('No se pudo guardar la referencia: ' + str(error))
+            return
+        self.notebook.refresh()
+        self.say('Referencia guardada en el cuaderno, junto al pasaje original.')
+
     def open_recent(self, path):
         if not Path(path).is_file():
             self.say('No se encuentra el archivo. Ábrelo desde su nueva ubicación; tus notas se conservan.')
@@ -302,6 +362,7 @@ class PdfWindow(FramelessResize, WindowMotion, QMainWindow):
         # Keep the open PDF (and any unsaved annotations) alive behind the library.
         self.remember()
         self.library.refresh()
+        self.hide_lookup()
         navigate(self.workspace, self.library)
         self.library.open_button.setFocus()
 
@@ -314,9 +375,11 @@ class PdfWindow(FramelessResize, WindowMotion, QMainWindow):
             self.notebook_button.setChecked(True)
             return
         if visible:
+            self.hide_lookup()
             self.focus_panel.hide()
             self.set_sidebar(False, persist=False)
         self.notebook.setVisible(visible)
+        self.adapt_panels()
         self.notebook_button.setChecked(visible)
         if visible:
             self.notebook.refresh()
@@ -331,10 +394,12 @@ class PdfWindow(FramelessResize, WindowMotion, QMainWindow):
         if visible:
             if not self.notebook.can_leave():
                 return
+            self.hide_lookup()
             self.notebook.hide()
             self.notebook_button.setChecked(False)
             self.set_sidebar(False, persist=False)
         self.focus_panel.setVisible(visible)
+        self.adapt_panels()
         if visible:
             reveal(self.focus_panel)
         else:
@@ -402,6 +467,7 @@ class PdfWindow(FramelessResize, WindowMotion, QMainWindow):
 
     def study_settings(self):
         StudySettings(self.preferences, self.study, self).exec()
+        self.hide_lookup()
         self.library.refresh()
 
     # --------------------------------------------------------------- feedback
@@ -455,7 +521,20 @@ class PdfWindow(FramelessResize, WindowMotion, QMainWindow):
         self.setWindowTitle((name + (' *' if self.dirty else '') + ' — Wysun PDF') if open_ else 'Wysun PDF')
         self.adapt_header()
 
+    def adapt_panels(self):
+        if not hasattr(self, 'lookup_panel'):
+            return
+        compact = self.width() < metric('spacing.extraExtraLarge', 20)
+        panels = (self.notebook, self.focus_panel, self.lookup_panel)
+        active = any(not panel.isHidden() for panel in panels)
+        # In narrow windows, the study panel gets the canvas; closing it restores
+        # the passage instead of shrinking a PDF to an unreadable sliver.
+        self.stage.setVisible(not (compact and active))
+        for panel in panels:
+            panel.setMaximumWidth(self.width() if compact else metric('spacing.extraExtraLarge', 8))
+
     def adapt_header(self):
+        self.adapt_panels()
         compact = self.width() < metric('spacing.extraExtraLarge', 20)
         self.reading_button.set_content('auto_stories', '' if compact else 'Lectura')
         self.reading_button.setAccessibleName('Opciones de lectura')
@@ -483,6 +562,7 @@ class PdfWindow(FramelessResize, WindowMotion, QMainWindow):
     def open_path(self, path, password='', confirmed=False):
         if self.busy or (not confirmed and (not self.notebook.can_leave() or not self.confirm_discard())):
             return
+        self.hide_lookup()
         self.remember()
         self.busy = True
         self.search_generation += 1
@@ -589,6 +669,8 @@ class PdfWindow(FramelessResize, WindowMotion, QMainWindow):
             self.preferences.set(sidebar=self.sidebar.isVisible())
 
     def set_sidebar(self, visible, persist=True):
+        if visible and hasattr(self, 'lookup_panel'):
+            self.hide_lookup()
         if visible and hasattr(self, 'focus_panel'):
             self.focus_panel.hide()
         if visible and hasattr(self, 'notebook') and self.notebook.isVisible():
@@ -597,6 +679,7 @@ class PdfWindow(FramelessResize, WindowMotion, QMainWindow):
             self.notebook.hide()
             self.notebook_button.setChecked(False)
         self.sidebar.setVisible(visible and bool(self.path))
+        self.adapt_panels()
         self.sidebar_button.set_symbol('left_panel_close' if visible else 'left_panel_open')
         if persist:
             self.remember_sidebar()
@@ -654,7 +737,9 @@ class PdfWindow(FramelessResize, WindowMotion, QMainWindow):
         self.selection_bar.place(rect)
 
     def selection_action(self, action):
-        if action == 'study':
+        if action == 'lookup':
+            self.consult_selection()
+        elif action == 'study':
             self.study_note()
         elif action == 'copy':
             self.copy_text()
@@ -785,6 +870,8 @@ class PdfWindow(FramelessResize, WindowMotion, QMainWindow):
                 previous_path = self.path
                 self.path = reply['result']['path']
                 self.dirty = False
+                if self.path != previous_path:
+                    self.hide_lookup()
                 if self.path != previous_path and self.study:
                     try:
                         self.study_document = self.study.opened(self.path, self.pages, self.view.current_page(),
@@ -1006,6 +1093,7 @@ class PdfWindow(FramelessResize, WindowMotion, QMainWindow):
             event.ignore()
             return
         self.remember()
+        self.lookup_panel.client.cancel()
         self.worker.stop()
         self.focus_session.detach(self)
         event.accept()

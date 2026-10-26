@@ -15,7 +15,7 @@ SYMBOLS = ('close', 'left_panel_open', 'left_panel_close', 'search', 'keyboard_a
            'remove', 'add', 'view_agenda', 'auto_stories', 'menu_book', 'edit_note', 'sticky_note_2', 'save',
            'more_vert', 'folder_open', 'content_copy', 'ink_highlighter', 'format_underlined', 'toc', 'grid_view',
            'delete', 'check', 'home', 'settings', 'arrow_forward', 'arrow_back', 'help', 'ios_share',
-           'timer', 'pause', 'play_arrow', 'coffee', 'stop')
+           'timer', 'pause', 'play_arrow', 'coffee', 'stop', 'translate', 'travel_explore', 'swap_horiz', 'open_in_new')
 
 
 class ReaderMode:

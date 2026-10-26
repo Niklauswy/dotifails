@@ -3,6 +3,17 @@
 Estado: pendiente. Especificación: [pdf-study-spec](2026-10-25-pdf-study-spec.md).
 No ejecutar despliegue ni reiniciar el escritorio: corresponde al coordinador.
 
+## Avance verificado — 2026-10-26
+
+Trabajo en `pdf-v2`, paquetes en `apps/python/wysun_pdf`. El plan es más amplio que esta entrega.
+Biblioteca de recientes, cuaderno local, temporizador y consultas online están integrados. Consultas
+usan QProcess/urllib sin QtNetwork; traducción y referencias probadas con servicios reales y texto
+sintético. Consentimiento revocable, referencia anclada a su origen y paneles adaptables implementados.
+125 pruebas dirigidas y manifiesto pasan. Capturas en `docs/design/pdf-study-shots/`.
+No se desplegó. Colecciones, cuaderno global, repaso, borradores recuperables, relocalización de archivos
+movidos e historial/ciclo largo de sesiones continúan pendientes; no marcar las fases enteras como hechas.
+Ver estado técnico actualizado en `pdf-study-handoff.md`.
+
 ## Orden y puerta de integración
 
 La rama de renombres `etapa1-04-rename` sigue siendo una dependencia externa. Este plan usa nombres
