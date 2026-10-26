@@ -212,7 +212,7 @@ Las notificaciones mantienen una apariencia neutra en todos los temas: grafito t
 
 ## Música local
 
-Abre el mini reproductor con **Super + Shift + M**. La app completa se llama **Wysun Music**, aparece en **Super + D** y se ejecuta con `wysun music`. Los alias `musika` y `musica` siguen funcionando. Ambos comparten canción, posición, cola y favoritos en una sola instancia nativa (PySide6 + mpv). Cerrar cualquiera de las ventanas mantiene el audio. Volver a abrir presenta la misma instancia. Una nueva sesión restaura canción, posición, volumen y cola en pausa.
+Abre el mini reproductor con **Super + Shift + M**. La app completa se llama **Wysun Music**, aparece en **Super + D** y se ejecuta con `wysun music`. Ambos comparten canción, posición, cola y favoritos en una sola instancia nativa (PySide6 + mpv). Cerrar cualquiera de las ventanas mantiene el audio. Volver a abrir presenta la misma instancia. Una nueva sesión restaura canción, posición, volumen y cola en pausa.
 
 La biblioteca agrupa álbumes, selecciones y rankings con portadas y mosaicos. Solo aparecen archivos disponibles. La búsqueda es global, admite acentos y encuentra canciones, artistas y playlists. Clic en artista muestra sus canciones locales, incluidas colaboraciones; clic en corazón guarda Favoritos. Doble clic o Enter reproduce; clic en la barra o arrastrar cambia la posición. Anterior/siguiente recorren una cola estable incluso en aleatorio, independiente de la vista abierta.
 
@@ -255,9 +255,8 @@ por software); Music conserva su motor mpv de audio y persistencia. Los medios s
 Wysun Player (`wysun player`). Las pruebas offscreen usan el render por software: la ruta
 OpenGL se valida con `tests/wayland_media_case.py` sobre el compositor real.
 
-La barra se configura mediante `${XDG_CONFIG_HOME:-$HOME/.config}/wysun/hypr-bar.json`;
-Quickshell la observa y Python solicita `wysun shell reload-preferences`. El tema
-actualiza los colores de ese archivo preservando geometría, módulos y monitores.
+La barra se configura mediante `${XDG_CONFIG_HOME:-$HOME/.config}/wysun/shell/shell.json`
+(Ajustes › Barra); Quickshell la observa y Python solicita `wysun shell reload-preferences`.
 El observador de tema Python usa eventos de archivo/directorio y contempla reemplazo
 atómico y creación tardía. Guardar reglas no sobrescribe colores o gaps que el
 usuario no cambió. El FileChooser externo se enruta al portal configurado; Files

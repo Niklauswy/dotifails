@@ -6,7 +6,7 @@ La fuente de la aplicación está en `apps/python/wysun_files/app.py`; el instal
 
 Desde la raíz del repositorio, ejecutar `./instalar.sh --wysun-only`. El perfil completo `desktop` despliega los mismos archivos. Ambos usan el registro de respaldos y conflictos del instalador para instalar:
 
-- `bin/wysun-files` → `~/.local/bin/wysun-files` (ejecutable).
+- `bin/wysun` → `~/.local/bin/wysun`; la app se abre con `wysun files [CARPETA...]`.
 - `config/.local/share/applications/wysun-files.desktop` → `~/.local/share/applications/wysun-files.desktop`.
 - La aplicación, junto con el resto de `apps/python/`.
 

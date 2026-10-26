@@ -9,7 +9,7 @@ Wysun es el nuevo nombre de Órbita. El lanzador, Music, Files y Recorder se des
 - `wysun`: lanzador y búsqueda.
 - `wysun music`, `wysun files`, `wysun settings`: aplicaciones y ajustes.
 - `wysun recorder`: biblioteca y editor de vídeo; `wysun recorder --quick-record`: preparar una grabación.
-- `wysun screenshot` / `wysun-shell screenshot`: selecciona una región para copiar y guardar, anotar o leer su texto.
+- `wysun-shell screenshot`: selecciona una región para copiar y guardar, anotar o leer su texto.
 - `./instalar.sh --wysun-only`: actualizar la familia completa.
 
 La actualización no sustituye las grabaciones activas; los datos privados viven fuera del repositorio, bajo las rutas `wysun`. [Integración, nombres y compatibilidad](docs/wysun.md).
@@ -124,11 +124,11 @@ Esta versión está orientada a Wysun / Hyprland sobre Wayland y a las rutas XDG
 
 [Manual de Wysun](apps/python/README.md) · [Neovim](config/.config/nvim/README.md) · [Créditos](docs/credits.md) · [Validación](docs/validation.md)
 
-En Ajustes → Wallpaper & style eliges el fondo con el carrusel (`Super+Shift+W`) y el modo —automático, claro u oscuro—; los colores y el acento salen siempre del wallpaper actual y se aplican al instante en todas las aplicaciones, sin reinstalar el escritorio ([guía de temas](docs/themes.md)). Las configuraciones anteriores se respaldan.
+En Ajustes → Wallpaper & style eliges el fondo con el carrusel (`Super+Shift+W`) y el modo —automático, claro u oscuro—; los colores y el acento salen siempre del wallpaper actual y se aplican al instante en todas las aplicaciones, sin reinstalar el escritorio ([guía de temas](docs/themes.md)). Cada cambio se respalda.
 
 ### Herramientas personales
 
-Un solo comando: `wysun-tools`, con grupos `dev`, `audit`, `share`, `cloud`, `vpn` y `resets`. Abre el panel gráfico con `wysun tools` o `wysun-tools gui`. `~/scripts` contiene únicamente el lanzador y su guía; el motor compartido vive en `apps/tools`. Actualiza la CLI con `./instalar.sh --scripts-only` y el panel con `./instalar.sh --wysun-only`. La migración respalda y reorganiza los datos privados. [Guía de uso y recuperación](docs/tools.md).
+Un solo comando: `wysun tools`, con grupos `dev`, `audit`, `share`, `cloud`, `vpn` y `resets`; el motor vive en `apps/tools/wysun_tools`. Se instala con `./instalar.sh --scripts-only` (o con la instalación completa) y se actualiza también con `./instalar.sh --wysun-only`. [Guía de uso y recuperación](docs/tools.md).
 
 ### Arranque y acceso
 

@@ -28,7 +28,8 @@ El shell no usa el Qt ni el Quickshell del sistema. `installer/runtime_build.py`
 ```sh
 python3 installer/runtime_build.py            # idempotente; solo recompila lo que cambió
 bin/wysun-shell                               # arranca el shell
-bin/wysun-shell open dashboard | launcher | menu | quicksettings | notifications | windows | session
+bin/wysun-shell SUPERFICIE                    # alterna; open SUPERFICIE solo abre
+bin/wysun-shell surfaces                      # la lista (vive en wysun/WysunBridge.qml)
 bin/wysun-shell status                        # JSON: pantallas, superficies abiertas, esquema
 ```
 

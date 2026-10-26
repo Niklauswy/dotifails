@@ -15,7 +15,7 @@ escucharlo usa Wysun Player o su componente embebido, `wysun_media`; no hay viso
 ## Uso
 
 ```
-wysun player [--paused] [--fullscreen] [--start SEGUNDOS] [--] ARCHIVO...      # alias: wysun image
+wysun player [--paused] [--fullscreen] [--start SEGUNDOS] [--] ARCHIVO...
 ```
 
 Hay **un solo proceso por usuario** mientras haya ventanas abiertas. Una segunda llamada entrega sus archivos a ese proceso
@@ -122,7 +122,7 @@ renderizador y fotogramas perdidos.
 
 ### Instalación y asociaciones
 
-`./instalar.sh --wysun-only` actualiza el código, instala `wysun-player` y su entrada `.desktop`, y **no** toca asociaciones. La instalación
+`./instalar.sh --wysun-only` actualiza el código y la entrada `.desktop` (`Exec=wysun player -- %F`), y **no** toca asociaciones. La instalación
 completa añade a `~/.config/mimeapps.list` Wysun Player como predeterminado de los tipos de su `.desktop` (imágenes, video y audio; no SVG);
 lo que era predeterminado queda como alternativa en «Abrir con». El respaldo del instalador guarda el archivo anterior y
 `wysun-install restore ID` lo recupera, rescatando en `changes-before-restore/` lo que se haya editado después.
