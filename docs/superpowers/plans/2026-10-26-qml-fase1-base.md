@@ -110,13 +110,13 @@ Todas tienen un valor por defecto con el que implemento si no hay objeción.
 - Produce `tests/qml/support.py`: `venv_python() -> Path | None` (orden: `$WYSUN_QML_RUNTIME`, `~/.cache/wysun-fase1/qml-runtime`, `~/.local/share/wysun/qml-runtime`; solo si existe `bin/python3` y el sello coincide), `require_runtime(testcase)` (llama `skipTest` con aviso a stderr si falta), `run_in_venv(args, **env) -> CompletedProcess`.
 - Produce en `wayland.py`: `ensure_qml_runtime(deployment) -> None` y el despliegue de `apps/qml`.
 
-- [ ] **Paso 1: pruebas que fallan** (`tests/test_qml_runtime.py`, sin descargar nada; `runner` falso): `test_wanted_version_matches_runtime_manifest` (== `json["qt"]["version"]`), `test_ensure_creates_venv_with_system_site_packages_and_pinned_wheels` (el runner recibe `[... '-m','venv','--system-site-packages', prefix]` y luego `[pip,'install','--no-deps','PySide6_Essentials==6.9.3','shiboken6==6.9.3']`), `test_ensure_is_idempotent_when_stamp_matches` (segunda llamada no invoca el runner y devuelve `False`), `test_version_bump_rebuilds` (sello 6.9.2 → `needs_update`), `test_prune_removes_qt_tree_and_tools_only` (árbol falso: borra `PySide6/Qt`, `designer`; conserva `QtQuick*.abi3.so`, `libpyside6qml*`), `test_skip_env_leaves_installer_alone` (`WYSUN_SKIP_RUNTIME=1`), `test_network_failure_is_a_warning_not_an_abort`, `test_deploys_qml_library_next_to_quickshell`.
-- [ ] **Paso 2:** `python3 -m unittest tests.test_qml_runtime -v` → falla (módulo inexistente).
-- [ ] **Paso 3:** implementar `installer/qml_runtime.py` (sello JSON escrito atómicamente tras `prune`; `pip` del propio venv; stdout con `+ cmd` como `runtime_build.run`). Cablear `ensure_qml_runtime` en `wayland.configure` y `update_runtime` (tras `ensure_runtime`), con `_publish_asset(d, d.source/'apps/qml', '.local/share/wysun/qml')` en ambos. Si `pip` falla: `d.warn`/`emit` equivalente y continuar.
-- [ ] **Paso 4:** la misma suite pasa. Además `python3 tests/check_manifest.py` y `python3 -m unittest tests.test_wayland_install tests.test_installer -v`.
-- [ ] **Paso 5 (única descarga real):** `free -g`; `python3 installer/qml_runtime.py --prefix ~/.cache/wysun-fase1/qml-runtime` → crea el venv de desarrollo (~97 MB de PyPI, ~21 MB tras la poda). `--check` devuelve 0; `du -sh` ≤ 30 MB; comprobar que no queda `PySide6/Qt`.
-- [ ] **Paso 6:** `tests/qml/support.py` + `tests/qml/__init__.py` y, en `tests/test_qml_runtime.py`, `QmlSuiteRunner.test_qml_suites_with_venv_python`: si no hay venv → `skipTest` con aviso; si hay → `run_in_venv(['-m','unittest','discover','-s','tests/qml','-t','tests','-p','check_*.py'])` debe devolver 0 (stdout al fallo). Verificar el salto: `WYSUN_QML_RUNTIME=/no/existe`.
-- [ ] **Paso 7: commit** `feat(installer): private qml-runtime venv (PySide6 bindings on the shell Qt)`.
+- [x] **Paso 1: pruebas que fallan** (`tests/test_qml_runtime.py`, sin descargar nada; `runner` falso): `test_wanted_version_matches_runtime_manifest` (== `json["qt"]["version"]`), `test_ensure_creates_venv_with_system_site_packages_and_pinned_wheels` (el runner recibe `[... '-m','venv','--system-site-packages', prefix]` y luego `[pip,'install','--no-deps','PySide6_Essentials==6.9.3','shiboken6==6.9.3']`), `test_ensure_is_idempotent_when_stamp_matches` (segunda llamada no invoca el runner y devuelve `False`), `test_version_bump_rebuilds` (sello 6.9.2 → `needs_update`), `test_prune_removes_qt_tree_and_tools_only` (árbol falso: borra `PySide6/Qt`, `designer`; conserva `QtQuick*.abi3.so`, `libpyside6qml*`), `test_skip_env_leaves_installer_alone` (`WYSUN_SKIP_RUNTIME=1`), `test_network_failure_is_a_warning_not_an_abort`, `test_deploys_qml_library_next_to_quickshell`.
+- [x] **Paso 2:** `python3 -m unittest tests.test_qml_runtime -v` → falla (módulo inexistente).
+- [x] **Paso 3:** implementar `installer/qml_runtime.py` (sello JSON escrito atómicamente tras `prune`; `pip` del propio venv; stdout con `+ cmd` como `runtime_build.run`). Cablear `ensure_qml_runtime` en `wayland.configure` y `update_runtime` (tras `ensure_runtime`), con `_publish_asset(d, d.source/'apps/qml', '.local/share/wysun/qml')` en ambos. Si `pip` falla: `d.warn`/`emit` equivalente y continuar.
+- [x] **Paso 4:** la misma suite pasa. Además `python3 tests/check_manifest.py` y `python3 -m unittest tests.test_wayland_install tests.test_installer -v`.
+- [x] **Paso 5 (única descarga real):** `free -g`; `python3 installer/qml_runtime.py --prefix ~/.cache/wysun-fase1/qml-runtime` → crea el venv de desarrollo (~97 MB de PyPI, ~21 MB tras la poda). `--check` devuelve 0; `du -sh` ≤ 30 MB; comprobar que no queda `PySide6/Qt`.
+- [x] **Paso 6:** `tests/qml/support.py` + `tests/qml/__init__.py` y, en `tests/test_qml_runtime.py`, `QmlSuiteRunner.test_qml_suites_with_venv_python`: si no hay venv → `skipTest` con aviso; si hay → `run_in_venv(['-m','unittest','discover','-s','tests/qml','-t','tests','-p','check_*.py'])` debe devolver 0 (stdout al fallo). Verificar el salto: `WYSUN_QML_RUNTIME=/no/existe`.
+- [x] **Paso 7: commit** `feat(installer): private qml-runtime venv (PySide6 bindings on the shell Qt)`.
 
 ### Tarea 2: Arranque de apps QML (`wysun_qml.bootstrap` y `engine`)
 
@@ -134,11 +134,11 @@ Todas tienen un valor por defecto con el que implemento si no hay objeción.
   - `library_path() -> Path`: `$WYSUN_QML_LIB`, `~/.local/share/wysun/qml` si existe, si no `apps/qml` relativo al repo.
 - Produce `engine.create_engine(app_name, extra_imports=()) -> (QGuiApplication, QQmlApplicationEngine)`: registra las fuentes de `wysun_core/fonts/`, añade los import paths, desactiva `LD_LIBRARY_PATH` heredado en hijos (no exporta nada).
 
-- [ ] **Paso 1: pruebas** (`check_bootstrap.py`, corre en el venv): `test_preload_maps_runtime_qt_only` (tras `preload_qt()`, `/proc/self/maps` contiene `runtime/qt/…/libQt6Core` y **ninguna** `PySide6/Qt/lib` aunque se renombrase), `test_no_ld_library_path_exported`, `test_version_check_matches_runtime` (`check_versions() is None`), `test_version_mismatch_warns_without_raising` (simulado con `qVersion` parcheado → texto con ambas versiones), `test_import_paths_include_library_and_runtime`, `test_reexec_selects_venv_python` (con interpreter falso: `os.execv` parcheado recibe `-P -m <module>` y `PYTHONPATH` correcto), `test_missing_venv_prints_install_hint`, y en `tests/test_python_layout.py` la lista de paquetes.
-- [ ] **Paso 2:** ejecutar con `~/.cache/wysun-fase1/qml-runtime/bin/python3 -m unittest tests.qml.check_bootstrap -v` → falla.
-- [ ] **Paso 3:** implementar según las firmas. La precarga reproduce `spike/pyside/main.py::preload_runtime_qt` pero tolerante a bibliotecas ausentes.
-- [ ] **Paso 4:** pasan; `python3 -m unittest tests.test_python_layout tests.test_theme_literals -v`.
-- [ ] **Paso 5: commit** `feat(qml): bootstrap that runs PySide6 on the shell Qt (no LD_LIBRARY_PATH)`.
+- [x] **Paso 1: pruebas** (`check_bootstrap.py`, corre en el venv): `test_preload_maps_runtime_qt_only` (tras `preload_qt()`, `/proc/self/maps` contiene `runtime/qt/…/libQt6Core` y **ninguna** `PySide6/Qt/lib` aunque se renombrase), `test_no_ld_library_path_exported`, `test_version_check_matches_runtime` (`check_versions() is None`), `test_version_mismatch_warns_without_raising` (simulado con `qVersion` parcheado → texto con ambas versiones), `test_import_paths_include_library_and_runtime`, `test_reexec_selects_venv_python` (con interpreter falso: `os.execv` parcheado recibe `-P -m <module>` y `PYTHONPATH` correcto), `test_missing_venv_prints_install_hint`, y en `tests/test_python_layout.py` la lista de paquetes.
+- [x] **Paso 2:** ejecutar con `~/.cache/wysun-fase1/qml-runtime/bin/python3 -m unittest tests.qml.check_bootstrap -v` → falla.
+- [x] **Paso 3:** implementar según las firmas. La precarga reproduce `spike/pyside/main.py::preload_runtime_qt` pero tolerante a bibliotecas ausentes.
+- [x] **Paso 4:** pasan; `python3 -m unittest tests.test_python_layout tests.test_theme_literals -v`.
+- [x] **Paso 5: commit** `feat(qml): bootstrap that runs PySide6 on the shell Qt (no LD_LIBRARY_PATH)`.
 
 ### Tarea 3: Biblioteca base — `Theme`, `Metrics`, `Label`, `Icon`, puente de tema y matriz de paletas
 
@@ -153,11 +153,11 @@ Todas tienen un valor por defecto con el que implemento si no hay objeción.
 - `ThemeBridge` (Python, `QObject`): propiedades `scheme`, `tokens`, `reducedMotion` (QVariant/bool, señal de cambio); `reload()`; `setPreview(scheme|None)` (galería); vigila `theme.scheme_path()`, `theme.selection_path()` y el `appearance.json` con `QFileSystemWatcher` sobre fichero **y** directorio (reemplazo atómico, creación tardía), *debounce* 40 ms, compara `wysun_core.theme.revision()`; mientras no haya `scheme.json` válido entrega `{mode: active_mode(), colours: tokens.palettes[mode].scheme}`; `WYSUN_THEME` fuerza modo; `WYSUN_REDUCED_MOTION=1` lo respeta (`wysun_core.appearance.reduced_motion`).
 - `tests/qml/support.py` añade: `PALETTES` (`default` = `tokens.json` por modo, `green` 2e7d32 *tonalspot*, `orange` e65100 *vibrant*, `blue` 1565c0 *expressive*, cada una en `light` y `dark`, generadas con `wysun_services.scheme.gen_scheme` como `spike/theme_live.py`), `STYLES = ('material3',)`, `Harness` (QGuiApplication offscreen única, `render(qml, width, height, scheme=…) -> QImage` con `QQuickView`+`grabToImage`, `pixel(image, x, y)`, `load_component(...)`, `process_until(cond, ms)`) y `close_to(color, rolename, tol)`.
 
-- [ ] **Paso 1: pruebas** `check_theme.py`: `test_every_m3_role_is_exposed_and_equals_scheme` (por cada paleta y modo, `Theme.m3<Rol>` == `#`+valor), `test_roles_use_m3_prefix` (`m3onSurface` existe; no hay propiedades `onSurface`), `test_live_switch_light_dark_repaints` (rectángulo `m3surfaceContainerHigh`: píxel cambia al cambiar `scheme`), `test_live_wallpaper_change_from_file` (escribir `scheme.json` atómico en `XDG_STATE_HOME` temporal → `ThemeBridge` → píxel cambia ≤ 1 s), `test_tokens_exposed` (`Theme.rounding.extraLarge == 28`, `Theme.duration('expressiveFastSpatial') == 350`, `Theme.curve('expressiveFastSpatial')` == lista de `tokens.json`), `test_missing_or_broken_scheme_keeps_last_good` (foco de revisión 1), `test_role_missing_falls_back_to_base_palette` (sin `success`), `test_string_type_roles_resolve` (`typeFont('body.medium').pointSize == 14`, peso 400), `test_state_opacities`. `check_purity.py`: `test_library_imports_only_allowed_modules` (lista blanca D3: `QtQuick`, `QtQuick.Shapes`, `M3Shapes`, `WysunM3` y módulos relativos), `test_no_literal_colours_or_ms_in_library` (regex de colores/`duration: <número>` salvo `0`/`Metrics`), `test_qmldir_lists_every_component_file`, `test_icon_without_font_renders_nothing`.
-- [ ] **Paso 2:** ejecutar con el Python del venv → fallan.
-- [ ] **Paso 3:** implementar `Theme`, `Metrics`, `Label`, `Icon`, `ThemeFeed`, `qmldir` (singletons con la palabra `singleton`; los componentes con subcarpetas se listan como `Button 1.0 controls/Button.qml`) y `ThemeBridge`. La generación de roles se hace a mano en QML (lista explícita, sin metaprogramación) para que `qmllint` y el autocompletado funcionen.
-- [ ] **Paso 4:** pasan. `python3 -m unittest tests.test_theme_literals -v`.
-- [ ] **Paso 5: commit** `feat(qml): WysunM3 theme (direct M3 roles, live) and ThemeBridge`.
+- [x] **Paso 1: pruebas** `check_theme.py`: `test_every_m3_role_is_exposed_and_equals_scheme` (por cada paleta y modo, `Theme.m3<Rol>` == `#`+valor), `test_roles_use_m3_prefix` (`m3onSurface` existe; no hay propiedades `onSurface`), `test_live_switch_light_dark_repaints` (rectángulo `m3surfaceContainerHigh`: píxel cambia al cambiar `scheme`), `test_live_wallpaper_change_from_file` (escribir `scheme.json` atómico en `XDG_STATE_HOME` temporal → `ThemeBridge` → píxel cambia ≤ 1 s), `test_tokens_exposed` (`Theme.rounding.extraLarge == 28`, `Theme.duration('expressiveFastSpatial') == 350`, `Theme.curve('expressiveFastSpatial')` == lista de `tokens.json`), `test_missing_or_broken_scheme_keeps_last_good` (foco de revisión 1), `test_role_missing_falls_back_to_base_palette` (sin `success`), `test_string_type_roles_resolve` (`typeFont('body.medium').pointSize == 14`, peso 400), `test_state_opacities`. `check_purity.py`: `test_library_imports_only_allowed_modules` (lista blanca D3: `QtQuick`, `QtQuick.Shapes`, `M3Shapes`, `WysunM3` y módulos relativos), `test_no_literal_colours_or_ms_in_library` (regex de colores/`duration: <número>` salvo `0`/`Metrics`), `test_qmldir_lists_every_component_file`, `test_icon_without_font_renders_nothing`.
+- [x] **Paso 2:** ejecutar con el Python del venv → fallan.
+- [x] **Paso 3:** implementar `Theme`, `Metrics`, `Label`, `Icon`, `ThemeFeed`, `qmldir` (singletons con la palabra `singleton`; los componentes con subcarpetas se listan como `Button 1.0 controls/Button.qml`) y `ThemeBridge`. La generación de roles se hace a mano en QML (lista explícita, sin metaprogramación) para que `qmllint` y el autocompletado funcionen.
+- [x] **Paso 4:** pasan. `python3 -m unittest tests.test_theme_literals -v`.
+- [x] **Paso 5: commit** `feat(qml): WysunM3 theme (direct M3 roles, live) and ThemeBridge`.
 
 ### Tarea 4: Arreglo en Widgets — `wysun_core.theme` expone roles M3 directos
 
@@ -166,11 +166,11 @@ Todas tienen un valor por defecto con el que implemento si no hay objeción.
 **Interfaces:**
 - Produce `theme.m3_roles(colours: dict) -> dict[str, str]` (`{'m3primary': '#rrggbb', …}` para todo rol de `scheme.json`/`palettes.<modo>.scheme`, valores en minúsculas con `#`); `resolve(mode)` y `overlay_material_roles` los añaden, de modo que `resolve_active()` los tiene siempre (base del modo, luego esquema del wallpaper encima). `qt_theme.color('m3secondaryContainer')` devuelve un `QColor`.
 
-- [ ] **Paso 1: pruebas:** `test_resolve_has_direct_m3_roles` (claves `m3primaryContainer`, `m3secondaryContainer`, `m3tertiaryContainer`, `m3surfaceContainerLow`, `m3outlineVariant` en ambos modos), `test_overlay_replaces_m3_roles_with_scheme_values`, `test_existing_tokens_unchanged` (los 108 nombres previos con idéntico valor), `test_color_accepts_m3_role` (Qt, offscreen).
-- [ ] **Paso 2:** `python3 -m unittest tests.test_core_theme tests.test_core_tokens tests.test_core_qt_theme -v` → falla lo nuevo.
-- [ ] **Paso 3:** implementar `m3_roles` (filtra claves no-M3 como `term*`, `k*`, `*PaletteKeyColor` para no inflar el diccionario: solo roles de `MATERIAL_ROLE_NAMES`, constante nueva compartida con `Theme.qml` vía test de paridad `check_theme.test_role_list_matches_python`).
-- [ ] **Paso 4:** esas suites + `tests/test_token_consumers.py`, `tests/test_wysun_scheme.py`.
-- [ ] **Paso 5: commit** `feat(core): wysun_core.theme exposes direct M3 roles for Widgets apps`.
+- [x] **Paso 1: pruebas:** `test_resolve_has_direct_m3_roles` (claves `m3primaryContainer`, `m3secondaryContainer`, `m3tertiaryContainer`, `m3surfaceContainerLow`, `m3outlineVariant` en ambos modos), `test_overlay_replaces_m3_roles_with_scheme_values`, `test_existing_tokens_unchanged` (los 108 nombres previos con idéntico valor), `test_color_accepts_m3_role` (Qt, offscreen).
+- [x] **Paso 2:** `python3 -m unittest tests.test_core_theme tests.test_core_tokens tests.test_core_qt_theme -v` → falla lo nuevo.
+- [x] **Paso 3:** implementar `m3_roles` (filtra claves no-M3 como `term*`, `k*`, `*PaletteKeyColor` para no inflar el diccionario: solo roles de `MATERIAL_ROLE_NAMES`, constante nueva compartida con `Theme.qml` vía test de paridad `check_theme.test_role_list_matches_python`).
+- [x] **Paso 4:** esas suites + `tests/test_token_consumers.py`, `tests/test_wysun_scheme.py`.
+- [x] **Paso 5: commit** `feat(core): wysun_core.theme exposes direct M3 roles for Widgets apps`.
 
 ### Tarea 5: Movimiento — muelles expressive y patrones de transición
 
@@ -183,8 +183,8 @@ Todas tienen un valor por defecto con el que implemento si no hay objeción.
 - `SharedAxis` (Item): como `FadeThrough` más `axis: "x"|"y"|"z"` y `show(component, properties, forward=true)`; desplazamiento 30 px (token `spacing.extraLargeIncreased`), salida y entrada con `fastEffects`/`defaultSpatial`.
 - `ContainerTransform` (Item): `function open(sourceItem, component)` (anima de la geometría y esquina de `sourceItem` al contenedor completo, `slowSpatial`; contenido por fundido cruzado `defaultEffects`), `function close()` revierte; `readonly property bool opened`.
 
-- [ ] **Paso 1: pruebas:** `test_anim_uses_token_duration_and_bezier` (`Anim{kind:'fastSpatial'}.duration == 350` y `easing.bezierCurve` == token), `test_spatial_curves_overshoot_effects_do_not` (máximo de la curva >1 en `*Spatial`, ≤1 en `*Effects`), `test_reduced_motion_makes_duration_zero`, `test_reduced_motion_mid_animation_completes` (revisión 4), `test_fade_through_swaps_content_and_ends_clean` (tras `finished`, el saliente destruido, opacidad 1, escala 1), `test_shared_axis_direction` (forward entra desde +x; back desde −x), `test_container_transform_open_close_roundtrip` (geometría final == contenedor; tras `close()` == `sourceItem`), `test_patterns_complete_instantly_when_reduced`.
-- [ ] **Paso 2:** fallan. **Paso 3:** implementar (sin duraciones literales: solo `Motion.ms`). **Paso 4:** pasan. **Paso 5: commit** `feat(qml): expressive springs and M3 transition patterns (reduced-motion aware)`.
+- [x] **Paso 1: pruebas:** `test_anim_uses_token_duration_and_bezier` (`Anim{kind:'fastSpatial'}.duration == 350` y `easing.bezierCurve` == token), `test_spatial_curves_overshoot_effects_do_not` (máximo de la curva >1 en `*Spatial`, ≤1 en `*Effects`), `test_reduced_motion_makes_duration_zero`, `test_reduced_motion_mid_animation_completes` (revisión 4), `test_fade_through_swaps_content_and_ends_clean` (tras `finished`, el saliente destruido, opacidad 1, escala 1), `test_shared_axis_direction` (forward entra desde +x; back desde −x), `test_container_transform_open_close_roundtrip` (geometría final == contenedor; tras `close()` == `sourceItem`), `test_patterns_complete_instantly_when_reduced`.
+- [x] **Paso 2:** fallan. **Paso 3:** implementar (sin duraciones literales: solo `Motion.ms`). **Paso 4:** pasan. **Paso 5: commit** `feat(qml): expressive springs and M3 transition patterns (reduced-motion aware)`.
 
 ### Tarea 6: Primitivas de interacción — `StateLayer`, `FocusRing`, `Surface`
 
@@ -195,8 +195,8 @@ Todas tienen un valor por defecto con el que implemento si no hay objeción.
 - `FocusRing` (Item): `property Item target; property bool visibleOnFocus` → anillo 3 px con separación 2 px, solo con foco por teclado (`activeFocus` + `focusReason ∈ {Tab, Backtab, Shortcut}`).
 - `Surface` (Rectangle): `property color container`, `property int level` (0–5, aplica tinte tonal con `m3surfaceTint` a 5/8/11/12/14 % — tabla en `Metrics.elevationTint`), `property int outline` (ancho, color `m3outline`/`m3outlineVariant`), `property bool disabled`.
 
-- [ ] **Paso 1: pruebas:** `test_state_layer_opacities` (hover → pixel con alfa 0,08 sobre `m3surface`; pressed 0,12; con `dragged` 0,16, tolerancia ±2 niveles), `test_disabled_has_no_layer_and_no_hover`, `test_focus_ring_only_for_keyboard` (revisión 3: foco por ratón no lo muestra, por Tab sí), `test_surface_tint_levels_monotonic`, `test_disabled_container_10_percent_content_38_percent`.
-- [ ] **Pasos 2–5:** fallan → implementar → pasan → commit `feat(qml): StateLayer, FocusRing and Surface primitives`.
+- [x] **Paso 1: pruebas:** `test_state_layer_opacities` (hover → pixel con alfa 0,08 sobre `m3surface`; pressed 0,12; con `dragged` 0,16, tolerancia ±2 niveles), `test_disabled_has_no_layer_and_no_hover`, `test_focus_ring_only_for_keyboard` (revisión 3: foco por ratón no lo muestra, por Tab sí), `test_surface_tint_levels_monotonic`, `test_disabled_container_10_percent_content_38_percent`.
+- [x] **Pasos 2–5:** fallan → implementar → pasan → commit `feat(qml): StateLayer, FocusRing and Surface primitives`.
 
 ### Tarea 7: Botones — `Button`, `IconButton`, `Fab`, `SegmentedButtons`
 
@@ -208,8 +208,8 @@ Todas tienen un valor por defecto con el que implemento si no hay objeción.
 - `Fab`: `size: "small|regular|large"`, `variant: "primary|secondary|tertiary|surface"` y `extended` (`text` + icono; alto 56; se expande/colapsa con `fastSpatial`).
 - `SegmentedButtons`: `model: [{value, text, icon}]`, `multiSelect`, `current`/`selection`; alto 40, borde 1 `m3outline`, seleccionado `m3secondaryContainer` con ✓.
 
-- [ ] **Paso 1: pruebas:** medidas (`Button.implicitHeight == 40`, `IconButton.width == 40`, `Fab` 56/40/96 y extended 56, `SegmentedButtons.height == 40`), colores por tipo contra roles (filled → `m3primary`/`m3onPrimary`; tonal → `m3secondaryContainer`/`m3onSecondaryContainer`; outlined borde 1 `m3outline`; text sin fondo; disabled → 10 %/38 %), `test_press_morphs_corner`, `test_keyboard_activation` (Espacio y Enter emiten `clicked`; Escape no), `test_disabled_not_focusable`, `test_toggle_icon_button_swaps_icon`, `test_extended_fab_collapses`, `test_segmented_single_and_multi`, y captura de cada tipo en claro/oscuro (smoke de píxel no vacío).
-- [ ] **Pasos 2–5:** fallan → implementar → pasan → commit `feat(qml): buttons, icon buttons, FABs and segmented buttons`.
+- [x] **Paso 1: pruebas:** medidas (`Button.implicitHeight == 40`, `IconButton.width == 40`, `Fab` 56/40/96 y extended 56, `SegmentedButtons.height == 40`), colores por tipo contra roles (filled → `m3primary`/`m3onPrimary`; tonal → `m3secondaryContainer`/`m3onSecondaryContainer`; outlined borde 1 `m3outline`; text sin fondo; disabled → 10 %/38 %), `test_press_morphs_corner`, `test_keyboard_activation` (Espacio y Enter emiten `clicked`; Escape no), `test_disabled_not_focusable`, `test_toggle_icon_button_swaps_icon`, `test_extended_fab_collapses`, `test_segmented_single_and_multi`, y captura de cada tipo en claro/oscuro (smoke de píxel no vacío).
+- [x] **Pasos 2–5:** fallan → implementar → pasan → commit `feat(qml): buttons, icon buttons, FABs and segmented buttons`.
 
 ### Tarea 8: Indicadores y formas — `Chip`, `Badge`, `Divider`, `LinearProgress`, `CircularProgress`, `ShapeEmblem`
 
@@ -222,8 +222,8 @@ Todas tienen un valor por defecto con el que implemento si no hay objeción.
 - `LinearProgress`: `value` (0–1) o `indeterminate`; alto 4; pista `m3secondaryContainer`, indicador `m3primary`. `CircularProgress`: 48, trazo 4, `indeterminate`.
 - `ShapeEmblem`: `shape: "cookie"|"squircle"|"circle"|"flower"`, `size`, `color`, `contentItem`; usa `M3Shapes.MaterialShape` mediante `Loader` (fuente `CookieShape.qml`); si falta M3Shapes, `Rectangle` con `Theme.rounding.extraLarge` (revisión 5); `property bool morphOnHover` (usa `fromShape/toShape`).
 
-- [ ] **Paso 1: pruebas:** medidas, colores por rol, `test_filter_chip_selected_shows_check`, `test_input_chip_remove_emits`, `test_badge_99_plus`, `test_progress_value_fills_proportionally` (píxel a 25/50/100 %), `test_indeterminate_animates_and_stops_when_hidden`, `test_circular_progress_renders_with_shapes` (si `QtQuick.Shapes` no renderiza offscreen, **sustituir por `Canvas`** y anotarlo en el commit), `test_emblem_falls_back_without_m3shapes` (se fuerza con `QML_IMPORT_PATH` sin el runtime de deps), `test_emblem_cookie_with_m3shapes` (si presente).
-- [ ] **Pasos 2–5:** fallan → implementar → pasan → commit `feat(qml): chips, badge, divider, progress and expressive shape emblem`.
+- [x] **Paso 1: pruebas:** medidas, colores por rol, `test_filter_chip_selected_shows_check`, `test_input_chip_remove_emits`, `test_badge_99_plus`, `test_progress_value_fills_proportionally` (píxel a 25/50/100 %), `test_indeterminate_animates_and_stops_when_hidden`, `test_circular_progress_renders_with_shapes` (si `QtQuick.Shapes` no renderiza offscreen, **sustituir por `Canvas`** y anotarlo en el commit), `test_emblem_falls_back_without_m3shapes` (se fuerza con `QML_IMPORT_PATH` sin el runtime de deps), `test_emblem_cookie_with_m3shapes` (si presente).
+- [x] **Pasos 2–5:** fallan → implementar → pasan → commit `feat(qml): chips, badge, divider, progress and expressive shape emblem`.
 
 ### Tarea 9: Entradas de texto — `TextField`, `SearchBar`
 
@@ -233,8 +233,8 @@ Todas tienen un valor por defecto con el que implemento si no hay objeción.
 - `TextField`: `variant: "outlined|filled"`, `label`, `text`, `placeholder`, `supportingText`, `error`, `errorText`, `leadingIcon`, `trailingIcon`, `echoMode`, `readOnly`, `disabled`, `signal accepted()`, `signal trailingClicked()`; etiqueta flotante (sube al enfocar o con texto, `defaultSpatial`); alto 56; outlined: borde 1 → 2 `m3primary` en foco, `m3error` en error; filled: indicador 1 → 2.
 - `SearchBar`: `text`, `placeholder`, `leadingIcon: "search"`, `trailing` (Component), `signal accepted()`, `signal cleared()`; alto 56, full, `m3surfaceContainerHigh`; botón de borrar aparece con texto; `Ctrl+L`/foco programático con `forceFocus()`.
 
-- [ ] **Paso 1: pruebas:** alto 56 y esquinas (`extraSmall` / full), borde 1→2 al enfocar, etiqueta flotante (posición con y sin foco), color de error, deshabilitado (borde 12 %, texto 38 %), `accepted` con Enter, Escape limpia el SearchBar solo si hay texto, selección y pegado funcionan (`insert`), texto largo se recorta (`clip`) sin desbordar, `test_search_clear_button`.
-- [ ] **Pasos 2–5:** fallan → implementar → pasan → commit `feat(qml): outlined/filled text fields and search bar`.
+- [x] **Paso 1: pruebas:** alto 56 y esquinas (`extraSmall` / full), borde 1→2 al enfocar, etiqueta flotante (posición con y sin foco), color de error, deshabilitado (borde 12 %, texto 38 %), `accepted` con Enter, Escape limpia el SearchBar solo si hay texto, selección y pegado funcionan (`insert`), texto largo se recorta (`clip`) sin desbordar, `test_search_clear_button`.
+- [x] **Pasos 2–5:** fallan → implementar → pasan → commit `feat(qml): outlined/filled text fields and search bar`.
 
 ### Tarea 10: Contenedores — `ListItem`, `Card`, `EmptyState`, `TopAppBar`
 
@@ -246,8 +246,8 @@ Todas tienen un valor por defecto con el que implemento si no hay objeción.
 - `EmptyState`: `emblemShape`, `icon`, `title`, `message`, `actionText`, `signal action()`; el emblema entra con `slowSpatial` (libertad expresiva) y respeta movimiento reducido.
 - `TopAppBar`: `variant: "small|centered|medium|large"`, `title`, `leading`, `actions`, `scrollOffset` (colapsa medium 112→64 / large 152→64 con el desplazamiento; `m3surfaceContainer` al desplazar).
 
-- [ ] **Paso 1: pruebas:** altos 56/72/88 y 64/112/152, `test_selected_list_item_uses_secondary_container`, `test_card_variants_surface_and_outline`, `test_empty_state_action_and_reduced_motion`, `test_top_app_bar_collapses_with_scroll_offset`, `test_list_item_long_text_elides` (no cambia la altura), scroll de `ListView` de 10 000 `ListItem` instanciando solo los delegados visibles (conteo de objetos `< 60`).
-- [ ] **Pasos 2–5:** fallan → implementar → pasan → commit `feat(qml): list items, cards, empty state and top app bar`.
+- [x] **Paso 1: pruebas:** altos 56/72/88 y 64/112/152, `test_selected_list_item_uses_secondary_container`, `test_card_variants_surface_and_outline`, `test_empty_state_action_and_reduced_motion`, `test_top_app_bar_collapses_with_scroll_offset`, `test_list_item_long_text_elides` (no cambia la altura), scroll de `ListView` de 10 000 `ListItem` instanciando solo los delegados visibles (conteo de objetos `< 60`).
+- [x] **Pasos 2–5:** fallan → implementar → pasan → commit `feat(qml): list items, cards, empty state and top app bar`.
 
 ### Tarea 11: Navegación — `NavigationItem`, `NavigationRail`, `NavigationDrawer`, `AdaptiveNavigation`, `TabBar`
 
@@ -261,8 +261,8 @@ Todas tienen un valor por defecto con el que implemento si no hay objeción.
 - `AdaptiveNavigation`: `windowWidth: real`, `destinations`, `currentId`, `default property alias content`, `readonly property string mode` (de `Metrics.windowClass`), `modalOpen`, `header`/`fab` Components; en `modal` muestra un botón de menú que abre el drawer; al pasar a `rail`/`standard` fuerza `modalOpen = false`; la transición de ancho usa `fastSpatial`; `signal destinationSelected(string id)`.
 - `TabBar`: `variant: "primary|secondary"`, `tabs: [{id,text,icon?}]`, `currentId`; alto 48, indicador 3/2 con `fastSpatial`; teclas ←/→ cambian de pestaña.
 
-- [ ] **Paso 1: pruebas:** `test_window_class_boundaries` (revisión 2: 0→modal, 599→modal, 600→rail, 839→rail, 840→standard, 3000→standard), `test_mode_does_not_flap_while_resizing`, `test_drawer_dimensions` (ancho 280, item alto 56, indicador 56, esquina `large` en el borde final), `test_rail_dimensions` (80; indicador 56×32 → 56 al activar), `test_selected_uses_secondary_container` (píxel), `test_section_headers_title_small_on_surface_variant`, `test_modal_opens_closes_with_escape_and_scrim` y devuelve el foco, `test_modal_closed_when_growing_to_rail`, `test_keyboard_navigation_in_drawer` (↑/↓, Enter), `test_badge_in_destination`, `test_tabs_indicator_sizes_and_keys`, `test_adaptive_matches_mockup_widths` (capturas a 500/700/1000 px comparadas por regiones con los roles; sin diff de píxeles exacto).
-- [ ] **Pasos 2–5:** fallan → implementar → pasan → commit `feat(qml): adaptive navigation (modal/rail/drawer) and tabs`.
+- [x] **Paso 1: pruebas:** `test_window_class_boundaries` (revisión 2: 0→modal, 599→modal, 600→rail, 839→rail, 840→standard, 3000→standard), `test_mode_does_not_flap_while_resizing`, `test_drawer_dimensions` (ancho 280, item alto 56, indicador 56, esquina `large` en el borde final), `test_rail_dimensions` (80; indicador 56×32 → 56 al activar), `test_selected_uses_secondary_container` (píxel), `test_section_headers_title_small_on_surface_variant`, `test_modal_opens_closes_with_escape_and_scrim` y devuelve el foco, `test_modal_closed_when_growing_to_rail`, `test_keyboard_navigation_in_drawer` (↑/↓, Enter), `test_badge_in_destination`, `test_tabs_indicator_sizes_and_keys`, `test_adaptive_matches_mockup_widths` (capturas a 500/700/1000 px comparadas por regiones con los roles; sin diff de píxeles exacto).
+- [x] **Pasos 2–5:** fallan → implementar → pasan → commit `feat(qml): adaptive navigation (modal/rail/drawer) and tabs`.
 
 ### Tarea 12: Superposiciones — `Overlay`, `Menu`, `Dialog`, `Snackbar`, `Tooltip`
 
@@ -275,8 +275,8 @@ Todas tienen un valor por defecto con el que implemento si no hay objeción.
 - `Snackbar`/`SnackbarHost`: `host.show({text, action, duration, longer})`, cola FIFO, alto 48 (68 con dos líneas), `m3inverseSurface`/`m3inverseOnSurface`/acción `m3inversePrimary`.
 - `Tooltip`: `text`, `target`, retardo 500 ms de `Theme.anim.durations.normal` + `small` (documentado), plain alto 24; `rich` con título y acciones.
 
-- [ ] **Paso 1: pruebas:** posición y reubicación del menú en los cuatro bordes, `test_menu_keyboard_flow` (revisión 3), Escape cierra y devuelve el foco, `test_dialog_traps_focus_and_escape_rejects`, `test_dialog_width_clamped`, `test_snackbar_queue_order_and_dismiss`, `test_snackbar_action_signal`, `test_tooltip_delay_and_hide_on_leave`, `test_reduced_motion_overlays_appear_instantly`, píxeles de colores de rol.
-- [ ] **Pasos 2–5:** fallan → implementar → pasan → commit `feat(qml): menus, dialogs, snackbars and tooltips`.
+- [x] **Paso 1: pruebas:** posición y reubicación del menú en los cuatro bordes, `test_menu_keyboard_flow` (revisión 3), Escape cierra y devuelve el foco, `test_dialog_traps_focus_and_escape_rejects`, `test_dialog_width_clamped`, `test_snackbar_queue_order_and_dismiss`, `test_snackbar_action_signal`, `test_tooltip_delay_and_hide_on_leave`, `test_reduced_motion_overlays_appear_instantly`, píxeles de colores de rol.
+- [x] **Pasos 2–5:** fallan → implementar → pasan → commit `feat(qml): menus, dialogs, snackbars and tooltips`.
 
 ### Tarea 13: Galería ejecutable y capturas
 
@@ -287,10 +287,10 @@ Todas tienen un valor por defecto con el que implemento si no hay objeción.
 - Galería: `AdaptiveNavigation` con páginas Tema (roles y tipografía), Botones, Chips y formas, Campos y búsqueda, Listas y tarjetas, Navegación, Superposiciones, Movimiento (botones que lanzan FadeThrough/SharedAxis/ContainerTransform y conmutador de movimiento reducido), Estados vacíos. Barra superior con selector de paleta/modo para ver el vivo.
 - `capture_matrix.py SALIDA`: renderiza cada página × `STYLES` × paleta × modo offscreen; genera montajes `montage-<palette>.png` (cuadrícula claro/oscuro) y `index.json`; incluye además, si existe, el `scheme.json` vivo del usuario como paleta «wallpaper actual» (solo lectura, **no** forma parte de las pruebas).
 
-- [ ] **Paso 1: pruebas** `check_gallery.py`: la galería carga sin errores QML en cada página (`engine.warnings` vacío), `--shot` produce PNG no vacío para las 8 paletas, `test_gallery_covers_every_exported_component` (cada componente del `qmldir` aparece en alguna página: lista leída del `qmldir`), cambio de página con SharedAxis sin excepciones.
-- [ ] **Paso 2:** fallan. **Paso 3:** implementar. **Paso 4:** pasan.
-- [ ] **Paso 5: ventana real** (una sola, serializada): `free -g`; `PYTHONPATH=apps/python ~/.cache/wysun-fase1/qml-runtime/bin/python3 -P -m wysun_qml &`; localizar la dirección con `hyprctl clients -j` (clase `wysun-qml-gallery`); `grim -g "<x>,<y> <w>x<h>" ~/.cache/wysun-fase1/shots/<nombre>.png` solo de su región, en anchos ~500/700/1000, claro y oscuro; cerrar **solo** esa ventana con `hyprctl dispatch 'hl.dsp.window.close({window="address:0x…"})'`.
-- [ ] **Paso 6: commit** `feat(qml): runnable component gallery and capture matrix`.
+- [x] **Paso 1: pruebas** `check_gallery.py`: la galería carga sin errores QML en cada página (`engine.warnings` vacío), `--shot` produce PNG no vacío para las 8 paletas, `test_gallery_covers_every_exported_component` (cada componente del `qmldir` aparece en alguna página: lista leída del `qmldir`), cambio de página con SharedAxis sin excepciones.
+- [x] **Paso 2:** fallan. **Paso 3:** implementar. **Paso 4:** pasan.
+- [x] **Paso 5: ventana real** (una sola, serializada): `free -g`; `PYTHONPATH=apps/python ~/.cache/wysun-fase1/qml-runtime/bin/python3 -P -m wysun_qml &`; localizar la dirección con `hyprctl clients -j` (clase `wysun-qml-gallery`); `grim -g "<x>,<y> <w>x<h>" ~/.cache/wysun-fase1/shots/<nombre>.png` solo de su región, en anchos ~500/700/1000, claro y oscuro; cerrar **solo** esa ventana con `hyprctl dispatch 'hl.dsp.window.close({window="address:0x…"})'`.
+- [x] **Paso 6: commit** `feat(qml): runnable component gallery and capture matrix`.
 
 ### Tarea 14: Documentación
 
@@ -298,15 +298,30 @@ Todas tienen un valor por defecto con el que implemento si no hay objeción.
 
 **Contenido de `docs/qml-base.md`:** qué es y qué no es; arquitectura (runtime, bootstrap, `ThemeBridge`, `ThemeFeed`); **catálogo** de componentes con *cuándo usar cada uno* (y cuándo no) y medidas; tema y roles `m3*`; movimiento (spatial vs effects, patrones y cuál elegir: fade through entre destinos hermanos, shared axis en jerarquía, container transform al abrir un elemento); adaptable (clases de ventana); accesibilidad (foco, estados, teclado, movimiento reducido); libertades expresivas (`ShapeEmblem`, estados vacíos) con criterios; cómo escribir una app nueva (plantilla mínima de `main.py` + `Main.qml`); cómo **extender** (añadir componente: archivo, `qmldir`, `Metrics`, prueba de medidas, entrada en galería, test de pureza); cómo **lo adoptará el shell** (adaptador fino `ThemeFeed` alimentado por `Colours`/`Tokens`, `QML_IMPORT_PATH` en `runtime.sh`, sustitución gradual de `qs.components`); cómo probar (venv, offscreen, capturas, ventana real); límites conocidos (overlays dentro de la ventana, sin `QtQuick.Controls`).
 
-- [ ] **Pasos:** escribir; `python3 tests/check_manifest.py` (sin rutas personales); enlaces válidos; **commit** `docs(qml): shared M3 base guide and architecture notes`.
+- [x] **Pasos:** escribir; `python3 tests/check_manifest.py` (sin rutas personales); enlaces válidos; **commit** `docs(qml): shared M3 base guide and architecture notes`.
 
 ### Tarea 15: Verificación final, revisión y entrega
 
-- [ ] **Paso 1 (en serie, una a la vez, `free -g` antes de cada una):** `python3 -m unittest discover -s tests -v` (incluye el *runner* QML con el venv), `python3 -m unittest discover -s tests/wysun_app -t tests`, `python3 -m unittest discover -s tests/shell_bridge -t tests`, `QT_QPA_PLATFORM=offscreen python3 tests/utility_ui.py`, `python3 tests/check_manifest.py`, `python3 apps/capture/run_tests.py`, `python3 tests/wysun_installed_smoke.py` (medios serializados; bloqueos de sandbox ≠ fallo del producto), y las suites QML directamente con el Python del venv. Registrar resultados.
-- [ ] **Paso 2:** `python3 -m unittest tests.test_theme_literals tests.test_python_layout -v`; `git grep -nE "Quickshell|import qs\\.|Wysun\\." apps/qml` sin resultados.
-- [ ] **Paso 3:** `capture_matrix.py ~/.cache/wysun-fase1/matrix`; copiar montajes clave y capturas reales de la ventana a `/home/nicolas/.ao/data/artifacts/wysun-shell-2/` (sin datos privados).
+- [x] **Paso 1 (en serie, una a la vez, `free -g` antes de cada una):** `python3 -m unittest discover -s tests -v` (incluye el *runner* QML con el venv), `python3 -m unittest discover -s tests/wysun_app -t tests`, `python3 -m unittest discover -s tests/shell_bridge -t tests`, `QT_QPA_PLATFORM=offscreen python3 tests/utility_ui.py`, `python3 tests/check_manifest.py`, `python3 apps/capture/run_tests.py`, `python3 tests/wysun_installed_smoke.py` (medios serializados; bloqueos de sandbox ≠ fallo del producto), y las suites QML directamente con el Python del venv. Registrar resultados.
+- [x] **Paso 2:** `python3 -m unittest tests.test_theme_literals tests.test_python_layout -v`; `git grep -nE "Quickshell|import qs\\.|Wysun\\." apps/qml` sin resultados.
+- [x] **Paso 3:** `capture_matrix.py ~/.cache/wysun-fase1/matrix`; copiar montajes clave y capturas reales de la ventana a `/home/nicolas/.ao/data/artifacts/wysun-shell-2/` (sin datos privados).
 - [ ] **Paso 4:** revisión final con un revisor nuevo (`superpowers:requesting-code-review`) sobre `main..qml/fase1-base`; aplicar Críticos e Importantes con `superpowers:receiving-code-review`, repetir las suites afectadas.
 - [ ] **Paso 5:** `superpowers:verification-before-completion`; `ao report --done --note "<resumen, suites y resultados, decisiones D1–D5 aplicadas>" --artifact <capturas>`. Sin push ni PR.
+
+
+### Resultados de la ejecución (2026-10-26)
+
+- Tareas 1-6 por el worker de fase 1; 7-15 continuadas por el coordinador tras el corte por límite de uso del worker.
+- Suites (en serie, `TMPDIR` en `~/.cache`): núcleo 853 OK (8 saltadas), `wysun_app` 78, `shell_bridge` 145, `utility_ui` 1,
+  `installer_ui` 13, `check_manifest` OK, Recorder 155, PDF 114, `wysun_installed_smoke` OK, QML (venv) 177.
+- Pureza: `git grep -nE "Quickshell|import qs\.|Wysun\." apps/qml` sin resultados.
+- Ventana real (Hyprland, una ventana flotante a 500/700/1000 px, claro/oscuro, `grim` de su región): modal, rail y drawer
+  correctos; M3Shapes pinta con GL (en offscreen software `ShapeEmblem` usa su forma de respaldo).
+- Banco de scroll de la galería en ventana real (ajuste 5): 10 000 `ListItem`, *fling* 20 000 px y lista completa 719 568 px:
+  **60 fps**, p50 17 ms, p95 18-19 ms, peor 19-23 ms, 0 frames > 25 ms. Galería completa: RSS 176 MB, PSS 107 MB.
+- Capturas: `~/.cache/wysun-fase1/matrix` (81: 9 páginas × 4 paletas × 2 modos + wallpaper actual) y
+  `~/.cache/wysun-fase1/shots/real`; selección en `/home/nicolas/.ao/data/artifacts/wysun-shell-2/`.
+- Pendiente: revisión final con un revisor nuevo (paso 4) y la fusión a `main`.
 
 ## Autorrevisión (hecha)
 
