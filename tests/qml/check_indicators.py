@@ -172,17 +172,15 @@ class EmblemTests(Base):
                                'color: Theme.m3primaryContainer }', 100, 100)
         emblem = self.child(view, 'e')
         self.h.wait_for(lambda: emblem.property('usingShapes') is not None)
-        if not emblem.property('usingShapes'):
-            self.skipTest('M3Shapes is not in this runtime')
         from PySide6.QtQuick import QQuickWindow
         if QQuickWindow.sceneGraphBackend() == 'software':
-            # MaterialShape draws with its own geometry node, which the offscreen software renderer skips: check
-            # what it was told to draw (the real window check of the gallery covers the pixels).
-            body = emblem.findChild(self.QObject, 'emblemShape')
-            self.assertIsNotNone(body)
-            support.close_to(self, body.property('color'), c['primaryContainer'], msg='shape colour')
-            self.assertEqual(body.property('shapeName'), 'Cookie9Sided')
+            # MaterialShape draws with its own geometry node, which the software renderer skips: the emblem
+            # falls back to the rounded square there (the gallery's real window covers the cookie's pixels).
+            self.assertFalse(emblem.property('usingShapes'))
+            support.close_to(self, self.h.pixel(self.h.grab(view), 10 + 28, 10 + 28), c['primaryContainer'], msg='fallback')
             return
+        if not emblem.property('usingShapes'):
+            self.skipTest('M3Shapes is not in this runtime')
         image = self.h.grab(view)
         support.close_to(self, self.h.pixel(image, 10 + 28, 10 + 28), c['primaryContainer'], msg='filled centre')
         support.close_to(self, self.h.pixel(image, 11, 11), c['surface'], msg='the cookie is not a square')

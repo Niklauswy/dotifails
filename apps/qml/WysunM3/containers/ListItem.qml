@@ -130,8 +130,9 @@ Rectangle {
                 text: root.supporting
                 color: root.supportingColor
                 elide: Text.ElideRight
-                wrapMode: root.lines >= 3 ? Text.Wrap : Text.NoWrap
-                maximumLineCount: root.lines >= 3 ? 2 : 1
+                // Three lines are an overline + headline + supporting, or a headline + two lines of supporting.
+                wrapMode: root.lines >= 3 && root.overline === "" ? Text.Wrap : Text.NoWrap
+                maximumLineCount: root.lines >= 3 && root.overline === "" ? 2 : 1
             }
         }
 

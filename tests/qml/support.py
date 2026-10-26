@@ -45,7 +45,8 @@ def run_in_venv(args, **env):
     python = venv_python()
     if python is None:
         raise RuntimeError('no qml-runtime venv')
-    full = dict(os.environ, QT_QPA_PLATFORM='offscreen', WYSUN_REDUCED_MOTION='0',
+    full = dict(os.environ, QT_QPA_PLATFORM='offscreen', WYSUN_REDUCED_MOTION='0', WYSUN_QML_LIB=str(ROOT / 'apps/qml'),
+                WYSUN_QML_RUNTIME=str(python.parent.parent),
                 PYTHONPATH=os.pathsep.join([str(ROOT / 'apps/python'), str(ROOT / 'apps/python/vendor'), str(ROOT / 'tests')]),
                 TMPDIR=str(Path.home() / '.cache/wysun-fase1/tmp'))
     full.update({k: str(v) for k, v in env.items()})
@@ -63,6 +64,8 @@ LIBRARY = ROOT / 'apps/qml/WysunM3'
 
 
 def _paths():
+    # Test this tree's library, never an installed copy (bootstrap.library_path prefers ~/.local/share/wysun/qml).
+    os.environ.setdefault('WYSUN_QML_LIB', str(ROOT / 'apps/qml'))
     for path in (ROOT / 'apps/python', ROOT / 'apps/python/vendor'):
         if str(path) not in sys.path:
             sys.path.insert(0, str(path))

@@ -46,7 +46,7 @@ Rectangle {
         Label {
             anchors.verticalCenter: parent.verticalCenter
             x: root.variant === "centered" ? (parent.width - width) / 2 : root.leading ? lead.x + lead.width + (Theme.padding.extraSmall ?? 0) : Theme.padding.large ?? 0
-            width: Math.min(implicitWidth, parent.width - 2 * Math.max(lead.width, tail.width) - 2 * (Theme.padding.large ?? 0))
+            width: root.variant === "centered" ? Math.min(implicitWidth, parent.width - 2 * Math.max(lead.width, tail.width) - 2 * (Theme.padding.large ?? 0)) : Math.min(implicitWidth, tail.x - x - (Theme.padding.large ?? 0))
             role: "title.large"
             text: root.title
             elide: Text.ElideRight
