@@ -52,6 +52,16 @@ class ResidentTests(unittest.TestCase):
         with patch.object(daemon, 'send', return_value=True):
             self.assertEqual(daemon.main(['daemon', '--daemon']), 0)
 
+    def test_re_exec_stops_the_clipboard_watcher_first(self):
+        # An orphaned `wl-paste --watch` survives execve and records every copy twice.
+        calls = []
+        watch = type('Watch', (), {'stop': lambda _self: calls.append('stop')})()
+        closer = type('Closer', (), {'close': lambda _self: calls.append('close')})()
+        self.daemon.wayland_clipboard = watch
+        with patch.object(daemon.os, 'execve', side_effect=lambda *_: calls.append('execve')):
+            daemon.re_exec(closer, closer, self.daemon)
+        self.assertEqual(calls, ['stop', 'close', 'close', 'execve'])
+
     def test_reload_with_a_resident_only_asks_it(self):
         with patch.object(daemon, 'send', return_value=True) as send, patch.object(daemon.subprocess, 'Popen') as popen:
             self.assertEqual(daemon.main(['reload']), 0)

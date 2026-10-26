@@ -74,6 +74,12 @@ def start_detached():
     with (state/'daemon.log').open('a') as log:
         subprocess.Popen(launch.argv('wysun_services.daemon'),env=launch.environment(),stdin=subprocess.DEVNULL,stdout=log,stderr=log,start_new_session=True)
 
+def re_exec(ipc,resident,window):
+    """Replace this resident with the installed code; its wl-paste watcher would survive execve."""
+    if window.wayland_clipboard is not None:window.wayland_clipboard.stop()
+    ipc.close();resident.close()
+    os.execve(sys.executable,launch.argv('wysun_services.daemon'),launch.environment())
+
 def main(argv=None):
     parser=argparse.ArgumentParser(prog='wysun daemon');parser.add_argument('mode',nargs='?',choices=('daemon','reload'),default='daemon')
     # parse_known_args: a resident of an earlier version re-executes itself with options this one no longer has.
@@ -92,10 +98,7 @@ def main(argv=None):
     def request(line):
         mode=line.decode('utf-8',errors='ignore').strip()
         if mode=='ping':return b'pong'
-        if mode=='reload':QTimer.singleShot(0,restart)
-    def restart():
-        ipc.close();resident.close()
-        os.execve(sys.executable,launch.argv('wysun_services.daemon'),launch.environment())
+        if mode=='reload':QTimer.singleShot(0,lambda:re_exec(ipc,resident,resident_window))
     ipc=InstanceNotifier(resident,request,app,limit=256,timeout=.5)
     return app.exec()
 
