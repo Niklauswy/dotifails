@@ -73,6 +73,7 @@ def main(argv=None):
         from wysun_qml import bootstrap
         bootstrap.ensure_runtime_python('wysun_music', argv[1:])
         bootstrap.require_qt()
+        bootstrap.configure_qt()                # plugins (wayland) before the application exists
     if not owner.claim():
         send(owner.endpoint, route.encode(), timeout=.3, retry=2.0)   # another launch is starting it
         return 0
