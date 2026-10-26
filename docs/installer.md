@@ -51,7 +51,7 @@ Las opciones nuevas de preparación son explícitas:
   --boot-components grub,plymouth --upgrade-system --prepare-repositories --plan
 ```
 
-`--prepare-repositories` añade solo los backports oficiales de la distribución detectada si faltan. No reemplaza fuentes existentes, cambia de distribución, descarga claves nuevas ni desactiva firmas. Usa [Debian Backports](https://backports.debian.org/Instructions/) en Debian y [los repositorios de Parrot](https://www.parrotsec.org/docs/mirrors/mirrors-list/) en Parrot. Se guarda un diario previo en `/var/lib/dotifails/repositories/backups/`.
+`--prepare-repositories` añade solo los backports oficiales de la distribución detectada si faltan. No reemplaza fuentes existentes, cambia de distribución, descarga claves nuevas ni desactiva firmas. Usa [Debian Backports](https://backports.debian.org/Instructions/) en Debian y [los repositorios de Parrot](https://www.parrotsec.org/docs/mirrors/mirrors-list/) en Parrot. Se guarda un diario previo en `/var/lib/wysun/repositories/backups/`.
 
 Después se actualizan los índices APT y se simula la resolución de dependencias. Las versiones y la compatibilidad ABI de Hyprland siguen comprobándose mediante `wayland.py` y los manifiestos fijados. Un fallo de resolución detiene el proceso antes de actualizar paquetes o copiar configuraciones.
 
@@ -63,10 +63,10 @@ Al completar la instalación real se ofrece un reinicio voluntario. La sesión r
 
 ## Wysun Player
 
-`--orbit-only` instala `~/.local/bin/wysun-player` y `wysun-player.desktop`, pero no cambia aplicaciones predeterminadas ni instala
+`--wysun-only` instala `~/.local/bin/wysun-player` y `wysun-player.desktop`, pero no cambia aplicaciones predeterminadas ni instala
 dependencias. La instalación completa añade `python3-pyside6.qtopengl` y `python3-pyside6.qtopenglwidgets` (render por GPU) y fija
 Wysun Player como predeterminado de sus tipos de imagen, video y audio en `~/.config/mimeapps.list`, conservando lo anterior como
-alternativa; `dotifails restore ID` lo deshace. `dotifails doctor` avisa si falta OpenGL (el reproductor usa entonces el render por
+alternativa; `wysun-install restore ID` lo deshace. `wysun doctor` avisa si falta OpenGL (el reproductor usa entonces el render por
 software). Ver `docs/player.md`.
 
 ## Mantenimiento y validación

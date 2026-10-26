@@ -1,13 +1,13 @@
 # Wysun Recorder
 
-Fuente integrada de Wysun Recorder dentro de `dotifails`. El instalador común (`./instalar.sh --wysun-only` desde la raíz) lo actualiza con el resto de Wysun.
+Fuente integrada de Wysun Recorder dentro de este repositorio. El instalador común (`./instalar.sh --wysun-only` desde la raíz) lo actualiza con el resto de Wysun.
 
 Wysun Screenshot (`wybieshot`) se retiró: las capturas de pantalla las hace el shell (`apps/shell/modules/areapicker`) y `wysun screenshot` redirige allí. Las menciones a Screenshot que quedan más abajo describen la app anterior y son solo históricas. No ejecutar los instaladores históricos de `scripts/` para actualizar esta distribución.
 
-El paquete `loomrec` y su directorio privado se conservan por compatibilidad. La fuente original de `loom` queda como copia histórica; no es necesaria para instalar o ejecutar Wysun.
+El paquete es `wysun_recorder` (`python3 -m wysun_recorder`, lanzador `wysun-recorder`); sus datos viven en `~/.local/share/wysun/recorder`. La fuente original de `loom` queda como copia histórica; no es necesaria para instalar o ejecutar Wysun.
 
 - **Grabar** es cosa del shell: `wysun-shell record [start|toggle|pause|stop]` abre el selector de `apps/shell/modules/areapicker` (modo `record`: ventana, región o pantalla, con el mismo nodo y cuerdas que la captura), la barra de opciones (micrófono, audio del sistema, cursor; se recuerdan), la cuenta atrás y el HUD de `apps/shell/modules/recorder` (tiempo, pausa y stop, siempre fuera del área grabada). El estado y los controles llegan al panel de utilidades por `services/Recorder.qml`.
-- `wysun recorder`: ventana de **biblioteca, reproductor básico y ajustes** (`loomrec/ui/app_*.py`, mismo patrón que Music y Files: ventana de cristal sin marco, navegación a la izquierda y un panel elevado). `--quick-record` y `--record` solo llaman a `wysun-shell record start`. El editor se retiró.
+- `wysun recorder`: ventana de **biblioteca, reproductor básico y ajustes** (`wysun_recorder/ui/app_*.py`, mismo patrón que Music y Files: ventana de cristal sin marco, navegación a la izquierda y un panel elevado). `--quick-record` y `--record` solo llaman a `wysun-shell record start`. El editor se retiró.
 - Sin ventana: `wysun recorder --start JSON` (arranca el worker y devuelve la carpeta del proyecto), `--prefs`, `--set-pref CLAVE VALOR`, `--status|--pause|--resume|--stop DIR`, `--notify-when-ready DIR`.
 - El puente PipeWire (`pipewire_bridge.py`) no pone framerate en las caps (PipeWire 1.4 renegocia al segundo y el stream muere con `unhandled format`) y escribe a FFmpeg desde un hilo con una cola corta, para devolver siempre los búferes a XDPH aunque FFmpeg vaya lento. El worker reabre la fuente si aun así cae (máx. 3 veces por minuto).
 - Pruebas de esta carpeta: `python3 run_tests.py` (HOME y XDG temporales).
@@ -93,7 +93,7 @@ también audio/vídeo correlacionados y cancelación durante el arranque.
 No acredita permisos humanos, login, dispositivos o desbloqueo físicos.
 No afirmar compatibilidad completa
 ni trasladar los resultados históricos X11 a Wayland. Datos, sockets, proyectos,
-formatos y fuentes originales mantienen sus namespaces loomrec/wybieshot.
+formatos y fuentes originales mantienen sus namespaces wysun_recorder/wybieshot.
 
 # Wysun Recorder — local Linux recorder
 
@@ -114,10 +114,10 @@ the controls may appear in the captured area. Opening an entry never sends captu
 or renders its active sources. Finished recordings open the player. Missing media and mpv
 failures remain visible as an error dialog or in the job strip.
 
-`loomrec --quick-record`
+`wysun-recorder --quick-record`
 opens only the compact bottom capture bar on the current monitor/desktop; the managed
 `Super+Shift+l` binding uses this explicit command. `--record` remains the full setup view
-for compatibility. Package names, project locations and `loomrec.desktop` remain unchanged.
+for compatibility. The desktop entry is `wysun-recorder.desktop`.
 
 The bar shares real monitor, region, camera, microphone/system audio, gains, quality and
 countdown settings with the full UI. Escape or the close button cancels a pending countdown.
@@ -141,8 +141,8 @@ playback by the UI. Wayland uses the portal backend described above; the followi
 ```sh
 python -m venv --system-site-packages .venv
 .venv/bin/pip install -e .
-.venv/bin/python -m loomrec
-.venv/bin/python -m loomrec --devices
+.venv/bin/python -m wysun_recorder
+.venv/bin/python -m wysun_recorder --devices
 python -m unittest discover -s tests -v
 ```
 
@@ -171,7 +171,7 @@ recording quality or permissions.
 The controller starts an independent recorder process. Closing the UI does not implicitly
 stop it. Pause finalizes the current Matroska segment, resume starts another, and stop
 finalizes and saves the project. Reopen an active project to reattach controls, or use
-`python -m loomrec --status|--pause|--resume|--stop /path/to/project` from another terminal.
+`python -m wysun_recorder --status|--pause|--resume|--stop /path/to/project` from another terminal.
 Live rewind finalizes a segment, removes the latest requested
 timeline seconds without deleting sources, then resumes if recording was active. All inputs use the same epoch timestamp origin; native X11 capture timestamps and
 Pulse latency-corrected timestamps are preserved. Audio is resampled against that timeline.
@@ -186,7 +186,7 @@ and per-segment logs. If the worker is killed, FFmpeg receives SIGINT to finaliz
 To recover after an interruption:
 
 ```sh
-python -m loomrec --recover /path/to/project-directory
+python -m wysun_recorder --recover /path/to/project-directory
 ```
 
 Recovery refuses while a recorder owns the project lock, remuxes recoverable segments to
@@ -226,7 +226,7 @@ clip-based, not a frame-accurate ETA. Preview uses the same renderer.
 | Schema/atomic edits | Yes | Deterministic round-trip, ranges, path escape, invalid rectangle/NaN tests |
 | X11 region capture | Yes | Real owned opaque region and full 1920×1080 fixture; mapped geometry and topmost stack checked before capture |
 | Live rewind | Yes | Real synthetic capture removed exactly 2.0 timeline seconds while preserving originals and continuing capture |
-| Installer | Installed and verified | Canonical source: this checkout (`apps/recorder/`); installed launcher `~/.local/bin/loomrec`, desktop entry and Wysun catalog verified. Temporary-root removal tests preserve recordings/settings/modified files |
+| Installer | Installed and verified | Canonical source: this checkout (`apps/recorder/`); installed launcher `~/.local/bin/wysun_recorder`, desktop entry and Wysun catalog verified. Temporary-root removal tests preserve recordings/settings/modified files |
 | Pause/resume | Yes | Latest full-monitor test: two real segments, 8.033s assembled duration; paused interval excluded |
 | Separate audio | Yes | Dual synthetic Pulse tracks and independent mic-only/system-only capture; physical mic sound not sampled |
 | A/V sync | Yes, tested condition | Latest full-monitor test: source1 +10…20ms, resumed source +37…57ms, export +10…57ms including splice, 1Hz flash/880Hz pulses; tolerance80ms. Prior167ms/83ms failures led to native-clock/common-in-point fixes |
@@ -258,7 +258,7 @@ Capture controls are intentionally hidden to avoid appearing in the recording. W
 application is running, conflict-checked global keys are `Super+Ctrl+Shift` plus `r` (setup/
 start when ready), `p` (pause/resume), `s` (stop/edit), `c` (stop/trash), `z` (rewind10s) or
 `i` (pause/show state). Controls fail closed if another application owns a key. Override action chords in
-`$XDG_CONFIG_HOME/loomrec/shortcuts.json` (default `~/.config/wysun/recorder/shortcuts.json`),
+`$XDG_CONFIG_HOME/wysun_recorder/shortcuts.json` (default `~/.config/wysun/recorder/shortcuts.json`),
 for example `{"pause":"Super+Ctrl+Shift+x"}`. Actions are `record`, `pause`, `stop`,
 `cancel`, `rewind`, `status`; Ctrl+Alt+Fn is rejected to protect virtual-terminal shortcuts. Real region
 capture verified that main window, selector and tray were hidden before capture.
@@ -318,13 +318,13 @@ choices here are local-only storage, editable source tracks, recoverable segment
 explicit visible-window semantics and no-overwrite exports. Our controls are **not**
 automatically excluded from a screen crop, unlike the referenced Loom behavior.
 
-Final deployment: source and installed Python files match; SXHKD launch binding was appended with an exact backup and verified reload, without modifying dotifails source. Final bounded offscreen suite: **37 tests passed in 3.608s**, including isolated UI state, installer preservation, and media pixel/audio assertions. Physical camera/microphone sound, local ASR (executable/model absent), and long sessions remain unverified.
+Final deployment: source and installed Python files match; SXHKD launch binding was appended with an exact backup and verified reload, without modifying the repository source. Final bounded offscreen suite: **37 tests passed in 3.608s**, including isolated UI state, installer preservation, and media pixel/audio assertions. Physical camera/microphone sound, local ASR (executable/model absent), and long sessions remain unverified.
 
 
 ### Fluent Soft redesign validation
 
 The native UI follows the Wysun theme (wysun_core, shipped inside the release); no Wysun
-configuration is changed. Motion preferences come from `ORBIT_REDUCED_MOTION` or
+configuration is changed. Motion preferences come from `WYSUN_REDUCED_MOTION` or
 `reduced_motion` in Wysun's `appearance.json` (wysun_core.appearance), with the Qt
 animation-duration preference also respected.
 Hover transitions last170ms when enabled; there are no repeating recording animations.
@@ -340,7 +340,7 @@ constitute a new long-session or physical microphone/camera validation.
 Post-redesign bounded physical UI proof: an owned opaque synthetic region passed actual drag selection, countdown, global pause/resume/stop, two finalized clips, and uniform decoded pixels with no visible controls. Final focused visual tests passed8/8 after the UI freeze. The persistent versioned installer retains previous code directories while atomically switching the managed launcher to the redesigned bundle; an existing active capture is never stopped or inspected for media content.
 
 
-Versioned upgrades keep previously installed code, including the legacy `loomrec/app`
+Versioned upgrades keep previously installed code, including the legacy `wysun_recorder/app`
 directory, intact. Uninstall removes unchanged owned files but retains code directories
 used by live Loom processes; rerun uninstall after those processes exit to remove them.
 Media/settings remain separate and are never removed. No installer-managed launcher
@@ -390,7 +390,7 @@ waits for process exit before claiming that device. Input format is negotiated b
 V4L2. Busy, missing and permission failures remain visible.
 
 The 0–30 second countdown is shared by quick/full setup and saved in
-`$XDG_CONFIG_HOME/loomrec/capture-ui.json`. A large centered number and Escape/cancel
+`$XDG_CONFIG_HOME/wysun_recorder/capture-ui.json`. A large centered number and Escape/cancel
 button appear before capture. The countdown, preview and source controls are hidden
 before the existing 500 ms compositor settling interval; zero seconds still waits
 for camera release.
@@ -532,7 +532,7 @@ Estos efectos no se presentan como una capacidad exclusiva de Wybie.
 ### MP4 automático al detener
 
 Las grabaciones nuevas preparan un MP4 automáticamente al pulsar **Detener**,
-también al usar `loomrec --stop DIRECTORIO_PROYECTO` sin la interfaz abierta.
+también al usar `wysun_recorder --stop DIRECTORIO_PROYECTO` sin la interfaz abierta.
 Primero se finalizan los segmentos originales; un proceso separado prepara el
 MP4 con la misma ruta de renderizado, calidad nativa, mezcla de audio y efectos
 que la vista previa. La interfaz muestra **Preparando MP4**, progreso y después

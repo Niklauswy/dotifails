@@ -2,7 +2,7 @@
 
 El historial forma parte del lanzador existente: misma ventana de 860 × 550
 (adaptada al espacio disponible), tema, búsqueda, botones, animación y navegación
-inferior. `orbit clipboard` y Alt+2 abren esa página, sin una ventana independiente.
+inferior. `wysun clipboard` y Alt+2 abren esa página, sin una ventana independiente.
 Alt+1 vuelve a Inicio; Esc limpia la búsqueda o vuelve a Inicio antes de cerrar.
 
 La lista usa el mismo delegado de filas del lanzador y muestra el detalle a la

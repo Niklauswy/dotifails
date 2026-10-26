@@ -1,6 +1,6 @@
 # Wysun PDF
 
-Lector local de Linux en `apps/wysun/pdf_*`, construido sobre el kit compartido `wysun_core.ui`
+Lector local de Linux en `apps/python/pdf_*`, construido sobre el kit compartido `wysun_core.ui`
 (controles, paneles, toasts, ventana sin bordes) y los tokens del tema, como Files y Music. Sigue en vivo el modo y los colores del
 wallpaper. Se abre con `wysun pdf [archivo.pdf ...]`, desde la entrada **Wysun PDF** de aplicaciones o
 arrastrando un PDF a la ventana. Cada documento abre su propia ventana. No registra una asociación
@@ -101,7 +101,7 @@ no existe recuperación automática de anotaciones sin guardar.
 
 PySide6 ya forma parte de Wysun. El motor adicional es **PyMuPDF**, paquete Debian
 `python3-fitz`, declarado en los componentes desktop y wayland del manifiesto.
-`--orbit-only` despliega código y entrada de aplicaciones, pero no instala esta
+`--wysun-only` despliega código y entrada de aplicaciones, pero no instala esta
 dependencia. Si falta, el lector lo comunica antes de arrancar. Si el paquete del sistema no está disponible, el lector también admite un venv
 con PyMuPDF en `$XDG_DATA_HOME/wysun/pdf-runtime`: lo selecciona al arrancar. Se crea sin tocar
 el sistema:
@@ -149,10 +149,10 @@ La ruta pública `wysun pdf`, el wrapper `wysun-pdf` y la entrada
 indexa esa entrada como cualquier aplicación; no requiere plugin QML/C++ nuevo.
 
 1. Instalar `python3-fitz` con el gestor de paquetes, con autorización explícita
-   para modificar dependencias del host. No lo hace `--orbit-only`.
-2. Desde este checkout, ejecutar `./instalar.sh --orbit-only` y revisar que no
+   para modificar dependencias del host. No lo hace `--wysun-only`.
+2. Desde este checkout, ejecutar `./instalar.sh --wysun-only` y revisar que no
    haya conflictos. El instalador crea los respaldos correspondientes.
-3. Ejecutar `~/.local/bin/orbit reload` en la sesión gráfica.
+3. Ejecutar `wysun reload` en la sesión gráfica.
 4. Abrir **Wysun PDF** desde el lanzador y probar `wysun pdf /ruta/documento.pdf`;
    crear una anotación, guardar una copia y reabrirla.
 

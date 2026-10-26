@@ -2,7 +2,7 @@
 
 Settings → Displays → **Widgets on** selects **All displays** or **Primary display**.
 Existing installations retain all displays until this preference is changed. The value is
-`displays.widgetScreens` (`all` or `primary`) in the user's `orbit/environment.json`.
+`displays.widgetScreens` (`all` or `primary`) in the user's `wysun/environment.json`.
 
 The primary output comes from the saved display profile, never from keyboard focus.
 If that output disconnects, selection falls back to an available output. Reconnecting

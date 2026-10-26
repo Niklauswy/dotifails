@@ -21,22 +21,22 @@ No expanden texto globalmente mientras escribes en otras aplicaciones.
 ## Datos y privacidad
 
 El historial comienza con las nuevas copias; no importa el historial de otras herramientas.
-Se almacena localmente en `~/.local/share/orbit/orbit.sqlite3` con permisos 600, directorio 700.
+Se almacena localmente en `~/.local/share/wysun/wysun.sqlite3` con permisos 600, directorio 700.
 Retención: 7 días y 200 elementos recientes. Hasta 50 elementos fijados quedan fuera de la caducidad. Las imágenes no fijadas se purgan cuando el conjunto supera 64 MB. Texto máximo 64 KB, imagen comprimida máximo 4 MB.
 No hay telemetría, cuentas ni sincronización. Las búsquedas web solo salen a Internet al seleccionarlas. Para mostrar iconos de enlaces HTTPS, Wysun puede consultar `/favicon.ico` directamente en el dominio público del enlace, sin enviar su ruta ni parámetros. No consulta servicios externos de favicons.
 Se excluyen formatos de gestores de contraseñas y patrones reconocibles de claves; no es un detector infalible.
 Pausa el historial con el botón inferior antes de copiar información sensible. Clic derecho en «Historial activo» o el comando «Opciones del historial» permite administrar y borrar el historial.
 
 La búsqueda de archivos usa nombres, rutas y texto reconocido en imágenes mediante OCR local. Omite carpetas ocultas y dependencias, con un límite de 100.000 archivos. El catálogo se actualiza en segundo plano al volver a archivos después de 5 minutos. No indexa el contenido de documentos de texto, PDF ni audio.
-El índice OCR empieza al abrir Archivos, procesa primero las imágenes más recientes y continúa en segundo plano, una imagen a la vez. El botón «OCR» muestra el progreso y permite pausar/reanudar; esta preferencia se conserva. Los resultados por contenido aumentan conforme avanza el índice. Las miniaturas y el texto se guardan con permisos privados en `~/.local/share/orbit/file-media.sqlite3`; se invalidan si cambia o desaparece el archivo. No se envían imágenes a servicios externos. Se omiten SVG, imágenes excesivamente grandes, formatos no decodificables y texto con patrones reconocibles de secretos.
+El índice OCR empieza al abrir Archivos, procesa primero las imágenes más recientes y continúa en segundo plano, una imagen a la vez. El botón «OCR» muestra el progreso y permite pausar/reanudar; esta preferencia se conserva. Los resultados por contenido aumentan conforme avanza el índice. Las miniaturas y el texto se guardan con permisos privados en `~/.local/share/wysun/file-media.sqlite3`; se invalidan si cambia o desaparece el archivo. No se envían imágenes a servicios externos. Se omiten SVG, imágenes excesivamente grandes, formatos no decodificables y texto con patrones reconocibles de secretos.
 Las vistas previas de documentos leen únicamente el archivo seleccionado. PDF y vídeo usan Poppler y FFmpeg locales; la reproducción integrada utiliza mpv y comienza en pausa.
 
 ## Operación
 
-`~/.local/bin/orbit` activa el proceso residente por un socket privado. No arranca otro intérprete Qt en cada atajo.
-`~/.local/bin/orbit daemon` inicia el residente sin mostrarlo. La sesión de Wysun lo inicia al entrar.
-Registro: `~/.local/state/orbit.log`.
-Código instalado: `~/.local/share/orbit/app/`. Dependencias: Python 3, PySide6 Core/Gui/Widgets, Gio, Hyprland; Poppler/FFmpeg para vistas previas, mpv para reproducción y Tesseract para OCR.
+`wysun` activa el proceso residente por un socket privado. No arranca otro intérprete Qt en cada atajo.
+`wysun daemon` inicia el residente sin mostrarlo. La sesión de Wysun lo inicia al entrar.
+Registro: `~/.local/state/wysun.log`.
+Código instalado: `~/.local/share/wysun/app/`. Dependencias: Python 3, PySide6 Core/Gui/Widgets, Gio, Hyprland; Poppler/FFmpeg para vistas previas, mpv para reproducción y Tesseract para OCR.
 
 La barra muestra espacios de trabajo, red, volumen, batería, fecha y notificaciones.
 **Super + F** alterna pantalla completa y el estado anterior de la ventana.
@@ -45,8 +45,8 @@ transparente. Vuelve al salir o cambiar a un escritorio sin pantalla completa;
 las barras de los otros monitores siguen visibles. Funciona también con F11 en aplicaciones.
 `desktop-bar` inicia el controlador `bar_visibility.py` una sola vez por sesión gráfica.
 Icono inicial: abre Wysun; clic derecho: historial. Campana: última notificación; clic derecho: pausa/reanuda.
-Los cambios del instalador tienen respaldo en `~/.local/state/dotifails/backups/`.
-Usa `dotifails restore` para listar respaldos y `dotifails restore ID` para recuperar uno.
+Los cambios del instalador tienen respaldo en `~/.local/state/wysun/install/backups/`.
+Usa `wysun-install restore` para listar respaldos y `wysun-install restore ID` para recuperar uno.
 
 ## Validación
 
@@ -64,13 +64,13 @@ Usa `dotifails restore` para listar respaldos y `dotifails restore ID` para recu
 - **Super + N**: panel nativo de Wi-Fi, interfaces y conexiones VPN. La contraseña, cuando se necesita, se solicita en un campo oculto y no se guarda en el historial de Wysun.
 - **Super + X**: panel compacto de sesión y energía, con hora local, fecha en español y tiempo encendido del equipo (días, horas y minutos). Se actualiza mientras está abierto. Flechas o Tab seleccionan; Enter (también numérico) o Espacio activan la opción enfocada. Reiniciar, apagar, suspender y cerrar sesión requieren confirmación en la interfaz. Esc cancela o cierra.
 
-El botón **Bloquear** usa `i3lock`, incluido en las dependencias del instalador. El fondo de Wysun se genera para los monitores conectados, sin capturar contenido del escritorio. El instalador compila una variante nativa de i3lock 2.15 para Wysun: fondo sin rótulos, entrada suave, pulso por tecla, señal ámbar al borrar, reacción al error y salida con un visto bueno y fundido de 280 ms. La salida se activa después de autenticar y mantiene el teclado y ratón bloqueados hasta el último fotograma. Respeta la preferencia de reducir movimiento. Escribe la contraseña de tu cuenta y pulsa Enter para desbloquear; la autenticación y el bloqueo de teclado y ratón los realiza i3lock. El panel solo se cierra cuando el bloqueador confirma que adquirió la sesión. Si falta el ejecutable o falla el inicio, muestra el error y permanece abierto. Las dependencias de compilación están en el manifiesto del instalador. La actualización `--orbit-only` compila con las dependencias ya instaladas, pero no instala paquetes: en un escritorio existente que aún no tenga el bloqueador, instala `sudo apt install i3lock` antes de usarlo.
+El botón **Bloquear** usa `i3lock`, incluido en las dependencias del instalador. El fondo de Wysun se genera para los monitores conectados, sin capturar contenido del escritorio. El instalador compila una variante nativa de i3lock 2.15 para Wysun: fondo sin rótulos, entrada suave, pulso por tecla, señal ámbar al borrar, reacción al error y salida con un visto bueno y fundido de 280 ms. La salida se activa después de autenticar y mantiene el teclado y ratón bloqueados hasta el último fotograma. Respeta la preferencia de reducir movimiento. Escribe la contraseña de tu cuenta y pulsa Enter para desbloquear; la autenticación y el bloqueo de teclado y ratón los realiza i3lock. El panel solo se cierra cuando el bloqueador confirma que adquirió la sesión. Si falta el ejecutable o falla el inicio, muestra el error y permanece abierto. Las dependencias de compilación están en el manifiesto del instalador. La actualización `--wysun-only` compila con las dependencias ya instaladas, pero no instala paquetes: en un escritorio existente que aún no tenga el bloqueador, instala `sudo apt install i3lock` antes de usarlo.
 - Alt + Tab abre el overview de escritorios (igual que Super + Tab).
 - Barra flotante en tres secciones. Recursos abre información de sistema; red abre conexiones; clic derecho en volumen abre las salidas de audio; fecha abre calendario; campana abre notificaciones y clic derecho pausa los avisos.
 
 `python3 -m unittest tests.wysun_app.test_launcher_enhanced` valida además migración, colores sin prefijo, OCR real, cuadrícula de emojis a color, filtros, acciones y cancelación de apagado. Las pruebas de red son de consulta; no desconectan el equipo. Las conexiones nuevas y el bloqueo/suspensión dependen de NetworkManager, Polkit y el bloqueador del sistema.
 
-Los archivos de imagen que abres desde el historial se materializan en `~/.cache/orbit/opened/`, con permisos privados; los temporales de más de un día se limpian al volver a abrir una imagen.
+Los archivos de imagen que abres desde el historial se materializan en `~/.cache/wysun/opened/`, con permisos privados; los temporales de más de un día se limpian al volver a abrir una imagen.
 
 
 ## Versión 3 · aplicaciones del escritorio
@@ -98,13 +98,13 @@ Los menús muestran acciones del elemento actual. Imágenes: copiar, pegar, guar
 - Wi-Fi y Ethernet: activar/desactivar Wi-Fi, actualizar redes, conectar/desconectar, red oculta y detalles de la conexión activa.
 - Bluetooth: estado del adaptador, dispositivos guardados/cercanos, búsqueda limitada a 12 segundos, emparejar, conectar, desconectar, confiar y olvidar. Los PIN y confirmaciones se solicitan en la interfaz; las contraseñas no se pasan como argumentos ni se registran en Wysun.
 - VPN y Guardadas: conectar/desconectar perfiles, activar conexión automática, olvidar y abrir el editor de NetworkManager para IP, DNS, seguridad y nuevas VPN.
-- SSH: importar alias de `~/.ssh/config` y archivos Include, crear/editar/eliminar perfiles propios y abrir una terminal OpenSSH. Los perfiles propios se guardan en `~/.config/orbit/ssh.json` con permisos 600. No guarda contraseñas ni claves privadas. SSH usa su configuración y verificación de servidor habituales. La vista de alias no evalúa `Match exec`; la conexión real la realiza OpenSSH.
+- SSH: importar alias de `~/.ssh/config` y archivos Include, crear/editar/eliminar perfiles propios y abrir una terminal OpenSSH. Los perfiles propios se guardan en `~/.config/wysun/ssh.json` con permisos 600. No guarda contraseñas ni claves privadas. SSH usa su configuración y verificación de servidor habituales. La vista de alias no evalúa `Match exec`; la conexión real la realiza OpenSSH.
 
 Las operaciones se ejecutan únicamente al activarlas desde la interfaz. Las pruebas automatizadas consultan servicios y validan la construcción de comandos; no conectan a servidores ni cambian la red o el emparejamiento de dispositivos.
 
 ### Vim
 
-Archivos de texto y código seleccionados en Wysun se abren con Neovim (Vim como alternativa) en Ghostty. «Abrir con la aplicación predeterminada» sigue disponible en Acciones. Las rutas se pasan como argumentos separados, incluyendo espacios y caracteres especiales. El texto del historial se abre como copia privada en `~/.cache/orbit/editor/`; editar esa copia no modifica el historial original. Estos archivos de trabajo se conservan hasta que los elimines.
+Archivos de texto y código seleccionados en Wysun se abren con Neovim (Vim como alternativa) en Ghostty. «Abrir con la aplicación predeterminada» sigue disponible en Acciones. Las rutas se pasan como argumentos separados, incluyendo espacios y caracteres especiales. El texto del historial se abre como copia privada en `~/.cache/wysun/editor/`; editar esa copia no modifica el historial original. Estos archivos de trabajo se conservan hasta que los elimines.
 
 ### Ajustes del escritorio
 
@@ -114,7 +114,7 @@ Archivos de texto y código seleccionados en Wysun se abren con Neovim (Vim como
 - Ventanas: crear, editar y quitar reglas por clase, estado, escritorio, centrado y borde. Se aplican a ventanas nuevas.
 - Copias y archivos: abrir la configuración de Hyprland y sus ajustes en Vim; restaurar copias de atajos o ajustes.
 
-Los cambios de Hyprland requieren «Aplicar cambios» y se aplican en vivo mediante `hyprctl`. Se conservan copias en `~/.local/share/orbit/settings-backups/`. Los ajustes persisten en `~/.config/orbit/hypr-desktop.json` y `hypr-settings.lua`; los atajos en `hypr-shortcuts.json` y `hypr-shortcuts.lua`. Un error al aplicar revierte los valores modificados en esa operación. «Recargar» descarta lo no aplicado y lee los archivos actuales.
+Los cambios de Hyprland requieren «Aplicar cambios» y se aplican en vivo mediante `hyprctl`. Se conservan copias en `~/.local/share/wysun/settings-backups/`. Los ajustes persisten en `~/.config/wysun/hypr-desktop.json` y `hypr-settings.lua`; los atajos en `hypr-shortcuts.json` y `hypr-shortcuts.lua`. Un error al aplicar revierte los valores modificados en esa operación. «Recargar» descarta lo no aplicado y lee los archivos actuales.
 
 ### Verificación v3
 
@@ -148,7 +148,7 @@ Conectar/desconectar, editar, confiar, olvidar, configurar IP/DNS y conexión au
 
 Con un catálogo real de 43.045 archivos, la preparación de la lista pasó de 1,68–1,71 s a 17–30 ms al construir solo los 200 resultados visibles. Esta medición corresponde al render de la lista, no a la indexación inicial ni al reconocimiento OCR.
 
-Copia anterior a esta versión: `~/.local/share/orbit-v4-backup-20260925-032042/source/`.
+Copia anterior a esta versión: `~/.local/share/wysun-v4-backup-20260925-032042/source/`.
 
 ## Wysun Settings
 
@@ -167,7 +167,7 @@ abren directamente Displays, Workspaces y Wallpaper & style.
 - Wallpaper & style, Network, Connected devices, Audio, Panels, Apps, Services, Language & region
   y About conservan sus páginas nativas. Las preferencias del shell viven en
   `~/.config/wysun/shell/shell.json`; los perfiles de monitores y workspaces en
-  `~/.config/orbit/environment.json` y los fragmentos `hypr-monitors.lua` / `hypr-workspaces.lua`.
+  `~/.config/wysun/environment.json` y los fragmentos `hypr-monitors.lua` / `hypr-workspaces.lua`.
 
 Se retiraron la sección Escritorio y las páginas Terminal, Notificaciones, Inicio, Archivos y copias,
 Efectos, Ventanas y reglas, Atajos, SSH y Processes. Sus antiguas rutas de Settings ya no abren páginas.
@@ -194,7 +194,7 @@ La CPU del equipo usa la capacidad total; la CPU por proceso cuenta núcleos y p
 
 Los paneles comparten cristal oscuro con fondo al 80%, borde de luz y texto opaco. El compositor aplica el desenfoque de fondo a las superficies ARGB según sus reglas de decoración. Qt anima las entradas (240 ms / 12 px) y salidas (140 ms / 6 px). Las pulsaciones usan escala 0.96; cambiar de sección desvanece el contenido durante 140 ms. Las acciones que entregan el foco, como pegar, se ocultan inmediatamente.
 
-En **Ajustes → Efectos y animaciones** puedes cambiar la opacidad (65–100%) y reducir movimiento. Se guardan aparte del código, en `~/.config/orbit/appearance.json`. `ORBIT_REDUCED_MOTION=1` también desactiva el movimiento. El blur requiere el compositor activo; las pruebas offscreen verifican el canal alfa, no el desenfoque real del compositor.
+En **Ajustes → Efectos y animaciones** puedes cambiar la opacidad (65–100%) y reducir movimiento. Se guardan aparte del código, en `~/.config/wysun/appearance.json`. `WYSUN_REDUCED_MOTION=1` también desactiva el movimiento. El blur requiere el compositor activo; las pruebas offscreen verifican el canal alfa, no el desenfoque real del compositor.
 
 **Super + X** muestra reloj, batería circular, autonomía estimada, consumo, salud y ciclos cuando el kernel los expone. La estimación usa energía y potencia instantáneas; los datos ausentes se indican como no disponibles. Conserva las cinco acciones, flechas, Enter y Escape.
 
@@ -206,7 +206,7 @@ Validación adicional: `QT_QPA_PLATFORM=offscreen python3 -m unittest tests.wysu
 
 En **Ajustes → Wallpaper & style** se elige el fondo con el carrusel y el modo (automático, claro u oscuro). Los colores salen del wallpaper: Wysun y sus paneles, la barra de Quickshell, las notificaciones del shell y el bloqueo animado los toman al instante. Las preferencias de opacidad y reducción de movimiento se conservan. Las ventanas abiertas detectan los cambios y actualizan estilos e iconos.
 
-Antes de escribir se guarda un respaldo en `~/.local/state/orbit/theme-backups/`. Si falla la validación de Ghostty o la aplicación principal, se restauran los archivos anteriores. No se reemplazan fuentes, tamaños, atajos, conexiones, notas o historial. Los nombres de los temas fijos retirados (`tokyo`, `severance`, `azul`…) solo se entienden en `WYSUN_THEME` como `dark`.
+Antes de escribir se guarda un respaldo en `~/.local/state/wysun/theme-backups/`. Si falla la validación de Ghostty o la aplicación principal, se restauran los archivos anteriores. No se reemplazan fuentes, tamaños, atajos, conexiones, notas o historial. Los nombres de los temas fijos retirados (`tokyo`, `severance`, `azul`…) solo se entienden en `WYSUN_THEME` como `dark`.
 
 Las notificaciones mantienen una apariencia neutra en todos los temas: grafito translúcido, texto claro y borde gris. Sus colores no cambian con el tema. Settings ofrece Displays y Workspaces como entradas principales, junto con las preferencias nativas de Nexus.
 
@@ -226,9 +226,9 @@ Portadas: Spotify oEmbed. Letras: LRCLIB, sincronizadas solo si coinciden títul
 
 Descargas permite continuar, pausar la cola y reintentar errores, con detalles opcionales. El botón de descarga de la cabecera admite nombres, enlaces de YouTube y enlaces públicos de playlists, álbumes o canciones de Spotify. Se lee la metadata publicada por Spotify y se busca audio en YouTube; Spotify no suministra el archivo de audio. Una vista pública puede limitar la lista o no exponer listas privadas; la interfaz indica cuántas canciones se publicaron. Se reutilizan IDs de Spotify, enlaces de YouTube y grabaciones con título, artista y duración coincidentes (hasta dos segundos). Las importaciones de Spotify y variantes de audio exigen esa misma tolerancia antes y después de la descarga; las incompatibles quedan para revisar. Las pistas compartidas reutilizan archivos. Versiones de audio se añaden por separado, conservando originales y validando duración; la reproducción activa no cambia de archivo a mitad de canción.
 
-Audio en `~/Music/Orbita`; biblioteca y cola en `~/.local/share/orbit/music/library.json`; favoritos, sesión, referencias y variantes en `player.sqlite3`; portadas, fotos y letras en `metadata/`. Estos datos privados están separados del código instalado. `reference-manifest.json` conserva las duraciones originales de Spotify para distinguirlas de las de un videoclip.
+Audio en `~/Music/Wysun`; biblioteca y cola en `~/.local/share/wysun/music/library.json`; favoritos, sesión, referencias y variantes en `player.sqlite3`; portadas, fotos y letras en `metadata/`. Estos datos privados están separados del código instalado. `reference-manifest.json` conserva las duraciones originales de Spotify para distinguirlas de las de un videoclip.
 
-La instalación completa incluye mpv/ffmpeg/PySide6 y yt-dlp con versión y SHA-256 fijadas. `--orbit-only` actualiza la app, los ejecutables de acceso y su icono sin reinstalar el sistema. El atajo de la configuración distribuida abre el mini reproductor.
+La instalación completa incluye mpv/ffmpeg/PySide6 y yt-dlp con versión y SHA-256 fijadas. `--wysun-only` actualiza la app, los ejecutables de acceso y su icono sin reinstalar el sistema. El atajo de la configuración distribuida abre el mini reproductor.
 
 ## Wayland nativo
 
@@ -255,7 +255,7 @@ por software); Music conserva su motor mpv de audio y persistencia. Los medios s
 Wysun Player (`wysun player`). Las pruebas offscreen usan el render por software: la ruta
 OpenGL se valida con `tests/wayland_media_case.py` sobre el compositor real.
 
-La barra se configura mediante `${XDG_CONFIG_HOME:-$HOME/.config}/orbit/hypr-bar.json`;
+La barra se configura mediante `${XDG_CONFIG_HOME:-$HOME/.config}/wysun/hypr-bar.json`;
 Quickshell la observa y Python solicita `wysun shell reload-preferences`. El tema
 actualiza los colores de ese archivo preservando geometría, módulos y monitores.
 El observador de tema Python usa eventos de archivo/directorio y contempla reemplazo

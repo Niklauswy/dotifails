@@ -1,8 +1,8 @@
 # Procedencia
 
 Código integrado desde el proyecto local `loom`, revisión `b8488d09aab4de0a47675e3d1efd92113dbf582c`.
-La fuente de desarrollo de Wysun Recorder es ahora `apps/recorder/` dentro de `dotifails`; Wysun Screenshot (`wybieshot`) se retiró en favor de la captura del shell.
-La copia de origen no se elimina ni modifica. Los nombres técnicos `loomrec` y `wybieshot` se conservan para compatibilidad con proyectos, procesos, preferencias e instaladores anteriores.
+La fuente de desarrollo de Wysun Recorder es ahora `apps/recorder/` dentro de este repositorio; Wysun Screenshot (`wybieshot`) se retiró en favor de la captura del shell.
+La copia de origen no se elimina ni modifica. El paquete pasó a llamarse `wysun_recorder`; los formatos de proyecto no cambian.
 
 ## Material presentation, 2026-10-20
 
@@ -14,7 +14,7 @@ assets/licenses/GPL-3.0.txt and corresponding source in this capture release.
 
 Navigation/surface/text/state hierarchy from modules/nexus/NavPane.qml and
 components/{StyledRect,StyledText,StateLayer}.qml is translated into
-loomrec/ui/material.py, layouts.py, components.py and settings.py, and
+wysun_recorder/ui/material.py, layouts.py, components.py and settings.py, and
 wybieshot/ui/main.py. Preview/details grouping also draws from
 modules/dashboard/Media.qml, dashboard/media/Details.qml and
 components/widgets/CoverArt.qml. These are native PySide6 translations of shell
@@ -23,4 +23,4 @@ models, portals, permission flow, projects and finalization are unchanged.
 Google Sans Flex (OFL), CaskaydiaCove NF (OFL + MIT) and Material Symbols Rounded
 (Apache-2.0) are bundled in the release's
 wysun_core/fonts, with their licenses under assets/licenses. The capture
-release reads the shared scheme independently and imports no Orbit app code.
+release reads the shared scheme independently and imports no code of the installed Wysun app.

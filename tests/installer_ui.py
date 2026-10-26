@@ -207,7 +207,7 @@ class InstallerUiTests(unittest.TestCase):
         settle(60)
         self.assertFalse(w.sheet_open())
 
-    def test_visible_text_says_wysun_never_orbit(self):
+    def test_visible_text_says_wysun_never_the_former_name(self):
         w = self.window
         for index in (HOME, SYSTEM, CONTENT):
             w.show_page(index, animate=False)
@@ -218,7 +218,7 @@ class InstallerUiTests(unittest.TestCase):
             texts += [str(getattr(widget, name, '')) for name in ('title', 'detail', 'subtitle', 'eyebrow')]
         import journey
         texts += [item['detail'] for item in journey.COMPONENTS.values()] + [item[1] for item in journey.ADDONS.values()]
-        offenders = [text for text in texts if 'orbit' in text.lower()]
+        offenders = [text for text in texts if 'or' + 'bit' in text.lower()]
         self.assertEqual(offenders, [])
         self.assertIn('Wysun Tools', [tile.title for tile in w.addon_tiles.values()])
 

@@ -4,9 +4,8 @@ Entorno de escritorio personal sobre **Hyprland (Wayland)**: shell en Quickshell
 (PySide6), captura de pantalla/vídeo, instalador reversible y sesión registrada de forma independiente. Este documento es la
 referencia para quien modifique el repositorio (atajos, lanzador, Ajustes, tema).
 
-Nombres visibles: **Wysun**, **Wysun Recorder**, **Wysun Settings**. Las identidades técnicas heredadas de
-Orbit (`orbit`, `~/.local/share/orbit`, `orbit-files.desktop`, sockets `orbit-*.sock`) se conservan por compatibilidad con datos y
-atajos existentes (sección 7). El código derivado del shell GPL-3.0 de terceros conserva créditos en `THIRD_PARTY.md`,
+Nombres visibles: **Wysun**, **Wysun Recorder**, **Wysun Settings**. Wysun es también el único nombre técnico: comandos,
+paquetes, rutas, sockets, variables y desktop ids (sección 7). El código derivado del shell GPL-3.0 de terceros conserva créditos en `THIRD_PARTY.md`,
 `apps/shell/LICENSE` y `apps/shell/UPSTREAM.json`; ningún identificador de ejecución depende ya de ese proyecto.
 
 ## 1. Estructura del repositorio
@@ -14,9 +13,11 @@ atajos existentes (sección 7). El código derivado del shell GPL-3.0 de tercero
 ```
 apps/
   shell/        Shell Quickshell (QML) + plugin C++ `Wysun.*`        → ~/.local/share/wysun/quickshell
-  wysun/        Apps Qt/PySide6 (Music, Files, Player) y backends de datos que usa el shell → ~/.local/share/orbit/app
-  capture/      Wysun Recorder (loomrec/)                             → ~/.local/share/wysun/capture/releases/<hash>
-  tools/        `orbit-tools` (dev, audit, share, cloud, vpn, resets) → ~/.local/share/orbit/tools
+  python/       Raíz de paquetes Python (un paquete por app, nada suelto)  → ~/.local/share/wysun/app
+                wysun_core, wysun_music, wysun_files, wysun_media, wysun_player, wysun_pdf,
+                wysun_settings, wysun_services (backends del shell y residente), vendor/
+  recorder/     Wysun Recorder (paquete wysun_recorder)              → ~/.local/share/wysun/capture/releases/<hash>
+  tools/        `wysun-tools` (dev, audit, share, cloud, vpn, resets) → ~/.local/share/wysun/tools
 bin/            Lanzadores públicos (wysun, wysun-shell, wysun-session, wysun-lock, wysun-wm, …) → ~/.local/bin
 config/         Configuración GENERAL (dotfiles): .config/{wysun,ghostty,nvim,gtk-*,…}, .local/{bin,share/applications,icons}
 machines/       Perfiles opcionales por equipo (p. ej. samsung-touchscreen.sh); nunca se aplican por defecto
@@ -38,7 +39,7 @@ detectan por huella y se guardan como `incoming/`).
 | Hyprland 0.55.x | Compositor, configuración Lua `~/.config/wysun/hyprland.lua` (de `config/.config/wysun/hyprland.lua`) | `wysun-session` (sesión “Wysun / Hyprland”) |
 | `wysun-session-services` | Supervisor: `wysun-shell`, `wysun-idle` (swayidle configurable: bloqueo/pantalla), `wysun daemon`, polkit | Hyprland `exec` |
 | Shell (`wysun-shell` → `runtime.sh` → Quickshell) | Barra, dashboard, lanzador QML, menús, notificaciones (vista), OSD, sesión, fondos | supervisor |
-| `wysun daemon` (`orbit.py --daemon`) | Residente Qt sin ventanas: registra el historial del portapapeles y reenvía comandos; socket `$XDG_RUNTIME_DIR/orbit-<uid>.sock`. El lanzador, Colors, Processes y Settings son del shell; Music y Files son procesos propios | supervisor |
+| `wysun daemon` (`python3 -m wysun_services.daemon`) | Residente Qt sin ventanas: registra el historial del portapapeles y reenvía comandos; socket `$XDG_RUNTIME_DIR/wysun-daemon-<uid>.sock`. El lanzador, Colors, Processes y Settings son del shell; Music y Files son procesos propios | supervisor |
 | Shell (Quickshell) | Único dueño de D-Bus de notificaciones (`NotificationServer` en `apps/shell/services/Notifs.qml`); No molestar: `wysun-shell dnd on\|off\|toggle\|status` | supervisor |
 | Apps (Music, Files, Player, Recorder) | Ventanas Qt bajo demanda (`wysun <modo>`), cada una en su proceso | usuario |
 
@@ -98,48 +99,54 @@ detectan por huella y se guardan como `incoming/`).
   con el límite más ajustado. Fuera del panel se refresca cada `backgroundInterval` y avisa con `notify-send` una vez por ventana al
   llegar a `alertThreshold` (10 % por defecto) y otra al reiniciarse; lo ya avisado vive en `~/.local/state/wysun/ai-usage/alerts.json`.
   La última instantánea se guarda en `~/.cache/wysun/ai-usage/snapshot.json`, así el primer hover tras reiniciar ya tiene datos.
-- **Colores**: `~/.local/state/wysun/scheme.json`, producido por `wysun scheme` (`apps/wysun/wysun_scheme.py`) a partir de los
-  tokens de `apps/wysun/wysun_core/tokens.json` (las releases del Recorder lo llevan dentro de su `wysun_core`).
+- **Colores**: `~/.local/state/wysun/scheme.json`, producido por `wysun scheme` (`wysun_services.scheme`) a partir de los
+  tokens de `apps/python/wysun_core/tokens.json` (las releases del Recorder lo llevan dentro de su `wysun_core`).
   El shell los lee desde `scheme.json` (`services/Colours.qml`) y, mientras no exista, pinta la paleta base
   `palettes.<modo>.scheme` de `~/.local/share/wysun/theme/tokens.json`; `Appearance.qml` ya no existe.
 - **Tokens de forma y movimiento del shell**: el instalador (`installer/wayland.py`, `deploy_tokens`) copia
-  `apps/wysun/wysun_core/tokens.json` a `~/.local/share/wysun/theme/tokens.json`; el plugin lo lee una vez al arrancar
+  `apps/python/wysun_core/tokens.json` a `~/.local/share/wysun/theme/tokens.json`; el plugin lo lee una vez al arrancar
   (`TokenConfig`) y `plugin/src/Wysun/Config/tokens.hpp` es solo el respaldo (paridad en `tests/test_shell_tokens.py`).
   Ver `docs/themes.md`.
 
-### Aplicaciones Qt (`apps/wysun`)
+### Aplicaciones Qt (`apps/python`)
 
-El lector local **Wysun PDF** (`wysun pdf`) usa `pdf_app.py`, `pdf_window.py` y un proceso
-`pdf_engine.py` aislado para PyMuPDF; documentación y límites en `docs/pdf-reader.md`.
+El lector local **Wysun PDF** (`wysun pdf`) es el paquete `wysun_pdf` (`app`, `window` y un proceso `engine` aislado
+para PyMuPDF); documentación y límites en `docs/pdf-reader.md`.
 
-Módulos planos Python (se importan por nombre): `orbit.py` (residente del portapapeles), `music_*`, `files_*`, `player_*`, `wysun_media/`,
-`theme_*`, `wayland_clipboard`, más los backends que consume el shell (`launcher_data`, `color_data`, `environment_settings`,
-`hypr_settings`, `wysun_scheme`). `orbit-client` es el cliente ligero (socket) que invoca `bin/wysun`. Las preferencias de
-usuario viven en `~/.config/orbit/` y `~/.local/share/orbit/` (sección 7).
+`apps/python` es una raíz de paquetes: cada app se ejecuta como módulo (`python3 -P -m wysun_music`, `wysun_files`,
+`wysun_player`, `wysun_pdf`) con esa raíz en `PYTHONPATH`, que fijan los lanzadores de `bin/` (`bin/wysun` la deduce de su
+propia ubicación: `../share/wysun/app` instalado, `../apps/python` en el repositorio) y el shell (`Paths.python()` en
+`apps/shell/utils/Paths.qml`: `env PYTHONPATH=<app> python3 -s -P -m …`; `-I` no sirve porque ignora `PYTHONPATH`). Un
+proceso que lanza otro módulo usa `wysun_core.launch` (misma raíz, `-P`). Ningún código añade rutas a `sys.path`, salvo
+`wysun_services.scheme`, que pone `vendor/` (materialyoucolor) junto a los paquetes. `wysun_settings` reúne Ajustes
+(`environment`, `hypr`, `data`, `runtime`, `display_layout`, `workspace_layout`, `theme_runtime`) y `wysun_services` los
+backends del shell (`launcher_data`, `code_preview`, `process_data`, `utility_data`, `color_data`, `scheme`, `wallpaper_media`…),
+el residente (`daemon`) y su cliente (`client`). Las preferencias de usuario viven en `~/.config/wysun/` y los datos en
+`~/.local/share/wysun/` (sección 7).
 
-### Wysun Player y `wysun_media` (`apps/wysun/wysun_media`, `player_*.py`)
+### Wysun Player y `wysun_media` (`apps/python/wysun_media`, `wysun_player`)
 
 Visor único de imágenes, video y audio (`wysun player`, alias `wysun image`) y el componente reutilizable que lo implementa
 (`MediaPlayer`). Un proceso por usuario atiende todas las ventanas mientras haya alguna (socket en `$XDG_RUNTIME_DIR`); Files
 abre ahí cualquier medio y embebe el mismo componente en su panel de detalles; Recorder lo embebe en su página de reproducción.
-El paquete no importa ningún módulo del anfitrión: cada app instala un `Host` con su tema (`media_host.py` en Wysun,
-`loomrec/ui/media_host.py` en Recorder). Reproduce con libmpv (OpenGL y decodificación por hardware con copia de vuelta;
+El paquete no importa ningún módulo del anfitrión: cada app instala un `Host` con su tema (`wysun_player.host` en Wysun,
+`wysun_recorder/ui/media_host.py` en Recorder). Reproduce con libmpv (OpenGL y decodificación por hardware con copia de vuelta;
 respaldo por software), decodifica imágenes con `QImageReader` en segundo plano y publica MPRIS. Detalle, atajos, decisiones y
 diagnóstico: `docs/player.md`. `apps/recorder/wysun_media` es un enlace al mismo código y cada release de Recorder lleva su copia.
 
 ### Captura (`apps/recorder`)
 
-Paquete `loomrec` (Recorder). Se instala por **versiones inmutables** en
+Paquete `wysun_recorder` (Recorder). Se instala por **versiones inmutables** en
 `~/.local/share/wysun/capture/releases/<hash>/` con el wrapper `wysun-recorder`, que fija `PYTHONPATH` a la versión actual; no
-importa código de `~/.local/share/orbit/app`. Sus datos son independientes (`~/.local/share/wysun/recorder`). Tiene su propia suite:
+importa código de `~/.local/share/wysun/app`. Sus datos son independientes (`~/.local/share/wysun/recorder`). Tiene su propia suite:
 `python3 apps/recorder/run_tests.py`. La app Qt Wysun Screenshot (`wybieshot`) se retiró: el instalador deja
 `wysun-screenshot`/`wybie-screenshot` como redirecciones a `wysun screenshot`, retira su entrada de menú e icono si son suyos y no
 toca `~/.local/share/wybie-screenshot`.
 
 **Grabación de pantalla**: la elección (ventana/región/pantalla), la cuenta atrás y el HUD viven en el shell
 (`wysun-shell record [start|toggle|pause|stop]`, IPC `recorder`; `modules/areapicker` en modo `record` + `modules/recorder`);
-el worker independiente de `loomrec` hace la captura y `wysun recorder --start JSON` lo arranca sin ventana. La ventana Qt
-`wysun recorder` es solo biblioteca, reproducción con el componente compartido `wysun_media` y ajustes (`loomrec/ui/app_*.py`, patrón de Music/Files). Atajos:
+el worker independiente de `wysun_recorder` hace la captura y `wysun recorder --start JSON` lo arranca sin ventana. La ventana Qt
+`wysun recorder` es solo biblioteca, reproducción con el componente compartido `wysun_media` y ajustes (`wysun_recorder/ui/app_*.py`, patrón de Music/Files). Atajos:
 `Super+Shift+L`/`R` alternan (elegir y grabar / terminar), `Ctrl+Shift+R` pausa, `Ctrl+Shift+S` termina.
 
 ## 3. Runtime del shell (Qt / Quickshell / plugin)
@@ -162,7 +169,7 @@ $XDG_DATA_HOME/wysun/runtime/            (por defecto ~/.local/share/wysun/runti
   `--print-packages`. Caché de compilación: `~/.cache/wysun/build`.
 - **Arranque**: `apps/shell/wysun/runtime.sh` exporta `QML_IMPORT_PATH=<runtime>/shell/lib/qt6/qml:<runtime>/deps/lib/qt6/qml` y
   `WYSUN_LIB_DIR`, y ejecuta `quickshell -p <config>`. Los RPATH de los binarios eligen Qt; no se exporta `LD_LIBRARY_PATH`.
-- **Cambiar el plugin C++**: editar `apps/shell/plugin`, `python3 installer/runtime_build.py` (o `./instalar.sh --orbit-only`),
+- **Cambiar el plugin C++**: editar `apps/shell/plugin`, `python3 installer/runtime_build.py` (o `./instalar.sh --wysun-only`),
   reiniciar el shell (sección 5).
 - **Otra máquina**: `./instalar.sh` (componente `wayland`) instala paquetes de build, ejecuta `runtime_build.py` y despliega el
   shell. La construcción limpia Debian 13 terminó; el artefacto se revalidó tras corregir `libpulse0` (alcance en `docs/validation.md`).
@@ -171,13 +178,13 @@ $XDG_DATA_HOME/wysun/runtime/            (por defecto ~/.local/share/wysun/runti
 
 Python estándar (+ PySide6 para la GUI). Instala por **componentes** (`desktop, wayland, terminal, editor, tools, boot`), con plan
 (`--plan`, `--dry-run`), diario escrito antes de cada cambio, huellas por archivo, respaldo en
-`~/.local/state/dotifails/backups/<id>/` y `flock`. Modos parciales que no tocan paquetes:
+`~/.local/state/wysun/install/backups/<id>/` y `flock`. Modos parciales que no tocan paquetes:
 
 | Modo | Efecto |
 |---|---|
-| `--orbit-only` (`--wysun-only`) | Despliega `apps/wysun`, `apps/tools`, `apps/shell`, `apps/recorder`, `bin/*`, migra nombres antiguos y reconstruye el runtime si cambió. No cambia atajos, notas, historial ni colores |
+| `--wysun-only` | Despliega `apps/python`, `apps/tools`, `apps/shell`, `apps/recorder`, `bin/*` y reconstruye el runtime si cambió. No cambia atajos, notas, historial ni colores |
 | `--scripts-only` | Herramientas y migración de scripts |
-| `--installer-only` | El propio instalador y su CLI `dotifails` |
+| `--installer-only` | El propio instalador y su CLI `wysun-install` (`wysun install`) |
 | `--boot-only` | GRUB/Plymouth/greeter (respalda `/etc` y `/boot`) |
 | `--config-only` | Archivos de usuario sin paquetes |
 
@@ -194,7 +201,7 @@ abrir antes de instalar el escritorio y sin conservar el checkout. Recorrido y p
 
 Las opciones explícitas `--prepare-repositories` y `--upgrade-system` preparan backports nativos y actualizaciones de la
 distribución actual, respectivamente. Se actualizan índices y se resuelven dependencias antes del upgrade. La preparación
-de fuentes tiene su propio diario bajo `/var/lib/dotifails/repositories/backups/`; no se reemplazan fuentes ajenas ni claves.
+de fuentes tiene su propio diario bajo `/var/lib/wysun/repositories/backups/`; no se reemplazan fuentes ajenas ni claves.
 La recuperación de archivos no revierte paquetes. Estos modos no se combinan con `--config-only` o `--only`.
 
 ### Configuración general vs. de la máquina
@@ -202,8 +209,8 @@ La recuperación de archivos no revierte paquetes. Estos modos no se combinan co
 - **General** (versionada): `config/`. Nada de monitores concretos, rutas personales ni nombres de equipo
   (`tests/check_manifest.py` rechaza `/home/<usuario>` y similares).
 - **De esta máquina** (dato del usuario, nunca sobrescrito): `~/.config/wysun/local.lua` (plantilla
-  `config/.config/wysun/local.lua.example`: monitores, escalas, atajos privados), `~/.config/orbit/hypr-monitors.lua` (disposición
-  confirmada en Ajustes › Pantallas), `~/.config/wysun/shell/monitors/`, `~/.config/dotifails/machine.sh` (de `machines/`).
+  `config/.config/wysun/local.lua.example`: monitores, escalas, atajos privados), `~/.config/wysun/hypr-monitors.lua` (disposición
+  confirmada en Ajustes › Pantallas), `~/.config/wysun/shell/monitors/`, `~/.config/wysun/machine.sh` (de `machines/`).
   `hyprland.lua` los carga al final, de modo que ganan sobre lo general.
 
 ## 5. Despliegue y rollback en un escritorio activo
@@ -211,11 +218,11 @@ La recuperación de archivos no revierte paquetes. Estos modos no se combinan co
 Procedimiento seguro (el que se usó para el rebranding):
 
 1. **Probar** en el repo: `python3 -m unittest discover -s tests`, y el runtime con HOME/XDG temporales.
-2. **Respaldar**: `cp -a ~/.config/wysun ~/.config/orbit ~/.local/bin/wysun* ~/.local/share/wysun-backups/<fecha>/`,
-   más `tar` de `~/.local/share/{wysun/quickshell,orbit/app}`. El instalador además guarda su propio respaldo por ejecución.
-3. **Desplegar**: `./instalar.sh --orbit-only`. Si hay conflictos, no sobrescribe; revisar `incoming/` en el respaldo.
+2. **Respaldar**: `cp -a ~/.config/wysun ~/.local/bin/wysun* ~/.local/share/wysun-backups/<fecha>/`,
+   más `tar` de `~/.local/share/wysun/{quickshell,app}`. El instalador además guarda su propio respaldo por ejecución.
+3. **Desplegar**: `./instalar.sh --wysun-only`. Si hay conflictos, no sobrescribe; revisar `incoming/` en el respaldo.
 4. **Reiniciar solo el shell** (no Hyprland): `pkill -x quickshell; setsid ~/.local/bin/wysun-shell >~/.local/state/wysun/shell.log 2>&1 &`.
-   `~/.local/bin/orbit reload` recarga solo el residente Qt.
+   `wysun reload` recarga solo el residente Qt.
 5. **Validar** en la sesión real: `wysun-shell status`, `hyprctl layers | grep wysun`, abrir dashboard/launcher/menu/session,
    comprobar cada monitor (`hyprctl monitors`), y hacer capturas con `grim -o <salida>`.
 
@@ -223,7 +230,7 @@ Procedimiento seguro (el que se usó para el rebranding):
 
 | Qué | Cómo |
 |---|---|
-| Archivos desplegados | `dotifails restore [id]` (o `~/.local/share/dotifails/installer/main.py restore`) devuelve el respaldo del instalador |
+| Archivos desplegados | `wysun-install restore [id]` (o `~/.local/share/wysun/installer/main.py restore`) devuelve el respaldo del instalador |
 | Hyprland | Restaurar `~/.config/wysun/hyprland.lua` del respaldo y `hyprctl reload` |
 | Runtime | El runtime es otro directorio; para volver a uno anterior mover/restaurar `…/wysun/runtime` (la copia previa queda en `~/.local/share/wysun-backups/`) |
 | Sesión no arranca | Elegir otra sesión en el gestor de acceso; `installer/session_registration.py` desregistra Wysun sin tocar el predeterminado |
@@ -259,7 +266,7 @@ Nunca reiniciar Hyprland ni el login para actualizar un panel.
   Files y Clipboard (Ctrl+Tab las recorre); «All» es una lista agrupada (Suggestions, Applications, Commands, Files,
   Clipboard) filtrada en JS (`Search.js`, `Results.js`, `Calc.js` para la calculadora en línea; el JS de QML no admite
   lookbehind en expresiones regulares) sobre datos precalculados; archivos por un índice en memoria de todo el home (`launcher_data.py files-index` lo escribe en
-  `~/.local/share/orbit/launcher-files.idx`; incluye ocultos y `~/.config`) que `FileSearch.mjs` recorre en cada tecla dentro de un
+  `~/.local/share/wysun/launcher-files.idx`; incluye ocultos y `~/.config`) que `FileSearch.mjs` recorre en cada tecla dentro de un
   `WorkerScript` (`FileSearchWorker.mjs`, fuera del hilo de la interfaz; las teclas pulsadas durante una búsqueda se
   agrupan en la última consulta):
   recursivo, con carpeta de ámbito dentro de una carpeta, tokens AND sobre nombre y ruta, subsecuencias y estrechamiento
@@ -268,8 +275,8 @@ Nunca reiniciar Hyprland ni el login para actualizar un panel.
   previa de código se despega del panel, se expande sobre el espacio de trabajo y se asienta en la baldosa de la terminal, una ventana normal en mosaico de clase `wysun.edit` (`EditMorph.qml`,
   `services/Editor.qml`; `wysun-shell ipc call editor open <ruta>` lo reproduce) y la vista previa de código usa la paleta del
   NvChad activo (`nvim_theme.py`, marcado StyledText de Qt, no RichText: se maqueta ~7 veces más rápido) servida por
-  `apps/wysun/code_preview.py` (primeras 120 líneas, caché en `~/.cache/wysun/code-preview` por archivo, fecha y tema; la
-  vista previa guarda además en memoria las ya vistas); el portapapeles se carga una vez al abrir con `apps/wysun/launcher_data.py` (mismo almacén que el residente).
+  `apps/python/wysun_services/code_preview.py` (primeras 120 líneas, caché en `~/.cache/wysun/code-preview` por archivo, fecha y tema; la
+  vista previa guarda además en memoria las ya vistas); el portapapeles se carga una vez al abrir con `apps/python/wysun_services/launcher_data.py` (mismo almacén que el residente).
   Ranking aprendido (`services/Usage.js`, guardado en `launcher.json`): frecencia por entrada (últimos usos con vida media de
   5 días y horas habituales) y lo que se eligió tras cada texto escrito (`picks`); solo reordena coincidencias, nunca
   añade resultados. Las sugerencias vacías mezclan fijados, frecencia y la frecuencia histórica de AppDb, con 3 archivos
@@ -284,13 +291,13 @@ Nunca reiniciar Hyprland ni el login para actualizar un panel.
   `launcher_web.py` entrega metadatos antes de la imagen, limita las descargas y guarda hasta 32 previews en
   `~/.cache/wysun/link-previews` (una hora; fallos, un minuto). El highlight lo posiciona el propio ListView para seguir el scroll. No hay snippets, vista de ventanas ni comandos de energía en el lanzador (Alt+Tab abre el overview).
   `wysun clipboard|calculator` abren la vista correspondiente y `emoji` el cajón de emojis; `power|audio|notifications|calendar|system` abren las superficies del
-  shell. El residente Qt (`orbit.py`) ya no muestra menús ni aloja utilidades: registra el historial del portapapeles.
-  Music (`music_app.py`) y Files (`files_app.py`) se lanzan con `orbit-client` como procesos independientes.
-- **Colores** (`wysun colors`, `wysun color`, `orbit color`): panel nativo de Quickshell en
+  shell. El residente Qt (`wysun_services.daemon`) ya no muestra menús ni aloja utilidades: registra el historial del portapapeles.
+  Music (`wysun_music`) y Files (`wysun_files`) se lanzan como procesos independientes.
+- **Colores** (`wysun colors`, `wysun color`): panel nativo de Quickshell en
   `apps/shell/modules/colors/`, capa overlay `wysun-colors` en la pantalla enfocada. Usa los controles,
   tipografía, radios y paleta M3 del shell. Incluye plano HSV con teclado, formatos HEX/RGB/HSL,
   contraste de texto, recientes y favoritos. `backend.py` serializa las operaciones en el almacén
-  existente `~/.local/share/orbit/colors.json`; el parser compartido vive en `apps/wysun/color_data.py`.
+  existente `~/.local/share/wysun/colors.json`; el parser compartido vive en `wysun_services.color_data`.
   La captura oculta el panel y llama a `hyprpicker`; vuelve tanto al elegir como al
   cancelar. Escape o pérdida de foco cierran el panel; Ctrl+P captura y Ctrl+C copia HEX fuera del
   campo de edición. No hay ventana Qt de Color.
@@ -317,17 +324,24 @@ Nunca reiniciar Hyprland ni el login para actualizar un panel.
   Terminal, Notificaciones, Inicio, Archivos y copias, Efectos, Ventanas, Atajos, SSH o Processes en Settings.
   Wi-Fi, VPN y Bluetooth usan Red y Dispositivos conectados. `wysun processes` se gestiona fuera de Nexus.
 - **Tema**: un solo estilo, Material You; el color sale del wallpaper (`scheme.json`) y la selección, en
-  `~/.config/orbit/theme.json`, es solo el modo (`auto`, `light`, `dark`). Los tokens viven en `apps/wysun/wysun_core/tokens.json`; Quickshell lee los colores por
+  `~/.config/wysun/theme.json`, es solo el modo (`auto`, `light`, `dark`). Los tokens viven en `apps/python/wysun_core/tokens.json`; Quickshell lee los colores por
   `apps/shell/services/Colours.qml` (vía `scheme.json`) y la forma del mismo `tokens.json` instalado; `tests/test_theme_literals.py` rechaza colores literales
   (excepciones: `theme-exception: motivo`). Guía: `docs/themes.md`.
 
-## 7. Identidades técnicas heredadas (se conservan a propósito)
+## 7. Nombres y rutas
 
-| Identidad | Uso |
+| Qué | Dónde |
 |---|---|
-| `~/.local/share/orbit/{app,tools,music,notes,…}`, `~/.config/orbit/`, `orbit.sqlite3` | Código instalado y datos privados del lanzador/apps |
-| Comando `orbit`, `orbit-files`, `orbit-tools`, sockets `orbit-*.sock`, `orbit-files.desktop` (portal de archivos) | Compatibilidad con atajos, portales y asociaciones MIME |
-| `loomrec` (paquete, wrapper, `~/.local/share/wysun/recorder`), `wybie-screenshot` (redirección y datos antiguos) | Identidades de captura y sus datos |
+| App instalada (paquetes Python) | `~/.local/share/wysun/app/` |
+| Datos privados (portapapeles `wysun.sqlite3`, colores, notas, música, respaldos de Ajustes) | `~/.local/share/wysun/` |
+| Preferencias (`theme.json`, `environment.json`, `hypr-*.lua`, `idle.json`, `local.lua`, `resets/`, `tools.json`) | `~/.config/wysun/` |
+| Estado (`scheme.json`, registros, respaldos de tema) / caché | `~/.local/state/wysun/` / `~/.cache/wysun/` |
+| Recorder | datos `~/.local/share/wysun/recorder`, preferencias `~/.config/wysun/recorder`, estado `~/.local/state/wysun/recorder`, releases `~/.local/share/wysun/capture/releases` |
+| Instalador | CLI `wysun-install` (`wysun install`), código `~/.local/share/wysun/installer`, estado y respaldos `~/.local/state/wysun/install`, artefactos fijados `~/.local/share/wysun/artifacts`, estado del sistema `/var/lib/wysun` |
+| Herramientas | `wysun-tools`, motor `~/.local/share/wysun/tools` |
+| Sockets / variables / desktop ids | `wysun-*` en `$XDG_RUNTIME_DIR`; `WYSUN_*`; `wysun`, `wysun-files`, `wysun-music`, `wysun-settings`, `wysun-recorder`, portal `org.freedesktop.impl.portal.desktop.wysun` |
+
+`tests/test_legacy_names.py` impide que vuelvan los nombres anteriores. La URL del repositorio en GitHub conserva su nombre.
 
 Retirados en esta parte: nombres Caelestia (módulos, plugin, rutas, IPC, namespaces de capa), alias `musica`/`musika`, perfiles
 `profiles/` (ahora `machines/`), módulos Python sin uso (`files_preview`, `service_runtime`, `theme_widgets`), demonios QML sin
@@ -337,7 +351,7 @@ uso (`GameMode`, `IdleMonitors`) y la infraestructura de CI/nix del shell origin
 
 ```sh
 python3 -m unittest discover -s tests -v                       # núcleo: instalador, temas, sesión, wayland, herramientas…
-python3 -m unittest discover -s tests/wysun_app -t tests       # apps Qt (antes apps/wysun/test_*.py y apps/wysun/tests)
+python3 -m unittest discover -s tests/wysun_app -t tests       # apps Qt
 python3 -m unittest discover -s tests/shell_bridge -t tests    # puente del shell (backend.py, dispatcher wysun-shell)
 QT_QPA_PLATFORM=offscreen python3 tests/utility_ui.py
 python3 tests/check_manifest.py

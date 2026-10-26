@@ -1,18 +1,18 @@
-# Wysun Desktop · dotifails
+# Wysun Desktop
 
 El escritorio Wysun sobre **Hyprland/Wayland**, preparado para instalarse en **Parrot 7 o Debian 13, x86_64**: Wysun, Quickshell, Ghostty, Neovim y Zsh. Mantiene los atajos, transparencias y animaciones rápidas. Incluye tres perfiles: **Severance**, **Tokyo** y **Space Black**.
 
 ## Familia Wysun
 
-Wysun es el nuevo nombre de Órbita. El lanzador, Music, Files y Recorder se desarrollan y distribuyen desde este repositorio. Recorder está en `apps/recorder/` y la captura de pantalla en el shell (`apps/shell/modules/areapicker`); el lanzador y los paneles siguen en `apps/wysun/`.
+Wysun es el nuevo nombre de Órbita. El lanzador, Music, Files y Recorder se desarrollan y distribuyen desde este repositorio. Recorder está en `apps/recorder/` y la captura de pantalla en el shell (`apps/shell/modules/areapicker`); el lanzador y los paneles siguen en `apps/python/`.
 
 - `wysun`: lanzador y búsqueda.
 - `wysun music`, `wysun files`, `wysun settings`: aplicaciones y ajustes.
 - `wysun recorder`: biblioteca y editor de vídeo; `wysun recorder --quick-record`: preparar una grabación.
 - `wysun screenshot` / `wysun-shell screenshot`: selecciona una región para copiar y guardar, anotar o leer su texto.
-- `./instalar.sh --wysun-only`: actualizar la familia completa. `--orbit-only` sigue siendo compatible.
+- `./instalar.sh --wysun-only`: actualizar la familia completa.
 
-Las rutas privadas, los proyectos y los comandos antiguos se conservan. La actualización no migra datos ni sustituye las grabaciones activas. [Integración, nombres y compatibilidad](docs/wysun.md).
+La actualización no sustituye las grabaciones activas; los datos privados viven fuera del repositorio, bajo las rutas `wysun`. [Integración, nombres y compatibilidad](docs/wysun.md).
 
 ## Sesión Wysun / Hyprland
 
@@ -27,7 +27,7 @@ El componente `wayland` se instala por defecto y prepara **Wysun / Hyprland**, Q
 Desde una cuenta normal con acceso a `sudo`, conexión a Internet y varios GB libres:
 
 ```sh
-sudo apt-get update && sudo apt-get install --yes git python3 ca-certificates && git clone --depth 1 https://github.com/Niklauswy/dotifails.git && cd dotifails && ./instalar.sh
+sudo apt-get update && sudo apt-get install --yes git python3 ca-certificates && git clone --depth 1 https://github.com/Niklauswy/dotifails.git wysun-shell && cd wysun-shell && ./instalar.sh
 ```
 
 Si ya tienes esta carpeta, ejecuta `./instalar.sh`. Desde una sesión gráfica abre el **instalador visual**: bienvenida, vista previa del tema, componentes, aplicaciones opcionales, revisión, progreso real y primeros pasos. Si falta Qt, ofrece preparar únicamente la interfaz desde la terminal. La instalación del escritorio empieza después de revisar el plan.
@@ -89,20 +89,20 @@ Ver todos en [hyprland.lua](config/.config/wysun/hyprland.lua). Los paneles tien
 ## Actualizar y recuperar
 
 ```sh
-dotifails gui
-dotifails doctor
-dotifails update
-dotifails update --source /ruta/dotifails
-dotifails update --orbit-only && orbit reload
-dotifails restore
-dotifails restore ID_DEL_RESPALDO
+wysun-installer
+wysun doctor
+wysun-install update
+wysun-install update --source /ruta/wysun-shell
+wysun-install update --wysun-only && wysun reload
+wysun-install restore
+wysun-install restore ID_DEL_RESPALDO
 ```
 
 Para actualizar únicamente el instalador y su entrada en el menú de aplicaciones: `./instalar.sh --installer-only`. No reinstala Wysun, paquetes ni configuraciones del escritorio.
 
-Las configuraciones se instalan como **copias** editables. Antes de reemplazarlas se guardan en `~/.local/state/dotifails/backups/ID/before/`, junto con un diario de operaciones. Si has editado un archivo administrado, una actualización lo conserva y deja la propuesta en `incoming/`; devuelve código 2 para indicar conflictos. Los cambios locales incluyen archivos borrados deliberadamente.
+Las configuraciones se instalan como **copias** editables. Antes de reemplazarlas se guardan en `~/.local/state/wysun/install/backups/ID/before/`, junto con un diario de operaciones. Si has editado un archivo administrado, una actualización lo conserva y deja la propuesta en `incoming/`; devuelve código 2 para indicar conflictos. Los cambios locales incluyen archivos borrados deliberadamente.
 
-Para desarrollar los menús, editar `apps/wysun/` en este repositorio y ejecutar `./instalar.sh --orbit-only && orbit reload`. Así el escritorio usa el mismo código que recibirá una instalación nueva. Notas y Color son ventanas nativas independientes; sus datos privados se conservan aparte. [Flujo de desarrollo y actualización](docs/maintenance.md#cambiar-órbita-y-usar-la-misma-versión-en-tu-escritorio).
+Para desarrollar los menús, editar `apps/python/` en este repositorio y ejecutar `./instalar.sh --wysun-only && wysun reload`. Así el escritorio usa el mismo código que recibirá una instalación nueva. Notas y Color son ventanas nativas independientes; sus datos privados se conservan aparte. [Flujo de desarrollo y actualización](docs/maintenance.md#cambiar-órbita-y-usar-la-misma-versión-en-tu-escritorio).
 
 `restore` recupera el estado anterior y conserva ediciones posteriores en `changes-before-restore/`. Se deben restaurar los respaldos de más reciente a más antiguo. No desinstala paquetes APT/Flatpak ni borra datos personales de Wysun. Una instalación fallida muestra el ID recuperable y puede repetirse después de corregir la causa.
 
@@ -122,13 +122,13 @@ No incluye historial del portapapeles, notas, conexiones Wi-Fi, claves SSH, toke
 
 Esta versión está orientada a Wysun / Hyprland sobre Wayland y a las rutas XDG predeterminadas del usuario. No convierte otras distribuciones automáticamente. El soporte de Wi-Fi, Bluetooth, aceleración gráfica y pantallas depende de los controladores del equipo.
 
-[Manual de Wysun](apps/wysun/README.md) · [Neovim](config/.config/nvim/README.md) · [Créditos](docs/credits.md) · [Validación](docs/validation.md)
+[Manual de Wysun](apps/python/README.md) · [Neovim](config/.config/nvim/README.md) · [Créditos](docs/credits.md) · [Validación](docs/validation.md)
 
 En Ajustes → Wallpaper & style eliges el fondo con el carrusel (`Super+Shift+W`) y el modo —automático, claro u oscuro—; los colores y el acento salen siempre del wallpaper actual y se aplican al instante en todas las aplicaciones, sin reinstalar el escritorio ([guía de temas](docs/themes.md)). Las configuraciones anteriores se respaldan.
 
 ### Herramientas personales
 
-Un solo comando: `orbit-tools`, con grupos `dev`, `audit`, `share`, `cloud`, `vpn` y `resets`. Abre el panel gráfico con `orbit tools` o `orbit-tools gui`. `~/scripts` contiene únicamente el lanzador y su guía; el motor compartido vive en `apps/tools`. Actualiza la CLI con `./instalar.sh --scripts-only` y el panel con `./instalar.sh --orbit-only`. La migración respalda y reorganiza los datos privados. [Guía de uso y recuperación](docs/tools.md).
+Un solo comando: `wysun-tools`, con grupos `dev`, `audit`, `share`, `cloud`, `vpn` y `resets`. Abre el panel gráfico con `wysun tools` o `wysun-tools gui`. `~/scripts` contiene únicamente el lanzador y su guía; el motor compartido vive en `apps/tools`. Actualiza la CLI con `./instalar.sh --scripts-only` y el panel con `./instalar.sh --wysun-only`. La migración respalda y reorganiza los datos privados. [Guía de uso y recuperación](docs/tools.md).
 
 ### Arranque y acceso
 

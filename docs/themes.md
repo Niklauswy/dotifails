@@ -12,14 +12,14 @@ No hay variantes de Material (se elige sola según lo colorido que sea el fondo)
 
 ## Dónde se guarda
 
-- `~/.config/orbit/theme.json`: `{"mode": "auto"}` (o `light`, `dark`). Las claves desconocidas se conservan; un archivo sin `mode` válido se lee como `auto`, y `write_mode` lo reescribe con copia en `~/.local/state/orbit/theme-backups/`, escritura atómica y permisos `0600`.
+- `~/.config/wysun/theme.json`: `{"mode": "auto"}` (o `light`, `dark`). Las claves desconocidas se conservan; un archivo sin `mode` válido se lee como `auto`, y `write_mode` lo reescribe con copia en `~/.local/state/wysun/theme-backups/`, escritura atómica y permisos `0600`.
 - `~/.local/state/wysun/scheme.json`: roles de Material You generados desde el wallpaper; lo escribe solo `wysun scheme` (`wysun scheme set auto|light|dark`, `wysun scheme refresh`). El shell, las apps Qt y el Recorder lo leen en vivo.
 - `WYSUN_THEME=light|dark` fuerza la paleta base sin leer el esquema (pruebas y capturas).
 - El fondo por defecto es `assets/backgrounds/purple-abstract-3840x3840-27445.jpg`; una instalación nueva lo usa y el fondo personal no se toca.
 
 ## Fuente única de tokens
 
-`apps/wysun/wysun_core/tokens.json` (`schema: 3`) define una paleta base para `light` y otra para `dark` (~108 tokens semánticos cada una, horneados desde el esquema del fondo por defecto) y los tokens de forma, tipografía y movimiento con **los nombres y valores del shell**. Python los aplana con puntos (`rounding.medium`, `font.body.medium.size`), el mismo camino que en QML (`Tokens.rounding.medium`). El esquema del wallpaper se superpone a la paleta base de su modo (`wysun_core.theme.overlay_material_roles`): la base cubre lo que Material no define y es el respaldo mientras no exista `scheme.json`.
+`apps/python/wysun_core/tokens.json` (`schema: 3`) define una paleta base para `light` y otra para `dark` (~108 tokens semánticos cada una, horneados desde el esquema del fondo por defecto) y los tokens de forma, tipografía y movimiento con **los nombres y valores del shell**. Python los aplana con puntos (`rounding.medium`, `font.body.medium.size`), el mismo camino que en QML (`Tokens.rounding.medium`). El esquema del wallpaper se superpone a la paleta base de su modo (`wysun_core.theme.overlay_material_roles`): la base cubre lo que Material no define y es el respaldo mientras no exista `scheme.json`.
 
 - Colores: `canvas`, `surface`, `well`, `line`, `text`, `muted`, `accent`, `accent_hover`, `selection`, `disabled`, `danger`, `success`, `warning`, `scrim` y los derivados de estado (`hover`, `pressed`, `focus`, `*_soft`…), material (`material_top/mid/bottom/edge/glow/highlight`), categorías (`cat_*`) y los de superficies concretas (`tile`, `card`, `region_*`, `knob_off`…). La paleta de código y terminal (`external.palette`) también sigue al fondo.
 - Forma: `rounding.*` (`extraSmall`, `small`, `medium`, `large`, `largeIncreased`, `extraLarge`, `extraLargeIncreased`, `extraExtraLarge`, `full`), `spacing.*` y `padding.*` (las mismas ocho claves sin `full`), `border.width`, `border.focus`. Oscuro: cristal translúcido (`material: glass`); claro: perla opaca (`pearl`).
@@ -32,7 +32,7 @@ No hay variantes de Material (se elige sola según lo colorido que sea el fondo)
 
 Los colores se escriben en orden CSS: `#RRGGBB` o `#RRGGBBAA`.
 
-Hay **una sola copia**. Las releases del Recorder llevan su propio `wysun_core` (con `tokens.json`) y nunca importan `~/.local/share/orbit/app/`. El shell usa la misma fuente: el instalador la copia a `~/.local/share/wysun/theme/tokens.json` y el plugin `Wysun.Config` la lee al arrancar (`rounding`, `spacing`, `padding`, `anim.durations`, `anim.curves` → `Tokens.*`); lo que falte o tenga otro tipo conserva el respaldo de `plugin/src/Wysun/Config/tokens.hpp`, que `tests/test_shell_tokens.py` compara con el JSON (también la escala tipográfica de `appearanceconfig.hpp`). No hay override de usuario (`shell-tokens.json` desapareció). `Colours.qml` pinta `palettes.<modo>.scheme` de ese archivo mientras no cargue `scheme.json` (`auto` empieza en oscuro).
+Hay **una sola copia**. Las releases del Recorder llevan su propio `wysun_core` (con `tokens.json`) y nunca importan `~/.local/share/wysun/app/`. El shell usa la misma fuente: el instalador la copia a `~/.local/share/wysun/theme/tokens.json` y el plugin `Wysun.Config` la lee al arrancar (`rounding`, `spacing`, `padding`, `anim.durations`, `anim.curves` → `Tokens.*`); lo que falte o tenga otro tipo conserva el respaldo de `plugin/src/Wysun/Config/tokens.hpp`, que `tests/test_shell_tokens.py` compara con el JSON (también la escala tipográfica de `appearanceconfig.hpp`). No hay override de usuario (`shell-tokens.json` desapareció). `Colours.qml` pinta `palettes.<modo>.scheme` de ese archivo mientras no cargue `scheme.json` (`auto` empieza en oscuro).
 
 ## Adaptadores
 
@@ -54,7 +54,7 @@ Las plantillas de hoja de estilo usan `@token`, `@grupo.clave` (`@rounding.mediu
    p.setBrush(color('accent'))           # al pintar, siempre se pide el color en ese momento
    on_theme_changed(self.refrescar)      # solo si guardas cachés (pixmaps, iconos, texto derivado)
    ```
-2. **Recorder**: lo mismo; su hoja global y `apply_theme(app)` viven en `loomrec/ui/tokens.py`.
+2. **Recorder**: lo mismo; su hoja global y `apply_theme(app)` viven en `wysun_recorder/ui/tokens.py`.
 3. **Quickshell**: usa `Colours.palette.m3*` y los tokens de forma del shell; nunca un color propio.
 4. Nunca escribas un color, radio, tamaño de letra o duración propios. `tests/test_theme_literals.py` falla si aparece un color literal (`#rrggbb`, `rgb()`, `QColor(1,2,3)`, `Qt.white`…).
 5. Prueba el widget en claro y oscuro (`WYSUN_THEME=light`, `WYSUN_THEME=dark`) y con wallpapers de colores distintos.
@@ -74,7 +74,7 @@ Texto ≥ 4,5:1; componentes de interfaz y foco ≥ 3:1. `tests/test_core_tokens
 
 ## Reglas de ventana de Hyprland
 
-No cambian. Las ventanas de Wysun ya se dibujan con su propio material y esquinas (la regla `wysun-orbit-panels` pone `rounding = 0` y sin sombra del compositor, y `blur` está desactivado). Los colores de borde activo/inactivo salen de `hypr-theme.lua` (`theme_runtime.theme_files`) y `restore_theme` los pinta con el esquema activo al iniciar Settings.
+No cambian. Las ventanas de Wysun ya se dibujan con su propio material y esquinas (la regla `wysun-panels` pone `rounding = 0` y sin sombra del compositor, y `blur` está desactivado). Los colores de borde activo/inactivo salen de `hypr-theme.lua` (`theme_runtime.theme_files`) y `restore_theme` los pinta con el esquema activo al iniciar Settings.
 
 ## Pruebas
 

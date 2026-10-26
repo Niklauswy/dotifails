@@ -122,7 +122,7 @@ Las versiones base están fijadas para evitar saltos incompatibles con Neovim 0.
 lazy-lock.json conserva las revisiones exactas. Revisa compatibilidad antes de actualizar el núcleo.
 
 La configuración se divide en lua/configs, lua/workbench, mappings.lua y chadrc.lua.
-Los respaldos de instalación se administran con `dotifails restore`.
+Los respaldos de instalación se administran con `wysun-install restore`.
 
 Para comprobar la instalación, ejecuta `~/.config/nvim/scripts/verify.sh` desde una terminal.
 Usa ejemplos temporales: verifica LSP, diagnósticos, formato, búsqueda y paneles;
