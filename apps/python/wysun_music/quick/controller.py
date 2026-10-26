@@ -339,6 +339,73 @@ class MusicController(QObject):
     def allFavorite(self, keys):
         return bool(keys) and all(k in self.library.favorites for k in keys)
 
+    # ----------------------------------------------------------- playlists
+    @Slot(result=str)
+    def suggestedPlaylistName(self):
+        return f'Mi playlist n.º {sum(c.editable for c in self.library.collections()) + 1}'
+
+    @Slot(result='QVariantList')
+    def editablePlaylists(self):
+        return [{'id': c.id, 'title': c.title} for c in self.library.collections() if c.editable]
+
+    @Slot(str, 'QVariantList', result=str)
+    def createPlaylist(self, title, keys):
+        return self.library.create_playlist(title, list(keys))
+
+    @Slot(str, str)
+    def renamePlaylist(self, collection_id, title):
+        self.library.rename_playlist(collection_id, title)
+
+    @Slot(str)
+    def deletePlaylist(self, collection_id):
+        self.library.delete_playlist(collection_id)
+
+    @Slot(str, 'QVariantList')
+    def addToPlaylist(self, collection_id, keys):
+        self.library.add_to_playlist(collection_id, list(keys))
+        self.player.message.emit('Añadido a la playlist')
+
+    @Slot(str, 'QVariantList')
+    def removeFromPlaylist(self, collection_id, keys):
+        self.library.remove_from_playlist(collection_id, list(keys))
+
+    @Slot(str, result='QVariantMap')
+    def collectionSummary(self, collection_id):
+        """What a collection menu needs: title, whether it is editable, its Spotify source, its songs."""
+        collection = self.library.collection(collection_id)
+        if collection is None:
+            return {}
+        return {'id': collection.id, 'title': collection.title, 'editable': collection.editable,
+                'source': collection.source if collection.source.startswith('https://') else '',
+                'keys': list(collection.keys)}
+
+    # ------------------------------------------------------------- desktop
+    @Slot(str)
+    def showInFolder(self, key):
+        """Select the song's file in the file manager (FileManager1.ShowItems), else open its folder."""
+        from pathlib import Path
+        path = self.library.playable(key).get('path')
+        if not path:
+            return
+        uri = Path(path).as_uri()
+        try:
+            from gi.repository import Gio, GLib
+            bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+            bus.call_sync('org.freedesktop.FileManager1', '/org/freedesktop/FileManager1',
+                          'org.freedesktop.FileManager1', 'ShowItems', GLib.Variant('(ass)', ([uri], '')),
+                          None, Gio.DBusCallFlags.NONE, 3000, None)
+        except Exception:                       # no file manager on the bus: just open the folder
+            from PySide6.QtCore import QUrl
+            from PySide6.QtGui import QDesktopServices
+            QDesktopServices.openUrl(QUrl.fromLocalFile(str(Path(path).parent)))
+
+    @Slot(str)
+    def openUrl(self, url):
+        from PySide6.QtCore import QUrl
+        from PySide6.QtGui import QDesktopServices
+        if url.startswith('https://'):
+            QDesktopServices.openUrl(QUrl(url))
+
     @Slot(str, result='QVariantList')
     def trackArtists(self, key):
         return artists(self.library.track(key))
