@@ -1,6 +1,6 @@
 # Wysun
 
-Lanzador nativo y local para BSPWM, inspirado en la interacción de Raycast.
+Lanzador nativo y local para la sesión Wysun / Hyprland, inspirado en la interacción de Raycast.
 No es Raycast ni incluye su tienda de extensiones, IA de pago o integración con calendarios.
 
 ## Uso
@@ -40,11 +40,6 @@ Código instalado: `~/.local/share/wysun/app/`. Dependencias: Python 3, PySide6 
 
 La barra muestra espacios de trabajo, red, volumen, batería, fecha y notificaciones.
 **Super + F** alterna pantalla completa y el estado anterior de la ventana.
-Polybar se oculta en el monitor con una ventana a pantalla completa, incluso si es
-transparente. Vuelve al salir o cambiar a un escritorio sin pantalla completa;
-las barras de los otros monitores siguen visibles. Funciona también con F11 en aplicaciones.
-`desktop-bar` inicia el controlador `bar_visibility.py` una sola vez por sesión gráfica.
-Icono inicial: abre Wysun; clic derecho: historial. Campana: última notificación; clic derecho: pausa/reanuda.
 Los cambios del instalador tienen respaldo en `~/.local/state/wysun/install/backups/`.
 Usa `wysun-install restore` para listar respaldos y `wysun-install restore ID` para recuperar uno.
 
