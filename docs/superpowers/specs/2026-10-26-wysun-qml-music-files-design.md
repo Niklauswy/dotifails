@@ -258,3 +258,9 @@ cinco pasadas que habría que investigar).
   Para recrear el venv de la prueba: `python3 -m venv --system-site-packages
   ~/.cache/wysun-qml-spike/venv && ~/.cache/wysun-qml-spike/venv/bin/pip install
   PySide6_Essentials==6.9.3 shiboken6==6.9.3`.
+
+### Aprobación (2026-10-26)
+
+Nicolas aprobó que el instalador cree el venv privado `~/.local/share/wysun/qml-runtime` y descargue
+una vez de PyPI `PySide6_Essentials` y `shiboken6` de la misma versión que el Qt del runtime
+(hoy 6.9.3, ~97 MB). No se instalan paquetes del host.
