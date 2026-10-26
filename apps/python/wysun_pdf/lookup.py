@@ -3,8 +3,8 @@ from html.parser import HTMLParser
 import json
 from urllib.parse import urlencode, quote
 
-from PySide6.QtCore import QObject, Signal, QUrl
-from PySide6.QtNetwork import QNetworkAccessManager, QNetworkRequest, QNetworkReply
+from PySide6.QtCore import QObject, Signal, QProcess, QProcessEnvironment, QTimer
+from wysun_core import launch
 
 
 class PlainText(HTMLParser):
@@ -38,7 +38,10 @@ def parse_results(kind, payload, text, target):
     if kind == 'translation':
         if str(payload.get('responseStatus')) != '200':
             raise ValueError('MyMemory no pudo traducir: servicio o cuota no disponible. Inténtalo más tarde.')
-        value = payload.get('responseData', {}).get('translatedText')
+        data = payload.get('responseData')
+        if not isinstance(data, dict):
+            raise ValueError('Respuesta no válida del proveedor.')
+        value = data.get('translatedText')
         if not isinstance(value, str) or not value.strip():
             return []
         return [dict(title=text, body=value, source='MyMemory · Translated',
@@ -61,17 +64,20 @@ def parse_results(kind, payload, text, target):
 class LookupClient(QObject):
     completed = Signal(object)
     failed = Signal(str)
+    timeout_ms = 15000
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.manager = QNetworkAccessManager(self)
-        self.generation, self.reply = 0, None
+        self.generation, self.process = 0, None
+
+    def command(self):
+        return launch.argv('wysun_pdf.lookup_worker')
 
     def cancel(self):
         self.generation += 1
-        reply, self.reply = self.reply, None
-        if reply:
-            reply.abort()
+        process, self.process = self.process, None
+        if process:
+            process.kill()
 
     def search(self, kind, text, source='en', target='es'):
         self.cancel()
@@ -81,38 +87,68 @@ class LookupClient(QObject):
             self.failed.emit(str(error))
             return
         token = self.generation
-        request = QNetworkRequest(QUrl(url))
-        request.setRawHeader(b'User-Agent', b'WysunPDF/1.0 (local study reader)')
-        request.setTransferTimeout(15000)
-        request.setAttribute(QNetworkRequest.RedirectPolicyAttribute, QNetworkRequest.ManualRedirectPolicy)
-        reply = self.reply = self.manager.get(request)
-        reply.setReadBufferSize(65537)
-        buffer, error_message = bytearray(), []
+        process = self.process = QProcess(self)
+        environment = QProcessEnvironment.systemEnvironment()
+        environment.insert('PYTHONPATH', str(launch.ROOT))
+        process.setProcessEnvironment(environment)
+        timer = QTimer(process, singleShot=True, interval=self.timeout_ms)
+        output, errors = bytearray(), []
+        reported = False
+
+        def fail(message):
+            nonlocal reported
+            if token == self.generation and not reported:
+                reported = True
+                self.failed.emit(message)
+
+        def timeout():
+            fail('La consulta tardó demasiado. Puedes volver a intentarlo.')
+            process.kill()
 
         def receive():
-            buffer.extend(bytes(reply.readAll()))
-            if len(buffer) > 65536:
-                error_message.append('La respuesta del proveedor supera el límite permitido.')
-                reply.abort()
+            output.extend(bytes(process.readAllStandardOutput()))
+            if len(output) > 524288:
+                errors.append('Respuesta del proveedor demasiado grande.')
+                process.kill()
 
-        def finished():
-            if token != self.generation:
-                reply.deleteLater()
-                return
-            self.reply = None
+        def finished(*_):
+            timer.stop()
             receive()
+            if self.process is process:
+                self.process = None
             try:
-                if error_message:
-                    raise ValueError(error_message[0])
-                if reply.error() != QNetworkReply.NoError:
-                    raise ValueError('No se pudo consultar el servicio. Comprueba la conexión o inténtalo más tarde.')
-                if reply.attribute(QNetworkRequest.HttpStatusCodeAttribute) != 200:
-                    raise ValueError('El servicio no está disponible en este momento.')
-                payload = json.loads(buffer.decode('utf-8'))
-                self.completed.emit(parse_results(kind, payload, text, target))
+                if token != self.generation or reported:
+                    return
+                if errors or process.exitCode() != 0:
+                    raise ValueError(errors[0] if errors else 'El proceso de consulta no pudo terminar.')
+                reply = json.loads(output.decode('utf-8'))
+                if not isinstance(reply, dict):
+                    raise ValueError('Respuesta no válida del proceso de consulta.')
+                if 'error' in reply:
+                    raise ValueError(str(reply['error']))
+                self.completed.emit(parse_results(kind, reply.get('result'), text, target))
             except (ValueError, TypeError, AttributeError) as error:
-                self.failed.emit(str(error))
+                fail(str(error))
             finally:
-                reply.deleteLater()
-        reply.readyRead.connect(receive)
-        reply.finished.connect(finished)
+                process.deleteLater()
+
+        def process_error(error):
+            if error == QProcess.FailedToStart:
+                timer.stop()
+                if self.process is process:
+                    self.process = None
+                fail('No se pudo iniciar la consulta.')
+                process.deleteLater()
+
+        def started():
+            process.write((json.dumps({'url': url}) + '\n').encode())
+            process.closeWriteChannel()
+
+        process.started.connect(started)
+        process.readyReadStandardOutput.connect(receive)
+        process.errorOccurred.connect(process_error)
+        process.finished.connect(finished)
+        timer.timeout.connect(timeout)
+        command = self.command()
+        process.start(command[0], command[1:])
+        timer.start()
