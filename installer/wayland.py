@@ -72,7 +72,6 @@ def configure(deployment):
         _publish_asset(d, d.source / source, target)
     if any(p in d.conflicts for p in ('.local/share/wysun/app', '.local/share/wysun/quickshell')):
         return
-    migrate_legacy_names(d)
     deploy_tokens(d)
     ensure_runtime(d)
     for name in SESSION_COMMANDS:
@@ -121,16 +120,6 @@ def _publish_asset(deployment, source, relative):
     d.deploy(source, Path(relative))
 
 
-def migrate_legacy_names(deployment):
-    """Copy (never move) state stored under the former Caelestia names; the old copies are left for `wysun-install clean`."""
-    import shutil
-    d = deployment
-    old, new = d.home / '.config/wysun/caelestia', d.home / '.config/wysun/shell'
-    if old.is_dir() and not new.exists():
-        shutil.copytree(old, new, symlinks=True)
-        print('Wysun: configuración del shell copiada de ' + str(old) + ' a ' + str(new))
-
-
 def deploy_tokens(deployment):
     """The shell reads the apps' design tokens from the XDG data dir, so it never depends on where the apps live."""
     d = deployment
@@ -157,7 +146,6 @@ def update_runtime(deployment):
     from capture_distribution import _publish
     d.deploy(d.source / 'apps/shell', Path('.local/share/wysun/quickshell'))
     if not d.conflicts:
-        migrate_legacy_names(d)
         deploy_tokens(d)
         ensure_runtime(d)
     for name in SESSION_COMMANDS:

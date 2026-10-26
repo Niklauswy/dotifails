@@ -155,9 +155,7 @@ class WaylandInstallTests(unittest.TestCase):
                 installer.main(['install', '--source', str(self.source), '--components', 'wayland'])
         self.assertEqual(list(self.home.iterdir()), [])
 
-    def test_runtime_is_built_into_the_private_prefix_and_legacy_config_is_copied(self):
-        old = self.home / '.config/wysun/caelestia'
-        old.mkdir(parents=True); (old / 'shell.json').write_text('{"a": 1}')
+    def test_runtime_is_built_into_the_private_prefix(self):
 
         class Deployment:
             home = self.home
@@ -166,10 +164,8 @@ class WaylandInstallTests(unittest.TestCase):
         calls = []
         with patch.dict(os.environ, {'WYSUN_SKIP_RUNTIME': '0'}), \
              patch('main.run', side_effect=lambda argv, env=None: calls.append((list(map(str, argv)), env))):
-            wayland.migrate_legacy_names(Deployment())
             wayland.ensure_runtime(Deployment())
-        self.assertEqual((self.home / '.config/wysun/shell/shell.json').read_text(), '{"a": 1}')
-        self.assertTrue(old.exists(), 'the legacy copy stays until an explicit clean')
+        self.assertFalse(hasattr(wayland, 'migrate_legacy_names'))
         argv, env = calls[0]
         self.assertTrue(argv[1].endswith('installer/runtime_build.py'))
         self.assertEqual(argv[-1], str(self.home / '.local/share/wysun/runtime'))

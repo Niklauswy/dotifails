@@ -26,16 +26,6 @@ class Notes:
         return sorted(rows,key=lambda r:(not r['favorite'],-r['stamp']))
     def create(self,body='# Nueva nota\n\n'):
         key=uuid.uuid4().hex;atomic_write_text(self.path(key),body);return key
-    def import_legacy(self,path):
-        """Import the previous local notebook once; never alter the original."""
-        marker=self.root/'.legacy-imported'
-        if marker.exists() or not path.is_file():return
-        body=path.read_text()
-        if body.strip():
-            # Stable key makes retry after interruption safe without duplicates.
-            key=hashlib.sha256(str(path).encode()).hexdigest()[:32]
-            if not self.path(key).exists():atomic_write_text(self.path(key),body)
-        atomic_write_text(marker,'Imported locally; original preserved.\n')
     def save(self,key,body,expected):
         path=self.path(key)
         if not path.exists() or digest(path.read_text())!=expected:raise RuntimeError('La nota cambió fuera de Wysun. Tu borrador se conserva; guarda una copia para continuar.')

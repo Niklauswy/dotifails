@@ -19,7 +19,6 @@ from wysun_core import launch
 from wysun_core.jsonio import atomic_write_json, atomic_write_text, read_json
 
 ROTATIONS = ('normal','left','right','inverted')
-BAR_MODULES = {'wysun':'Wysun','title':'Ventana activa','workspaces':'Escritorios','resources':'CPU y memoria','network':'Red','volume':'Volumen','battery':'Batería','date':'Fecha y hora','notifications':'Notificaciones','power':'Sesión','tray':'Bandeja'}
 
 def run(args):
     result = subprocess.run([str(a) for a in args],capture_output=True,text=True,timeout=12)
@@ -199,7 +198,7 @@ class EnvironmentSettings:
         return self.data.get(name,{})
 
     def shell_values(self):
-        """Validated shell.json (migrating hypr-bar.json once). See ShellPreferences."""
+        """Validated shell.json. See ShellPreferences."""
         from wysun_settings.data import ShellPreferences
         return ShellPreferences(self.home).values()
 
@@ -220,7 +219,7 @@ class EnvironmentSettings:
     def preference_paths(self):
         from wysun_core import theme
         return {name: self.config / 'wysun' / name for name in (
-            'shell.json', 'hypr-bar.json', 'appearance.json', 'environment.json', 'theme.json')} | {
+            'shell.json', 'appearance.json', 'environment.json', 'theme.json')} | {
             'scheme.json': theme.scheme_path(self.home)}
 
     def apply_panels(self, shell, appearance, expected_shell=None, expected_appearance=None):
@@ -229,7 +228,6 @@ class EnvironmentSettings:
         # Validate both before the first write, then rollback as one operation.
         json_object(paths['appearance.json'])
         from wysun_settings.data import ShellPreferences
-        ShellPreferences(self.home).migrate()  # before the snapshot: undo never un-migrates
         backup = PreferenceBackup(self.home, {k: paths[k] for k in ('shell.json', 'appearance.json')}, 'panels')
         try:
             ShellPreferences(self.home).save(shell, expected_shell, snapshot=False)
@@ -357,45 +355,6 @@ class EnvironmentSettings:
                 activate()
         except Exception:
             atomic_write_text(path,old)
-            raise
-
-    def bar_theme_colors(self):
-        """Bar colours of the active theme; stored colours are user overrides."""
-        from wysun_core.qt_theme import tokens
-        external=tokens(self.home)['external']
-        return {key:external[key].upper() for key in ('background','foreground','accent')}
-
-    def bar_values(self):
-        defaults=dict(height=36,offset=10,radius=12,opacity=65,**self.bar_theme_colors(),left=['wysun','workspaces'],center=['title'],right=['resources','network','volume','battery','date','notifications','power','tray'],monitors={},tray_monitor='')
-        path=self.config/'wysun/hypr-bar.json'
-        return defaults | read_json(path, {}) if path.exists() else defaults
-
-    def apply_bar(self, values):
-        values=copy.deepcopy(values)
-        for key,lo,hi in [('height',24,64),('offset',0,60),('radius',0,30),('opacity',10,100)]:
-            values[key] = bounded(values[key],lo,hi,True)
-        theme=self.bar_theme_colors()
-        for key in ('background','foreground','accent'):
-            color(values[key])
-            # Unchanged theme colours are not saved, so the bar keeps following the theme.
-            from wysun_settings.theme_runtime import theme_colors
-            if str(values[key]).upper()==theme[key] or str(values[key]).upper() in theme_colors():values.pop(key)
-        for side in ('left','center','right'):
-            if len(values[side]) != len(set(values[side])) or any(x not in BAR_MODULES for x in values[side]):
-                raise ValueError('Módulo de barra desconocido o repetido.')
-        if any('tray' in values[side] for side in ('left','center')):
-            raise ValueError('La bandeja debe ir en la sección derecha.')
-        if not any(values[side] for side in ('left','center','right')):
-            raise ValueError('Deja al menos un módulo en la barra.')
-        path=self.config/'wysun/hypr-bar.json';previous=path.read_text() if path.exists() else None
-        backup_file(path,settings_backups(self.home))
-        atomic_write_json(path, values)
-        try:self.runner(['wysun','shell','reload-preferences'])
-        except Exception:
-            if previous is None:path.unlink(missing_ok=True)
-            else:atomic_write_text(path,previous)
-            try:self.runner(['wysun','shell','reload-preferences'])
-            except Exception:pass
             raise
 
     def wallpaper_values(self):
