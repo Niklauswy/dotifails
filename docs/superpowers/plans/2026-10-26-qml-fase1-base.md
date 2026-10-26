@@ -20,6 +20,16 @@ Todas tienen un valor por defecto con el que implemento si no hay objeción.
 - **D4 · Ubicación.** `apps/qml/` (no dentro de `apps/python`, cuya raíz solo admite paquetes: `tests/test_python_layout.py`). Se despliega a `~/.local/share/wysun/qml/` (junto a `quickshell/`). El módulo se llama **`WysunM3`** (evita choque con el plugin C++ `Wysun.*`).
 - **D5 · Cuándo crea el venv el instalador.** En el componente `wayland` (instalación completa y `--wysun-only`, donde ya se reconstruye el runtime del shell si cambió) y solo si falta o el sello difiere de `qt.version`; `WYSUN_SKIP_RUNTIME=1` lo omite. `AGENTS.md` dice que `--wysun-only` no instala dependencias; esto es una descarga PyPI aprobada por ti (spec, «Aprobación»), no un paquete del host. Fallo de red → aviso claro, no aborta el despliegue; las apps QML aún no existen, así que nada se rompe.
 
+## Decisiones del coordinador (2026-10-26, aprobadas)
+
+- **D1–D5 aprobadas tal cual** (decisión del coordinador). D1: solo `material3` (`docs/themes.md` es la verdad), `STYLES` extensible. En la Tarea 14 se corrige además el párrafo desactualizado de `AGENTS.md` sobre Space Black/Fluent y `~/.config/orbit/theme.json` para que coincida con `docs/themes.md` (un estilo Material You, `~/.config/wysun/theme.json` `{"mode"}`, Fluent 2 WIP). D2: `Metrics.drawerWidth` con comentario que cita el token de 360 px. D3: lista blanca en `check_purity`. D4: comprobar que `tests/check_manifest.py` y la huella del instalador (`fingerprint`, permisos de archivo del origen) cubren `apps/qml`.
+- **Ajuste 1 (Tarea 12):** el retardo del tooltip no puede ser «500 ms»: sale de un token existente (`anim.durations.normal`, 400 ms) o de uno nuevo en `tokens.json` con nombre M3; nada de 500 literal.
+- **Ajuste 2 (Tarea 5):** los tiempos de `FadeThrough` (salida 90 ms / entrada 150 ms del patrón M3) y el desplazamiento de `SharedAxis` salen de tokens/`Motion`, no de números en el código.
+- **Ajuste 3 (Tarea 15):** además de las suites listadas: `tests/installer_ui.py`, `tests/test_legacy_names.py` y la suite PDF (`QT_QPA_PLATFORM=offscreen WYSUN_REDUCED_MOTION=1 /tmp/wysun-pdf-venv/bin/python -m unittest discover -s tests/pdf`), siempre en serie y con `TMPDIR` en `~/.cache`.
+- **Ajuste 4:** que se sienta de la familia del shell: referencia `apps/shell/components` (`ButtonBase`, `StateLayer`, `Anim`) para morfos, rebotes y ritmo; la guía (Tarea 14) incluye la correspondencia componente de la base ↔ componente del shell.
+- **Ajuste 5 (Tarea 13/15):** el `ListView` de 10 000 `ListItem` de la galería debe ir a 60 fps en ventana real (medir con el `Bench` del spike); anotar RSS/PSS de la galería en el informe final.
+- `ao report --checkpoint` cada ~4 tareas; los commits citan «decisión del coordinador» cuando aplique.
+
 ## Restricciones globales (valen para todas las tareas)
 
 - Idioma: comentarios de código en inglés (como el resto del repo), docs y mensajes de usuario en español.
