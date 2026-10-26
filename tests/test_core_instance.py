@@ -156,14 +156,14 @@ class InstanceTests(unittest.TestCase):
 class RecorderInstanceTests(unittest.TestCase):
     def test_recorder_instance_keeps_private_directory_and_display_tag(self):
         from unittest.mock import patch
-        capture = Path(__file__).resolve().parents[1] / 'apps/capture'
+        capture = Path(__file__).resolve().parents[1] / 'apps/recorder'
         sys.path.insert(0, str(capture))
-        from loomrec.ui import instance as recorder
-        self.assertIn('from wysun_core.instance import SingleInstance', (capture / 'loomrec/ui/instance.py').read_text())
+        from wysun_recorder.ui import instance as recorder
+        self.assertIn('from wysun_core.instance import SingleInstance', (capture / 'wysun_recorder/ui/instance.py').read_text())
         with tempfile.TemporaryDirectory() as tmp, patch.dict(os.environ, {'XDG_RUNTIME_DIR': tmp, 'WAYLAND_DISPLAY': 'wayland-9'}):
             first, second = recorder.Instance(name='gui'), recorder.Instance(name='gui')
             try:
-                self.assertEqual(first.path.parent, Path(tmp) / f'loomrec-{os.getuid()}')
+                self.assertEqual(first.path.parent, Path(tmp) / f'wysun-recorder-{os.getuid()}')
                 self.assertEqual(first.path.parent.stat().st_mode & 0o777, 0o700)
                 self.assertTrue(first.path.name.startswith('gui-'))
                 self.assertTrue(first.claim())

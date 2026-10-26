@@ -65,8 +65,8 @@ apps/wysun/
     mpris.py, integration.py  MPRIS, pista de pantalla encendida y pausa de Music
   player_app.py / player_client.py / player_window.py     línea de órdenes, cliente sin Qt y ventanas del proceso
   media_host.py                 adaptador al tema de Wysun
-apps/capture/wysun_media        enlace al mismo paquete (desarrollo); cada release de Recorder lleva su copia
-apps/capture/loomrec/ui/media_host.py    adaptador al tema de Recorder
+apps/recorder/wysun_media        enlace al mismo paquete (desarrollo); cada release de Recorder lleva su copia
+apps/recorder/loomrec/ui/media_host.py    adaptador al tema de Recorder
 ```
 
 Uso desde cualquier anfitrión:
@@ -132,7 +132,7 @@ lo que era predeterminado queda como alternativa en «Abrir con». El respaldo d
 ```sh
 python3 -m unittest discover -s tests -p 'test_media_*.py'      # sesión, imágenes, controles, widget, tema, integración (D-Bus privado)
 python3 -m unittest discover -s tests -p 'test_player_*.py'     # proceso (instancia única con procesos reales), escritorio e instalador
-python3 apps/capture/run_tests.py                               # incluye la página de reproducción de Recorder
+python3 apps/recorder/run_tests.py                               # incluye la página de reproducción de Recorder
 python3 tests/wayland_media_case.py                             # física: OpenGL, ocultar/mostrar, pérdida de contexto, fugas
 python3 tests/media_benchmark.py                                # CPU, memoria, primer fotograma y fotogramas perdidos
 ```

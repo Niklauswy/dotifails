@@ -191,7 +191,7 @@ class NativeSettingsTests(unittest.TestCase):
             clip.snapshot();drain.assert_called_once()
     def test_player_package_in_recorder_is_the_same_source(self):
         root=Path(__file__).resolve().parents[2]
-        link=root/'apps/capture/wysun_media'
+        link=root/'apps/recorder/wysun_media'
         self.assertTrue(link.is_symlink());self.assertEqual(link.resolve(),(root/'apps/python/wysun_media').resolve())
 
 if __name__=='__main__':unittest.main()

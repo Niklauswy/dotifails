@@ -48,7 +48,7 @@ Principios:
 
 La forma comunica jerarquía y estado, no decoración. Referencia: <https://m3.material.io/styles/shape/overview-principles>.
 
-**Escala de forma en tokens.** Se añade a `shape` en `apps/wysun/wysun_theme.json` y en su copia `apps/capture/loomrec/ui/` (lo comprueba `tests/test_theme_tokens.py`):
+**Escala de forma en tokens.** Se añade a `shape` en `apps/wysun/wysun_theme.json` y en su copia `apps/recorder/loomrec/ui/` (lo comprueba `tests/test_theme_tokens.py`):
 
 | Token | Uso en el reproductor |
 |---|---|
@@ -229,7 +229,7 @@ Cada medición registra códec, resolución, decodificador, renderizador, versio
 - **Tema:** cada variante que defina el tema (las pruebas las recorren, sin nombrarlas), cambio en vivo, movimiento reducido, `tests/test_theme_literals.py` sin literales nuevos.
 - **Integración:** apertura desde Files sin recursión, releases de Recorder, MIME con journal y rollback, MPRIS y Music (fase 4).
 
-Se ejecutan las comprobaciones de `AGENTS.md` (unidad, `wysun_app`, `shell_bridge`, `utility_ui`, manifiesto, `apps/capture/run_tests.py` y `wysun_installed_smoke.py`). Las pruebas de medios y compositor se ejecutan en serie con HOME/XDG temporales. El éxito en offscreen no sustituye la verificación en Wayland real.
+Se ejecutan las comprobaciones de `AGENTS.md` (unidad, `wysun_app`, `shell_bridge`, `utility_ui`, manifiesto, `apps/recorder/run_tests.py` y `wysun_installed_smoke.py`). Las pruebas de medios y compositor se ejecutan en serie con HOME/XDG temporales. El éxito en offscreen no sustituye la verificación en Wayland real.
 
 ## 9. Riesgos aceptados
 

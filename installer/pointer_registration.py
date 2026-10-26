@@ -11,7 +11,7 @@ from pathlib import Path
 import stat
 from session_registration import register as register_files
 
-FILES={'usr/libexec/wysun-pointer-helper':('apps/capture/privileged/wysun-pointer-helper',0o755),
+FILES={'usr/libexec/wysun-pointer-helper':('apps/recorder/privileged/wysun-pointer-helper',0o755),
        'usr/share/polkit-1/actions/org.wysun.pointer.policy':('installer/wysun-pointer.policy',0o644)}
 STATE='var/lib/dotifails/pointer-helper'
 

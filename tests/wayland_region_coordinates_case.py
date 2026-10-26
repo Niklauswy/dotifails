@@ -6,11 +6,11 @@ from types import SimpleNamespace
 
 
 def run_case(run_dir,env,command,start,wait_for):
-    from loomrec.desktop_capture import read_topology
-    from loomrec.portal_image import read_frame
-    from loomrec.wayland_capture import PipeWireCapture
-    from loomrec.wayland_pointer import NativePointerReader,PositionEffects
-    from loomrec.capture import CaptureConfig,CaptureSession
+    from wysun_recorder.desktop_capture import read_topology
+    from wysun_recorder.portal_image import read_frame
+    from wysun_recorder.wayland_capture import PipeWireCapture
+    from wysun_recorder.wayland_pointer import NativePointerReader,PositionEffects
+    from wysun_recorder.capture import CaptureConfig,CaptureSession
     from wayland_portal_cases import prepare_picker
     choice=prepare_picker(run_dir)
     command(['hyprctl','eval','hl.monitor({output="WYSUN-TEST-1",mode="1280x800@60",position="0x0",scale=1})'])

@@ -4,7 +4,7 @@ El escritorio Wysun sobre **Hyprland/Wayland**, preparado para instalarse en **P
 
 ## Familia Wysun
 
-Wysun es el nuevo nombre de Órbita. El lanzador, Music, Files y Recorder se desarrollan y distribuyen desde este repositorio. Recorder está en `apps/capture/` y la captura de pantalla en el shell (`apps/shell/modules/areapicker`); el lanzador y los paneles siguen en `apps/wysun/`.
+Wysun es el nuevo nombre de Órbita. El lanzador, Music, Files y Recorder se desarrollan y distribuyen desde este repositorio. Recorder está en `apps/recorder/` y la captura de pantalla en el shell (`apps/shell/modules/areapicker`); el lanzador y los paneles siguen en `apps/wysun/`.
 
 - `wysun`: lanzador y búsqueda.
 - `wysun music`, `wysun files`, `wysun settings`: aplicaciones y ajustes.

@@ -6,7 +6,7 @@ import time
 
 
 def run_case(run_dir,env,command,start,wait_for):
-    from loomrec.capture import CaptureConfig,CaptureSession
+    from wysun_recorder.capture import CaptureConfig,CaptureSession
     recording=CaptureSession(CaptureConfig(str(run_dir/'startup-cancel'),'portal',[0,0,1280,800],
         fps=12,cursor=False,auto_finalize=False,backend='portal',source_type='monitor'))
     def bridge():
@@ -18,7 +18,7 @@ def run_case(run_dir,env,command,start,wait_for):
         for child in rows:
             try:args=Path(f'/proc/{child}/cmdline').read_bytes().split(b'\0')
             except FileNotFoundError:continue
-            if b'loomrec.pipewire_bridge' in args:return int(child)
+            if b'wysun_recorder.pipewire_bridge' in args:return int(child)
         return None
     def finished(pid):
         try:return Path(f'/proc/{pid}/stat').read_text().split(') ',1)[1][0]=='Z'

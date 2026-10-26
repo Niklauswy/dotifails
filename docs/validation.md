@@ -20,7 +20,7 @@ Cambios estructurales verificados:
 | Aplicaciones Wysun (`tests/wysun_app/`) | 52 pruebas correctas |
 | Lógica del shell (`apps/shell`: `tests.test_logic`) | 14 pruebas correctas |
 | Interfaz de utilidades (`tests/utility_ui.py`) | 6 pruebas correctas |
-| Captura (`apps/capture/run_tests.py`) | 354 pruebas correctas en 120,487 s |
+| Captura (`apps/recorder/run_tests.py`) | 354 pruebas correctas en 120,487 s |
 | Manifiesto (`tests/check_manifest.py`) | `MANIFEST_OK` y `TOOLS_OK` |
 | Humo de la instalación (`tests/wysun_installed_smoke.py`) | `WYSUN_INSTALLED_SMOKE_OK` |
 

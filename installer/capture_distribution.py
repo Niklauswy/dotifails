@@ -1,4 +1,4 @@
-"""Journaled Wysun capture deployment, adopting only verified legacy launchers.
+"""Journaled Wysun Recorder deployment in immutable, hash-named releases.
 
 Immutable releases keep a running Recorder worker's imports available. User media,
 preferences, old releases and the original standalone manifests are never changed.
@@ -45,7 +45,7 @@ def _publish(deployment, text, relative, *, executable=False, legacy=None):
 
 
 def configure(deployment):
-    source = deployment.source / 'apps/capture'
+    source = deployment.source / 'apps/recorder'
     if not source.is_dir():
         return
     deployment.stage('Actualizar Wysun Recorder')
@@ -53,10 +53,10 @@ def configure(deployment):
     runtime.mkdir(parents=True)
     # Copy only distributable source, never a user's libraries or recording files.
     # wysun_media (the player) and wysun_core (paths, atomic files, single instance) are shared
-    # with Wysun: apps/capture links to their source, and each release carries its own copy so a
+    # with Wysun: apps/recorder links to their source, and each release carries its own copy so a
     # running Recorder never imports another version.
     import shutil
-    for package in ('loomrec', 'assets', 'wysun_media', 'wysun_core'):
+    for package in ('wysun_recorder', 'assets', 'wysun_media', 'wysun_core'):
         shutil.copytree(source / package, runtime / package,
                         ignore=shutil.ignore_patterns('__pycache__', '*.pyc'))
     for name in ('README.md', 'UPSTREAM.md'):
@@ -71,30 +71,22 @@ def configure(deployment):
     if str(relative) in deployment.conflicts:
         return
     root = deployment.home / relative
-    for command, module, old, manifest in (
-        ('wysun-recorder', 'loomrec', 'loomrec', '.local/share/loomrec/install-manifest.json'),
-    ):
-        launcher = ('#!/bin/sh\nunset __PYVENV_LAUNCHER__\n'
-                    'export PYTHONDONTWRITEBYTECODE=1\n'
-                    'export PYTHONPATH=' + shlex.quote(str(root)) + '\n'
-                    'exec /usr/bin/python3 -P -m ' + module + ' "$@"\n')
-        if not _publish(deployment, launcher, '.local/bin/' + command, executable=True):
-            continue
-        # Preserve old keyboard bindings, scripts and desktop IDs without
-        # overwriting custom launchers that no previous installer owns.
-        _publish(deployment, launcher, '.local/bin/' + old, executable=True,
-                 legacy=(manifest, 'launcher'))
+    launcher = ('#!/bin/sh\nunset __PYVENV_LAUNCHER__\n'
+                'export PYTHONDONTWRITEBYTECODE=1\n'
+                'export PYTHONPATH=' + shlex.quote(str(root)) + '\n'
+                'exec /usr/bin/python3 -P -m wysun_recorder "$@"\n')
+    if _publish(deployment, launcher, '.local/bin/wysun-recorder', executable=True):
         title = 'Wysun Recorder'
         desktop = ('[Desktop Entry]\nType=Application\nName=' + title + '\nName[es]=' + title +
                    '\nComment=Graba y edita videos localmente\nExec=wysun recorder' +
-                   '\nIcon=' + old + '\nTerminal=false\nCategories=AudioVideo;Recorder;' +
-                   '\nKeywords=Wysun;' + old + ';\n')
-        _publish(deployment, desktop, '.local/share/applications/' + old + '.desktop', legacy=(manifest, 'desktop'))
+                   '\nIcon=wysun-recorder\nTerminal=false\nCategories=AudioVideo;Recorder;' +
+                   '\nKeywords=Wysun;Recorder;\nStartupWMClass=wysun-recorder\n')
+        _publish(deployment, desktop, '.local/share/applications/wysun-recorder.desktop')
         icon = ('<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">'
                 '<rect width="64" height="64" rx="16" fill="#19242d"/>'  # theme-exception: icono de aplicacion
                 '<circle cx="32" cy="32" r="18" fill="#dc695b"/>'  # theme-exception: icono de aplicacion
                 '<circle cx="32" cy="32" r="7" fill="#f5f0df"/></svg>\n')  # theme-exception: icono de aplicacion
-        _publish(deployment, icon, '.local/share/icons/hicolor/scalable/apps/' + old + '.svg', legacy=(manifest, 'icon'))
+        _publish(deployment, icon, '.local/share/icons/hicolor/scalable/apps/wysun-recorder.svg')
     retire_screenshot(deployment)
 
 

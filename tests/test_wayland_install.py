@@ -33,7 +33,7 @@ class WaylandInstallTests(unittest.TestCase):
         self.source.mkdir()
         # Use a tiny shell fixture until/without a real compositor. All other
         # distribution code is the actual source under test.
-        for relative in ('installer', 'manifests', 'bin', 'config', 'assets/backgrounds', 'apps/python', 'apps/tools', 'apps/capture'):
+        for relative in ('installer', 'manifests', 'bin', 'config', 'assets/backgrounds', 'apps/python', 'apps/tools', 'apps/recorder'):
             shutil.copytree(ROOT / relative, self.source / relative,
                             ignore=shutil.ignore_patterns('__pycache__', '*.pyc'))
         (self.source / 'apps/shell').mkdir()
@@ -83,8 +83,8 @@ class WaylandInstallTests(unittest.TestCase):
                    '.config/wysun/local.lua': '-- synthetic per-machine scale preference',
                    '.config/xdg-desktop-portal/portals.conf': '[preferred]\ndefault=custom;\n',
                    '.local/share/orbit/notes/private.md': 'private fixture',
-                   '.config/loomrec/preferences.json': '{"custom": true}',
-                   '.local/share/loomrec/recordings/fixture/project.json': 'recording fixture',
+                   '.config/wysun/recorder/preferences.json': '{"custom": true}',
+                   '.local/share/wysun/recorder/recordings/fixture/project.json': 'recording fixture',
                    '.local/share/wybie-screenshot/sessions/fixture/original.png': 'image fixture'}
         for relative, value in private.items():
             path = self.home / relative; path.parent.mkdir(parents=True, exist_ok=True); path.write_text(value)

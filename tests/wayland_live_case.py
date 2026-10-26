@@ -10,7 +10,7 @@ from pathlib import Path
 
 
 def run_case(run_dir, env, command, start, wait_for, *, movement_during_recovery=True):
-    from loomrec.capture import CaptureConfig,CaptureSession
+    from wysun_recorder.capture import CaptureConfig,CaptureSession
     from wayland_test_pointer import SyntheticPointer
     pointer=SyntheticPointer(env)
     moving=threading.Event();motion_errors=[]

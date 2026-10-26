@@ -44,7 +44,7 @@ def main():
         checks = [(('wysun', '--help'), 'Wysun'),
                   (('wysun', 'pdf', '--help'), 'Wysun PDF'),
                   (('wysun', 'recorder', '--version'), 'Wysun Recorder'),
-                  (('loomrec', '--version'), 'Wysun Recorder'),
+                  (('wysun-recorder', '--version'), 'Wysun Recorder'),
                   (('wysun', 'recorder', '--help'), '--quick-record'),
                   (('wysun', 'recover', '--help'), 'Wysun recovery')]
         if args.runtime_root:checks.append((('wysun', 'session-check'), 'WYSUN_SESSION_PREFLIGHT_OK'))

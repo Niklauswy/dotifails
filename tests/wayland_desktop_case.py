@@ -4,9 +4,9 @@ import time
 
 
 def run_case(run_dir, env, command, start, wait_for):
-    from loomrec.portal import PortalCancelled
-    from loomrec.portal_image import capture_frame
-    from loomrec.desktop_capture import read_topology
+    from wysun_recorder.portal import PortalCancelled
+    from wysun_recorder.portal_image import capture_frame
+    from wysun_recorder.desktop_capture import read_topology
     from wayland_portal_cases import prepare_picker
     choice=prepare_picker(run_dir)
     # The runner uses auto placement for a single screen. Anchor our first

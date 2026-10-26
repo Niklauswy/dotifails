@@ -31,7 +31,7 @@ def active_recordings():
             if child.stat().st_uid != os.getuid():
                 continue
             argv = (child / 'cmdline').read_bytes().split(b'\0')
-            index = argv.index(b'loomrec.worker')
+            index = argv.index(b'wysun_recorder.worker')
             project = Path(os.fsdecode(argv[index + 1]))
             status = json.loads((project / 'status.json').read_text())
             if status.get('pid') != int(child.name) or time.time() - status.get('heartbeat', 0) > 15:

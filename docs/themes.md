@@ -82,7 +82,7 @@ No cambian. Las ventanas de Wysun ya se dibujan con su propio material y esquina
 python3 -m unittest discover -s tests -v
 QT_QPA_PLATFORM=offscreen python3 tests/utility_ui.py
 python3 tests/check_manifest.py
-python3 apps/capture/run_tests.py
+python3 apps/recorder/run_tests.py
 python3 -m unittest discover -s tests/shell_bridge -t tests
 python3 tests/wysun_installed_smoke.py
 QT_QPA_PLATFORM=offscreen python3 tests/theme_snapshots.py SALIDA --theme dark   # capturas para comparar

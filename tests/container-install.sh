@@ -14,7 +14,7 @@ mkdir -p /opt/dotifails
 chown -R tester2:tester2 /opt/dotifails
 su tester2 -c 'export PATH="$HOME/.local/bin:$PATH"; cd /opt/dotifails && ./instalar.sh'
 su tester2 -c 'export PATH="$HOME/.local/bin:$PATH"; cd /opt/dotifails && python3 -m unittest discover -s tests -v'
-su tester2 -c 'export PATH="$HOME/.local/bin:$PATH"; cd /opt/dotifails/apps/capture && python3 run_tests.py'
+su tester2 -c 'export PATH="$HOME/.local/bin:$PATH"; cd /opt/dotifails/apps/recorder && python3 run_tests.py'
 su tester2 -c 'export PATH="$HOME/.local/bin:$PATH"; cd /opt/dotifails && QT_QPA_PLATFORM=offscreen python3 -m unittest discover -s tests/wysun_app -t tests -q'
 su tester2 -c 'export PATH="$HOME/.local/bin:$PATH"; cd /opt/dotifails && ./instalar.sh --skip-nvim-tools'
 su tester2 -c 'PATH="$HOME/.local/bin:$PATH" "$HOME/.config/nvim/scripts/verify.sh"'

@@ -125,14 +125,14 @@ abre ahí cualquier medio y embebe el mismo componente en su panel de detalles; 
 El paquete no importa ningún módulo del anfitrión: cada app instala un `Host` con su tema (`media_host.py` en Wysun,
 `loomrec/ui/media_host.py` en Recorder). Reproduce con libmpv (OpenGL y decodificación por hardware con copia de vuelta;
 respaldo por software), decodifica imágenes con `QImageReader` en segundo plano y publica MPRIS. Detalle, atajos, decisiones y
-diagnóstico: `docs/player.md`. `apps/capture/wysun_media` es un enlace al mismo código y cada release de Recorder lleva su copia.
+diagnóstico: `docs/player.md`. `apps/recorder/wysun_media` es un enlace al mismo código y cada release de Recorder lleva su copia.
 
-### Captura (`apps/capture`)
+### Captura (`apps/recorder`)
 
 Paquete `loomrec` (Recorder). Se instala por **versiones inmutables** en
 `~/.local/share/wysun/capture/releases/<hash>/` con el wrapper `wysun-recorder`, que fija `PYTHONPATH` a la versión actual; no
-importa código de `~/.local/share/orbit/app`. Sus datos son independientes (`~/.local/share/loomrec`). Tiene su propia suite:
-`python3 apps/capture/run_tests.py`. La app Qt Wysun Screenshot (`wybieshot`) se retiró: el instalador deja
+importa código de `~/.local/share/orbit/app`. Sus datos son independientes (`~/.local/share/wysun/recorder`). Tiene su propia suite:
+`python3 apps/recorder/run_tests.py`. La app Qt Wysun Screenshot (`wybieshot`) se retiró: el instalador deja
 `wysun-screenshot`/`wybie-screenshot` como redirecciones a `wysun screenshot`, retira su entrada de menú e icono si son suyos y no
 toca `~/.local/share/wybie-screenshot`.
 
@@ -175,7 +175,7 @@ Python estándar (+ PySide6 para la GUI). Instala por **componentes** (`desktop,
 
 | Modo | Efecto |
 |---|---|
-| `--orbit-only` (`--wysun-only`) | Despliega `apps/wysun`, `apps/tools`, `apps/shell`, `apps/capture`, `bin/*`, migra nombres antiguos y reconstruye el runtime si cambió. No cambia atajos, notas, historial ni colores |
+| `--orbit-only` (`--wysun-only`) | Despliega `apps/wysun`, `apps/tools`, `apps/shell`, `apps/recorder`, `bin/*`, migra nombres antiguos y reconstruye el runtime si cambió. No cambia atajos, notas, historial ni colores |
 | `--scripts-only` | Herramientas y migración de scripts |
 | `--installer-only` | El propio instalador y su CLI `dotifails` |
 | `--boot-only` | GRUB/Plymouth/greeter (respalda `/etc` y `/boot`) |
@@ -327,7 +327,7 @@ Nunca reiniciar Hyprland ni el login para actualizar un panel.
 |---|---|
 | `~/.local/share/orbit/{app,tools,music,notes,…}`, `~/.config/orbit/`, `orbit.sqlite3` | Código instalado y datos privados del lanzador/apps |
 | Comando `orbit`, `orbit-files`, `orbit-tools`, sockets `orbit-*.sock`, `orbit-files.desktop` (portal de archivos) | Compatibilidad con atajos, portales y asociaciones MIME |
-| `loomrec` (paquete, wrapper, `~/.local/share/loomrec`), `wybie-screenshot` (redirección y datos antiguos) | Identidades de captura y sus datos |
+| `loomrec` (paquete, wrapper, `~/.local/share/wysun/recorder`), `wybie-screenshot` (redirección y datos antiguos) | Identidades de captura y sus datos |
 
 Retirados en esta parte: nombres Caelestia (módulos, plugin, rutas, IPC, namespaces de capa), alias `musica`/`musika`, perfiles
 `profiles/` (ahora `machines/`), módulos Python sin uso (`files_preview`, `service_runtime`, `theme_widgets`), demonios QML sin
@@ -341,7 +341,7 @@ python3 -m unittest discover -s tests/wysun_app -t tests       # apps Qt (antes 
 python3 -m unittest discover -s tests/shell_bridge -t tests    # puente del shell (backend.py, dispatcher wysun-shell)
 QT_QPA_PLATFORM=offscreen python3 tests/utility_ui.py
 python3 tests/check_manifest.py
-python3 apps/capture/run_tests.py                              # captura (medios serializados)
+python3 apps/recorder/run_tests.py                              # captura (medios serializados)
 python3 tests/wysun_installed_smoke.py                         # sobre la instalación real
 python3 -m unittest discover -s tests -p 'test_media_*.py'     # reproductor: componente, widget, tema y MPRIS (D-Bus propio)
 python3 tests/wayland_media_case.py                            # reproductor sobre el compositor real (OpenGL, fugas)
