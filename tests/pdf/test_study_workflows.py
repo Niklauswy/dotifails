@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 from PySide6.QtCore import QTimer
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QVBoxLayout, QWidget
 from wysun_pdf.study import StudyStore, StudyConflict
 from wysun_pdf.study_ui import Notebook
 from wysun_pdf.file_picker import pick_file
@@ -60,6 +60,44 @@ class StudyWorkflowTests(unittest.TestCase):
         self.assertTrue(panel.unsaved)
         self.assertEqual(self.store.entries(self.book['id'])[0]['body'], 'Other window')
         self.assertTrue(self.store.drafts(self.book['id']))
+
+    def test_relocate_never_steals_another_notebook_and_copy_keeps_original(self):
+        other = self.store.opened(self.root / 'other.pdf', 3)
+        target = self.root / 'other.pdf'
+        target.write_bytes(b'%PDF')
+        self.assertFalse(self.store.relocate(self.book['id'], target))
+        self.store.save_entry(self.book['id'], 1, 'Quote', {}, 'Original idea')
+        self.assertEqual(self.store.copy_entries(self.book['id'], other['id']), 1)
+        self.assertEqual(self.store.entries(other['id'])[0]['body'], 'Original idea')
+        self.assertEqual(len(self.store.entries(self.book['id'])), 1)
+
+    def test_text_typed_while_another_book_opens_is_saved_to_its_book(self):
+        host = QWidget()
+        panel = Notebook(self.store)
+        QVBoxLayout(host).addWidget(panel)
+        self.addCleanup(host.deleteLater)
+        panel.bind(self.book)
+        panel.editor.setPlainText('Typed during the open')
+        other = self.store.opened(self.root / 'next.pdf', 2)
+        panel.bind(other)
+        self.assertEqual(self.store.entries(self.book['id'])[0]['body'], 'Typed during the open')
+        self.assertEqual(self.store.entries(other['id']), [])
+        panel.editor.setPlainText('x')
+        panel.editor.setPlainText('')
+        self.assertTrue(panel.can_leave())
+        self.assertEqual(self.store.drafts(other['id']), [])
+
+    def test_answer_dialog_asks_before_esc_discards(self):
+        from PySide6.QtWidgets import QMessageBox, QPlainTextEdit
+        from wysun_pdf.review_ui import AnswerDialog
+        dialog = AnswerDialog()
+        dialog.editor = QPlainTextEdit(dialog)
+        dialog.editor.setPlainText('My answer')
+        with patch.object(QMessageBox, 'question', return_value=QMessageBox.Cancel):
+            dialog.reject()
+        self.assertEqual(dialog.result(), 0)
+        self.assertEqual(dialog.editor.toPlainText(), 'My answer')
+        dialog.deleteLater()
 
     def test_delete_undo_and_global_dialog(self):
         entry = self.store.save_entry(self.book['id'], 0, '', {}, 'Keep this')

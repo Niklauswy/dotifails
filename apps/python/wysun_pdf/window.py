@@ -29,7 +29,7 @@ from wysun_pdf.state import Positions, Preferences, clamp
 from wysun_pdf.theme import shared as shared_mode
 from wysun_pdf.view import DocumentView
 from wysun_pdf.worker import PdfWorker
-from wysun_pdf.file_picker import pick_file
+from wysun_pdf.file_picker import pick_file, picker_active, cancel_picker
 from wysun_pdf.review_ui import ReviewDialog
 from wysun_pdf.study import StudyStore
 from wysun_pdf.study_ui import LibraryView, Notebook, STORAGE_ERRORS, control_height, reveal, navigate, StudySettings
@@ -84,6 +84,7 @@ class PdfWindow(FramelessResize, WindowMotion, QMainWindow):
         self.positions = Positions()
         self.study_document = None
         self.lookup_context = None
+        self.pending_passage = None
         self.focus_session = shared_focus(self)
         self.study_error = ''
         try:
@@ -367,13 +368,12 @@ class PdfWindow(FramelessResize, WindowMotion, QMainWindow):
             if not replacement:
                 return
             try:
-                book = next((b for b in self.study.documents() if b['path'] == path), None)
-                if book:
-                    self.study.relocate(book['id'], replacement)
-                path = replacement
+                book = next((b for b in self.study.documents() if b['path'] == path), None) if self.study else None
+                if book and not self.study.relocate(book['id'], replacement):
+                    self.say('Ese archivo ya tiene su propio cuaderno; se abre sin fusionar las notas.')
             except STORAGE_ERRORS as error:
                 self.say('No se pudo vincular el archivo: ' + str(error))
-                return
+            path = replacement
         if path == self.path:
             navigate(self.workspace, self.reader)
             return
@@ -514,6 +514,8 @@ class PdfWindow(FramelessResize, WindowMotion, QMainWindow):
             else:
                 self.pending_passage = entry
                 self.open_recent(entry['path'])
+                if not self.busy:   # the open was refused or cancelled: do not jump on a later open
+                    self.pending_passage = None
         dialog.passage_requested.connect(passage)
         dialog.exec()
 
@@ -623,6 +625,7 @@ class PdfWindow(FramelessResize, WindowMotion, QMainWindow):
         def opened(reply):
             self.busy = False
             if self.error(reply):
+                self.pending_passage = None
                 self.controls()
                 return
             result = reply['result']
@@ -675,8 +678,7 @@ class PdfWindow(FramelessResize, WindowMotion, QMainWindow):
             self.controls()
             self.refresh_annotations()
             self.load_thumbnails()
-            pending = getattr(self, 'pending_passage', None)
-            self.pending_passage = None
+            pending, self.pending_passage = self.pending_passage, None
             if pending and self.study_document and pending['document'] == self.study_document['id']:
                 QTimer.singleShot(0, lambda e=pending: self.return_to_passage(e))
             if not self.editable:
@@ -935,9 +937,17 @@ class PdfWindow(FramelessResize, WindowMotion, QMainWindow):
                 if self.path != previous_path:
                     self.hide_lookup()
                 if self.path != previous_path and self.study:
+                    original = self.study_document
                     try:
                         self.study_document = self.study.opened(self.path, self.pages, self.view.current_page(),
                         remember=self.preferences.get('remember_recent', True) is not False)
+                        if (original and original['id'] != self.study_document['id'] and self.study.entries(original['id'], 1)
+                                and not self.study.entries(self.study_document['id'], 1)
+                                and QMessageBox.question(self, 'Cuaderno de la copia',
+                                    'La copia tiene su propio cuaderno. ¿Copiar en él las notas del original? '
+                                    'El original conserva las suyas.',
+                                    QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes) == QMessageBox.Yes):
+                            self.study.copy_entries(original['id'], self.study_document['id'])
                         self.notebook.bind(self.study_document)
                     except STORAGE_ERRORS as error:
                         self.study_document = None
@@ -1142,6 +1152,11 @@ class PdfWindow(FramelessResize, WindowMotion, QMainWindow):
                 break
 
     def closeEvent(self, event):
+        if picker_active(self):
+            # The selector's local loop must unwind first; the window closes right after.
+            cancel_picker(self)
+            event.ignore()
+            return
         if not self.notebook.can_leave():
             event.ignore()
             return

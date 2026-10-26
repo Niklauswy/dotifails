@@ -113,3 +113,30 @@ class FocusTests(unittest.TestCase):
                 finally:
                     controller.finish()
                     controller.deleteLater()
+
+    def test_new_owner_adopts_the_previous_owners_session(self):
+        with tempfile.TemporaryDirectory() as home:
+            runtime = Path(home) / 'runtime'
+            runtime.mkdir(mode=0o700)
+            with mock.patch.dict(os.environ, XDG_RUNTIME_DIR=str(runtime), XDG_STATE_HOME=home):
+                stale = FocusController()          # read the empty state before the other session ran
+                active = FocusController()
+                try:
+                    now = [0.]
+                    active.clock = FocusClock(lambda: now[0], lambda: now[0])
+                    active.start(1, 'Synthetic goal')
+                    for second in range(60):
+                        now[0] += 1
+                        active.tick()
+                    active.detach(None)
+                    self.assertFalse(stale.history)
+                    stale.start(25, 'Next')
+                    self.assertEqual(stale.completed_blocks, 1)
+                    self.assertEqual(len(stale.history), 1)
+                    stale.finish()
+                    self.assertEqual(len(FocusController().history), 1)
+                finally:
+                    stale.finish()
+                    active.finish()
+                    stale.deleteLater()
+                    active.deleteLater()

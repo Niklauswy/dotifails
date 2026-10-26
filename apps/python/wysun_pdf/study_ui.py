@@ -461,13 +461,16 @@ class Notebook(Panel):
         self.save_button.setEnabled(bool(self.editor.toPlainText().strip()) and bool(self.document))
         self.status.setText('Guardando cuaderno… · el PDF se guarda por separado')
         if self.document:
+            body = self.editor.toPlainText()
             try:
-                self.store.draft(self.draft_id, self.document['id'], dict(page=self.page, quote=self.quote,
-                    anchor=self.anchor, entry=self.entry, body=self.editor.toPlainText(), kind=self.kind))
+                if body.strip() or self.entry:
+                    self.store.draft(self.draft_id, self.document['id'], dict(page=self.page, quote=self.quote,
+                        anchor=self.anchor, entry=self.entry, body=body, kind=self.kind))
+                else:
+                    self.store.discard_draft(self.draft_id)
             except STORAGE_ERRORS as error:
                 self.status.setText('No se pudo proteger el borrador: ' + str(error))
-                return
-            if self.editor.toPlainText().strip():
+            if body.strip():
                 self.autosave.start()
 
     def toggle_kind(self):
@@ -478,11 +481,22 @@ class Notebook(Panel):
             self.changed()
 
     def can_leave(self):
+        """The notebook saves itself; only a failed save (conflict, storage, emptied note) asks."""
         self.autosave.stop()
         if not self.unsaved:
             return True
-        choice = QMessageBox.question(self, 'Nota sin guardar', '¿Guardar tu reflexión antes de continuar?',
-                                      QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel, QMessageBox.Save)
+        if not self.editor.toPlainText().strip() and not self.entry:
+            try:
+                self.store.discard_draft(self.draft_id)
+            except STORAGE_ERRORS:
+                pass
+            self.reset_editor(self.page, self.quote, self.anchor)
+            return True
+        if self.editor.toPlainText().strip() and self.save():
+            return True
+        choice = QMessageBox.question(self, 'Nota sin guardar',
+                                      'No se pudo guardar tu reflexión automáticamente. ¿Intentarlo de nuevo antes de continuar?',
+                                      QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel, QMessageBox.Cancel)
         if choice == QMessageBox.Save:
             return self.save()
         if choice == QMessageBox.Discard:
@@ -496,6 +510,11 @@ class Notebook(Panel):
         return False
 
     def bind(self, document):
+        if self.unsaved and self.document and (not document or document['id'] != self.document['id']):
+            # Text typed while another document was opening still belongs to the previous one.
+            self.autosave.stop()
+            if self.editor.toPlainText().strip() and not self.save():
+                self.message.emit('Una nota quedó como borrador en el cuaderno anterior.')
         self.document = document
         self.entry = None
         self.reset_editor()
@@ -546,7 +565,8 @@ class Notebook(Panel):
             self.copy_button.show()
             return False
         except STORAGE_ERRORS as error:
-            self.status.setText(str(error))
+            self.status.setText('No se pudo guardar; se reintentará. Tu texto sigue como borrador. ' + str(error))
+            self.autosave.start()
             return False
         try:
             self.store.discard_draft(self.draft_id)
@@ -606,7 +626,11 @@ class Notebook(Panel):
 
     def edit(self, entry):
         if self.can_leave():
-            self.reset_editor(entry['page'], entry['quote'], json.loads(entry['anchor']), entry)
+            try:
+                anchor = json.loads(entry['anchor'])
+            except (ValueError, TypeError):
+                anchor = {}
+            self.reset_editor(entry['page'], entry['quote'], anchor if isinstance(anchor, dict) else {}, entry)
             self.editor.setFocus()
 
     def remove(self, entry):
@@ -655,7 +679,15 @@ class Notebook(Panel):
                 return
             menu = QMenu(self)
             for draft in drafts:
-                payload = json.loads(draft['payload'])
+                try:
+                    payload = json.loads(draft['payload'])
+                    payload = dict(page=int(payload.get('page', 0)), quote=str(payload.get('quote', '')),
+                                   anchor=payload.get('anchor') if isinstance(payload.get('anchor'), dict) else {},
+                                   entry=payload.get('entry') if isinstance(payload.get('entry'), dict) else None,
+                                   body=str(payload.get('body', '')),
+                                   kind='question' if payload.get('kind') == 'question' else 'note')
+                except (ValueError, TypeError, AttributeError):
+                    continue
                 action = menu.addAction(payload.get('body', '')[:80] or 'Borrador vacío')
                 action.triggered.connect(lambda checked=False, d=draft, p=payload: self.restore_draft(d, p))
             menu.exec(self.recover_button.mapToGlobal(self.recover_button.rect().bottomLeft()))
@@ -663,10 +695,12 @@ class Notebook(Panel):
             self.message.emit(str(error))
 
     def restore_draft(self, draft, payload):
-        self.reset_editor(payload['page'], payload['quote'], payload['anchor'], payload.get('entry'))
+        self.reset_editor(payload['page'], payload['quote'], payload['anchor'], payload['entry'])
         self.draft_id = draft['id']
-        self.kind = payload.get('kind', 'note')
-        self.editor.setPlainText(payload.get('body', ''))
+        self.kind = payload['kind']
+        self.kind_button.set_content('help' if self.kind == 'question' else 'edit_note',
+                                     'Pregunta' if self.kind == 'question' else 'Reflexión')
+        self.editor.setPlainText(payload['body'])
         self.editor.setFocus()
 
 

@@ -29,6 +29,8 @@ class StudyStore:
         else:
             os.close(fd)
         with self.connect() as db:
+            # WAL: readers in other windows never block a save, and commits stay short.
+            db.execute('PRAGMA journal_mode=WAL')
             version = db.execute('PRAGMA user_version').fetchone()[0]
             if version not in (0, 1, 2):
                 raise ValueError('Esta biblioteca pertenece a una versión más reciente de Wysun PDF.')
@@ -56,9 +58,10 @@ class StudyStore:
 
     @contextmanager
     def connect(self):
-        db = sqlite3.connect(self.path, timeout=.15)
+        db = sqlite3.connect(self.path, timeout=1)
         db.row_factory = sqlite3.Row
         db.execute('PRAGMA foreign_keys=ON')
+        db.execute('PRAGMA synchronous=NORMAL')
         try:
             with db:
                 yield db
@@ -126,6 +129,8 @@ class StudyStore:
     def export(self, document):
         with self.connect() as db:
             book = db.execute('SELECT * FROM documents WHERE id=?', (document,)).fetchone()
+        if book is None:
+            raise ValueError('Este documento ya no está en la biblioteca.')
         lines = [f'# {book["title"]}', '', 'Cuaderno de estudio · Wysun PDF', '']
         for entry in reversed(self.entries(document, limit=-1)):
             label = 'Pregunta' if entry['kind'] == 'question' else 'Reflexión'
@@ -147,9 +152,23 @@ class StudyStore:
             db.execute('INSERT OR REPLACE INTO collections VALUES(?,?)', (document, name.strip()[:100]))
 
     def relocate(self, document, path):
+        """Point a moved book at its new file. False when that file already has its own notebook."""
         path = str(Path(path).resolve(strict=True))
         with self.connect() as db:
+            if db.execute('SELECT 1 FROM documents WHERE path=? AND id<>?', (path, document)).fetchone():
+                return False
             db.execute('UPDATE documents SET path=? WHERE id=?', (path, document))
+        return True
+
+    def copy_entries(self, source, target):
+        """Copy a notebook to another document (a saved copy); the original keeps its entries."""
+        with self.connect() as db:
+            rows = db.execute('SELECT * FROM entries WHERE document=?', (source,)).fetchall()
+            for row in rows:
+                db.execute('INSERT INTO entries VALUES(?,?,?,?,?,?,?,?,?)',
+                           (uuid.uuid4().hex, target, row['page'], row['quote'], row['anchor'], row['body'],
+                            row['kind'], 1, row['updated']))
+        return len(rows)
 
     def draft(self, identifier, document, payload):
         with self.connect() as db:

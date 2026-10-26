@@ -11,6 +11,10 @@ from wysun_files.chooser import FileChooser
 def make_selector(request):
     initial = Path(request.get('initial') or str(Path.home())).expanduser()
     folder = initial if initial.is_dir() else initial.parent
+    while not folder.is_dir() and folder != folder.parent:
+        folder = folder.parent      # a moved PDF: start from the nearest folder that still exists
+    if not folder.is_dir():
+        folder = Path.home()
     suffix = request.get('suffix', 'pdf')
     if suffix not in ('pdf', 'md'):
         raise ValueError('Unsupported document format')

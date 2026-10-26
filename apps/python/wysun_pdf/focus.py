@@ -78,24 +78,30 @@ class FocusController(QObject):
         self.goal = ''
         self.minutes, self.break_minutes, self.long_break_minutes = 25, 5, 15
         self.completed_blocks, self.history = 0, []
-        try:
-            snapshot = jsonio.read_json(self.path, {})
-            if isinstance(snapshot, dict):
-                self.clock.restore(snapshot)
-                self.goal = str(snapshot.get('goal', ''))[:500]
-                for key, default in (('minutes', 25), ('break_minutes', 5), ('long_break_minutes', 15), ('completed_blocks', 0)):
-                    value = snapshot.get(key, default)
-                    if isinstance(value, int) and 0 <= value <= (100000 if key == 'completed_blocks' else 180):
-                        setattr(self, key, value if key == 'completed_blocks' else max(1, value))
-                history = snapshot.get('history', [])
-                self.history = [h for h in history[-100:] if isinstance(h, dict) and
-                    all(isinstance(h.get(k), (int, float)) and math.isfinite(h[k]) and h[k] >= 0
-                        for k in ('seconds', 'ended'))] if isinstance(history, list) else []
-        except OSError:
-            pass
+        self.load()
         self.timer = QTimer(self, interval=1000)
         self.timer.timeout.connect(self.tick)
         self.persistence_ticks = 0
+
+    def load(self, settings=True):
+        """Adopt the persisted session. Another process may have written it since we last read it."""
+        try:
+            snapshot = jsonio.read_json(self.path, {})
+        except (OSError, ValueError):
+            return
+        if not isinstance(snapshot, dict):
+            return
+        self.clock.restore(snapshot)
+        self.goal = str(snapshot.get('goal', ''))[:500]
+        keys = (('minutes', 25), ('break_minutes', 5), ('long_break_minutes', 15)) if settings else ()
+        for key, default in keys + (('completed_blocks', 0),):
+            value = snapshot.get(key, default)
+            if isinstance(value, int) and 0 <= value <= (100000 if key == 'completed_blocks' else 180):
+                setattr(self, key, value if key == 'completed_blocks' else max(1, value))
+        history = snapshot.get('history', [])
+        self.history = [h for h in history[-100:] if isinstance(h, dict) and
+            all(isinstance(h.get(k), (int, float)) and math.isfinite(h[k]) and h[k] >= 0
+                for k in ('seconds', 'ended'))] if isinstance(history, list) else []
 
     def acquire(self):
         if self.owner is not None:
@@ -109,6 +115,8 @@ class FocusController(QObject):
             self.message.emit('Hay una sesión en otra instancia de Wysun PDF. Continúa desde esa ventana.')
             return False
         self.owner = fd
+        # The previous owner persisted on release: continue from its clock and history, not ours.
+        self.load(settings=False)
         return True
 
     def release(self):
@@ -150,6 +158,9 @@ class FocusController(QObject):
             except OSError as error:
                 self.message.emit(str(error))
                 return
+            if self.clock.state != 'paused':
+                self.changed.emit()
+                return
             self.clock.resume()
             self.timer.start()
         else:
@@ -182,7 +193,7 @@ class FocusController(QObject):
         if self.clock.phase != 'study':
             return
         elapsed = max(0, self.clock.duration - self.clock.remaining)
-        if not elapsed:
+        if elapsed < 1:     # started and ended at once: nothing studied to record
             return
         if completed:
             self.completed_blocks += 1
@@ -190,6 +201,12 @@ class FocusController(QObject):
         self.history = self.history[-100:]
 
     def finish(self):
+        try:
+            if not self.acquire():
+                return
+        except OSError as error:
+            self.message.emit('No se pudo terminar la sesión: ' + str(error))
+            return
         if self.clock.state in ('running', 'paused'):
             self.clock.pause()
             self.record(self.clock.state == 'finished')

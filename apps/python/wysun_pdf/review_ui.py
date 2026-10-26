@@ -1,11 +1,23 @@
 """Search the whole notebook and practise questions without automatic grading."""
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtWidgets import QDialog, QHBoxLayout, QPlainTextEdit, QScrollArea, QWidget
+from PySide6.QtWidgets import QDialog, QHBoxLayout, QMessageBox, QPlainTextEdit, QScrollArea, QWidget
 from wysun_core.qt_theme import extend_style
 from wysun_core.ui.style import apply_kit_style, metric, text_font
 from wysun_core.ui.widgets import PillButton
 from wysun_core.ui.panels import SearchField
 from wysun_pdf.study_ui import label, layout, control_height, count, STORAGE_ERRORS
+
+
+class AnswerDialog(QDialog):
+    """Esc or closing the window never silently discards a typed answer."""
+    editor = None
+
+    def reject(self):
+        if (self.editor is not None and self.editor.toPlainText().strip() and
+                QMessageBox.question(self, 'Respuesta sin guardar', '¿Descartar lo que escribiste?',
+                                     QMessageBox.Discard | QMessageBox.Cancel, QMessageBox.Cancel) != QMessageBox.Discard):
+            return
+        super().reject()
 
 
 class ReviewDialog(QDialog):
@@ -89,7 +101,7 @@ class ReviewDialog(QDialog):
         self.refresh()
 
     def answer(self, entry):
-        dialog = QDialog(self)
+        dialog = AnswerDialog(self)
         dialog.setWindowTitle('Repasar con tus propias palabras')
         apply_kit_style(dialog)
         extend_style(dialog, 'QDialog {background:@surface;}')
@@ -101,6 +113,7 @@ class ReviewDialog(QDialog):
                      'border-radius:@rounding.medium;padding:@padding.medium;}')
         editor.setAccessibleName('Tu respuesta')
         editor.setPlaceholderText('Intenta responder antes de mirar el pasaje…')
+        dialog.editor = editor
         outer.addWidget(editor)
         source = label(entry['quote'] or 'Esta pregunta no tiene una cita asociada.', 'body.small', 'muted')
         source.hide()

@@ -124,18 +124,33 @@ class WindowTests(unittest.TestCase):
         self.assertEqual(reopened.study_document['id'], identifier)
         self.assertEqual(reopened.study.entries(identifier)[0]['body'], 'A reflection anchored to this passage')
 
-    def test_study_unsaved_note_blocks_navigation_on_cancel(self):
+    def test_study_note_saves_itself_on_navigation(self):
+        from PySide6.QtWidgets import QMessageBox
+        window, _ = self.open()
+        window.study_note()
+        window.notebook.editor.setPlainText('Saved without asking')
+        with mock.patch.object(QMessageBox, 'question') as question:
+            window.show_library()
+            question.assert_not_called()
+        self.assertIs(window.workspace.currentWidget(), window.library)
+        self.assertEqual(window.study.entries(window.study_document['id'])[0]['body'], 'Saved without asking')
+        self.assertEqual(window.study.drafts(window.study_document['id']), [])
+
+    def test_study_failed_save_blocks_navigation_on_cancel(self):
+        import sqlite3
         from PySide6.QtWidgets import QMessageBox
         window, source = self.open()
         window.study_note()
         window.notebook.editor.setPlainText('Do not lose this')
-        with mock.patch.object(QMessageBox, 'question', return_value=QMessageBox.Cancel):
+        with mock.patch.object(window.study, 'save_entry', side_effect=sqlite3.OperationalError('database is locked')), \
+                mock.patch.object(QMessageBox, 'question', return_value=QMessageBox.Cancel):
             window.show_library()
             self.assertIs(window.workspace.currentWidget(), window.reader)
             window.close()
             self.assertTrue(window.isVisible())
         self.assertEqual(window.notebook.editor.toPlainText(), 'Do not lose this')
-        window.notebook.save()
+        self.assertEqual(len(window.study.drafts(window.study_document['id'])), 1)
+        self.assertTrue(window.notebook.save())
 
     def test_study_narrow_window_keeps_editor_and_toolbar_accessible(self):
         window, _ = self.open()
@@ -194,7 +209,8 @@ class WindowTests(unittest.TestCase):
         window.notebook.editor.setPlainText('Idea guardada')
         window.notebook.save()
         window.notebook.editor.setPlainText('Cambio descartado')
-        with mock.patch.object(QMessageBox, 'question', return_value=QMessageBox.Discard):
+        with mock.patch.object(window.study, 'save_entry', side_effect=OSError('disk full')), \
+                mock.patch.object(QMessageBox, 'question', return_value=QMessageBox.Discard):
             self.assertTrue(window.notebook.can_leave())
         self.assertEqual(window.notebook.editor.toPlainText(), 'Idea guardada')
         self.assertFalse(window.notebook.unsaved)
