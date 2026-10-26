@@ -180,6 +180,13 @@ PageBase {
             }
         }
 
+        SectionHeader {
+            text: Tr.tr("Design system")
+        }
+
+        // Material Design 3, selected and the only one, next to the planned system shown as WIP (see DesignSystemPicker).
+        DesignSystemPicker {}
+
         ToggleRow {
             Layout.topMargin: Tokens.spacing.small
 

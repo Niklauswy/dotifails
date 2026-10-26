@@ -47,37 +47,34 @@ ColumnLayout {
         spacing: Tokens.spacing.small
 
         add: Transition {
-            NumberAnimation {
+            Anim {
                 properties: "opacity"
                 from: 0
                 to: 1
-                duration: 140
+                type: Anim.FastEffects
             }
-            NumberAnimation {
+            Anim {
                 properties: "y"
-                duration: 180
-                easing.type: Easing.OutCubic
+                type: Anim.FastSpatial
             }
         }
         remove: Transition {
-            NumberAnimation {
+            Anim {
                 properties: "opacity"
                 to: 0
-                duration: 100
+                type: Anim.FastEffects
             }
         }
         move: Transition {
-            NumberAnimation {
+            Anim {
                 properties: "y"
-                duration: 180
-                easing.type: Easing.OutCubic
+                type: Anim.FastSpatial
             }
         }
         displaced: Transition {
-            NumberAnimation {
+            Anim {
                 properties: "y"
-                duration: 180
-                easing.type: Easing.OutCubic
+                type: Anim.FastSpatial
             }
         }
 
@@ -176,34 +173,32 @@ ColumnLayout {
             running: false
 
             ParallelAnimation {
-                NumberAnimation {
+                Anim {
                     target: activeRow
                     property: "opacity"
                     to: 0.0
-                    duration: 70
+                    type: Anim.FastEffects
                 }
-                NumberAnimation {
+                Anim {
                     target: activeRow
                     property: "scale"
                     to: 0.92
-                    duration: 70
+                    type: Anim.FastEffects
                 }
             }
 
             ParallelAnimation {
-                NumberAnimation {
+                Anim {
                     target: activeRow
                     property: "opacity"
                     to: 1.0
-                    duration: 160
-                    easing.type: Easing.OutCubic
+                    type: Anim.FastEffects
                 }
-                NumberAnimation {
+                Anim {
                     target: activeRow
                     property: "scale"
                     to: 1.0
-                    duration: 220
-                    easing.type: Easing.OutBack
+                    type: Anim.FastSpatial
                 }
             }
         }

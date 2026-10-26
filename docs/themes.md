@@ -1,6 +1,6 @@
 # Tema de Wysun
 
-Wysun tiene **un solo estilo, Material You**. No hay temas fijos: el color y el acento salen siempre del wallpaper actual y todas las superficies obedecen la misma selección, sin excepciones: lanzador y modos, utilidades, Music, Files, Settings, pantalla de bloqueo, Wysun Recorder, la barra, los paneles y la captura de pantalla de Quickshell y el instalador.
+Wysun tiene **un solo estilo, Material You** (sistema de diseño Material Design 3; véase más abajo). No hay temas fijos: el color y el acento salen siempre del wallpaper actual y todas las superficies obedecen la misma selección, sin excepciones: lanzador y modos, utilidades, Music, Files, Settings, pantalla de bloqueo, Wysun Recorder, la barra, los paneles y la captura de pantalla de Quickshell y el instalador.
 
 ## Lo que elige el usuario
 
@@ -9,6 +9,19 @@ Wysun tiene **un solo estilo, Material You**. No hay temas fijos: el color y el 
 - **Transparencia** del shell (Ajustes → Wallpaper & style).
 
 No hay variantes de Material (se elige sola según lo colorido que sea el fondo) ni acento manual.
+
+## Sistema de diseño: Material Design 3; Fluent 2 en desarrollo
+
+Toda la interfaz de Wysun se diseña con **Material Design 3 (Expressive)**. Ajustes → Wallpaper & style → *Design system* lo muestra: la tarjeta de Material 3 está seleccionada y es la única opción; la de **Fluent 2** aparece deshabilitada con la marca *WIP* (`apps/shell/modules/nexus/common/DesignSystemPicker.qml`). No se guarda nada: `theme.json` sigue siendo `{"mode": ...}` y ningún lector conoce otro estilo. Cuando Fluent 2 exista habrá que añadir la clave (p. ej. `style`) a la vez en `wysun_core.theme`/`appearance`, el Recorder y `Colours.qml`, con migración, y darle sus propios tokens en `tokens.json` en lugar de condicionales sueltos.
+
+Qué significa para quien añade UI:
+
+- **Color**: solo roles M3 (`Colours.palette.m3*`, o los tokens semánticos de las apps), nunca un color propio.
+- **Forma**: `rounding.*` es la escala de forma M3 (`extraSmall` 4, `small` 8, `medium` 12, `large` 16, `largeIncreased` 20, `extraLarge` 28, `extraLargeIncreased` 32, `extraExtraLarge` 48, `full`); «none» es `0`. Botones y chips en píldora (`full`), FAB en `large`, tarjetas y grupos en `extraLarge`.
+- **Tipografía**: roles M3 `headline`, `title`, `body` y `label` (`large`/`medium`/`small`). `display` no se define porque el escritorio no tiene texto de ese tamaño; si hace falta, se añade a `tokens.json` y a `appearanceconfig.hpp` a la vez. Pesos que se apartan de la línea base M3: `headline.*` y `title.large` usan 500 (el énfasis de M3 Expressive con Google Sans Flex; la base es 400) y `label.small` usa 400 (la base es 500); cambiarlos exige tocar el JSON y el respaldo C++ y reconstruir el runtime.
+- **Movimiento**: `anim.durations.small/normal/large/extraLarge` son las M3 *short4/medium4/long4/extraLong4* (200/400/600/1000 ms); `anim.curves.emphasized*` y `standard*` son las curvas M3 y `expressive*` las de los muelles M3 Expressive (*fast/default/slow spatial* y *effects*). En QML usa `Anim { type: Anim.… }`/`CAnim`; una duración o un `Easing.*` literal solo se justifica en animaciones continuas (indicadores, bucles) o coreografías propias (logo, bloqueo).
+- **Estados**: capa de estado `StateLayer` (hover 0,08 y onda al pulsar); deshabilitado con contenido al 38 % y contenedor al 10 % de `m3onSurface`, como `ButtonBase`.
+- **Componentes**: usa los compartidos de `apps/shell/components/` (botones, `Chip`, `Segmented`, filas, `MaterialIcon`) antes de crear uno; los iconos son Material Symbols Rounded.
 
 ## Dónde se guarda
 
