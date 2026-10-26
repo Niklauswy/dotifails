@@ -113,6 +113,7 @@ y objetos con propiedades y señales. QML solo presenta.
 | `IconButton` | Acciones compactas: barras, filas, reproductor. `checkable` + `iconChecked` para favoritos, aleatorio… | La acción principal de la pantalla (`Fab`) | 40, icono 24 |
 | `Fab` | La acción principal y constructiva de la pantalla (nueva carpeta, reproducir). `extended` con texto; `expanded: false` lo pliega al desplazar | Más de uno por pantalla; acciones destructivas | 40/56/96; extendido 56 |
 | `SegmentedButtons` | Elegir 2-5 opciones relacionadas (modo de vista, filtros excluyentes o múltiples) | Navegación entre destinos (`TabBar`) | alto 40 |
+| `Slider` | Un valor continuo: posición de una canción (`wavy`, `waveMoving`), volumen; ←/→, RePág/AvPág, Inicio/Fin | Elegir entre pocas opciones (`SegmentedButtons`) | pista 4, asa 20, objetivo 40 |
 | `Chip` | `filter` para acotar contenido, `assist` acciones contextuales, `input` valores introducidos (con quitar), `suggestion` propuestas | Acciones principales | alto 32 |
 | `Badge` | Novedad (punto) o un recuento sobre un icono | Texto largo | 6 / 16 |
 | `Divider` | Separar grupos en listas y paneles (`inset`) | Separar cada fila (el espacio basta) | 1 px |
