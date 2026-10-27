@@ -14,6 +14,7 @@ FocusScope {
     property int cursor: -1
     property bool holding
     property color glow: Theme.m3primary
+    readonly property real inset: Theme.spacing.extraLarge ?? 0
     readonly property bool _software: GraphicsInfo.api === GraphicsInfo.Software
 
     ListView {
@@ -21,6 +22,9 @@ FocusScope {
 
         objectName: "lyricLines"
         anchors.fill: parent
+        // Room on both sides for the glow, which the view's clip would otherwise cut along the text's edge.
+        anchors.leftMargin: -root.inset
+        anchors.rightMargin: -root.inset
         visible: lyrics.hasLyrics
         focus: true
         model: lyrics.lines
@@ -76,7 +80,7 @@ FocusScope {
                 const next = lyrics.lines[index + 1];
                 const start = modelData.time;
                 const end = next ? next.time : start + 4;
-                return Math.max(0, Math.min(1, (player.position + lyrics.offset - start) / Math.max(0.5, end - start)));
+                return Math.max(0, Math.min(1, (clock.position + lyrics.offset - start) / Math.max(0.5, end - start)));
             }
 
             objectName: lit ? "currentLyric" : ""
@@ -98,7 +102,8 @@ FocusScope {
             Item {
                 id: body
 
-                width: parent.width
+                x: root.inset
+                width: parent.width - 2 * root.inset
                 height: base.implicitHeight
                 scale: line.lit ? 1 : root.synced ? 0.8 : 1
                 transformOrigin: Item.TopLeft
@@ -125,7 +130,18 @@ FocusScope {
                 Label {
                     id: base
 
-                    width: line.width
+                    // Where each wrapped row sits and how wide it is, for the row-by-row karaoke fill.
+                    property var rows: []
+                    property var _laying: []
+
+                    width: body.width
+                    onLineLaidOut: row => {
+                        if (row.number === 0)
+                            _laying = [];
+                        _laying[row.number] = {y: row.y, height: row.height, width: Math.min(row.implicitWidth, width)};
+                        if (row.isLast)
+                            Qt.callLater(() => base.rows = base._laying.slice());
+                    }
                     role: root.synced ? "headline.large" : "title.large"
                     font.weight: Font.Bold
                     text: line.modelData.text
@@ -133,33 +149,41 @@ FocusScope {
                     color: root.cursor === line.index ? Theme.m3primary : line.sung ? Theme.m3onSurface : Theme.m3onSurfaceVariant
                 }
 
-                // The sung part of the lit line, painted over it from the left as the song moves on.
-                Item {
-                    visible: line.lit
-                    width: base.width * fillAmount.value
-                    height: base.height
-                    clip: true
+                // The sung part of the lit line, painted over it from the left row by row as the song moves on:
+                // the second row starts once the first is sung.
+                Repeater {
+                    model: line.lit ? base.rows : []
 
-                    QtObject {
-                        id: fillAmount
-
-                        property real value: line.fill
-
-                        Behavior on value {
-                            enabled: line.lit && !Motion.reduced
-                            NumberAnimation {
-                                duration: 260
-                            }
+                    Item {
+                        required property var modelData
+                        required property int index
+                        readonly property real before: {
+                            let total = 0;
+                            for (let i = 0; i < index; ++i)
+                                total += base.rows[i].width;
+                            return total;
                         }
-                    }
+                        readonly property real all: {
+                            let total = 0;
+                            for (const row of base.rows)
+                                total += row.width;
+                            return total;
+                        }
 
-                    Label {
-                        width: base.width
-                        role: base.role
-                        font.weight: Font.Bold
-                        text: base.text
-                        wrapMode: Text.Wrap
-                        color: Theme.m3onSurface
+                        y: modelData.y
+                        width: Math.max(0, Math.min(modelData.width, line.fill * all - before))
+                        height: modelData.height
+                        clip: true
+
+                        Label {
+                            y: -parent.y
+                            width: base.width
+                            role: base.role
+                            font.weight: Font.Bold
+                            text: base.text
+                            wrapMode: Text.Wrap
+                            color: Theme.m3onSurface
+                        }
                     }
                 }
             }
@@ -187,5 +211,10 @@ FocusScope {
         icon: lyrics.state === "loading" ? "hourglass_top" : lyrics.state === "instrumental" ? "piano" : "lyrics"
         title: lyrics.state === "instrumental" ? "Instrumental" : lyrics.state === "loading" ? "Buscando letra…" : "Sin letra"
         message: lyrics.state === "missing" ? "Solo se muestran letras que coinciden en título, artista y duración (±2 s)." : lyrics.state === "idle" ? lyrics.message : ""
+    }
+
+    // Smooth position for the karaoke fill.
+    PlayClock {
+        id: clock
     }
 }

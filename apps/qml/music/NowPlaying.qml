@@ -101,7 +101,7 @@ FocusScope {
                 cover: player.coverUrl
                 trackKey: player.currentKey
                 playing: player.playing
-                progress: player.duration > 0 ? player.position / player.duration : 0
+                progress: player.duration > 0 ? clock.position / player.duration : 0
                 tone: player.tone !== "" ? player.tone : Theme.m3primaryContainer
             }
 
@@ -297,7 +297,7 @@ FocusScope {
                         width: parent.width - 2 * (Metrics.listAvatarSize + parent.spacing)
                         from: 0
                         to: Math.max(1, player.duration)
-                        value: player.position
+                        value: clock.position
                         stepSize: 5
                         pageStep: 30
                         live: false
@@ -307,7 +307,7 @@ FocusScope {
                         onMoved: v => player.seek(v)
 
                         Binding on value {
-                            value: player.position
+                            value: clock.position
                             when: !progress.pressed
                             restoreMode: Binding.RestoreNone
                         }
@@ -498,5 +498,10 @@ FocusScope {
                 note: root.autoQueue ? lyrics.message : ""
             }
         }
+    }
+
+    // Smooth position for the bars and the record.
+    PlayClock {
+        id: clock
     }
 }

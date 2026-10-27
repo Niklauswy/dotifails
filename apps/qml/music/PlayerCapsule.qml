@@ -220,7 +220,7 @@ Item {
                     width: parent.width - 2 * (Metrics.listAvatarSize + parent.spacing)
                     from: 0
                     to: Math.max(1, player.duration)
-                    value: player.position
+                    value: clock.position
                     stepSize: 5
                     pageStep: 30
                     live: false
@@ -231,7 +231,7 @@ Item {
 
                     // Follow the player except while the user drags (a drag or a key press writes `value`).
                     Binding on value {
-                        value: player.position
+                        value: clock.position
                         when: !progress.pressed
                         restoreMode: Binding.RestoreNone
                     }
@@ -330,7 +330,7 @@ Item {
             visible: root.compact
             anchors.bottom: parent.bottom
             width: parent.width
-            value: player.duration > 0 ? player.position / player.duration : 0
+            value: player.duration > 0 ? clock.position / player.duration : 0
         }
     }
 
@@ -344,5 +344,10 @@ Item {
         Tooltip {
             text: player.playing ? "Pausar · Espacio" : "Reproducir · Espacio"
         }
+    }
+
+    // Smooth position for the bars.
+    PlayClock {
+        id: clock
     }
 }
