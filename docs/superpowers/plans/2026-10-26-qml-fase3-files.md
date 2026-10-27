@@ -2,6 +2,9 @@
 
 > **Para workers agénticos:** SUB-SKILL REQUERIDA: superpowers:executing-plans (ejecución nativa, elegida por Nicolas). Casillas `- [ ]`. Una suite a la vez; `TMPDIR` y venvs en `~/.cache`.
 
+**Estado (2026-10-26):** maquetas aprobadas («Sí, ya hazlo»). Tarea 1 hecha y en `main`. Tarea 2 empezada en el worktree
+`~/orca/workspaces/wysun-shell/qml-fase3-files` (`quick/folder.py`, `quick/thumbs.py` sin commit ni pruebas). Tareas 3-8 pendientes.
+
 **Meta:** Wysun Files reescrita en QML sobre `WysunM3` con el rediseño aprobado (`docs/design/qml-migration/files-*.html`, 2026-10-26: «Sí, ya hazlo»), paridad F-01…F-71 (`docs/superpowers/specs/2026-10-26-qml-paridad-music-files.md`), y el selector de archivos, el portal `org.freedesktop.impl.portal.FileChooser` y `org.freedesktop.FileManager1` funcionando sobre la nueva UI.
 
 **Arquitectura:** se conservan `ops.py` (operaciones seguras), `kinds.py`, `markdown.py`, `highlight.py`, `browser.py`, el protocolo de `picker.py` y la lógica de filtros/validación de `chooser.py` (se extrae a un módulo sin Widgets). `wysun_files/quick/` expone a QML: `FolderModel` (sobre `QFileSystemModel` de QtGui + proxy de orden/filtro/tipo/ocultos/filtros del portal), `Places` (favoritos, marcadores, dispositivos, papelera), `Operations` (hilo, una a la vez, portapapeles, papelera con deshacer), `Preview` (texto, código resaltado, Markdown, resúmenes), un proveedor de miniaturas `image://thumb/` con los límites actuales (32 MB, 16 Mpx, 160 px, 2 hilos). La UI vive en `apps/qml/files/`; el modo selector es la misma ventana con `chooser: true`. Vídeo y audio del inspector con `QtMultimedia` (QML, del runtime); «Seguir en Wysun Player» y abrir medios lanzan Wysun Player como hoy.
@@ -26,10 +29,10 @@
 
 ## Tareas
 
-### Tarea 1: Núcleo sin Widgets
+### Tarea 1: Núcleo sin Widgets ✅
 `wysun_files/core/{filters.py, places.py}`: filtros glob/MIME del portal y validación del selector extraídos de `chooser.py`; favoritos/marcadores/dispositivos de `sidebar.py`; `model.py` a `QtGui.QFileSystemModel`. Pruebas unitarias con el Python del sistema. Commit `refactor(files): Widgets-free core for filters, places and the model`.
 
-### Tarea 2: Puente de carpeta
+### Tarea 2: Puente de carpeta (en curso)
 `quick/folder.py` (`FolderModel`: roles path, name, isDir, kind, icon, role, label, sizeText, modifiedText, ext, thumb; `setRoot`, `sort(key, desc)`, `setFilter(text)`, `setKindFilter(kind)`, `showHidden`, `summary`), `quick/thumbs.py` (proveedor asíncrono). Pruebas `check_files_folder.py`. Commit `feat(files): QML folder model and thumbnails`.
 
 ### Tarea 3: Ventana, pestañas y navegación

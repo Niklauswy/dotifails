@@ -2,6 +2,14 @@
 
 > **Para workers agénticos:** SUB-SKILL REQUERIDA: superpowers:executing-plans (ejecución nativa, elegida por Nicolas: «continúa tú»). Casillas `- [ ]`. Una compilación/suite a la vez; `TMPDIR` y venvs en `~/.cache`.
 
+**Estado (2026-10-26): TERMINADA.** Tareas 1-12 hechas, revisadas, fusionadas a `main` (9f7cb998) y desplegadas; la UI Widgets
+de Music está retirada. Después, tres rondas de pulido pedidas por Nicolas, también en `main` y desplegadas:
+portadas en todas partes y tocadiscos en «Ahora suena» (a6be651d); ritual del disco por canción, letras karaoke, cabecera de álbum con
+funda y vinilo, cápsula con mini vinilo, mpv muere con Music (98a94e39); posición suave, relleno por renglón y brillo sin cortes
+(fix de polish-3). Se mostraron opciones de barra de progreso (`docs/design/qml-migration/music-progress.html`): Nicolas prefiere
+la actual. Queda abierto: `check_music_player.test_messages_are_snackbars` falla solo al correr tras otros módulos (snackbar heredada;
+ya pasaba antes del pulido).
+
 **Meta:** Wysun Music reescrita en QML sobre `WysunM3` con el rediseño aprobado (`docs/design/qml-migration/music-*.html`) y paridad completa con la versión Widgets (filas M-01…M-76 de `docs/superpowers/specs/2026-10-26-qml-paridad-music-files.md`), más los atajos «nuevos» D1/D3/D4 (aprobados por Nicolas el 2026-10-26).
 
 **Arquitectura:** el backend no cambia (`Library`, `Player`+mpv, `PlayQueue`, `CoverStore`, `Metadata`, `data`, `mpris`, `store`). Un paquete `wysun_music/quick/` lo expone a QML con modelos `QAbstractListModel` y objetos puente; la UI vive en `apps/qml/music/` (se despliega con `apps/qml` a `~/.local/share/wysun/qml/music`). `python3 -m wysun_music` comprueba la instancia única con el Python del sistema y, si hay que arrancar, se re-ejecuta en el venv `qml-runtime`.
@@ -51,8 +59,8 @@
 
 **Interfaces:** request JSON `{title, kind: "audio"|"document", multiple: bool, directory: bool, initial}`; respuesta `{code, uris:[…]}` (sin cambios). `suffix` sigue valiendo para PDF/MD.
 
-- [ ] Pruebas: `make_selector({'kind':'audio','multiple':True})` → `FileChooser` con `multiple`, filtro «Audio» con `*.m4a *.opus *.mp3 *.flac *.ogg *.wav *.aac`; `directory: True` → `chooser.directory`; `kind` desconocido → `ValueError`; las peticiones PDF anteriores no cambian.
-- [ ] Implementar; pasar las pruebas del picker y `tests/test_pdf*` que lo usan. Commit `feat(files): picker requests for audio files and folders`.
+- [x] Pruebas: `make_selector({'kind':'audio','multiple':True})` → `FileChooser` con `multiple`, filtro «Audio» con `*.m4a *.opus *.mp3 *.flac *.ogg *.wav *.aac`; `directory: True` → `chooser.directory`; `kind` desconocido → `ValueError`; las peticiones PDF anteriores no cambian.
+- [x] Implementar; pasar las pruebas del picker y `tests/test_pdf*` que lo usan. Commit `feat(files): picker requests for audio files and folders`.
 
 ### Tarea 2: Arranque, ventana QML y navegación
 
@@ -60,9 +68,9 @@
 
 **Interfaces:** `QmlMusicWindow(library, covers, player, test=False)` con `present()`, `save_ui()`, `hide()`; contexto QML: `music` (controller), `player`, `lyrics`, `addMusic`, `bridge`. `Main.qml`: `property string route`, `function navigate(route, remember=true)`, `goBack()`, `goForward()`, historial de 50, `AdaptiveNavigation` con los destinos de «Restricciones», barra superior (ocultar, atrás, adelante, `SearchBar` Ctrl+K, atajos F1), contenido con `FadeThrough` entre destinos y `SharedAxis` al entrar en una colección. `music_fixture.library(tmp)` crea 3 pistas sintéticas importadas y devuelve el `build(test=True, ui='qml')`.
 
-- [ ] Pruebas: la ventana carga sin avisos QML; `navigate('collection:favorites')` cambia la página y el destino activo; atrás/adelante; la ruta se guarda y se restaura; cerrar la ventana la oculta y el reproductor sigue (`player.playing` sin cambios); `test_second_launch_presents` (`main()` con un dueño ya vivo envía `present`); `test_reexec_happens_after_the_instance_check` (con `send` parcheado a True no se llama a `ensure_runtime_python`).
-- [ ] Implementar `main()`: `send` → si no hay dueño, `bootstrap.ensure_runtime_python('wysun_music')` → `require_qt()` → `QGuiApplication` (`wysun-music`, `setDesktopFileName`), `build(ui=os.environ.get('WYSUN_MUSIC_UI','widgets'))`.
-- [ ] Commit `feat(music): QML window, navigation and launch on the qml-runtime`.
+- [x] Pruebas: la ventana carga sin avisos QML; `navigate('collection:favorites')` cambia la página y el destino activo; atrás/adelante; la ruta se guarda y se restaura; cerrar la ventana la oculta y el reproductor sigue (`player.playing` sin cambios); `test_second_launch_presents` (`main()` con un dueño ya vivo envía `present`); `test_reexec_happens_after_the_instance_check` (con `send` parcheado a True no se llama a `ensure_runtime_python`).
+- [x] Implementar `main()`: `send` → si no hay dueño, `bootstrap.ensure_runtime_python('wysun_music')` → `require_qt()` → `QGuiApplication` (`wysun-music`, `setDesktopFileName`), `build(ui=os.environ.get('WYSUN_MUSIC_UI','widgets'))`.
+- [x] Commit `feat(music): QML window, navigation and launch on the qml-runtime`.
 
 ### Tarea 3: Base — destinos con imagen, acciones de cabecera y menú contextual
 
@@ -70,7 +78,7 @@
 
 **Interfaces:** destino `{image: url, trailingIcon: string}`; cabecera `{header, action: icon, actionId}`; señales `headerAction(string actionId)` y `contextRequested(string id, real x, real y)` en drawer y `AdaptiveNavigation`.
 
-- [ ] Pruebas: imagen 24 px redondeada en lugar del icono; `trailingIcon` visible; clic en la acción emite `headerAction`; clic derecho emite `contextRequested` con coordenadas de ventana. Implementar, galería, commit `feat(qml): navigation destinations with artwork, header actions and context menus`.
+- [x] Pruebas: imagen 24 px redondeada en lugar del icono; `trailingIcon` visible; clic en la acción emite `headerAction`; clic derecho emite `contextRequested` con coordenadas de ventana. Implementar, galería, commit `feat(qml): navigation destinations with artwork, header actions and context menus`.
 
 ### Tarea 4: Modelos y datos de páginas
 
@@ -82,59 +90,59 @@
 - `CardListModel` roles `id, title, subtitle, kind, count, covers, round, playing`; `setCollections(list[Collection])`.
 - `MusicController`: `@Slot(str, result='QVariantMap') page(route)` → para `home`: `{greeting, date, bento:[3], recent, playlists, chart, albums, artists}` (listas de ids o claves); `library:*` → modelo y recuento; `collection:<id>` → `{exists, title, kind, label, byline, meta, editable, source, count}` + `collectionTracks` (TrackListModel) con `@Slot(str) setFilter`, `@Slot(str) setSort(custom|title|artist|album|duration)`; `search` → `{top, songs(5), songCount, artists, lists}`; `explore`.
 - Reglas copiadas de la versión Widgets: saludo por hora (5-12, 12-20, resto), fecha «lunes 26 de octubre», bento (sonando/sigue escuchando/empieza por aquí · Tus me gusta · Mezcla), «Lo que más escuchas» = 9 más reproducidas disponibles, artistas por nº de canciones, `lead_artist` («Varios artistas»), byline por tipo, meta «N canciones · duración larga [· Actualizado fecha]», filtro visible con > 8 canciones.
-- [ ] Pruebas con biblioteca sintética: cada página devuelve los datos esperados; `test_models_follow_library_reload` (borrar una pista del `library.json` y recargar quita su fila); filtro/orden; búsqueda con acentos; ruta huérfana `exists: false`; sin red las URLs son `""`.
-- [ ] Commit `feat(music): models and page data for the QML UI`.
+- [x] Pruebas con biblioteca sintética: cada página devuelve los datos esperados; `test_models_follow_library_reload` (borrar una pista del `library.json` y recargar quita su fila); filtro/orden; búsqueda con acentos; ruta huérfana `exists: false`; sin red las URLs son `""`.
+- [x] Commit `feat(music): models and page data for the QML UI`.
 
 ### Tarea 5: Reproductor, cápsula y atajos
 
 **Archivos:** `wysun_music/quick/playback.py` (`PlayerBridge`), `apps/qml/music/{PlayerCapsule,Shortcuts}.qml`, `parts/Cover.qml`, `tests/qml/check_music_player.py`.
 
 **Interfaces:** `PlayerBridge` propiedades `currentKey, title, artist, artists, album, coverUrl, paused, playing, position, duration, volume, muted, shuffle, repeat (off|all|one), canNext, canPrevious, quality, favorite, contextId`; slots `toggle, next, previous, seek(s), seekBy(s), setVolume(v), changeVolume(d), toggleMute, setShuffle(b), cycleRepeat, toggleFavorite, play(key, contextKeys, contextId), playCollection(id, startKey, shuffle), toggleCollection(id), addToQueue(keys), playNext(keys), removeUpcoming(i), jumpTo(i)`; señal `message(str)` → `SnackbarHost`. `Cover.qml`: imagen enmascarada en una forma (`MultiEffect` + `ShapeEmblem` como máscara; con renderizador software, rectángulo redondeado), gira lentamente mientras suena (respeta movimiento reducido).
-- [ ] Pruebas con mpv real (`--ao=null`): play/pausa desde la cápsula y con Espacio; Ctrl+→; M silencia; `test_space_types_in_text_fields`; Ctrl+R cicla; barra de posición: flechas ±5 s, Home/End; `test_engine_failure_is_a_snackbar` (PATH sin mpv).
-- [ ] Commit `feat(music): player capsule, transport and keyboard shortcuts`.
+- [x] Pruebas con mpv real (`--ao=null`): play/pausa desde la cápsula y con Espacio; Ctrl+→; M silencia; `test_space_types_in_text_fields`; Ctrl+R cicla; barra de posición: flechas ±5 s, Home/End; `test_engine_failure_is_a_snackbar` (PATH sin mpv).
+- [x] Commit `feat(music): player capsule, transport and keyboard shortcuts`.
 
 ### Tarea 6: Inicio y Biblioteca
 
 **Archivos:** `pages/HomePage.qml`, `pages/LibraryPage.qml`, `parts/{BentoTile,Shelf,ChartRow,AlbumCard,ArtistCard}.qml`, `tests/qml/check_music_pages.py`.
 
-- [ ] Inicio según la maqueta: fecha y saludo, bento adaptable (fila de 3 ≥ 780 px, si no 2+1), estanterías horizontales con «Ver todo», ranking, artistas en cookie; Biblioteca con `TabBar` (Álbumes, Artistas, Canciones, Listas), rejillas adaptables (`GridView`) y estado vacío; tarjetas con Enter/Espacio abre, Ctrl+Enter reproduce, botón de reproducir; `test_orphan_route`.
-- [ ] Pruebas: secciones presentes con datos sintéticos; rejilla de 1 000 álbumes sintéticos solo crea los visibles; teclado en tarjetas. Commit `feat(music): home and library pages`.
+- [x] Inicio según la maqueta: fecha y saludo, bento adaptable (fila de 3 ≥ 780 px, si no 2+1), estanterías horizontales con «Ver todo», ranking, artistas en cookie; Biblioteca con `TabBar` (Álbumes, Artistas, Canciones, Listas), rejillas adaptables (`GridView`) y estado vacío; tarjetas con Enter/Espacio abre, Ctrl+Enter reproduce, botón de reproducir; `test_orphan_route`.
+- [x] Pruebas: secciones presentes con datos sintéticos; rejilla de 1 000 álbumes sintéticos solo crea los visibles; teclado en tarjetas. Commit `feat(music): home and library pages`.
 
 ### Tarea 7: Colección, lista de canciones, selección, menús y diálogos
 
 **Archivos:** `pages/CollectionPage.qml`, `parts/{TrackRow,TrackList,SelectionBar,MusicMenus,PlaylistDialogs}.qml`, `tests/qml/check_music_collection.py`.
 
-- [ ] Cabecera con portada en forma por tipo (álbum squircle, artista cookie con foto o iniciales, Tus me gusta sunny, Recientes burst), velo del arte, se compacta al desplazar; Reproducir/Pausar, Aleatorio, Más; filtro y orden; artista: estantería de álbumes + canciones.
-- [ ] Lista: columnas #/portada/título/artista/álbum/duración (álbum oculto en álbumes y < 840 px), corazón, «más», clic en artista; selección múltiple (Ctrl/Mayús+clic, pulsación larga) con barra contextual; teclas Enter, Ctrl+Enter (artista), F, tecla Menú; doble clic reproduce.
-- [ ] Menús M-35/M-37 exactos (incluido «Añadir a playlist» con submenú → menú secundario, «Ir al artista» con varios artistas, «Mostrar en la carpeta» por FileManager1 `ShowItems` y, si falla, abrir la carpeta), diálogos de nueva playlist (nombre sugerido «Mi playlist n.º N»), renombrar y borrar con confirmación.
-- [ ] Pruebas de cada acción contra el backend. Commit `feat(music): collection page, track list, selection, menus and playlist dialogs`.
+- [x] Cabecera con portada en forma por tipo (álbum squircle, artista cookie con foto o iniciales, Tus me gusta sunny, Recientes burst), velo del arte, se compacta al desplazar; Reproducir/Pausar, Aleatorio, Más; filtro y orden; artista: estantería de álbumes + canciones.
+- [x] Lista: columnas #/portada/título/artista/álbum/duración (álbum oculto en álbumes y < 840 px), corazón, «más», clic en artista; selección múltiple (Ctrl/Mayús+clic, pulsación larga) con barra contextual; teclas Enter, Ctrl+Enter (artista), F, tecla Menú; doble clic reproduce.
+- [x] Menús M-35/M-37 exactos (incluido «Añadir a playlist» con submenú → menú secundario, «Ir al artista» con varios artistas, «Mostrar en la carpeta» por FileManager1 `ShowItems` y, si falla, abrir la carpeta), diálogos de nueva playlist (nombre sugerido «Mi playlist n.º N»), renombrar y borrar con confirmación.
+- [x] Pruebas de cada acción contra el backend. Commit `feat(music): collection page, track list, selection, menus and playlist dialogs`.
 
 ### Tarea 8: Búsqueda y Explorar
 
 **Archivos:** `pages/SearchPage.qml`, `tests/qml/check_music_search.py`.
 
-- [ ] Escribir en la barra navega a `search:` y refina la misma entrada del historial; rebote de 140 ms; Explorar con búsqueda vacía; resultado principal (artista o canción), 5 canciones + «Ver las N canciones» (`collection:search:<q>`), artistas, listas; ↓/Enter bajan a los resultados; Esc limpia; sin resultados → estado vacío. Commit `feat(music): search and explore`.
+- [x] Escribir en la barra navega a `search:` y refina la misma entrada del historial; rebote de 140 ms; Explorar con búsqueda vacía; resultado principal (artista o canción), 5 canciones + «Ver las N canciones» (`collection:search:<q>`), artistas, listas; ↓/Enter bajan a los resultados; Esc limpia; sin resultados → estado vacío. Commit `feat(music): search and explore`.
 
 ### Tarea 9: Ahora suena, letra y cola
 
 **Archivos:** `wysun_music/quick/playback.py` (`LyricsBridge`, `QueueModel`), `apps/qml/music/{NowPlaying,LyricsView,QueueList}.qml`, `tests/qml/check_music_nowplaying.py`.
 
 **Interfaces:** `LyricsBridge`: `state (idle|loading|synced|plain|instrumental|missing)`, `lines: [{time, text}]`, `currentIndex`, `offset`, `source`, `@Slot(int) seekLine`, `@Slot(float) nudge(±0.5)` (persistido en `offset:<key>`), clave de caché `key:duración`.
-- [ ] Panel que cubre la ventana con container transform desde la portada; portada grande en cookie, calidad «OPUS · 160 kb/s», controles grandes; pestañas Letra / A continuación (Ctrl+L, Ctrl+Q, Ctrl+P; la misma tecla cierra); sin letra y sin pestaña elegida → muestra la cola con la nota; letra con seguimiento suave y pausa de 3,5 s tras la rueda; clic o ↑/↓+Enter saltan; cola con origen, saltar, quitar, menú.
-- [ ] Pruebas con letras sintéticas inyectadas en `Metadata.ready`: línea actual sigue la posición con el desfase; `nudge` persiste; estados; cola. Commit `feat(music): now playing, synced lyrics and queue`.
+- [x] Panel que cubre la ventana con container transform desde la portada; portada grande en cookie, calidad «OPUS · 160 kb/s», controles grandes; pestañas Letra / A continuación (Ctrl+L, Ctrl+Q, Ctrl+P; la misma tecla cierra); sin letra y sin pestaña elegida → muestra la cola con la nota; letra con seguimiento suave y pausa de 3,5 s tras la rueda; clic o ↑/↓+Enter saltan; cola con origen, saltar, quitar, menú.
+- [x] Pruebas con letras sintéticas inyectadas en `Metadata.ready`: línea actual sigue la posición con el desfase; `nudge` persiste; estados; cola. Commit `feat(music): now playing, synced lyrics and queue`.
 
 ### Tarea 10: Añadir música
 
 **Archivos:** `wysun_music/quick/addmusic.py`, `pages/AddMusicPage.qml`, `tests/qml/check_music_addmusic.py`.
 
-- [ ] Paridad M-62…M-67 (búsqueda yt-dlp con tiempo límite 90 s, enlaces válidos, Spotify, «Descargar selección» y Ctrl+Enter, importar archivos/carpeta con el selector de Files (Tarea 1), abrir carpeta de música, cola con Continuar/Pausar/Reintentar y estados con tono). Pruebas con `ytdlp` y `import_link` falsos. Commit `feat(music): add music page`.
+- [x] Paridad M-62…M-67 (búsqueda yt-dlp con tiempo límite 90 s, enlaces válidos, Spotify, «Descargar selección» y Ctrl+Enter, importar archivos/carpeta con el selector de Files (Tarea 1), abrir carpeta de música, cola con Continuar/Pausar/Reintentar y estados con tono). Pruebas con `ytdlp` y `import_link` falsos. Commit `feat(music): add music page`.
 
 ### Tarea 11: Integración y modo en segundo plano
 
-- [ ] MPRIS sin cambios sobre `QGuiApplication` (`Raise` → `present`), `--background`, `music-mini`, «Abrir en Spotify», hoja de atajos (F1) como diálogo con la lista de «Restricciones». Prueba MPRIS con bus propio si hay `dbus-daemon` (si no, se salta). Commit `feat(music): desktop integration on the QML window`.
+- [x] MPRIS sin cambios sobre `QGuiApplication` (`Raise` → `present`), `--background`, `music-mini`, «Abrir en Spotify», hoja de atajos (F1) como diálogo con la lista de «Restricciones». Prueba MPRIS con bus propio si hay `dbus-daemon` (si no, se salta). Commit `feat(music): desktop integration on the QML window`.
 
 ### Tarea 12: Medidas, cambio y retirada de Widgets
 
-- [ ] Medir antes (Widgets) y después (QML) con la misma biblioteca sintética de 3 000 pistas: arranque hasta ventana con datos (caliente y frío), scroll de «Canciones», RSS/PSS. QML no puede ser perceptiblemente peor; resultados en `docs/superpowers/specs/2026-10-26-qml-medidas-music.md`.
-- [ ] Recorrer la lista de paridad fila a fila (marcar ✓ o la prueba que lo cubre) y comprobar en ventana real.
-- [ ] Hacer QML la UI predeterminada, borrar `wysun_music/ui/` y las pruebas que solo cubrían widgets (sustituidas por `tests/qml/check_music_*`), actualizar `ARCHITECTURE.md`/`apps/python/README.md`. Suites en serie, revisión final, fusión y despliegue con verificación en vivo.
+- [x] Medir antes (Widgets) y después (QML) con la misma biblioteca sintética de 3 000 pistas: arranque hasta ventana con datos (caliente y frío), scroll de «Canciones», RSS/PSS. QML no puede ser perceptiblemente peor; resultados en `docs/superpowers/specs/2026-10-26-qml-medidas-music.md`.
+- [x] Recorrer la lista de paridad fila a fila (marcar ✓ o la prueba que lo cubre) y comprobar en ventana real.
+- [x] Hacer QML la UI predeterminada, borrar `wysun_music/ui/` y las pruebas que solo cubrían widgets (sustituidas por `tests/qml/check_music_*`), actualizar `ARCHITECTURE.md`/`apps/python/README.md`. Suites en serie, revisión final, fusión y despliegue con verificación en vivo.
