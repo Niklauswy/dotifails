@@ -103,7 +103,8 @@ Item {
         size: Math.min(parent.width, parent.height)
         shape: root.shape
         color: Theme.m3onSurface
-        layer.enabled: root.hasImage && !root._software
+        // Always a layer: turning it on when the image arrives later leaves MultiEffect without its mask.
+        layer.enabled: !root._software
         visible: false
         rotation: spin.angle
     }

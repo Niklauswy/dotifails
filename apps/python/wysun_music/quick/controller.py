@@ -427,6 +427,13 @@ class MusicController(QObject):
         if url.startswith('https://'):
             QDesktopServices.openUrl(QUrl(url))
 
+    @Slot(str, result=str)
+    def toneOf(self, collection_id):
+        """The dominant colour of a collection's artwork (``#rrggbb``) or '' (user artwork, not a theme colour)."""
+        collection = self.library.collection(collection_id)
+        tone = self.covers.collection_tone(collection) if collection is not None else None
+        return tone.name() if tone is not None else ''
+
     @Slot(str, result='QVariantList')
     def trackArtists(self, key):
         return artists(self.library.track(key))

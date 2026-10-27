@@ -12,6 +12,7 @@ MusicCard {
     readonly property string kind: model.kind
 
     objectName: "card-" + collectionId
+    entranceIndex: index
     title: model.title
     subtitle: model.subtitle
     covers: model.covers

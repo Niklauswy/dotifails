@@ -25,6 +25,7 @@ class PlayerBridge(QObject):
     def __init__(self, library, player, urls, parent=None):
         super().__init__(parent)
         self.library, self.player, self.urls = library, player, urls
+        self.covers_store = urls.covers
         player.track_changed.connect(lambda _: self.trackChanged.emit())
         player.state_changed.connect(self.stateChanged)
         player.position_changed.connect(lambda _: self.positionChanged.emit())
@@ -86,6 +87,12 @@ class PlayerBridge(QObject):
     @Property(str, notify=trackChanged)
     def coverUrl(self):
         return self.urls.url(self.player.current) if self.player.current else ''
+
+    @Property(str, notify=trackChanged)
+    def tone(self):
+        """Dominant colour of the current artwork (``#rrggbb``) or ''."""
+        tone = self.covers_store.tone(self.player.current) if self.player.current else None
+        return tone.name() if tone is not None else ''
 
     @Property(bool, notify=trackChanged)
     def favorite(self):

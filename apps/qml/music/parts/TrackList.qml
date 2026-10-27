@@ -98,6 +98,8 @@ ListView {
         contextRequested(selection[key] ? selectedKeys : [key], x, y);
     }
 
+    // No current row until the keyboard asks for one: a current row would scroll the header away.
+    currentIndex: -1
     clip: true
     boundsBehavior: Flickable.StopAtBounds
     activeFocusOnTab: true
@@ -112,6 +114,7 @@ ListView {
 
         function onModelReset() {
             root.clearSelection();
+            root.currentIndex = -1;
         }
     }
 

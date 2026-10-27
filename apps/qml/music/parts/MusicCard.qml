@@ -17,9 +17,46 @@ FocusScope {
     property bool selected
     readonly property bool hot: area.containsMouse || activeFocus
 
+    // ≥ 0: the card rises into place after the ones before it (a staggered entrance); -1: it is just there.
+    property int entranceIndex: -1
+
     signal opened
     signal playRequested
     signal contextRequested(real x, real y)
+
+    transform: Translate {
+        id: lift
+    }
+
+    Component.onCompleted: {
+        if (entranceIndex < 0 || Motion.reduced)
+            return;
+        opacity = 0;
+        lift.y = Theme.spacing.extraLarge ?? 0;
+        entrance.start();
+    }
+
+    SequentialAnimation {
+        id: entrance
+
+        PauseAnimation {
+            duration: Math.min(root.entranceIndex, 10) * Motion.ms("fastEffects") / 3
+        }
+        ParallelAnimation {
+            Anim {
+                target: root
+                property: "opacity"
+                to: 1
+                kind: "defaultEffects"
+            }
+            Anim {
+                target: lift
+                property: "y"
+                to: 0
+                kind: "defaultSpatial"
+            }
+        }
+    }
 
     implicitWidth: MusicMetrics.cardWidth
     implicitHeight: art.height + (Theme.spacing.small ?? 0) + texts.implicitHeight

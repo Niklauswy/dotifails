@@ -146,3 +146,16 @@ class ImportTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class MovedCoverTests(unittest.TestCase):
+    def test_a_cached_cover_from_the_old_data_folder_is_found_in_the_new_one(self):
+        import tempfile
+        from wysun_music.covers import CoverStore
+        with tempfile.TemporaryDirectory() as folder:
+            store = CoverStore.__new__(CoverStore)
+            store.metadata = type('M', (), {'root': Path(folder)})()
+            (Path(folder) / 'abc.image').write_bytes(b'x')
+            self.assertEqual(store._located('/home/someone/.local/share/orbit/music/metadata/abc.image'),
+                             str(Path(folder) / 'abc.image'))
+            self.assertEqual(store._located('/gone/zzz.image'), '/gone/zzz.image')

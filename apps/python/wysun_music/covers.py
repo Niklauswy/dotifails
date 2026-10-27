@@ -4,6 +4,7 @@ Every key is requested at most once per session. Network and decoding run in
 ``Metadata``'s small thread pool; painting only reads ``QPixmapCache``.
 """
 import re
+from pathlib import Path
 import subprocess
 
 from PySide6.QtCore import QObject, QRectF, Qt, Signal
@@ -86,11 +87,19 @@ class CoverStore(QObject):
         image.scaled(512, 512, Qt.KeepAspectRatio, Qt.SmoothTransformation).save(str(target), 'PNG')
         return {'path': str(target)}
 
+    def _located(self, path):
+        """Cached results keep the absolute path they were saved with; after the data folder moved (orbit → wysun)
+        the same file lives in today's metadata folder."""
+        if Path(path).is_file():
+            return path
+        moved = self.metadata.root / Path(path).name
+        return str(moved) if moved.is_file() else path
+
     def _ready(self, kind, key, data):
         if kind == 'artist':
             key = 'artist:' + key
         if kind in ('cover', 'embedded', 'artist') and data.get('path'):
-            self._paths[key] = data['path']
+            self._paths[key] = self._located(data['path'])
             self._tones.pop(key, None)
             self.updated.emit(key)
 
