@@ -46,53 +46,21 @@ FocusScope {
         onAction: page.app.navigate("home", true)
     }
 
-    // The wash: the artwork blurred and faded into the surface (a plain role tint when there is no artwork).
-    Item {
-        id: wash
+    readonly property string tone: {
+        covers.revision;
+        return page.exists ? music.toneOf(collectionId) : "";
+    }
 
+    // The artwork as the page's atmosphere: blurred behind the header, sliding slower than the list (parallax) and
+    // fading as it scrolls away.
+    AmbientBackdrop {
         visible: page.exists
         width: parent.width
-        height: MusicMetrics.heroCover * 2
+        height: MusicMetrics.heroCover * 2.6
+        y: -Math.min(page.scrollOffset, height) * 0.45
         opacity: Math.max(0, 1 - page.scrollOffset / height)
-
-        Rectangle {
-            anchors.fill: parent
-            color: page.info.kind === "favorites" ? Theme.m3tertiaryContainer : page.info.kind === "recent" ? Theme.m3primaryContainer : Theme.m3secondaryContainer
-            opacity: 0.6
-            visible: washImage.status !== Image.Ready || GraphicsInfo.api === GraphicsInfo.Software
-        }
-        Image {
-            id: washImage
-
-            anchors.fill: parent
-            visible: false
-            source: page.coverList.length > 0 ? page.coverList[0] : ""
-            sourceSize.width: 64
-            sourceSize.height: 64
-            fillMode: Image.PreserveAspectCrop
-        }
-        MultiEffect {
-            anchors.fill: parent
-            visible: washImage.status === Image.Ready && GraphicsInfo.api !== GraphicsInfo.Software
-            source: washImage
-            blurEnabled: true
-            blur: 1
-            blurMax: 64
-            opacity: 0.55
-        }
-        Rectangle {
-            anchors.fill: parent
-            gradient: Gradient {
-                GradientStop {
-                    position: 0
-                    color: Qt.alpha(Theme.m3surface, 0.35)
-                }
-                GradientStop {
-                    position: 1
-                    color: Theme.m3surface
-                }
-            }
-        }
+        source: page.coverList.length > 0 ? page.coverList[0] : ""
+        tone: page.tone !== "" ? page.tone : page.info.kind === "favorites" ? Theme.m3tertiaryContainer : Theme.m3secondaryContainer
     }
 
     TrackList {
@@ -109,7 +77,19 @@ FocusScope {
         albums: page.info.kind !== "album" && width >= Metrics.windowMedium
         onArtistRequested: name => page.app.navigate("collection:artist:" + name, true)
         onContextRequested: (keys, x, y) => page.app.menus.trackMenu(keys, page.collectionId, x, y)
+        // The header settles its height after the artwork and the title are laid out; until the user scrolls,
+        // keep the view at its top (a ListView keeps its first row still, so a growing header slid upwards).
+        property bool userScrolled
+        onMovementStarted: userScrolled = true
+        onOriginYChanged: {
+            if (!userScrolled)
+                contentY = originY;
+        }
         header: Column {
+            onHeightChanged: {
+                if (!list.userScrolled)
+                    Qt.callLater(list.positionViewAtBeginning);
+            }
             width: list.width
             spacing: Theme.spacing.large ?? 0
             topPadding: Theme.padding.large ?? 0
@@ -120,19 +100,77 @@ FocusScope {
                 width: parent.width
                 spacing: Theme.spacing.extraLarge ?? 0
 
-                Cover {
+                Item {
                     id: heroCover
 
-                    objectName: "heroCover"
-                    width: Math.min(MusicMetrics.heroCover, list.width * 0.36)
+                    objectName: "heroCoverBox"
+                    readonly property real tiltX: hover.hovered ? (hover.point.position.y / height - 0.5) * -12 : 0
+                    readonly property real tiltY: hover.hovered ? (hover.point.position.x / width - 0.5) * 12 : 0
+
+                    width: Math.min(MusicMetrics.heroCover * 1.15, list.width * 0.38)
                     height: width
-                    sources: page.coverList
-                    initials: page.info.initials ?? ""
-                    shape: ({album: "squircle", artist: "cookie", favorites: "sunny", recent: "burst", user: "squircle"})[page.info.kind] ?? "squircle"
-                    placeholderIcon: ({artist: "person", favorites: "favorite", recent: "history", album: "album"})[page.info.kind] ?? "queue_music"
-                    fill: page.info.kind === "favorites" ? Theme.m3tertiaryContainer : page.info.kind === "recent" ? Theme.m3primaryContainer : Theme.m3secondaryContainer
-                    placeholderColor: page.info.kind === "favorites" ? Theme.m3onTertiaryContainer : page.info.kind === "recent" ? Theme.m3onPrimaryContainer : Theme.m3onSecondaryContainer
-                    spinning: page.isPlaying && page.info.kind !== "album"
+
+                    HoverHandler {
+                        id: hover
+                    }
+
+                    RectangularShadow {
+                        anchors.fill: cover
+                        visible: page.info.kind === "album" || page.info.kind === "user" || page.info.kind === "playlist" || page.info.kind === "ranking"
+                        radius: Theme.rounding.extraLarge ?? 0
+                        blur: 36
+                        offset.y: 14
+                        color: Qt.alpha(Theme.m3shadow, 0.5)
+                    }
+
+                    Cover {
+                        id: cover
+
+                        objectName: "heroCover"
+                        anchors.fill: parent
+                        sources: page.coverList
+                        initials: page.info.initials ?? ""
+                        shape: ({album: "squircle", artist: "cookie", favorites: "sunny", recent: "burst", user: "squircle"})[page.info.kind] ?? "squircle"
+                        placeholderIcon: ({artist: "person", favorites: "favorite", recent: "history", album: "album"})[page.info.kind] ?? "queue_music"
+                        fill: page.info.kind === "favorites" ? Theme.m3tertiaryContainer : page.info.kind === "recent" ? Theme.m3primaryContainer : Theme.m3secondaryContainer
+                        placeholderColor: page.info.kind === "favorites" ? Theme.m3onTertiaryContainer : page.info.kind === "recent" ? Theme.m3onPrimaryContainer : Theme.m3onSecondaryContainer
+                        spinning: page.isPlaying && page.info.kind !== "album"
+                        scale: hover.hovered ? 1.03 : 1
+                        transform: [
+                            Rotation {
+                                origin.x: cover.width / 2
+                                origin.y: cover.height / 2
+                                axis {
+                                    x: 1
+                                    y: 0
+                                    z: 0
+                                }
+                                angle: heroCover.tiltX
+
+                                SpringBehavior on angle {
+                                    kind: "fastSpatial"
+                                }
+                            },
+                            Rotation {
+                                origin.x: cover.width / 2
+                                origin.y: cover.height / 2
+                                axis {
+                                    x: 0
+                                    y: 1
+                                    z: 0
+                                }
+                                angle: heroCover.tiltY
+
+                                SpringBehavior on angle {
+                                    kind: "fastSpatial"
+                                }
+                            }
+                        ]
+
+                        SpringBehavior on scale {
+                            kind: "defaultSpatial"
+                        }
+                    }
                 }
 
                 Column {
@@ -148,7 +186,8 @@ FocusScope {
                     Label {
                         objectName: "collectionTitle"
                         width: parent.width
-                        role: list.width >= Metrics.windowMedium ? "headline.large" : "headline.small"
+                        role: "headline.large"
+                        font.pointSize: Theme.typeFont("headline.large").pointSize * (list.width >= Metrics.windowMedium ? 1.6 : 1)
                         text: page.info.title ?? ""
                         wrapMode: Text.Wrap
                         maximumLineCount: 2
@@ -184,20 +223,25 @@ FocusScope {
 
             Item {
                 width: parent.width
-                height: Metrics.buttonHeight + (Theme.spacing.small ?? 0)
+                height: Metrics.fabRegular + (Theme.spacing.small ?? 0)
 
                 Row {
                     spacing: Theme.spacing.small ?? 0
 
-                    Button {
+                    Fab {
                         objectName: "collectionPlay"
-                        text: page.isPlaying ? "Pausar" : "Reproducir"
+                        anchors.verticalCenter: parent.verticalCenter
+                        extended: list.width >= Metrics.windowMedium
                         icon: page.isPlaying ? "pause" : "play_arrow"
+                        text: page.isPlaying ? "Pausar" : "Reproducir"
+                        // The album's own colour (artwork-derived tone over the primary container).
+                        containerColor: page.tone !== "" ? Qt.tint(Theme.m3primaryContainer, Qt.alpha(page.tone, 0.55)) : Theme.m3primaryContainer
                         disabled: (page.info.count ?? 0) === 0
                         onClicked: player.toggleCollection(page.collectionId)
                     }
                     Button {
                         objectName: "collectionShuffle"
+                        anchors.verticalCenter: parent.verticalCenter
                         type: "tonal"
                         text: "Aleatorio"
                         icon: "shuffle"
@@ -208,6 +252,7 @@ FocusScope {
                         id: more
 
                         objectName: "collectionMore"
+                        anchors.verticalCenter: parent.verticalCenter
                         type: "tonal"
                         icon: "more_horiz"
                         onClicked: {

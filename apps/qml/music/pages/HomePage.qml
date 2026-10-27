@@ -129,6 +129,7 @@ FocusScope {
                 onMore: page.app.navigate("collection:recent", true)
                 model: music.homeRecentModel
                 delegate: MusicCard {
+                    entranceIndex: index
                     title: model.title
                     subtitle: model.artist
                     covers: model.cover ? [model.cover] : []

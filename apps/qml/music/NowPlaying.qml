@@ -30,9 +30,12 @@ FocusScope {
 
     Keys.onEscapePressed: closeRequested()
 
-    Rectangle {
+    // The artwork as the room the record player stands in.
+    AmbientBackdrop {
         anchors.fill: parent
-        color: Theme.m3surfaceContainerLow
+        source: player.coverUrl
+        tone: player.tone !== "" ? player.tone : Theme.m3primaryContainer
+        fadeBottom: false
     }
 
     // Nothing reaches the page behind: clicks, the wheel and hover stop here.
@@ -41,45 +44,6 @@ FocusScope {
         acceptedButtons: Qt.AllButtons
         hoverEnabled: true
         onWheel: wheel => wheel.accepted = true
-    }
-
-    // A soft disc of the primary container behind the cover, breathing while music plays.
-    Rectangle {
-        x: left.x + art.x + art.width / 2 - width / 2
-        y: content.y + left.y + art.y + art.height / 2 - height / 2
-        width: art.width * 1.15
-        height: width
-        radius: width / 2
-        color: Theme.m3primaryContainer
-        opacity: 0.35
-        scale: breathe.value
-
-        QtObject {
-            id: breathe
-
-            property real value: 1
-        }
-        SequentialAnimation {
-            running: player.playing && root.open && !Motion.reduced
-            loops: Animation.Infinite
-
-            NumberAnimation {
-                target: breathe
-                property: "value"
-                to: 1.06
-                duration: Theme.duration("extraLarge") * 2
-                easing.type: Easing.BezierSpline
-                easing.bezierCurve: Motion.bezier("emphasized")
-            }
-            NumberAnimation {
-                target: breathe
-                property: "value"
-                to: 1
-                duration: Theme.duration("extraLarge") * 2
-                easing.type: Easing.BezierSpline
-                easing.bezierCurve: Motion.bezier("emphasized")
-            }
-        }
     }
 
     Item {
@@ -123,16 +87,16 @@ FocusScope {
             width: root.wide ? parent.width * 0.42 : parent.width - 2 * x
             spacing: Theme.spacing.medium ?? 0
 
-            Cover {
+            Turntable {
                 id: art
 
-                objectName: "nowCover"
+                objectName: "turntable"
                 anchors.horizontalCenter: parent.horizontalCenter
-                width: Math.min(MusicMetrics.nowPlayingCover, left.width * 0.8, root.wide ? content.height * 0.5 : content.height * 0.28)
-                height: width
-                source: player.coverUrl
-                shape: player.playing ? "cookie12" : "circle"
-                spinning: player.playing
+                width: Math.min(left.width, (root.wide ? content.height * 0.5 : content.height * 0.3) * 1.55)
+                height: width / 1.55
+                cover: player.coverUrl
+                playing: player.playing
+                tone: player.tone !== "" ? player.tone : Theme.m3primaryContainer
             }
 
             Item {
@@ -257,6 +221,8 @@ FocusScope {
                     objectName: "nowPlay"
                     anchors.verticalCenter: parent.verticalCenter
                     size: "large"
+                    // The record's colour on the main button (artwork-derived tone, readable on either mode).
+                    containerColor: player.tone !== "" ? Qt.tint(Theme.m3primaryContainer, Qt.alpha(player.tone, 0.55)) : Theme.m3primaryContainer
                     icon: player.playing ? "pause" : "play_arrow"
                     restRadius: player.playing ? Theme.rounding.large ?? 0 : Theme.fullRadius(height)
                     onClicked: player.toggle()
