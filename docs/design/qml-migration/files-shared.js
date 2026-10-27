@@ -20,13 +20,27 @@
   ];
 
   const tone = (role) => `background:var(--m3-${role}-container);color:var(--m3-on-${role}-container)`;
+  /* Iconos de archivo: la carpeta tiene su silueta (pestaña) con un glifo si es especial; los documentos son una
+     hoja con esquina doblada y la extensión en una banda de su rol; las imágenes y vídeos muestran su contenido
+     (vídeo con play y duración); el audio, su carátula en cookie; el código y el texto, sus primeras líneas. */
+  const SPECIAL = { Music: 'music_note', Downloads: 'download', Latex: 'functions', repos: 'code', clases: 'school', proyectos: 'rocket_launch', Imágenes: 'image', Documentos: 'description' };
+  const EXT = { pdf: ['PDF', 'error'], md: ['MD', 'primary'], doc: ['DOC', 'primary'], code: ['PY', 'tertiary'], archive: ['ZIP', 'secondary'] };
+  const LINES = { md: ['# Notas de la clase 3', 'Repasar quicksort y', '- Ejercicios 4–7', '- Leer el capítulo 2'], code: ['import os', '', 'def main():', '    print(os.getcwd())', '', 'main()'] };
   FX.thumb = (kind, o = {}) => {
-    const k = FX.kinds[kind];
-    if (kind === 'image' && !o.icon) return MX.cover(o.seed || 3, { r: 'm', cls: 'fthumb' });
-    return `<div class="fthumb kind" style="${tone(k[2])};--shape:${MX.shapes[k[1]] || MX.shapes.squircle}">${ms(k[0], 1)}</div>`;
+    const name = o.name || '';
+    if (kind === 'folder') {
+      const glyph = SPECIAL[name];
+      return `<div class="ico folder" style="--c:var(--m3-${glyph ? 'secondary' : 'surface-variant'});--cc:var(--m3-${glyph ? 'secondary-container' : 'sc-highest'})"><span class="tab"></span><span class="body">${glyph ? ms(glyph, 1) : ''}</span></div>`;
+    }
+    if (kind === 'image') return `<div class="ico media">${MX.cover(o.seed || 3, { r: 'm', style: 'width:100%;height:100%' })}</div>`;
+    if (kind === 'video') return `<div class="ico media">${MX.cover(o.seed || 9, { r: 'm', style: 'width:100%;height:100%' })}<span class="badge-play">${ms('play_arrow', 1, 's18')}</span><span class="dur">2:41</span></div>`;
+    if (kind === 'audio') return `<div class="ico audio">${MX.cover(o.seed || 5, { shape: 'cookie', style: 'width:78%;height:78%' })}<span class="wave">${'<i></i>'.repeat(7)}</span></div>`;
+    const ext = EXT[kind] || ['TXT', 'primary'];
+    const lines = LINES[kind] || LINES[kind === 'pdf' ? 'md' : 'md'];
+    return `<div class="ico doc" style="--band:var(--m3-${ext[1]});--onband:var(--m3-on-${ext[1]})"><span class="sheet">${kind === 'pdf' || kind === 'archive' ? `<span class="glyph">${ms(kind === 'pdf' ? 'picture_as_pdf' : 'folder_zip', 1)}</span>` : `<span class="lines ${kind}">${lines.map((l) => `<i>${l || '&nbsp;'}</i>`).join('')}</span>`}</span><span class="ext">${ext[0]}</span></div>`;
   };
-  FX.tile = (f, o = {}) => `<div class="ftile ${o.sel ? 'sel' : ''} ${o.cut ? 'cut' : ''}" ${o.m ? `data-m="${o.m}"` : ''}>${o.sel ? `<span class="sel-check">${ms('check', 0, 's18')}</span>` : ''}${FX.thumb(f[1], { seed: o.seed })}<b class="ell">${f[0]}</b><span class="ell">${f[2]}</span></div>`;
-  FX.row = (f, o = {}) => `<div class="frow ${o.sel ? 'sel' : ''}">${FX.thumb(f[1], { seed: o.seed, icon: true })}<b class="ell">${f[0]}</b><span class="ell m">${f[3]}</span><span class="m">${f[1] === 'folder' ? '—' : f[2]}</span><span class="m type">${{ folder: 'Carpeta', image: 'Imagen', video: 'Vídeo', audio: 'Audio', doc: 'Documento', pdf: 'PDF', code: 'Código', archive: 'Archivo', md: 'Markdown' }[f[1]]}</span></div>`;
+  FX.tile = (f, o = {}) => `<div class="ftile ${o.sel ? 'sel' : ''} ${o.cut ? 'cut' : ''}" ${o.m ? `data-m="${o.m}"` : ''}>${o.sel ? `<span class="sel-check">${ms('check', 0, 's18')}</span>` : ''}${FX.thumb(f[1], { seed: o.seed, name: f[0] })}<b class="ell">${f[0]}</b><span class="ell">${f[2]}</span></div>`;
+  FX.row = (f, o = {}) => `<div class="frow ${o.sel ? 'sel' : ''}">${FX.thumb(f[1], { seed: o.seed, name: f[0] })}<b class="ell">${f[0]}</b><span class="ell m">${f[3]}</span><span class="m">${f[1] === 'folder' ? '—' : f[2]}</span><span class="m type">${{ folder: 'Carpeta', image: 'Imagen', video: 'Vídeo', audio: 'Audio', doc: 'Documento', pdf: 'PDF', code: 'Código', archive: 'Archivo', md: 'Markdown' }[f[1]]}</span></div>`;
 
   /* Navegación: los mismos destinos en drawer, rail y modal. */
   const FAV = [['home', 'home', 'Inicio'], ['desk', 'desktop_windows', 'Escritorio'], ['docs', 'description', 'Documentos'], ['dl', 'download', 'Descargas'], ['img', 'image', 'Imágenes'], ['mus', 'music_note', 'Música'], ['vid', 'movie', 'Vídeos']];

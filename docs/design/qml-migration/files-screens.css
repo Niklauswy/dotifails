@@ -69,3 +69,31 @@
 .choices { display: flex; gap: 16px; align-items: center; font-size: 13px; color: var(--m3-on-surface-variant); }
 .checkbox { width: 18px; height: 18px; border-radius: 2px; border: 2px solid var(--m3-on-surface-variant); display: inline-grid; place-items: center; vertical-align: middle; }
 .checkbox.on { background: var(--m3-primary); border-color: var(--m3-primary); color: var(--m3-on-primary); }
+
+/* Iconos de archivo (rediseño): 80 px en la rejilla, 32 px en la lista. */
+.ico { width: 80px; height: 80px; flex: none; position: relative; display: grid; place-items: center; }
+.flist .ico { width: 32px; height: 32px; }
+.ico.folder .tab { position: absolute; left: 6%; top: 14%; width: 42%; height: 18%; border-radius: 6px 10px 0 0; background: var(--c); opacity: .9; }
+.ico.folder .body { position: absolute; left: 4%; right: 4%; top: 24%; bottom: 10%; border-radius: 10px 14px 14px 14px; background: var(--cc); color: var(--c); display: grid; place-items: center;
+  box-shadow: inset 0 3px 0 color-mix(in oklab, var(--c) 35%, transparent); }
+.ico.folder .body .ms { font-size: 30px; }
+.flist .ico.folder .tab { border-radius: 2px 4px 0 0; } .flist .ico.folder .body { border-radius: 3px 5px 5px 5px; } .flist .ico.folder .body .ms { font-size: 14px; }
+.ico.doc .sheet { position: absolute; left: 16%; right: 16%; top: 6%; bottom: 6%; background: var(--m3-sc-highest); border-radius: 6px 18px 6px 6px; overflow: hidden;
+  clip-path: polygon(0 0, 72% 0, 100% 22%, 100% 100%, 0 100%); }
+.ico.doc .sheet::after { content: ''; position: absolute; right: 0; top: 0; width: 28%; height: 22%; background: color-mix(in oklab, var(--m3-on-surface) 18%, var(--m3-sc-highest)); border-bottom-left-radius: 6px; }
+.ico.doc .glyph { position: absolute; inset: 0; display: grid; place-items: center; color: var(--band); } .ico.doc .glyph .ms { font-size: 28px; }
+.ico.doc .lines { position: absolute; left: 10%; right: 12%; top: 26%; display: flex; flex-direction: column; gap: 2px; font: 500 4.6px/1.2 'JetBrains Mono', monospace; color: var(--m3-on-surface-variant); }
+.ico.doc .lines i { font-style: normal; white-space: pre; overflow: hidden; }
+.ico.doc .lines.md i:first-child { color: var(--m3-on-surface); font-weight: 700; font-size: 5.4px; }
+.ico.doc .lines.code i:nth-child(3) { color: var(--m3-tertiary); }
+.ico.doc .ext { position: absolute; left: 6%; bottom: 14%; padding: 2px 6px; border-radius: 6px; background: var(--band); color: var(--onband); font: 700 10px/1.2 var(--font); letter-spacing: .04em; }
+.flist .ico.doc .lines, .flist .ico.doc .glyph .ms { display: none; } .flist .ico.doc .ext { font-size: 6px; padding: 1px 3px; border-radius: 3px; left: 0; bottom: 8%; }
+.ico.media { border-radius: var(--rounding-l); overflow: hidden; width: 96px; height: 72px; }
+.flist .ico.media { width: 32px; height: 32px; border-radius: var(--rounding-s); }
+.ico.media .badge-play { position: absolute; width: 28px; height: 28px; border-radius: 50%; background: color-mix(in oklab, var(--m3-scrim) 55%, transparent); color: white; display: grid; place-items: center; } /* theme-exception: sobre una imagen */
+.ico.media .dur { position: absolute; right: 5px; bottom: 5px; font: 600 10px var(--font); padding: 1px 5px; border-radius: 4px; background: color-mix(in oklab, var(--m3-scrim) 60%, transparent); color: white; }
+.flist .ico.media .badge-play, .flist .ico.media .dur { display: none; }
+.ico.audio .wave { position: absolute; bottom: 4%; display: flex; gap: 2px; align-items: end; height: 16px; }
+.ico.audio .wave i { width: 3px; border-radius: 2px; background: var(--m3-primary); height: 40%; } .ico.audio .wave i:nth-child(2n) { height: 90%; } .ico.audio .wave i:nth-child(3n) { height: 65%; }
+.flist .ico.audio .wave { display: none; }
+.ftile.sel .ico.doc .sheet { box-shadow: 0 0 0 2px var(--m3-primary); }
