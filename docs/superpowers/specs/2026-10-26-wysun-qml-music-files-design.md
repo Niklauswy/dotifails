@@ -1,6 +1,8 @@
 # Wysun — Music y Files en QML sobre una base Material 3 Expressive
 
 Fecha: 2026-10-26. Estado: aprobado por Nicolas para empezar («ya empieza la migración»).
+Progreso: fase 1 (WysunM3) y fase 2 (Music) terminadas, en `main` y desplegadas; fase 3 (Files) en curso — maquetas aprobadas,
+plan escrito, tarea 1 hecha (ver `docs/superpowers/plans/2026-10-26-qml-fase3-files.md`).
 Las decisiones marcadas **(decisión del coordinador)** las tomé yo porque Nicolas me las delegó
 («como decidas»); el resto son suyas.
 
