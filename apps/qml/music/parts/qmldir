@@ -18,3 +18,4 @@ Format 1.0 Format.js
 AmbientBackdrop 1.0 AmbientBackdrop.qml
 Turntable 1.0 Turntable.qml
 Vinyl 1.0 Vinyl.qml
+PlayClock 1.0 PlayClock.qml
