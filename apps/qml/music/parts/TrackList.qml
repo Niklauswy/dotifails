@@ -118,6 +118,10 @@ ListView {
     Keys.onPressed: event => {
         if (currentIndex < 0 && count > 0 && (event.key === Qt.Key_Down || event.key === Qt.Key_Up))
             currentIndex = 0;
+        // Acting on a row needs a row: an empty or unfocused list lets these keys through.
+        const rowKeys = [Qt.Key_Return, Qt.Key_Enter, Qt.Key_F, Qt.Key_Menu, Qt.Key_Space];
+        if (rowKeys.indexOf(event.key) >= 0 && (currentIndex < 0 || currentIndex >= count))
+            return;
         switch (event.key) {
         case Qt.Key_Return:
         case Qt.Key_Enter:

@@ -13,8 +13,16 @@ FocusScope {
     property var app
     property string collectionId
     readonly property string kind: "collection"
-    readonly property var info: music.collection
+    // The shared collection data belongs to the page that opened it last: a page that is leaving (shared axis)
+    // keeps its own header and lets go of the song list instead of showing the next collection's.
+    readonly property bool owner: music.collection.id === collectionId
+    property var info: ({})
     readonly property bool exists: info.exists === true && info.id === collectionId
+    Binding on info {
+        when: page.owner
+        value: music.collection
+        restoreMode: Binding.RestoreNone
+    }
     readonly property bool isPlaying: player.playing && player.contextId === collectionId
     readonly property var coverList: {
         covers.revision;
@@ -95,7 +103,7 @@ FocusScope {
         anchors.fill: parent
         anchors.leftMargin: Theme.padding.large ?? 0
         anchors.rightMargin: Theme.padding.large ?? 0
-        model: music.collectionTracksModel
+        model: page.owner ? music.collectionTracksModel : null
         contextId: page.collectionId
         covers: page.info.kind !== "album"
         albums: page.info.kind !== "album" && width >= Metrics.windowMedium

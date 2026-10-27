@@ -26,6 +26,13 @@ class _KeyedModel(QAbstractListModel):
         return 0 if parent.isValid() else len(self._rows)
 
     def _reset(self, rows):
+        rows = list(rows)
+        if self._same(rows):
+            # Same rows: refresh their data in place, so views keep selection, current row and scroll.
+            self._rows = rows
+            if rows:
+                self.dataChanged.emit(self.index(0), self.index(len(rows) - 1))
+            return
         self.beginResetModel()
         self._rows = list(rows)
         self.endResetModel()
@@ -35,6 +42,9 @@ class _KeyedModel(QAbstractListModel):
         if self._rows:
             roles = [r for r, n in self._names.items() if n in names]
             self.dataChanged.emit(self.index(0), self.index(len(self._rows) - 1), roles)
+
+    def _same(self, rows):
+        return rows == self._rows
 
     @Property(int, notify=countChanged)
     def count(self):
@@ -82,6 +92,10 @@ class TrackListModel(_KeyedModel):
     @Slot('QVariantList')
     def setKeys(self, keys):
         self._reset([k for k in keys if self.library.track(k)])
+
+    def set_positions(self, keys):
+        """Keys kept as they are (the queue: row N must stay position N of the queue for jump/remove)."""
+        self._reset(list(keys))
 
     @Property('QVariantList', notify=_KeyedModel.countChanged)
     def keys(self):
@@ -146,6 +160,9 @@ class CardListModel(_KeyedModel):
         collections = [c for c in collections if c is not None]
         self._subtitles = {c.id: (subtitle(c) if subtitle else f'{c.label} · {songs(len(c.keys))}') for c in collections}
         self._reset(collections)
+
+    def _same(self, rows):
+        return [c.id for c in rows] == [c.id for c in self._rows]
 
     @Property('QVariantList', notify=_KeyedModel.countChanged)
     def ids(self):

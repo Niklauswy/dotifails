@@ -26,7 +26,7 @@ FocusScope {
     activeFocusOnTab: true
 
     Keys.onPressed: event => {
-        if (event.key !== Qt.Key_Return && event.key !== Qt.Key_Enter && event.key !== Qt.Key_Space)
+        if (event.key !== Qt.Key_Return && event.key !== Qt.Key_Enter)
             return;
         event.accepted = true;
         if (event.modifiers & Qt.ControlModifier)

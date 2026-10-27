@@ -137,6 +137,19 @@ class ModelTests(unittest.TestCase):
             self.library.reload(force=True)
             self.c.refresh()
 
+    def test_same_keys_do_not_reset_the_model(self):
+        resets = []
+        self.c.librarySongs.modelReset.connect(lambda: resets.append(1))
+        self.c.refresh()
+        self.library.toggle_favorite(self.keys['first'])
+        support.Harness.get().pump(200)
+        self.assertEqual(resets, [], 'a refresh with the same songs keeps the rows (selection, scroll)')
+
+    def test_empty_keys_never_reach_the_store(self):
+        self.c.toggleFavorite('')
+        self.c.setFavorite([''], True)
+        self.assertNotIn('', self.library.store.favorites())
+
     def test_no_network_means_empty_cover_urls(self):
         self.assertEqual(rows(self.c.librarySongs, 'cover'), ['', '', ''])
 

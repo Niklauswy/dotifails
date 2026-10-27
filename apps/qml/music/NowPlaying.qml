@@ -35,6 +35,14 @@ FocusScope {
         color: Theme.m3surfaceContainerLow
     }
 
+    // Nothing reaches the page behind: clicks, the wheel and hover stop here.
+    MouseArea {
+        anchors.fill: parent
+        acceptedButtons: Qt.AllButtons
+        hoverEnabled: true
+        onWheel: wheel => wheel.accepted = true
+    }
+
     // A soft disc of the primary container behind the cover, breathing while music plays.
     Rectangle {
         x: left.x + art.x + art.width / 2 - width / 2

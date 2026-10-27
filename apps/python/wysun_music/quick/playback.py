@@ -41,7 +41,7 @@ class PlayerBridge(QObject):
         self._queue()
 
     def _queue(self):
-        self.upcoming.setKeys(self.player.queue.upcoming())
+        self.upcoming.set_positions(self.player.queue.upcoming())
         self.nowModel.setKeys([self.player.current] if self.player.current else [])
         self.queueChanged.emit()
 
@@ -209,11 +209,17 @@ class PlayerBridge(QObject):
 
     @Slot(str, 'QVariantList', str)
     def play(self, key, context_keys, context_id):
-        """``key`` within ``context_keys`` (the list it was picked from); the same key again toggles."""
-        if key == self.player.current and self.player.queue.context == (context_id or None):
+        """Play ``key`` within ``context_keys`` (the list it was picked from), from the start."""
+        if key:
+            self.player.play(key, list(context_keys) or [key], context_id or None)
+
+    @Slot(str, 'QVariantList', str)
+    def playOrToggle(self, key, context_keys, context_id):
+        """A card's or chart row's own play button: pauses/resumes the song when it is the current one."""
+        if key and key == self.player.current:
             self.player.toggle()
         else:
-            self.player.play(key, list(context_keys) or [key], context_id or None)
+            self.play(key, context_keys, context_id)
 
     @Slot(str, str, bool)
     def playCollection(self, collection_id, start_key, shuffle):

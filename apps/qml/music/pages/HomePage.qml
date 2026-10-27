@@ -18,8 +18,12 @@ FocusScope {
             player.shuffleLibrary();
         else if (tile.action === "open")
             app.navigate("collection:" + tile.collection, true);
-        else if (tile.action === "resume")
-            app.togglePanel("now");
+        else if (tile.action === "resume") {
+            if (player.currentKey !== tile.key)
+                player.play(tile.key, music.homeRecentModel.keys, tile.context);
+            if (app.panel === "")
+                app.togglePanel("now");
+        }
     }
 
     EmptyState {
@@ -131,7 +135,7 @@ FocusScope {
                     placeholderIcon: "music_note"
                     playing: model.playing
                     onOpened: player.play(model.key, music.homeRecentModel.keys, "recent")
-                    onPlayRequested: player.play(model.key, music.homeRecentModel.keys, "recent")
+                    onPlayRequested: player.playOrToggle(model.key, music.homeRecentModel.keys, "recent")
                     onContextRequested: (x, y) => page.app.menus.trackMenu([model.key], "", x, y)
                 }
             }
@@ -179,7 +183,7 @@ FocusScope {
                             artist: model.artist
                             coverUrl: model.cover
                             playing: model.current
-                            onPlayRequested: player.play(model.key, music.homeChartModel.keys, "top")
+                            onPlayRequested: player.playOrToggle(model.key, music.homeChartModel.keys, "top")
                         }
                     }
                 }

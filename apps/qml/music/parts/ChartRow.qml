@@ -17,7 +17,6 @@ Item {
     implicitHeight: Metrics.listItemOneLine
     activeFocusOnTab: true
     Keys.onReturnPressed: playRequested()
-    Keys.onSpacePressed: playRequested()
 
     Row {
         anchors.fill: parent

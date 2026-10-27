@@ -115,6 +115,15 @@ class PlayerTests(unittest.TestCase):
         self.h.pump(50)
         self.assertLess(abs(slider.property('value') - self.player.position), 1, 'the slider follows the player again')
 
+    def test_play_restarts_the_current_song_and_play_or_toggle_pauses(self):
+        self.start()
+        bridge = self.music.window.playback
+        keys = [self.keys[t] for t in ('first', 'second', 'third')]
+        bridge.play(self.keys['first'], keys, 'all')
+        self.assertTrue(self.h.wait_for(lambda: self.player.playing and self.player.position < 1, 3000), 'restarted, not paused')
+        bridge.playOrToggle(self.keys['first'], keys, 'all')
+        self.assertTrue(self.h.wait_for(lambda: self.player.paused, 3000))
+
     def test_messages_are_snackbars(self):
         snackbars = self.find('snackbars')
         self.player.engine.failed.emit('No se pudo iniciar mpv.')

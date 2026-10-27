@@ -264,6 +264,7 @@ class AddMusic(QObject):
         self.picker.setProcessEnvironment(env)
         command = launch.argv('wysun_files.picker', python=system_python())
         self.picker.finished.connect(self._picked)
+        self.picker.errorOccurred.connect(self._picker_failed)
         self.picker.start(command[0], command[1:])
         request = dict(kind='audio', multiple=not directory, directory=directory,
                        title='Importar carpeta de música' if directory else 'Importar música',
@@ -271,10 +272,21 @@ class AddMusic(QObject):
         self.picker.write(json.dumps(request).encode() + b'\n')
         self.picker.closeWriteChannel()
 
+    def _picker_failed(self, error):
+        if error == QProcess.FailedToStart and self.picker is not None:
+            self.picker.deleteLater()
+            self.picker = None
+            self._say('No se pudo abrir el selector de Wysun Files.', False)
+
     def _picked(self, code, *_):
         process, self.picker = self.picker, None
+        if process is None:
+            return
         raw = bytes(process.readAllStandardOutput())
         process.deleteLater()
+        if code not in (0, 1):                  # 1 = cancelled by the user
+            self._say('El selector de Wysun Files se cerró con un error.', False)
+            return
         try:
             result = json.loads(raw) if code == 0 and len(raw) <= 1 << 20 else {}
         except ValueError:

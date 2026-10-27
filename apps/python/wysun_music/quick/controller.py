@@ -45,9 +45,11 @@ class MusicController(QObject):
         self.urls = cover_urls
         self.test = test
         self.route = routes.restore((library.store.get('ui', {}) if not test else {}).get('route'))
+        self._playing_context = None
         library.changed.connect(self.destinationsChanged)
-        player.track_changed.connect(lambda _: self.destinationsChanged.emit())
-        player.state_changed.connect(self.destinationsChanged)
+        player.track_changed.connect(lambda _: self._playing_changed())
+        player.state_changed.connect(self._playing_changed)
+        player.queue_changed.connect(self._playing_changed)
         if cover_urls is not None:
             cover_urls.revisionChanged.connect(self.destinationsChanged)
         make_tracks = lambda: TrackListModel(library, player, cover_urls, self)
@@ -66,12 +68,20 @@ class MusicController(QObject):
         # Library edits arrive in bursts (a download batch): rebuild once they settle.
         self._refresh = QTimer(self, singleShot=True, interval=120)
         self._refresh.timeout.connect(self.refresh)
-        for signal in (library.changed, library.history_changed, library.favorites_changed):
-            signal.connect(self._refresh.start)
+        library.changed.connect(self._refresh.start)
+        library.history_changed.connect(self._history)
+        library.favorites_changed.connect(self._favorites)
         player.track_changed.connect(lambda _: self._bento())
         self.refresh()
 
     # ------------------------------------------------------------ navigation
+    def _playing_changed(self):
+        """The drawer only changes when the list that plays (its now-playing mark) changes."""
+        context = self.player.queue.context if self.player.current and self.player.playing else None
+        if context != self._playing_context:
+            self._playing_context = context
+            self.destinationsChanged.emit()
+
     def _playlists(self):
         playing = self.player.queue.context if self.player.current and self.player.playing else None
         items = []
@@ -122,6 +132,16 @@ class MusicController(QObject):
         locals()[_name + 'Model'] = Property(QObject, (lambda name: lambda self: getattr(self, name))(_name),
                                              constant=True)
     del _name
+
+    def _history(self):
+        """A play was counted: only Inicio and an open «Recientes» change."""
+        self._build_home()
+        if self._collection_id == RECENT:
+            self._render_collection()
+
+    def _favorites(self):
+        """Hearts update in place in every list; models only reset where their rows change (Tus me gusta)."""
+        self._refresh.start()
 
     @Slot()
     def refresh(self):
@@ -327,12 +347,13 @@ class MusicController(QObject):
     # ------------------------------------------------------------ actions
     @Slot(str)
     def toggleFavorite(self, key):
-        self.library.toggle_favorite(key)
+        if key and self.library.track(key):
+            self.library.toggle_favorite(key)
 
     @Slot('QVariantList', bool)
     def setFavorite(self, keys, favorite):
         for key in keys:
-            if (key in self.library.favorites) != favorite:
+            if key and self.library.track(key) and (key in self.library.favorites) != favorite:
                 self.library.toggle_favorite(key)
 
     @Slot('QVariantList', result=bool)

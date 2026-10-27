@@ -29,7 +29,6 @@ Surface {
     clip: true
     activeFocusOnTab: true
     Keys.onReturnPressed: opened()
-    Keys.onSpacePressed: opened()
 
     Cover {
         visible: root.coverTile

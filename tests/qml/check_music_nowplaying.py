@@ -123,5 +123,18 @@ class NowPlayingTests(unittest.TestCase):
         self.assertEqual(self.warnings, [])
 
 
+
+class NowPlayingInputTests(NowPlayingTests):
+    def test_clicks_do_not_reach_the_page_behind(self):
+        self.h.call(self.window, 'navigate', 'library:songs', True)
+        self.h.call(self.window, 'togglePanel', 'queue')
+        current = self.player.current
+        self.h.click(self.window, 140, 300)       # over the drawer and the first song rows, under the panel
+        self.h.click(self.window, 600, 760)
+        self.assertEqual(self.window.property('route'), 'library:songs')
+        self.assertEqual(self.player.current, current)
+        self.assertFalse(self.find('musicNav').property('enabled'))
+
+
 if __name__ == '__main__':
     unittest.main()

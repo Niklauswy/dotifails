@@ -221,6 +221,8 @@ Window {
 
             objectName: "musicNav"
             anchors.fill: parent
+            // Hidden under «Ahora suena»: no focus, clicks or tooltips there.
+            enabled: window.panel === ""
             windowWidth: window.width
             destinations: music.destinations
             currentId: mode === "rail" ? window.railIdFor(window.route) : window.drawerIdFor(window.route)

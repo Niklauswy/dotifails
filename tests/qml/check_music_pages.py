@@ -88,6 +88,29 @@ class PagesTests(unittest.TestCase):
         self.h.key(self.window, self.Qt.Key_F, text='f')
         self.assertIn(self.keys['second'], self.music.library.favorites)
 
+    def test_selection_survives_favourites_and_counted_plays(self):
+        self.go('library:songs')
+        songs = self.visible('songList')[0]
+        songs.forceActiveFocus(self.Qt.TabFocusReason)
+        self.h.key(self.window, self.Qt.Key_A, self.Qt.ControlModifier, 'a')
+        self.music.library.toggle_favorite(self.keys['first'])
+        self.music.library.record_play(self.keys['second'])
+        self.h.pump(300)
+        self.assertEqual(len(songs.property('selectedKeys').toVariant()), 3)
+        self.h.key(self.window, self.Qt.Key_Escape)
+
+    def test_f_on_an_empty_list_does_nothing(self):
+        self.go('library:songs')
+        page = self.visible('songList')[0].parentItem()
+        page.setProperty('songFilter', 'favorites')
+        self.h.pump(60)
+        songs = self.visible('songList')[0]
+        self.assertEqual(songs.property('count'), 0)
+        songs.forceActiveFocus(self.Qt.TabFocusReason)
+        self.h.key(self.window, self.Qt.Key_F, text='f')
+        self.assertEqual(self.music.library.favorites, set())
+        page.setProperty('songFilter', 'all')
+
     def test_artist_card_keyboard(self):
         self.go('library:artists')
         card = [c for c in self.visible('card-artist:Synth')][0]

@@ -99,6 +99,16 @@ class AddMusicTests(unittest.TestCase):
         self.assertEqual(imported.call_args.args[0], [str(target)])
         self.assertEqual(self.add.status, '1 canción importadas a tu biblioteca.')
 
+    def test_selector_that_cannot_start_reports_it(self):
+        with patch('wysun_core.launch.argv', return_value=['/nonexistent/python', '-c', '']):
+            self.add.importFiles()
+            self.assertTrue(self.h.wait_for(lambda: self.add.picker is None, 4000))
+        self.assertEqual(self.add.status, 'No se pudo abrir el selector de Wysun Files.')
+        with patch('wysun_core.launch.argv', return_value=[sys.executable, '-c', 'import sys; sys.exit(3)']):
+            self.add.importFiles()
+            self.assertTrue(self.h.wait_for(lambda: self.add.picker is None, 4000))
+        self.assertEqual(self.add.status, 'El selector de Wysun Files se cerró con un error.')
+
     def test_queue_summary(self):
         self.add.render_queue()
         self.assertTrue(self.add.summary.startswith('3 guardadas · 0 en cola · 0 requieren atención'))
