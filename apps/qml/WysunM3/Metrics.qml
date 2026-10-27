@@ -158,5 +158,13 @@ QtObject {
     // Tooltips (md-comp-plain-tooltip): plain 24 high; rich ones use the medium corner
     readonly property int tooltipHeight: 24
     readonly property int richTooltipMaxWidth: 320
+
+    // Slider (md-comp-slider): track 4, handle 20, a 40 high target; the wavy active track (M3 Expressive
+    // progress) waves 3 px either side with a 40 px wavelength
+    readonly property int sliderTrack: 4
+    readonly property int sliderHandle: 20
+    readonly property int sliderTarget: 40
+    readonly property int waveAmplitude: 3
+    readonly property int waveLength: 40
 }
 

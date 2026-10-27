@@ -7,7 +7,7 @@ import ".."
 Page {
     id: page
 
-    readonly property var demo: [{header: "Biblioteca"}, {id: "songs", icon: "music_note", label: "Canciones"}, {id: "albums", icon: "album", label: "Álbumes", badge: 3}, {id: "artists", icon: "person", label: "Artistas"}, {divider: true}, {id: "lists", icon: "queue_music", label: "Listas", rail: false}]
+    readonly property var demo: [{header: "Biblioteca"}, {id: "songs", icon: "music_note", label: "Canciones"}, {id: "albums", icon: "album", label: "Álbumes", badge: 3}, {id: "artists", icon: "person", label: "Artistas"}, {divider: true}, {header: "Playlists", action: "add", actionId: "new"}, {id: "lists", icon: "queue_music", label: "Listas", rail: false, trailingIcon: "graphic_eq"}]
     property string current: "albums"
 
     Section {

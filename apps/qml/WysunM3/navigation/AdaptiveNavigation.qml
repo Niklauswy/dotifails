@@ -20,6 +20,8 @@ Item {
     property Item _returnFocus
 
     signal destinationSelected(string id)
+    signal headerAction(string actionId)
+    signal contextRequested(string id, real x, real y)
 
     function openModal() {
         if (mode !== "modal" || modalOpen)
@@ -58,6 +60,8 @@ Item {
             currentId: root.currentId
             header: root.header
             onSelected: id => root.select(id)
+            onHeaderAction: id => root.headerAction(id)
+            onContextRequested: (id, x, y) => root.contextRequested(id, x, y)
         }
     }
 
@@ -70,6 +74,7 @@ Item {
             currentId: root.currentId
             fab: root.fab
             onSelected: id => root.select(id)
+            onContextRequested: (id, x, y) => root.contextRequested(id, x, y)
         }
     }
 
@@ -123,6 +128,8 @@ Item {
             enabled: root.modalOpen
             onSelected: id => root.select(id)
             onCloseRequested: root.closeModal()
+            onHeaderAction: id => root.headerAction(id)
+            onContextRequested: (id, x, y) => root.contextRequested(id, x, y)
         }
     }
 }

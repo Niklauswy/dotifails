@@ -1,0 +1,17 @@
+singleton MusicMetrics 1.0 MusicMetrics.qml
+BentoTile 1.0 BentoTile.qml
+ChartRow 1.0 ChartRow.qml
+CollectionCard 1.0 CollectionCard.qml
+Cover 1.0 Cover.qml
+EqBars 1.0 EqBars.qml
+ExploreTile 1.0 ExploreTile.qml
+MusicCard 1.0 MusicCard.qml
+MusicMenus 1.0 MusicMenus.qml
+PlaylistDialogs 1.0 PlaylistDialogs.qml
+SelectionBar 1.0 SelectionBar.qml
+Shelf 1.0 Shelf.qml
+ShortcutSheet 1.0 ShortcutSheet.qml
+TrackList 1.0 TrackList.qml
+TrackListModelProxy 1.0 TrackListModelProxy.qml
+TrackRow 1.0 TrackRow.qml
+Format 1.0 Format.js

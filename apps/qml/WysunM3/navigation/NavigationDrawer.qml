@@ -1,6 +1,7 @@
 // M3 navigation drawer, 280 wide on surfaceContainerLow with the large corner on its end side. destinations:
 // [{id, icon, activeIcon?, label, badge?, trailing?}], with {header: "text"} section titles (title-small,
-// onSurfaceVariant) and {divider: true} separators. `header` (e.g. an extended Fab) goes on top. "standard" sits
+// onSurfaceVariant; `action`/`actionId` add an icon button to it that emits headerAction) and {divider: true}
+// separators; `drawer: false` keeps a destination in the rail only. `header` (e.g. an extended Fab) goes on top. "standard" sits
 // beside the content; "modal" floats over it (elevation 1) and asks to close on Escape. ↑/↓ move between
 // destinations, Enter/Space select.
 import QtQuick
@@ -16,6 +17,9 @@ Surface {
 
     signal selected(string id)
     signal closeRequested
+    signal headerAction(string actionId)
+    signal contextRequested(string id, real x, real y)
+    readonly property var drawerDestinations: destinations.filter(d => d.drawer !== false)
 
     function itemFor(id) {
         for (let i = 0; i < entries.count; ++i) {
@@ -28,7 +32,7 @@ Surface {
 
     function step(fromId, delta) {
         const ids = [];
-        for (const d of destinations)
+        for (const d of drawerDestinations)
             if (d.id !== undefined)
                 ids.push(d.id);
         const at = ids.indexOf(fromId);
@@ -81,7 +85,7 @@ Surface {
             Repeater {
                 id: entries
 
-                model: root.destinations
+                model: root.drawerDestinations
 
                 Item {
                     id: entry
@@ -117,6 +121,20 @@ Surface {
                                 text: entry.modelData.header
                                 color: Theme.m3onSurfaceVariant
                             }
+
+                            IconButton {
+                                objectName: "headerAction-" + (entry.modelData.actionId ?? "")
+                                anchors.right: parent.right
+                                anchors.verticalCenter: headerLabel.verticalCenter
+                                visible: !!entry.modelData.action
+                                icon: entry.modelData.action ?? ""
+                                onClicked: root.headerAction(entry.modelData.actionId ?? "")
+
+                                Tooltip {
+                                    text: entry.modelData.actionLabel ?? ""
+                                    visible: text !== ""
+                                }
+                            }
                         }
                     }
 
@@ -146,6 +164,7 @@ Surface {
                             active: root.currentId === destinationId
                             onClicked: root.selected(destinationId)
                             onStepRequested: delta => root.step(destinationId, delta)
+                            onContextRequested: (x, y) => root.contextRequested(destinationId, x, y)
                         }
                     }
                 }

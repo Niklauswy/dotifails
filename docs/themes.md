@@ -100,5 +100,5 @@ python3 tests/check_manifest.py
 python3 apps/recorder/run_tests.py
 python3 -m unittest discover -s tests/shell_bridge -t tests
 python3 tests/wysun_installed_smoke.py
-MUSIC_SNAPSHOT_DIR=SALIDA python3 tests/test_music_material.py   # capturas de Music por esquema (claro y oscuro)
+<venv>/bin/python3 tests/qml/capture_matrix.py SALIDA   # capturas de la base QML por paleta (Music: tests/qml/check_music_*)
 ```

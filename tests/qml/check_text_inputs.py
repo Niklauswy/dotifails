@@ -173,3 +173,60 @@ class SearchBarTests(Base):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class SliderTests(Base):
+    BODY = ('property var moves: []\n'
+            'Slider { objectName: "s"; x: 10; y: 10; width: 220; from: 0; to: 100; value: 25; stepSize: 5\n'
+            '  onMoved: v => root.moves = root.moves.concat([v]) }')
+
+    def test_measures_and_colours(self):
+        self.h.use('blue-dark')
+        c = self.colours('blue-dark')
+        view = self.on_surface(self.BODY, 260, 80)
+        slider = self.child(view, 's')
+        self.assertEqual(slider.property('height'), 40)
+        handle = self.h.find(view, 'sliderHandle')
+        self.assertEqual(handle.property('width'), 20)
+        image = self.h.grab(view)
+        support.close_to(self, self.h.pixel(image, 10 + 10 + 10, 30), c['primary'], msg='active track')
+        support.close_to(self, self.h.pixel(image, 10 + 200, 30), c['secondaryContainer'], msg='inactive track')
+
+    def test_keyboard(self):
+        view = self.on_surface(self.BODY, 260, 80)
+        slider = self.child(view, 's')
+        slider.forceActiveFocus(self.Qt.TabFocusReason)
+        self.h.key(view, self.Qt.Key_Right)
+        self.assertEqual(slider.property('value'), 30)
+        self.h.key(view, self.Qt.Key_End)
+        self.assertEqual(slider.property('value'), 100)
+        self.h.key(view, self.Qt.Key_Home)
+        self.assertEqual(slider.property('value'), 0)
+        self.assertEqual(view.rootObject().property('moves').toVariant(), [30, 100, 0])
+
+    def test_click_and_drag(self):
+        view = self.on_surface(self.BODY, 260, 80)
+        slider = self.child(view, 's')
+        self.h.click(view, 10 + 10 + 100, 30)
+        self.assertAlmostEqual(slider.property('value'), 50, delta=1)
+
+    def test_not_live_reports_on_release_only(self):
+        view = self.on_surface(self.BODY.replace('stepSize: 5', 'stepSize: 5; live: false'), 260, 80)
+        self.h.move(view, 30, 30)
+        self.h.press(view, 30, 30)
+        self.h.move(view, 120, 30)
+        self.assertEqual(view.rootObject().property('moves').toVariant(), [])
+        self.h.release(view, 120, 30)
+        self.assertEqual(len(view.rootObject().property('moves').toVariant()), 1)
+
+    def test_wavy_track_moves_only_when_asked(self):
+        self.h.bridge.setReducedMotion(False)
+        self.h.pump()
+        view = self.on_surface('Slider { objectName: "s"; width: 220; value: 0.6; wavy: true }', 260, 80)
+        slider = self.child(view, 's')
+        phase = slider.property('_phase')
+        self.h.pump(200)
+        self.assertEqual(slider.property('_phase'), phase)
+        slider.setProperty('waveMoving', True)
+        self.h.pump(200)
+        self.assertNotEqual(slider.property('_phase'), phase)

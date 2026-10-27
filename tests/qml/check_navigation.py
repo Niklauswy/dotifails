@@ -252,3 +252,76 @@ class TabTests(Base):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class ExtendedDestinationTests(Base):
+    """Artwork, trailing icons, rail-only/drawer-only destinations, rail order and labels, header actions and
+    context menus (what Wysun Music's playlists and sections need)."""
+
+    def setUp(self):
+        super().setUp()
+        from PySide6.QtGui import QColor, QImage
+        image = QImage(24, 24, QImage.Format_RGB32)
+        image.fill(QColor(200, 30, 30))       # theme-exception: synthetic artwork pixel for the test
+        self.cover = Path(self.h.dir.name) / 'cover.png'
+        image.save(str(self.cover))
+        self.destinations = (
+            '[{header: "Escuchar"}, {id: "home", icon: "home", label: "Inicio", railOrder: 0},'
+            ' {id: "add", icon: "download", label: "Añadir música", railLabel: "Añadir", railOrder: 2},'
+            ' {id: "albums", icon: "album", label: "Álbumes", railIcon: "library_music", railLabel: "Biblioteca", railOrder: 1},'
+            ' {id: "lists", icon: "queue_music", label: "Listas", drawer: false, railOrder: 3},'
+            ' {header: "Playlists", action: "add", actionId: "new"},'
+            f' {{id: "pl", icon: "queue_music", label: "Mi lista", rail: false, image: "{self.cover.as_uri()}", trailingIcon: "graphic_eq"}}]')
+
+    def adaptive_with(self, width):
+        return self.on_surface(
+            'property var log: []\n'
+            'AdaptiveNavigation { id: nav; objectName: "nav"; anchors.fill: parent; windowWidth: width; '
+            f'destinations: {self.destinations}; currentId: "home"\n'
+            '  onHeaderAction: id => root.log = root.log.concat(["action:" + id])\n'
+            '  onContextRequested: (id, x, y) => root.log = root.log.concat(["context:" + id + "@" + Math.round(x) + "," + Math.round(y)]) }',
+            width, 480)
+
+    def test_image_replaces_the_icon_and_trailing_icon_shows(self):
+        view = self.adaptive_with(1000)
+        item = self.child(view, 'nav-pl')
+        images = [i for i in self.h.items(view, 'navImage') if i.property('visible')]
+        self.assertEqual(len(images), 1)
+        self.assertTrue(self.h.wait_for(lambda: images[0].property('progress') == 1.0))      # loaded
+        self.assertTrue([i for i in self.h.items(view, 'navTrailingIcon') if i.property('visible')])
+        self.assertIsNotNone(item)
+
+    def test_drawer_false_stays_out_of_the_drawer(self):
+        view = self.adaptive_with(1000)
+        self.assertIsNone(self.child(view, 'nav-lists'))
+        self.assertIsNotNone(self.child(view, 'nav-albums'))
+
+    def test_rail_order_label_and_icon(self):
+        view = self.adaptive_with(700)
+        order = [i.property('destinationId') for i in self.h.items(view)
+                 if str(i.objectName()).startswith('nav-')]
+        self.assertEqual(order, ['home', 'albums', 'add', 'lists'])
+        self.assertEqual(self.child(view, 'label-albums').property('text'), 'Biblioteca')
+        self.assertEqual(self.child(view, 'nav-albums').property('iconName'), 'library_music')
+        self.assertIsNone(self.child(view, 'nav-pl'))
+
+    def test_header_action(self):
+        view = self.adaptive_with(1000)
+        button = self.child(view, 'headerAction-new')
+        point = button.mapToItem(view.rootObject(), 20, 20)
+        self.h.click(view, point.x(), point.y())
+        self.assertEqual(view.rootObject().property('log').toVariant(), ['action:new'])
+
+    def test_right_click_requests_a_context_menu_in_window_coordinates(self):
+        from PySide6.QtCore import QEvent, QPointF
+        from PySide6.QtGui import QGuiApplication, QMouseEvent
+        view = self.adaptive_with(1000)
+        item = self.child(view, 'nav-pl')
+        point = item.mapToItem(view.rootObject(), 60, 20)
+        for kind, buttons in ((QEvent.MouseButtonPress, self.Qt.RightButton), (QEvent.MouseButtonRelease, self.Qt.NoButton)):
+            QGuiApplication.sendEvent(view, QMouseEvent(kind, point, view.mapToGlobal(point), self.Qt.RightButton, buttons,
+                                                        self.Qt.NoModifier))
+        self.h.pump(20)
+        self.assertEqual(view.rootObject().property('log').toVariant(),
+                         [f'context:pl@{round(point.x())},{round(point.y())}'])
+        self.assertEqual(self.child(view, 'nav').property('currentId'), 'home', 'a right click does not navigate')

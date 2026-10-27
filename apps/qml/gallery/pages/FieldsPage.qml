@@ -59,4 +59,20 @@ Page {
             text: "mar"
         }
     }
+
+    Section {
+        title: "Deslizadores"
+        note: "Pista de 4 px y asa de 20 px; la variante ondulada es la del progreso de una canción."
+
+        Slider {
+            width: Metrics.textFieldMinWidth * 1.5
+            value: 0.4
+        }
+        Slider {
+            width: Metrics.textFieldMinWidth * 1.5
+            value: 0.65
+            wavy: true
+            waveMoving: true
+        }
+    }
 }

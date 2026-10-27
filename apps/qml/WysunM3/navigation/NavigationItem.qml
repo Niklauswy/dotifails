@@ -1,7 +1,10 @@
 // One destination of a NavigationDrawer ("drawer": 56 high, full-width pill indicator, label-large, trailing
 // badge count) or a NavigationRail ("rail": a 56 x 32 indicator that grows from 32 when it becomes active, the
 // label-medium label below, a Badge on the icon). The icon turns filled when active.
-// destination: {id, icon, activeIcon?, label, badge?, trailing?}
+// destination: {id, icon, activeIcon?, label, badge?, trailing?, image?, trailingIcon?, railLabel?, railIcon?};
+// `image` (e.g. a playlist cover) replaces the drawer icon, `trailingIcon` follows the label (e.g. a now-playing
+// mark), `railLabel`/`railIcon` shorten a destination in the rail. Right click emits contextRequested in window
+// coordinates.
 import QtQuick
 import WysunM3
 
@@ -16,10 +19,21 @@ Item {
     readonly property bool iconFilled: active
     readonly property color contentColor: active ? Theme.m3onSecondaryContainer : Theme.m3onSurfaceVariant
     readonly property string trailingText: destination.trailing ?? (typeof destination.badge === "number" && destination.badge > 0 ? (destination.badge > Metrics.badgeMaxCount ? Metrics.badgeMaxCount + "+" : String(destination.badge)) : "")
-    readonly property string iconName: active && destination.activeIcon ? destination.activeIcon : destination.icon ?? ""
+    readonly property string iconName: !drawer && destination.railIcon ? destination.railIcon : active && destination.activeIcon ? destination.activeIcon : destination.icon ?? ""
+    readonly property string image: drawer ? destination.image ?? "" : ""
 
     signal clicked
     signal stepRequested(int delta)
+    signal contextRequested(real x, real y)
+
+    function _press(mouse) {
+        if (mouse.button === Qt.RightButton) {
+            const point = mapToItem(null, mouse.x, mouse.y);
+            contextRequested(point.x, point.y);
+        } else {
+            clicked();
+        }
+    }
 
     objectName: "nav-" + destinationId
     implicitWidth: drawer ? Metrics.drawerWidth : Metrics.railWidth
@@ -67,16 +81,34 @@ Item {
             width: parent.width - 2 * x
             spacing: Theme.spacing.medium ?? 0
 
-            Icon {
+            Item {
                 anchors.verticalCenter: parent.verticalCenter
-                name: root.iconName
-                filled: root.iconFilled
-                color: root.contentColor
+                width: Metrics.iconSize
+                height: Metrics.iconSize
+
+                Icon {
+                    anchors.centerIn: parent
+                    visible: root.image === ""
+                    name: root.iconName
+                    filled: root.iconFilled
+                    color: root.contentColor
+                }
+
+                Image {
+                    objectName: "navImage"
+                    anchors.fill: parent
+                    visible: root.image !== ""
+                    source: root.image
+                    asynchronous: true
+                    fillMode: Image.PreserveAspectCrop
+                    sourceSize.width: width * 2
+                    sourceSize.height: height * 2
+                }
             }
 
             Label {
                 anchors.verticalCenter: parent.verticalCenter
-                width: parent.width - Metrics.iconSize - parent.spacing - (trail.visible ? trail.implicitWidth + parent.spacing : 0)
+                width: parent.width - Metrics.iconSize - parent.spacing - (trail.visible ? trail.implicitWidth + parent.spacing : 0) - (trailIcon.visible ? Metrics.iconSize + parent.spacing : 0)
                 role: "label.large"
                 text: root.destination.label ?? ""
                 color: root.contentColor
@@ -92,13 +124,24 @@ Item {
                 text: root.trailingText
                 color: root.contentColor
             }
+
+            Icon {
+                id: trailIcon
+
+                objectName: "navTrailingIcon"
+                anchors.verticalCenter: parent.verticalCenter
+                visible: (root.destination.trailingIcon ?? "") !== "" && available
+                name: root.destination.trailingIcon ?? ""
+                color: root.active ? root.contentColor : Theme.m3primary
+            }
         }
 
         StateLayer {
             tint: root.contentColor
             radius: pill.radius
             focused: root.activeFocus
-            onClicked: root.clicked()
+            mouseArea.acceptedButtons: Qt.LeftButton | Qt.RightButton
+            onClicked: mouse => root._press(mouse)
         }
 
         FocusRing {
@@ -162,7 +205,8 @@ Item {
                 tint: root.contentColor
                 radius: target.radius
                 focused: root.activeFocus
-                onClicked: root.clicked()
+                mouseArea.acceptedButtons: Qt.LeftButton | Qt.RightButton
+                onClicked: mouse => root._press(mouse)
             }
 
             FocusRing {
@@ -176,7 +220,7 @@ Item {
             anchors.horizontalCenter: parent.horizontalCenter
             width: Math.min(implicitWidth, root.width)
             role: "label.medium"
-            text: root.destination.label ?? ""
+            text: root.destination.railLabel ?? root.destination.label ?? ""
             color: root.active ? Theme.m3onSurface : Theme.m3onSurfaceVariant
             horizontalAlignment: Text.AlignHCenter
             elide: Text.ElideRight

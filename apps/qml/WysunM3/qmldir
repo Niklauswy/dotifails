@@ -45,3 +45,4 @@ Dialog 1.0 feedback/Dialog.qml
 Snackbar 1.0 feedback/Snackbar.qml
 SnackbarHost 1.0 feedback/SnackbarHost.qml
 Tooltip 1.0 feedback/Tooltip.qml
+Slider 1.0 controls/Slider.qml
