@@ -40,7 +40,7 @@ FocusScope {
         id: entrance
 
         PauseAnimation {
-            duration: Math.min(root.entranceIndex, 10) * Motion.ms("fastEffects") / 3
+            duration: Math.max(0, Math.min(root.entranceIndex, 10)) * Motion.ms("fastEffects") / 3
         }
         ParallelAnimation {
             Anim {

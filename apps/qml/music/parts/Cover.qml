@@ -1,7 +1,8 @@
 // Artwork in an M3 Expressive shape: the image is masked by a ShapeEmblem (cookie, squircle, circle, flower…);
 // without an image the shape shows a placeholder icon on its container colour. `spinning` slowly turns the
 // shape (not the picture) while music plays; reduced motion keeps it still. Under the software scene graph,
-// which cannot run the mask shader, the picture shows as it is.
+// which cannot run the mask shader, the picture shows as it is. The mask is multisampled so the edge is smooth, and
+// `shadow` casts a shadow of the shape itself (never a square one behind it).
 import QtQuick
 import QtQuick.Effects
 import WysunM3
@@ -19,12 +20,39 @@ Item {
     property color fill: Theme.m3surfaceContainerHighest
     property color placeholderColor: Theme.m3onSurfaceVariant
     property bool spinning
+    property real shadow                    // blur of the shape's own shadow; 0 = none
+    property real shadowOffset: shadow * 0.35
+    property color shadowColor: Qt.alpha(Theme.m3shadow, 0.55)
     property string initials
     readonly property bool hasImage: _mosaic ? mosaic.ready : image.status === Image.Ready
     readonly property bool _software: GraphicsInfo.api === GraphicsInfo.Software
 
     implicitWidth: Metrics.listImageSize
     implicitHeight: Metrics.listImageSize
+
+    // The shape's own shadow: a blurred silhouette under it (a layered parent would cost the mask its source).
+    ShapeEmblem {
+        id: shadowShape
+
+        anchors.fill: parent
+        size: Math.min(parent.width, parent.height)
+        shape: root.shape
+        color: root.shadowColor
+        visible: false
+        layer.enabled: root.shadow > 0 && !root._software
+        rotation: spin.angle
+    }
+
+    MultiEffect {
+        anchors.fill: parent
+        anchors.topMargin: root.shadowOffset
+        anchors.bottomMargin: -root.shadowOffset
+        visible: root.shadow > 0 && !root._software
+        source: shadowShape
+        blurEnabled: true
+        blur: 1
+        blurMax: Math.round(root.shadow)
+    }
 
     ShapeEmblem {
         id: emblem
@@ -105,6 +133,7 @@ Item {
         color: Theme.m3onSurface
         // Always a layer: turning it on when the image arrives later leaves MultiEffect without its mask.
         layer.enabled: !root._software
+        layer.smooth: true
         visible: false
         rotation: spin.angle
     }
@@ -117,6 +146,7 @@ Item {
         maskSource: maskShape
         maskThresholdMin: 0.5
         maskSpreadAtMin: 1.0
+        autoPaddingEnabled: false
     }
 
     QtObject {

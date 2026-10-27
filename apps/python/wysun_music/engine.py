@@ -107,11 +107,16 @@ class MpvEngine(QObject):
         self._outbox = observe + self._outbox
         # mpv 0.40's Wayland clipboard backend can spin a core at 100 % depending on
         # what is copied; a headless audio engine has no use for the clipboard.
-        self.process.start(binary, [
+        args = [
             '--no-config', '--no-video', '--audio-display=no', '--idle=yes', '--no-terminal',
             '--clipboard-backends-remove=wayland',
             '--gapless-audio=weak', '--replaygain=track', '--audio-client-name=wysun-music',
-            '--input-ipc-server=' + self.endpoint, f'--volume={self.volume}'])
+            '--input-ipc-server=' + self.endpoint, f'--volume={self.volume}']
+        # mpv dies with Music: a crash or a kill must not leave a headless player sounding.
+        guard = shutil.which('setpriv')
+        if guard:
+            binary, args = guard, ['--pdeathsig', 'TERM', '--', binary, *args]
+        self.process.start(binary, args)
         self._attempts = 0
         QTimer.singleShot(25, self._connect)
 

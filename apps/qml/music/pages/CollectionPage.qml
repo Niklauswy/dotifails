@@ -63,6 +63,28 @@ FocusScope {
         tone: page.tone !== "" ? page.tone : page.info.kind === "favorites" ? Theme.m3tertiaryContainer : Theme.m3secondaryContainer
     }
 
+    // The title once more, huge and faint behind the header, drifting with the scroll.
+    Item {
+        anchors.fill: parent
+        clip: true
+
+        Label {
+            visible: page.exists && list.width >= Metrics.windowMedium
+            x: (Theme.padding.large ?? 0) - page.scrollOffset * 0.25
+            y: MusicMetrics.heroCover * 1.05 - page.scrollOffset * 0.6
+            width: parent.width * 2
+            role: "headline.large"
+            font.pointSize: Theme.typeFont("headline.large").pointSize * 5.5
+            font.weight: Font.Black
+            font.letterSpacing: -4
+            text: (page.info.title ?? "").toUpperCase()
+            color: Theme.m3onSurface
+            opacity: 0.05 * Math.max(0, 1 - page.scrollOffset / (MusicMetrics.heroCover * 2))
+            elide: Text.ElideNone
+            wrapMode: Text.NoWrap
+        }
+    }
+
     TrackList {
         id: list
 
@@ -96,46 +118,81 @@ FocusScope {
             bottomPadding: Theme.padding.small ?? 0
 
             Row {
+                id: hero
+
                 objectName: "collectionHero"
+                // Albums and lists are sleeves with their record peeking out; the record turns while they play.
+                readonly property bool sleeve: ["album", "user", "playlist", "ranking"].indexOf(page.info.kind) >= 0
+                readonly property real coverSide: Math.min(MusicMetrics.heroCover * 1.15, list.width * (sleeve ? 0.3 : 0.36))
+                // Entrance: 0 → 1 once the page opens, the pieces arriving one after another.
+                property real enter: Motion.reduced ? 1 : 0
+                Component.onCompleted: if (!Motion.reduced) enterAnim.start()
+
                 width: parent.width
                 spacing: Theme.spacing.extraLarge ?? 0
+
+                NumberAnimation {
+                    id: enterAnim
+
+                    target: hero
+                    property: "enter"
+                    to: 1
+                    duration: Theme.duration("extraLarge") * 1.4
+                }
 
                 Item {
                     id: heroCover
 
                     objectName: "heroCoverBox"
                     readonly property real tiltX: hover.hovered ? (hover.point.position.y / height - 0.5) * -12 : 0
-                    readonly property real tiltY: hover.hovered ? (hover.point.position.x / width - 0.5) * 12 : 0
+                    readonly property real tiltY: hover.hovered ? (hover.point.position.x / hero.coverSide - 0.5) * 12 : 0
+                    readonly property real arrive: Math.min(1, hero.enter / 0.45)
 
-                    width: Math.min(MusicMetrics.heroCover * 1.15, list.width * 0.38)
-                    height: width
+                    width: hero.coverSide * (hero.sleeve ? 1.42 : 1)
+                    height: hero.coverSide
 
                     HoverHandler {
                         id: hover
                     }
 
-                    RectangularShadow {
-                        anchors.fill: cover
-                        visible: page.info.kind === "album" || page.info.kind === "user" || page.info.kind === "playlist" || page.info.kind === "ranking"
-                        radius: Theme.rounding.extraLarge ?? 0
-                        blur: 36
-                        offset.y: 14
-                        color: Qt.alpha(Theme.m3shadow, 0.5)
+                    Vinyl {
+                        id: heroRecord
+
+                        objectName: "heroRecord"
+                        visible: hero.sleeve
+                        width: hero.coverSide * 0.94
+                        height: width
+                        anchors.verticalCenter: parent.verticalCenter
+                        // In the sleeve until the cover has landed, then out; further out on hover and while playing.
+                        readonly property real out: Math.max(0, Math.min(1, (hero.enter - 0.35) / 0.5))
+                        x: hero.coverSide * (0.03 + out * (page.isPlaying ? 0.46 : hover.hovered ? 0.44 : 0.36))
+                        cover: page.coverList.length > 0 ? page.coverList[0] : ""
+                        tone: page.tone !== "" ? page.tone : Theme.m3primary
+                        spinning: page.isPlaying
+
+                        SpringBehavior on x {
+                            enabled: hero.enter >= 1
+                            kind: "defaultSpatial"
+                        }
                     }
 
                     Cover {
                         id: cover
 
                         objectName: "heroCover"
-                        anchors.fill: parent
+                        width: hero.coverSide
+                        height: width
                         sources: page.coverList
                         initials: page.info.initials ?? ""
                         shape: ({album: "squircle", artist: "cookie", favorites: "sunny", recent: "burst", user: "squircle"})[page.info.kind] ?? "squircle"
                         placeholderIcon: ({artist: "person", favorites: "favorite", recent: "history", album: "album"})[page.info.kind] ?? "queue_music"
                         fill: page.info.kind === "favorites" ? Theme.m3tertiaryContainer : page.info.kind === "recent" ? Theme.m3primaryContainer : Theme.m3secondaryContainer
                         placeholderColor: page.info.kind === "favorites" ? Theme.m3onTertiaryContainer : page.info.kind === "recent" ? Theme.m3onPrimaryContainer : Theme.m3onSecondaryContainer
-                        spinning: page.isPlaying && page.info.kind !== "album"
-                        scale: hover.hovered ? 1.03 : 1
+                        spinning: page.isPlaying && !hero.sleeve
+                        shadow: 48
+                        shadowOffset: 18
+                        opacity: heroCover.arrive
+                        scale: (0.86 + 0.14 * heroCover.arrive) * (hover.hovered ? 1.03 : 1)
                         transform: [
                             Rotation {
                                 origin.x: cover.width / 2
@@ -166,28 +223,60 @@ FocusScope {
                                 }
                             }
                         ]
-
-                        SpringBehavior on scale {
-                            kind: "defaultSpatial"
-                        }
                     }
                 }
 
                 Column {
-                    anchors.bottom: heroCover.bottom
-                    width: parent.width - heroCover.width - parent.spacing
-                    spacing: Theme.spacing.extraSmall ?? 0
+                    id: heroText
 
-                    Label {
-                        role: "label.large"
-                        text: (page.info.label ?? "").toUpperCase()
-                        color: Theme.m3onSurfaceVariant
+                    readonly property real arrive: Math.max(0, Math.min(1, (hero.enter - 0.2) / 0.6))
+
+                    // Level with the cover's foot, or from its top when the title runs long.
+                    y: Math.max(0, heroCover.height - height)
+                    width: parent.width - heroCover.width - parent.spacing
+                    spacing: Theme.spacing.small ?? 0
+                    opacity: arrive
+                    transform: Translate {
+                        x: (1 - heroText.arrive) * (Theme.spacing.extraLarge ?? 0) * 2
+                    }
+
+                    // The kind as a tinted pill with its icon.
+                    Rectangle {
+                        width: kindRow.implicitWidth + 2 * (Theme.spacing.medium ?? 0)
+                        height: kindRow.implicitHeight + (Theme.spacing.small ?? 0) * 1.5
+                        radius: height / 2
+                        color: Qt.alpha(page.tone !== "" ? page.tone : Theme.m3secondaryContainer, 0.55)
+                        border.width: 1
+                        border.color: Qt.alpha(Theme.m3onSurface, 0.12)
+
+                        Row {
+                            id: kindRow
+
+                            anchors.centerIn: parent
+                            spacing: Theme.spacing.extraSmall ?? 0
+
+                            Icon {
+                                anchors.verticalCenter: parent.verticalCenter
+                                name: ({album: "album", artist: "person", favorites: "favorite", recent: "history"})[page.info.kind] ?? "queue_music"
+                                size: Metrics.chipIconSize
+                                color: Theme.m3onSurface
+                            }
+                            Label {
+                                anchors.verticalCenter: parent.verticalCenter
+                                role: "label.large"
+                                text: (page.info.label ?? "").toUpperCase()
+                                font.letterSpacing: 1.5
+                            }
+                        }
                     }
                     Label {
                         objectName: "collectionTitle"
                         width: parent.width
                         role: "headline.large"
-                        font.pointSize: Theme.typeFont("headline.large").pointSize * (list.width >= Metrics.windowMedium ? 1.6 : 1)
+                        font.pointSize: Theme.typeFont("headline.large").pointSize * (list.width >= Metrics.windowMedium ? (String(page.info.title ?? "").length > 24 ? 1.5 : 2) : 1)
+                        font.weight: Font.Bold
+                        font.letterSpacing: -1
+                        lineHeight: 0.95
                         text: page.info.title ?? ""
                         wrapMode: Text.Wrap
                         maximumLineCount: 2
@@ -198,7 +287,7 @@ FocusScope {
 
                         width: Math.min(implicitWidth, parent.width)
                         visible: text !== ""
-                        role: "title.medium"
+                        role: "title.large"
                         text: page.info.byline ?? ""
                         color: Theme.m3primary
                         font.underline: bylineArea.containsMouse && page.info.kind === "album"
@@ -213,10 +302,31 @@ FocusScope {
                             onClicked: page.app.navigate("collection:artist:" + byline.text, true)
                         }
                     }
-                    Label {
-                        role: "body.medium"
-                        text: page.info.meta ?? ""
-                        color: Theme.m3onSurfaceVariant
+                    // «22 canciones · 1 h 21 min» as separate chips.
+                    Row {
+                        spacing: Theme.spacing.small ?? 0
+
+                        Repeater {
+                            model: String(page.info.meta ?? "").split(" · ").filter(t => t !== "")
+
+                            Rectangle {
+                                required property string modelData
+
+                                width: metaText.implicitWidth + 2 * (Theme.spacing.medium ?? 0)
+                                height: metaText.implicitHeight + (Theme.spacing.small ?? 0)
+                                radius: height / 2
+                                color: Qt.alpha(Theme.m3surfaceContainerHighest, 0.6)
+
+                                Label {
+                                    id: metaText
+
+                                    anchors.centerIn: parent
+                                    role: "label.large"
+                                    text: parent.modelData
+                                    color: Theme.m3onSurfaceVariant
+                                }
+                            }
+                        }
                     }
                 }
             }
