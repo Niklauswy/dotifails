@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Barra de progreso · Wysun Music</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Google+Sans+Flex:opsz,wght@6..144,400..700&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400,0..1,0&display=swap">
+<style>
+:root {
+  --bg: #0f1115; --surface: #171a20; --surface-hi: #232730; --on: #e6e8ef; --on-var: #a9afbd; --outline: #3a3f4b;
+  --tone: #c2410c; --tone-hi: #fb923c; --tone-soft: rgba(251, 146, 60, .18);
+}
+:root[data-tone="azul"] { --tone: #2563eb; --tone-hi: #93c5fd; --tone-soft: rgba(147, 197, 253, .18); }
+:root[data-tone="verde"] { --tone: #15803d; --tone-hi: #86efac; --tone-soft: rgba(134, 239, 172, .18); }
+:root[data-tone="rosa"] { --tone: #be185d; --tone-hi: #f9a8d4; --tone-soft: rgba(249, 168, 212, .18); }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--on); font-family: "Google Sans Flex", system-ui, sans-serif; }
+.wrap { max-width: 1180px; margin: 0 auto; padding: 32px 16px 80px; }
+h1 { font-size: 40px; font-weight: 650; letter-spacing: -.5px; margin: 0 0 6px; }
+.lead { color: var(--on-var); font-size: 17px; margin: 0 0 22px; max-width: 760px; line-height: 1.5; }
+.ms { font-family: "Material Symbols Rounded"; font-size: 24px; font-variation-settings: "FILL" 1; line-height: 1; }
+.bar { position: sticky; top: 0; z-index: 5; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+  padding: 12px 0; background: linear-gradient(var(--bg) 70%, transparent); }
+.chip { border: 1px solid var(--outline); background: var(--surface); color: var(--on); border-radius: 99px;
+  padding: 8px 14px; font: inherit; font-size: 14px; cursor: pointer; display: inline-flex; gap: 6px; align-items: center; }
+.chip.on { background: var(--tone-soft); border-color: var(--tone-hi); }
+.dot { width: 14px; height: 14px; border-radius: 50%; display: inline-block; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(540px, 1fr)); gap: 22px; margin-top: 8px; }
+@media (max-width: 600px) { .grid { grid-template-columns: 1fr; } }
+.card { position: relative; border-radius: 28px; overflow: hidden; background: var(--surface); border: 1px solid #262a33; }
+.stage { position: relative; padding: 26px 26px 22px; min-height: 250px;
+  background: radial-gradient(120% 90% at 10% 0%, var(--tone-soft), transparent 60%),
+              radial-gradient(80% 80% at 100% 100%, rgba(255,255,255,.04), transparent 60%); }
+.tag { display: inline-flex; gap: 6px; align-items: center; font-size: 12px; letter-spacing: 1.4px; text-transform: uppercase;
+  color: var(--on-var); background: rgba(255,255,255,.06); padding: 5px 10px; border-radius: 99px; }
+.card h2 { margin: 10px 0 4px; font-size: 26px; font-weight: 650; }
+.card p { margin: 0 0 18px; color: var(--on-var); font-size: 14.5px; line-height: 1.5; }
+.song { display: flex; align-items: baseline; gap: 10px; margin-bottom: 14px; }
+.song b { font-size: 22px; } .song span { color: var(--on-var); }
+.times { display: flex; justify-content: space-between; color: var(--on-var); font-size: 13px; font-variant-numeric: tabular-nums; margin-top: 8px; }
+.capsule { margin: 0 26px 24px; display: flex; align-items: center; gap: 14px; padding: 10px 16px 10px 10px; border-radius: 22px; background: var(--surface-hi); }
+.cv { width: 46px; height: 46px; border-radius: 12px; flex: none; background: linear-gradient(135deg, var(--tone-hi), var(--tone)); }
+.capsule .ttl { flex: none; width: 120px; font-size: 14px; line-height: 1.25; }
+.capsule .ttl small { color: var(--on-var); display: block; }
+.capsule .mini { flex: 1; min-width: 0; }
+.capsule .lbl { font-size: 11px; color: var(--on-var); letter-spacing: 1px; text-transform: uppercase; }
+.pp { width: 44px; height: 44px; border-radius: 14px; border: 0; background: var(--tone-hi); color: #111; cursor: pointer; display: grid; place-items: center; flex: none; }
+.verdict { display: flex; gap: 16px; padding: 14px 26px 22px; font-size: 13.5px; color: var(--on-var); border-top: 1px solid #262a33; flex-wrap: wrap; }
+.verdict b { color: var(--on); font-weight: 600; }
+
+/* 1 · waveform */
+.wave { position: relative; height: 72px; cursor: pointer; }
+.wave canvas { width: 100%; height: 100%; display: block; }
+.bubble { position: absolute; bottom: calc(100% + 8px); transform: translateX(-50%); background: var(--on); color: #111;
+  font-size: 12px; font-weight: 600; padding: 4px 8px; border-radius: 8px; opacity: 0; transition: opacity .15s; pointer-events: none; }
+.wave:hover .bubble, .pill:hover .bubble { opacity: 1; }
+
+/* 2 · groove */
+.groove { position: relative; height: 150px; display: grid; place-items: center; }
+.groove svg { width: 100%; height: 100%; overflow: visible; cursor: pointer; }
+.groove .center { position: absolute; left: 50%; top: 78%; transform: translate(-50%, -50%); text-align: center; font-variant-numeric: tabular-nums; }
+.groove .center b { font-size: 26px; display: block; } .groove .center span { color: var(--on-var); font-size: 13px; }
+
+/* 3 · pill */
+.pill { position: relative; height: 22px; border-radius: 99px; background: rgba(255,255,255,.08); cursor: pointer;
+  transition: height .35s cubic-bezier(.2,1.4,.4,1); overflow: visible; }
+.pill:hover { height: 34px; }
+.pill .fill { position: absolute; inset: 0 auto 0 0; border-radius: inherit; overflow: hidden;
+  background: linear-gradient(90deg, var(--tone), var(--tone-hi)); box-shadow: 0 0 24px var(--tone-soft); }
+.pill .fill::after { content: ""; position: absolute; inset: 0; width: 40%; background: linear-gradient(90deg, transparent, rgba(255,255,255,.35), transparent);
+  animation: sheen 2.8s linear infinite; }
+.paused .pill .fill::after { animation-play-state: paused; }
+@keyframes sheen { from { transform: translateX(-120%); } to { transform: translateX(320%); } }
+.pill .in { position: absolute; inset: 0; display: flex; justify-content: space-between; align-items: center; padding: 0 12px;
+  font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,.6); pointer-events: none; }
+.pill .knob { position: absolute; top: 50%; width: 6px; height: 140%; border-radius: 3px; background: var(--on); transform: translate(-50%, -50%) scaleY(0);
+  transition: transform .3s cubic-bezier(.2,1.4,.4,1); }
+.pill:hover .knob { transform: translate(-50%, -50%) scaleY(1); }
+
+/* 4 · equalizer */
+.eq { height: 72px; display: flex; align-items: flex-end; gap: 3px; cursor: pointer; }
+.eq i { flex: 1; border-radius: 3px 3px 1px 1px; background: rgba(255,255,255,.12); height: 10%; transition: background .2s; }
+.eq i.on { background: linear-gradient(var(--tone-hi), var(--tone)); box-shadow: 0 0 10px var(--tone-soft); }
+
+/* compact versions */
+.mwave { height: 26px; } .mpill { height: 8px; } .mpill:hover { height: 12px; }
+.meq { height: 26px; gap: 2px; }
+.mgroove { height: 26px; position: relative; }
+.mgroove .line { position: absolute; left: 0; right: 0; top: 50%; height: 3px; border-radius: 2px; background: rgba(255,255,255,.12); }
+.mgroove .done { position: absolute; left: 0; top: 50%; height: 3px; border-radius: 2px; background: linear-gradient(90deg, transparent, var(--tone-hi)); }
+.mgroove .rec { position: absolute; top: 50%; width: 18px; height: 18px; border-radius: 50%; transform: translate(-50%, -50%);
+  background: radial-gradient(circle, var(--tone-hi) 0 22%, #0e0f11 24% 100%); box-shadow: 0 0 12px var(--tone-soft); }
+.mgroove .rec::after { content: ""; position: absolute; left: 50%; top: 2px; width: 2px; height: 5px; background: rgba(255,255,255,.6); transform: translateX(-50%); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Nueva barra de progreso</h1>
+  <p class="lead">Cuatro propuestas, en vivo. Cada tarjeta muestra la barra grande de «Ahora suena» y, abajo, su versión compacta
+    en la cápsula del reproductor. Puedes arrastrar o hacer clic para saltar, pasar el ratón, pausar y cambiar el color del disco
+    (en la app sale de la portada).</p>
+  <div class="bar">
+    <button class="chip on" id="playAll"><span class="ms" id="playIcon">pause</span><span id="playText">Pausar todo</span></button>
+    <span style="color:var(--on-var);font-size:14px;margin-left:8px">Color del disco:</span>
+    <button class="chip on" data-t=""><span class="dot" style="background:#fb923c"></span>Naranja</button>
+    <button class="chip" data-t="azul"><span class="dot" style="background:#93c5fd"></span>Azul</button>
+    <button class="chip" data-t="verde"><span class="dot" style="background:#86efac"></span>Verde</button>
+    <button class="chip" data-t="rosa"><span class="dot" style="background:#f9a8d4"></span>Rosa</button>
+  </div>
+
+  <div class="grid">
+    <!-- 1 -->
+    <div class="card" data-opt>
+      <div class="stage">
+        <span class="tag"><span class="ms" style="font-size:16px">graphic_eq</span>Opción A</span>
+        <h2>Forma de onda real</h2>
+        <p>La barra es la silueta de la canción (picos reales, calculados una vez con ffmpeg y guardados). Lo escuchado se llena
+          con el color del disco; al pasar el ratón, el minuto. Ves dónde están el estribillo y los silencios.</p>
+        <div class="song"><b>NADIE SABE</b><span>Bad Bunny</span></div>
+        <div class="wave seek" id="wave"><canvas></canvas><div class="bubble">0:00</div></div>
+        <div class="times"><span class="t-now">0:00</span><span class="t-end">6:19</span></div>
+      </div>
+      <div class="capsule"><div class="cv"></div><div class="ttl">NADIE SABE<small>Bad Bunny</small></div>
+        <div class="mini"><div class="wave mwave seek" id="mwave"><canvas></canvas></div></div><button class="pp" data-pp><span class="ms">pause</span></button></div>
+      <div class="verdict"><span><b>Fluidez:</b> alta (se dibuja una vez, solo se mueve el corte)</span><span><b>Coste:</b> bajo</span><span><b>Necesita:</b> analizar cada canción una vez</span></div>
+    </div>
+
+    <!-- 2 -->
+    <div class="card" data-opt>
+      <div class="stage">
+        <span class="tag"><span class="ms" style="font-size:16px">album</span>Opción B</span>
+        <h2>Surco de vinilo</h2>
+        <p>Un arco fino que sigue el borde del disco, como el surco: la aguja-tirador lo recorre y deja una estela de luz. Muy ligado
+          al tocadiscos; en la cápsula es una línea con un mini disco girando.</p>
+        <div class="groove seek-arc" id="groove">
+          <svg viewBox="0 0 500 150" preserveAspectRatio="xMidYMid meet">
+            <defs><linearGradient id="trail" x1="0" x2="1"><stop offset="0" stop-color="var(--tone)" stop-opacity="0"/><stop offset="1" stop-color="var(--tone-hi)"/></linearGradient>
+              <filter id="glow"><feGaussianBlur stdDeviation="4"/></filter></defs>
+            <path id="arcBase" d="M 40 140 A 300 300 0 0 1 460 140" fill="none" stroke="rgba(255,255,255,.10)" stroke-width="6" stroke-linecap="round"/>
+            <path d="M 40 140 A 300 300 0 0 1 460 140" fill="none" stroke="rgba(255,255,255,.05)" stroke-width="1" transform="translate(0,10)"/>
+            <path id="arcGlow" d="M 40 140 A 300 300 0 0 1 460 140" fill="none" stroke="var(--tone-hi)" stroke-width="10" stroke-linecap="round" filter="url(#glow)" opacity=".5"/>
+            <path id="arcDone" d="M 40 140 A 300 300 0 0 1 460 140" fill="none" stroke="url(#trail)" stroke-width="6" stroke-linecap="round"/>
+            <g id="needle"><circle r="11" fill="var(--on)"/><circle r="4" fill="var(--tone)"/></g>
+          </svg>
+          <div class="center"><b class="t-now">0:00</b><span>de <span class="t-end">6:19</span></span></div>
+        </div>
+      </div>
+      <div class="capsule"><div class="cv"></div><div class="ttl">NADIE SABE<small>Bad Bunny</small></div>
+        <div class="mini"><div class="mgroove seek" id="mgroove"><div class="line"></div><div class="done"></div><div class="rec"></div></div></div><button class="pp" data-pp><span class="ms">pause</span></button></div>
+      <div class="verdict"><span><b>Fluidez:</b> alta</span><span><b>Coste:</b> bajo</span><span><b>Ojo:</b> ocupa alto; saltar con precisión es algo más difícil</span></div>
+    </div>
+
+    <!-- 3 -->
+    <div class="card" data-opt>
+      <div class="stage">
+        <span class="tag"><span class="ms" style="font-size:16px">linear_scale</span>Opción C</span>
+        <h2>Píldora gruesa con brillo</h2>
+        <p>Barra gruesa y redondeada que crece al pasar el ratón; el relleno es un degradado del color del disco con un destello que
+          lo recorre lento. Los tiempos van dentro. Limpia, elegante y muy suave.</p>
+        <div class="song"><b>NADIE SABE</b><span>Bad Bunny</span></div>
+        <div class="pill seek" id="pill"><div class="fill"></div><div class="knob"></div><div class="in"><span class="t-now">0:00</span><span class="t-left">-6:19</span></div><div class="bubble">0:00</div></div>
+        <div style="height:22px"></div>
+      </div>
+      <div class="capsule"><div class="cv"></div><div class="ttl">NADIE SABE<small>Bad Bunny</small></div>
+        <div class="mini"><div class="pill mpill seek" id="mpill"><div class="fill"></div></div></div><button class="pp" data-pp><span class="ms">pause</span></button></div>
+      <div class="verdict"><span><b>Fluidez:</b> máxima</span><span><b>Coste:</b> mínimo</span><span><b>Estilo:</b> el más sobrio</span></div>
+    </div>
+
+    <!-- 4 -->
+    <div class="card" data-opt>
+      <div class="stage">
+        <span class="tag"><span class="ms" style="font-size:16px">equalizer</span>Opción D</span>
+        <h2>Ecualizador vivo</h2>
+        <p>Barritas que bailan con la música (amplitud real vía cava, ya en el shell); las ya tocadas se iluminan con el color del
+          disco, las que faltan quedan quietas. La más viva, también la que más consume.</p>
+        <div class="song"><b>NADIE SABE</b><span>Bad Bunny</span></div>
+        <div class="eq seek" id="eq"></div>
+        <div class="times"><span class="t-now">0:00</span><span class="t-end">6:19</span></div>
+      </div>
+      <div class="capsule"><div class="cv"></div><div class="ttl">NADIE SABE<small>Bad Bunny</small></div>
+        <div class="mini"><div class="eq meq seek" id="meq"></div></div><button class="pp" data-pp><span class="ms">pause</span></button></div>
+      <div class="verdict"><span><b>Fluidez:</b> alta</span><span><b>Coste:</b> medio (anima cada fotograma)</span><span><b>Necesita:</b> conectar cava a Music</span></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const DUR = 379;
+let pos = 72, playing = true, last = performance.now();
+const fmt = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+const css = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+// A believable song envelope: intro, verses, louder choruses, a break, outro.
+let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+const PEAKS = Array.from({ length: 180 }, (_, i) => {
+  const t = i / 180;
+  const shape = t < .06 ? t / .06 * .45 : t > .94 ? (1 - t) / .06 * .5 : .5 + .35 * Math.max(0, Math.sin((t - .18) * Math.PI * 4.2)) - (t > .62 && t < .68 ? .3 : 0);
+  return Math.max(.08, Math.min(1, shape * (.7 + rnd() * .5)));
+});
+
+function drawWave(canvas, compact, hoverX) {
+  const r = canvas.getBoundingClientRect(), dpr = devicePixelRatio || 1;
+  canvas.width = r.width * dpr; canvas.height = r.height * dpr;
+  const g = canvas.getContext('2d'); g.scale(dpr, dpr);
+  const n = compact ? 48 : 84, gap = compact ? 2 : 3, w = (r.width - gap * (n - 1)) / n, cut = pos / DUR;
+  const grad = g.createLinearGradient(0, 0, 0, r.height); grad.addColorStop(0, css('--tone-hi')); grad.addColorStop(1, css('--tone'));
+  for (let i = 0; i < n; i++) {
+    const p = PEAKS[Math.floor(i / n * PEAKS.length)], h = Math.max(3, p * r.height), x = i * (w + gap), y = (r.height - h) / 2;
+    const done = (i + .5) / n <= cut, hov = hoverX != null && x <= hoverX && !done;
+    g.fillStyle = done ? grad : hov ? 'rgba(255,255,255,.32)' : 'rgba(255,255,255,.14)';
+    g.beginPath(); g.roundRect(x, y, w, h, Math.min(w / 2, 3)); g.fill();
+  }
+  if (!compact) { g.fillStyle = css('--on'); g.fillRect(cut * r.width - 1, 0, 2, r.height); }
+}
+
+const eqBars = (el, n) => { el.innerHTML = '<i></i>'.repeat(n); return [...el.children]; };
+const EQ = eqBars(document.getElementById('eq'), 64), MEQ = eqBars(document.getElementById('meq'), 40);
+const eqLevels = new Float32Array(64), meqLevels = new Float32Array(40);
+function stepEq(bars, levels, t) {
+  const cut = pos / DUR;
+  bars.forEach((b, i) => {
+    const done = (i + .5) / bars.length <= cut;
+    const target = playing && done ? .25 + .75 * Math.abs(Math.sin(t / 180 + i * .7) * Math.cos(t / 260 + i * 1.3)) * PEAKS[Math.floor(i / bars.length * PEAKS.length)] + .1 : .14 + .1 * PEAKS[Math.floor(i / bars.length * PEAKS.length)];
+    levels[i] += (target - levels[i]) * .25;
+    b.style.height = (levels[i] * 100).toFixed(1) + '%'; b.classList.toggle('on', done);
+  });
+}
+
+const arcLen = document.getElementById('arcBase').getTotalLength();
+['arcDone', 'arcGlow'].forEach((id) => { const p = document.getElementById(id); p.style.strokeDasharray = arcLen; });
+let hover = {};
+
+function frame(now) {
+  const dt = (now - last) / 1000; last = now;
+  if (playing) { pos += dt; if (pos > DUR) pos = 0; }
+  const f = pos / DUR;
+  document.querySelectorAll('.t-now').forEach((e) => e.textContent = fmt(pos));
+  document.querySelectorAll('.t-end').forEach((e) => e.textContent = fmt(DUR));
+  document.querySelectorAll('.t-left').forEach((e) => e.textContent = '-' + fmt(DUR - pos));
+  drawWave(document.querySelector('#wave canvas'), false, hover.wave);
+  drawWave(document.querySelector('#mwave canvas'), true, hover.mwave);
+  ['arcDone', 'arcGlow'].forEach((id) => document.getElementById(id).style.strokeDashoffset = arcLen * (1 - f));
+  const pt = document.getElementById('arcBase').getPointAtLength(arcLen * f);
+  document.getElementById('needle').setAttribute('transform', `translate(${pt.x},${pt.y})`);
+  const mg = document.getElementById('mgroove');
+  mg.querySelector('.done').style.width = f * 100 + '%';
+  const rec = mg.querySelector('.rec'); rec.style.left = f * 100 + '%'; rec.style.transform = `translate(-50%,-50%) rotate(${pos * 120}deg)`;
+  document.querySelectorAll('.pill .fill').forEach((e) => e.style.width = Math.max(4, f * 100) + '%');
+  document.querySelector('#pill .knob').style.left = f * 100 + '%';
+  stepEq(EQ, eqLevels, now); stepEq(MEQ, meqLevels, now);
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+// Seek: click or drag on any linear bar; hover shows the time.
+document.querySelectorAll('.seek').forEach((el) => {
+  const at = (e) => { const r = el.getBoundingClientRect(); return Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)); };
+  let drag = false;
+  el.addEventListener('pointerdown', (e) => { drag = true; el.setPointerCapture(e.pointerId); pos = at(e) * DUR; });
+  el.addEventListener('pointerup', () => drag = false);
+  el.addEventListener('pointermove', (e) => {
+    const f = at(e); if (drag) pos = f * DUR;
+    hover[el.id] = f * el.getBoundingClientRect().width;
+    const b = el.querySelector('.bubble'); if (b) { b.style.left = f * 100 + '%'; b.textContent = fmt(f * DUR); }
+  });
+  el.addEventListener('pointerleave', () => { hover[el.id] = null; });
+});
+// Seek on the arc: nearest point by angle.
+document.querySelector('#groove svg').addEventListener('pointerdown', (e) => {
+  const svg = e.currentTarget, r = svg.getBoundingClientRect(), sx = 500 / r.width;
+  const x = (e.clientX - r.left) * sx, y = (e.clientY - r.top) * sx;
+  const cx = 250, cy = 140 + Math.sqrt(300 * 300 - 210 * 210);
+  const ang = Math.atan2(y - cy, x - cx), a0 = Math.atan2(140 - cy, 40 - cx), a1 = Math.atan2(140 - cy, 460 - cx);
+  pos = Math.max(0, Math.min(1, (ang - a0) / (a1 - a0))) * DUR;
+});
+
+const setPlaying = (v) => {
+  playing = v; document.body.classList.toggle('paused', !v);
+  document.getElementById('playIcon').textContent = v ? 'pause' : 'play_arrow';
+  document.getElementById('playText').textContent = v ? 'Pausar todo' : 'Reproducir';
+  document.querySelectorAll('[data-pp] .ms').forEach((e) => e.textContent = v ? 'pause' : 'play_arrow');
+};
+document.getElementById('playAll').onclick = () => setPlaying(!playing);
+document.querySelectorAll('[data-pp]').forEach((b) => b.onclick = () => setPlaying(!playing));
+document.querySelectorAll('[data-t]').forEach((b) => b.onclick = () => {
+  document.documentElement.dataset.tone = b.dataset.t;
+  document.querySelectorAll('[data-t]').forEach((x) => x.classList.toggle('on', x === b));
+});
+</script>
+</body>
+</html>
