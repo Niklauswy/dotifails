@@ -46,7 +46,7 @@ def app():
     if 'app' not in _state:
         setup()
         from wysun_music.app import build
-        _state['app'] = build(test=True, ui='qml')
+        _state['app'] = build(test=True)
     return _state['app']
 
 

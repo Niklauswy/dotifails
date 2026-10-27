@@ -24,7 +24,7 @@ SCRIPT = textwrap.dedent('''
     h = support.Harness.get()
     music_fixture.setup()
     from wysun_music.app import build
-    music = build(test=True, publish=True, ui='qml')
+    music = build(test=True, publish=True)
     assert music.mpris is not None, 'MPRIS was not published'
     keys = music_fixture.keys_by_title()
 

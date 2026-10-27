@@ -20,8 +20,17 @@ class PickerRequestTests(unittest.TestCase):
     def selector(self, **request):
         from wysun_files.picker import make_selector
         chooser = make_selector(dict(initial=self.home.name, **request))
-        self.addCleanup(chooser.deleteLater)
+        self.addCleanup(self.destroy, chooser)
         return chooser
+
+    def destroy(self, chooser):
+        # Really gone (not just deleteLater without an event loop): later tests change the theme, and a live
+        # chooser would still be registered for it.
+        import gc
+        import shiboken6
+        chooser.close()
+        shiboken6.delete(chooser)
+        gc.collect()
 
     def test_audio_files_are_multiple_with_an_audio_filter(self):
         chooser = self.selector(kind='audio', multiple=True, title='Importar música')

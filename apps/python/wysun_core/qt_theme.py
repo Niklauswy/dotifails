@@ -196,6 +196,7 @@ def on_theme_changed(callback):
 
 def refresh_widgets():
     """Re-render the palette, every themed stylesheet and every registered cache."""
+    from PySide6.QtCore import QObject
     from PySide6.QtWidgets import QApplication, QWidget
     invalidate()
     app = QApplication.instance()
@@ -208,15 +209,18 @@ def refresh_widgets():
         template = widget.property(TEMPLATE)
         if template is not None:
             widget.setStyleSheet(qss(template))
+    import shiboken6
     for reference in list(_listeners):
         callback = reference()
-        if callback is None:
-            _listeners.remove(reference)
+        owner = getattr(callback, '__self__', None)
+        if callback is None or (isinstance(owner, QObject) and not shiboken6.isValid(owner)):
+            _listeners.remove(reference)        # gone, or its Qt object was deleted under Python
             continue
         try:
             callback()
         except Exception as error:  # A broken listener must not stop the others.
-            print('Wysun: no se pudo actualizar el tema en', callback, error, file=sys.stderr)
+            print('Wysun: no se pudo actualizar el tema en', getattr(callback, '__qualname__', 'un oyente'), error,
+                  file=sys.stderr)
     for widget in QApplication.allWidgets():
         QWidget.update(widget)
 

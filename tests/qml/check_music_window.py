@@ -105,8 +105,7 @@ class LaunchOrderTests(unittest.TestCase):
     def test_second_launch_presents_without_reexec(self):
         from wysun_music import app
         with patch.object(app, 'send', return_value=True) as send, \
-                patch('wysun_qml.bootstrap.ensure_runtime_python') as reexec, \
-                patch.dict('os.environ', {'WYSUN_MUSIC_UI': 'qml'}):
+                patch('wysun_qml.bootstrap.ensure_runtime_python') as reexec:
             self.assertEqual(app.main(['wysun-music']), 0)
         send.assert_called_once()
         reexec.assert_not_called()
@@ -117,8 +116,7 @@ class LaunchOrderTests(unittest.TestCase):
         with patch.object(app, 'send', return_value=False), \
                 patch('wysun_qml.bootstrap.ensure_runtime_python', side_effect=lambda *a: order.append('reexec')), \
                 patch('wysun_qml.bootstrap.require_qt', side_effect=SystemExit(9)), \
-                patch.object(app.SingleInstance, 'claim', side_effect=lambda *a: order.append('claim')), \
-                patch.dict('os.environ', {'WYSUN_MUSIC_UI': 'qml'}), self.assertRaises(SystemExit):
+                patch.object(app.SingleInstance, 'claim', side_effect=lambda *a: order.append('claim')), self.assertRaises(SystemExit):
             app.main(['wysun-music'])
         self.assertEqual(order, ['reexec'])
 

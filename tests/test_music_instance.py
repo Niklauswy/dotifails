@@ -15,7 +15,9 @@ class MusicInstanceTests(unittest.TestCase):
             sent.append((message, options))
             return False if len(sent) == 1 else True       # the winner is not polling yet, then it is
         with mock.patch.object(app, 'send', side_effect=send), \
-                mock.patch.object(app.SingleInstance, 'claim', return_value=False):
+                mock.patch.object(app.SingleInstance, 'claim', return_value=False), \
+                mock.patch('wysun_qml.bootstrap.ensure_runtime_python'), mock.patch('wysun_qml.bootstrap.require_qt'), \
+                mock.patch('wysun_qml.bootstrap.configure_qt'):
             self.assertEqual(app.main(['wysun_music']), 0)
         self.assertEqual([message for message, _ in sent], [b'present', b'present'])
         self.assertGreater(sent[1][1].get('retry', 0), 0)

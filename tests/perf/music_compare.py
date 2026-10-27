@@ -69,7 +69,7 @@ def run(ui, folder):
     start = time.monotonic()
     process = subprocess.Popen([sys.executable, '-P', '-m', 'wysun_music'], env=env, cwd=ROOT,
                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
-    # The QML UI re-executes itself in the qml-runtime venv: the pid stays the same (execve).
+    # The UI re-executes itself in the qml-runtime venv: the pid stays the same (execve).
     while not mapped(process.pid):
         if time.monotonic() - start > 30 or process.poll() is not None:
             process.kill()
@@ -91,7 +91,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--tracks', type=int, default=3000)
     parser.add_argument('--runs', type=int, default=3)
-    parser.add_argument('--ui', default='widgets,qml')
+    parser.add_argument('--ui', default='qml')       # 'widgets' needs a tree before the Widgets UI was retired
     args = parser.parse_args()
     scratch = Path.home() / '.cache/wysun-fase1/tmp'
     scratch.mkdir(parents=True, exist_ok=True)
