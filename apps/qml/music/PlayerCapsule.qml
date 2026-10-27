@@ -39,20 +39,44 @@ Item {
             width: root.compact ? parent.width - x - controlsCompact.width - (Theme.padding.small ?? 0) : Math.min(parent.width * 0.3, Metrics.textFieldMinWidth * 1.6)
             height: root.compact ? parent.height - Metrics.progressThickness : parent.height
 
-            Cover {
+            // The cover as a record sleeve: while music plays a little record peeks out of it and turns.
+            Item {
                 id: cover
 
-                objectName: "capsuleCover"
+                readonly property real side: root.compact ? Metrics.listAvatarSize + Metrics.chipIconSize / 2 : Metrics.listImageSize
+
                 anchors.verticalCenter: parent.verticalCenter
-                width: root.compact ? Metrics.listAvatarSize + Metrics.chipIconSize / 2 : Metrics.listImageSize
-                height: width
-                source: player.coverUrl
-                shape: player.playing ? "cookie12" : "circle"
-                spinning: player.playing
-                placeholderIcon: "music_note"
+                width: side * 1.3
+                height: side
+
+                Vinyl {
+                    width: cover.side * 0.92
+                    height: width
+                    anchors.verticalCenter: parent.verticalCenter
+                    x: player.playing ? cover.side * 0.36 : cover.side * 0.06
+                    visible: !root.empty
+                    cover: player.coverUrl
+                    tone: player.tone !== "" ? player.tone : Theme.m3primary
+                    spinning: player.playing
+
+                    SpringBehavior on x {
+                        kind: "slowSpatial"
+                    }
+                }
+
+                Cover {
+                    objectName: "capsuleCover"
+                    width: cover.side
+                    height: width
+                    source: player.coverUrl
+                    shape: "squircle"
+                    shadow: 12
+                    shadowOffset: 2
+                    placeholderIcon: "music_note"
+                }
 
                 StateLayer {
-                    radius: cover.width / 2
+                    radius: Theme.rounding.medium ?? 0
                     disabled: root.empty
                     onClicked: root.panelRequested("now")
                 }

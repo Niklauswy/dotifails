@@ -17,3 +17,4 @@ TrackRow 1.0 TrackRow.qml
 Format 1.0 Format.js
 AmbientBackdrop 1.0 AmbientBackdrop.qml
 Turntable 1.0 Turntable.qml
+Vinyl 1.0 Vinyl.qml
