@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Carpeta · Wysun Files · Material 3 Expressive</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Google+Sans+Flex:opsz,wght@6..144,400..700&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400,0..1,0&display=swap">
+<link rel="stylesheet" href="music-shared.css">
+<link rel="stylesheet" href="music-screens.css">
+<link rel="stylesheet" href="files-screens.css">
+</head>
+<body>
+<div id="doc"></div>
+<script src="music-shared.js"></script>
+<script src="files-shared.js"></script>
+<script>
+const PAGES = [['files-folder.html', 'Carpeta'], ['files-details.html', 'Vista previa'], ['files-dialogs.html', 'Operaciones y diálogos'], ['files-chooser.html', 'Selector de archivos']];
+const ms = FX.ms, F = FX.files;
+const sec = (id, h, sub, inner) => `<section id="${id}"><h2>${h}</h2><p class="sub">${sub}</p>${inner}</section>`;
+const lbl = (t) => `<div class="lbl">${t}</div>`;
+const grid = (o = {}) => `${FX.hero(o.hero || {})}${FX.filters(o.filter, o.text)}<div class="fgrid">${(o.files || F).map((f, i) => FX.tile(f, { sel: (o.sel || []).includes(i), cut: (o.cut || []).includes(i), seed: i })).join('')}</div>`;
+const list = (o = {}) => `${FX.hero(o.hero || {})}${FX.filters(o.filter)}<div class="flist"><div class="head"><span></span><span>Nombre ${ms('arrow_upward', 0, 's18')}</span><span class="date">Modificado</span><span>Tamaño</span><span class="type">Tipo</span></div>${(o.files || F).map((f, i) => FX.row(f, { sel: (o.sel || []).includes(i), seed: i })).join('')}</div>`;
+const three = (content, extra = {}) => `<div class="widths3">
+  <div>${lbl('Compacto · &lt; 600 px · drawer modal desde el menú')}${FX.win({ content, width: 400, navOpen: true, ...extra })}</div>
+  <div>${lbl('Medio · 600–839 px · rail de 80 px')}${FX.win({ content, width: 720, ...extra })}</div>
+  <div>${lbl('Amplio · ≥ 840 px · drawer estándar de 280 px')}${FX.win({ content, width: 1040, ...extra })}</div></div>`;
+const DOC = `<h1>Wysun Files · carpeta</h1>
+<p class="sub">Rediseño Material 3 Expressive de la vista principal sobre la navegación aprobada: cabecera con el emblema de la carpeta en una forma expresiva (cookie, flor, trébol… según su contenido) junto al título y el resumen; ruta segmentada que se edita con <kbd>Ctrl L</kbd>; filtro <kbd>Ctrl F</kbd> y chips de tipo; rejilla o lista (<kbd>Ctrl 1</kbd>/<kbd>Ctrl 2</kbd>); barra de estado con el espacio libre y la operación en curso. Las miniaturas de imágenes se recortan en su forma; cada tipo tiene icono, forma y rol de color.</p>
+${sec('anchos', 'Rejilla en los tres anchos', 'Pestañas arriba (Ctrl T / Ctrl W). Dispositivos con uso del disco; marcadores; papelera.', three(grid(), { tabs: 2 }))}
+${sec('lista', 'Lista con columnas', 'Nombre / Modificado / Tamaño / Tipo; clic en una columna alterna el orden. En ventanas medianas quedan nombre y tamaño.', `<div class="stack">${lbl('Amplio')}${FX.win({ content: list(), width: 1040, cls: 'tall', top: { list: true } })}${lbl('Medio')}${FX.win({ content: list(), width: 720, top: { list: true } })}</div>`)}
+${sec('seleccion', 'Selección múltiple y portapapeles', 'Ctrl/Mayús+clic, Ctrl A o arrastre: barra flotante (abrir, copiar, cortar, renombrar, papelera, más). Los elementos cortados se atenúan hasta pegar.', FX.win({ content: grid({ sel: [6, 7, 8], cut: [10] }), width: 1040, cls: 'tall', floating: FX.selbar(3), status: { text: '14 elementos', sel: 3 } }))}
+${sec('menus', 'Menús', 'Clic derecho o Alt K sobre un elemento; «Nuevo» (carpeta, archivo vacío) desde el FAB; «Más acciones» del ⋮.', `<div class="stack">${lbl('Menú contextual')}${FX.win({ content: grid({ sel: [6] }), width: 1040, cls: 'tall', overlay: FX.contextMenu() })}
+  <div class="widths3" style="grid-template-columns:720px 720px">${lbl('Nuevo')}${lbl('Más acciones')}${FX.win({ content: grid(), width: 720, overlay: FX.newMenu('left:110px;top:70px') })}${FX.win({ content: grid(), width: 720, overlay: FX.moreMenu('right:16px;top:60px') })}</div></div>`)}
+${sec('filtro', 'Filtrar y ruta', 'Escribir en la vista empieza a filtrar; los chips filtran por tipo y mantienen las carpetas. Ctrl L convierte la ruta en un campo.', `<div class="widths3" style="grid-template-columns:1040px">${lbl('Filtro «pa» + Imágenes')}${FX.win({ content: grid({ filter: 'img', text: 'pa', files: [F[8], F[9]] }), width: 1040, status: { text: '2 de 14 elementos' } })}
+  ${lbl('Editar la ruta (Ctrl L, Esc cancela)')}${FX.win({ content: grid(), width: 1040, top: { editPath: true } })}</div>`)}
+${sec('vacios', 'Estados vacíos y carga', 'Carpeta vacía (soltar archivos no existe hoy: la acción es crear), sin coincidencias, cargando.', `<div class="widths3">${['empty', 'nomatch', 'loading'].map((k) => FX.win({ width: 400, content: `<div class="empty" style="height:100%"><div class="glyph-wrap" style="--shape:${MX.shapes[{ empty: 'cookie', nomatch: 'clover', loading: 'sunny' }[k]]}">${ms({ empty: 'folder_open', nomatch: 'filter_alt_off', loading: 'hourglass_top' }[k], 1, 's48')}</div><h4>${{ empty: 'Esta carpeta está vacía', nomatch: 'Nada coincide con el filtro', loading: 'Cargando carpeta…' }[k]}</h4><p>${{ empty: 'Crea una carpeta o un archivo, o copia algo aquí.', nomatch: 'Prueba con otro nombre u otro tipo.', loading: '' }[k]}</p>${k === 'empty' ? '<span class="btn tonal">' + ms('create_new_folder') + 'Nueva carpeta</span>' : k === 'nomatch' ? '<span class="btn outlined">Quitar filtro</span>' : ''}</div>` })).join('')}</div>`)}
+${sec('paletas', 'Claro y oscuro · cuatro paletas', 'Todo son roles M3: solo las miniaturas tienen color propio.', `<div style="display:grid;grid-template-columns:520px 520px;gap:8px 20px;overflow-x:auto">${[['grafito', 'Grafito'], ['indigo', 'Índigo'], ['ambar', 'Ámbar'], ['salvia', 'Salvia']].map(([p, n]) => ['dark', 'light'].map((m) => `<div>${lbl(n + ' · ' + (m === 'dark' ? 'oscuro' : 'claro'))}<div style="zoom:.5">${FX.win({ content: grid(), width: 1040, fixed: true, palette: p, mode: m })}</div></div>`).join('')).join('')}</div>`)}`;
+document.getElementById('doc').innerHTML = MX.controls(PAGES, 'files-folder.html') + '<div class="doc">' + DOC + '</div>';
+</script>
+</body>
+</html>

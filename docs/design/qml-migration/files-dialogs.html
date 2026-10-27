@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Operaciones y diálogos · Wysun Files · Material 3 Expressive</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Google+Sans+Flex:opsz,wght@6..144,400..700&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400,0..1,0&display=swap">
+<link rel="stylesheet" href="music-shared.css">
+<link rel="stylesheet" href="music-screens.css">
+<link rel="stylesheet" href="files-screens.css">
+</head>
+<body>
+<div id="doc"></div>
+<script src="music-shared.js"></script>
+<script src="files-shared.js"></script>
+<script>
+const PAGES = [['files-folder.html', 'Carpeta'], ['files-details.html', 'Vista previa'], ['files-dialogs.html', 'Operaciones y diálogos'], ['files-chooser.html', 'Selector de archivos']];
+const ms = FX.ms, F = FX.files;
+const sec = (id, h, sub, inner) => `<section id="${id}"><h2>${h}</h2><p class="sub">${sub}</p>${inner}</section>`;
+const lbl = (t) => `<div class="lbl">${t}</div>`;
+const grid = (o = {}) => `${FX.hero(o.hero || {})}${FX.filters(o.filter)}<div class="fgrid">${(o.files || F).map((f, i) => FX.tile(f, { sel: (o.sel || []).includes(i), cut: (o.cut || []).includes(i), seed: i })).join('')}</div>`;
+const list = (o = {}) => `${FX.hero(o.hero || {})}${FX.filters(o.filter)}<div class="flist"><div class="head"><span></span><span>Nombre ${ms('arrow_upward', 0, 's18')}</span><span class="date">Modificado</span><span>Tamaño</span><span class="type">Tipo</span></div>${(o.files || F).map((f, i) => FX.row(f, { sel: (o.sel || []).includes(i), seed: i })).join('')}</div>`;
+const three = (content, extra = {}) => `<div class="widths3">
+  <div>${lbl('Compacto · &lt; 600 px · drawer modal desde el menú')}${FX.win({ content, width: 400, navOpen: true, ...extra })}</div>
+  <div>${lbl('Medio · 600–839 px · rail de 80 px')}${FX.win({ content, width: 720, ...extra })}</div>
+  <div>${lbl('Amplio · ≥ 840 px · drawer estándar de 280 px')}${FX.win({ content, width: 1040, ...extra })}</div></div>`;
+const dlg = (inner, wide) => `<div class="overlay"><div class="dialog ${wide ? 'wide' : ''}">${inner}</div></div>`;
+const field = (label, value, sel) => `<div class="field focus"><label>${label}</label>${sel ? `<span style="background:var(--m3-primary);color:var(--m3-on-primary);border-radius:2px">${sel}</span>${value}` : value}</div>`;
+const acts = (a, b, danger) => `<div class="acts"><span class="btn text">${a}</span><span class="btn ${danger ? 'danger tonal' : 'filled'}" ${danger ? 'style="background:var(--m3-error-container)"' : ''}>${b}</span></div>`;
+const DOC = `<h1>Wysun Files · operaciones y diálogos</h1>
+<p class="sub">Diálogos M3 básicos (esquina extraLarge, foco atrapado, Esc cancela). Las operaciones corren fuera de la interfaz y de una en una; su progreso va en la barra de estado y en un snackbar con «Deshacer» cuando se puede (papelera). Nunca se sobrescribe: un nombre ocupado avisa con el nombre exacto, como hoy.</p>
+${sec('nuevo', 'Nueva carpeta y cambiar nombre', 'El nombre llega preseleccionado sin la extensión; «/», «.» y «..» no se aceptan (el aviso aparece bajo el campo).', `<div class="widths3" style="grid-template-columns:repeat(3,520px)">
+  ${FX.win({ width: 520, content: grid(), overlay: dlg(`${ms('create_new_folder', 1, 's32 ico')}<h4 style="text-align:center">Nueva carpeta</h4>${field('Nombre', '', 'Carpeta nueva')}${acts('Cancelar', 'Crear')}`) })}
+  ${FX.win({ width: 520, content: grid({ sel: [6] }), overlay: dlg(`<h4>Cambiar nombre</h4>${field('Nombre', '.pdf', 'tesis')}${acts('Cancelar', 'Cambiar nombre')}`) })}
+  ${FX.win({ width: 520, content: grid(), overlay: dlg(`<h4>Nueva carpeta</h4><div class="field focus" style="outline-color:var(--m3-error)"><label style="color:var(--m3-error)">Nombre</label>a/b</div><p style="color:var(--m3-error);font-size:12px;margin:4px 16px 0">El nombre no puede contener «/».</p>${acts('Cancelar', 'Crear')}`) })}</div>`)}
+${sec('papelera', 'Papelera (nunca se borra definitivamente)', 'Confirmación con el recuento; después, un snackbar con «Deshacer» que restaura desde la papelera.', `<div class="widths3" style="grid-template-columns:repeat(2,720px)">
+  ${FX.win({ width: 720, content: grid({ sel: [8, 9] }), overlay: dlg(`${ms('delete', 1, 's32 ico')}<h4 style="text-align:center">¿Enviar 2 elementos a la papelera?</h4><p style="text-align:center">playa.jpg y montaña.png. Podrás recuperarlos desde la Papelera.</p>${acts('Cancelar', 'Enviar a la papelera', true)}`) })}
+  ${FX.win({ width: 720, content: grid(), snack: `2 elementos en la papelera<span class="btn text" style="color:var(--m3-inverse-primary)">Deshacer</span>` })}</div>`)}
+${sec('progreso', 'Copiar y mover', 'Progreso en la barra de estado y, si tarda, en un diálogo no modal que se puede ocultar. Cerrar la ventana espera a que termine. Un nombre que ya existe detiene la operación con un aviso claro.', `<div class="widths3" style="grid-template-columns:repeat(3,520px)">
+  ${FX.win({ width: 520, content: grid(), status: { op: 'Copiando 3 de 12', pct: 25 } })}
+  ${FX.win({ width: 520, content: grid(), overlay: dlg(`<h4>Copiando a Latex</h4><div class="progress-card"><span style="font-size:13px;color:var(--m3-on-surface-variant)">respaldo.zip · 640 MB de 1,2 GB</span><div class="bigbar"><i style="width:53%"></i></div></div><div class="acts"><span class="btn text">Ocultar</span><span class="btn tonal">Cancelar</span></div>`) })}
+  ${FX.win({ width: 520, content: grid(), snack: `${ms('error', 1, 's18')} Ya existe: Latex/tesis.pdf · no se copió nada`, overlay: '' })}</div>`)}
+${sec('propiedades', 'Propiedades', 'Para la selección o la carpeta: nombre, ruta, tipo, tamaño, permisos, fechas y destino del enlace.', FX.win({ width: 1040, cls: 'tall', content: grid({ sel: [6] }), overlay: dlg(`<div class="row2">${FX.thumb('pdf')}<div><h4 style="margin:0">tesis.pdf</h4><span style="font-size:13px;color:var(--m3-on-surface-variant)">Documento PDF · 2,4 MB</span></div></div>
+  <div class="meta" style="display:grid;grid-template-columns:auto 1fr;gap:8px 18px;font-size:14px;margin-top:16px"><span style="color:var(--m3-on-surface-variant)">Ruta</span><span>/home/nicolas/Documentos/clases</span><span style="color:var(--m3-on-surface-variant)">Permisos</span><span>rw-r--r-- · nicolas</span><span style="color:var(--m3-on-surface-variant)">Modificado</span><span>26 oct 2026, 12:10</span><span style="color:var(--m3-on-surface-variant)">Creado</span><span>2 sep 2026</span></div><div class="acts"><span class="btn text">${ms('link')}Copiar ruta</span><span class="btn filled">Cerrar</span></div>`, true) }))}`;
+document.getElementById('doc').innerHTML = MX.controls(PAGES, 'files-dialogs.html') + '<div class="doc">' + DOC + '</div>';
+</script>
+</body>
+</html>

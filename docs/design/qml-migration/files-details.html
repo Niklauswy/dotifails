@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vista previa · Wysun Files · Material 3 Expressive</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Google+Sans+Flex:opsz,wght@6..144,400..700&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400,0..1,0&display=swap">
+<link rel="stylesheet" href="music-shared.css">
+<link rel="stylesheet" href="music-screens.css">
+<link rel="stylesheet" href="files-screens.css">
+</head>
+<body>
+<div id="doc"></div>
+<script src="music-shared.js"></script>
+<script src="files-shared.js"></script>
+<script>
+const PAGES = [['files-folder.html', 'Carpeta'], ['files-details.html', 'Vista previa'], ['files-dialogs.html', 'Operaciones y diálogos'], ['files-chooser.html', 'Selector de archivos']];
+const ms = FX.ms, F = FX.files;
+const sec = (id, h, sub, inner) => `<section id="${id}"><h2>${h}</h2><p class="sub">${sub}</p>${inner}</section>`;
+const lbl = (t) => `<div class="lbl">${t}</div>`;
+const grid = (o = {}) => `${FX.hero(o.hero || {})}${FX.filters(o.filter)}<div class="fgrid">${(o.files || F).map((f, i) => FX.tile(f, { sel: (o.sel || []).includes(i), cut: (o.cut || []).includes(i), seed: i })).join('')}</div>`;
+const list = (o = {}) => `${FX.hero(o.hero || {})}${FX.filters(o.filter)}<div class="flist"><div class="head"><span></span><span>Nombre ${ms('arrow_upward', 0, 's18')}</span><span class="date">Modificado</span><span>Tamaño</span><span class="type">Tipo</span></div>${(o.files || F).map((f, i) => FX.row(f, { sel: (o.sel || []).includes(i), seed: i })).join('')}</div>`;
+const three = (content, extra = {}) => `<div class="widths3">
+  <div>${lbl('Compacto · &lt; 600 px · drawer modal desde el menú')}${FX.win({ content, width: 400, navOpen: true, ...extra })}</div>
+  <div>${lbl('Medio · 600–839 px · rail de 80 px')}${FX.win({ content, width: 720, ...extra })}</div>
+  <div>${lbl('Amplio · ≥ 840 px · drawer estándar de 280 px')}${FX.win({ content, width: 1040, ...extra })}</div></div>`;
+const img = `<div class="preview">${MX.cover(8, { r: 'm', style: 'width:100%;height:100%;border-radius:0' })}</div><h4>playa.jpg</h4><div class="meta"><span>Tamaño</span><span>3,1 MB · 4032 × 3024</span><span>Modificado</span><span>18 oct, 19:42</span><span>Ruta</span><span class="ell">~/Imágenes/playa.jpg</span></div><div class="acts"><span class="btn tonal">${ms('open_in_full')}Ampliar</span><span class="btn text">${ms('link')}Copiar ruta</span></div>`;
+const md = `<div class="preview" style="aspect-ratio:auto;place-items:start;padding:12px"><div class="mdprev"><h5>Notas de la clase 3</h5>Repasar <code>quicksort</code> y la recursión.<br>• Ejercicios 4–7<br>• Leer el capítulo 2 → <u>tesis.pdf</u></div></div><h4>notas.md</h4><div class="acts"><span class="chip on">${ms('check')}Vista</span><span class="chip">Fuente</span></div>`;
+const code = `<div class="codeprev"><i>1</i>import os\n<i>2</i>\n<i>3</i>def main():\n<i>4</i>    print(os.getcwd())\n<i>5</i>\n<i>6</i>main()</div><h4>main.py</h4><div class="meta"><span>Tamaño</span><span>12 KB · Python</span></div>`;
+const media = `<div class="preview">${FX.thumb('video')}</div><h4>clip.mp4</h4><div class="meta"><span>Duración</span><span>2:41 · H.264 · 1920 × 1080</span></div><div class="acts"><span class="iconbtn filled">${ms('play_arrow', 1)}</span><span class="btn tonal">${ms('open_in_new')}Seguir en Wysun Player</span></div>`;
+const folder = `<div class="preview">${FX.thumb('folder')}</div><h4>clases</h4><div class="meta"><span>Contiene</span><span>6 carpetas · 8 archivos</span><span>Tamaño</span><span>1,3 GB</span><span>Imágenes</span><span>3</span></div>`;
+const multi = `<div class="preview" style="background:var(--m3-sc)">${ms('select_all', 1, 's48')}</div><h4>3 elementos</h4><div class="meta"><span>Tamaño</span><span>11,4 MB</span><span>Tipos</span><span>2 imágenes · 1 PDF</span></div>`;
+const broken = `<div class="preview"><div class="empty" style="padding:0"><div class="glyph-wrap" style="--shape:${MX.shapes.clover}">${ms('broken_image', 1, 's48')}</div></div></div><h4>roto.png</h4><p style="color:var(--m3-on-surface-variant);font-size:13px;margin:0">No se pudo abrir la imagen. El archivo sigue seleccionado.</p>`;
+const DOC = `<h1>Wysun Files · vista previa</h1>
+<p class="sub">El inspector aparece a la derecha desde 1000 px (Ctrl I lo muestra u oculta) para un archivo con vista previa: imagen, texto y código con números de línea, Markdown renderizado ⇄ fuente, audio y vídeo, carpeta y selección múltiple con su resumen. Espacio amplía la vista previa a toda la ventana con un container transform; F pone el vídeo a pantalla completa; «Seguir en Wysun Player» continúa en el mismo instante.</p>
+${sec('inspector', 'Inspector por tipo', 'Mismo panel surfaceContainerLow con esquina extraLarge; metadatos como pares etiqueta/valor.', `<div class="stack">${[['Imagen', img, [8]], ['Markdown', md, [7]], ['Código', code, [12]], ['Vídeo', media, [10]], ['Carpeta', folder, [0]], ['Varios', multi, [6, 8, 9]], ['Archivo dañado', broken, [9]]].map(([t, ins, sel]) => lbl(t) + FX.win({ content: grid({ sel }), width: 1180, inspector: ins, status: { sel: sel.length } })).join('')}</div>`)}
+${sec('ampliada', 'Vista ampliada', 'Ocupa la ventana; rueda o + / − / 0 para el zoom, arrastre para mover, doble clic restablece; ← / → recorren las imágenes de la carpeta; Esc vuelve.', FX.win({ content: grid({ sel: [8] }), width: 1040, cls: 'tall', overlay: `<div class="expanded"><div class="bar"><span class="iconbtn tonal">${ms('close')}</span><b>playa.jpg</b><span style="flex:1"></span><span class="iconbtn">${ms('zoom_out')}</span><span style="font-size:13px">100 %</span><span class="iconbtn">${ms('zoom_in')}</span><span class="iconbtn">${ms('chevron_left')}</span><span class="iconbtn">${ms('chevron_right')}</span><span class="iconbtn">${ms('info')}</span></div><div class="stage">${MX.cover(8, { r: 'l', style: 'width:min(70%,640px);aspect-ratio:4/3;height:auto' })}</div></div>` }))}`;
+document.getElementById('doc').innerHTML = MX.controls(PAGES, 'files-details.html') + '<div class="doc">' + DOC + '</div>';
+</script>
+</body>
+</html>
