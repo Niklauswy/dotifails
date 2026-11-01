@@ -156,6 +156,18 @@ class DispatcherTests(unittest.TestCase):
         for name in ('toggle', 'stop', 'status'):
             self.assertRegex(service, rf'function {name}\(\)', name)
 
+    def test_study_module_is_wired(self):
+        shell = (ROOT / 'apps/shell/shell.qml').read_text()
+        self.assertIn('import qs.modules.study', shell)
+        self.assertRegex(shell, r'\n\s*StudyModule \{\}')
+
+    def test_study_copy(self):
+        text = '\n'.join(p.read_text() for p in (ROOT / 'apps/shell/modules/study').glob('*.qml'))
+        for copy in ('esperará al final de la sesión', 'Mantén para salir', '¿Terminar la sesión?',
+                     'Levántate, estira, bebe agua.', 'Sesión terminada', 'Sesión de estudio', 'Modo estudio',
+                     'Ocultar el tiempo', 'distracciones frenadas', '¿Seguimos?'):
+            self.assertIn(copy, text, copy)
+
     def test_a_surface_takes_no_arguments(self):
         status, run, _ = self.invoke(('processes', 'extra'))
         self.assertEqual(status, 2)

@@ -19,6 +19,7 @@ import qs.modules.background
 import qs.modules.drawers
 import qs.modules.identify
 import qs.modules.launcher
+import qs.modules.study
 import qs.daemons
 
 ShellRoot {
@@ -64,6 +65,7 @@ ShellRoot {
     EmojiPicker {}
     Cheatsheet {}
     WallpaperPicker {}
+    StudyModule {}
 
     // Daemons
     BatteryMonitor {}

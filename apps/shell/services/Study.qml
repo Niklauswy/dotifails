@@ -13,7 +13,7 @@ import "StudyPlan.js" as Plan
 Singleton {
     id: root
 
-    readonly property var defaults: ({duration: 120, rhythm: 25, allowed: ["lectio", "google-chrome"], hideTime: true})
+    readonly property var defaults: ({duration: 120, rhythm: 25, allowed: ["app.lectio.Lectio", "google-chrome"], hideTime: true})
 
     property var session: null
     property var prefs: defaults
@@ -36,10 +36,20 @@ Singleton {
     signal distraction(string appName, string iconName)
     signal requestSetup
     signal requestPill
+    // Start straight away with the remembered setup (`wysun shell pomodoro start`).
+    signal requestStart
     signal finished
 
     function summaryLine(duration: int, rhythm: int): string {
         return Plan.summaryLine(duration, rhythm);
+    }
+
+    // Display name of an app by window class: its desktop entry, else the class capitalised.
+    function appName(cls: string): string {
+        const lower = cls.toLowerCase();
+        const apps = DesktopEntries.applications.values;
+        const entry = DesktopEntries.heuristicLookup(cls) ?? apps.find(a => (a.startupClass || "").toLowerCase() === lower || a.id.toLowerCase() === lower);
+        return entry?.name || cls.charAt(0).toUpperCase() + cls.slice(1);
     }
 
     function blockCount(duration: int, rhythm: int): var {
@@ -234,6 +244,30 @@ Singleton {
 
         function toggle(): bool {
             return root.toggle();
+        }
+
+        function start(): bool {
+            if (root.active)
+                return false;
+            root.requestStart();
+            return true;
+        }
+
+        function pause(): bool {
+            if (!root.active)
+                return false;
+            root.togglePause();
+            return true;
+        }
+
+        function skip(): bool {
+            if (!root.active)
+                return false;
+            if (root.phase === "focus")
+                root.skipToBreak();
+            else
+                root.startNext();
+            return true;
         }
 
         function stop(): bool {

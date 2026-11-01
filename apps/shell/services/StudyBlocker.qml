@@ -72,7 +72,7 @@ Singleton {
         move(addr, Apps.HIDDEN_WORKSPACE);
         Study.setHidden((Study.session?.hidden ?? []).concat([{address: addr, workspace: workspace}]));
         const entry = DesktopEntries.heuristicLookup(cls);
-        Study.countDistraction(entry?.name || cls, entry?.icon || "");
+        Study.countDistraction(Study.appName(cls), entry?.icon || "");
     }
 
     onActiveChanged: {
