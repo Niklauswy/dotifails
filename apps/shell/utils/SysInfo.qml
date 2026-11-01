@@ -20,6 +20,7 @@ Singleton {
     property string uptime
     // Uptime trimmed to its two largest components
     property string uptimeShort
+    property int uptimeSeconds
     readonly property string user: Quickshell.env("USER")
     readonly property string wm: Quickshell.env("XDG_CURRENT_DESKTOP") || Quickshell.env("XDG_SESSION_DESKTOP")
     readonly property string shell: Quickshell.env("SHELL").split("/").pop()
@@ -123,6 +124,7 @@ Singleton {
         path: "/proc/uptime"
         onLoaded: {
             const up = parseInt(text().split(" ")[0] ?? 0);
+            root.uptimeSeconds = up;
 
             const days = Math.floor(up / 86400);
             const hours = Math.floor((up % 86400) / 3600);

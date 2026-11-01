@@ -115,3 +115,21 @@ if result.isError():
         self.assertRegex(window, r'interactivePanelOpen[^\n]*screenState\.session')
         content = (ROOT / 'apps/shell/modules/session/Content.qml').read_text()
         self.assertIn('Keys.onEscapePressed', content)
+
+
+class SessionClockTests(unittest.TestCase):
+    def test_compact_uptime_lines(self):
+        import shutil, subprocess, json
+        node = shutil.which('node')
+        if not node:
+            self.skipTest('node not available')
+        source = (ROOT / 'apps/shell/utils/Uptime.js').read_text().replace('.pragma library', '')
+        script = source + '\nprocess.stdout.write(JSON.stringify([compact(45), compact(3599), compact(45660), compact(3 * 86400 + 7200 + 60)]));'
+        out = json.loads(subprocess.run([node], input=script, capture_output=True, text=True, timeout=10).stdout)
+        self.assertEqual(out, [['0 h', '0 min'], ['0 h', '59 min'], ['12 h', '41 min'], ['3 d', '2 h']])
+
+    def test_session_panel_shows_clock_and_uptime(self):
+        content = (ROOT / 'apps/shell/modules/session/Content.qml').read_text()
+        self.assertIn('Time.hourStr', content)
+        self.assertIn('Time.minuteStr', content)
+        self.assertIn('Uptime.compact(SysInfo.uptimeSeconds)', content)

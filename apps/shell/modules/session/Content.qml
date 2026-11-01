@@ -10,6 +10,7 @@ import qs.components.controls
 import qs.components.widgets
 import qs.services
 import qs.utils
+import "../../utils/Uptime.js" as Uptime
 
 Column {
     id: root
@@ -19,6 +20,73 @@ Column {
     padding: Tokens.padding.large
     rightPadding: CUtils.clamp(padding - Config.border.thickness, 0, padding)
     spacing: Tokens.spacing.large
+
+    // The time, hours over minutes like the bar's clock, and how long the computer has been on.
+    StyledRect {
+        implicitWidth: Tokens.sizes.session.button
+        implicitHeight: info.implicitHeight
+        radius: Tokens.rounding.largeIncreased
+        color: Colours.tPalette.m3surfaceContainer
+
+        Column {
+            id: info
+
+            width: parent.width
+            topPadding: Tokens.padding.medium
+            bottomPadding: Tokens.padding.medium
+            spacing: 0
+
+            StyledText {
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: Time.hourStr
+                font: Tokens.font.headline.builders.medium.weight(Font.Medium).build()
+            }
+
+            StyledText {
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: Time.minuteStr
+                color: Colours.palette.m3primary
+                font: Tokens.font.headline.builders.medium.weight(Font.Medium).build()
+            }
+
+            StyledText {
+                anchors.horizontalCenter: parent.horizontalCenter
+                visible: !!Time.amPmStr
+                text: Time.amPmStr
+                color: Colours.palette.m3onSurfaceVariant
+                font: Tokens.font.label.small
+            }
+
+            StyledRect {
+                anchors.horizontalCenter: parent.horizontalCenter
+                width: parent.width - Tokens.padding.large * 2
+                height: 1
+                color: Colours.palette.m3outlineVariant
+                opacity: 0.6
+            }
+
+            MaterialIcon {
+                anchors.horizontalCenter: parent.horizontalCenter
+                topPadding: Tokens.padding.small
+                text: "timer"
+                color: Colours.palette.m3onSurfaceVariant
+                fontStyle: Tokens.font.icon.small
+            }
+
+            Repeater {
+                model: Uptime.compact(SysInfo.uptimeSeconds)
+
+                StyledText {
+                    required property string modelData
+
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    text: modelData
+                    color: Colours.palette.m3onSurfaceVariant
+                    font: Tokens.font.label.medium
+                }
+            }
+        }
+    }
 
     // Power, lock, restart and suspend: no logout or hibernate. Focus starts on the safest one.
     SessionButton {
