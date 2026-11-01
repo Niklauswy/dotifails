@@ -14,6 +14,9 @@ StyledRect {
     property bool msgShown
     property string msgApp
     property string msgIcon
+    property string msgText
+    // Apps closed at the start wait for the entry to finish before the pill says so.
+    property var pendingNotice: null
     property bool askExit
     property bool forceCard
     property real flash
@@ -161,6 +164,7 @@ StyledRect {
         view: root.view
         appName: root.msgApp
         appIcon: root.msgIcon
+        appText: root.msgText
         onKeepStudying: root.askExit = false
         onNextBlock: {
             Study.startNext();
@@ -224,6 +228,26 @@ StyledRect {
         onTriggered: root.forceCard = false
     }
 
+    function showMessage(app: string, icon: string, text: string): void {
+        msgApp = app;
+        msgIcon = icon;
+        msgText = text;
+        msgShown = true;
+        msgTimer.restart();
+        sweep.tick++;
+    }
+
+    Timer {
+        id: noticeTimer
+
+        interval: Tokens.anim.durations.expressiveSlowSpatial + Tokens.anim.durations.large
+        onTriggered: {
+            if (root.pendingNotice)
+                root.showMessage(root.pendingNotice.app, root.pendingNotice.icon, "se cerró para la sesión");
+            root.pendingNotice = null;
+        }
+    }
+
     Connections {
         target: root.ui
 
@@ -231,6 +255,8 @@ StyledRect {
             if (root.ui.mode === "setup")
                 setup.reset();
             root.askExit = false;
+            if (root.ui.mode === "study" && root.pendingNotice)
+                noticeTimer.restart();
         }
 
         function onPillRequested(): void {
@@ -243,11 +269,14 @@ StyledRect {
         target: Study
 
         function onDistraction(appName: string, iconName: string): void {
-            root.msgApp = appName;
-            root.msgIcon = iconName;
-            root.msgShown = true;
-            msgTimer.restart();
-            sweep.tick++;
+            root.showMessage(appName, iconName, "está bloqueado hasta el final");
+        }
+
+        function onClosedAtStart(appNames: string, iconName: string): void {
+            if (root.ui.mode === "study")
+                root.showMessage(appNames, iconName, "se cerró para la sesión");
+            else
+                root.pendingNotice = {app: appNames, icon: iconName};
         }
 
         function onPhaseEnded(from: string): void {

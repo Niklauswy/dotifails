@@ -13,6 +13,7 @@ Item {
     required property string view
     property string appName
     property string appIcon
+    property string appText
     readonly property var s: Study.session
     readonly property bool ready: Study.phase === "ready"
     readonly property Item current: view === "msg" ? message : view === "break" ? breakCard : view === "exit" ? exitCard : null
@@ -77,7 +78,7 @@ Item {
             StyledText {
                 anchors.verticalCenter: parent.verticalCenter
                 textFormat: Text.StyledText
-                text: `<b>${root.appName}</b> esperará al final de la sesión`
+                text: `<b>${root.appName}</b> ${root.appText}`
                 font: Tokens.font.label.large
             }
         }

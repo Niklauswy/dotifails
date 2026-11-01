@@ -5,9 +5,9 @@ import Quickshell
 import Quickshell.Hyprland
 import "StudyApps.js" as Apps
 
-// Study mode: windows of the blocked apps move silently to special:wysun-study while a session runs
-// and go back to their workspace when it ends. Nothing is ever closed. If the shell starts with no live
-// session and windows are still parked there (a crash), they are given back.
+// Study mode: the blocked apps are closed while a session runs, so they stop using the machine (no video
+// playing on, no memory held): their windows get a normal close request when the session starts and
+// whenever one opens during it. Windows parked in special:wysun-study by older versions are given back.
 Singleton {
     id: root
 
@@ -25,6 +25,11 @@ Singleton {
                                     : `movetoworkspacesilent ${workspace},address:${a}`);
     }
 
+    function close(addr: string): void {
+        const a = address(addr);
+        Hypr.dispatch(Hypr.usingLua ? `hl.dsp.window.close({ window = "address:${a}" })` : `closewindow address:${a}`);
+    }
+
     function windows(): var {
         return Hypr.toplevels.values.map(t => ({
             address: t.address,
@@ -37,14 +42,25 @@ Singleton {
         return Study.session?.config?.blocked ?? Study.prefs.blocked;
     }
 
-    function hideAll(): void {
-        const parked = Study.session?.hidden ?? [];
-        const known = parked.map(h => h.address);
-        const fresh = Apps.toHide(windows(), blocked()).filter(w => !known.includes(w.address));
-        for (const w of fresh)
-            move(w.address, Apps.HIDDEN_WORKSPACE);
-        if (fresh.length)
-            Study.setHidden(parked.concat(fresh));
+    // Closes every window of a blocked app and tells the pill which apps were closed.
+    function closeBlocked(): void {
+        const all = windows();
+        // Also those an older version parked in the hidden workspace (still running there).
+        const parked = all.filter(w => w.workspace === Apps.HIDDEN_WORKSPACE && Apps.isBlocked(w.class, blocked()));
+        const targets = Apps.toHide(all, blocked()).concat(parked);
+        const names = [];
+        let icon = "";
+        for (const w of targets) {
+            const cls = all.find(x => x.address === w.address)?.class ?? "";
+            const name = Study.appName(cls);
+            if (!names.includes(name)) {
+                names.push(name);
+                icon = icon || (DesktopEntries.heuristicLookup(cls)?.icon ?? "");
+            }
+            close(w.address);
+        }
+        if (names.length)
+            Study.closedAtStart(names.join(", "), icon);
     }
 
     // Gives back every window parked in the hidden workspace: to its own workspace if recorded, else to the
@@ -71,8 +87,7 @@ Singleton {
         const [addr, workspace, cls] = parts;
         if (workspace === Apps.HIDDEN_WORKSPACE || workspace.startsWith("special:") || !Apps.isBlocked(cls, blocked()))
             return;
-        move(addr, Apps.HIDDEN_WORKSPACE);
-        Study.setHidden((Study.session?.hidden ?? []).concat([{address: addr, workspace: workspace}]));
+        close(addr);
         const entry = DesktopEntries.heuristicLookup(cls);
         Study.countDistraction(Study.appName(cls), entry?.icon || "");
     }
@@ -81,7 +96,7 @@ Singleton {
         if (!ready)
             return;
         if (active)
-            hideAll();
+            closeBlocked();
         else
             restoreAll();
     }
@@ -98,7 +113,7 @@ Singleton {
         id: recoverTimer
 
         interval: 400
-        onTriggered: root.active ? root.hideAll() : root.restoreAll()
+        onTriggered: root.active ? root.closeBlocked() : root.restoreAll()
     }
 
     Connections {

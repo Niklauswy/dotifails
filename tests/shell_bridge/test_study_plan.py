@@ -125,6 +125,13 @@ class StudyAppsTests(unittest.TestCase):
         self.assertNotIn('history.setText', service)
         self.assertIn('>>', service)
 
+    def test_blocked_apps_are_closed_not_hidden(self):
+        blocker = (SERVICES / 'StudyBlocker.qml').read_text()
+        self.assertIn('hl.dsp.window.close(', blocker)
+        self.assertIn('closewindow address:', blocker)
+        self.assertNotIn('move(w.address, Apps.HIDDEN_WORKSPACE)', blocker)
+        self.assertNotIn('move(addr, Apps.HIDDEN_WORKSPACE)', blocker)
+
     def test_restore_target(self):
         out = self.apps('return [restoreTarget("notas", ["1"], "2"), restoreTarget("1", ["1", "2"], "2"), restoreTarget("5", ["1"], "1"), restoreTarget("", ["1"], "2")];')
         self.assertEqual(out, ['notas', '1', '5', '2'])

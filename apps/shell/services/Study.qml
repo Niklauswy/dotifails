@@ -34,6 +34,8 @@ Singleton {
 
     signal phaseEnded(string from)
     signal distraction(string appName, string iconName)
+    // Apps closed when the session started (names joined with commas).
+    signal closedAtStart(string appNames, string iconName)
     signal requestSetup
     signal requestPill
     // Start straight away with the remembered setup (`wysun shell pomodoro start`).

@@ -163,7 +163,7 @@ class DispatcherTests(unittest.TestCase):
 
     def test_study_copy(self):
         text = '\n'.join(p.read_text() for p in (ROOT / 'apps/shell/modules/study').glob('*.qml'))
-        for copy in ('esperará al final de la sesión', 'Mantén para salir', '¿Terminar la sesión?',
+        for copy in ('está bloqueado hasta el final', 'se cerró para la sesión', 'Mantén para salir', '¿Terminar la sesión?',
                      'Levántate, estira, bebe agua.', 'Sesión terminada', 'Sesión de estudio', 'Modo estudio',
                      'Ocultar el tiempo', 'distracciones frenadas', '¿Seguimos?'):
             self.assertIn(copy, text, copy)
