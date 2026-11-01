@@ -12,6 +12,7 @@ StyledRect {
     property string icon
     property string kind: "filled"
     property bool large
+    property bool keyFocus
     readonly property color ink: kind === "filled" ? Colours.palette.m3onPrimary
         : kind === "tonal" ? Colours.palette.m3onSecondaryContainer
         : kind === "tertiary" ? Colours.palette.m3tertiaryContainer : Colours.palette.m3primary
@@ -66,6 +67,10 @@ StyledRect {
             color: root.ink
             font: root.large ? Tokens.font.title.medium : Tokens.font.label.large
         }
+    }
+
+    FocusRing {
+        on: root.keyFocus
     }
 
     MouseArea {

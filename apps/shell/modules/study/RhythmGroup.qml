@@ -10,6 +10,7 @@ Item {
     id: root
 
     property int current: 25
+    property bool keyFocus
     readonly property var options: [{value: 25, text: "25 / 5", hint: "clásico"}, {value: 50, text: "50 / 10", hint: "largo"},
         {value: 90, text: "90 / 20", hint: "profundo"}]
     readonly property real gap: 2
@@ -18,6 +19,11 @@ Item {
     signal picked(int value)
 
     implicitHeight: Tokens.padding.extraExtraLarge
+
+    FocusRing {
+        on: root.keyFocus
+        radius: root.height / 2 + gap
+    }
 
     Row {
         anchors.fill: parent

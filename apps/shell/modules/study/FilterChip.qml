@@ -10,6 +10,7 @@ StyledRect {
     property alias text: label.text
     property string icon
     property bool selected
+    property bool keyFocus
     readonly property bool lead: selected || !!icon
 
     signal clicked
@@ -59,6 +60,10 @@ StyledRect {
         anchors.rightMargin: Tokens.padding.large
         color: root.selected ? Colours.palette.m3onSecondaryContainer : Colours.palette.m3onSurfaceVariant
         font: Tokens.font.label.large
+    }
+
+    FocusRing {
+        on: root.keyFocus
     }
 
     MouseArea {

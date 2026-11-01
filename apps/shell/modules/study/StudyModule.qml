@@ -22,6 +22,8 @@ Scope {
     property bool shortSweep
     // The pill shows the minutes while this is on (eye button).
     property bool revealTime
+    // The pill took the keyboard (Super+N during a session): Space pauses, → skips, X asks to finish.
+    property bool keyboard
 
     signal pillRequested
 

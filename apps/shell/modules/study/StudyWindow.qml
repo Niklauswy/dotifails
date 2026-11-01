@@ -32,7 +32,9 @@ StyledWindow {
     visible: shown || lingering
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: main && ui.mode === "setup" ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+    readonly property bool wantsKeys: main && (ui.mode === "setup" || ui.mode === "summary" || (ui.mode === "study" && ui.keyboard))
+    WlrLayershell.keyboardFocus: wantsKeys ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    onWantsKeysChanged: if (wantsKeys) surface.forceActiveFocus()
     anchors.top: true
     anchors.bottom: true
     anchors.left: true
@@ -53,12 +55,6 @@ StyledWindow {
         active: win.main && win.ui.mode === "setup"
         windows: [win]
         onCleared: win.ui.close()
-    }
-
-    Shortcut {
-        sequence: "Escape"
-        enabled: win.main && (win.ui.mode === "setup" || win.ui.mode === "summary")
-        onActivated: win.ui.close()
     }
 
     Item {

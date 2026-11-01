@@ -18,6 +18,19 @@ Item {
     readonly property bool ready: Study.phase === "ready"
     readonly property Item current: view === "msg" ? message : view === "break" ? breakCard : view === "exit" ? exitCard : null
 
+    // Keyboard: Enter held fills the hold button (a free session just finishes).
+    function holdPress(): void {
+        if (root.s?.blocks)
+            hold.press();
+        else
+            Study.finish();
+    }
+
+    function holdRelease(): void {
+        if (root.s?.blocks)
+            hold.release();
+    }
+
     signal keepStudying
     signal nextBlock
 
@@ -190,6 +203,8 @@ Item {
 
                 // A free session has no "early": a plain confirmation is enough.
                 HoldButton {
+                    id: hold
+
                     visible: !!root.s?.blocks
                     text: "Mantén para salir"
                     onCompleted: Study.finish()

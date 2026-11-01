@@ -112,6 +112,70 @@ StyledRect {
         id: hover
     }
 
+    focus: true
+
+    function closeCard(): void {
+        forceCard = false;
+        ui.keyboard = false;
+    }
+
+    // Keyboard, per face. Escape always steps back.
+    Keys.onPressed: event => {
+        const k = event.key, enter = k === Qt.Key_Return || k === Qt.Key_Enter;
+        if (view === "setup") {
+            if (k === Qt.Key_Escape)
+                setup.adding ? (setup.adding = false) : ui.close();
+            else if (!setup.handleKey(event))
+                return;
+        } else if (view === "summary") {
+            if (enter || k === Qt.Key_Escape)
+                ui.close();
+            else if (k === Qt.Key_O) {
+                Study.clear();
+                ui.mode = "setup";
+            } else
+                return;
+        } else if (view === "exit") {
+            if (enter && !event.isAutoRepeat)
+                cards.holdPress();
+            else if (k === Qt.Key_Escape)
+                askExit = false;
+            else if (!enter)
+                return;
+        } else if (view === "break") {
+            if (enter) {
+                Study.startNext();
+                ui.sweep(true);
+            } else if (k === Qt.Key_Escape)
+                closeCard();
+            else
+                return;
+        } else if (view === "card" || view === "pill") {
+            if (k === Qt.Key_Space)
+                Study.togglePause();
+            else if (k === Qt.Key_Right || k === Qt.Key_N)
+                Study.skipToBreak();
+            else if (k === Qt.Key_X || k === Qt.Key_Delete || k === Qt.Key_Backspace)
+                askExit = true;
+            else if (k === Qt.Key_Escape)
+                closeCard();
+            else
+                return;
+        } else {
+            return;
+        }
+        event.accepted = true;
+        if (ui.keyboard)
+            cardTimer.restart();
+    }
+
+    Keys.onReleased: event => {
+        if (view === "exit" && (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) && !event.isAutoRepeat) {
+            cards.holdRelease();
+            event.accepted = true;
+        }
+    }
+
     Takeover {
         anchors.fill: parent
         shown: root.view === "takeover"
@@ -127,6 +191,7 @@ StyledRect {
             id: setup
 
             onStart: config => root.ui.start(config)
+            onAddingChanged: if (!adding) root.forceActiveFocus()
         }
     }
 
@@ -160,7 +225,7 @@ StyledRect {
         id: cards
 
         anchors.horizontalCenter: parent.horizontalCenter
-        anchors.verticalCenter: root.slim ? parent.verticalCenter : undefined
+        y: root.slim ? (parent.height - height) / 2 : 0
         view: root.view
         appName: root.msgApp
         appIcon: root.msgIcon
@@ -225,7 +290,8 @@ StyledRect {
         id: cardTimer
 
         interval: Tokens.anim.durations.extraLarge * 3.5
-        onTriggered: root.forceCard = false
+        // Keeps the keyboard while the exit question is open.
+        onTriggered: root.askExit ? restart() : root.closeCard()
     }
 
     function showMessage(app: string, icon: string, text: string): void {
@@ -261,6 +327,7 @@ StyledRect {
 
         function onPillRequested(): void {
             root.forceCard = true;
+            root.ui.keyboard = true;
             cardTimer.restart();
         }
     }

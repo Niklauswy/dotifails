@@ -161,6 +161,11 @@ class DispatcherTests(unittest.TestCase):
         self.assertIn('import qs.modules.study', shell)
         self.assertRegex(shell, r'\n\s*StudyModule \{\}')
 
+    def test_study_surface_has_no_conditional_anchors(self):
+        # An anchor switched to undefined keeps its last position: the exit card ended up pushed down and clipped.
+        for path in (ROOT / 'apps/shell/modules/study').glob('*.qml'):
+            self.assertNotRegex(path.read_text(), r'anchors\.\w+:[^\n]*\?[^\n]*:\s*undefined', path.name)
+
     def test_study_copy(self):
         text = '\n'.join(p.read_text() for p in (ROOT / 'apps/shell/modules/study').glob('*.qml'))
         for copy in ('está bloqueado hasta el final', 'se cerró para la sesión', 'Mantén para salir', '¿Terminar la sesión?',

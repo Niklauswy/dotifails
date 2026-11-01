@@ -12,20 +12,32 @@ import qs.services
 Column {
     id: root
 
-    readonly property var steps: [30, 60, 90, 120, 150, 180, 210, 240, 0]
-    property int stepIndex: Math.max(0, steps.indexOf(Study.prefs.duration))
+    // Up to 3 h: past a few hours of deep focus, study gets less effective, not more.
+    readonly property var steps: [30, 60, 90, 120, 150, 180]
+    property int stepIndex: indexFor(Study.prefs.duration)
     property int rhythm: Study.prefs.rhythm
     property bool hideTime: Study.prefs.hideTime
     property var known: Study.prefs.blocked.slice()
     property var blocked: Study.prefs.blocked.slice()
     property bool adding
     readonly property int duration: steps[stepIndex]
+    // Keyboard: focused row (0 duration, 1 rhythm, 2 blocked apps, 3 hide time, 4 start) and chip in row 2.
+    property int row: 4
+    property int chip: 0
+    readonly property var rhythms: [25, 50, 90]
 
     signal start(var config)
 
     // Back to the remembered choices each time the panel opens.
+    function indexFor(duration: int): int {
+        const i = steps.indexOf(duration);
+        return i >= 0 ? i : steps.indexOf(120);
+    }
+
     function reset(): void {
-        stepIndex = Math.max(0, steps.indexOf(Study.prefs.duration));
+        row = 4;
+        chip = 0;
+        stepIndex = indexFor(Study.prefs.duration);
         rhythm = Study.prefs.rhythm;
         hideTime = Study.prefs.hideTime;
         known = Study.prefs.blocked.slice();
@@ -34,9 +46,49 @@ Column {
         search.text = "";
     }
 
+    function config(): var {
+        return {duration: duration, rhythm: rhythm, blocked: blocked, hideTime: hideTime};
+    }
+
+    // Arrows move between rows and change the value in the row; Space toggles; Enter starts.
+    // Returns false for keys it does not use (Escape is the surface's).
+    function handleKey(event: var): bool {
+        const k = event.key;
+        if (adding)
+            return false;
+        if (k === Qt.Key_Up || k === Qt.Key_Backtab || (k === Qt.Key_Tab && (event.modifiers & Qt.ShiftModifier))) {
+            row = Math.max(0, row - 1);
+        } else if (k === Qt.Key_Down || k === Qt.Key_Tab) {
+            row = Math.min(4, row + 1);
+        } else if (k === Qt.Key_Left || k === Qt.Key_Right) {
+            const d = k === Qt.Key_Left ? -1 : 1;
+            if (row === 0)
+                stepIndex = Math.max(0, Math.min(steps.length - 1, stepIndex + d));
+            else if (row === 1)
+                rhythm = rhythms[(rhythms.indexOf(rhythm) + d + rhythms.length) % rhythms.length];
+            else if (row === 2)
+                chip = Math.max(0, Math.min(known.length, chip + d));
+            else if (row === 3)
+                hideTime = d > 0;
+        } else if (k === Qt.Key_Space) {
+            if (row === 2)
+                chip < known.length ? toggleApp(known[chip]) : (adding = true);
+            else if (row === 3)
+                hideTime = !hideTime;
+            else if (row === 4)
+                start(config());
+        } else if (k === Qt.Key_Return || k === Qt.Key_Enter) {
+            if (row === 2 && chip === known.length)
+                adding = true;
+            else
+                start(config());
+        } else {
+            return false;
+        }
+        return true;
+    }
+
     function formatDuration(m: int): string {
-        if (!m)
-            return "Libre";
         return m >= 60 ? (m % 60 ? `${Math.floor(m / 60)} h ${m % 60}` : `${m / 60} h`) : `${m} min`;
     }
 
@@ -100,6 +152,8 @@ Column {
     }
 
     StyledSlider {
+        id: slider
+
         width: root.width - root.leftPadding - root.rightPadding
         implicitHeight: Tokens.padding.extraLarge
         from: 0
@@ -107,7 +161,14 @@ Column {
         stepSize: 1
         snapMode: Slider.SnapAlways
         value: root.stepIndex
-        onMoved: root.stepIndex = Math.round(value)
+        // StyledSlider handles the drag itself and reports the position (0..1) through `interaction`.
+        onInteraction: v => root.stepIndex = Math.round(v * (root.steps.length - 1))
+
+        FocusRing {
+            on: root.row === 0
+            gap: Tokens.padding.small
+            radius: Tokens.rounding.medium
+        }
     }
 
     Item {
@@ -126,12 +187,8 @@ Column {
             text: "30 min"
         }
         Tick {
-            x: parent.width * 3 / 8 - width / 2
-            text: "2 h"
-        }
-        Tick {
             anchors.right: parent.right
-            text: "Libre"
+            text: "3 h"
         }
     }
 
@@ -141,6 +198,7 @@ Column {
 
     RhythmGroup {
         width: root.width - root.leftPadding - root.rightPadding
+        keyFocus: root.row === 1
         current: root.rhythm
         onPicked: value => root.rhythm = value
     }
@@ -158,7 +216,9 @@ Column {
 
             FilterChip {
                 required property string modelData
+                required property int index
 
+                keyFocus: root.row === 2 && root.chip === index
                 text: root.appName(modelData)
                 selected: root.blocked.includes(modelData)
                 onClicked: root.toggleApp(modelData)
@@ -166,6 +226,7 @@ Column {
         }
 
         FilterChip {
+            keyFocus: root.row === 2 && root.chip === root.known.length
             text: "Añadir"
             icon: "add"
             onClicked: root.adding = !root.adding
@@ -185,9 +246,17 @@ Column {
             width: parent.width
             placeholderText: "Buscar app"
             onVisibleChanged: if (visible) forceActiveFocus()
+            // Enter adds the first match; Escape goes back to the panel.
+            Keys.onReturnPressed: if (appList.count > 0) root.addApp(appList.model[0].startupClass || appList.model[0].id)
+            Keys.onEscapePressed: {
+                root.adding = false;
+                text = "";
+            }
         }
 
         ListView {
+            id: appList
+
             width: parent.width
             height: Math.min(contentHeight, Tokens.padding.extraExtraLarge * 4)
             clip: true
@@ -257,6 +326,12 @@ Column {
             }
         }
 
+        FocusRing {
+            on: root.row === 3
+            gap: Tokens.padding.small
+            radius: Tokens.rounding.medium
+        }
+
         StyledSwitch {
             id: hideSwitch
 
@@ -275,7 +350,8 @@ Column {
     ActionButton {
         width: root.width - root.leftPadding - root.rightPadding
         large: true
+        keyFocus: root.row === 4
         text: "Empezar"
-        onClicked: root.start({duration: root.duration, rhythm: root.rhythm, blocked: root.blocked, hideTime: root.hideTime})
+        onClicked: root.start(root.config())
     }
 }

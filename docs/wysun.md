@@ -44,9 +44,10 @@ Un solo estilo, Material You, con el color del wallpaper y el modo claro/oscuro/
 
 ## Modo estudio
 
-Sesiones pomodoro para estudiar sin distracciones. `Super + N` (o `wysun study`) abre el panel de preparación: duración (de 30 min a 4 h, o libre), ritmo (25/5, 50/10 o 90/20), apps bloqueadas (por defecto solo Brave; todo lo demás sigue disponible) y «Ocultar el tiempo». Al empezar, una entrada a pantalla completa se recoge en una píldora arriba en el centro, en la capa overlay, visible sobre apps en pantalla completa. La píldora no muestra minutos salvo que se pidan.
+Sesiones pomodoro para estudiar sin distracciones. `Super + N` (o `wysun study`) abre el panel de preparación: duración (de 30 min a 3 h: más horas seguidas rinden menos), ritmo (25/5, 50/10 o 90/20), apps bloqueadas (por defecto solo Brave; todo lo demás sigue disponible) y «Ocultar el tiempo». Al empezar, una entrada a pantalla completa se recoge en una píldora arriba en el centro, en la capa overlay, visible sobre apps en pantalla completa. La píldora no muestra minutos salvo que se pidan.
 
 - Las apps bloqueadas se cierran al empezar (petición normal de cierre, para que dejen de consumir recursos) y se vuelven a cerrar si se abren durante la sesión; la píldora lo avisa. Las apps de Wysun, los portales y polkit nunca se bloquean.
 - Estado de la sesión en `~/.local/state/wysun/study.json` (un reinicio del shell la retoma), historial en `~/.local/state/wysun/study/sessions.jsonl` y preferencias del panel en `~/.config/wysun/study.json`.
+- Teclado: en el panel, ↑/↓ o Tab cambian de fila, ←/→ cambian el valor, Espacio marca e Intro empieza. Durante la sesión, `Super + N` despliega la píldora con el teclado: Espacio pausa, → salta al descanso, X pregunta si terminar (mantén Intro para salir) y Esc cierra.
 - Desde terminal: `wysun shell pomodoro status|start|pause|skip|stop`. `stop` termina sin la pulsación larga y sirve de salida de emergencia.
 - Código: `apps/shell/services/Study.qml`, `StudyBlocker.qml`, `StudyPlan.js`, `StudyApps.js` y `apps/shell/modules/study/`. Diseño: `docs/superpowers/specs/2026-10-31-modo-estudio-design.md`.

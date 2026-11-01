@@ -48,9 +48,7 @@ class OverlayWindowTests(unittest.TestCase):
 
     # Surfaces that grab focus but are not overlays: the drawers share one window per screen whose
     # keyboard focus depends on which drawer is open, and the bar popouts live inside the bar window.
-    # Study mode keeps one window per screen for the whole session (pill and halo, input only on the pill);
-    # it takes the keyboard just while its setup panel is open.
-    NOT_OVERLAYS = ['modules/bar/popouts/Wrapper.qml', 'modules/drawers/ContentWindow.qml', 'modules/study/StudyWindow.qml']
+    NOT_OVERLAYS = ['modules/bar/popouts/Wrapper.qml', 'modules/drawers/ContentWindow.qml']
 
     def test_no_other_module_copies_the_overlay_pattern(self):
         found = [p for p in qml_files() if 'HyprlandFocusGrab' in p.read_text() and 'WlrKeyboardFocus.OnDemand' in p.read_text()]
