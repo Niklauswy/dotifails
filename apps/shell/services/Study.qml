@@ -22,6 +22,8 @@ Singleton {
     // historyRecord of the session that just ended, for the summary.
     property var lastSummary: null
     property bool loaded
+    // Creates the blocker with the service, so parked windows are recovered even with no UI open.
+    readonly property var blocker: StudyBlocker
 
     readonly property bool active: !!session && !session.done
     readonly property string phase: session ? session.phase : "done"

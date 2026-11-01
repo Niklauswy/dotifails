@@ -55,7 +55,7 @@ Singleton {
     }
 
     function cycleSpecialWorkspace(direction: string): void {
-        const openSpecials = workspaces.values.filter(w => w.name.startsWith("special:") && w.lastIpcObject.windows > 0);
+        const openSpecials = workspaces.values.filter(w => w.name.startsWith("special:") && w.name !== "special:wysun-study" && w.lastIpcObject.windows > 0);
 
         if (openSpecials.length === 0)
             return;
@@ -209,7 +209,7 @@ Singleton {
         }
 
         function listSpecialWorkspaces(): string {
-            return root.workspaces.values.filter(w => w.name.startsWith("special:") && w.lastIpcObject.windows > 0).map(w => w.name).join("\n");
+            return root.workspaces.values.filter(w => w.name.startsWith("special:") && w.name !== "special:wysun-study" && w.lastIpcObject.windows > 0).map(w => w.name).join("\n");
         }
 
         target: "hypr"

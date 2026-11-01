@@ -116,8 +116,8 @@ class StudyAppsTests(unittest.TestCase):
         self.assertEqual(out, [{'address': 'b', 'workspace': '2'}])
 
     def test_restore_target(self):
-        out = self.apps('return [restoreTarget("5", ["1", "2"], "2"), restoreTarget("1", ["1", "2"], "2")];')
-        self.assertEqual(out, ['2', '1'])
+        out = self.apps('return [restoreTarget("notas", ["1", "2"], "2"), restoreTarget("1", ["1", "2"], "2"), restoreTarget("5", ["1"], "1")];')
+        self.assertEqual(out, ['2', '1', '5'])
 
 
 class StudyChimeTests(unittest.TestCase):
