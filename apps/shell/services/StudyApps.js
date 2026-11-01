@@ -1,30 +1,31 @@
 .pragma library
 
-// Which windows study mode lets through, which it hides and where they go back. Pure functions.
+// Which windows study mode hides and where they go back. Only the apps the user lists are blocked
+// (Brave by default); everything else keeps working. Pure functions.
 
 var HIDDEN_WORKSPACE = "special:wysun-study";
 // The shell's own apps, portals, the screen-share picker and polkit agents are never hidden.
 var NEVER_BLOCK = [/^wysun/i, /^xdg-desktop-portal/i, /^hyprland-share-picker$/i, /polkit/i];
 
-function isAllowed(windowClass, allowedClasses) {
+function isBlocked(windowClass, blockedClasses) {
     if (!windowClass)
-        return true;
+        return false;
     for (var i = 0; i < NEVER_BLOCK.length; i++)
         if (NEVER_BLOCK[i].test(windowClass))
-            return true;
+            return false;
     var lower = windowClass.toLowerCase();
-    for (var j = 0; j < allowedClasses.length; j++)
-        if (String(allowedClasses[j]).toLowerCase() === lower)
+    for (var j = 0; j < blockedClasses.length; j++)
+        if (String(blockedClasses[j]).toLowerCase() === lower)
             return true;
     return false;
 }
 
 // windows: [{address, class, workspace}]. Windows the user keeps in a special workspace are left alone.
-function toHide(windows, allowedClasses) {
+function toHide(windows, blockedClasses) {
     var out = [];
     for (var i = 0; i < windows.length; i++) {
         var w = windows[i];
-        if (String(w.workspace).indexOf("special:") === 0 || isAllowed(w["class"], allowedClasses))
+        if (String(w.workspace).indexOf("special:") === 0 || !isBlocked(w["class"], blockedClasses))
             continue;
         out.push({address: w.address, workspace: w.workspace});
     }

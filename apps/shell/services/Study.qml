@@ -13,7 +13,7 @@ import "StudyPlan.js" as Plan
 Singleton {
     id: root
 
-    readonly property var defaults: ({duration: 120, rhythm: 25, allowed: ["app.lectio.Lectio", "google-chrome"], hideTime: true})
+    readonly property var defaults: ({duration: 120, rhythm: 25, blocked: ["brave-browser"], hideTime: true})
 
     property var session: null
     property var prefs: defaults

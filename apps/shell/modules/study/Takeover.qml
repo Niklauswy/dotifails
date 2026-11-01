@@ -7,7 +7,7 @@ import qs.components
 import qs.services
 
 // The full-screen moment when a session starts: wallpaper colours, "Modo estudio" written from thin to
-// regular, the rhythm, the allowed apps, and two Material shapes turning slowly behind.
+// regular, the rhythm, the blocked apps, and two Material shapes turning slowly behind.
 Item {
     id: root
 
@@ -17,7 +17,7 @@ Item {
     readonly property int blocks: config ? (Study.blockCount(config.duration, config.rhythm) ?? 0) : 0
     readonly property string rhythmLine: config ? (blocks ? `${blocks} ${blocks > 1 ? "bloques" : "bloque"} · ` : "")
                                                   + `${config.rhythm} min de foco, ${breaks[config.rhythm]} de descanso` : ""
-    readonly property var apps: (config?.allowed ?? []).map(c => Study.appName(c))
+    readonly property var apps: (config?.blocked ?? []).map(c => Study.appName(c))
     property real weight: Font.ExtraLight
     property real spread: Tokens.spacing.medium
 
@@ -214,6 +214,15 @@ Item {
             anchors.horizontalCenter: parent.horizontalCenter
             topPadding: Tokens.spacing.large
             spacing: Tokens.spacing.small
+
+            StyledText {
+                anchors.verticalCenter: parent.verticalCenter
+                visible: root.apps.length > 0
+                text: "Fuera hasta el final:"
+                color: Colours.palette.m3onPrimaryContainer
+                opacity: 0.75
+                font: Tokens.font.label.large
+            }
 
             Repeater {
                 model: root.apps

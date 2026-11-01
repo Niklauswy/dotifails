@@ -5,7 +5,7 @@ import Quickshell
 import Quickshell.Hyprland
 import "StudyApps.js" as Apps
 
-// Study mode: windows of apps that are not allowed move silently to special:wysun-study while a session runs
+// Study mode: windows of the blocked apps move silently to special:wysun-study while a session runs
 // and go back to their workspace when it ends. Nothing is ever closed. If the shell starts with no live
 // session and windows are still parked there (a crash), they are given back.
 Singleton {
@@ -33,14 +33,14 @@ Singleton {
         }));
     }
 
-    function allowed(): var {
-        return Study.session?.config?.allowed ?? Study.prefs.allowed;
+    function blocked(): var {
+        return Study.session?.config?.blocked ?? Study.prefs.blocked;
     }
 
     function hideAll(): void {
         const parked = Study.session?.hidden ?? [];
         const known = parked.map(h => h.address);
-        const fresh = Apps.toHide(windows(), allowed()).filter(w => !known.includes(w.address));
+        const fresh = Apps.toHide(windows(), blocked()).filter(w => !known.includes(w.address));
         for (const w of fresh)
             move(w.address, Apps.HIDDEN_WORKSPACE);
         if (fresh.length)
@@ -69,7 +69,7 @@ Singleton {
         if (parts.length < 3)
             return;
         const [addr, workspace, cls] = parts;
-        if (workspace === Apps.HIDDEN_WORKSPACE || workspace.startsWith("special:") || Apps.isAllowed(cls, allowed()))
+        if (workspace === Apps.HIDDEN_WORKSPACE || workspace.startsWith("special:") || !Apps.isBlocked(cls, blocked()))
             return;
         move(addr, Apps.HIDDEN_WORKSPACE);
         Study.setHidden((Study.session?.hidden ?? []).concat([{address: addr, workspace: workspace}]));

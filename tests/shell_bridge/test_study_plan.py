@@ -32,7 +32,7 @@ def plan(body):
 
 
 def cfg(duration=120, rhythm=25):
-    return f'({{duration: {duration}, rhythm: {rhythm}, allowed: ["lectio"], hideTime: true}})'
+    return f'({{duration: {duration}, rhythm: {rhythm}, blocked: ["brave-browser"], hideTime: true}})'
 
 
 class StudyPlanTests(unittest.TestCase):
@@ -105,14 +105,15 @@ class StudyAppsTests(unittest.TestCase):
     def apps(self, body):
         return run_js(['StudyApps.js'], body)
 
-    def test_is_allowed(self):
-        out = self.apps('''return [isAllowed("Lectio", ["lectio"]), isAllowed("brave-browser", ["lectio", "google-chrome"]),
-            isAllowed("wysun-music", []), isAllowed("org.kde.polkit-kde-authentication-agent-1", []), isAllowed("", [])];''')
-        self.assertEqual(out, [True, False, True, True, True])
+    def test_only_listed_apps_are_blocked(self):
+        out = self.apps('''return [isBlocked("brave-browser", ["brave-browser"]), isBlocked("Brave-Browser", ["brave-browser"]),
+            isBlocked("com.mitchellh.ghostty", ["brave-browser"]), isBlocked("wysun-music", ["wysun-music"]),
+            isBlocked("org.kde.polkit-kde-authentication-agent-1", ["org.kde.polkit-kde-authentication-agent-1"]), isBlocked("", ["brave-browser"])];''')
+        self.assertEqual(out, [True, True, False, False, False, False])
 
-    def test_to_hide_skips_special_workspaces(self):
+    def test_to_hide_skips_special_workspaces_and_unlisted_apps(self):
         out = self.apps('''return toHide([{address: "a", class: "brave-browser", workspace: "special:magic"},
-            {address: "b", class: "brave-browser", workspace: "2"}, {address: "c", class: "lectio", workspace: "1"}], ["lectio"]);''')
+            {address: "b", class: "brave-browser", workspace: "2"}, {address: "c", class: "com.mitchellh.ghostty", workspace: "1"}], ["brave-browser"]);''')
         self.assertEqual(out, [{'address': 'b', 'workspace': '2'}])
 
     def test_workspace_selector_prefixes_names(self):

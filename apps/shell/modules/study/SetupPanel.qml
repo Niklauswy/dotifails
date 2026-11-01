@@ -8,7 +8,7 @@ import qs.components
 import qs.components.controls
 import qs.services
 
-// Setup panel (option B, Material 3 Expressive): duration slider, rhythm group, allowed apps, hide time.
+// Setup panel (option B, Material 3 Expressive): duration slider, rhythm group, blocked apps, hide time.
 Column {
     id: root
 
@@ -16,8 +16,8 @@ Column {
     property int stepIndex: Math.max(0, steps.indexOf(Study.prefs.duration))
     property int rhythm: Study.prefs.rhythm
     property bool hideTime: Study.prefs.hideTime
-    property var known: Study.prefs.allowed.slice()
-    property var allowed: Study.prefs.allowed.slice()
+    property var known: Study.prefs.blocked.slice()
+    property var blocked: Study.prefs.blocked.slice()
     property bool adding
     readonly property int duration: steps[stepIndex]
 
@@ -28,8 +28,8 @@ Column {
         stepIndex = Math.max(0, steps.indexOf(Study.prefs.duration));
         rhythm = Study.prefs.rhythm;
         hideTime = Study.prefs.hideTime;
-        known = Study.prefs.allowed.slice();
-        allowed = Study.prefs.allowed.slice();
+        known = Study.prefs.blocked.slice();
+        blocked = Study.prefs.blocked.slice();
         adding = false;
         search.text = "";
     }
@@ -45,14 +45,14 @@ Column {
     }
 
     function toggleApp(cls: string): void {
-        allowed = allowed.includes(cls) ? allowed.filter(c => c !== cls) : allowed.concat([cls]);
+        blocked = blocked.includes(cls) ? blocked.filter(c => c !== cls) : blocked.concat([cls]);
     }
 
     function addApp(cls: string): void {
         if (!known.includes(cls))
             known = known.concat([cls]);
-        if (!allowed.includes(cls))
-            allowed = allowed.concat([cls]);
+        if (!blocked.includes(cls))
+            blocked = blocked.concat([cls]);
         adding = false;
         search.text = "";
     }
@@ -146,7 +146,7 @@ Column {
     }
 
     Label {
-        text: "Permitido"
+        text: "Bloqueadas"
     }
 
     Flow {
@@ -160,7 +160,7 @@ Column {
                 required property string modelData
 
                 text: root.appName(modelData)
-                selected: root.allowed.includes(modelData)
+                selected: root.blocked.includes(modelData)
                 onClicked: root.toggleApp(modelData)
             }
         }
@@ -276,7 +276,6 @@ Column {
         width: root.width - root.leftPadding - root.rightPadding
         large: true
         text: "Empezar"
-        enabled: root.allowed.length > 0
-        onClicked: root.start({duration: root.duration, rhythm: root.rhythm, allowed: root.allowed, hideTime: root.hideTime})
+        onClicked: root.start({duration: root.duration, rhythm: root.rhythm, blocked: root.blocked, hideTime: root.hideTime})
     }
 }
