@@ -18,8 +18,9 @@ Singleton {
         return a.startsWith("0x") ? a : `0x${a}`;
     }
 
-    function move(addr: string, workspace: string): void {
+    function move(addr: string, name: string): void {
         const a = address(addr);
+        const workspace = Apps.workspaceSelector(name);
         Hypr.dispatch(Hypr.usingLua ? `hl.dsp.window.move({ window = "address:${a}", workspace = "${workspace}", follow = false })`
                                     : `movetoworkspacesilent ${workspace},address:${a}`);
     }
@@ -51,10 +52,11 @@ Singleton {
     function restoreAll(): void {
         const records = Study.session?.hidden ?? [];
         const names = Hypr.workspaces.values.map(w => w.name);
-        const fallback = Hypr.focusedWorkspace?.name ?? "1";
         for (const t of Hypr.toplevels.values) {
             if (t.workspace?.name !== Apps.HIDDEN_WORKSPACE)
                 continue;
+            // Unknown or vanished workspace: the active one of the window's own monitor.
+            const fallback = t.monitor?.activeWorkspace?.name ?? Hypr.focusedWorkspace?.name ?? "1";
             const rec = records.find(r => r.address === t.address);
             move(t.address, Apps.restoreTarget(rec ? rec.workspace : fallback, names, fallback));
         }

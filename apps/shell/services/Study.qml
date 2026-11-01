@@ -113,7 +113,8 @@ Singleton {
         const ended = session.done ? session : Plan.stop(session, t);
         const record = Plan.historyRecord(ended, t);
         records = records.concat([record]);
-        history.setText(records.map(r => JSON.stringify(r)).join("\n") + "\n");
+        // Appended, never rewritten: the history may not have loaded yet (restart right after a session ended).
+        Quickshell.execDetached(["sh", "-c", 'mkdir -p "$(dirname "$1")" && printf "%s\\n" "$2" >> "$1"', "sh", history.path, JSON.stringify(record)]);
         lastSummary = record;
         session = Object.assign({}, ended, {done: true});
         save();

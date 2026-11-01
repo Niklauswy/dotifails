@@ -115,9 +115,18 @@ class StudyAppsTests(unittest.TestCase):
             {address: "b", class: "brave-browser", workspace: "2"}, {address: "c", class: "lectio", workspace: "1"}], ["lectio"]);''')
         self.assertEqual(out, [{'address': 'b', 'workspace': '2'}])
 
+    def test_workspace_selector_prefixes_names(self):
+        out = self.apps('return [workspaceSelector("3"), workspaceSelector("code"), workspaceSelector("special:wysun-study"), workspaceSelector("-1")];')
+        self.assertEqual(out, ['3', 'name:code', 'special:wysun-study', 'name:-1'])
+
+    def test_history_is_appended_not_rewritten(self):
+        service = (SERVICES / 'Study.qml').read_text()
+        self.assertNotIn('history.setText', service)
+        self.assertIn('>>', service)
+
     def test_restore_target(self):
-        out = self.apps('return [restoreTarget("notas", ["1", "2"], "2"), restoreTarget("1", ["1", "2"], "2"), restoreTarget("5", ["1"], "1")];')
-        self.assertEqual(out, ['2', '1', '5'])
+        out = self.apps('return [restoreTarget("notas", ["1"], "2"), restoreTarget("1", ["1", "2"], "2"), restoreTarget("5", ["1"], "1"), restoreTarget("", ["1"], "2")];')
+        self.assertEqual(out, ['notas', '1', '5', '2'])
 
 
 class StudyChimeTests(unittest.TestCase):

@@ -31,11 +31,20 @@ function toHide(windows, allowedClasses) {
     return out;
 }
 
-// Hyprland drops empty workspaces, so a numbered one is recreated by moving a window back to it; a named one
-// that no longer exists falls back to the monitor's active workspace.
+// Hyprland drops empty workspaces but recreates one when a window moves to it (by id, or by "name:"), so a
+// window always goes back to its own; only one with no record falls back to the monitor's active workspace.
 function restoreTarget(origWorkspace, existingWorkspaceNames, activeOnMonitor) {
-    var name = String(origWorkspace);
-    return /^-?\d+$/.test(name) || existingWorkspaceNames.indexOf(name) >= 0 ? name : String(activeOnMonitor);
+    var name = origWorkspace === undefined || origWorkspace === null ? "" : String(origWorkspace);
+    return name && name.indexOf("special:") !== 0 ? name : String(activeOnMonitor);
+}
+
+// Dispatch target for a workspace: numbers are ids, special:… is already a selector, anything else is a
+// name and needs "name:" (a bare "mail" would read as a monitor selector, "-1" as the previous workspace).
+function workspaceSelector(name) {
+    var s = String(name);
+    if (/^\d+$/.test(s) || s.indexOf("special:") === 0)
+        return s;
+    return "name:" + s;
 }
 
 // Hidden workspace stays out of the shell's special-workspace lists.
