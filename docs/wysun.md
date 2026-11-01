@@ -41,3 +41,12 @@ Esta integración cambia la distribución y los nombres públicos. Conserva las 
 ## Temas
 
 Un solo estilo, Material You, con el color del wallpaper y el modo claro/oscuro/automático, se aplica en vivo a todas las superficies de Wysun. Los tokens viven en `apps/python/wysun_core/tokens.json`; la guía, los valores de contraste y cómo crear un widget que obedezca el tema están en [themes.md](themes.md).
+
+## Modo estudio
+
+Sesiones pomodoro para estudiar sin distracciones. `Super + N` (o `wysun study`) abre el panel de preparación: duración (de 30 min a 4 h, o libre), ritmo (25/5, 50/10 o 90/20), apps permitidas (por defecto Lectio y Chrome) y «Ocultar el tiempo». Al empezar, una entrada a pantalla completa se recoge en una píldora arriba en el centro, en la capa overlay, visible sobre apps en pantalla completa. La píldora no muestra minutos salvo que se pidan.
+
+- Las ventanas de apps no permitidas no se cierran: pasan a `special:wysun-study` y vuelven a su workspace al terminar. Las apps de Wysun, los portales y polkit nunca se bloquean.
+- Estado de la sesión en `~/.local/state/wysun/study.json` (un reinicio del shell la retoma), historial en `~/.local/state/wysun/study/sessions.jsonl` y preferencias del panel en `~/.config/wysun/study.json`.
+- Desde terminal: `wysun shell pomodoro status|start|pause|skip|stop`. `stop` termina sin la pulsación larga y sirve de salida de emergencia.
+- Código: `apps/shell/services/Study.qml`, `StudyBlocker.qml`, `StudyPlan.js`, `StudyApps.js` y `apps/shell/modules/study/`. Diseño: `docs/superpowers/specs/2026-10-31-modo-estudio-design.md`.

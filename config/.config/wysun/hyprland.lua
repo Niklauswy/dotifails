@@ -34,6 +34,7 @@ hl.bind("SUPER + Return", hl.dsp.exec_cmd("wysun-terminal"), {description="Wysun
 hl.bind("SUPER + D", hl.dsp.exec_cmd("wysun"), {description="Wysun | equivalent | Abrir wysun"})
 hl.bind("SUPER + space", hl.dsp.exec_cmd("wysun"), {description="Wysun | equivalent | Abrir wysun"})
 hl.bind("SUPER + X", hl.dsp.exec_cmd("wysun shell session"), {description="Wysun | session | Abrir o cerrar el panel lateral de sesión"})
+hl.bind("SUPER + N", hl.dsp.exec_cmd("wysun study"), {description="Wysun | study | Modo estudio: preparar una sesión o mostrar la píldora"})
 hl.bind("ALT + Tab", hl.dsp.exec_cmd("wysun shell overview"), {description="Wysun | overview | Window overview"})
 hl.bind("SUPER + V", hl.dsp.exec_cmd("wysun clipboard"), {description="Wysun | equivalent | Abrir wysun clipboard"})
 hl.bind("SUPER + C", hl.dsp.exec_cmd("wysun calculator"), {description="Wysun | equivalent | Abrir wysun calculator"})
