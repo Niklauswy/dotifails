@@ -16,7 +16,7 @@ Scope {
     // (`wysun-shell surfaces` prints it). Each name maps to its ScreenState flag; '' = its own module.
     readonly property var surfaces: ({ dashboard: 'dashboard', windows: 'dashboard',
         overview: 'overview', cheatsheet: 'cheatsheet', wallpapers: 'wallpapers', launcher: 'launcher', emoji: 'emoji', menu: 'utilities', quicksettings: 'utilities', notifications: 'sidebar', sidebar: 'sidebar', session: 'session', ai: 'aiUsage',
-        colors: '', processes: '' })
+        colors: '', processes: '', study: '' })
     Processes { id: processes }
     Colors { id: colors }
     // Own keys only: a name such as "toString" must not resolve through the prototype.
@@ -46,6 +46,7 @@ Scope {
             return colors.open(toggle);
         }
         if (kind === "processes") return processes.open(toggle);
+        if (kind === "study") return Study.toggle();
         const state = current(kind), field = fieldOf(kind);
         if (!state || !field || !available(kind, state)) return false;
         const value = toggle ? !state[field] : true;

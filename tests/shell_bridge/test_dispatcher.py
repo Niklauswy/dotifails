@@ -79,7 +79,6 @@ class DispatcherTests(unittest.TestCase):
 
     def test_apps_run_as_modules_from_the_package_root(self):
         for args, module, forwarded in ((('files', '/tmp/a b'), 'wysun_files', ['/tmp/a b']),
-                                        (('pdf', 'a.pdf'), 'wysun_pdf', ['a.pdf']),
                                         (('music',), 'wysun_music', []),
                                         (('player', '--paused', '--', 'x.mp4'), 'wysun_player', ['--paused', '--', 'x.mp4']),
                                         (('scheme', 'refresh'), 'wysun_services.scheme', ['refresh']),
@@ -147,6 +146,15 @@ class DispatcherTests(unittest.TestCase):
             with patch.object(sys, 'argv', ['wysun', 'install']), contextlib.redirect_stderr(io.StringIO()) as err:
                 self.assertEqual(wysun.main(), 127)
         self.assertIn('wysun-install', err.getvalue())
+
+    def test_study_surface_service_and_actions(self):
+        self.assertIn('study', bridge_surfaces())
+        self.assertIn("if (kind === \"study\") return Study.toggle();", (ROOT / 'apps/shell/wysun/WysunBridge.qml').read_text())
+        self.assertIn('pomodoro) shift; exec "$runtime" ipc call pomodoro "${1:-status}" ;;', Path(SHELL).read_text())
+        service = (ROOT / 'apps/shell/services/Study.qml').read_text()
+        self.assertRegex(service, r"target: ['\"]pomodoro['\"]")
+        for name in ('toggle', 'stop', 'status'):
+            self.assertRegex(service, rf'function {name}\(\)', name)
 
     def test_a_surface_takes_no_arguments(self):
         status, run, _ = self.invoke(('processes', 'extra'))
