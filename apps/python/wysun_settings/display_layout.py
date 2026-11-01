@@ -146,13 +146,20 @@ def monitors_fragment(plan):
     from wysun_settings.hypr import lua
     lines = ['-- Wysun managed display arrangement; generated from Ajustes > Pantallas.',
              '-- Do not edit by hand: delete this file to return to automatic placement.']
-    for p in sorted(plan, key=lambda p: not p.get('enabled', True)):
-        values = dict(output=p['name'])
+    off = []
+    for p in plan:
         if not p.get('enabled', True):
-            values['disabled'] = True
-        else:
-            values.update(mode=p['mode'] + '@' + p['rate'], position=f"{int(p['x'])}x{int(p['y'])}",
-                          scale=float(p.get('scale', 1) or 1),
-                          transform={'normal': 0, 'left': 1, 'inverted': 2, 'right': 3}[p.get('rotation', 'normal')])
+            off.append('    hl.monitor(' + lua(dict(output=p['name'], disabled=True)) + ')')
+            continue
+        values = dict(output=p['name'], mode=p['mode'] + '@' + p['rate'], position=f"{int(p['x'])}x{int(p['y'])}",
+                      scale=float(p.get('scale', 1) or 1),
+                      transform={'normal': 0, 'left': 1, 'inverted': 2, 'right': 3}[p.get('rotation', 'normal')])
         lines.append('hl.monitor(' + lua(values) + ')')
+    if off:
+        # A screen disabled while the config first loads is never taken over by Hyprland, so the panel keeps
+        # showing the text console. Switch it off once Hyprland drives it (start-up), or at once on a reload.
+        lines += ['local function wysunScreensOff()', *off, 'end',
+                  'local ok, outputs = pcall(hl.get_monitors)',
+                  'if ok and outputs and #outputs > 0 then wysunScreensOff()',
+                  'else hl.on("hyprland.start", wysunScreensOff) end']
     return '\n'.join(lines) + '\n'

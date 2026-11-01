@@ -54,6 +54,22 @@ class LayoutTests(unittest.TestCase):
         self.assertIn('["position"] = "0x0"', text)
         self.assertIn('["disabled"] = true', text)
 
+    def test_disabled_outputs_are_switched_off_once_hyprland_drives_them(self):
+        # Disabled at config load on start-up, Hyprland never takes the panel over: it keeps showing the
+        # text console. They are switched off at hyprland.start (or straight away on a config reload).
+        plan = layout.normalize([monitor('A', 0), monitor('eDP-1', 0, enabled=False)])
+        text = layout.monitors_fragment(plan)
+        self.assertNotRegex(text, r'(?m)^hl\.monitor\(\{ \["disabled"\] = true, \["output"\] = "eDP-1" \}\)')
+        self.assertNotRegex(text, r'(?m)^hl\.monitor\([^\n]*"eDP-1"')
+        self.assertIn('hl.on("hyprland.start"', text)
+        self.assertIn('hl.get_monitors', text)
+        self.assertIn('pcall', text)
+        self.assertRegex(text, r'(?m)^hl\.monitor\([^\n]*"A"')
+
+    def test_fragment_without_disabled_outputs_has_no_start_hook(self):
+        text = layout.monitors_fragment(layout.normalize([monitor('A', 0), monitor('B', 1920)]))
+        self.assertNotIn('hyprland.start', text)
+
 
 class FillModesTests(unittest.TestCase):
     offered = {'eDP-1': [{'name': '1920x1080', 'rates': ['60.00']}],
