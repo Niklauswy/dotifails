@@ -1,46 +1,98 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0d0c0b">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="yurai/share">
-<title>yurai/share</title>
-<link rel="icon" href="/static/icon.svg" type="image/svg+xml">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=Martian+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/app.css">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>LANShare</title>
+  <link rel="icon" href="/static/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/theme.css">
+  <link rel="stylesheet" href="/static/app.css">
 </head>
 <body>
-<div class="grain" aria-hidden="true"></div>
+  <div id="gate" class="gate" hidden>
+    <form class="gate-card" id="gate-form" autocomplete="off">
+      <div class="gate-icon"><span class="ms fill">lock</span></div>
+      <h1 class="gate-host" id="gate-host"></h1>
+      <p class="gate-text">Para ver lo que se comparte, escribe la contraseña que te dieron.</p>
+      <label class="field">
+        <input id="gate-input" type="text" inputmode="text" autocapitalize="off" autocorrect="off" spellcheck="false"
+               aria-label="Contraseña" placeholder="Contraseña" required>
+      </label>
+      <p class="gate-error" id="gate-error" role="alert"></p>
+      <button class="btn filled" type="submit">Entrar</button>
+    </form>
+  </div>
 
-<header class="top">
-  <a class="brand" href="/" data-nav aria-label="Inicio">
-    <span class="brand-mark"><i></i></span>
-    <span class="brand-name">yurai<em>/share</em></span>
-  </a>
-  <nav class="crumbs" id="crumbs"></nav>
-  <div class="onair"><i></i><span>EN LÍNEA</span></div>
-</header>
+  <div id="shell" class="shell" hidden>
+    <header class="top">
+      <div class="brand">
+        <span class="ms fill brand-icon">lan</span>
+        <span class="host" id="host"></span>
+        <span class="online" title="En línea"></span>
+        <span class="ms lock" id="lock" title="Con contraseña" hidden>lock</span>
+      </div>
+      <label class="search">
+        <span class="ms">search</span>
+        <input id="q" type="search" placeholder="Buscar" autocomplete="off" aria-label="Buscar">
+        <kbd class="slash">/</kbd>
+      </label>
+      <div class="actions">
+        <button class="icon-btn" id="sort" type="button" aria-haspopup="menu" title="Ordenar"><span class="ms">sort</span></button>
+        <div class="seg" role="group" aria-label="Vista">
+          <button type="button" data-view="list" title="Lista"><span class="ms">view_list</span></button>
+          <button type="button" data-view="grid" title="Cuadrícula"><span class="ms">grid_view</span></button>
+        </div>
+        <button class="icon-btn narrow-only" id="viewtoggle" type="button" title="Cambiar vista"><span class="ms">grid_view</span></button>
+        <button class="icon-btn" id="mkdir" type="button" title="Nueva carpeta" hidden><span class="ms">create_new_folder</span></button>
+        <a class="btn outlined" id="zip" download><span class="ms">folder_zip</span><span class="lbl" id="zip-label">Descargar carpeta</span></a>
+        <button class="btn tonal wide-only" id="upload" type="button" hidden><span class="ms">upload</span><span class="lbl">Subir</span></button>
+      </div>
+    </header>
+    <nav class="crumbs" id="crumbs" aria-label="Ruta"></nav>
+    <main class="main">
+      <section class="list" id="list" aria-label="Archivos">
+        <div class="head" id="head" role="row">
+          <span>Nombre</span><span>Tamaño</span><span>Duración</span><span>Fecha</span><span></span>
+        </div>
+        <div class="items" id="items" role="list"></div>
+      </section>
+      <aside class="pane" id="pane" aria-live="polite"></aside>
+    </main>
+    <button class="fab narrow-only" id="fab" type="button" hidden><span class="ms">upload</span><span>Subir</span></button>
+  </div>
 
-<main id="app"></main>
+  <div class="menu" id="sortmenu" role="menu" hidden>
+    <button role="menuitemradio" data-sort="date"><span class="ms">schedule</span>Fecha</button>
+    <button role="menuitemradio" data-sort="name"><span class="ms">sort_by_alpha</span>Nombre</button>
+    <button role="menuitemradio" data-sort="size"><span class="ms">straighten</span>Tamaño</button>
+  </div>
 
-<div class="drop" id="drop"><div><b>Suelta para subir</b><span id="drop-target"></span></div></div>
-<div class="uploads" id="uploads"></div>
-<div class="toast" id="toast"></div>
+  <div class="viewer" id="viewer" hidden role="dialog" aria-modal="true" aria-label="Visor">
+    <div class="viewer-bar">
+      <button class="icon-btn on-dark" data-v="close" title="Cerrar (Esc)"><span class="ms">close</span></button>
+      <div class="viewer-title"><b id="v-name"></b><span id="v-count"></span></div>
+      <a class="icon-btn on-dark" id="v-download" title="Descargar" download><span class="ms">download</span></a>
+    </div>
+    <div class="viewer-stage" id="v-stage"></div>
+    <button class="viewer-nav prev" data-v="prev" title="Anterior (←)"><span class="ms">chevron_left</span></button>
+    <button class="viewer-nav next" data-v="next" title="Siguiente (→)"><span class="ms">chevron_right</span></button>
+  </div>
 
-<div class="lightbox" id="lightbox" hidden>
-  <button class="lb-close" data-lb="close" aria-label="Cerrar">×</button>
-  <button class="lb-nav prev" data-lb="prev" aria-label="Anterior">‹</button>
-  <figure><img id="lb-img" alt=""><figcaption id="lb-cap"></figcaption></figure>
-  <button class="lb-nav next" data-lb="next" aria-label="Siguiente">›</button>
-</div>
+  <dialog class="dialog" id="mkdir-dialog">
+    <form method="dialog" id="mkdir-form">
+      <h2>Nueva carpeta</h2>
+      <label class="field"><input id="mkdir-name" placeholder="Nombre" required autocomplete="off"></label>
+      <div class="dialog-actions">
+        <button class="btn text" value="cancel" formnovalidate>Cancelar</button>
+        <button class="btn filled" value="ok">Crear</button>
+      </div>
+    </form>
+  </dialog>
 
-<input type="file" id="picker" multiple hidden>
-<script src="/static/app.js"></script>
+  <div class="drop" id="drop"><div class="drop-card"><span class="ms">upload</span><b>Suelta para subir</b><span id="drop-target"></span></div></div>
+  <div class="uploads" id="uploads" aria-live="polite"></div>
+  <div class="toast" id="toast" role="status"></div>
+  <input type="file" id="picker" multiple hidden>
+  <script src="/static/app.js"></script>
 </body>
 </html>

@@ -22,11 +22,22 @@ apps/python/wysun_NOMBRE/
 ## LANShare
 
 ```sh
-wysun lanshare ~/Videos            # http://IP-LOCAL:8000 en la red
-wysun lanshare . --port 9000
-wysun lanshare ~/Fotos --readonly  # sin subidas ni carpetas nuevas
+wysun lanshare                              # carpeta actual, solo ver y descargar
+wysun lanshare informe.pdf fotos/           # solo esos elementos, como una lista
+wysun lanshare ~/Videos --subidas           # permite subir archivos y crear carpetas (solo con una carpeta)
+wysun lanshare ~/Videos --clave             # genera una contraseña corta (o --clave gato123)
+wysun lanshare ~/Videos --inactivo 3h       # se apaga tras 3 h sin uso (por defecto 1 h; --sin-limite)
+wysun lanshare --puerto 9000                # por defecto 8000; si está ocupado usa el siguiente libre
+wysun lanshare --detener PID                # lo usa la barra
 ```
 
-Explorador de carpetas con miniaturas y vistas previas de video (con `ffmpeg`/`ffprobe`; sin ellos no hay miniaturas), reproducción con saltos (Range, compatible con Safari/iPhone), subida de archivos y descarga de carpetas en `.zip`. Caché en `~/.cache/wysun/lanshare`.
+Página en el estilo de Wysun, siempre clara, con los colores del fondo de pantalla. En el celular muestra una lista; en la computadora, una lista con panel de vista previa y un visor a pantalla completa. Tiene miniaturas y vistas previas de video al pasar el dedo o el ratón (necesitan `ffmpeg`/`ffprobe`; sin ellos no hay miniaturas), reproducción con saltos (Range, compatible con Safari/iPhone) y descarga de carpetas o de toda la lista en `.zip`. Las fuentes las sirve el propio servidor, así que funciona sin internet. Caché en `~/.cache/wysun/lanshare`.
 
-Escucha en todas las interfaces y **no pide contraseña**: cualquiera en la misma red ve la carpeta y, sin `--readonly`, puede subir archivos. Úsalo en redes de confianza y detenlo con `Ctrl+C` al terminar.
+- Las **subidas están apagadas** por defecto: sin `--subidas` el servidor rechaza subir y crear carpetas. Al terminar cada subida llega una notificación.
+- Con `--clave`, quien abre la página escribe la contraseña una vez. Tras 5 intentos fallidos esa IP espera un minuto.
+- Se **apaga solo** tras el tiempo de `--inactivo` sin uso. Una descarga o un video en curso cuentan como uso; la pantalla de contraseña, no.
+- Mientras comparte, aparece un **icono en la barra**. Al pasar el ratón muestra las direcciones y la contraseña (con botón de copiar), quién está conectado, qué se descarga, cuánto falta para el apagado y «Dejar de compartir».
+- Contrato con la barra: `$XDG_RUNTIME_DIR/wysun-lanshare/<pid>.json`, privado y escrito de forma atómica. Se actualiza como mucho una vez por segundo y, como mínimo, cada 10 s, y se borra al salir. Ver `apps/python/wysun_lanshare/status.py`.
+- En Wysun Files: clic derecho → «Compartir en la red» (un archivo, varios o una carpeta). Pregunta si se permiten subidas (solo con una carpeta) y si se pide contraseña, y lanza `wysun lanshare RUTA… [--subidas] [--clave]` por separado.
+
+Escucha en todas las interfaces: úsalo en redes de confianza o con `--clave`.
