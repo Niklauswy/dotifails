@@ -198,6 +198,8 @@ class AiUsageTokens : public settings::ObjectNode {
     CONFIG_PROPERTY(int, refreshInterval, 60000)
     // Limits are still checked while the panel is closed, for low-limit notifications.
     CONFIG_PROPERTY(int, backgroundInterval, 300000)
+    // Adaptive refresh while no agent is working and the panel is closed.
+    CONFIG_PROPERTY(int, idleInterval, 900000)
     // Remaining percent at or below which a limit notifies once per window.
     CONFIG_PROPERTY(int, alertThreshold, 10)
     CONFIG_PROPERTY(int, maxProjects, 6)
