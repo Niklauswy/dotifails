@@ -52,6 +52,7 @@ class ChooserTests(unittest.TestCase):
         self.win = window
         self.model = window.files.property('current').property('model')
         self.assertTrue(self.h.wait_for(lambda: not self.model.property('loading'), 3000))
+        self.model.sortBy('name', False)
         self.h.pump(50)
         return window
 

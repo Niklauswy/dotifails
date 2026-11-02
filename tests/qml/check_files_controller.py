@@ -156,6 +156,15 @@ class ControllerTests(unittest.TestCase):
     def test_free_space_of_the_current_folder(self):
         self.assertRegex(self.tab().property('freeText'), r'libres$')
 
+    def test_newest_first_by_default_and_each_folder_remembers_its_order(self):
+        tab, model = self.tab(), self.tab().property('model')
+        self.assertEqual((model.property('sortKey'), model.property('descending')), ('modified', True))
+        model.sortBy('name', False)
+        tab.navigate(str(self.root / 'd'))
+        self.assertEqual((model.property('sortKey'), model.property('descending')), ('modified', True))
+        tab.navigate(str(self.root / 'a'))
+        self.assertEqual((model.property('sortKey'), model.property('descending')), ('name', False))
+
     def test_special_folders_have_glyphs(self):
         from wysun_files.quick.controller import FilesController
         self.assertIsInstance(FilesController.special_glyphs(), dict)

@@ -42,6 +42,9 @@ class QmlFilesWindow:
         from .preview import Preview
         self.preview = Preview(parent=self.engine)
         self.bridges['preview'] = self.preview
+        from .search import FileSearch
+        self.search = FileSearch(self.files.thumbs, parent=self.engine)
+        self.bridges['fileSearch'] = self.search
 
     def present(self):
         window = self.window

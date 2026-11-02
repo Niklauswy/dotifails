@@ -87,9 +87,9 @@ class MenuTests(Base):
         self.h.call(view.rootObject(), 'popupAt', 40, 40)
         self.h.pump()
         self.assertEqual(self.child(view, 'menuitem-copy').property('height'), 48)
-        self.assertEqual(menu.property('panelRadius'), self.h.theme('rounding')['extraSmall'])
+        self.assertEqual(menu.property('panelRadius'), self.h.theme('rounding')['large'])
         self.assertGreaterEqual(menu.property('panelWidth'), 112)
-        self.assertLessEqual(menu.property('panelWidth'), 280)
+        self.assertLessEqual(menu.property('panelWidth'), 360)
         image = self.h.grab(view)
         support.close_to(self, self.h.pixel(image, 40 + menu.property('panelWidth') - 6, 40 + 4), c['surfaceContainer'], tolerance=6)
 
@@ -111,6 +111,7 @@ class MenuTests(Base):
         self.child(view, 'anchor').forceActiveFocus(self.Qt.TabFocusReason)
         self.h.call(view.rootObject(), 'popupAt', 40, 40)
         self.h.pump()
+        self.h.key(view, self.Qt.Key_Down)      # nothing is lit until an arrow or the pointer chooses a row
         self.assertEqual(menu.property('currentIndex'), 0)
         self.h.key(view, self.Qt.Key_Down)
         self.assertEqual(menu.property('currentIndex'), 1)

@@ -164,6 +164,12 @@ def summary(entries):
     return ' · '.join(parts) or 'Vacía'
 
 
+def present_groups(entries):
+    """The filter chips worth showing: only the kinds this folder holds, in the chips' order."""
+    found = {classify(e.name, e.is_dir).group for e in entries}
+    return [g for g in GROUPS if g in found and g != 'all']
+
+
 def dominant(entries):
     """The chip group most of the files belong to ('folders' when there are only folders, '' when nothing stands
     out): the folder header picks its emblem from it."""
@@ -219,8 +225,14 @@ def arrange(entries, key='name', descending=False, hidden=False, text='', group=
             return (fold(classify(entry.name, entry.is_dir).label), name)
         return (name,)
 
-    folders = sorted((e for e in rows if e.is_dir), key=order, reverse=descending)
-    files = sorted((e for e in rows if not e.is_dir), key=order, reverse=descending)
+    def arranged(group_rows):
+        if key == 'name':
+            return sorted(group_rows, key=order, reverse=descending)
+        # Reverse order for the key only: equal dates or sizes stay in name order.
+        return sorted(sorted(group_rows, key=lambda e: natural(e.name)), key=lambda e: order(e)[0], reverse=descending)
+
+    folders = arranged([e for e in rows if e.is_dir])
+    files = arranged([e for e in rows if not e.is_dir])
     return folders + files
 
 

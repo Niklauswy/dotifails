@@ -29,7 +29,7 @@ Item {
         if (any) {
             entries.push({divider: true});
             entries.push({id: "rename", text: "Cambiar nombre…", icon: "drive_file_rename_outline", shortcut: "F2", disabled: !one || !idle});
-            entries.push({id: "trash", text: "Enviar a la papelera", icon: "delete", shortcut: "Supr", disabled: !idle});
+            entries.push({id: "trash", text: "Enviar a la papelera", icon: "delete", shortcut: "Supr", disabled: !idle, danger: true});
         }
         entries.push({divider: true});
         entries.push({id: "copyPath", text: "Copiar ruta", icon: "link", shortcut: "Ctrl+Shift+C"});
@@ -50,6 +50,18 @@ Item {
         moreMenu.popup(null, x, y);
     }
 
+    function sort(x, y) {
+        const now = app.model.sortKey + ":" + (app.model.descending ? "desc" : "asc");
+        const row = (id, text) => ({id: id, text: text, icon: id === now ? "check" : ""});
+        sortMenu.model = [row("modified:desc", "Más reciente"), row("modified:asc", "Más antiguo"), row("name:asc", "Nombre, A → Z"), row("name:desc", "Nombre, Z → A"), row("size:desc", "Más grande"), row("size:asc", "Más pequeño"), row("kind:asc", "Tipo")];
+        sortMenu.popup(null, x, y);
+    }
+
+    function applySort(id) {
+        const [key, order] = id.split(":");
+        app.model.sortBy(key, order === "desc");
+    }
+
     function run(id) {
         const folder = app.tab.path;
         switch (id) {
@@ -60,7 +72,8 @@ Item {
             files.newTab(_paths[0]);
             break;
         case "terminal":
-            fileOps.terminal(folder);
+            // On a selected folder, that folder; else the one on view.
+            fileOps.terminal(_paths.length === 1 && app.model.get(app.model.rowOf(_paths[0])).isDir === true ? _paths[0] : folder);
             break;
         case "copyPath":
             files.copyText(_paths.length === 1 ? _paths[0] : folder);
@@ -92,6 +105,14 @@ Item {
         objectName: "contextMenu"
         host: root.host
         onTriggered: id => root.run(id)
+    }
+
+    Menu {
+        id: sortMenu
+
+        objectName: "sortMenu"
+        host: root.host
+        onTriggered: id => root.applySort(id)
     }
 
     Menu {

@@ -41,6 +41,12 @@ class Base(unittest.TestCase):
 
 
 class ButtonTests(Base):
+    def test_a_wide_button_centres_its_text(self):
+        view = self.on_surface('Button { objectName: "b"; width: 180; text: "Abrir" }')
+        button = self.h.find(view, 'b')
+        natural = button.property('implicitWidth')
+        self.assertAlmostEqual(button.property('contentX'), (180 - (natural - 48)) / 2, delta=1)
+
     def test_height_and_label_role(self):
         view = self.on_surface('Button { objectName: "b"; text: "Guardar" }')
         button = self.child(view, 'b')

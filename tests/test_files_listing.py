@@ -163,6 +163,17 @@ class SortFilterTests(unittest.TestCase):
         self.assertEqual(self.names(listing.arrange(self.entries(), key='modified'))[2:], ['B2.txt', 'foto.jpg', 'b10.txt'])
         self.assertEqual(self.names(listing.arrange(self.entries(), key='kind'))[2:], ['B2.txt', 'b10.txt', 'foto.jpg'])
 
+    def test_newest_first_breaks_ties_by_name(self):
+        E = listing.Entry
+        rows = [E('b', '/b', False, False, False, 1, 5), E('a', '/a', False, False, False, 1, 5), E('c', '/c', False, False, False, 1, 9)]
+        self.assertEqual(self.names(listing.arrange(rows, key='modified', descending=True)), ['c', 'a', 'b'])
+
+    def test_groups_present(self):
+        E = listing.Entry
+        rows = [E('d', '/d', True, False, False, 0, 0), E('a.jpg', '/a.jpg', False, False, False, 1, 0), E('x.zip', '/x', False, False, False, 1, 0)]
+        self.assertEqual(listing.present_groups(rows), ['folders', 'images'])
+        self.assertEqual(listing.present_groups([]), [])
+
     def test_hidden_are_dropped_unless_asked(self):
         self.assertNotIn('.h', self.names(listing.arrange(self.entries())))
 

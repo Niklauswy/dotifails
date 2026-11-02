@@ -57,6 +57,7 @@ class FilesWindowTests(unittest.TestCase):
         self.files.setViewMode('grid')
         self.tab().navigate(str(self.root))
         self.wait()
+        self.model().sortBy('name', False)
         self.model().clearSelection()
         self.model().setFilterText('')
         self.model().setGroup('all')
@@ -242,8 +243,25 @@ class FilesWindowTests(unittest.TestCase):
         self.key(self.Qt.Key_Escape)          # hands focus back to the files
         self.assertTrue(self.view().property('activeFocus'))
 
+    def test_only_the_kinds_in_the_folder_have_a_chip(self):
+        self.assertTrue(self.find('chip-images').property('visible'))
+        self.assertFalse(self.find('chip-videos').property('visible'))
+        self.tab().navigate(str(self.root / 'clases'))
+        self.wait()
+        self.assertFalse(self.find('kindChips').property('visible'), 'one kind: nothing to choose')
+
+    def test_sort_menu(self):
+        self.h.call(self.window.property('menus'), 'sort', 100, 100)
+        menu = self.find('sortMenu')
+        entries = {e['id']: e for e in menu.property('model').toVariant()}
+        self.assertEqual(entries['name:asc'].get('icon'), 'check')
+        self.h.call(menu, 'close')
+        self.h.call(self.window.property('menus'), 'applySort', 'modified:desc')
+        self.assertEqual((self.model().property('sortKey'), self.model().property('descending')), ('modified', True))
+
     def test_kind_chips_keep_folders(self):
         chip = self.find('chip-code')
+        self.assertTrue(chip.property('visible'))
         self.h.click(self.window, *self._centre(chip))
         self.assertEqual(self.model().property('group'), 'code')
         names = [Path(self.model().pathAt(r)).name for r in range(self.model().rowCount())]
@@ -424,6 +442,28 @@ class FilesWindowTests(unittest.TestCase):
                 before = grid.property('contentY')
                 self._send_wheel(grid.mapToScene(point), 0, -120, device)
                 self.assertGreater(grid.property('contentY'), before)
+
+    def test_search_everywhere(self):
+        (Path(self.tmp.name) / 'index').write_text('fcasa/tesis.pdf\ndcasa/Latex\nfotra/lejos/tesis-vieja.pdf\n')
+        (Path(self.tmp.name) / 'otra/lejos').mkdir(parents=True, exist_ok=True)
+        (Path(self.tmp.name) / 'otra/lejos/tesis-vieja.pdf').write_text('x')
+        search = self.win.search
+        search.use_index(Path(self.tmp.name) / 'index', Path(self.tmp.name))
+        self.key(self.Qt.Key_K, self.Qt.ControlModifier, 'k')
+        self.assertTrue(self.window.property('searching'))
+        self.h.type_text(self.window, 'tesis')
+        self.assertTrue(self.h.wait_for(lambda: search.property('count') == 2, 3000))
+        self.assertEqual(self.warnings, [])
+        self.key(self.Qt.Key_Return, text='\r')
+        self.wait()
+        self.assertFalse(self.window.property('searching'))
+        self.assertEqual(self.selected(), ['tesis.pdf'], 'a result opens its folder with it selected')
+
+    def test_escape_leaves_the_search(self):
+        self.key(self.Qt.Key_K, self.Qt.ControlModifier, 'k')
+        self.key(self.Qt.Key_Escape)
+        self.assertFalse(self.window.property('searching'))
+        self.assertEqual(self.tab().property('path'), str(self.root))
 
     def test_f1_lists_the_shortcuts(self):
         self.key(self.Qt.Key_F1)

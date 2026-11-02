@@ -331,7 +331,9 @@ class Operations(QObject):
         for command in TERMINALS:
             binary = shutil.which(command)
             if binary:
-                subprocess.Popen([binary], cwd=folder, start_new_session=True, stdout=subprocess.DEVNULL,
+                # Ghostty's single instance would open the window wherever it runs, ignoring where we ask.
+                argv = [binary, '--gtk-single-instance=false', f'--working-directory={folder}'] if command == 'ghostty' else [binary]
+                subprocess.Popen(argv, cwd=folder, start_new_session=True, stdout=subprocess.DEVNULL,
                                  stderr=subprocess.DEVNULL)
                 return
         self.failed.emit('Terminal no disponible', 'No se encontró una terminal compatible.')
