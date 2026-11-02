@@ -373,6 +373,7 @@ FocusScope {
         property Flickable flick
 
         target: null
+        acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
         onWheel: event => {
             const step = event.pixelDelta.y !== 0 ? event.pixelDelta.y : event.angleDelta.y / 120 * FilesMetrics.rowHeight * 2;
             const top = flick.originY, bottom = flick.originY + Math.max(0, flick.contentHeight - flick.height);

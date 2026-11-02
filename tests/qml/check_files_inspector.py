@@ -135,6 +135,36 @@ class InspectorTests(unittest.TestCase):
         self.h.key(self.window, self.Qt.Key_Escape)
         self.assertFalse(self.window.property('expanded'))
 
+    def click(self, item):
+        from PySide6.QtCore import QPointF
+        point = item.mapToScene(QPointF(item.width() / 2, item.height() / 2))
+        self.h.click(self.window, point.x(), point.y())
+
+    def test_the_preview_takes_the_height_left_by_the_information(self):
+        self.select('a.png')
+        pane = self.find('previewPicture')
+        self.assertGreater(pane.height(), self.find('inspector').height() * 0.5)
+        self.assertIsNone(self.find('expandButton'), 'no «Ampliar»: «Abrir» opens the app')
+
+    def test_a_click_on_the_path_copies_it_whole(self):
+        from PySide6.QtGui import QGuiApplication
+        self.select('a.png')
+        self.click(self.find('pathRow'))
+        self.assertEqual(QGuiApplication.clipboard().text(), str(self.root / 'a.png'))
+
+    def test_open_sends_a_picture_to_the_player_and_media_from_its_second(self):
+        from wysun_files.quick import operations, preview as module
+        self.select('a.png')
+        self.assertEqual(self.find('openButton').property('text'), 'Abrir en Wysun Player')
+        with patch.object(operations, 'launch') as launch:
+            self.click(self.find('openButton'))
+        launch.assert_called_once_with([str(self.root / 'a.png')])
+        self.select('clip.mp4')
+        with patch.object(module, 'launch') as launch:
+            self.click(self.find('openButton'))
+        self.assertEqual(launch.call_args.args[0], [str(self.root / 'clip.mp4')])
+        self.assertIn('start', launch.call_args.kwargs)
+
     def test_broken_picture(self):
         self.select('roto.png')
         self.assertEqual(self.model().property('selectedPaths'), [str(self.root / 'roto.png')])

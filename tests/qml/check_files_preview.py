@@ -58,7 +58,7 @@ class PreviewTests(unittest.TestCase):
         self.assertTrue(self.preview.property('imageUrl').endswith('/playa.png'))
         self.assertTrue(meta['Tamaño'].endswith('· 600 × 300'))
         self.assertIn('Modificado', meta)
-        self.assertEqual(meta['Ruta'], str(self.root))
+        self.assertEqual(meta['Ruta'], str(self.root / 'playa.png'))
 
     def test_broken_image_says_so_and_keeps_the_selection(self):
         (self.root / 'roto.png').write_bytes(b'not a png at all')
@@ -133,6 +133,30 @@ class PreviewTests(unittest.TestCase):
         self.assertEqual(meta['Duración'], '0:03 · H264 · 320 × 240')
         poster = self.preview.property('posterUrl')
         self.assertTrue(poster.endswith('.png') and Path(poster[7:]).is_file(), poster)
+
+    def test_audio_tags_and_cover(self):
+        subprocess.run(['ffmpeg', '-loglevel', 'error', '-f', 'lavfi', '-i', 'sine=duration=2', '-f', 'lavfi', '-i', 'color=c=red:s=64x64:d=1',
+                        '-map', '0', '-map', '1', '-frames:v', '1', '-c:v', 'mjpeg', '-disposition:v', 'attached_pic', '-metadata', 'title=Tono',
+                        '-metadata', 'artist=Sintetizador', str(self.root / 'tono.m4a')], check=True)
+        self.show('tono.m4a', ms=10000)
+        self.assertEqual((self.preview.property('mediaTitle'), self.preview.property('mediaArtist')), ('Tono', 'Sintetizador'))
+        self.assertTrue(self.preview.property('posterUrl').endswith('.png'))
+
+    def test_the_path_row_is_the_whole_path(self):
+        self.png('a.png', 8, 8)
+        self.assertEqual(self.show('a.png')['Ruta'], str(self.root / 'a.png'))
+        (self.root / 'c').mkdir()
+        self.assertEqual(self.show('c')['Ruta'], str(self.root / 'c'))
+
+    def test_opening_media_starts_the_player_with_the_system_python(self):
+        # The player is a Widgets app; this venv has no QtWidgets.
+        from wysun_player import client
+        import sys as system
+        argv = client.command(client.request(['/x.mp4'], start=3.0))
+        self.assertEqual(argv[0], str(Path(system.base_prefix) / 'bin/python3'))
+        self.assertIn('--start', argv)
+        env = client.child_environment({'QT_PLUGIN_PATH': '/q', 'QML_IMPORT_PATH': '/q', 'QML2_IMPORT_PATH': '/q', 'WYSUN_QML_REEXEC': '1', 'HOME': '/h'})
+        self.assertEqual(sorted(k for k in env if k != 'PYTHONPATH'), ['HOME'])
 
     def test_folder_summary(self):
         folder = self.root / 'clases'

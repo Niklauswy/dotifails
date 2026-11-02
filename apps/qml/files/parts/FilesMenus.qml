@@ -21,7 +21,6 @@ Item {
         if (any) {
             entries.push({id: "open", text: "Abrir", icon: "open_in_new", shortcut: "Enter"});
             entries.push({id: "tab", text: "Abrir en nueva pestaña", icon: "tab", disabled: !folder});
-            entries.push({id: "preview", text: "Vista previa ampliada", icon: "visibility", shortcut: "Espacio", disabled: !one || folder});
             entries.push({divider: true});
             entries.push({id: "copy", text: "Copiar", icon: "content_copy", shortcut: "Ctrl+C"});
             entries.push({id: "cut", text: "Cortar", icon: "content_cut", shortcut: "Ctrl+X", disabled: !idle});
@@ -59,9 +58,6 @@ Item {
             break;
         case "tab":
             files.newTab(_paths[0]);
-            break;
-        case "preview":
-            app.keyAction("preview");
             break;
         case "terminal":
             fileOps.terminal(folder);

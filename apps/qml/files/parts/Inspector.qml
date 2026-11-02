@@ -1,8 +1,7 @@
-// The inspector at the side of the folder (F-50…F-55, files-details.html): surfaceContainerLow with the extraLarge
-// corner; the preview, the name, label/value pairs and the actions of each kind (Ampliar and Copiar ruta; Vista ⇄
-// Fuente for Markdown; play and «Seguir en Wysun Player» for media).
+// The inspector at the side of the folder (F-50…F-55): surfaceContainerLow with the extraLarge corner. The preview takes
+// all the height the information below leaves it; the information sits at the bottom: the name, label/value pairs (a
+// click on «Ruta» copies the whole path, file name included) and «Abrir», which opens the file in its app.
 import QtQuick
-import QtMultimedia
 import WysunM3
 
 Rectangle {
@@ -11,124 +10,148 @@ Rectangle {
     property var player
     property alias pane: pane
     readonly property bool showingSource: pane.showSource
-    signal expandRequested
+    signal openRequested
     signal linkActivated(string target)
 
     objectName: "inspector"
     radius: Theme.rounding.extraLarge ?? 0
     color: Theme.m3surfaceContainerLow
+    clip: true
 
-    Flickable {
-        anchors.fill: parent
+    Rectangle {
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: parent.top
+        anchors.bottom: info.top
         anchors.margins: Theme.padding.large ?? 0
-        contentHeight: column.height
-        clip: true
-        boundsBehavior: Flickable.StopAtBounds
+        anchors.bottomMargin: Theme.spacing.medium ?? 0
+        radius: Theme.rounding.large ?? 0
+        color: pane.textual ? Theme.m3surfaceContainerHigh : "transparent"
 
-        Column {
-            id: column
+        PreviewPane {
+            id: pane
 
+            anchors.fill: parent
+            anchors.margins: pane.textual ? (Theme.padding.medium ?? 0) : 0
+            player: root.player
+            onLinkActivated: target => root.linkActivated(target)
+        }
+    }
+
+    Column {
+        id: info
+
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        anchors.margins: Theme.padding.large ?? 0
+        spacing: Theme.spacing.medium ?? 0
+
+        Label {
+            objectName: "inspectorName"
             width: parent.width
-            spacing: Theme.spacing.medium ?? 0
+            role: "title.large"
+            text: preview.name
+            color: Theme.m3onSurface
+            elide: Text.ElideMiddle
+        }
+        Column {
+            objectName: "inspectorMeta"
+            width: parent.width
+            spacing: Theme.spacing.extraSmall ?? 0
 
-            Rectangle {
-                width: parent.width
-                height: pane.textual ? Math.min(parent.width * 1.2, root.height * 0.55) : parent.width * 0.75
-                radius: Theme.rounding.large ?? 0
-                color: pane.textual ? Theme.m3surfaceContainerHigh : "transparent"
-                clip: true
+            Repeater {
+                model: preview.meta
 
-                PreviewPane {
-                    id: pane
+                Item {
+                    id: row
 
-                    anchors.fill: parent
-                    anchors.margins: pane.textual ? (Theme.padding.medium ?? 0) : 0
-                    player: root.player
-                    onLinkActivated: target => root.linkActivated(target)
-                }
-            }
-            Label {
-                objectName: "inspectorName"
-                width: parent.width
-                role: "title.large"
-                text: preview.name
-                color: Theme.m3onSurface
-                elide: Text.ElideMiddle
-            }
-            Grid {
-                objectName: "inspectorMeta"
-                columns: 2
-                columnSpacing: Theme.spacing.large ?? 0
-                rowSpacing: Theme.spacing.small ?? 0
+                    required property var modelData
+                    readonly property bool isPath: modelData.label === "Ruta"
 
-                Repeater {
-                    model: preview.meta.reduce((all, row) => all.concat([{text: row.label, label: true}, {text: row.value}]), [])
+                    objectName: isPath ? "pathRow" : ""
+                    width: parent.width
+                    height: Math.max(rowValue.implicitHeight, rowLabel.implicitHeight) + (isPath ? 2 * (Theme.spacing.extraSmall ?? 0) : 0)
 
                     Label {
-                        required property var modelData
+                        id: rowLabel
 
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: Metrics.listImageSize * 1.6
                         role: "body.small"
-                        text: modelData.text
-                        color: modelData.label ? Theme.m3onSurfaceVariant : Theme.m3onSurface
-                        width: modelData.label ? implicitWidth : Math.min(implicitWidth, column.width * 0.66)
+                        text: row.modelData.label
+                        color: Theme.m3onSurfaceVariant
+                    }
+                    Label {
+                        id: rowValue
+
+                        anchors.left: rowLabel.right
+                        anchors.right: copyIcon.visible ? copyIcon.left : parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        role: "body.small"
+                        text: row.modelData.value
+                        color: Theme.m3onSurface
                         elide: Text.ElideMiddle
                     }
-                }
-            }
-            Flow {
-                width: parent.width
-                spacing: Theme.spacing.small ?? 0
+                    Icon {
+                        id: copyIcon
 
-                Chip {
-                    visible: preview.kind === "markdown"
-                    kind: "filter"
-                    text: "Vista"
-                    selected: !pane.showSource
-                    onClicked: {
-                        pane.showSource = false;
-                        selected = Qt.binding(() => !pane.showSource);
+                        visible: row.isPath
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        name: "content_copy"
+                        size: Metrics.chipIconSize
+                        color: Theme.m3onSurfaceVariant
                     }
-                }
-                Chip {
-                    objectName: "sourceChip"
-                    visible: preview.kind === "markdown"
-                    kind: "filter"
-                    text: "Fuente"
-                    selected: pane.showSource
-                    onClicked: {
-                        pane.showSource = true;
-                        selected = Qt.binding(() => pane.showSource);
-                    }
-                }
-                Button {
-                    objectName: "expandButton"
-                    visible: preview.mode === "file" && preview.kind !== "" && preview.error === ""
-                    type: "tonal"
-                    icon: "open_in_full"
-                    text: "Ampliar"
-                    onClicked: root.expandRequested()
-                }
-                Button {
-                    visible: preview.kind === "video" || preview.kind === "audio"
-                    type: "tonal"
-                    icon: "open_in_new"
-                    text: "Seguir en Wysun Player"
-                    onClicked: {
-                        preview.continueInPlayer(preview.paths[0], root.player.position / 1000);
-                        root.player.pause();
-                    }
-                }
-                Button {
-                    visible: preview.mode === "file" || preview.mode === "folder"
-                    type: "text"
-                    icon: "link"
-                    text: "Copiar ruta"
-                    onClicked: {
-                        files.copyText(preview.paths[0]);
-                        Window.window.snackbarHost.show({text: "Ruta copiada"});
+                    StateLayer {
+                        visible: row.isPath
+                        anchors.fill: parent
+                        radius: Theme.rounding.small ?? 0
+                        onClicked: {
+                            files.copyText(row.modelData.value);
+                            Window.window.snackbarHost.show({text: "Ruta copiada"});
+                        }
+
+                        Tooltip {
+                            text: "Copiar la ruta"
+                        }
                     }
                 }
             }
+        }
+        Flow {
+            visible: preview.kind === "markdown"
+            width: parent.width
+            spacing: Theme.spacing.small ?? 0
+
+            Chip {
+                kind: "filter"
+                text: "Vista"
+                selected: !pane.showSource
+                onClicked: {
+                    pane.showSource = false;
+                    selected = Qt.binding(() => !pane.showSource);
+                }
+            }
+            Chip {
+                objectName: "sourceChip"
+                kind: "filter"
+                text: "Fuente"
+                selected: pane.showSource
+                onClicked: {
+                    pane.showSource = true;
+                    selected = Qt.binding(() => pane.showSource);
+                }
+            }
+        }
+        Button {
+            objectName: "openButton"
+            visible: preview.mode !== "none"
+            width: parent.width
+            type: "filled"
+            icon: "open_in_new"
+            text: preview.kind === "video" || preview.kind === "audio" || preview.kind === "image" ? "Abrir en Wysun Player" : "Abrir"
+            onClicked: root.openRequested()
         }
     }
 }

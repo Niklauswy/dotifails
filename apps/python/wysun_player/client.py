@@ -40,7 +40,8 @@ def forward(payload, timeout=1.0):
 
 def command(payload):
     """argv that starts a new player for ``payload``."""
-    argv = module_argv('wysun_player')
+    # The player is a Widgets app: from a QML app's venv (no QtWidgets) it still runs on the system Python.
+    argv = module_argv('wysun_player', python=str(Path(sys.base_prefix) / 'bin/python3'))
     if payload.get('paused'):
         argv.append('--paused')
     if payload.get('fullscreen'):
@@ -50,9 +51,17 @@ def command(payload):
     return argv + ['--', *payload['files']]
 
 
+def child_environment(base=None):
+    """The environment for a new player, without what a QML app's runtime set up for its own Qt."""
+    env = module_environment(base)
+    for name in ('QT_PLUGIN_PATH', 'QML_IMPORT_PATH', 'QML2_IMPORT_PATH', 'WYSUN_QML_REEXEC'):
+        env.pop(name, None)
+    return env
+
+
 def launch(files, **options):
     """Show ``files`` in Wysun Player, starting it if needed. Never blocks on the player itself."""
     payload = request(files, **options)
     if not forward(payload):
-        subprocess.Popen(command(payload), env=module_environment(), start_new_session=True, stdin=subprocess.DEVNULL,
+        subprocess.Popen(command(payload), env=child_environment(), start_new_session=True, stdin=subprocess.DEVNULL,
                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
