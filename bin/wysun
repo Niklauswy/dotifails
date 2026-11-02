@@ -41,7 +41,7 @@ Uso: wysun [ORDEN] [opciones]
   files | player         Files y Wysun Player ([--paused] [--fullscreen] [--start S] [--] ARCHIVO...)
   recorder               biblioteca del Recorder (--quick-record: barra de grabación)
   scheme | wallpaper     esquema de color y fondo
-  lanshare [CARPETA]     comparte una carpeta con la red local (--port N, --readonly)
+  lanshare [RUTA…]       comparte con la red local (--subidas, --clave, --inactivo 2h; --help)
   daemon | reload        residente del portapapeles; reload lo reinicia con el código nuevo
   shell ORDEN            wysun-shell (record, screenshot, dnd, status…)
   lock | recover | session-check | workspaces | activate CLASE

@@ -1,419 +1,380 @@
-"""Wysun LANShare — servidor de archivos para la red local.
+"""Wysun LANShare — share folders or files with the local network.
 
-Explorador de carpetas, miniaturas y previews de video (ffmpeg), streaming con
-Range (Safari/iPhone), subida de archivos y descarga de carpetas en .zip.
-
-Uso:
-    wysun lanshare [CARPETA] [--port 8000] [--readonly]
+One page (static/) over a small JSON API. Video streams with Range (Safari/iPhone), thumbnails
+and hover sprites (ffmpeg), folders and lists as .zip, uploads only when started with --subidas,
+an optional password, and shutdown after a while without use. While it runs, the bar reads its
+status file (status.py) and can stop it (`wysun lanshare --detener PID`).
 """
-import argparse
-import hashlib
+import errno
+from http import cookies
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+import gzip
+import hmac
 import json
 import mimetypes
 import os
 import re
+import secrets
+import shutil
+import signal
 import socket
 import subprocess
+import sys
 import threading
+import time
 import urllib.parse
 import zipfile
 from concurrent.futures import ThreadPoolExecutor
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from wysun_core import paths
 from wysun_core.jsonio import atomic_path
+from wysun_lanshare import media, net, options as opts, status, webtheme
+from wysun_lanshare.share import Share, clean_name, kind_of, unique_name
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-STATIC = os.path.join(HERE, "static")
-CACHE = str(paths.cache("wysun", "lanshare"))
-
-VIDEO = {".mp4", ".m4v", ".mov", ".webm", ".mkv", ".avi", ".ts", ".flv", ".wmv"}
-IMAGE = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".avif", ".heic"}
-AUDIO = {".mp3", ".m4a", ".aac", ".wav", ".flac", ".ogg", ".opus"}
-TEXT = {".txt", ".md", ".log", ".json", ".csv", ".py", ".js", ".ts", ".html", ".css",
-        ".sh", ".yml", ".yaml", ".toml", ".ini", ".xml", ".c", ".cpp", ".h", ".java", ".rs", ".go"}
-ARCHIVE = {".zip", ".rar", ".7z", ".tar", ".gz", ".tgz", ".xz", ".bz2"}
-
-SPRITE_FRAMES = 10
-SPRITE_W, SPRITE_H = 320, 180
+STATIC = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
 CHUNK = 1024 * 1024
+PORT_TRIES = 20
+MAX_FAILS = 5
+BLOCK_SECONDS = 60
+COOKIE = 'wysun_lanshare'
 
-ROOT = ""
-READONLY = False
-
-mimetypes.add_type("video/mp4", ".m4v")
-mimetypes.add_type("video/x-matroska", ".mkv")
-mimetypes.add_type("video/mp2t", ".ts")
-mimetypes.add_type("text/plain", ".md")
-mimetypes.add_type("text/plain", ".log")
-mimetypes.add_type("image/avif", ".avif")
-mimetypes.add_type("image/heic", ".heic")
+for _type, _ext in (('video/mp4', '.m4v'), ('video/x-matroska', '.mkv'), ('video/mp2t', '.ts'), ('text/plain', '.md'),
+                    ('text/plain', '.log'), ('image/avif', '.avif'), ('image/heic', '.heic'), ('font/ttf', '.ttf')):
+    mimetypes.add_type(_type, _ext)
 
 
 class Incomplete(Exception):
-    """A thumbnail or an upload that did not finish; its temporary file is discarded."""
+    """An upload that did not arrive whole; its temporary file is discarded."""
 
 
-def kind_of(name, is_dir=False):
-    if is_dir:
-        return "dir"
-    ext = os.path.splitext(name)[1].lower()
-    if ext in VIDEO:
-        return "video"
-    if ext in IMAGE:
-        return "image"
-    if ext in AUDIO:
-        return "audio"
-    if ext == ".pdf":
-        return "pdf"
-    if ext in TEXT:
-        return "text"
-    if ext in ARCHIVE:
-        return "archive"
-    return "file"
+class Gate:
+    """The optional password: a random HttpOnly session per person who entered, failures limited per IP."""
 
+    def __init__(self, password, clock=time.time):
+        self.password = password
+        self.clock = clock
+        self.tokens = set()
+        self.fails = {}
+        self._lock = threading.Lock()
 
-def safe(rel):
-    """Ruta real dentro de ROOT o None (bloquea ../ y symlinks que escapan)."""
-    rel = (rel or "").strip("/")
-    if any(part.startswith(".") for part in rel.split("/") if part):
-        return None
-    p = os.path.realpath(os.path.join(ROOT, rel))
-    if p != ROOT and not p.startswith(ROOT + os.sep):
-        return None
-    return p
+    def check(self, ip, attempt):
+        """A new session token, None for a wrong password, or 'blocked' after too many failures."""
+        with self._lock:
+            count, until = self.fails.get(ip, (0, 0))
+            if until > self.clock():
+                return 'blocked'
+            if hmac.compare_digest((attempt or '').strip().encode(), self.password.encode()):
+                self.fails.pop(ip, None)
+                token = secrets.token_urlsafe(24)
+                self.tokens.add(token)
+                return token
+            count += 1
+            if count >= MAX_FAILS:
+                self.fails[ip] = (0, self.clock() + BLOCK_SECONDS)
+                return 'blocked'
+            self.fails[ip] = (count, 0)
+            return None
 
-
-def rel_of(p):
-    r = os.path.relpath(p, ROOT)
-    return "" if r == "." else r.replace(os.sep, "/")
-
-
-def file_key(path, kind):
-    st = os.stat(path)
-    raw = f"{path}|{st.st_size}|{st.st_mtime_ns}|{kind}".encode()
-    return hashlib.sha1(raw).hexdigest()
-
-
-# ---------------------------------------------------------------- metadata --
-
-_meta_mem = {}
-_meta_lock = threading.Lock()
-
-
-def probe(path):
-    try:
-        key = file_key(path, "meta")
-    except OSError:
-        return {}
-    with _meta_lock:
-        if key in _meta_mem:
-            return _meta_mem[key]
-    disk = os.path.join(CACHE, "meta", key[:2], key + ".json")
-    if os.path.exists(disk):
+    def allowed(self, cookie_header):
+        if self.password is None:
+            return True
+        jar = cookies.SimpleCookie()
         try:
-            with open(disk) as f:
-                meta = json.load(f)
-            with _meta_lock:
-                _meta_mem[key] = meta
-            return meta
-        except (OSError, ValueError):
+            jar.load(cookie_header or '')
+        except cookies.CookieError:
+            return False
+        morsel = jar.get(COOKIE)
+        return bool(morsel) and morsel.value in self.tokens
+
+
+class App:
+    """Everything one running LANShare knows; the handler reaches it as self.server.app."""
+
+    def __init__(self, options, environ=None, clock=time.time):
+        self.options = options
+        self.share = Share(options.paths)
+        self.uploads = options.uploads and self.share.mode == 'folder'
+        self.gate = Gate(options.password, clock)
+        self.activity = status.Activity(options.idle, clock)
+        self.environ = environ
+        self.host = socket.gethostname().split('.')[0] or 'Wysun'
+
+
+def notify(name, where):
+    """System notification for a received file (the server sends it: no shell needed)."""
+    if not shutil.which('notify-send'):
+        return
+    argv = ['notify-send', '-a', 'Wysun LANShare', '-i', 'folder-download', 'Archivo recibido', f'{name} · {where}']
+
+    def send():
+        try:
+            subprocess.run(argv, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10, check=False)
+        except (OSError, subprocess.SubprocessError):
             pass
-    meta = {}
-    try:
-        out = subprocess.run(
-            ["ffprobe", "-v", "error", "-print_format", "json", "-show_format", "-show_streams", path],
-            capture_output=True, timeout=20, check=False).stdout
-        data = json.loads(out or b"{}")
-        fmt = data.get("format", {})
-        if fmt.get("duration"):
-            meta["duration"] = float(fmt["duration"])
-        for s in data.get("streams", []):
-            if s.get("codec_type") == "video" and "vcodec" not in meta and s.get("disposition", {}).get("attached_pic") != 1:
-                meta["vcodec"] = s.get("codec_name")
-                meta["width"] = s.get("width")
-                meta["height"] = s.get("height")
-            elif s.get("codec_type") == "audio" and "acodec" not in meta:
-                meta["acodec"] = s.get("codec_name")
-    except (OSError, ValueError, subprocess.SubprocessError):
-        pass
-    os.makedirs(os.path.dirname(disk), exist_ok=True)
-    try:
-        with open(disk, "w") as f:
-            json.dump(meta, f)
-    except OSError:
-        pass
-    with _meta_lock:
-        _meta_mem[key] = meta
-    return meta
+
+    threading.Thread(target=send, daemon=True).start()
 
 
-# -------------------------------------------------------- thumbnails/sprite --
+class Counted:
+    """A write-only stream that reports what goes through it (zip downloads)."""
 
-_gen_sem = threading.Semaphore(max(2, (os.cpu_count() or 4) // 2))
-_key_locks = {}
-_key_guard = threading.Lock()
-FF = ["ffmpeg", "-hide_banner", "-loglevel", "error", "-y"]
+    def __init__(self, raw, activity, tid):
+        self.raw, self.activity, self.tid = raw, activity, tid
 
+    def write(self, data):
+        self.raw.write(data)
+        self.activity.advance(self.tid, len(data))
+        return len(data)
 
-def _build_thumb(path, out):
-    kind = kind_of(path)
-    if kind == "video":
-        dur = probe(path).get("duration") or 0
-        t = dur * 0.2 if dur > 10 else min(1.0, dur / 2)
-        cmd = FF + ["-ss", f"{t:.2f}", "-i", path, "-frames:v", "1",
-                    "-vf", "scale=640:-2", "-q:v", "4", out]
-    else:
-        cmd = FF + ["-i", path, "-frames:v", "1",
-                    "-vf", "scale='min(640,iw)':-2", "-q:v", "4", out]
-    return subprocess.run(cmd, capture_output=True, timeout=60).returncode == 0
-
-
-def _build_sprite(path, out):
-    dur = probe(path).get("duration") or 0
-    if dur < 2:
-        return False
-    cmd = list(FF)
-    chains = []
-    for i in range(SPRITE_FRAMES):
-        t = dur * (i + 1) / (SPRITE_FRAMES + 1)
-        cmd += ["-ss", f"{t:.2f}", "-i", path]
-        chains.append(
-            f"[{i}:v:0]trim=end_frame=1,scale={SPRITE_W}:{SPRITE_H}:force_original_aspect_ratio=increase,"
-            f"crop={SPRITE_W}:{SPRITE_H},setsar=1[f{i}]")
-    graph = ";".join(chains) + ";" + "".join(f"[f{i}]" for i in range(SPRITE_FRAMES)) + \
-        f"hstack=inputs={SPRITE_FRAMES}[out]"
-    cmd += ["-filter_complex", graph, "-map", "[out]", "-frames:v", "1", "-q:v", "5", out]
-    return subprocess.run(cmd, capture_output=True, timeout=180).returncode == 0
-
-
-def cached_image(path, kind):
-    try:
-        key = file_key(path, kind)
-    except OSError:
-        return None
-    out = os.path.join(CACHE, kind, key[:2], key + ".jpg")
-    fail = out + ".fail"
-    if os.path.exists(out):
-        return out
-    if os.path.exists(fail):
-        return None
-    with _key_guard:
-        lock = _key_locks.setdefault(out, threading.Lock())
-    with lock:
-        if os.path.exists(out):
-            return out
-        with _gen_sem:
-            builder = _build_sprite if kind == "sprite" else _build_thumb
-            try:
-                with atomic_path(out) as tmp:
-                    if not builder(path, str(tmp)) or not tmp.exists() or tmp.stat().st_size == 0:
-                        raise Incomplete
-                return out
-            except (OSError, subprocess.SubprocessError, Incomplete):
-                pass
-        open(fail, "w").close()
-        return None
-
-
-# ------------------------------------------------------------------ server --
-
-def unique_name(directory, name):
-    base, ext = os.path.splitext(name)
-    cand, n = name, 1
-    while os.path.exists(os.path.join(directory, cand)):
-        cand = f"{base} ({n}){ext}"
-        n += 1
-    return cand
-
-
-def clean_name(name):
-    name = os.path.basename((name or "").replace("\\", "/")).strip()
-    name = re.sub(r"[\x00-\x1f]", "", name).lstrip(".")
-    return name[:240]
+    def flush(self):
+        self.raw.flush()
 
 
 class Handler(BaseHTTPRequestHandler):
-    protocol_version = "HTTP/1.1"
-    server_version = "lanshare/1.0"
+    protocol_version = 'HTTP/1.1'
+    server_version = 'WysunLANShare/2'
+
+    @property
+    def app(self):
+        return self.server.app
 
     # -- helpers
-    def send_bytes(self, data, ctype, status=200, extra=None):
-        self.send_response(status)
-        self.send_header("Content-Type", ctype)
-        self.send_header("Content-Length", str(len(data)))
-        for k, v in (extra or {}).items():
-            self.send_header(k, v)
+    def send_bytes(self, data, ctype, status_code=200, extra=None):
+        self.send_response(status_code)
+        self.send_header('Content-Type', ctype)
+        self.send_header('Content-Length', str(len(data)))
+        for key, value in (extra or {}).items():
+            self.send_header(key, value)
         self.end_headers()
-        if self.command != "HEAD":
+        if self.command != 'HEAD':
             self.wfile.write(data)
 
-    def send_json(self, obj, status=200):
-        self.send_bytes(json.dumps(obj, ensure_ascii=False).encode(), "application/json; charset=utf-8",
-                        status, {"Cache-Control": "no-store"})
+    def send_json(self, obj, status_code=200, extra=None):
+        self.send_bytes(json.dumps(obj, ensure_ascii=False).encode(), 'application/json; charset=utf-8',
+                        status_code, dict({'Cache-Control': 'no-store'}, **(extra or {})))
 
-    def fail(self, status, msg):
-        self.send_json({"error": msg}, status)
+    def fail(self, status_code, message):
+        self.send_json({'error': message}, status_code)
 
     def query(self):
         return {k: v[0] for k, v in urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query).items()}
 
+    def route(self):
+        return urllib.parse.unquote(urllib.parse.urlparse(self.path).path)
+
+    def ip(self):
+        return self.client_address[0]
+
+    def agent(self):
+        return self.headers.get('User-Agent', '')
+
     def log_message(self, fmt, *args):
         pass
+
+    def authorised(self):
+        """True for someone who may see what is shared; counts as use. Otherwise answers 401."""
+        if not self.app.gate.allowed(self.headers.get('Cookie')):
+            self.send_json({'error': 'Hace falta la contraseña', 'locked': True}, 401)
+            return False
+        self.app.activity.touch(self.ip(), self.agent())
+        return True
 
     # -- routing
     def do_HEAD(self):
         self.do_GET()
 
     def do_GET(self):
-        path = urllib.parse.unquote(urllib.parse.urlparse(self.path).path)
+        path = self.route()
         try:
-            if path == "/" or path.startswith("/browse") or path.startswith("/watch/"):
-                return self.serve_static("index.html")
-            if path.startswith("/static/"):
-                return self.serve_static(path[len("/static/"):])
-            if path == "/api/ls":
+            if path == '/' or path.startswith('/b/'):
+                return self.serve_static('index.html')
+            if path.startswith('/static/'):
+                return self.serve_static(path[len('/static/'):])
+            if path.startswith('/fonts/'):
+                return self.serve_font(path[len('/fonts/'):])
+            if path == '/theme.css':
+                return self.send_bytes(webtheme.css().encode(), 'text/css; charset=utf-8', extra={'Cache-Control': 'no-cache'})
+            if path == '/api/info':
+                return self.api_info()
+            if not self.authorised():
+                return None
+            if path == '/api/ls':
                 return self.api_ls()
-            if path in ("/api/thumb", "/api/sprite"):
-                return self.api_image(path.rsplit("/", 1)[1])
-            if path.startswith("/raw/"):
-                return self.serve_file(path[len("/raw/"):])
-            if path.startswith("/zip/") or path == "/zip":
-                return self.serve_zip(path[len("/zip/"):])
-            self.fail(404, "No encontrado")
+            if path in ('/api/thumb', '/api/sprite'):
+                return self.api_image(path.rsplit('/', 1)[1])
+            if path.startswith('/raw/'):
+                return self.serve_file(path[len('/raw/'):])
+            if path == '/zip' or path.startswith('/zip/'):
+                return self.serve_zip(path[len('/zip/'):])
+            return self.fail(404, 'No encontrado')
         except (BrokenPipeError, ConnectionResetError):
-            pass
+            return None
 
     def do_PUT(self):
-        path = urllib.parse.urlparse(self.path).path
-        if path == "/api/upload":
-            return self.api_upload()
-        self.fail(404, "No encontrado")
+        if self.route() != '/api/upload':
+            return self.fail(404, 'No encontrado')
+        if self.authorised():
+            self.api_upload()
+        return None
 
     def do_POST(self):
-        path = urllib.parse.urlparse(self.path).path
-        if path == "/api/mkdir":
-            return self.api_mkdir()
-        self.fail(404, "No encontrado")
+        path = self.route()
+        if path == '/api/login':
+            return self.api_login()
+        if path != '/api/mkdir':
+            return self.fail(404, 'No encontrado')
+        if self.authorised():
+            self.api_mkdir()
+        return None
 
-    # -- static
+    # -- public
     def serve_static(self, name):
         p = os.path.realpath(os.path.join(STATIC, name))
         if not p.startswith(STATIC + os.sep) or not os.path.isfile(p):
-            return self.fail(404, "No encontrado")
-        with open(p, "rb") as f:
+            return self.fail(404, 'No encontrado')
+        with open(p, 'rb') as f:
             data = f.read()
-        ctype = mimetypes.guess_type(p)[0] or "application/octet-stream"
-        if ctype.startswith("text/") or ctype.endswith("javascript"):
-            ctype += "; charset=utf-8"
-        self.send_bytes(data, ctype, extra={"Cache-Control": "no-cache"})
+        ctype = mimetypes.guess_type(p)[0] or 'application/octet-stream'
+        if ctype.startswith('text/') or ctype.endswith('javascript'):
+            ctype += '; charset=utf-8'
+        return self.send_bytes(data, ctype, extra={'Cache-Control': 'no-cache'})
+
+    def serve_font(self, name):
+        if name not in webtheme.FONTS.values():
+            return self.fail(404, 'No encontrado')
+        source = os.path.join(webtheme.FONTS_DIR, name)
+        extra = {'Cache-Control': 'public, max-age=31536000, immutable'}
+        if 'gzip' in self.headers.get('Accept-Encoding', ''):
+            packed = compressed(source)
+            if packed:
+                with open(packed, 'rb') as f:
+                    return self.send_bytes(f.read(), 'font/ttf', extra=dict(extra, **{'Content-Encoding': 'gzip'}))
+        with open(source, 'rb') as f:
+            return self.send_bytes(f.read(), 'font/ttf', extra=extra)
+
+    def api_info(self):
+        app = self.app
+        locked = not app.gate.allowed(self.headers.get('Cookie'))
+        if not locked:
+            app.activity.touch(self.ip(), self.agent())
+        self.send_json({'host': app.host, 'title': app.share.title, 'mode': app.share.mode, 'uploads': app.uploads,
+                        'locked': locked, 'password': app.gate.password is not None})
+
+    def api_login(self):
+        if self.app.gate.password is None:
+            return self.send_json({'ok': True})
+        try:
+            length = min(int(self.headers.get('Content-Length', '0')), 4096)
+            attempt = json.loads(self.rfile.read(length) or b'{}').get('clave', '')
+        except (ValueError, AttributeError):
+            attempt = ''
+        result = self.app.gate.check(self.ip(), str(attempt))
+        if result == 'blocked':
+            return self.fail(429, 'Demasiados intentos. Espera un minuto.')
+        if result is None:
+            return self.fail(403, 'Contraseña incorrecta')
+        self.app.activity.touch(self.ip(), self.agent())
+        return self.send_json({'ok': True}, extra={'Set-Cookie': f'{COOKIE}={result}; HttpOnly; SameSite=Lax; Path=/'})
 
     # -- api
     def api_ls(self):
-        rel = self.query().get("path", "")
-        d = safe(rel)
-        if not d or not os.path.isdir(d):
-            return self.fail(404, "Carpeta no encontrada")
-        entries = []
+        rel = self.query().get('path', '')
         try:
-            items = list(os.scandir(d))
+            entries = self.app.share.listing(rel)
+        except LookupError:
+            return self.fail(404, 'Carpeta no encontrada')
         except PermissionError:
-            return self.fail(403, "Sin permiso")
-        for e in items:
-            if e.name.startswith("."):
-                continue
-            try:
-                real = os.path.realpath(e.path)
-                if real != ROOT and not real.startswith(ROOT + os.sep):
-                    continue
-                is_dir = e.is_dir()
-                st = e.stat()
-            except OSError:
-                continue
-            item = {"name": e.name, "kind": kind_of(e.name, is_dir), "mtime": int(st.st_mtime)}
-            if is_dir:
-                try:
-                    item["count"] = sum(1 for x in os.scandir(e.path) if not x.name.startswith("."))
-                except OSError:
-                    item["count"] = 0
-            else:
-                item["size"] = st.st_size
-            entries.append(item)
-        media = [it for it in entries if it["kind"] in ("video", "audio")]
-        if media and len(media) <= 500:
+            return self.fail(403, 'Sin permiso')
+        media_items = [e for e in entries if e['kind'] in ('video', 'audio')]
+        if media_items and len(media_items) <= 500:
+            base = rel.strip('/')
             with ThreadPoolExecutor(8) as pool:
-                metas = pool.map(lambda it: probe(os.path.join(d, it["name"])), media)
-                for it, meta in zip(media, metas):
-                    it.update(meta)
-        self.send_json({"path": rel_of(d), "entries": entries, "readonly": READONLY})
+                found = pool.map(lambda e: self.app.share.resolve(f'{base}/{e["name"]}' if base else e['name']), media_items)
+                metas = pool.map(lambda p: media.probe(p) if p else {}, list(found))
+                for entry, meta in zip(media_items, metas):
+                    entry.update(meta)
+        self.send_json({'path': rel.strip('/'), 'title': self.app.share.title, 'mode': self.app.share.mode,
+                        'entries': entries, 'uploads': self.app.uploads})
 
     def api_image(self, kind):
-        p = safe(self.query().get("path", ""))
-        if not p or not os.path.isfile(p) or kind_of(p) not in (("video",) if kind == "sprite" else ("video", "image")):
-            return self.fail(404, "No encontrado")
-        out = cached_image(p, kind)
+        p = self.app.share.resolve(self.query().get('path', ''))
+        wanted = ('video',) if kind == 'sprite' else ('video', 'image')
+        if not p or not os.path.isfile(p) or kind_of(p) not in wanted:
+            return self.fail(404, 'No encontrado')
+        out = media.cached_image(p, kind)
         if not out:
-            return self.fail(404, "Sin vista previa")
-        with open(out, "rb") as f:
+            return self.fail(404, 'Sin vista previa')
+        with open(out, 'rb') as f:
             data = f.read()
-        self.send_bytes(data, "image/jpeg", extra={"Cache-Control": "public, max-age=604800"})
+        return self.send_bytes(data, 'image/jpeg', extra={'Cache-Control': 'public, max-age=604800'})
+
+    def upload_target(self):
+        if not self.app.uploads:
+            self.fail(403, 'Las subidas no están permitidas')
+            return None, None
+        q = self.query()
+        directory = self.app.share.resolve(q.get('dir', ''))
+        name = clean_name(q.get('name', ''))
+        if not directory or not os.path.isdir(directory) or not name:
+            self.fail(400, 'Destino inválido')
+            return None, None
+        return directory, name
 
     def api_upload(self):
-        if READONLY:
-            return self.fail(403, "Servidor en modo solo lectura")
-        q = self.query()
-        d = safe(q.get("dir", ""))
-        name = clean_name(q.get("name", ""))
-        if not d or not os.path.isdir(d) or not name:
-            return self.fail(400, "Destino inválido")
+        directory, name = self.upload_target()
+        if not directory:
+            return None
         try:
-            length = int(self.headers.get("Content-Length", ""))
+            length = int(self.headers.get('Content-Length', ''))
         except ValueError:
-            return self.fail(411, "Falta Content-Length")
-        name = unique_name(d, name)
-        dest = os.path.join(d, name)
+            return self.fail(411, 'Falta Content-Length')
+        name = unique_name(directory, name)
+        dest = os.path.join(directory, name)
         remaining = length
+        tid = self.app.activity.begin(self.ip(), self.agent(), name, length, 'up')
         try:
-            # Hidden temporary next to the destination; it replaces it only when every byte arrived.
+            # Hidden temporary next to the destination; it becomes the file only when every byte arrived.
             with atomic_path(dest, mode=0o644) as tmp:
-                with open(tmp, "wb") as f:
+                with open(tmp, 'wb') as f:
                     while remaining > 0:
                         buf = self.rfile.read(min(CHUNK, remaining))
                         if not buf:
                             break
                         f.write(buf)
                         remaining -= len(buf)
+                        self.app.activity.advance(tid, len(buf))
                 if remaining:
                     raise Incomplete
         except Incomplete:
             self.close_connection = True
-            return self.fail(400, "Subida incompleta")
+            return self.fail(400, 'Subida incompleta')
         except OSError as ex:
-            return self.fail(500, f"No se pudo guardar: {ex.strerror}")
-        self.send_json({"ok": True, "name": name})
+            return self.fail(500, f'No se pudo guardar: {ex.strerror}')
+        finally:
+            self.app.activity.end(tid)
+        notify(name, self.app.share.display(self.query().get('dir', '')))
+        return self.send_json({'ok': True, 'name': name})
 
     def api_mkdir(self):
-        if READONLY:
-            return self.fail(403, "Servidor en modo solo lectura")
-        q = self.query()
-        d = safe(q.get("dir", ""))
-        name = clean_name(q.get("name", ""))
-        if not d or not os.path.isdir(d) or not name:
-            return self.fail(400, "Nombre inválido")
-        target = os.path.join(d, name)
-        if os.path.exists(target):
-            return self.fail(409, "Ya existe")
-        os.mkdir(target)
-        self.send_json({"ok": True, "name": name})
+        directory, name = self.upload_target()
+        if not directory:
+            return None
+        target = os.path.join(directory, name)
+        if os.path.lexists(target):
+            return self.fail(409, 'Ya existe')
+        try:
+            os.mkdir(target)
+        except OSError as ex:
+            return self.fail(500, f'No se pudo crear: {ex.strerror}')
+        return self.send_json({'ok': True, 'name': name})
 
-    # -- files
+    # -- transfers
     def serve_file(self, rel):
-        p = safe(rel)
+        p = self.app.share.resolve(rel)
         if not p or not os.path.isfile(p):
-            return self.fail(404, "Archivo no encontrado")
+            return self.fail(404, 'Archivo no encontrado')
         size = os.path.getsize(p)
         start, end = 0, size - 1
-        m = re.match(r"bytes=(\d*)-(\d*)$", self.headers.get("Range", "").strip())
+        m = re.match(r'bytes=(\d*)-(\d*)$', self.headers.get('Range', '').strip())
         partial = False
         if m and (m.group(1) or m.group(2)):
             s, e = m.groups()
@@ -424,92 +385,189 @@ class Handler(BaseHTTPRequestHandler):
                 start = max(0, size - int(e))
             if start > end or start >= size:
                 self.send_response(416)
-                self.send_header("Content-Range", f"bytes */{size}")
-                self.send_header("Content-Length", "0")
+                self.send_header('Content-Range', f'bytes */{size}')
+                self.send_header('Content-Length', '0')
                 return self.end_headers()
             partial = True
         length = end - start + 1
+        download = bool(self.query().get('dl'))
         self.send_response(206 if partial else 200)
         if partial:
-            self.send_header("Content-Range", f"bytes {start}-{end}/{size}")
-        ctype = mimetypes.guess_type(p)[0] or "application/octet-stream"
-        if ctype.startswith("text/"):
-            ctype += "; charset=utf-8"
-        self.send_header("Content-Type", ctype)
-        self.send_header("Accept-Ranges", "bytes")
-        self.send_header("Content-Length", str(length))
-        if self.query().get("dl"):
+            self.send_header('Content-Range', f'bytes {start}-{end}/{size}')
+        ctype = mimetypes.guess_type(p)[0] or 'application/octet-stream'
+        if ctype.startswith('text/'):
+            ctype += '; charset=utf-8'
+        self.send_header('Content-Type', ctype)
+        self.send_header('Accept-Ranges', 'bytes')
+        self.send_header('Content-Length', str(length))
+        if download:
             fname = os.path.basename(p)
-            ascii_name = fname.encode("ascii", "replace").decode().replace('"', "")
-            self.send_header("Content-Disposition",
+            ascii_name = fname.encode('ascii', 'replace').decode().replace('"', '')
+            self.send_header('Content-Disposition',
                              f"attachment; filename=\"{ascii_name}\"; filename*=UTF-8''{urllib.parse.quote(fname)}")
         self.end_headers()
-        if self.command == "HEAD":
-            return
-        with open(p, "rb") as f:
-            f.seek(start)
-            while length > 0:
-                buf = f.read(min(CHUNK, length))
-                if not buf:
-                    break
-                self.wfile.write(buf)
-                length -= len(buf)
+        if self.command == 'HEAD':
+            return None
+        tid = self.app.activity.begin(self.ip(), self.agent(), os.path.basename(p), length, 'down' if download else 'view')
+        try:
+            with open(p, 'rb') as f:
+                f.seek(start)
+                while length > 0:
+                    buf = f.read(min(CHUNK, length))
+                    if not buf:
+                        break
+                    self.wfile.write(buf)
+                    length -= len(buf)
+                    self.app.activity.advance(tid, len(buf))
+        finally:
+            self.app.activity.end(tid)
+        return None
 
     def serve_zip(self, rel):
-        d = safe(rel)
-        if not d or not os.path.isdir(d):
-            return self.fail(404, "Carpeta no encontrada")
-        name = (os.path.basename(d) if d != ROOT else os.path.basename(ROOT)) or "archivos"
+        share = self.app.share
+        if not share.is_dir(rel):
+            return self.fail(404, 'Carpeta no encontrada')
+        name = share.zip_name(rel)
         self.send_response(200)
-        self.send_header("Content-Type", "application/zip")
-        self.send_header("Content-Disposition",
-                         f"attachment; filename*=UTF-8''{urllib.parse.quote(name)}.zip")
-        self.send_header("Connection", "close")
+        self.send_header('Content-Type', 'application/zip')
+        self.send_header('Content-Disposition', f"attachment; filename*=UTF-8''{urllib.parse.quote(name)}.zip")
+        self.send_header('Connection', 'close')
         self.end_headers()
         self.close_connection = True
-        with zipfile.ZipFile(self.wfile, "w", zipfile.ZIP_STORED, allowZip64=True) as zf:
-            for base, dirs, files in os.walk(d):
-                dirs[:] = sorted(x for x in dirs if not x.startswith("."))
-                for fn in sorted(files):
-                    if fn.startswith("."):
+        if self.command == 'HEAD':
+            return None
+        tid = self.app.activity.begin(self.ip(), self.agent(), name + '.zip', None, 'down')
+        try:
+            with zipfile.ZipFile(Counted(self.wfile, self.app.activity, tid), 'w', zipfile.ZIP_STORED, allowZip64=True) as zf:
+                for real, arcname in share.zip_members(rel):
+                    try:
+                        zf.write(real, arcname)
+                    except OSError:
                         continue
-                    full = os.path.join(base, fn)
-                    zf.write(full, os.path.join(name, os.path.relpath(full, d)))
+        finally:
+            self.app.activity.end(tid)
+        return None
 
 
-def lan_ips():
-    ips = set()
+_packing = threading.Lock()
+
+
+def compressed(source):
+    """A gzip copy of a packaged font in the cache (made once), or None."""
+    st = os.stat(source)
+    target = os.path.join(media.cache_dir(), 'fonts', f'{os.path.basename(source)}.{st.st_mtime_ns}.gz')
+    with _packing:
+        if not os.path.exists(target):
+            try:
+                with atomic_path(target) as tmp, open(source, 'rb') as raw:
+                    tmp.write_bytes(gzip.compress(raw.read(), 6))
+            except OSError:
+                return None
+    return target
+
+
+class Server(ThreadingHTTPServer):
+    daemon_threads = True
+
+
+def make_server(app, host='0.0.0.0', port=None):
+    """Bind the asked port or, when it is taken, one of the next PORT_TRIES; (server, port)."""
+    first = app.options.port if port is None else port
+    for candidate in range(first, first + PORT_TRIES + 1):
+        try:
+            srv = Server((host, candidate), Handler)
+        except OSError as error:
+            if error.errno == errno.EADDRINUSE:
+                continue
+            raise
+        srv.app = app
+        return srv, candidate
+    raise OSError(errno.EADDRINUSE, f'Los puertos {first}–{first + PORT_TRIES} están ocupados')
+
+
+def _duration(seconds):
+    if seconds % 3600 == 0:
+        return f'{seconds // 3600} h'
+    if seconds % 60 == 0:
+        return f'{seconds // 60} min'
+    return f'{seconds} s'
+
+
+def _watch(srv, app, status_file, stopped):
+    """Keep the status file fresh and stop the server once it is idle."""
+    while not stopped.wait(0.5):
+        try:
+            status_file.write(app.activity)
+        except OSError:
+            pass
+        if app.activity.expired():
+            print(f'\nSin uso durante {_duration(app.options.idle)}: se detiene.', flush=True)
+            srv.shutdown()
+            return
+
+
+def run(options):
+    app = App(options)
     try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(("10.255.255.255", 1))
-        ips.add(s.getsockname()[0])
-        s.close()
-    except OSError:
-        pass
-    return sorted(ips) or ["127.0.0.1"]
+        srv, port = make_server(app)
+    except OSError as error:
+        print(f'wysun lanshare: {error.strerror or error}', file=sys.stderr)
+        return 1
+    addresses = net.addresses()
+    urls = [f'http://{a["ip"]}:{port}' for a in addresses]
+    easy = net.easy_name(port)
+    share = app.share
+    print(f'Wysun LANShare · compartiendo {share.title}')
+    for path in share.paths:
+        print(f'  {path}')
+    if port != options.port:
+        print(f'El puerto {options.port} está ocupado; se usa el {port}.')
+    print('Subidas permitidas' if app.uploads else 'Solo ver y descargar')
+    if options.password:
+        print(f'Contraseña: {options.password}')
+    if easy:
+        print(f'\n  → {easy}')
+    named = len(addresses) > 1
+    for address, url in zip(addresses, urls):
+        print(f'  → {url}' + (f'   ({address["name"]})' if named and address['name'] else ''))
+    limit = f'Se apaga tras {_duration(options.idle)} sin uso' if options.idle else 'Sin apagado automático'
+    print(f'\n{limit} · Ctrl+C para detener', flush=True)
 
+    status.prune()
+    status_file = status.StatusFile(os.getpid(), {
+        'paths': share.paths, 'title': share.title, 'mode': share.mode, 'host': app.host,
+        'addresses': ([easy] if easy else []) + urls, 'port': port, 'password': options.password,
+        'uploads': app.uploads, 'started': time.time()})
+    stopped = threading.Event()
 
-def main():
-    global ROOT, READONLY
-    ap = argparse.ArgumentParser(prog="wysun lanshare", description="Servidor de archivos para la red local")
-    ap.add_argument("folder", nargs="?", default=".")
-    ap.add_argument("-p", "--port", type=int, default=8000)
-    ap.add_argument("--readonly", action="store_true", help="desactiva subidas y nuevas carpetas")
-    args = ap.parse_args()
-    ROOT = os.path.realpath(args.folder)
-    READONLY = args.readonly
-    os.makedirs(CACHE, exist_ok=True)
-    srv = ThreadingHTTPServer(("0.0.0.0", args.port), Handler)
-    srv.daemon_threads = True
-    print(f"Wysun LANShare · compartiendo {ROOT}")
-    for ip in lan_ips():
-        print(f"  → http://{ip}:{args.port}")
-    print("  (Ctrl+C para detener)", flush=True)
+    def terminate(signum, frame):
+        raise SystemExit(0)
+
+    signal.signal(signal.SIGTERM, terminate)
+    signal.signal(signal.SIGHUP, terminate)
+    watcher = threading.Thread(target=_watch, args=(srv, app, status_file, stopped), daemon=True)
     try:
+        status_file.write(app.activity, force=True)
+        watcher.start()
         srv.serve_forever()
     except KeyboardInterrupt:
-        pass
+        print()
+    finally:
+        stopped.set()
+        status_file.remove()
+        srv.server_close()
+    return 0
 
 
-if __name__ == "__main__":
-    main()
+def main(argv=None):
+    options = opts.parse(argv)
+    if options.stop is not None:
+        if status.stop(options.stop):
+            return 0
+        print(f'wysun lanshare: {options.stop} no es un LANShare tuyo en ejecución', file=sys.stderr)
+        return 1
+    return run(options)
+
+
+if __name__ == '__main__':
+    sys.exit(main())
