@@ -23,11 +23,13 @@ Prints one JSON document on stdout.
 import hashlib
 import importlib.util
 import json
+import re
 import os
 import selectors
 import shutil
 import subprocess
 import sys
+import threading
 import time
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
@@ -528,29 +530,70 @@ API_BACKOFF = 900
 API_KEEP = 3600
 
 
+_API_LOCK = threading.Lock()
+
+
+def _claude_version():
+    """Claude Code's version, cached by the binary's path and time (asking it costs a process start)."""
+    binary = shutil.which('claude')
+    if not binary:
+        return None
+    try:
+        stamp = os.stat(binary).st_mtime
+    except OSError:
+        return None
+    path = CACHE / 'claude-version.json'
+    cached = _read_json(path) or {}
+    if cached.get('binary') == binary and cached.get('mtime') == stamp:
+        return cached.get('version')
+    try:
+        out = subprocess.run([binary, '--version'], capture_output=True, text=True, timeout=3).stdout
+    except (OSError, subprocess.SubprocessError):
+        return None
+    found = re.search(r'\d+\.\d+\.\d+', out or '')
+    version = found.group(0) if found else None
+    try:
+        CACHE.mkdir(parents=True, exist_ok=True)
+        temp = path.with_name(f'{path.name}.{os.getpid()}.tmp')
+        temp.write_text(json.dumps({'binary': binary, 'mtime': stamp, 'version': version}), encoding='utf-8')
+        os.replace(temp, path)
+    except OSError:
+        pass
+    return version
+
+
+def _api_cache(update=None):
+    """Read the API cache, or merge one {account id: entry} into it; one thread at a time."""
+    path = CACHE / 'claude-api.json'
+    with _API_LOCK:
+        cache = _read_json(path) or {}
+        if update:
+            cache.update(update)
+            try:
+                CACHE.mkdir(parents=True, exist_ok=True)
+                temp = path.with_name(f'{path.name}.{os.getpid()}.tmp')
+                temp.write_text(json.dumps(cache), encoding='utf-8')
+                os.replace(temp, path)
+            except OSError:
+                pass
+        return cache
+
+
 def claude_api_usage(account, now, opener=None):
     """(details, updatedAt, error): Anthropic's usage, asked at most every API_EVERY seconds per account and
     not again for API_BACKOFF after a refusal; meanwhile the last answer (no credentials in it) is reused."""
-    path = CACHE / 'claude-api.json'
-    cache = _read_json(path) or {}
+    cache = _api_cache()
     entry = cache.get(account['id']) if isinstance(cache.get(account['id']), dict) else {}
     error = None
     if now >= entry.get('next', 0):
-        details, error = _sibling('claude_api').usage(account['home'], now, opener)
+        details, error = _sibling('claude_api').usage(account['home'], now, opener, _claude_version())
         if details:
             entry = {'details': details, 'at': now, 'next': now + API_EVERY, 'error': None}
         elif error and error.get('kind') in ('network', 'auth', 'scope'):
             entry = dict(entry, next=now + API_BACKOFF, error=error)
         else:
             entry = dict(entry, next=now + API_EVERY, error=error)
-        cache[account['id']] = entry
-        try:
-            CACHE.mkdir(parents=True, exist_ok=True)
-            temp = path.with_name(path.name + '.tmp')
-            temp.write_text(json.dumps(cache), encoding='utf-8')
-            os.replace(temp, path)
-        except OSError:
-            pass
+        _api_cache({account['id']: entry})
     fresh = entry.get('details') if now - entry.get('at', 0) < API_KEEP else None
     error = entry.get('error')
     return fresh, entry.get('at'), (None if fresh and error and error.get('kind') == 'network' else error)
@@ -564,6 +607,9 @@ def claude_account(account, now, named_by_folder=True, live=True, opener=None):
     base.update(session=api.session(account['home'], now), error=error, extra=None, cloud=None)
     if details:
         base.update(details, available=True, reason=None, source='api', updatedAt=at)
+    elif base.get('limits') and error and error.get('kind') in ('scope', 'network'):
+        # The status line still reads this account: falling back is not a failure.
+        base['error'] = None
     return base
 
 
@@ -754,6 +800,18 @@ def history_account(key, records, label, now):
 
 
 def describe(account, now, live, shared_names=frozenset(), opener=None):
+    """One account; an unexpected answer from any source leaves only this account without live data."""
+    try:
+        return _describe(account, now, live, shared_names, opener)
+    except Exception:
+        return {'id': account['id'], 'provider': account['provider'], 'providerName': NAMES[account['provider']],
+                'label': account['label'] or NAMES[account['provider']], 'email': None, 'name': None,
+                'organization': None, 'plan': None, 'credits': None, 'available': False, 'reason': 'empty',
+                'limits': [], 'source': 'error', 'updatedAt': None, 'error': {'kind': 'network'},
+                'home': str(account['home']).replace(str(HOME), '~', 1)}
+
+
+def _describe(account, now, live, shared_names=frozenset(), opener=None):
     if account['provider'] == 'claude':
         details = claude_account(account, now, account['home'].name not in shared_names, live, opener)
     elif account['provider'] == 'opencode':
@@ -794,8 +852,11 @@ def collect(now=None, live=True, opener=None):
     prices = load_pricing()
     folders = Counter(a['home'].name for a in accounts if a['provider'] == 'claude')
     shared_names = {name for name, count in folders.items() if count > 1}
-    with ThreadPoolExecutor(max_workers=max(1, len(accounts))) as pool:
+    providers_seen = sorted({a['provider'] for a in accounts})
+    with ThreadPoolExecutor(max_workers=max(1, len(accounts)) + 1) as pool:
+        status_job = pool.submit(service_status, providers_seen, now, live and '--no-status' not in sys.argv, opener)
         described = list(pool.map(lambda a: describe(a, now, live, shared_names, opener), accounts))
+        status = status_job.result()
     # Two homes signed in to the same Codex account report the same id; keep the first.
     unique, keys = [], set()
     for account in described:
@@ -838,8 +899,6 @@ def collect(now=None, live=True, opener=None):
     for account in unique:
         account['usage'] = summarise(records, [account['id']], now, prices)
     record_limits(unique, records, now)
-    providers = sorted({a['provider'] for a in unique})
-    status = service_status(providers, now, live and '--no-status' not in sys.argv, opener)
     agents = running_agents(accounts, files, now)
     disk_usage(unique, now)
     snapshot = {'generatedAt': now, 'version': 2, 'status': status, 'agents': agents, 'accounts': unique, 'usage': summarise(records, ids, now, prices)}
@@ -969,10 +1028,15 @@ def service_status(providers, now, live, opener=None):
     path = CACHE / 'status.json'
     cached = _read_json(path) or {}
     result = {}
+    due = [p for p in providers if live and (not isinstance(cached.get(p), dict) or now - cached[p].get('checkedAt', 0) >= STATUS_TTL)]
+    fetched = {}
+    if due:
+        # One page per provider, side by side, so a slow one does not add up.
+        with ThreadPoolExecutor(max_workers=len(due)) as pool:
+            for provider, entry in zip(due, pool.map(lambda p: _sibling('service_status').fetch(p, opener=opener), due)):
+                fetched[provider] = dict(entry, checkedAt=now)
     for provider in providers:
-        entry = cached.get(provider)
-        if live and (not isinstance(entry, dict) or now - entry.get('checkedAt', 0) >= STATUS_TTL):
-            entry = dict(_sibling('service_status').fetch(provider, opener=opener), checkedAt=now)
+        entry = fetched.get(provider, cached.get(provider))
         if isinstance(entry, dict):
             result[provider] = entry
     if live and result != cached:

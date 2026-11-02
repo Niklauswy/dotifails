@@ -193,6 +193,10 @@ class AlertTests(unittest.TestCase):
         self.assertEqual([n['kind'] for n in first['notify']], ['expiry'])
         self.assertEqual(self.run_alerts('[]', accounts, seen=json.dumps(first['seen']))['notify'], [])
 
+    def test_renewable_sign_in_does_not_alert(self):
+        accounts = f'[{account("a", "claude", [], session={"expiresAt": NOW + 3 * HOUR, "expired": False, "renewable": True})}]'
+        self.assertEqual(self.run_alerts('[]', accounts)['notify'], [])
+
     def test_weekly_reset_is_reported(self):
         old = '({id: "weekly", usedPercent: 70, windowMinutes: 10080, resetsAt: NOW - 60})'
         new = '({id: "weekly", usedPercent: 0, windowMinutes: 10080, resetsAt: NOW + 7 * 86400 - 60})'

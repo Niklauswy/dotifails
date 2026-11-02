@@ -93,6 +93,8 @@ def _login(data_dir, now):
             value = json.loads(chosen[0])
         except (TypeError, ValueError):
             return None, None
+        if not isinstance(value, dict):
+            return None, None
         if value.get('type') == 'key':
             return value.get('key') or None, None
         if value.get('type') == 'oauth':

@@ -35,8 +35,10 @@ credentials = _credentials()
 _VERSION = []
 
 
-def _user_agent():
+def _user_agent(version=None):
     """Anthropic serves this endpoint to Claude Code: identify as its CLI, as CodexBar does."""
+    if version:
+        return f'claude-cli/{version} (external, cli)'
     if not _VERSION:
         version = '2.0.0'
         binary = shutil.which('claude')
@@ -64,7 +66,8 @@ def session(home, now):
         return None
     expires = oauth.get('expiresAt')
     expires = float(expires) / 1000 if isinstance(expires, (int, float)) and expires > 0 else None
-    return {'expiresAt': expires, 'expired': bool(expires and expires <= now)}
+    # Claude Code renews a short-lived access token by itself while it has a refresh token.
+    return {'expiresAt': expires, 'expired': bool(expires and expires <= now), 'renewable': bool(oauth.get('refreshToken'))}
 
 
 def _epoch(text):
@@ -130,12 +133,16 @@ def _reset_credits(value, now):
         ends = _epoch(grant.get('ends_at'))
         if ends and ends <= now:
             continue
-        for _ in range(max(0, int(grant.get('resets_left') or 0))):
+        try:
+            left = int(grant.get('resets_left') or 0)
+        except (TypeError, ValueError):
+            continue
+        for _ in range(max(0, left)):
             credits.append({'title': None, 'description': None, 'expiresAt': int(ends) if ends else None})
     return {'available': len(credits), 'credits': credits} if credits else None
 
 
-def usage(home, now, opener=None):
+def usage(home, now, opener=None, version=None):
     """(details, error): live Claude usage for this home, or (None, error) when it cannot be read.
 
     error is None, or {'kind': 'auth'|'scope'|'network'|'expired'}. Without a sign-in both are None.
@@ -145,12 +152,12 @@ def usage(home, now, opener=None):
         return None, None
     state = session(home, now)
     if state and state['expired']:
-        return None, {'kind': 'expired', 'command': 'claude'}
+        return None, (None if state['renewable'] else {'kind': 'expired', 'command': 'claude'})
     scopes = oauth.get('scopes')
     if isinstance(scopes, list) and SCOPE not in scopes:
         return None, {'kind': 'scope', 'command': 'claude /login'}
     headers = {'Authorization': 'Bearer ' + str(oauth['accessToken']), 'anthropic-beta': BETA,
-               'User-Agent': _user_agent(), 'Content-Type': 'application/json'}
+               'User-Agent': _user_agent(version), 'Content-Type': 'application/json'}
     status, body = credentials.get_json(URL + '?cedar_ember=1', headers, frozenset({HOST}), opener=opener)
     if status in (400, 403) and 'user:profile' not in str(body):
         # Only the optional reset inventory was refused; ask again without it.

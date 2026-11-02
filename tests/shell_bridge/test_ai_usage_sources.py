@@ -226,14 +226,15 @@ class ClaudeApiTests(BackendHome):
     def test_http_errors_fall_back(self):
         self.credentials()
         self.statusline(session=31)
-        cases = {401: 'auth', 403: 'scope', 0: 'network'}
+        # With the status line still reading the account, only a refused sign-in (401) is an error.
+        cases = {401: 'auth', 403: None, 0: None}
         for status, kind in cases.items():
             # Each case starts without the backoff the previous refusal left.
             (self.home / 'cache/wysun/ai-usage/claude-api.json').unlink(missing_ok=True)
             opener = Opener(error=OSError('down')) if status == 0 else Opener(
                 {'https://api.anthropic.com/': (status, {'error': {'message': 'missing scope user:profile'}})})
             claude = self.claude(self.collect(opener))
-            self.assertEqual(claude['error']['kind'], kind, status)
+            self.assertEqual((claude['error'] or {}).get('kind'), kind, status)
             self.assertEqual(claude['source'], 'statusline')
             self.assertEqual(claude['limits'][0]['usedPercent'], 31)
 
@@ -283,6 +284,61 @@ class ClaudeApiTests(BackendHome):
         self.assertEqual(result['updatedAt'], self.now)
         self.backend.collect(now=self.now + 600, live=True, opener=limited)
         self.assertEqual(len(api_calls(limited)), 1)
+
+    def test_expired_token_that_renews_itself_is_quiet(self):
+        self.credentials(expires_in=-60)
+        self.statusline(session=31)
+        claude = self.claude(self.collect(Opener({'https://api.anthropic.com/': (200, self.usage_body())})))
+        self.assertIsNone(claude['error'])
+        self.assertTrue(claude['session']['renewable'])
+
+    def test_expired_token_without_refresh_is_reported(self):
+        (self.home / '.claude/.credentials.json').write_text(json.dumps({'claudeAiOauth': {
+            'accessToken': SENTINEL, 'expiresAt': int((self.now - 60) * 1000), 'scopes': ['user:profile']}}))
+        claude = self.claude(self.collect(Opener()))
+        self.assertEqual(claude['error']['kind'], 'expired')
+        self.assertFalse(claude['session']['renewable'])
+
+    def test_statusline_fallback_is_not_an_error(self):
+        self.credentials(scopes=('user:inference',))
+        self.statusline(session=31)
+        self.assertIsNone(self.claude(self.collect(Opener()))['error'])
+        (self.home / 'cache/wysun/ai-usage/claude-api.json').unlink(missing_ok=True)
+        self.credentials()
+        claude = self.claude(self.collect(Opener({'https://api.anthropic.com/': (401, {})})))
+        self.assertEqual(claude['error']['kind'], 'auth')
+
+    def test_two_claude_accounts_keep_their_own_backoff(self):
+        import threading
+        self.credentials()
+        second = self.home / '.claude-2'
+        second.mkdir()
+        (second / '.credentials.json').write_text((self.home / '.claude/.credentials.json').read_text())
+        (self.home / 'config/wysun').mkdir(parents=True, exist_ok=True)
+        (self.home / 'config/wysun/ai-accounts.json').write_text(json.dumps({'accounts': [{'provider': 'claude', 'home': str(second)}]}))
+        gate = threading.Barrier(2, timeout=5)
+
+        class Slow(Opener):
+            def __call__(self, request, timeout):
+                if 'api.anthropic.com' in request.full_url:
+                    try:
+                        gate.wait()
+                    except threading.BrokenBarrierError:
+                        pass
+                return super().__call__(request, timeout)
+
+        self.collect(Slow({'https://api.anthropic.com/': (200, self.usage_body())}))
+        cache = json.loads((self.home / 'cache/wysun/ai-usage/claude-api.json').read_text())
+        self.assertEqual(len([a for a in self.collect(Opener())['accounts'] if a['provider'] == 'claude']), 2)
+        self.assertEqual(len(cache), 2)
+
+    def test_a_malformed_answer_does_not_stop_the_others(self):
+        self.credentials()
+        body = self.usage_body()
+        body['cedar_ember'] = {'grants': [{'resets_left': 'many'}]}
+        result = self.collect(Opener({'https://api.anthropic.com/': (200, body)}))
+        self.assertIn('codex', [a['provider'] for a in result['accounts']])
+        self.assertIsNotNone(self.claude(result))
 
     def test_http_status_is_kept_for_diagnosis(self):
         self.credentials()
@@ -380,7 +436,8 @@ class OpenCodeTests(BackendHome):
         self.assertAlmostEqual(limits['session']['resetsAt'], self.now + 3600, delta=2)
         self.assertEqual(limits['monthly']['windowMinutes'], 43200)
         self.assertEqual(account['source'], 'opencode-api')
-        self.assertEqual(opener.calls[0]['headers'].get('Authorization'), 'Bearer ' + SENTINEL)
+        call = next(c for c in opener.calls if c['url'].startswith('https://opencode.ai/'))
+        self.assertEqual(call['headers'].get('Authorization'), 'Bearer ' + SENTINEL)
 
     def test_expired_oauth_login_is_not_used(self):
         self.credential(integration='opencode', kind='oauth', expires_in=-10)

@@ -25,7 +25,8 @@ Singleton {
     readonly property bool loading: loader.running
 
     readonly property var defaults: ({
-            showUsed: true,
+            // Bars and percentages show what is left: an empty bar means nothing left.
+            showUsed: false,
             absoluteResets: false,
             paceGuide: true,
             workDays: "auto",
@@ -323,6 +324,13 @@ Singleton {
             ready = true;
         }
         onLoadFailed: ready = true
+    }
+
+    // A backend stuck on the network is stopped, so the panel never waits on it for long.
+    Timer {
+        interval: Tokens.sizes.aiUsage.refreshInterval / 4
+        running: loader.running
+        onTriggered: loader.running = false
     }
 
     // Opening the panel always refreshes, also in manual mode.

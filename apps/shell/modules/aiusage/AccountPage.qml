@@ -68,7 +68,7 @@ ColumnLayout {
     }
 
     Banner {
-        visible: !!root.account.session && (root.account.session.expired || root.account.session.expiresAt - root.now / 1000 < 86400)
+        visible: !!root.account.session && !root.account.session.renewable && (root.account.session.expired || (!!root.account.session.expiresAt && root.account.session.expiresAt - root.now / 1000 < 86400))
         icon: "key"
         tone: Colours.palette.m3tertiary
         title: root.account.session?.expired ? Tr.tr("The sign-in has expired") : Tr.tr("The sign-in expires %1").arg(Qt.formatDateTime(new Date((root.account.session?.expiresAt ?? 0) * 1000), "ddd hh:mm"))

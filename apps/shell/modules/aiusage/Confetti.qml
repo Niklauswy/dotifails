@@ -63,7 +63,8 @@ Scope {
 
                     anchors.fill: parent
 
-                    Component.onCompleted: {
+                    // Seeded on the first frame with a size: a layer window has none when it is created.
+                    function seed(): void {
                         const out = [];
                         const size = Tokens.spacing.small;
                         for (let i = 0; i < 180; i++)
@@ -80,6 +81,8 @@ Scope {
                     }
 
                     onPaint: {
+                        if (pieces.length === 0 && width > 0 && height > 0)
+                            seed();
                         const ctx = getContext("2d");
                         ctx.reset();
                         for (const p of pieces) {

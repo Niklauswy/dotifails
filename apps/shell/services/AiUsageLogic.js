@@ -154,7 +154,8 @@ function alerts(previous, next, settings, seen, now, threshold) {
             }
         }
         const session = account.session;
-        if (session && (session.expired || (session.expiresAt && session.expiresAt - now <= 86400))) {
+        // A sign-in its CLI renews by itself (refresh token) is never worth a notice.
+        if (session && !session.renewable && (session.expired || (session.expiresAt && session.expiresAt - now <= 86400))) {
             const key = `${account.id}:session:${session.expiresAt || "expired"}`;
             if (!state[key]) {
                 state[key] = "expiry";

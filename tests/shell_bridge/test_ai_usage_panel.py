@@ -19,6 +19,17 @@ class ServiceTests(unittest.TestCase):
         self.assertIn('Logic.indicatorTarget(visibleAccounts', text)
         self.assertIn('Logic.visibleAccounts(list.accounts', text)
 
+    def test_bars_show_what_is_left_by_default(self):
+        self.assertIn('showUsed: false', SERVICE.read_text())
+
+    def test_confetti_waits_for_a_size(self):
+        text = qml('Confetti.qml')
+        self.assertNotIn('Component.onCompleted', text)
+        self.assertIn('pieces.length === 0', text)
+
+    def test_backend_is_killed_when_it_hangs(self):
+        self.assertIn('loader.running = false', SERVICE.read_text())
+
     def test_settings_live_in_their_own_file(self):
         self.assertIn('`${Paths.config}/ai-usage.json`', SERVICE.read_text())
 
