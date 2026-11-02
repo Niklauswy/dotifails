@@ -113,6 +113,26 @@ def set_shell_pref(key, value):
         raise ValueError('Preferencia desconocida: ' + str(key))
 
 
+def open_in_player(video):
+    """Open a finished recording in Wysun Player (xdg-open when the launcher is missing); False when neither starts.
+
+    The release never imports Wysun's app code: it calls the ``wysun`` launcher, which knows where the player is."""
+    import shutil
+    import subprocess
+    launcher = shutil.which('wysun')
+    if not launcher and (Path.home() / '.local/bin/wysun').is_file():
+        launcher = str(Path.home() / '.local/bin/wysun')
+    commands = ([[launcher, 'player', '--', str(video)]] if launcher else []) + [['xdg-open', str(video)]]
+    for command in commands:
+        try:
+            subprocess.Popen(command, start_new_session=True, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                             stderr=subprocess.DEVNULL)
+            return True
+        except OSError:
+            continue
+    return False
+
+
 def notify_when_ready(project_dir, timeout=1800):
     """Wait for the MP4 and tell the user where it is (detached, no GUI)."""
     import subprocess
@@ -123,9 +143,8 @@ def notify_when_ready(project_dir, timeout=1800):
         state = status(project_dir)
         if state['state'] == 'ready':
             subprocess.run(['notify-send', '-a', 'Wysun', '-i', 'video-x-generic', 'Grabación guardada', str(state['output'])], check=False)
-            # The recording is what the person wants to see next: open Wysun Recorder on it.
-            subprocess.Popen([sys.executable, '-P', '-m', 'wysun_recorder', '--show', str(state['output'])], start_new_session=True,
-                             stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=dict(os.environ, PYTHONPATH=str(Path(__file__).resolve().parent.parent)))
+            # The recording is what the person wants to see next: open it in Wysun Player.
+            open_in_player(state['output'])
             return state['output']
         if state['state'] == 'error':
             subprocess.run(['notify-send', '-a', 'Wysun', '-u', 'critical', 'No se pudo preparar el MP4', str(state.get('error') or '')], check=False)
