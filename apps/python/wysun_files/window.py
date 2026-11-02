@@ -5,6 +5,7 @@ from pathlib import Path
 import shutil
 import subprocess
 
+from wysun_core import icons  # noqa: F401,E402  (Lucide fallback for symbols the font lacks)
 from PySide6.QtCore import QEasingCurve, QEvent, QMimeData, QSettings, Qt, QThread, QTimer, QUrl, QVariantAnimation, Signal
 from PySide6.QtGui import QActionGroup, QDesktopServices, QKeySequence, QShortcut
 from PySide6.QtWidgets import QApplication, QHBoxLayout, QMainWindow, QVBoxLayout, QWidget

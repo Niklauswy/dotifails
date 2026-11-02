@@ -122,7 +122,7 @@ Item {
         Drag.dragType: Drag.Automatic
         Drag.supportedActions: Qt.CopyAction
         Drag.mimeData: ({
-                "text/uri-list": fileOps.uris(root.view && root.selected ? root.view.model.selectedPaths : [root.model.path]).join("\r\n")
+                "text/uri-list": root.view && !root.view.chooser ? fileOps.uris(root.selected ? root.view.model.selectedPaths : [root.model.path]).join("\r\n") : ""
             })
         Drag.active: layer.mouseArea.drag.active
     }

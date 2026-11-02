@@ -17,6 +17,7 @@ Window {
     readonly property var dialogs: filesDialogs
     readonly property var menus: filesMenus
     property bool closeWhenIdle
+    property string pendingProperties          // FileManager1.ShowItemProperties: shown once the folder is listed
     property bool expanded
     readonly property int mediaState: mediaPlayer.playbackState      // 0 stopped, 1 playing, 2 paused
     readonly property bool inspectorShown: files.inspector && width >= FilesMetrics.inspectorFrom && model !== null && model.selectionCount > 0 && !expanded
@@ -513,6 +514,12 @@ Window {
         Connections {
             target: window.model
 
+            function onLoaded(path) {
+                if (window.pendingProperties !== "") {
+                    window.dialogs.properties(window.pendingProperties);
+                    window.pendingProperties = "";
+                }
+            }
             function onSelectionChanged() {
                 if (window.previewing)
                     window.updatePreview();

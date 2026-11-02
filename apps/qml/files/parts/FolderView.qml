@@ -11,6 +11,7 @@ FocusScope {
     readonly property var model: tab ? tab.model : null
     property string mode: "grid"            // grid | list
     property bool chooser                   // the file chooser: no destructive keys
+    property bool multiSelect: true         // false: one file at a time (a chooser without `multiple`)
     property bool entering
     readonly property Item view: mode === "list" ? listLoader.item : gridLoader.item
     readonly property alias filters: headerFilters
@@ -49,10 +50,12 @@ FocusScope {
         view.forceActiveFocus(Qt.MouseFocusReason);
         if (button === Qt.MiddleButton) {
             const row = model.get(index);
-            if (row.isDir)
+            if (row.isDir && !root.chooser)
                 files.newTab(row.path);
             return;
         }
+        if (!root.multiSelect)
+            modifiers = Qt.NoModifier;
         if (button === Qt.RightButton) {
             if (!model.get(index).selected)
                 model.select(index, "single");
@@ -106,6 +109,8 @@ FocusScope {
 
     // Arrow keys move the current file and select it (Shift extends, Ctrl only moves).
     function move(step, modifiers) {
+        if (!root.multiSelect)
+            modifiers = modifiers & ~Qt.ShiftModifier;
         const count = model.count;
         if (count === 0)
             return;
@@ -188,7 +193,8 @@ FocusScope {
             return true;
         case Qt.Key_A:
             if (mods === Qt.ControlModifier) {
-                model.selectAll();
+                if (root.multiSelect)
+                    model.selectAll();
                 return true;
             }
             break;
@@ -415,7 +421,7 @@ FocusScope {
                 band.before = mouse.modifiers & Qt.ControlModifier ? root.model.selectedPaths : [];
             }
             onPositionChanged: mouse => {
-                if (!band.active)
+                if (!band.active || !root.multiSelect)
                     return;
                 band.dragged = true;
                 const left = Math.min(band.origin.x, mouse.x), right = Math.max(band.origin.x, mouse.x);
