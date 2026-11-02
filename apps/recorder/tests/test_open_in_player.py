@@ -48,6 +48,15 @@ class OpenInPlayerTests(unittest.TestCase):
         self.assertTrue(headless.open_in_player(self.video))
         self.assertEqual(wait_for(self.record), ['player', '--', str(self.video)])
 
+    def test_the_player_does_not_inherit_the_releases_code_or_qml(self):
+        """The Recorder's launcher points PYTHONPATH and WYSUN_QML_LIB at its own release: the Player must not see them."""
+        path = Path(self.bin) / 'wysun'
+        path.write_text(f'#!/bin/sh\nprintf "%s\\n" "${{WYSUN_QML_LIB-unset}}|${{PYTHONPATH-unset}}" > "{self.record}"\n')
+        path.chmod(0o755)
+        with mock.patch.dict(os.environ, {'WYSUN_QML_LIB': '/release/qml', 'PYTHONPATH': '/release'}):
+            self.assertTrue(headless.open_in_player(self.video))
+        self.assertEqual(wait_for(self.record), ['unset|unset'])
+
     def test_falls_back_to_xdg_open_when_wysun_is_missing(self):
         fake(self.bin, 'xdg-open', self.record)
         self.assertTrue(headless.open_in_player(self.video))

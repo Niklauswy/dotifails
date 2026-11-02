@@ -120,10 +120,13 @@ def open_in_player(video):
     if not launcher and (Path.home() / '.local/bin/wysun').is_file():
         launcher = str(Path.home() / '.local/bin/wysun')
     commands = ([[launcher, 'player', '--', str(video)]] if launcher else []) + [['xdg-open', str(video)]]
+    # This process runs on a release: its launcher points PYTHONPATH and WYSUN_QML_LIB at that release, which would
+    # make the Player look for its code and its QML there.
+    env = {key: value for key, value in os.environ.items() if key not in ('PYTHONPATH', 'WYSUN_QML_LIB')}
     for command in commands:
         try:
             subprocess.Popen(command, start_new_session=True, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-                             stderr=subprocess.DEVNULL)
+                             stderr=subprocess.DEVNULL, env=env)
             return True
         except OSError:
             continue
