@@ -41,11 +41,12 @@ def configure(deployment):
         shutil.rmtree(runtime)   # a full installation publishes the family twice (wayland, then desktop)
     runtime.mkdir(parents=True)
     # Copy only distributable source, never a user's libraries or recording files.
-    # wysun_media (the player) and wysun_core (paths, atomic files, single instance) are shared
-    # with Wysun: apps/recorder links to their source, and each release carries its own copy so a
-    # running Recorder never imports another version.
+    # wysun_core (paths, atomic files, single instance, tokens), wysun_qml (the QML runtime helpers) and qml/WysunM3
+    # (the component library) are shared with Wysun: apps/recorder links to their source, and each release carries its
+    # own copy so a running Recorder never imports another version. The settings window's own QML is part of
+    # wysun_recorder (ui/qml).
     import shutil
-    for package in ('wysun_recorder', 'assets', 'wysun_media', 'wysun_core'):
+    for package in ('wysun_recorder', 'assets', 'wysun_core', 'wysun_qml', 'qml'):
         shutil.copytree(source / package, runtime / package,
                         ignore=shutil.ignore_patterns('__pycache__', '*.pyc'))
     for name in ('README.md', 'UPSTREAM.md'):
@@ -63,11 +64,12 @@ def configure(deployment):
     launcher = ('#!/bin/sh\nunset __PYVENV_LAUNCHER__\n'
                 'export PYTHONDONTWRITEBYTECODE=1\n'
                 'export PYTHONPATH=' + shlex.quote(str(root)) + '\n'
+                'export WYSUN_QML_LIB=' + shlex.quote(str(root / 'qml')) + '\n'
                 'exec /usr/bin/python3 -P -m wysun_recorder "$@"\n')
     if _publish(deployment, launcher, '.local/bin/wysun-recorder', executable=True):
         title = 'Wysun Recorder'
         desktop = ('[Desktop Entry]\nType=Application\nName=' + title + '\nName[es]=' + title +
-                   '\nComment=Graba y edita videos localmente\nExec=wysun recorder' +
+                   '\nComment=Ajustes de grabación de Wysun\nExec=wysun recorder' +
                    '\nIcon=wysun-recorder\nTerminal=false\nCategories=AudioVideo;Recorder;' +
                    '\nKeywords=Wysun;Recorder;\nStartupWMClass=wysun-recorder\n')
         _publish(deployment, desktop, '.local/share/applications/wysun-recorder.desktop')

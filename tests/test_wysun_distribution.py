@@ -4,6 +4,7 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -11,6 +12,8 @@ import unittest
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / 'tests'))
+from qml import support as qml_support  # noqa: E402  (venv_python only; no Qt here)
 spec = importlib.util.spec_from_file_location('wysun_installer', ROOT / 'installer/main.py')
 installer = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(installer)
@@ -74,23 +77,72 @@ class WysunDistributionTests(unittest.TestCase):
         self.assertFalse(deployment.conflicts)
         self.assertEqual(len(list((self.home / '.local/share/wysun/capture/releases').iterdir())), 1)
 
-    def test_each_release_carries_its_own_player_and_runs_without_the_repository(self):
+    def release(self):
         deployment = self.deploy()
         deployment.configure_wysun()
         deployment.finish()
         deployment.lock.close()
-        releases = self.home / '.local/share/wysun/capture/releases'
-        release = next(releases.iterdir())
-        self.assertTrue((release / 'wysun_media/__init__.py').is_file())
-        self.assertFalse((release / 'wysun_media').is_symlink(), 'a release holds a copy, not a link back to the repository')
-        env = dict(os.environ, PYTHONPATH=str(release), HOME=str(self.home), QT_QPA_PLATFORM='offscreen')
-        for variable in ('WAYLAND_DISPLAY', 'DISPLAY'):
+        return next((self.home / '.local/share/wysun/capture/releases').iterdir())
+
+    def clean_env(self, release=None, **extra):
+        env = dict(os.environ, HOME=str(self.home), QT_QPA_PLATFORM='offscreen', XDG_DATA_HOME=str(self.home / '.local/share'),
+                   XDG_CONFIG_HOME=str(self.home / '.config'), XDG_STATE_HOME=str(self.home / '.local/state'))
+        if release:
+            env['PYTHONPATH'] = str(release)
+        for variable in ('WAYLAND_DISPLAY', 'DISPLAY', 'WYSUN_QML_LIB'):
             env.pop(variable, None)
-        code = ('import wysun_media, wysun_recorder.headless as headless; print(wysun_media.__file__); print(headless.__file__)')
-        done = subprocess.run([sys.executable, '-P', '-c', code], cwd='/', env=env, capture_output=True, text=True, timeout=60)
-        self.assertEqual(done.returncode, 0, done.stderr)
-        for line in done.stdout.split():
+        env.update(extra)
+        return env
+
+    def test_release_carries_the_qml_window_and_not_the_media_engine(self):
+        release = self.release()
+        for name in ('wysun_qml/bootstrap.py', 'qml/WysunM3/qmldir', 'wysun_recorder/ui/qml/Main.qml', 'wysun_core/tokens.json'):
+            self.assertTrue((release / name).is_file(), name)
+        self.assertFalse((release / 'wysun_media').exists(), 'the Recorder no longer plays: the engine is not part of it')
+        for name in ('wysun_qml', 'qml/WysunM3', 'wysun_core'):
+            self.assertFalse((release / name).is_symlink(), f'{name}: a release holds a copy, not a link back to the repository')
+        launcher = (self.home / '.local/bin/wysun-recorder').read_text()
+        self.assertIn('export WYSUN_QML_LIB=' + shlex.quote(str(release / 'qml')), launcher)
+        desktop = (self.home / '.local/share/applications/wysun-recorder.desktop').read_text()
+        self.assertIn('Comment=Ajustes de grabación de Wysun', desktop)
+
+    @staticmethod
+    def shell_runtime():
+        """The installed shell runtime (private Qt) of the person running the tests, if any."""
+        data = Path(os.environ.get('XDG_DATA_HOME') or Path.home() / '.local/share')
+        runtime = Path(os.environ.get('WYSUN_RUNTIME') or data / 'wysun/runtime')
+        return runtime if (runtime / 'RUNTIME.json').exists() else None
+
+    @unittest.skipUnless(qml_support.venv_python() and shell_runtime.__func__(), 'needs the qml-runtime venv and the shell runtime')
+    def test_the_release_window_loads_its_own_code_only(self):
+        release = self.release()
+        code = ('import sys\nfrom wysun_qml import bootstrap\nbootstrap.require_qt()\nbootstrap.configure_qt()\n'
+                'from wysun_recorder.ui.window import RecorderSettingsWindow\n'
+                'window = RecorderSettingsWindow()\nprint(window.window.objectName())\n'
+                'own = ("wysun_core", "wysun_qml", "wysun_recorder", "wysun_media", "wysun_files", "wysun_player")\n'
+                'print("\\n".join(sorted({m.__file__ for n, m in list(sys.modules.items()) '
+                'if n.split(".")[0] in own and getattr(m, "__file__", None)})))')
+        env = self.clean_env(release, WYSUN_QML_LIB=str(release / 'qml'), WYSUN_RUNTIME=str(self.shell_runtime()),
+                             WYSUN_QML_RUNTIME=str(qml_support.venv_python().parent.parent))
+        done = subprocess.run([str(qml_support.venv_python()), '-P', '-c', code], cwd='/', env=env, capture_output=True,
+                              text=True, timeout=120)
+        self.assertEqual(done.returncode, 0, done.stderr[-1500:])
+        lines = done.stdout.split()
+        self.assertEqual(lines[0], 'recorderWindow')
+        self.assertGreater(len(lines), 3)
+        for line in lines[1:]:
             self.assertTrue(line.startswith(str(release)), line)
+
+    def test_without_the_qml_runtime_only_the_window_fails(self):
+        self.release()
+        launcher = str(self.home / '.local/bin/wysun-recorder')
+        env = self.clean_env(WYSUN_QML_RUNTIME='/nonexistent')
+        prefs = subprocess.run([launcher, '--prefs'], cwd='/', env=env, capture_output=True, text=True, timeout=60)
+        self.assertEqual(prefs.returncode, 0, prefs.stderr)
+        self.assertIn('record_mic', json.loads(prefs.stdout))
+        window = subprocess.run([launcher], cwd='/', env=env, capture_output=True, text=True, timeout=60)
+        self.assertEqual(window.returncode, 2, window.stderr)
+        self.assertIn('runtime QML', window.stderr)
 
     def test_a_player_change_makes_a_new_release_and_keeps_the_old_one(self):
         import shutil
@@ -104,7 +156,7 @@ class WysunDistributionTests(unittest.TestCase):
         shutil.copytree(ROOT / 'apps/recorder', source / 'apps/recorder', ignore=shutil.ignore_patterns('__pycache__', '*.pyc'))
         (source / 'bin').mkdir()
         shutil.copy2(ROOT / 'bin/wysun', source / 'bin/wysun')
-        engine = source / 'apps/recorder/wysun_media/session.py'
+        engine = source / 'apps/recorder/wysun_qml/bootstrap.py'
         engine.write_text(engine.read_text() + '\n# synthetic engine change\n')
         update = installer.Deployment(self.home, source)
         update.begin()
@@ -112,7 +164,7 @@ class WysunDistributionTests(unittest.TestCase):
         update.configure_wysun()
         update.finish()
         self.assertEqual(len(list(releases.iterdir())), 2, 'the shared package is part of the release hash')
-        self.assertNotIn('synthetic engine change', (old / 'wysun_media/session.py').read_text())
+        self.assertNotIn('synthetic engine change', (old / 'wysun_qml/bootstrap.py').read_text())
 
     def test_update_retires_old_launchers_it_wrote_and_keeps_private_roots(self):
         private = ('.local/share/wysun/recorder/recordings/old/project.json',

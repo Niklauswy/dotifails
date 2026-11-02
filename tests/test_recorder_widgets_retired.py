@@ -11,7 +11,7 @@ RETIRED_FILES = [
       ('app_window', 'app_library', 'app_pages', 'app_kit', 'media_host', 'tokens', 'material', 'icons', 'motion')),
     *(f'apps/python/wysun_media/{name}.py' for name in
       ('player', 'controls', 'bar', 'menus', 'audio', 'image', 'video', 'shape', 'symbols', 'host')),
-    'apps/recorder/tests/test_player_component.py',
+    'apps/recorder/wysun_media', 'apps/recorder/tests/test_player_component.py',
     'tests/media_host.py', 'tests/wayland_media_case.py', 'tests/media_benchmark.py', 'tests/test_media_integration.py',
     *(f'tests/test_media_{name}.py' for name in ('player', 'controls', 'image', 'shape')),
 ]

@@ -39,7 +39,7 @@ Uso: wysun [ORDEN] [opciones]
   settings [PÁGINA]      Ajustes en el shell
   music | music-mini     Wysun Music (music-mini: en el widget de media)
   files | player         Files y Wysun Player ([--paused] [--fullscreen] [--start S] [--] ARCHIVO...)
-  recorder               biblioteca del Recorder (--quick-record: barra de grabación)
+  recorder               ajustes del Recorder (--quick-record: barra de grabación)
   scheme | wallpaper     esquema de color y fondo
   lanshare [RUTA…]       comparte con la red local (--subidas, --clave, --inactivo 2h; --help)
   daemon | reload        residente del portapapeles; reload lo reinicia con el código nuevo
