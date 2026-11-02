@@ -33,8 +33,9 @@ def recording_video(path):
 
 def preferences_path():return paths.config('wysun', 'recorder', 'preferences.json')
 def preferences():
-    try:return json.loads(preferences_path().read_text())
+    try:data=json.loads(preferences_path().read_text())
     except (OSError,ValueError):return {}
+    return data if isinstance(data,dict) else {}
 def save_preferences(**values):
     current=preferences();current.update(values);atomic_write_json(preferences_path(),current)
 def videos_root():return Path(preferences().get('videos_folder',str(Path.home()/'Videos'))).expanduser()

@@ -33,6 +33,10 @@ class VideoLibraryTests(unittest.TestCase):
   save_preferences(previous_video_folders=[str(self.videos)])
   other=VideoLibrary(self.base/'New',self.legacy)
   self.assertIn(self.source,[e.path for e in other.entries()]);other.rename(self.source,'Retained');self.assertIn('Retained',[e.title for e in other.entries()])
+ def test_preferences_ignore_a_file_that_is_not_an_object(self):
+  from wysun_recorder.videolibrary import preferences,preferences_path
+  preferences_path().parent.mkdir(parents=True,exist_ok=True);preferences_path().write_text('[]')
+  self.assertEqual(preferences(),{});save_preferences(fps=24);self.assertEqual(preferences(),{'fps':24})
  def test_cancelled_probe_starts_no_process(self):
   from wysun_recorder.videolibrary import media_command
   event=threading.Event();event.set()
