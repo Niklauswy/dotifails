@@ -56,6 +56,10 @@ class RequestServer(QObject):
         payload['files'] = [str(f) for f in payload.get('files', [])]
         return payload
 
+    def close(self):
+        self.notifier.close()
+        self.owner.close()
+
 
 class PlayerWindow(QObject):
     """One window: Main.qml with its PlayerController."""
@@ -202,8 +206,7 @@ class Process(QObject):
             self._quit()
 
     def shutdown(self):
-        self.requests.notifier.close()
-        self.requests.owner.close()
+        self.requests.close()
         for window in list(self.windows):
             window.shutdown()
 

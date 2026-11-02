@@ -1,7 +1,7 @@
 # Base QML compartida (WysunM3)
 
 `apps/qml/WysunM3` es la biblioteca de componentes Material 3 Expressive sobre la que se escriben las apps QML de
-Wysun (Music y Files primero; después Player, Recorder e instalador). Este documento explica qué ofrece, cuándo
+Wysun (Music, Files y Player; después el Recorder; el instalador se queda en Widgets). Este documento explica qué ofrece, cuándo
 usar cada pieza y cómo ampliarla. Diseño de origen: `docs/superpowers/specs/2026-10-26-wysun-qml-music-files-design.md`.
 
 ## Qué es y qué no es

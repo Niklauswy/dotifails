@@ -262,11 +262,10 @@ dueño del wallpaper: Python guarda preferencias y solicita `wysun shell
 reload-preferences`. Color es un panel del shell y muestrea con `hyprpicker`. El bloqueo y la
 suspensión llaman a wysun-lock, que espera la adquisición del bloqueo.
 
-Files y Recorder embeben el componente `wysun_media` (libmpv con render OpenGL y
-decodificación por hardware cuando `python3-pyside6.qtopenglwidgets` está instalado, o render
-por software); Music conserva su motor mpv de audio y persistencia. Los medios se abren en
-Wysun Player (`wysun player`). Las pruebas offscreen usan el render por software: la ruta
-OpenGL se valida con `tests/wayland_media_case.py` sobre el compositor real.
+Los medios se abren en Wysun Player (`wysun player`, QML sobre el motor `wysun_media`: libmpv con
+render OpenGL dentro de la escena, o por software). Recorder embebe el reproductor de Widgets de
+`wysun_media` hasta su migración; Music conserva su motor mpv de audio y persistencia. Las pruebas
+offscreen usan el render por software; la ruta OpenGL se valida en la sesión real.
 
 La barra se configura mediante `${XDG_CONFIG_HOME:-$HOME/.config}/wysun/shell/shell.json`
 (Ajustes › Barra); Quickshell la observa y Python solicita `wysun shell reload-preferences`.

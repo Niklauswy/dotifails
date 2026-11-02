@@ -137,12 +137,40 @@ def blend(over_hex, base_hex, alpha):
     return '#%02x%02x%02x' % tuple(round(a * alpha + c * (1 - alpha)) for a, c in zip(o, b))
 
 
+_bus = None
+
+
+def private_session_bus():
+    """A throw-away D-Bus session daemon for this test process, before anything connects (libdbus reads the address
+    once): player windows publish MPRIS and pause Music, and tests must never reach the user's real session."""
+    global _bus
+    if _bus is not None:
+        return _bus
+    import atexit
+    try:
+        _bus = subprocess.Popen(['dbus-daemon', '--session', '--nofork', '--print-address=1'], stdout=subprocess.PIPE,
+                                stderr=subprocess.DEVNULL, text=True)
+        os.environ['DBUS_SESSION_BUS_ADDRESS'] = _bus.stdout.readline().strip()
+
+        def stop():
+            if _bus.poll() is None:
+                _bus.terminate()
+                _bus.wait(timeout=5)
+            _bus.stdout.close()
+        atexit.register(stop)
+    except OSError:
+        _bus = False
+        os.environ['DBUS_SESSION_BUS_ADDRESS'] = 'unix:path=/nonexistent/wysun-test-bus'
+    return _bus
+
+
 class Harness:
     """One QGuiApplication + engine per process; renders QML snippets offscreen under a real ThemeBridge."""
 
     _instance = None
 
     def __init__(self):
+        private_session_bus()
         _paths()
         os.environ.pop('WYSUN_THEME', None)
         from wysun_qml import engine, theme_bridge

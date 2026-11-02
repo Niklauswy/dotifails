@@ -41,22 +41,22 @@ except OSError:
     os.environ['DBUS_SESSION_BUS_ADDRESS'] = 'unix:path=/nonexistent/wysun-test-bus'
 
 from PySide6.QtCore import QCoreApplication, QEvent  # noqa: E402
-from PySide6.QtWidgets import QApplication  # noqa: E402
+import media_host  # noqa: E402
 
 _app = None
 _fixtures = None
 
 
 def app():
-    """One QApplication per process, with the Wysun theme palette and the player host installed."""
+    """One QApplication per process, with the Wysun theme palette and the media host installed."""
     global _app
     if _app is None:
+        from PySide6.QtWidgets import QApplication
         _app = QApplication.instance() or QApplication(sys.argv[:1])
         _app.setStyle('Fusion')
-        from wysun_player import host as media_host
         from wysun_core import qt_theme
         qt_theme.apply_palette(_app)
-        media_host.install()
+        media_host.install_host()
     return _app
 
 

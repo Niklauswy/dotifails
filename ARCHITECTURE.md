@@ -150,13 +150,12 @@ y el residente (`daemon`). Las preferencias de usuario viven en `~/.config/wysun
 
 ### Wysun Player y `wysun_media` (`apps/python/wysun_media`, `wysun_player`)
 
-Visor único de imágenes, video y audio (`wysun player`) y el componente reutilizable que lo implementa
-(`MediaPlayer`). Un proceso por usuario atiende todas las ventanas mientras haya alguna (socket en `$XDG_RUNTIME_DIR`); Files
-abre ahí cualquier medio y embebe el mismo componente en su panel de detalles; Recorder lo embebe en su página de reproducción.
-El paquete no importa ningún módulo del anfitrión: cada app instala un `Host` con su tema (`wysun_player.host` en Wysun,
-`wysun_recorder/ui/media_host.py` en Recorder). Reproduce con libmpv (OpenGL y decodificación por hardware con copia de vuelta;
-respaldo por software), decodifica imágenes con `QImageReader` en segundo plano y publica MPRIS. Detalle, atajos, decisiones y
-diagnóstico: `docs/player.md`. `apps/recorder/wysun_media` es un enlace al mismo código y cada release de Recorder lleva su copia.
+Visor único de imágenes, video y audio (`wysun player`), una app QML (`apps/qml/player`, `wysun_player/quick`) sobre el motor
+común `wysun_media` (libmpv, sesión, colección, posiciones, MPRIS). Un proceso por usuario atiende todas las ventanas mientras haya
+alguna (socket en `$XDG_RUNTIME_DIR`); Files abre ahí cualquier medio. El video se dibuja con el render API OpenGL de libmpv dentro de
+la escena QML (bucle de render básico; respaldo por software). Recorder sigue embebiendo el reproductor de Widgets de `wysun_media`
+(con un `Host` de su tema, `wysun_recorder/ui/media_host.py`) hasta su migración. Detalle, atajos, decisiones y diagnóstico:
+`docs/player.md`. `apps/recorder/wysun_media` es un enlace al mismo código y cada release de Recorder lleva su copia.
 
 ### Captura (`apps/recorder`)
 
@@ -406,7 +405,7 @@ python3 tests/check_manifest.py
 python3 apps/recorder/run_tests.py                              # captura (medios serializados)
 python3 tests/wysun_installed_smoke.py                         # sobre la instalación real
 python3 -m unittest discover -s tests -p 'test_media_*.py'     # reproductor: componente, widget, tema y MPRIS (D-Bus propio)
-python3 tests/wayland_media_case.py                            # reproductor sobre el compositor real (OpenGL, fugas)
+python3 tests/wayland_media_case.py                            # reproductor de Widgets del Recorder sobre el compositor real
 python3 -m unittest tests.test_qml_runtime -v                  # venv qml-runtime + suites QML (tests/qml) con su Python
 ```
 

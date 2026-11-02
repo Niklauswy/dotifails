@@ -14,9 +14,8 @@ from unittest import mock
 import media_support as support
 
 support.app()
-from PySide6.QtWidgets import QFileDialog  # noqa: E402
 from wysun_player import client as player_client  # noqa: E402
-from wysun_player import window as player_window  # noqa: E402
+from wysun_player.quick import process as player_window  # noqa: E402
 from wysun_media import mpv  # noqa: E402
 
 APP = support.ROOT / 'apps/python'
@@ -163,112 +162,17 @@ class ServerTests(Environment):
         self.assertEqual(player_client.endpoint().read_text(), 'precious')
 
 
-class ProcessTests(Environment):
-    def process(self):
-        quits = []
-        process = player_window.Process(lambda: quits.append(1))
-        process.quits = quits
-        self.addCleanup(self.stop, process)
-        return process
-
-    def stop(self, process):
-        process.shutdown()
-        for window in list(process.windows):
-            window.close()
-        support.settle(.1)
-        mpv.wait_closed()
-
-    def test_a_request_opens_a_window_on_its_files(self):
-        process = self.process()
-        window = process.show({'files': [str(self.files / 'tone.mp3')], 'paused': True})
-        self.assertEqual(len(process.windows), 1)
-        self.assertEqual(window.player.source.name, 'tone.mp3')
-        self.assertTrue(support.pump(lambda: window.player.session.state == 'paused'))
-        self.assertEqual(window.windowTitle(), 'tone.mp3 · Wysun Player')
-
-    def test_images_still_open_when_the_native_video_library_is_missing(self):
-        with mock.patch.object(mpv, 'library', side_effect=RuntimeError('Falta libmpv2')):
-            process = self.process()
-            window = process.show({'files': [str(self.files / 'plain.png')]})
-            self.assertTrue(support.pump(lambda: window.player._images.frame is not None))
-            self.assertIsNone(window.player.session.core)
-
-    def test_one_file_browses_its_folder_and_several_keep_their_order(self):
-        process = self.process()
-        single = process.show({'files': [str(self.files / 'plain.png')]})
-        self.assertTrue(support.pump(lambda: len(single.player.collection) > 2))
-        several = process.show({'files': [str(self.files / 'plain.png'), str(self.files / 'alpha.png')]})
-        self.assertEqual([Path(p).name for p in several.player.collection.paths], ['plain.png', 'alpha.png'])
-
-    def test_each_request_gets_its_own_window_and_session(self):
-        process = self.process()
-        first = process.show({'files': [str(self.files / 'tone.mp3')], 'paused': True})
-        second = process.show({'files': [str(self.files / 'tone.flac')], 'paused': True})
-        self.assertIsNot(first.player.session, second.player.session)
-        self.assertEqual(len(process.windows), 2)
-
-    def test_start_position_and_fullscreen_requests(self):
-        process = self.process()
-        window = process.show({'files': [str(self.files / 'tone.wav')], 'paused': True, 'start': 1.5, 'fullscreen': True})
-        self.assertTrue(support.pump(lambda: window.player.session.state == 'paused' and window.player.session.duration > 0))
-        self.assertAlmostEqual(window.player.session.position, 1.5, delta=.15)
-        self.assertEqual(window.player.fullscreen, False, 'audio has no fullscreen')
-        video = process.show({'files': [str(self.files / 'h264.mp4')], 'paused': True, 'fullscreen': True})
-        self.assertTrue(video.player.fullscreen)
-
-    def test_an_unplayable_file_still_opens_a_window_that_explains_it(self):
-        process = self.process()
-        window = process.show({'files': [str(self.files / 'list.m3u')]})
-        self.assertTrue(window.player.note.isVisible())
-
-    def test_closing_the_last_window_quits_after_a_grace_period(self):
-        process = self.process()
-        process.grace.setInterval(40)
-        window = process.show({'files': [str(self.files / 'plain.png')]})
-        window.close()
-        self.assertTrue(support.pump(lambda: process.quits, 3))
-        self.assertEqual(process.quits, [1])
-
-    def test_a_request_during_the_grace_period_keeps_the_process_alive(self):
-        process = self.process()
-        process.grace.setInterval(120)
-        process.show({'files': [str(self.files / 'plain.png')]}).close()
-        support.settle(.03)
-        process.show({'files': [str(self.files / 'alpha.png')]})
-        support.settle(.4)
-        self.assertEqual(process.quits, [])
-        self.assertEqual(len(process.windows), 1)
-
-    def test_a_request_without_files_asks_which_to_open_and_cancelling_exits(self):
-        process = self.process()
-        process.grace.setInterval(40)
-        with mock.patch.object(QFileDialog, 'getOpenFileNames', return_value=([], '')):
-            self.assertIsNone(process.show({'files': []}))
-        self.assertTrue(support.pump(lambda: process.quits, 3))
-        with mock.patch.object(QFileDialog, 'getOpenFileNames', return_value=([str(self.files / 'plain.png')], '')):
-            self.assertIsNotNone(process.show({'files': []}))
-
-    def test_windows_are_bounded(self):
-        process = self.process()
-        for _ in range(player_window.WINDOW_LIMIT + 3):
-            process.show({'files': [str(self.files / 'plain.png')]})
-        self.assertEqual(len(process.windows), player_window.WINDOW_LIMIT)
-
-    def test_closing_a_window_releases_its_player(self):
-        process = self.process()
-        window = process.show({'files': [str(self.files / 'tone.mp3')]})
-        support.pump(lambda: window.player.session.state == 'playing')
-        session = window.player.session
-        window.close()
-        self.assertIsNone(session.core)
-
-
 class SingleInstanceTests(Environment):
     """Real processes: the second launch must hand over its files and exit, whatever the timing."""
 
     def env(self):
+        # The player serves from the qml-runtime venv on the shell's Qt: point the private HOME at the real ones.
+        from wysun_qml import bootstrap
+        data = Path(os.environ.get('XDG_DATA_HOME') or Path.home() / '.local/share')
         env = dict(os.environ, PYTHONPATH=str(APP), HOME=str(self.root), QT_QPA_PLATFORM='offscreen', WYSUN_REDUCED_MOTION='1',
-                   XDG_CONFIG_HOME=str(self.root / 'config'), XDG_DATA_HOME=str(self.root / 'data'), XDG_CACHE_HOME=str(self.root / 'cache'))
+                   XDG_CONFIG_HOME=str(self.root / 'config'), XDG_DATA_HOME=str(self.root / 'data'), XDG_CACHE_HOME=str(self.root / 'cache'),
+                   WYSUN_QML_RUNTIME=str(data / 'wysun/qml-runtime'), WYSUN_RUNTIME=str(bootstrap.runtime_dir()),
+                   WYSUN_QML_LIB=str(support.ROOT / 'apps/qml'), WYSUN_PLAYER_RENDERER='software')
         for variable in ('WAYLAND_DISPLAY', 'DISPLAY', 'HYPRLAND_INSTANCE_SIGNATURE'):
             env.pop(variable, None)
         return env

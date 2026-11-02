@@ -38,10 +38,10 @@ from wysun_media.video import GLVideoView, SoftwareVideoView, gl_available  # no
 app = QApplication.instance() or QApplication(sys.argv[:1])
 support._app = app
 app.setStyle('Fusion')
-from wysun_player import host as media_host  # noqa: E402
-from wysun_core import qt_theme
+from wysun_core import qt_theme  # noqa: E402
 qt_theme.apply_palette(app)
-media_host.install()
+import media_host  # noqa: E402
+media_host.install_host()
 
 
 def descriptors():

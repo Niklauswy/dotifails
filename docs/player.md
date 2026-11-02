@@ -1,13 +1,15 @@
 # Wysun Player
 
-Wysun Player es el visor de **imágenes, video y audio** de Wysun. Todo lo que abre un archivo multimedia para verlo o
-escucharlo usa Wysun Player o su componente embebido, `wysun_media`; no hay visores paralelos.
+Wysun Player es el visor de **imágenes, video y audio** de Wysun, una app QML sobre la base compartida WysunM3
+(`apps/qml/player`, `docs/qml-base.md`). Todo lo que abre un archivo multimedia para verlo o escucharlo usa Wysun Player;
+el motor (`wysun_media`: libmpv, sesión, colección, MPRIS) es común con el Recorder, que todavía embebe su reproductor de
+Widgets hasta su propia migración.
 
 | Contexto | Comportamiento |
 |---|---|
 | Files: doble clic, Enter, «Abrir» | Abre Wysun Player directamente, sin pasar por `xdg-open`. Varios medios seleccionados abren **una** ventana con la selección en orden. |
-| Files: panel de detalles | Componente embebido, en pausa (el video muestra su primer fotograma; el audio, su carátula). El botón «Abrir en Wysun Player» continúa en la misma posición. |
-| Recorder | La página de reproducción embebe el mismo componente, con las mismas funciones de transporte. |
+| Files: panel de detalles | Vista previa propia de Files (QML); «Abrir en Wysun Player» abre el archivo en el reproductor. |
+| Recorder | Su página de reproducción embebe el reproductor de Widgets de `wysun_media` (hasta la migración del Recorder). |
 | Capturas del shell | «Guardar y ver» (`V`) guarda el PNG y lo abre; solo lo abre cuando el archivo ya existe. |
 | Otras aplicaciones y `xdg-open` | La instalación completa fija Wysun Player como aplicación predeterminada de sus imágenes, video y audio (§ Instalación). |
 | Wysun Music | Sigue siendo la app de biblioteca. Un audio suelto abierto desde Files se reproduce en Wysun Player. |
@@ -42,41 +44,37 @@ dado. Imágenes se navegan entre imágenes; video y audio entre video y audio.
 | `C` · `A` | siguiente subtítulo · pista de audio | `I` | información |
 | `S` | guardar el fotograma en Imágenes | `Ctrl+C` | copiar imagen (o la ruta en video y audio) |
 | `N` `P` | siguiente · anterior archivo | `Supr` | mover a la papelera (recuperable; solo en la ventana) |
-| | | `O` / `Ctrl+O` | abrir archivos (ventana del reproductor) |
+| | | `O` / `Ctrl+O` | abrir archivos (selector de Wysun Files) |
+| | | `Ctrl+Q` / `Ctrl+W` | cerrar la ventana |
 
-Arrastrar archivos sobre la ventana los abre; un `.srt/.ass/.vtt` soltado sobre un video se carga como subtítulos. La barra de controles
-flota sobre el contenido y se oculta tras 2,5 s sin actividad mientras un video suena; reaparece al mover el ratón. Las posiciones de
+Un clic sobre el video pausa y un doble clic pasa a pantalla completa; la rueda cambia el volumen. Arrastrar archivos sobre la ventana los abre; un `.srt/.ass/.vtt` soltado sobre un video se carga como subtítulos. La barra de controles
+flota sobre el contenido y se oculta tras 2,5 s sin actividad mientras un video suena o se ve una imagen (no con un menú abierto ni con
+el puntero encima); reaparece al mover el ratón o pulsar una tecla, y el cursor se oculta con ella sobre el video. Las posiciones de
 archivos de más de 5 minutos se recuerdan (`~/.local/state/wysun/player/positions.json`, claves por hash, sin rutas).
 
 ## Arquitectura
 
 ```text
 apps/python/
-  wysun_media/                  componente reutilizable (sin dependencias de Files, Music ni Recorder)
-    host.py        Host: lo que el anfitrión presta (colores, tokens, tipografía, símbolos, movimiento reducido)
+  wysun_player/
+    app.py         línea de órdenes e instancia, sin Qt; se re-ejecuta en el venv QML solo si debe servir
+    client.py      entrega a la instancia en marcha o la inicia (biblioteca estándar)
+    quick/process.py     proceso QML: RequestServer, una ventana (Main.qml + controlador) por petición, salida tras la última
+    quick/controller.py  PlayerController: la lógica de una ventana (abrir, colección, posiciones, acciones, información)
+    quick/video.py       MpvVideo (QQuickFramebufferObject + render API OpenGL) y MpvSoftwareVideo (respaldo)
+  wysun_media/                  motor común (sin interfaz salvo el reproductor de Widgets que aún usa el Recorder)
     source.py      validación y clasificación de archivos locales; errors.py: vocabulario de errores
     mpv.py         binding ctypes mínimo de libmpv (comandos asíncronos, propiedades observadas, render GL/SW)
     session.py     MediaSession: un archivo a la vez sobre un único núcleo mpv reutilizado
-    video.py       GLVideoView (QOpenGLWidget + render API de OpenGL) y SoftwareVideoView (respaldo acotado)
-    image.py       decodificación en segundo plano, caché acotada y ImageView (zoom, paneo, giro, animación)
+    software.py    render por software de mpv en un hilo, sin toolkit
     collection.py  carpeta o lista explícita, anterior/siguiente   resume.py: posiciones recordadas
-    shape.py       escala de esquinas M3 como rutas y morph      controls.py, bar.py, menus.py: controles pintados
-    audio.py, cover.py        escenario de audio (carátula en «cookie»)   player.py: MediaPlayer, el widget que lo une todo
+    cover.py       carátula incrustada de un audio (ffmpeg en segundo plano)
     mpris.py, integration.py  MPRIS, pista de pantalla encendida y pausa de Music
-  player_app.py / player_client.py / player_window.py     línea de órdenes, cliente sin Qt y ventanas del proceso
-  media_host.py                 adaptador al tema de Wysun
+    player.py, controls.py, bar.py, menus.py, image.py, audio.py, video.py, shape.py, symbols.py, host.py
+                   reproductor de Widgets del Recorder (se retira con su migración)
+apps/qml/player/   Main.qml (ventana, atajos, menús, información, avisos), ControlBar, SeekBar, ImageStage, AudioStage,
+                   PlayerMenus; la carátula es el Cover de Music (`apps/qml/music/parts`)
 apps/recorder/wysun_media        enlace al mismo paquete (desarrollo); cada release de Recorder lleva su copia
-apps/recorder/wysun_recorder/ui/media_host.py    adaptador al tema de Recorder
-```
-
-Uso desde cualquier anfitrión:
-
-```python
-import media_host; media_host.install()                      # o wysun_recorder.ui.media_host en Recorder
-from wysun_media.player import MediaPlayer
-player = MediaPlayer(mode='embedded', backdrop='surface')   # 'full' para una ventana propia
-player.enable_integration()                                  # MPRIS, pantalla encendida y pausa de Music
-player.open(path, paused=True, browse='folder')             # imagen, audio o video
 ```
 
 Decisiones:
@@ -89,16 +87,19 @@ Decisiones:
   corre en su propio hilo.
 - **Generaciones.** Cada `open()` abre una generación; los eventos del archivo reemplazado se reconocen por su `playlist_entry_id` y se
   descartan, y los resultados de decodificación de imágenes se descartan por token.
-- **GPU:** OpenGL con `hwdec=auto-copy` (decodificación por hardware con copia de vuelta, **no** cero copias: PySide6 6.8 no expone el display
-  de Wayland para la interop directa). Si OpenGL no está disponible o falla al iniciar, se usa el render por software. Si el contexto GL se
-  recrea (p. ej. al cambiar la ventana de pantalla), se vuelve a crear el contexto de mpv y se reselecciona la pista de video.
-- **Imágenes:** `QImageReader` en un pool propio de 2 hilos; JPEG y WebP se decodifican directamente al tamaño de la ventana; el resto en
-  completo si cabe en 128 MiB (si no, se muestra un error claro, nunca una asignación sin límite). Caché de 128 MiB por proceso;
-  precarga de la anterior y la siguiente; más detalle cuando el zoom se estabiliza.
-- **Forma (Material 3):** la escala `corner_none … corner_full` vive en los tokens (cada estilo da sus valores). El botón de reproducir es la
-  única pieza animada: círculo en pausa, cuadrado redondeado al reproducir. Las esquinas de lo que no se puede recortar (la superficie GL)
-  se redondean con una capa que pinta los recortes en el color de fondo. Los controles flotantes usan los tokens `hud*`, definidos en
-  todas las variantes para superficies sobre video.
+- **GPU:** mpv dibuja con su render API de OpenGL en el framebuffer de un `QQuickFramebufferObject`, bajo los controles QML, con
+  `hwdec=auto-copy` (decodificación por hardware con copia de vuelta). El proceso usa el bucle de render **básico**
+  (`QSG_RENDER_LOOP=basic`): el render se llama desde Python, y con el bucle con hilo el hilo de render necesitaría el GIL mientras el
+  hilo GUI lo retiene esperándolo (bloqueo al capturar o redimensionar). Antes de cerrar el núcleo, la ventana libera el contexto de
+  mpv con el contexto GL de la escena activo (mpv bloquea al destruir un núcleo con contexto vivo). Sin OpenGL, o si falla al iniciar, se
+  usa el render por software (`wysun_media/software.py`) pintado por un `QQuickPaintedItem`.
+- **Imágenes:** `Image`/`AnimatedImage` de QML con `autoTransform` y decodificación asíncrona acotada al tamaño de la ventana (el tamaño
+  real se lee de la cabecera); al acercar, se decodifica más detalle tras una pausa breve, sin parpadeo (`retainWhileLoading`). La
+  anterior y la siguiente se decodifican de antemano con la misma clave, así que aparecen al instante.
+- **Forma y color (Material 3):** la barra es una barra de herramientas flotante M3 (`surfaceContainer`, nivel 2, esquina `extraLarge`)
+  con los componentes de WysunM3, en el modo claro u oscuro del tema y en vivo; el video va sobre `scrim`. El botón de reproducir es un
+  botón de icono relleno que pasa de círculo (pausa) a cuadrado redondeado (reproduciendo). El audio muestra la carátula en una galleta
+  que gira despacio mientras suena.
 - **Escritorio:** MPRIS por reproductor activado (ventana del reproductor; vista previa embebida desde que se pulsa reproducir; nunca imágenes
   ni vistas previas pasivas), con un nombre `org.mpris.MediaPlayer2.wysun_player.instance<pid>_<n>` y una conexión privada cada uno. La clave
   `wysun:visibleVideo` de los metadatos hace que el shell mantenga la pantalla encendida mientras un video visible se reproduce
@@ -107,9 +108,8 @@ Decisiones:
 
 ## Dependencias y diagnóstico
 
-Requiere `libmpv2` y FFmpeg (ya instalados con mpv). La ruta de GPU necesita `python3-pyside6.qtopengl` y
-`python3-pyside6.qtopenglwidgets`, que la instalación completa añade; `--wysun-only` no instala dependencias y, si faltan, el reproductor
-funciona con el render por software y `wysun doctor` lo avisa. Variables (solo diagnóstico):
+Requiere `libmpv2`, FFmpeg (ya instalados con mpv) y el runtime QML de Wysun (venv `qml-runtime` sobre el Qt del shell), que instala
+`./instalar.sh --wysun-only`. Variables (solo diagnóstico):
 
 | Variable | Efecto |
 |---|---|
@@ -117,8 +117,7 @@ funciona con el render por software y `wysun doctor` lo avisa. Variables (solo d
 | `WYSUN_MPV_OPTIONS=ao=null,hwdec=no` | Opciones de mpv permitidas: `ao`, `hwdec`, `audio-device`, `volume`. |
 | `WYSUN_LIBMPV=/ruta/libmpv.so.2` | Otra copia de libmpv. |
 
-`wysun_media.capabilities()` devuelve la versión de libmpv y si OpenGL está disponible; el menú «Información» (`I`) muestra decodificador,
-renderizador y fotogramas perdidos.
+El diálogo «Información» (`I`) muestra decodificador, renderizador y fotogramas perdidos.
 
 ### Instalación y asociaciones
 
@@ -130,17 +129,19 @@ lo que era predeterminado queda como alternativa en «Abrir con». El respaldo d
 ## Pruebas
 
 ```sh
-python3 -m unittest discover -s tests -p 'test_media_*.py'      # sesión, imágenes, controles, widget, tema, integración (D-Bus privado)
-python3 -m unittest discover -s tests -p 'test_player_*.py'     # proceso (instancia única con procesos reales), escritorio e instalador
+python3 -m unittest tests.test_qml_runtime -v                    # incluye tests/qml/check_player_*.py (ventana, controlador, proceso,
+                                                                 #   video, MPRIS) en el venv QML, offscreen y con D-Bus privado
+python3 -m unittest discover -s tests -p 'test_media_*.py'      # motor: sesión, fuentes, colección, posiciones; widgets del Recorder
+python3 -m unittest discover -s tests -p 'test_player_*.py'     # cliente, instancia única con procesos reales, escritorio e instalador
 python3 apps/recorder/run_tests.py                               # incluye la página de reproducción de Recorder
-python3 tests/wayland_media_case.py                             # física: OpenGL, ocultar/mostrar, pérdida de contexto, fugas
+WYSUN_TEST_GL=1 QT_QPA_PLATFORM=wayland <venv>/bin/python3 -m unittest qml.check_player_video   # OpenGL en la sesión real
+python3 tests/wayland_media_case.py                             # reproductor de Widgets del Recorder en el compositor real
 python3 tests/media_benchmark.py                                # CPU, memoria, primer fotograma y fotogramas perdidos
-python3 tests/media_latency.py                                  # latencias en el compositor real frente a los objetivos de abajo
 ```
 
 Los medios son sintéticos (`tests/media_fixtures.py`: H.264, VP9, HEVC, AV1, audio en seis formatos con y sin carátula, JPEG con las ocho
-orientaciones EXIF, PNG con alfa, BMP, TIFF, WebP, GIF animado y archivos dañados). Las pruebas offscreen usan el render por software
-(`QOpenGLWidget` no existe en esa plataforma): la ruta OpenGL se valida con `wayland_media_case.py` en la sesión real. Cada proceso de
+orientaciones EXIF, PNG con alfa, BMP, TIFF, WebP, GIF animado y archivos dañados); las de `tests/qml` generan los suyos con ffmpeg.
+Las pruebas offscreen usan el render por software; la ruta OpenGL se valida en la sesión real. Cada proceso de
 pruebas usa un bus D-Bus propio y desechable. `WYSUN_PYSIDE_EXTRA=<carpeta>` permite probar los módulos OpenGL de PySide6 extraídos de sus
 paquetes sin instalarlos.
 

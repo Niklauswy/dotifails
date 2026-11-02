@@ -97,14 +97,17 @@ hacer zoom, `cache: false` para no duplicar con la prelectura) y `AnimatedImage`
 cursor con la rueda, pellizco (`PinchHandler`), arrastre para desplazar, giro en pasos de 90°. Sustituye a
 `wysun_media/image.py` (`ImageView`, `Jobs`, `Cache`).
 
-**Tema:** `ThemeBridge` y `Theme` de WysunM3 como Music/Files; el HUD usa los roles del esquema sobre el video
-(`inverseSurface`/`inverseOnSurface` con transparencia de token) y cambia en vivo con el modo y el wallpaper.
+**Tema:** `ThemeBridge` y `Theme` de WysunM3 como Music/Files. La barra es una barra de herramientas flotante M3
+(`surfaceContainer`, nivel 2) en el modo del tema (**decisión del coordinador**, revisada al implementar: un HUD siempre
+oscuro no es posible con los controles de WysunM3, cuyos colores siguen el modo; con la barra M3 todos los controles
+tienen el contraste correcto en claro y oscuro). El video va sobre `scrim`; todo cambia en vivo.
 
 ## Lo que se retira
 
-`wysun_media`: `player.py`, `controls.py`, `bar.py`, `menus.py`, `audio.py`, `image.py`, `video.py` (su lógica pasa a
-`wysun_player/quick/video.py`), `shape.py`, `symbols.py`, `host.py`; `wysun_player`: `window.py`, `host.py`.
-Las pruebas de esos módulos se sustituyen por `tests/qml/check_player_*.py`; las del motor se conservan.
+`wysun_player/window.py` y `wysun_player/host.py`. El reproductor de Widgets de `wysun_media` (`player.py`,
+`controls.py`, `bar.py`, `menus.py`, `audio.py`, `image.py`, `video.py`, `shape.py`, `symbols.py`, `host.py`) **se
+queda** hasta la migración del Recorder: su página de reproducción lo embebe y cada release lo lleva consigo (hallado al
+implementar). El render por software pasa a `wysun_media/software.py`, sin toolkit, y lo comparten ambos.
 
 ## Riesgos
 

@@ -45,12 +45,13 @@ def run_child(kind, seconds, size, video):
     from PySide6.QtCore import QTimer
     from PySide6.QtWidgets import QApplication
     app = QApplication(sys.argv[:1])
-    from wysun_player import host as media_host
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import media_host
     from wysun_media import mpv
     from wysun_media.session import MediaSession
     from wysun_media.source import open_source
     from wysun_media.video import GLVideoView, SoftwareVideoView
-    media_host.install()
+    media_host.install_host()
     width, height = (int(v) for v in size.split('x'))
     result = {'surface': kind, 'video': Path(video).name, 'window': size, 'pyside6': QtCore.__version__, 'qt': QtCore.qVersion(),
               'platform': app.platformName(), **hardware()}
