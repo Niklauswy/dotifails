@@ -76,6 +76,13 @@ Window {
             destinations: places.destinations
             currentId: window.tab ? places.placeOf(window.tab.path) : ""
             onDestinationSelected: id => window.navigate(id)
+            onTrailingAction: id => places.eject(id)
+            onContextRequested: (id, x, y) => {
+                if (places.isBookmark(id)) {
+                    placeMenu.target = id;
+                    placeMenu.popup(null, x, y);
+                }
+            }
             header: Component {
                 Fab {
                     objectName: "newFab"
@@ -295,6 +302,32 @@ Window {
 
             function onMessage(text) {
                 snackbars.show({text: text});
+            }
+        }
+
+        Connections {
+            target: places
+
+            function onMessage(text) {
+                snackbars.show({text: text});
+            }
+        }
+
+        Menu {
+            id: placeMenu
+
+            property string target
+
+            objectName: "placeMenu"
+            host: overlay
+            model: [{id: "open", text: "Abrir", icon: "folder_open"}, {id: "tab", text: "Abrir en nueva pestaña", icon: "tab"}, {divider: true}, {id: "remove", text: "Quitar de marcadores", icon: "bookmark_remove"}]
+            onTriggered: id => {
+                if (id === "open")
+                    window.navigate(target);
+                else if (id === "tab")
+                    files.newTab(target);
+                else if (id === "remove")
+                    places.toggleBookmark(target);
             }
         }
 

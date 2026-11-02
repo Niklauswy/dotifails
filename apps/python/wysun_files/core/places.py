@@ -50,7 +50,7 @@ def devices():
             continue
         seen.add(root)
         name = volume.displayName() if volume.displayName() != root else Path(root).name or root
-        out.append({'path': root, 'label': name, 'icon': 'usb' if removable else 'storage', 'removable': removable})
+        out.append({'path': root, 'label': name, 'icon': 'usb' if removable else 'storage', 'removable': removable, 'device': device})
     return out
 
 

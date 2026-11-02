@@ -19,6 +19,7 @@ Surface {
     signal closeRequested
     signal headerAction(string actionId)
     signal contextRequested(string id, real x, real y)
+    signal trailingAction(string id)
     readonly property var drawerDestinations: destinations.filter(d => d.drawer !== false)
 
     function itemFor(id) {
@@ -165,6 +166,7 @@ Surface {
                             onClicked: root.selected(destinationId)
                             onStepRequested: delta => root.step(destinationId, delta)
                             onContextRequested: (x, y) => root.contextRequested(destinationId, x, y)
+                            onActionTriggered: root.trailingAction(destinationId)
                         }
                     }
                 }

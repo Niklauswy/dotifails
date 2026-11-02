@@ -20,7 +20,7 @@ class QmlFilesWindow:
             self.app, self.engine = None, engine
         self.bridge = theme_bridge.ThemeBridge(parent=self.engine)
         self.files = FilesController(paths, settings=settings, thumbnails=thumbnails, parent=self.engine)
-        self.places = Places(self.engine)
+        self.places = Places(settings=self.files.settings, parent=self.engine)
         self.bridges = {'bridge': self.bridge, 'files': self.files, 'places': self.places}
         self._extend()
         context = self.engine.rootContext()
@@ -50,4 +50,5 @@ class QmlFilesWindow:
         window.requestActivate()
 
     def close(self):
+        self.places.close()
         self.files.close()

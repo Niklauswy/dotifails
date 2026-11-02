@@ -360,6 +360,30 @@ class FilesWindowTests(unittest.TestCase):
             wheel(120)
         self.assertEqual(grid.property('contentY'), top)
 
+    def test_bookmarks_show_in_the_drawer_and_their_menu_removes_them(self):
+        target = str(self.root / 'Latex')
+        places = self.win.places
+        places.toggleBookmark(target)
+        self.h.pump(50)
+        item = self.find('nav-' + target)
+        self.assertIsNotNone(item)
+        self.tab().navigate(str(self.root / 'Latex'))
+        self.wait()
+        self.assertEqual(self.find('filesNav').property('currentId'), target, 'the most specific place lights up')
+        from PySide6.QtCore import QEvent, QPointF
+        from PySide6.QtGui import QGuiApplication, QMouseEvent
+        point = item.mapToScene(QPointF(60, 20))
+        for kind, buttons in ((QEvent.MouseButtonPress, self.Qt.RightButton), (QEvent.MouseButtonRelease, self.Qt.NoButton)):
+            QGuiApplication.sendEvent(self.window, QMouseEvent(kind, point, self.window.mapToGlobal(point), self.Qt.RightButton,
+                                                               buttons, self.Qt.NoModifier))
+        self.h.pump(50)
+        menu = self.find('placeMenu')
+        self.h.call(menu, 'trigger', 3)
+        self.h.pump(50)
+        self.assertFalse(places.isBookmark(target))
+        self.assertIsNone(self.find('nav-' + target))
+        self.assertEqual(self.warnings, [])
+
     def test_hidden_files_toggle(self):
         (self.root / '.secreto').write_text('s')
         self.tab().navigate(str(self.root / 'clases'))
