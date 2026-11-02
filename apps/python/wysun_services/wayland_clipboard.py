@@ -112,8 +112,8 @@ class ClipboardWatch(QObject):
         self.process.errorOccurred.connect(lambda *_:self.set_state('focus-only'))
         if not owner.paused:self.start()
         else:self.state='paused'
-        from PySide6.QtWidgets import QApplication
-        QApplication.instance().aboutToQuit.connect(self.stop)
+        from PySide6.QtGui import QGuiApplication
+        QGuiApplication.instance().aboutToQuit.connect(self.stop)
     def set_state(self,state):
         self.state=state
         if getattr(self.owner,'wayland_clipboard',None) is self:self.owner.update_private()

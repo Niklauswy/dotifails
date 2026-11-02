@@ -5,7 +5,7 @@ import unittest
 from unittest.mock import patch
 
 os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
-from PySide6.QtWidgets import QApplication
+from PySide6.QtGui import QGuiApplication
 
 from wysun_services.data_v2 import StoreV2
 from wysun_services import daemon
@@ -14,7 +14,7 @@ from wysun_services import daemon
 class ResidentTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.app = QApplication.instance() or QApplication([])
+        cls.app = QGuiApplication.instance() or QGuiApplication([])
 
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -67,6 +67,20 @@ class ResidentTests(unittest.TestCase):
             self.assertEqual(daemon.main(['reload']), 0)
         self.assertEqual(send.call_args.args[1], b'reload')
         popen.assert_not_called()
+
+    def test_the_resident_never_loads_qt_widgets(self):
+        """It has no windows: a Widgets application (style, palette, icon theme) would only cost memory."""
+        import subprocess
+        import sys
+        from pathlib import Path
+        root = Path(__file__).resolve().parents[2] / 'apps/python'
+        code = ('import sys; sys.path.insert(0, %r)\n'
+                'from wysun_services import daemon, wayland_clipboard\n'
+                'import inspect\n'
+                "print('PySide6.QtWidgets' in sys.modules, 'QApplication(' in inspect.getsource(daemon.main))" % str(root))
+        done = subprocess.run([sys.executable, '-I', '-c', code], capture_output=True, text=True, timeout=60,
+                              env=dict(os.environ, QT_QPA_PLATFORM='offscreen'))
+        self.assertEqual((done.returncode, done.stdout.strip()), (0, 'False False'), done.stderr[-500:])
 
 
 if __name__ == '__main__':

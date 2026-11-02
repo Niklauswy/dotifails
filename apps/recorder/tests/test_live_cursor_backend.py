@@ -15,21 +15,18 @@ class LiveBackendTests(unittest.TestCase):
    atomic_write_json(root/'s.cursor-live.json',{'baked':True});p=Project();append_segment(p,root,'s.recovered',c)
    s=p.sources[0];self.assertTrue(s.cursor_baked);self.assertIsNone(s.cursor_path);self.assertEqual((s.width,s.height,s.fps,s.quality),(640,360,60,'high'))
    p=Project();append_segment(p,root,'native',c);self.assertFalse(p.sources[0].cursor_baked);self.assertEqual(p.sources[0].cursor_effects,{})
- def worker_case(self,ready):
+ def test_x11_live_effects_fall_back_to_the_native_pointer_without_aborting_capture(self):
+  """No helper draws X11 effects live: the segment keeps ffmpeg's own pointer, says so, and the recording goes on."""
   with tempfile.TemporaryDirectory() as td:
    root=Path(td);atomic_write_json(root/'capture.json',asdict(CaptureConfig(td,':0',[0,0,640,360],auto_finalize=False,cursor_effects={'preset':'trail'})))
-   helper=Mock();helper.prepare.side_effect=None if ready else RuntimeError('synthetic helper unavailable');helper.prepare.return_value=helper;helper.alive.return_value=False
    commands=[];appended=[]
    def spawn(command,**kwargs):
     commands.append(command);p=Mock();p.poll.return_value=None;p.returncode=0
-    if len(commands)==(2 if ready else 1):atomic_write_json(root/'command-stop.json',{'command':'stop'})
+    atomic_write_json(root/'command-stop.json',{'command':'stop'})
     return p
    def append(project,root,stem,config):appended.append(config)
-   with patch('wysun_recorder.devices.display_bounds',return_value=[1920,1080]),patch('wysun_recorder.worker.shutil.disk_usage') as disk,patch('wysun_recorder.live_cursor.LiveCursor',return_value=helper),patch('wysun_recorder.worker.subprocess.Popen',side_effect=spawn),patch('wysun_recorder.worker.append_segment',side_effect=append),patch('wysun_recorder.worker.time.sleep'):
+   with patch('wysun_recorder.devices.display_bounds',return_value=[1920,1080]),patch('wysun_recorder.worker.shutil.disk_usage') as disk,patch('wysun_recorder.worker.subprocess.Popen',side_effect=spawn),patch('wysun_recorder.worker.append_segment',side_effect=append),patch('wysun_recorder.worker.time.sleep'):
     disk.return_value.free=10**10;main(root)
    status=json.loads((root/'status.json').read_text());self.assertEqual(status['state'],'stopped',status);self.assertTrue(status['cursor_warning'])
-   draws=[c[c.index('-draw_mouse')+1] for c in commands];self.assertEqual(draws,['0','1'] if ready else ['1'])
-   self.assertEqual(appended[-1].cursor_effects,{});helper.prepare.assert_called_once()
-   if ready:helper.stop.assert_called_once();self.assertEqual(len(list(root.glob('*.cursor-live.json'))),1)
- def test_start_failure_native_warning_does_not_abort_capture(self):self.worker_case(False)
- def test_helper_death_splits_once_and_preserves_original_baked_segment(self):self.worker_case(True)
+   self.assertEqual([c[c.index('-draw_mouse')+1] for c in commands],['1']);self.assertEqual(appended[-1].cursor_effects,{})
+   self.assertEqual(list(root.glob('*.cursor-live.json')),[])

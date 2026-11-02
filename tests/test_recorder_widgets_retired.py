@@ -12,6 +12,7 @@ RETIRED_FILES = [
     *(f'apps/python/wysun_media/{name}.py' for name in
       ('player', 'controls', 'bar', 'menus', 'audio', 'image', 'video', 'shape', 'symbols', 'host')),
     'apps/recorder/wysun_media', 'apps/recorder/tests/test_player_component.py',
+    'apps/recorder/wysun_recorder/live_cursor.py',     # an X11 helper whose module (ui.live_cursor) never existed here
     'tests/media_host.py', 'tests/wayland_media_case.py', 'tests/media_benchmark.py', 'tests/test_media_integration.py',
     *(f'tests/test_media_{name}.py' for name in ('player', 'controls', 'image', 'shape')),
 ]
@@ -21,6 +22,7 @@ EVERYWHERE = re.compile('|'.join((
     r'wysun_recorder[./]ui[./](app_|media_host|tokens|material|icons|motion)',
     r'\b(request_show|take_show_request)\b',
     r'wayland_media_case|media_benchmark|tests/media_host|test_media_(player|controls|image|shape|integration)',
+    r'\bLiveCursor\b|wysun_recorder[./](ui[./])?live_cursor',
 )))
 RECORDER_ONLY = re.compile(r"'--show'|\"--show\"")
 SKIP_DIRS = {'.git', '__pycache__', 'node_modules', '.superpowers', 'vendor', 'superpowers'}      # docs/superpowers is history

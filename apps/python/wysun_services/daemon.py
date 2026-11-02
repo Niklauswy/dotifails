@@ -4,22 +4,15 @@
 `wysun reload` makes the running resident start again with the installed code, or starts one in the
 background when none is running. Its only requests are `ping` and `reload`.
 """
-from wysun_core.qt_theme import apply_style
-
 import argparse, os, re, subprocess, sys
-from pathlib import Path
 from PySide6.QtCore import Qt, QObject, QTimer
-from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import QApplication
+from PySide6.QtGui import QGuiApplication
 
 from wysun_core.desktop import Desktop, wayland
-from wysun_services.store import HOME, sensitive
+from wysun_services.store import sensitive
 from wysun_core.instance import SingleInstance, send
 from wysun_core.qt_instance import InstanceNotifier
 from wysun_core import launch
-
-ROOT=Path(__file__).resolve().parent
-from wysun_core.ui_theme import PALETTE_STYLE as STYLE
 
 
 class ClipboardDaemon(QObject):
@@ -28,7 +21,7 @@ class ClipboardDaemon(QObject):
         super().__init__()
         from wysun_services.data_v2 import StoreV2
         self.store=store or StoreV2();self.test=test;self.ignore_clip=False;self._external_clipboard=None
-        self.clipboard=QApplication.clipboard()
+        self.clipboard=QGuiApplication.clipboard()
         if not test:self.clipboard.dataChanged.connect(self.capture_clip)
         self.wayland_clipboard=None
         if not test and wayland():
@@ -91,9 +84,7 @@ def main(argv=None):
     if send(resident.endpoint,b'ping',timeout=.5):return 0   # already running
     os.umask(0o077)
     if not resident.claim():return 0                          # another resident is starting
-    app=QApplication(['wysun','--name','wysun']);app.setApplicationName('Wysun');app.setApplicationDisplayName('Wysun');app.setDesktopFileName('wysun');app.setWindowIcon(QIcon(str(ROOT/'wysun.png')));app.setQuitOnLastWindowClosed(False);app.setStyle('Fusion');apply_style(app,STYLE);QIcon.setThemeSearchPaths([str(HOME/'.local/share/icons'),str(HOME/'.icons'),'/usr/share/icons']);QIcon.setThemeName('Win11-Dark');QIcon.setFallbackThemeName('Adwaita')
-    from wysun_core.qt_theme import watch_theme
-    watch_theme()
+    app=QGuiApplication(['wysun','--name','wysun']);app.setApplicationName('Wysun');app.setApplicationDisplayName('Wysun');app.setDesktopFileName('wysun');app.setQuitOnLastWindowClosed(False)
     resident_window=ClipboardDaemon()  # noqa: F841 (kept alive for the whole session)
     def request(line):
         mode=line.decode('utf-8',errors='ignore').strip()

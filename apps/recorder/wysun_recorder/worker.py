@@ -104,8 +104,6 @@ def main(root):
     discard=False
     cursor_recorder = None
     cursor_warning = None
-    cursor_helper = None
-    live_failed = False
     native_live_failed = False
     segment_config = config
     wayland_capture = None
@@ -122,7 +120,7 @@ def main(root):
         atomic_write_json(root/'status.json', dict(state=state, error=error, pid=os.getpid(),
                     heartbeat=time.time(), elapsed=round(project.duration+(time.time()-segment_started if state=='recording' and segment_started else 0),3), auto_finalize=config.auto_finalize, finalization_expected=bool(config.auto_finalize and explicit_stop and not discard and not (root/'discard.json').exists()), project_path=str(root/'project.json'), duration=project.duration, cursor_warning=cursor_warning, child_cpu_s=round(usage.ru_utime+usage.ru_stime,3), child_peak_rss_kib=usage.ru_maxrss))
     def begin():
-        nonlocal segment_started, process, stem, logfile, state,cursor_recorder,cursor_helper,cursor_warning,live_failed,segment_config,mouse_effects
+        nonlocal segment_started, process, stem, logfile, state,cursor_recorder,cursor_warning,segment_config,mouse_effects
         from .devices import clamp_rect, display_bounds
         if config.selected_backend()=='x11' and clamp_rect(config.rect, display_bounds(config.display)) != config.rect:
             raise RuntimeError('Display geometry changed; start a new recording with a valid area')
@@ -133,15 +131,9 @@ def main(root):
         segment_config=config
         if config.selected_backend()=='x11' and config.cursor and effect_settings(config.cursor_effects):
             if config.cursor_live:
-                if not live_failed:
-                    try:
-                        from .live_cursor import LiveCursor
-                        cursor_helper=LiveCursor(config.display,config.rect,config.cursor_effects).prepare()
-                        atomic_write_json(root/(stem+'.cursor-live.json'),{'baked':True,'effects':config.cursor_effects})
-                    except Exception as exc:
-                        if cursor_helper:cursor_helper.stop();cursor_helper=None
-                        live_failed=True;cursor_warning='Cursor en vivo no disponible; se usa el puntero nativo. '+str(exc)
-                if live_failed:segment_config=replace(config,cursor_effects={})
+                # X11 effects in live mode needed a helper window that this tree never had: native pointer.
+                cursor_warning='Cursor en vivo no disponible; se usa el puntero nativo.'
+                segment_config=replace(config,cursor_effects={})
             else:cursor_recorder=CursorRecorder(root/(stem+'.cursor.jsonl'),config.display,config.rect,config.cursor_effects)
         logfile = (root/(stem+'.log')).open('wb')
         live_options=None
@@ -173,13 +165,12 @@ def main(root):
                 cursor_recorder.stop();cursor_recorder=None
         state = 'recording'
     def finish():
-        nonlocal process, logfile,cursor_recorder,cursor_warning,cursor_helper
+        nonlocal process, logfile,cursor_recorder,cursor_warning
         if cursor_recorder:
             cursor_recorder.stop()
             if cursor_recorder.error:cursor_warning=cursor_recorder.error
             cursor_recorder=None
         if process is None:
-            if cursor_helper:cursor_helper.stop();cursor_helper=None
             return
         interrupted_by_us=False
         try:
@@ -196,7 +187,6 @@ def main(root):
         finally:
             # Also covers an already exited child and timeout/error cleanup.
             if process.stdin is not None:process.stdin.close()
-        if cursor_helper:cursor_helper.stop();cursor_helper=None
         if wayland_capture:wayland_capture.finish()
         rc = process.returncode
         process = None
@@ -254,11 +244,6 @@ def main(root):
                         native_live_failed=True;finish();begin()
                         cursor_warning='Efectos en vivo interrumpidos; nuevos segmentos con efectos al exportar. '+str(live_error)
             if cursor_recorder and cursor_recorder.error:cursor_warning=cursor_recorder.error
-            if cursor_helper and not cursor_helper.alive():
-                # Finalize the already-baked interval before native fallback. Never
-                # rewrite originals, double-render effects or loop helper restarts.
-                cursor_warning='El cursor en vivo se cerró; la grabación continúa con el puntero nativo.'
-                live_failed=True;finish();begin()
             status()
             if process is not None and process.poll() is not None:
                 finish()
