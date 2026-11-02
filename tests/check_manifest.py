@@ -39,8 +39,6 @@ assert re.fullmatch(r'\d+\.\d+\.\d+',runtime['qt']['version'])
 assert not any('caelestia' in str(p).lower() for p in (root/'apps/shell').rglob('*') if p.name not in ('UPSTREAM.json','LICENSE','THIRD_PARTY.md')),'shell paths must not use the former project name'
 print('MANIFEST_OK: one Material You profile with its default wallpaper, matching tool locks, no conflicting shortcuts or personal paths')
 
-assert (root/'apps/tools/wysun_tools/__main__.py').is_file()
-assert not (root/'scripts').exists()
-for p in (root/'apps/tools').rglob('*'):
- assert p.name not in ('accounts.json','.rezets','uploads'),str(p)
-print('TOOLS_OK: one launcher, shared backend, no private accounts or uploads')
+assert not (root/'apps/tools').exists() and not (root/'scripts').exists(),'wysun tools was withdrawn: utilities are packages in apps/python'
+assert (root/'apps/python/wysun_lanshare/__main__.py').is_file()
+print('UTILITIES_OK: one launcher, each utility a package of its own')

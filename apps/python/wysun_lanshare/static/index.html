@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0d0c0b">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="yurai/share">
+<title>yurai/share</title>
+<link rel="icon" href="/static/icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=Martian+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<div class="grain" aria-hidden="true"></div>
+
+<header class="top">
+  <a class="brand" href="/" data-nav aria-label="Inicio">
+    <span class="brand-mark"><i></i></span>
+    <span class="brand-name">yurai<em>/share</em></span>
+  </a>
+  <nav class="crumbs" id="crumbs"></nav>
+  <div class="onair"><i></i><span>EN LÍNEA</span></div>
+</header>
+
+<main id="app"></main>
+
+<div class="drop" id="drop"><div><b>Suelta para subir</b><span id="drop-target"></span></div></div>
+<div class="uploads" id="uploads"></div>
+<div class="toast" id="toast"></div>
+
+<div class="lightbox" id="lightbox" hidden>
+  <button class="lb-close" data-lb="close" aria-label="Cerrar">×</button>
+  <button class="lb-nav prev" data-lb="prev" aria-label="Anterior">‹</button>
+  <figure><img id="lb-img" alt=""><figcaption id="lb-cap"></figcaption></figure>
+  <button class="lb-nav next" data-lb="next" aria-label="Siguiente">›</button>
+</div>
+
+<input type="file" id="picker" multiple hidden>
+<script src="/static/app.js"></script>
+</body>
+</html>

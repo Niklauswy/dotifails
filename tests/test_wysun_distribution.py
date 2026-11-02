@@ -44,8 +44,7 @@ class WysunDistributionTests(unittest.TestCase):
         entries = self.home / '.local/share/applications'
         self.assertFalse((entries / 'wybie-screenshot.desktop').exists())
         self.assertEqual(sorted(path.name for path in entries.glob('*.desktop')),
-                         ['wysun-pdf.desktop', 'wysun-player.desktop', 'wysun-recorder.desktop', 'wysun-settings.desktop', 'wysun.desktop'])
-        self.assertIn('Exec=wysun pdf %F', (entries / 'wysun-pdf.desktop').read_text())
+                         ['wysun-player.desktop', 'wysun-recorder.desktop', 'wysun-settings.desktop', 'wysun.desktop'])
         self.assertIn('Exec=wysun player -- %F', (entries / 'wysun-player.desktop').read_text())
         self.assertIn('Name=Wysun Recorder', (entries / 'wysun-recorder.desktop').read_text())
         self.assertIn('Name=Wysun Settings', (entries / 'wysun-settings.desktop').read_text())
@@ -61,7 +60,7 @@ class WysunDistributionTests(unittest.TestCase):
         with patch.dict(os.environ, WYSUN_SKIP_RUNTIME='1'):
             deployment.configure_app()
         self.assertFalse(deployment.conflicts)
-        for relative in ('.local/bin/wysun', '.local/share/wysun/tools/wysun_tools/__main__.py', '.local/share/applications/wysun-files.desktop',
+        for relative in ('.local/bin/wysun', '.local/share/wysun/app/wysun_lanshare/__main__.py', '.local/share/applications/wysun-files.desktop',
                          '.config/systemd/user/wysun-files-integration.service',
                          '.local/share/dbus-1/services/org.freedesktop.impl.portal.desktop.wysun.service',
                          '.local/share/xdg-desktop-portal/portals/wysun.portal'):

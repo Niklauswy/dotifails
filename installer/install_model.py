@@ -15,7 +15,6 @@ COMPONENTS = {
     'wayland': ('Escritorio y sesión', 'Hyprland, shell, lanzador, Settings, capturas, bloqueo y runtime privado.'),
     'terminal': ('Terminal y shell', 'Ghostty, Zsh, Starship y versiones por proyecto con mise.'),
     'editor': ('Neovim', 'Editor, lenguajes, autocompletado y depuración.'),
-    'tools': ('Herramientas personales', 'Utilidades de desarrollo, red y transferencia de archivos.'),
     'boot': ('Arranque Macrodata', 'GRUB, carga y pantalla de acceso como terminal de refinamiento.'),
 }
 DEFAULT_COMPONENTS = tuple(COMPONENTS)
@@ -24,7 +23,7 @@ ARTIFACTS = {
     'desktop': {'yt-dlp'},
     'terminal': {'ghostty', 'starship', 'ohmyzsh', 'zsh-autosuggestions', 'zsh-syntax-highlighting', 'mise', 'nvm', 'node'},
     'editor': {'nvim', 'node'},
-    'tools': set(), 'boot': set(), 'wayland': set(),
+    'boot': set(), 'wayland': set(),
 }
 
 
@@ -33,6 +32,11 @@ def load_json(path, default=None):
         return json.loads(Path(path).read_text())
     except (OSError, ValueError):
         return default
+
+
+def installed_components(receipt):
+    """Components a receipt records, without the ones Wysun no longer has (`tools` was withdrawn)."""
+    return [key for key in receipt.get('components', []) if key in COMPONENTS]
 
 
 def normalize_components(values=None):
@@ -173,8 +177,6 @@ def preflight(options):
         required += ['installer/boot.py', 'system/boot/grub/theme.txt', 'system/boot/plymouth/wysun.script', 'apps/shell/greeter.qml']
     if 'desktop' in options.components:
         required += ['apps/python/wysun_services/daemon.py']
-    if 'tools' in options.components:
-        required += ['apps/tools/wysun_tools/__main__.py', 'bin/wysun']
     if 'wayland' in options.components:
         required += ['apps/shell/shell.qml', 'config/.config/wysun/hyprland.lua', 'bin/wysun-session', 'installer/session_registration.py']
     missing = [name for name in required if not (options.source / name).is_file()]

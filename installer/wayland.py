@@ -65,7 +65,6 @@ def configure(deployment):
     d.stage('Sesión adicional Wysun / Hyprland')
     # Shared applications retain their existing storage and command identities.
     for source, target in (('apps/python', '.local/share/wysun/app'),
-                           ('apps/tools', '.local/share/wysun/tools'),
                            ('apps/qml', '.local/share/wysun/qml'),
                            ('apps/shell', '.local/share/wysun/quickshell')):
         if not (d.source / source).is_dir():

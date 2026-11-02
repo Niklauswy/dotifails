@@ -33,7 +33,7 @@ class WaylandInstallTests(unittest.TestCase):
         self.source.mkdir()
         # Use a tiny shell fixture until/without a real compositor. All other
         # distribution code is the actual source under test.
-        for relative in ('installer', 'manifests', 'bin', 'config', 'assets/backgrounds', 'apps/python', 'apps/tools', 'apps/qml', 'apps/recorder'):
+        for relative in ('installer', 'manifests', 'bin', 'config', 'assets/backgrounds', 'apps/python', 'apps/qml', 'apps/recorder'):
             shutil.copytree(ROOT / relative, self.source / relative,
                             ignore=shutil.ignore_patterns('__pycache__', '*.pyc'))
         (self.source / 'apps/shell').mkdir()

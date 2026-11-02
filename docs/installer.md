@@ -1,8 +1,8 @@
 # Instalador de Wysun
 
 El instalador gráfico recorre tres momentos, cada uno con una pieza animada propia: **Tu equipo** (la distribución se lee y sus
-comprobaciones aparecen como píldoras; única opción: actualizar también el sistema), **Contenido** (Wysun siempre incluido, más Neovim,
-Wysun Tools y el arranque Macrodata, y Brave/Discord/Obsidian por Flatpak) e **Instalación** (una forma que cambia en cada etapa real de
+comprobaciones aparecen como píldoras; única opción: actualizar también el sistema), **Contenido** (Wysun siempre incluido, más Neovim
+y el arranque Macrodata, y Brave/Discord/Obsidian por Flatpak) e **Instalación** (una forma que cambia en cada etapa real de
 `main.py`). Las comprobaciones de la selección corren en segundo plano y «Instalar» sale de Contenido; «Detalles» muestra
 etapas, orden y paquetes. Arriba, un indicador de formas marca el paso; abajo, la barra lleva la acción y el progreso.
 
@@ -43,11 +43,11 @@ El escritorio requiere sus aplicaciones y la terminal en la selección gráfica.
 Las opciones nuevas de preparación son explícitas:
 
 ```sh
-./instalar.sh --cli --components desktop,wayland,terminal,editor,tools,boot \
+./instalar.sh --cli --components desktop,wayland,terminal,editor,boot \
   --boot-components grub,plymouth --upgrade-system --prepare-repositories
 
 # Plan sin modificaciones:
-./instalar.sh --cli --components desktop,wayland,terminal,editor,tools,boot \
+./instalar.sh --cli --components desktop,wayland,terminal,editor,boot \
   --boot-components grub,plymouth --upgrade-system --prepare-repositories --plan
 ```
 

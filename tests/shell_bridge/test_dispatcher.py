@@ -91,9 +91,12 @@ class DispatcherTests(unittest.TestCase):
             execute.assert_not_called()
             self.assert_module(module, forwarded)
 
-    def test_tools_run_from_their_own_root(self):
-        self.invoke(('tools', 'dev', 'doctor'))
-        self.assert_module('wysun_tools', ['dev', 'doctor'], root=str(ROOT / 'apps/tools'))
+    def test_lanshare_runs_as_an_app_module(self):
+        self.invoke(('lanshare', '~/Videos', '--port', '8080'))
+        self.assert_module('wysun_lanshare', ['~/Videos', '--port', '8080'])
+
+    def test_wysun_tools_is_gone(self):
+        self.assertNotIn('tools', wysun.MODULES)
 
     def test_music_mini_starts_music_hidden_and_opens_the_media_widget(self):
         _, run, execute = self.invoke(('music-mini',))

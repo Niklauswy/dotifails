@@ -220,7 +220,7 @@ class InstallerUiTests(unittest.TestCase):
         texts += [item['detail'] for item in journey.COMPONENTS.values()] + [item[1] for item in journey.ADDONS.values()]
         offenders = [text for text in texts if 'or' + 'bit' in text.lower()]
         self.assertEqual(offenders, [])
-        self.assertIn('Wysun Tools', [tile.title for tile in w.addon_tiles.values()])
+        self.assertNotIn('Wysun Tools', [tile.title for tile in w.addon_tiles.values()])
 
     def test_pages_have_no_horizontal_overflow_at_laptop_sizes(self):
         w = self.window

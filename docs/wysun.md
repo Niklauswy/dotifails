@@ -1,6 +1,6 @@
 # Wysun · una familia de aplicaciones
 
-Wysun es el nombre público del escritorio y del lanzador antes llamado Órbita. Las aplicaciones se presentan como Wysun Music, Wysun Files, Wysun Recorder, Wysun Player, Wysun Notes, Wysun Ajustes, Wysun Conexiones, Wysun Clipboard, Wysun Processes, Wysun Colors y Wysun Tools. Los textos de ayuda y las acciones continúan en español.
+Wysun es el nombre público del escritorio y del lanzador antes llamado Órbita. Las aplicaciones se presentan como Wysun Music, Wysun Files, Wysun Recorder, Wysun Player, Wysun Notes, Wysun Ajustes, Wysun Conexiones, Wysun Clipboard, Wysun Processes, Wysun Colors y Wysun LANShare. Los textos de ayuda y las acciones continúan en español.
 
 ## Fuente y distribución
 

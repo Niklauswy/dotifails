@@ -16,11 +16,11 @@ PYTHON = '/usr/bin/python3'
 SHELL_ACTIONS = {'clipboard': ['category', 'clip'], 'calculator': ['category', 'calc'], 'color-pick': ['color-pick']}
 # Apps and services: command -> (package root, module, leading arguments).
 MODULES = {
-    'music': ('app', 'wysun_music', []), 'files': ('app', 'wysun_files', []), 'pdf': ('app', 'wysun_pdf', []),
+    'music': ('app', 'wysun_music', []), 'files': ('app', 'wysun_files', []),
     'player': ('app', 'wysun_player', []), 'scheme': ('app', 'wysun_services.scheme', []),
     'wallpaper': ('app', 'wysun_services.wallpaper', []), 'workspaces': ('app', 'wysun_settings.runtime', ['workspaces']),
     'daemon': ('app', 'wysun_services.daemon', []), 'reload': ('app', 'wysun_services.daemon', ['reload']),
-    'tools': ('tools', 'wysun_tools', []),
+    'lanshare': ('app', 'wysun_lanshare', []),
 }
 # Programs of their own next to this one: command -> (executable, leading arguments).
 PROGRAMS = {
@@ -38,10 +38,10 @@ Uso: wysun [ORDEN] [opciones]
   color-pick             cuentagotas: copia el color en HEX
   settings [PÁGINA]      Ajustes en el shell
   music | music-mini     Wysun Music (music-mini: en el widget de media)
-  files | pdf | player   Files, el lector de PDF y Wysun Player ([--paused] [--fullscreen] [--start S] [--] ARCHIVO...)
+  files | player         Files y Wysun Player ([--paused] [--fullscreen] [--start S] [--] ARCHIVO...)
   recorder               biblioteca del Recorder (--quick-record: barra de grabación)
   scheme | wallpaper     esquema de color y fondo
-  tools GRUPO ACCIÓN     herramientas de terminal (wysun tools --help)
+  lanshare [CARPETA]     comparte una carpeta con la red local (--port N, --readonly)
   daemon | reload        residente del portapapeles; reload lo reinicia con el código nuevo
   shell ORDEN            wysun-shell (record, screenshot, dnd, status…)
   lock | recover | session-check | workspaces | activate CLASE
@@ -53,7 +53,7 @@ Si el shell no responde, falla de forma visible: no hay ventanas alternativas.''
 def root(kind):
     """Package root: the installed copy next to ~/.local/bin, else the checkout this script belongs to."""
     installed = HERE.parent / 'share/wysun' / kind
-    return installed if installed.is_dir() else HERE.parent / ('apps/python' if kind == 'app' else 'apps/tools')
+    return installed if installed.is_dir() else HERE.parent / 'apps/python'
 
 
 def module_argv(module, args):

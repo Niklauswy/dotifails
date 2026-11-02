@@ -174,12 +174,3 @@ Upstream files have no individual copyright header; no notices were removed.
 
 - Repository: [AdiAmbassador/caelestia-aw](https://github.com/AdiAmbassador/caelestia-aw), commit `aee10ac97e9edae57cbbd1b56d2b03403ccecc09`. It is a dotfiles/patch repository without a LICENSE file in the checked-out tree (the README points to GPL-3.0 for the separate `caelestia-shell-aw` and `caelestia-cli-aw` repositories, which were not used).
 - Only the feature description (video/GIF wallpapers, thumbnails cached by file identity, a representative frame feeding the Material You scheme, pausing under a fullscreen window or on battery) informed the design. No code was copied or adapted: `apps/python/wysun_services/wallpaper_media.py`, `apps/shell/services/WallpaperLibrary.qml`, `apps/shell/modules/background/WallpaperVisual.qml` and `apps/shell/modules/wallpaperpicker/` are original Wysun code. The carousel layout follows a visual reference supplied for the task, not upstream code.
-
-## PyMuPDF / MuPDF (Wysun PDF)
-
-- Upstream: https://github.com/pymupdf/PyMuPDF
-- Runtime dependency supplied by the distribution's `python3-fitz` package;
-  no engine binaries or source are vendored in this repository.
-- PyMuPDF and MuPDF are offered under GNU AGPL v3 or a commercial license.
-  The reader uses the distribution's open-source package.
-- API reference: https://pymupdf.readthedocs.io/en/latest/page.html

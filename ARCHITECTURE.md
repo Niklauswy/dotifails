@@ -14,10 +14,10 @@ paquetes, rutas, sockets, variables y desktop ids (sección 7). El código deriv
 apps/
   shell/        Shell Quickshell (QML) + plugin C++ `Wysun.*`        → ~/.local/share/wysun/quickshell
   python/       Raíz de paquetes Python (un paquete por app, nada suelto)  → ~/.local/share/wysun/app
-                wysun_core, wysun_music, wysun_files, wysun_media, wysun_player, wysun_pdf,
-                wysun_settings, wysun_services (backends del shell y residente), vendor/
+                wysun_core, wysun_music, wysun_files, wysun_media, wysun_player,
+                wysun_settings, wysun_services (backends del shell y residente),
+                utilidades del día a día (wysun_lanshare, …), vendor/
   recorder/     Wysun Recorder (paquete wysun_recorder)              → ~/.local/share/wysun/capture/releases/<hash>
-  tools/        `wysun tools` (dev, audit, share, cloud, vpn, resets) → ~/.local/share/wysun/tools
 bin/            `wysun` (único punto de entrada) y los programas de la sesión (wysun-shell, wysun-session, wysun-lock, wysun-wm, …) → ~/.local/bin
 config/         Configuración GENERAL (dotfiles): .config/{wysun,ghostty,nvim,gtk-*,…}, .local/{bin,share/applications,icons}
 machines/       Perfiles opcionales por equipo (p. ej. samsung-touchscreen.sh); nunca se aplican por defecto
@@ -35,7 +35,7 @@ detectan por huella y se guardan como `incoming/`).
 **Punto de entrada único: `bin/wysun`** (solo biblioteca estándar; no importa la app). Superficies y acciones del shell van a
 `wysun-shell` por IPC (`wysun`, `wysun SUPERFICIE`, `clipboard`, `calculator`, `color-pick`, `settings [PÁGINA]`); apps y servicios
 se ejecutan con `python3 -P -m <módulo>` y `~/.local/share/wysun/app` (o `…/tools`) en `PYTHONPATH` (`music`, `music-mini`,
-`files`, `pdf`, `player`, `scheme`, `wallpaper`, `workspaces`, `tools`, `daemon`, `reload`); `shell`, `lock`, `recover`,
+`files`, `player`, `scheme`, `wallpaper`, `workspaces`, `tools`, `daemon`, `reload`); `shell`, `lock`, `recover`,
 `recorder`, `session-check`, `install`, `doctor` y `activate` pasan a su programa (`wysun-shell`, `wysun-lock`, `wysun-recover`,
 `wysun-recorder`, `wysun-session`, `wysun-install`, `wysun-wm`). No hay alias; `wysun --help` lista las órdenes y
 `tests/shell_bridge/test_dispatcher.py` lo comprueba. `wysun-install` sigue existiendo porque el instalador también se publica
@@ -137,11 +137,8 @@ sin el componente `desktop`.
 
 ### Aplicaciones Qt (`apps/python`)
 
-El lector local **Wysun PDF** (`wysun pdf`) es el paquete `wysun_pdf` (`app`, `window` y un proceso `engine` aislado
-para PyMuPDF); documentación y límites en `docs/pdf-reader.md`.
-
 `apps/python` es una raíz de paquetes: cada app se ejecuta como módulo (`python3 -P -m wysun_music`, `wysun_files`,
-`wysun_player`, `wysun_pdf`) con esa raíz en `PYTHONPATH`, que fijan los lanzadores de `bin/` (`bin/wysun` la deduce de su
+`wysun_player`) con esa raíz en `PYTHONPATH`, que fijan los lanzadores de `bin/` (`bin/wysun` la deduce de su
 propia ubicación: `../share/wysun/app` instalado, `../apps/python` en el repositorio) y el shell (`Paths.python()` en
 `apps/shell/utils/Paths.qml`: `env PYTHONPATH=<app> python3 -s -P -m …`; `-I` no sirve porque ignora `PYTHONPATH`). Un
 proceso que lanza otro módulo usa `wysun_core.launch` (misma raíz, `-P`). Ningún código añade rutas a `sys.path`, salvo
@@ -229,8 +226,7 @@ Python estándar (+ PySide6 para la GUI). Instala por **componentes** (`desktop,
 
 | Modo | Efecto |
 |---|---|
-| `--wysun-only` | Despliega `apps/python`, `apps/tools`, `apps/shell`, `apps/recorder`, `bin/*`, retira los lanzadores de versiones anteriores (`RETIRED_COMMANDS`: solo los suyos sin cambios y que `~/.config/wysun/*.lua` ya no llama) y reconstruye el runtime si cambió. No cambia atajos, notas, historial ni colores |
-| `--scripts-only` | Herramientas de terminal (`wysun tools`) y el lanzador `wysun` |
+| `--wysun-only` | Despliega `apps/python`, `apps/shell`, `apps/recorder`, `bin/*`, retira los lanzadores de versiones anteriores (`RETIRED_COMMANDS`: solo los suyos sin cambios y que `~/.config/wysun/*.lua` ya no llama) y reconstruye el runtime si cambió. No cambia atajos, notas, historial ni colores |
 | `--installer-only` | El propio instalador y su CLI `wysun-install` (`wysun install`) |
 | `--boot-only` | GRUB/Plymouth/greeter (respalda `/etc` y `/boot`) |
 | `--config-only` | Archivos de usuario sin paquetes |
@@ -382,18 +378,20 @@ Nunca reiniciar Hyprland ni el login para actualizar un panel.
 |---|---|
 | App instalada (paquetes Python) | `~/.local/share/wysun/app/` |
 | Datos privados (portapapeles `wysun.sqlite3`, colores, notas, música, respaldos de Ajustes) | `~/.local/share/wysun/` |
-| Preferencias (`theme.json`, `environment.json`, `hypr-*.lua`, `idle.json`, `local.lua`, `resets/`, `tools.json`) | `~/.config/wysun/` |
+| Preferencias (`theme.json`, `environment.json`, `hypr-*.lua`, `idle.json`, `local.lua`) | `~/.config/wysun/` |
 | Estado (`scheme.json`, registros, respaldos de tema) / caché | `~/.local/state/wysun/` / `~/.cache/wysun/` |
 | Recorder | datos `~/.local/share/wysun/recorder`, preferencias `~/.config/wysun/recorder`, estado `~/.local/state/wysun/recorder`, releases `~/.local/share/wysun/capture/releases` |
 | Instalador | CLI `wysun-install` (`wysun install`), código `~/.local/share/wysun/installer`, estado y respaldos `~/.local/state/wysun/install`, artefactos fijados `~/.local/share/wysun/artifacts`, estado del sistema `/var/lib/wysun` |
-| Herramientas | `wysun tools`, motor `~/.local/share/wysun/tools` (`python3 -m wysun_tools`) |
+| Utilidades | `wysun lanshare` (`python3 -m wysun_lanshare`), en `~/.local/share/wysun/app`; caché `~/.cache/wysun/lanshare` |
 | Sockets / variables / desktop ids | `wysun-*` en `$XDG_RUNTIME_DIR`; `WYSUN_*`; `wysun`, `wysun-files`, `wysun-music`, `wysun-settings`, `wysun-recorder`, portal `org.freedesktop.impl.portal.desktop.wysun` |
 
 `tests/test_legacy_names.py` impide que vuelvan los nombres anteriores. La URL del repositorio en GitHub conserva su nombre.
 
 Retirados: los nombres del proyecto de origen (módulos, plugin, rutas, IPC, namespaces de capa), todos los alias de comandos
 (`wysun image`, `wysun color`, `wysun screenshot`, `wysun power`…) y los lanzadores sueltos (`wysun-tools`, `wysun-player`,
-`wysun-files`, `wysun-music`, `wysun-pdf`, `wysun-workspaces`, `wysun-screenshot`), que una actualización retira; perfiles
+`wysun-files`, `wysun-music`, `wysun-pdf`, `wysun-workspaces`, `wysun-screenshot`), que una actualización retira; el lector
+Wysun PDF (paquete `wysun_pdf`, `wysun pdf` y su `.desktop`, que una actualización retira); `wysun tools` (`apps/tools`,
+el componente `tools` del instalador y `--scripts-only`; una actualización retira `~/.local/share/wysun/tools` si no lo cambiaste); perfiles
 `profiles/` (ahora `machines/`), módulos Python sin uso (`files_preview`, `service_runtime`, `theme_widgets`), demonios QML sin
 uso (`GameMode`, `IdleMonitors`) y la infraestructura de CI/nix del shell original.
 

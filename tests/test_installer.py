@@ -10,7 +10,7 @@ class InstallerTests(unittest.TestCase):
   # A fresh profile gets the automatic mode and the shipped wallpaper.
   d=self.deploy()
   try:
-   with patch.object(d,'deploy'),patch.object(d,'configure_scripts'),patch.object(d,'configure_manager'),patch.object(d,'configure_fonts'),patch.object(d,'generated') as generated:d.configure(components=('desktop',))
+   with patch.object(d,'deploy'),patch.object(d,'configure_manager'),patch.object(d,'configure_fonts'),patch.object(d,'generated') as generated:d.configure(components=('desktop',))
    written={str(call.args[1]):call.args[0] for call in generated.call_args_list}
    self.assertEqual(json.loads(written['.config/wysun/theme.json']),{'mode':'auto'})
    self.assertEqual(json.loads(written['.config/wysun/environment.json'])['wallpaper']['default'],str(self.home/'.local/share/backgrounds/purple.jpg'))
@@ -22,7 +22,7 @@ class InstallerTests(unittest.TestCase):
    (self.home/'.config/wysun/environment.json').write_text(json.dumps({'wallpaper':{'default':'/mine.jpg','folders':['/library']}}))
    d=self.deploy()
    try:
-    with patch.object(d,'deploy'),patch.object(d,'configure_scripts'),patch.object(d,'configure_manager'),patch.object(d,'configure_fonts'),patch.object(d,'generated') as generated:d.configure(components=('desktop',))
+    with patch.object(d,'deploy'),patch.object(d,'configure_manager'),patch.object(d,'configure_fonts'),patch.object(d,'generated') as generated:d.configure(components=('desktop',))
     written={str(call.args[1]):call.args[0] for call in generated.call_args_list}
     self.assertEqual(json.loads(written['.config/wysun/theme.json']),expected,stored)
     self.assertNotIn('.config/wysun/environment.json',written,'the personal wallpaper is left alone')

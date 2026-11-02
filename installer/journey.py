@@ -19,9 +19,6 @@ COMPONENTS = {
     'editor': dict(symbol='code', title='Neovim',
                    detail='Editor configurado con lenguajes, autocompletado y depuración.',
                    includes=('Neovim', 'LSP', 'DAP')),
-    'tools': dict(symbol='construction', title='Wysun Tools',
-                  detail='Utilidades de desarrollo, red y transferencia de archivos.',
-                  includes=()),
     'boot': dict(symbol='power_settings_new', title='Arranque Macrodata',
                  detail='GRUB, la carga y la pantalla de acceso como terminal de refinamiento.',
                  includes=()),
@@ -36,15 +33,14 @@ EXTRAS = {
     'discord': ('Discord', 'Comunidades y llamadas', 'group'),
     'obsidian': ('Obsidian', 'Notas enlazadas', 'description'),
 }
-# What the window offers: the desktop is always there; three pieces and three apps are optional.
+# What the window offers: the desktop is always there; two pieces and three apps are optional.
 CORE = ('wayland', 'desktop', 'terminal')
 ADDONS = {
     'editor': ('code', 'Neovim', 'Editor con lenguajes, autocompletado y depuración.', 6),
-    'tools': ('construction', 'Wysun Tools', 'Utilidades de desarrollo, red y transferencia.', 7),
     'boot': ('power_settings_new', 'Macrodata', 'GRUB, carga y acceso como terminal de refinamiento.', 12),
 }
 PRESETS = {
-    'complete': ('Completo', ('wayland', 'desktop', 'terminal', 'editor', 'tools', 'boot')),
+    'complete': ('Completo', ('wayland', 'desktop', 'terminal', 'editor', 'boot')),
     'essential': ('Esencial', ('wayland', 'desktop', 'terminal')),
 }
 # Read-only checks about the machine itself; the rest depend on the selection.

@@ -126,9 +126,11 @@ Esta versión está orientada a Wysun / Hyprland sobre Wayland y a las rutas XDG
 
 En Ajustes → Wallpaper & style eliges el fondo con el carrusel (`Super+Shift+W`) y el modo —automático, claro u oscuro—; los colores y el acento salen siempre del wallpaper actual y se aplican al instante en todas las aplicaciones, sin reinstalar el escritorio ([guía de temas](docs/themes.md)). Cada cambio se respalda.
 
-### Herramientas personales
+### Utilidades del día a día
 
-Un solo comando: `wysun tools`, con grupos `dev`, `audit`, `share`, `cloud`, `vpn` y `resets`; el motor vive en `apps/tools/wysun_tools`. Se instala con `./instalar.sh --scripts-only` (o con la instalación completa) y se actualiza también con `./instalar.sh --wysun-only`. [Guía de uso y recuperación](docs/tools.md).
+Cada utilidad es un paquete propio en `apps/python` y se abre con `wysun`; se instalan y actualizan con el resto de Wysun (`./instalar.sh --wysun-only`). [Guía](docs/utilities.md).
+
+- `wysun lanshare [CARPETA]`: comparte una carpeta con la red local desde el navegador (explorar, ver video con miniaturas, subir y descargar carpetas en `.zip`).
 
 ### Arranque y acceso
 

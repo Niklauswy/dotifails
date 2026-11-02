@@ -9,8 +9,8 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 APP = ROOT / 'apps/python'
-PACKAGES = {'wysun_core', 'wysun_music', 'wysun_files', 'wysun_media', 'wysun_player', 'wysun_pdf',
-            'wysun_settings', 'wysun_services', 'wysun_qml'}
+PACKAGES = {'wysun_core', 'wysun_music', 'wysun_files', 'wysun_media', 'wysun_player',
+            'wysun_settings', 'wysun_services', 'wysun_qml', 'wysun_lanshare'}
 # The vendored materialyoucolor is the only sys.path entry production code adds: next to the packages, never the app.
 SYS_PATH_ALLOWED = {'apps/python/wysun_services/scheme.py'}
 
@@ -25,7 +25,7 @@ class LayoutTests(unittest.TestCase):
             self.assertTrue((APP / package / '__init__.py').is_file(), package)
 
     def test_apps_have_module_entry_points(self):
-        for package in ('wysun_music', 'wysun_files', 'wysun_player', 'wysun_pdf'):
+        for package in ('wysun_music', 'wysun_files', 'wysun_player', 'wysun_lanshare'):
             self.assertTrue((APP / package / '__main__.py').is_file(), package)
 
     def test_no_production_code_inserts_paths(self):
