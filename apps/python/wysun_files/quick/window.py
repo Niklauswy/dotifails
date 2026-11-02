@@ -35,7 +35,10 @@ class QmlFilesWindow:
         self.files.closeRequested.connect(self.window.close)
 
     def _extend(self):
-        """Later parts add their bridges here (operations, preview)."""
+        from .operations import Operations
+        self.ops = Operations(self.files, parent=self.engine)
+        self.files.openRequested.connect(self.ops.open)
+        self.bridges['fileOps'] = self.ops
 
     def present(self):
         window = self.window

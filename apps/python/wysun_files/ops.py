@@ -87,7 +87,7 @@ def _rename_exclusive(source: Path, target: Path) -> None:
         raise OSError(code, os.strerror(code), str(target))
 
 
-def execute_operation(kind: str, sources: list[str], destination: str = '') -> list[str]:
+def execute_operation(kind: str, sources: list[str], destination: str = '', progress=None) -> list[str]:
     """Execute copy/move/trash/mkdir/rename; return destination paths.
 
     mkdir takes a full destination path and no sources. rename takes one
@@ -144,6 +144,8 @@ def execute_operation(kind: str, sources: list[str], destination: str = '') -> l
                 if result.returncode:
                     raise OSError(result.stderr.strip() or f'No se pudo enviar a la papelera: {source}')
                 completed.append(str(source))
+                if progress:
+                    progress(len(completed), len(paths))
                 continue
             if kind == 'copy':
                 _copy(source, target)
@@ -162,8 +164,53 @@ def execute_operation(kind: str, sources: list[str], destination: str = '') -> l
                     except OSError as deletion_error:
                         raise OSError(f'Copia conservada en {target}, pero no se pudo retirar el origen {source}: {deletion_error}') from deletion_error
             completed.append(str(target))
+            if progress:
+                progress(len(completed), len(paths))
     except Exception as error:
         if completed:
             raise RuntimeError(f'{error}\nOperaciones ya completadas: ' + ', '.join(completed)) from error
         raise
     return completed
+
+
+def trashed_name(original: str, trash) -> str | None:
+    """The name under ``trash/files`` of the newest entry deleted from ``original`` (freedesktop trash spec)."""
+    from urllib.parse import unquote
+    best, newest = None, ''
+    info = Path(trash) / 'info'
+    try:
+        entries = list(info.glob('*.trashinfo'))
+    except OSError:
+        return None
+    for entry in entries:
+        path, date = '', ''
+        try:
+            for line in entry.read_text(errors='replace').splitlines():
+                if line.startswith('Path='):
+                    path = unquote(line[5:])
+                elif line.startswith('DeletionDate='):
+                    date = line[13:]
+        except OSError:
+            continue
+        if path == original and date >= newest:
+            best, newest = entry.name[:-len('.trashinfo')], date
+    return best
+
+
+def restore_from_trash(original: str, trash) -> str:
+    """Put the newest trashed copy of ``original`` back; never overwrites (renameat2 without replace)."""
+    name = trashed_name(original, trash)
+    if name is None:
+        raise FileNotFoundError(f'No está en la papelera: {original}')
+    source = Path(trash) / 'files' / name
+    target = Path(original)
+    if not target.parent.is_dir():
+        raise NotADirectoryError(f'La carpeta original ya no existe: {target.parent}')
+    if os.path.lexists(target):
+        raise FileExistsError(f'Ya existe: {target}. No se restauró nada.')
+    _rename_exclusive(source, target)
+    try:
+        (Path(trash) / 'info' / (name + '.trashinfo')).unlink()
+    except OSError:
+        pass
+    return str(target)

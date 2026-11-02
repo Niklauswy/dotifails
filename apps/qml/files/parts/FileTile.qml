@@ -49,6 +49,8 @@ Item {
             tint: root.selected ? Theme.m3onSecondaryContainer : Theme.m3onSurface
             focused: root.current && (root.view?.activeFocus ?? false)
             mouseArea.acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
+            // Dragging files out to other apps (F-33); the chooser does not drag.
+            mouseArea.drag.target: root.view && !root.view.chooser ? dragProxy : null
             mouseArea.onPressed: mouse => root.view.press(root.index, mouse.button, mouse.modifiers)
             mouseArea.onDoubleClicked: mouse => {
                 if (mouse.button === Qt.LeftButton)
@@ -131,6 +133,20 @@ Item {
     }
 
     // The staggered entrance of a folder that opens (none with reduced motion).
+    // What a drag towards another app carries: the selection as file:// URLs.
+    Item {
+        id: dragProxy
+
+        width: 1
+        height: 1
+        Drag.dragType: Drag.Automatic
+        Drag.supportedActions: Qt.CopyAction
+        Drag.mimeData: ({
+                "text/uri-list": fileOps.uris(root.view && root.selected ? root.view.model.selectedPaths : [root.model.path]).join("\r\n")
+            })
+        Drag.active: layer.mouseArea.drag.active
+    }
+
     states: State {
         when: root.entering
         PropertyChanges {

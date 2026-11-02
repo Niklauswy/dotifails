@@ -13,6 +13,9 @@ Window {
     readonly property Item overlayHost: overlay
     readonly property var snackbarHost: snackbars
     readonly property Item currentView: views.itemAt(files.currentIndex)
+    readonly property var dialogs: filesDialogs
+    readonly property var menus: filesMenus
+    property bool closeWhenIdle
 
     function focusFiles() {
         currentView?.focusFiles();
@@ -44,8 +47,49 @@ Window {
         focusFiles();
     }
 
-    function keyAction(action) {
-        files.keyAction(action, model ? model.selectedPaths : []);
+    function openPaths(paths) {
+        const folders = paths.filter(p => model.get(model.rowOf(p)).isDir === true);
+        if (paths.length === 1 && folders.length === 1) {
+            tab.navigate(paths[0]);
+            return;
+        }
+        files.openFiles(paths.filter(p => folders.indexOf(p) < 0));
+    }
+
+    // What a key, a menu entry or a button asks for; `paths` defaults to the selection.
+    function keyAction(action, paths) {
+        const chosen = paths && paths.length > 0 ? paths : (model ? model.selectedPaths : []);
+        switch (action) {
+        case "copy":
+            fileOps.copy(chosen);
+            break;
+        case "cut":
+            fileOps.cut(chosen);
+            break;
+        case "paste":
+            fileOps.paste(tab.path);
+            break;
+        case "trash":
+            dialogs.confirmTrash(chosen);
+            break;
+        case "rename":
+            if (chosen.length === 1)
+                dialogs.askName("rename", tab.path, chosen[0]);
+            break;
+        case "newFolder":
+        case "newFile":
+            dialogs.askName(action, tab.path, "");
+            break;
+        case "new":
+            {
+                const point = newAnchor.mapToItem(null, 0, newAnchor.height);
+                menus.newMenu(point.x, point.y);
+            }
+            break;
+        case "open":
+            openPaths(chosen);
+            break;
+        }
     }
 
     title: files.title
@@ -54,6 +98,14 @@ Window {
     minimumWidth: Metrics.windowMedium * 0.6
     minimumHeight: Metrics.windowMedium * 0.7
     color: Theme.m3surface
+    // Closing waits for a running copy or move (F-05).
+    onClosing: close => {
+        if (fileOps.busy) {
+            close.accepted = false;
+            closeWhenIdle = true;
+            snackbars.show({text: "La ventana se cerrará cuando termine la operación"});
+        }
+    }
 
     Item {
         id: root
@@ -76,6 +128,15 @@ Window {
             destinations: places.destinations
             currentId: window.tab ? places.placeOf(window.tab.path) : ""
             onDestinationSelected: id => window.navigate(id)
+            // Where «Nuevo» opens its menu: the top of the content, next to the drawer's button.
+            Item {
+                id: newAnchor
+
+                x: Theme.padding.small ?? 0
+                y: Theme.spacing.small ?? 0
+                width: 1
+                height: Metrics.fabRegular
+            }
             onTrailingAction: id => places.eject(id)
             onContextRequested: (id, x, y) => {
                 if (places.isBookmark(id)) {
@@ -90,13 +151,20 @@ Window {
                     size: "small"
                     icon: "add"
                     text: "Nuevo"
-                    onClicked: window.keyAction("new")
+                    onClicked: {
+                        const point = mapToItem(null, 0, height + (Theme.spacing.small ?? 0));
+                        window.menus.newMenu(point.x, point.y);
+                    }
                 }
             }
             fab: Component {
                 Fab {
+                    objectName: "newRailFab"
                     icon: "add"
-                    onClicked: window.keyAction("new")
+                    onClicked: {
+                        const point = mapToItem(null, width, 0);
+                        window.menus.newMenu(point.x, point.y);
+                    }
                 }
             }
 
@@ -220,7 +288,7 @@ Window {
                             icon: "more_vert"
                             onClicked: {
                                 const point = mapToItem(null, 0, height);
-                                files.moreMenu(point.x, point.y);
+                                window.menus.more(point.x, point.y);
                             }
 
                             Tooltip {
@@ -254,8 +322,8 @@ Window {
                             focus: visible
                             tab: modelData
                             mode: files.viewMode
-                            onOpened: paths => files.openFiles(paths)
-                            onContextRequested: (paths, x, y) => files.contextMenu(paths, x, y)
+                            onOpened: paths => window.openPaths(paths)
+                            onContextRequested: (paths, x, y) => window.menus.context(paths, x, y)
                             onKeyAction: action => window.keyAction(action)
                             onPreviewRequested: window.keyAction("preview")
                         }
@@ -282,6 +350,8 @@ Window {
                     width: parent.width
                     model: window.model
                     free: window.tab ? window.tab.freeText : ""
+                    operation: fileOps.busyText
+                    progress: fileOps.progress
                 }
             }
         }
@@ -303,6 +373,47 @@ Window {
             function onMessage(text) {
                 snackbars.show({text: text});
             }
+        }
+
+        Connections {
+            target: fileOps
+
+            function onMessage(text) {
+                snackbars.show({text: text});
+            }
+            function onFailed(title, text) {
+                snackbars.show({text: text, longer: true, closable: true});
+            }
+            function onTrashed(count) {
+                snackbars.show({text: count === 1 ? "1 elemento en la papelera" : count + " elementos en la papelera", action: "Deshacer", longer: true});
+            }
+            function onFinished() {
+                if (window.closeWhenIdle)
+                    window.close();
+            }
+        }
+
+        Connections {
+            target: snackbars
+
+            function onActionTriggered(action) {
+                if (action === "Deshacer")
+                    fileOps.undoTrash();
+            }
+        }
+
+        FilesMenus {
+            id: filesMenus
+
+            app: window
+            host: overlay
+        }
+
+        FilesDialogs {
+            id: filesDialogs
+
+            app: window
+            host: overlay
         }
 
         Connections {

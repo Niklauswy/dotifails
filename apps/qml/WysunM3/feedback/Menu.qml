@@ -43,6 +43,7 @@ Item {
     function popup(item, x, y) {
         const target = OverlayHost.find(root, host, Window.contentItem);
         layer.parent = target;
+        column.forceLayout();                   // a model set just before must be measured before placing
         const point = (item ?? root).mapToItem(target, x ?? 0, y ?? 0);
         const margin = Theme.padding.small ?? 0;
         let px = point.x;

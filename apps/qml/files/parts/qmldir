@@ -11,3 +11,5 @@ TabStrip 1.0 TabStrip.qml
 PathBar 1.0 PathBar.qml
 StatusLine 1.0 StatusLine.qml
 SelectionBar 1.0 SelectionBar.qml
+FilesMenus 1.0 FilesMenus.qml
+FilesDialogs 1.0 FilesDialogs.qml

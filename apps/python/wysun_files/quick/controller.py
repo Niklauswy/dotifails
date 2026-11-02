@@ -26,6 +26,7 @@ class Tab(QObject):
         self._model = FolderModel(thumbs=controller.thumbs, special=controller.special, parent=self)
         self._model.setShowHidden(controller._hidden)
         self._model.loaded.connect(self._loaded)
+        self._model.stateChanged.connect(self._settled)
         self._path, self._history, self._future, self._reselect = '', [], [], []
         if not self.navigate(path):
             self.navigate(str(Path.home()))
@@ -87,6 +88,13 @@ class Tab(QObject):
         if root == self._path and self._reselect:
             self._model.selectPaths(self._reselect)
             self._reselect = []
+
+    def _settled(self):
+        """A refresh (after an operation) finished: select what it was waiting for."""
+        if self._reselect and not self._model.property('loading') and self._model.property('root') == self._path:
+            if all(self._model.rowOf(p) >= 0 for p in self._reselect):
+                self._model.selectPaths(self._reselect)
+                self._reselect = []
 
     def select_when_loaded(self, paths):
         """Select ``paths`` once the folder is listed (or now, when it already is)."""
@@ -222,6 +230,7 @@ class FilesController(QObject):
     @Slot(str, result=int)
     def newTab(self, path=''):
         tab = Tab(self, path or self.current.property('path'))
+        tab.model.setCut(getattr(self, '_cut', []))
         tab.changed.connect(self._tab_changed)
         self._tabs.insert(self._index + 1, tab)
         self.tabsChanged.emit()
@@ -311,6 +320,13 @@ class FilesController(QObject):
     @Slot(float, float)
     def moreMenu(self, x, y):
         self.menuRequested.emit('more', [], x, y)
+
+    @Slot('QVariantList')
+    def setCut(self, paths):
+        """Fade the files waiting to be moved, in every tab."""
+        self._cut = list(paths)
+        for tab in self._tabs:
+            tab.model.setCut(self._cut)
 
     @Slot(str)
     def copyText(self, text):

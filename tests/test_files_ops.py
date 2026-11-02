@@ -23,6 +23,44 @@ class FileOperationsTests(unittest.TestCase):
         self.dest = self.root / 'destination'
         self.dest.mkdir()
 
+    def test_progress_is_reported_after_each_item(self):
+        second = self.root / 'b.txt'
+        second.write_text('b')
+        seen = []
+        ops.execute_operation('copy', [str(self.source), str(second)], str(self.dest), progress=lambda done, total: seen.append((done, total)))
+        self.assertEqual(seen, [(1, 2), (2, 2)])
+
+    def test_restore_from_trash_puts_the_file_back_and_never_overwrites(self):
+        trash = self.root / 'Trash'
+        (trash / 'files').mkdir(parents=True)
+        (trash / 'info').mkdir()
+        original = self.root / 'notas con espacio.txt'
+        (trash / 'files/notas con espacio.txt').write_text('hola')
+        (trash / 'info/notas con espacio.txt.trashinfo').write_text(
+            '[Trash Info]\nPath=' + str(original).replace(' ', '%20') + '\nDeletionDate=2026-11-01T10:00:00\n')
+        self.assertEqual(ops.trashed_name(str(original), trash), 'notas con espacio.txt')
+        ops.restore_from_trash(str(original), trash)
+        self.assertEqual(original.read_text(), 'hola')
+        self.assertFalse((trash / 'info/notas con espacio.txt.trashinfo').exists())
+        (trash / 'files/notas con espacio.txt').write_text('otra')
+        (trash / 'info/notas con espacio.txt.trashinfo').write_text(
+            '[Trash Info]\nPath=' + str(original).replace(' ', '%20') + '\nDeletionDate=2026-11-01T11:00:00\n')
+        with self.assertRaises(FileExistsError):
+            ops.restore_from_trash(str(original), trash)
+        self.assertEqual(original.read_text(), 'hola')
+        self.assertTrue((trash / 'files/notas con espacio.txt').exists())
+
+    def test_restore_picks_the_newest_entry_for_a_path(self):
+        trash = self.root / 'Trash'
+        (trash / 'files').mkdir(parents=True)
+        (trash / 'info').mkdir()
+        original = self.root / 'a.txt'
+        for name, date in (('a.txt', '2026-11-01T10:00:00'), ('a.2.txt', '2026-11-01T12:00:00')):
+            (trash / 'files' / name).write_text(name)
+            (trash / 'info' / (name + '.trashinfo')).write_text(f'[Trash Info]\nPath={original}\nDeletionDate={date}\n')
+        self.assertEqual(ops.trashed_name(str(original), trash), 'a.2.txt')
+        self.assertIsNone(ops.trashed_name(str(self.root / 'nada'), trash))
+
     def test_copy_preserves_original_and_rejects_collision(self):
         result = ops.execute_operation('copy', [str(self.source)], str(self.dest))
         self.assertEqual(Path(result[0]).read_text(), 'original')
