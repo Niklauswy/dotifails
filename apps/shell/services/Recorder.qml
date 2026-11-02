@@ -38,6 +38,9 @@ Singleton {
     property string screenName: ''
     property rect region: Qt.rect(0, 0, 0, 0)
     property bool wholeOutput: false
+    // The camera of the recording in progress, as chosen when it was launched: where it will cover the video.
+    property bool cameraActive: false
+    property var cameraActiveStyle: ({ shape: 'circle', size: 'medium', corner: 'bottom-right' })
     // Seconds left before the worker starts, and the request waiting for them.
     property int countdown: 0
     property var pending: null
@@ -88,8 +91,10 @@ Singleton {
         region = area;
         wholeOutput = whole;
         error = '';
-        Quickshell.execDetached(['sh', '-c', 'printf %s "$1" > "$2"', 'sh', JSON.stringify({ screen: output, x: area.x, y: area.y, width: area.width, height: area.height, whole: whole }), stateFile]);
         pending = { source: source, output: output, rect: geometry, mic: mic, mic_device: micDevice, system: system, cursor: cursor, camera: camera && (cameraDevice !== '' || cameras.length > 0), camera_device: cameraDevice || (cameras.length ? cameras[0].id : '') };
+        cameraActive = pending.camera;
+        cameraActiveStyle = Object.assign({}, cameraStyle);
+        Quickshell.execDetached(['sh', '-c', 'printf %s "$1" > "$2"', 'sh', JSON.stringify({ screen: output, x: area.x, y: area.y, width: area.width, height: area.height, whole: whole, camera: pending.camera, cameraStyle: cameraActiveStyle }), stateFile]);
         countdown = countdownSeconds;
         if (countdown <= 0)
             begin();
@@ -147,6 +152,8 @@ Singleton {
                     root.screenName = saved.screen;
                     root.region = Qt.rect(saved.x, saved.y, saved.width, saved.height);
                     root.wholeOutput = saved.whole;
+                    root.cameraActive = saved.camera === true;
+                    root.cameraActiveStyle = saved.cameraStyle ?? root.cameraActiveStyle;
                 } catch (error) {
                     // No recording was being followed.
                 }
@@ -210,6 +217,7 @@ Singleton {
                         startTimeout.stop();
                     } else if (!root.starting && root.countdown === 0) {
                         root.annotating = false;
+                        root.cameraActive = false;
                         Quickshell.execDetached(['rm', '-f', root.stateFile]);
                     }
                 } catch (error) {

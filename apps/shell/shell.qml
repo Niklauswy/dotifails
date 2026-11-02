@@ -15,6 +15,7 @@ import qs.modules.cheatsheet
 import qs.modules.wallpaperpicker
 import qs.modules.areapicker
 import qs.modules.recorder
+import qs.components.camera
 import qs.modules.background
 import qs.modules.drawers
 import qs.modules.identify
@@ -59,6 +60,7 @@ ShellRoot {
     Identify {}
     RecordingHud {}
     RecordingBorder {}
+    CameraMarker {}
     LiveAnnotations {}
     Overview {}
     WysunBridge {}

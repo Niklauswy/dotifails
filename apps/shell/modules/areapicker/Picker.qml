@@ -6,6 +6,7 @@ import Quickshell.Wayland
 import Wysun.Config
 import Wysun.I18n
 import qs.components
+import qs.components.camera
 import qs.services
 
 // One output of a screenshot. The output is frozen at open; the selection lives
@@ -471,6 +472,13 @@ MouseArea {
         onToggleCursor: Recorder.setPref("record_cursor", !Recorder.cursor)
         onToggleCamera: Recorder.setPref("record_camera", !Recorder.camera)
         onCancel: root.session.finished()
+    }
+
+    // The camera as it will look in the video, in its corner of the selected area; drag it to another corner.
+    CameraPreview {
+        area: root.session.selection
+        visible: root.active && root.phase === "record" && Recorder.camera && Recorder.cameras.length > 0 && root.session.selection.width > 0
+        live: visible
     }
 
     OcrPanel {

@@ -139,6 +139,8 @@ QtObject {
     // worker) and closes the overlay; the HUD and the utilities card follow it from there.
     function startRecording(output: ShellScreen, wholeOutput: bool): void {
         const r = selection;
+        // Leaving "record" ends the camera preview, so the camera is free by the time the worker opens it.
+        phase = "done";
         Recorder.launch(output.name, Qt.rect(r.x, r.y, r.width, r.height), wholeOutput, wholeOutput ? "monitor" : "region",
             [Math.round(output.x + r.x), Math.round(output.y + r.y), Math.round(r.width), Math.round(r.height)]);
         finished();
