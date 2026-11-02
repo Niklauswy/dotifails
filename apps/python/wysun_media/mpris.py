@@ -77,7 +77,15 @@ def visible_video(player):
     """A video is on screen and playing: the one condition under which the display must stay on."""
     window = player.window()
     return (player.kind == 'video' and player.session.state == 'playing' and player.isVisible()
-            and window is not None and not window.isMinimized())
+            and window is not None and not minimized(window))
+
+
+def minimized(window):
+    """A QWindow (QML) or a QWidget window is minimized."""
+    if hasattr(window, 'isMinimized'):
+        return window.isMinimized()
+    from PySide6.QtGui import QWindow
+    return window.visibility() == QWindow.Visibility.Minimized
 
 
 def metadata_values(player):
@@ -195,7 +203,7 @@ def _service_class(dbus):
         def Raise(self):
             window = self.player.window()
             window.raise_()
-            window.activateWindow()
+            (window.activateWindow if hasattr(window, 'activateWindow') else window.requestActivate)()
 
         @service.method(ROOT)
         def Quit(self):

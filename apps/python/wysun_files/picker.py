@@ -1,13 +1,29 @@
 """One-shot Wysun Files selector. JSON request on stdin, JSON response on stdout (F-60).
 
-Requests: documents (``suffix`` pdf|md, ``save``), or ``kind: "audio"`` with ``multiple`` files or a ``directory``
-for Wysun Music's import. The answer is ``{"code": 0|1, "uris": [...], ...}`` as the portal would reply."""
+Requests: documents (``suffix`` pdf|md, ``save``), ``kind: "audio"`` with ``multiple`` files or a ``directory``
+for Wysun Music's import, or ``kind: "media"`` / ``"subtitles"`` for Wysun Player. The answer is ``{"code": 0|1, "uris": [...], ...}`` as the portal would reply."""
 import json
 import os
 import sys
 from pathlib import Path
 
 AUDIO = ('m4a', 'opus', 'mp3', 'flac', 'ogg', 'wav', 'aac')     # what Wysun Music imports
+
+
+SUBTITLES = ('srt', 'ass', 'ssa', 'vtt', 'sub')
+
+
+def _player_options(kind, folder):
+    """Wysun Player: media files to open, or subtitle files for the video on screen."""
+    def rules(suffixes):
+        return [(0, f'*{s}' if s.startswith('.') else f'*.{s}') for s in sorted(suffixes)]
+    if kind == 'subtitles':
+        filters = [('Subtítulos', rules(SUBTITLES))]
+    else:
+        from wysun_media.source import AUDIO, IMAGE, VIDEO
+        filters = [('Videos, audio e imágenes', rules(VIDEO | AUDIO | IMAGE)), ('Videos', rules(VIDEO)),
+                   ('Audio', rules(AUDIO)), ('Imágenes', rules(IMAGE))]
+    return {'current_folder': os.fsencode(folder), 'multiple': True, 'accept_label': 'Abrir', 'filters': filters}
 
 
 def request_options(request):
@@ -25,6 +41,9 @@ def request_options(request):
                    'directory': directory, 'accept_label': 'Importar',
                    'filters': [] if directory else [('Audio', [(0, f'*.{s}') for s in AUDIO])]}
         return 'open', request.get('title', 'Importar música'), options
+    if kind in ('media', 'subtitles'):
+        return 'open', request.get('title', 'Abrir en Wysun Player' if kind == 'media' else 'Cargar subtítulos'), \
+            _player_options(kind, folder)
     if kind != 'document':
         raise ValueError('Unsupported request kind')
     suffix = request.get('suffix', 'pdf')

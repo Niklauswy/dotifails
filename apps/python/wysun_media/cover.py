@@ -37,11 +37,15 @@ class CoverJob(QObject):
         self._kill()
 
     def _read(self):
+        if self._done:                   # cancelled or finished: the process may already be gone
+            return
         self._data += bytes(self._process.readAllStandardOutput())
         if len(self._data) > MAX_BYTES:
             self._finish(QImage())
 
     def _finished(self, code, _status):
+        if self._done:
+            return
         self._read()
         self._finish(QImage.fromData(bytes(self._data)) if code == 0 else QImage())
 
