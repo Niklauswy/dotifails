@@ -8,6 +8,7 @@ import threading
 
 from wysun_core import paths
 from wysun_core.jsonio import atomic_path
+from wysun_core import h264
 from wysun_lanshare.share import kind_of
 
 def cache_dir():
@@ -34,7 +35,7 @@ _meta_lock = threading.Lock()
 
 def probe(path):
     try:
-        key = file_key(path, "meta")
+        key = file_key(path, "meta2")   # meta2: with the H.264 level and frame rate
     except OSError:
         return {}
     with _meta_lock:
@@ -62,6 +63,13 @@ def probe(path):
         for s in data.get("streams", []):
             if s.get("codec_type") == "video" and "vcodec" not in meta and s.get("disposition", {}).get("attached_pic") != 1:
                 meta["vcodec"] = s.get("codec_name")
+                if s.get("level") not in (None, -99):
+                    meta["level"] = s.get("level")
+                try:
+                    num, den = (s.get("avg_frame_rate") or "0/1").split("/")
+                    meta["fps"] = round(int(num) / int(den), 2) if int(den) else 0
+                except ValueError:
+                    pass
                 meta["width"] = s.get("width")
                 meta["height"] = s.get("height")
             elif s.get("codec_type") == "audio" and "acodec" not in meta:
@@ -148,3 +156,42 @@ def cached_image(path, kind):
         except OSError:
             pass
         return None
+
+
+def playable(path):
+    """A copy phones can play when the video only declares a level they refuse (Recorder files say 6.2): the same
+    streams, without re-encoding, with the level it really needs; cached. The original path otherwise."""
+    meta = probe(path)
+    if not h264.too_high(meta):
+        return path
+    level = h264.level_for(meta.get("width") or 0, meta.get("height") or 0, meta.get("fps") or 60)
+    if not level:
+        return path
+    try:
+        key = file_key(path, "compat-" + level)
+    except OSError:
+        return path
+    out = os.path.join(cache_dir(), "compat", key[:2], key + ".mp4")
+    if os.path.exists(out):
+        return out
+    if os.path.exists(out + ".fail"):
+        return path
+    with _key_guard:
+        lock = _key_locks.setdefault(out, threading.Lock())
+    with lock:
+        if os.path.exists(out):
+            return out
+        try:
+            with atomic_path(out) as tmp:
+                cmd = FF + ["-i", path, "-map", "0", "-c", "copy", "-bsf:v", f"h264_metadata=level={level}",
+                            "-movflags", "+faststart", str(tmp)]
+                if subprocess.run(cmd, capture_output=True, timeout=1800).returncode != 0 or not tmp.exists():
+                    raise Incomplete
+            return out
+        except (OSError, subprocess.SubprocessError, Incomplete):
+            try:
+                with atomic_path(out + ".fail") as tmp:
+                    tmp.write_bytes(b"")
+            except OSError:
+                pass
+            return path

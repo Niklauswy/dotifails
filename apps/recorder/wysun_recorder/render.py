@@ -7,6 +7,7 @@ import shutil
 import subprocess
 import tempfile
 import threading
+from wysun_core import h264
 from .schema import load_project, media_path, project_from_dict
 from copy import deepcopy
 
@@ -247,8 +248,12 @@ class RenderJob:
             filters.append(''.join(f'[{a}]' for a in audio)+f'amix=inputs={len(audio)}:normalize=0,alimiter=limit=0.95:latency=1[aout]')
         else:
             filters.append(f'anullsrc=r=48000:cl=stereo,atrim=duration={duration}[aout]')
+        # With passthrough timing x264 cannot see the rate and declares level 6.2, which phones refuse to play:
+        # declare the level this size really needs.
+        level = h264.level_for(self.width, self.height, getattr(source, 'fps', None) or 60)
         cmd += ['-filter_complex', ';'.join(filters), '-map', f'[{current}]', '-map', '[aout]',
                 '-t', str(duration), '-c:v', 'libx264', '-preset', 'veryfast', '-crf', str(self.crf),
+                *(['-level:v', level] if level else []),
                 '-threads', '2', '-bf', '0', '-pix_fmt', 'yuv420p', '-fps_mode', 'passthrough', '-enc_time_base:v', '1:90000', '-video_track_timescale', '90000', '-c:a', 'aac', '-ar', '48000', '-ac', '2',
                 '-movflags', '+faststart', str(temp/f'clip-{index}.mp4')]
         return cmd

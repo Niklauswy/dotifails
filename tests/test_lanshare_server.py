@@ -218,6 +218,29 @@ class ServerTests(unittest.TestCase):
         argv = thread.call_args.kwargs['target'].__closure__[0].cell_contents
         self.assertIn('&lt;b&gt;x&lt;/b&gt;&amp;.txt · Videos', argv)
 
+    def test_videos_declared_above_what_phones_play_are_fixed_to_watch(self):
+        import shutil as sh
+        import subprocess
+        if not sh.which('ffmpeg'):
+            self.skipTest('ffmpeg')
+        video = self.folder / 'grabacion.mp4'
+        subprocess.run(['ffmpeg', '-v', 'error', '-y', '-f', 'lavfi', '-i', 'testsrc2=size=320x240:rate=30', '-t', '1',
+                        '-c:v', 'libx264', '-level:v', '6.2', '-pix_fmt', 'yuv420p', str(video)], check=True)
+        s = Running(self, [self.folder])
+
+        def level(data):
+            out = self.folder.parent / 'served.mp4'
+            out.write_bytes(data)
+            return subprocess.run(['ffprobe', '-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=level',
+                                   '-of', 'csv=p=0', str(out)], capture_output=True, text=True).stdout.strip()
+        response, data = s.request('GET', '/raw/grabacion.mp4')
+        self.assertEqual(response.status, 200)
+        self.assertEqual(level(data), '31', 'watching: the level phones accept, same streams')
+        response, data = s.request('GET', '/raw/grabacion.mp4', headers={'Range': 'bytes=0-99'})
+        self.assertEqual((response.status, len(data)), (206, 100))
+        _, original = s.request('GET', '/raw/grabacion.mp4?dl=1')
+        self.assertEqual(original, video.read_bytes(), 'a download is the untouched file')
+
     def test_busy_port_moves_on(self):
         with socket.socket() as busy:
             busy.bind(('127.0.0.1', 0))

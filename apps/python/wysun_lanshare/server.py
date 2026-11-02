@@ -446,6 +446,9 @@ class Handler(BaseHTTPRequestHandler):
         p = self.app.share.resolve(rel)
         if not p or not os.path.isfile(p):
             return self.fail(404, 'Archivo no encontrado')
+        shown = os.path.basename(p)
+        if kind_of(p) == 'video' and not self.query().get('dl'):
+            p = media.playable(p)          # to watch: a copy phones accept; a download is always the original
         size = os.path.getsize(p)
         start, end = 0, size - 1
         m = re.match(r'bytes=(\d*)-(\d*)$', self.headers.get('Range', '').strip())
@@ -485,7 +488,7 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         if self.command == 'HEAD':
             return None
-        tid = self.app.activity.begin(self.ip(), self.agent(), os.path.basename(p), length, 'down' if download else 'view')
+        tid = self.app.activity.begin(self.ip(), self.agent(), shown, length, 'down' if download else 'view')
         try:
             with open(p, 'rb') as f:
                 f.seek(start)

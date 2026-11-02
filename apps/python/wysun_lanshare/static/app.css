@@ -198,6 +198,19 @@ html:not(.icons) .ms { visibility: hidden; }
 .pane .preview.tall { aspect-ratio: 3 / 4; }
 .pane .preview pre { margin: 0; padding: var(--padding-medium); width: 100%; height: 100%; overflow: auto; font: 12px/1.5 ui-monospace, monospace; white-space: pre-wrap; word-break: break-word; background: var(--m3surfaceContainerLowest); color: var(--m3onSurface); }
 .pane .preview audio { width: calc(100% - 24px); }
+.pane .preview.k-video { aspect-ratio: 16 / 9; background: var(--m3scrim); }
+.pane .poster { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 0; background: var(--m3scrim); cursor: pointer; }
+.pane .poster img { object-fit: contain; max-height: none; height: 100%; }
+.pane .poster .sprite { background-size: 1000% 100%; }
+.pane .poster .dur { right: 10px; bottom: 10px; font-size: 12px; padding: 2px 8px; }
+.pane .poster .play {
+  position: absolute; left: 50%; top: 50%; width: 56px; height: 56px; margin: -28px 0 0 -28px; z-index: 1;
+  display: grid; place-items: center; border-radius: var(--rounding-full);
+  background: color-mix(in srgb, var(--m3surfaceContainerLowest) 88%, transparent); color: var(--m3primary);
+  transition: transform var(--anim-expressiveFastSpatial) var(--ease-expressiveFastSpatial), opacity var(--anim-small);
+}
+.pane .poster .play .ms { font-size: 32px; }
+.pane .poster:hover .play { transform: scale(1.08); }
 .pane .preview > .ms { font-size: 56px; }
 .pane .preview.k-dir, .pane .preview.k-pdf, .pane .preview.k-text, .pane .preview.k-audio { color: inherit; }
 .pane h2 { margin: var(--spacing-extraSmall) 0 0; font: var(--font-title-medium); overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }

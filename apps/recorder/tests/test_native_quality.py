@@ -18,6 +18,8 @@ class NativeQualityTests(unittest.TestCase):
    cmd=job._clip_command(p.clips[0],0,root,0);graph=cmd[cmd.index('-filter_complex')+1]
    self.assertNotIn('fps=',graph);self.assertNotIn('ass=',graph);self.assertIn('pad=1920:1080',graph)
    self.assertEqual(cmd[cmd.index('-crf')+1],'16');self.assertEqual(cmd[cmd.index('-fps_mode')+1],'passthrough')
+   # x264 cannot see the rate with passthrough and would declare level 6.2, which phones refuse to play.
+   self.assertEqual(cmd[cmd.index('-level:v')+1],'4.2')
  def test_legacy_metadata_probe_and_pipeline_cache_identity(self):
   p=project_from_dict({'sources':[{'id':'s','path':'s.mkv','duration':1}],'clips':[{'source_id':'s','in_s':0,'out_s':1}]})
   self.assertFalse(p.sources[0].cursor_baked)

@@ -337,7 +337,15 @@ async function textOf(p) {
 function stageHTML(e, where) {
   const p = pathOf(e);
   switch (e.kind) {
-    case "video": return `<video controls playsinline preload="metadata" poster="${pic("thumb", p)}" src="${raw(p)}"></video>`;
+    case "video":
+      // In the pane a still with a play button (hover runs through the video's frames); the viewer plays it.
+      if (where === "pane") {
+        return `<button class="poster thumb" data-sprite="${esc(p)}" data-pane="open" aria-label="Reproducir ${esc(e.name)}">` +
+               `<img alt="" src="${pic("thumb", p)}"><span class="sprite"></span><span class="scrub"></span>` +
+               `<span class="play"><span class="ms fill">play_arrow</span></span>` +
+               `${e.duration ? `<span class="dur">${fmtDur(e.duration)}</span>` : ""}</button>`;
+      }
+      return `<video controls playsinline preload="metadata" poster="${pic("thumb", p)}" src="${raw(p)}"></video>`;
     case "image": return `<img alt="${esc(e.name)}" src="${raw(p)}">`;
     case "audio": return `<audio controls preload="metadata" src="${raw(p)}"></audio>`;
     case "pdf": return `<iframe title="${esc(e.name)}" src="${raw(p)}"></iframe>`;
@@ -382,6 +390,7 @@ function renderPane() {
            <a class="btn tonal" href="${raw(pathOf(e), true)}" download><span class="ms">download</span>Descargar</a>`}
     </div>`;
   fillText(pane);
+  wireThumbs(pane);
 }
 $("#pane").addEventListener("click", ev => {
   if (ev.target.closest('[data-pane="open"]')) open(entry(state.selected));
