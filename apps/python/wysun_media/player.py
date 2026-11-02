@@ -787,9 +787,9 @@ class MediaPlayer(QWidget):
     def _image_key(self, key, text, shift):
         if key == Qt.Key_Space:
             self.toggle()
-        elif key in (Qt.Key_Plus, Qt.Key_Equal):
+        elif key in (Qt.Key_Plus, Qt.Key_Equal, Qt.Key_Up):
             self.zoom(1.25)
-        elif key == Qt.Key_Minus:
+        elif key in (Qt.Key_Minus, Qt.Key_Down):
             self.zoom(1 / 1.25)
         elif text == '0':
             self._images.set_mode('fit')

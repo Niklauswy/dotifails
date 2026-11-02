@@ -244,6 +244,19 @@ class KeyboardTests(PlayerCase):
         self.key(player, Qt.Key_Left)                                   # first picture: no wrap
         self.assertEqual(Path(player.source.path).name, 'plain.png')
 
+    def test_image_arrow_keys_zoom_in_and_out(self):
+        player = self.player()
+        player.open_many([self.files / 'plain.png', self.files / 'alpha.png'])
+        self.assertTrue(support.pump(lambda: player._images.frame is not None))
+        self.key(player, Qt.Key_Up)
+        zoomed = player._images.scale
+        self.assertEqual(player._images.mode, 'zoom')
+        self.key(player, Qt.Key_Up)
+        self.assertGreater(player._images.scale, zoomed)
+        self.key(player, Qt.Key_Down)
+        self.assertAlmostEqual(player._images.scale, zoomed)
+        self.assertEqual(Path(player.source.path).name, 'plain.png', 'arrows must not change picture')
+
     def test_info_key_opens_a_popup_with_real_values(self):
         player = self.player()
         self.open(player, 'h264.mp4')
