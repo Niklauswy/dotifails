@@ -115,6 +115,8 @@ y objetos con propiedades y señales. QML solo presenta.
 | `SegmentedButtons` | Elegir 2-5 opciones relacionadas (modo de vista, filtros excluyentes o múltiples) | Navegación entre destinos (`TabBar`) | alto 40 |
 | `Slider` | Un valor continuo: posición de una canción (`wavy`, `waveMoving`), volumen; ←/→, RePág/AvPág, Inicio/Fin | Elegir entre pocas opciones (`SegmentedButtons`) | pista 4, asa 20, objetivo 40 |
 | `Chip` | `filter` para acotar contenido, `assist` acciones contextuales, `input` valores introducidos (con quitar), `suggestion` propuestas | Acciones principales | alto 32 |
+| `Switch` | Un ajuste de sí o no que se aplica al instante; clic, Espacio o Enter; el halo rodea el asa | Elegir entre varias opciones (`SegmentedButtons`, `Dropdown`) | pista 52×32, asa 16/24/28 |
+| `Dropdown` | Elegir una opción entre varias (`model: [{value, text}]`, `current`, `activated(value)`); abre un `Menu` bajo el campo, ↑/↓ abren | Pocas opciones excluyentes (`SegmentedButtons`) | alto 56 |
 | `Badge` | Novedad (punto) o un recuento sobre un icono | Texto largo | 6 / 16 |
 | `Divider` | Separar grupos en listas y paneles (`inset`) | Separar cada fila (el espacio basta) | 1 px |
 | `LinearProgress`, `CircularProgress` | Progreso determinado (`value`) o indeterminado | Esperas de < 1 s | 4; circular 48 |
@@ -239,8 +241,8 @@ región.
 
 - Las superposiciones viven dentro de la ventana: un menú no puede salir de ella.
 - `M3Shapes` no pinta con el renderizador software (pruebas offscreen); ahí `ShapeEmblem` usa su forma de respaldo.
-- Sin `QtQuick.Controls`: no hay `ScrollBar` ni `ComboBox` todavía; se añadirán como componentes de la base cuando
-  Music y Files los necesiten.
+- Sin `QtQuick.Controls`: no hay `ScrollBar` todavía (`Switch` y `Dropdown` ya existen); se añadirá como componente
+  de la base cuando una app lo necesite.
 
 ## Hilos de Python en una app QML
 

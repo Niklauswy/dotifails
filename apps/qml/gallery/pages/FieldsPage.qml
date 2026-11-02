@@ -75,4 +75,53 @@ Page {
             waveMoving: true
         }
     }
+
+    Section {
+        title: "Interruptor"
+        note: "Un ajuste que se aplica al instante; clic, Espacio o Enter."
+
+        Row {
+            spacing: Theme.spacing.large ?? 0
+
+            Switch {
+                checked: true
+            }
+            Switch {}
+            Switch {
+                checked: true
+                disabled: true
+            }
+            Switch {
+                disabled: true
+            }
+        }
+    }
+
+    Section {
+        title: "Lista desplegable"
+        note: "Una opción entre varias; abre un menú bajo el campo. ↑/↓ abren, Esc cierra."
+
+        Dropdown {
+            model: [
+                {
+                    value: "15",
+                    text: "15 fps"
+                },
+                {
+                    value: "30",
+                    text: "30 fps"
+                },
+                {
+                    value: "60",
+                    text: "60 fps"
+                }
+            ]
+            current: "30"
+        }
+        Dropdown {
+            model: []
+            placeholder: "Sin opciones"
+            disabled: true
+        }
+    }
 }

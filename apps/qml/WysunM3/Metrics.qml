@@ -65,6 +65,15 @@ QtObject {
     readonly property int chipPadding: 16
     readonly property int chipPaddingWithIcon: 8
 
+    // Switch (md-comp-switch): 52 x 32 track, handle 16 off / 24 on / 28 pressed, 40 state layer, 2 dp outline when off
+    readonly property int switchTrackWidth: 52
+    readonly property int switchTrackHeight: 32
+    readonly property int switchHandleOff: 16
+    readonly property int switchHandleOn: 24
+    readonly property int switchHandlePressed: 28
+    readonly property int switchStateLayer: 40
+    readonly property int switchOutline: 2
+
     // Badge (md-comp-badge): small dot 6, large 16 high; counts above the max show "max+"
     readonly property int badgeSmall: 6
     readonly property int badgeLarge: 16

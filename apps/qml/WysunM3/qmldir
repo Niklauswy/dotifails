@@ -21,6 +21,8 @@ IconButton 1.0 controls/IconButton.qml
 Fab 1.0 controls/Fab.qml
 SegmentedButtons 1.0 controls/SegmentedButtons.qml
 Chip 1.0 controls/Chip.qml
+Switch 1.0 controls/Switch.qml
+Dropdown 1.0 controls/Dropdown.qml
 Badge 1.0 feedback/Badge.qml
 LinearProgress 1.0 feedback/LinearProgress.qml
 CircularProgress 1.0 feedback/CircularProgress.qml
