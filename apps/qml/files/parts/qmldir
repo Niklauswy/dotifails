@@ -16,3 +16,4 @@ FilesDialogs 1.0 FilesDialogs.qml
 PreviewPane 1.0 PreviewPane.qml
 Inspector 1.0 Inspector.qml
 ExpandedPreview 1.0 ExpandedPreview.qml
+ShortcutSheet 1.0 ShortcutSheet.qml

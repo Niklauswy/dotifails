@@ -112,6 +112,17 @@ class PreviewTests(unittest.TestCase):
         self.assertTrue(url.startswith('file://') and url.endswith('.png'), url)
         self.assertTrue(Path(url[7:]).is_file())
         self.assertEqual(meta['Páginas'], '2')
+        self.assertEqual((self.preview.property('page'), self.preview.property('pages')), (1, 2))
+        self.preview.setPage(2)
+        self.assertTrue(self.h.wait_for(lambda: not self.preview.property('loading') and self.preview.property('page') == 2, 10000))
+        self.assertNotEqual(self.preview.property('imageUrl'), url)
+        self.preview.setPage(9)
+        self.h.pump(30)
+        self.assertEqual(self.preview.property('page'), 2, 'out of range is ignored')
+        self.preview.setSelection([])
+        self.preview.setSelection([str(self.root / 'tesis.pdf')])
+        self.assertTrue(self.h.wait_for(lambda: not self.preview.property('loading') and self.preview.property('page') == 1, 10000),
+                        'a new selection starts on the first page')
 
     def test_video_length_codec_and_size(self):
         subprocess.run(['ffmpeg', '-loglevel', 'error', '-f', 'lavfi', '-i', 'testsrc=duration=3:size=320x240:rate=10',

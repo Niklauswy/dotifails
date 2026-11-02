@@ -56,6 +56,7 @@ class QmlFilesWindow:
         window.requestActivate()
 
     def close(self):
+        self.ops.close()
         self.preview.close()
         self.places.close()
         self.files.close()

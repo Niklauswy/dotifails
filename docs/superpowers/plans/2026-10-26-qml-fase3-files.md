@@ -2,8 +2,7 @@
 
 > **Para workers agénticos:** SUB-SKILL REQUERIDA: superpowers:executing-plans (ejecución nativa, elegida por Nicolas). Casillas `- [ ]`. Una suite a la vez; `TMPDIR` y venvs en `~/.cache`.
 
-**Estado (2026-10-26):** maquetas aprobadas («Sí, ya hazlo»). Tarea 1 hecha y en `main`. Tarea 2 empezada en el worktree
-`~/orca/workspaces/wysun-shell/qml-fase3-files` (`quick/folder.py`, `quick/thumbs.py` sin commit ni pruebas). Tareas 3-8 pendientes.
+**Estado (2026-11-01):** tareas 1-7 hechas; en la 8 la UI Widgets está retirada y `FolderModel` usa `os.scandir` en un hilo (el runtime no tiene QtWidgets). Medidas con 10 000 archivos, offscreen: lista en 0,74 s frente a 1,39 s de Widgets; 185 MB frente a 123 MB. Wysun PDF ya no existe: F-61 retirada y la prueba en vivo del selector se hace por el portal y con la importación de Music.
 
 **Meta:** Wysun Files reescrita en QML sobre `WysunM3` con el rediseño aprobado (`docs/design/qml-migration/files-*.html`, 2026-10-26: «Sí, ya hazlo»), paridad F-01…F-71 (`docs/superpowers/specs/2026-10-26-qml-paridad-music-files.md`), y el selector de archivos, el portal `org.freedesktop.impl.portal.FileChooser` y `org.freedesktop.FileManager1` funcionando sobre la nueva UI.
 
@@ -51,4 +50,4 @@ Inspector automático ≥ 1000 px (Ctrl+I), imagen con zoom, texto/código resal
 Modo selector en la ventana (abrir/guardar/guardar varios, carpeta, múltiple, filtros, choices, reemplazar, nombres únicos, códigos de retorno), `picker.py` y `service.py` sobre QML (servicio en el venv). Pruebas: el protocolo JSON del picker, el portal en un bus privado (OpenFile/SaveFile/Close/emisor no autorizado), ShowItems selecciona. Commit `feat(files): QML file chooser, portal and FileManager1`.
 
 ### Tarea 8: Medidas, retirada y despliegue
-Medidas antes/después (carpeta de 10 000 archivos), paridad fila a fila, retirar la UI Widgets y sus pruebas, documentación, suites, revisión, fusión, despliegue y prueba en vivo (Files, selector desde el PDF, «Mostrar en la carpeta» desde Music).
+Medidas antes/después (carpeta de 10 000 archivos), paridad fila a fila, retirar la UI Widgets y sus pruebas, documentación, suites, revisión, fusión, despliegue y prueba en vivo (Files, selector por el portal y desde la importación de Music, «Mostrar en la carpeta» desde Music).

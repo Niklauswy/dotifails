@@ -385,6 +385,13 @@ class FilesWindowTests(unittest.TestCase):
         self.assertIsNone(self.find('nav-' + target))
         self.assertEqual(self.warnings, [])
 
+    def test_f1_lists_the_shortcuts(self):
+        self.key(self.Qt.Key_F1)
+        sheet = self.find('shortcutSheet')
+        self.assertTrue(sheet.property('opened'))
+        self.h.call(sheet, 'close')
+        self.assertEqual(self.warnings, [])
+
     def test_hidden_files_toggle(self):
         (self.root / '.secreto').write_text('s')
         self.tab().navigate(str(self.root / 'clases'))

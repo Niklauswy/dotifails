@@ -83,6 +83,44 @@ Item {
         }
     }
 
+    // The pages of a PDF.
+    Rectangle {
+        objectName: "pdfPager"
+        visible: root.kind === "pdf" && preview.pages > 1 && root.picture
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: Theme.spacing.small ?? 0
+        width: pager.implicitWidth + 2 * (Theme.spacing.extraSmall ?? 0)
+        height: Metrics.iconButtonSize
+        radius: height / 2
+        color: Theme.m3surfaceContainerHighest
+
+        Row {
+            id: pager
+
+            anchors.centerIn: parent
+
+            IconButton {
+                objectName: "pdfPrevious"
+                icon: "chevron_left"
+                disabled: preview.page <= 1
+                onClicked: preview.setPage(preview.page - 1)
+            }
+            Label {
+                anchors.verticalCenter: parent.verticalCenter
+                role: "label.large"
+                text: preview.page + " / " + preview.pages
+                color: Theme.m3onSurface
+            }
+            IconButton {
+                objectName: "pdfNext"
+                icon: "chevron_right"
+                disabled: preview.page >= preview.pages
+                onClicked: preview.setPage(preview.page + 1)
+            }
+        }
+    }
+
     // A picture that does not decode (or a broken file of any kind).
     EmptyState {
         objectName: "previewBroken"

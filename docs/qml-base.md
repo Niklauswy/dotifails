@@ -1,7 +1,7 @@
 # Base QML compartida (WysunM3)
 
 `apps/qml/WysunM3` es la biblioteca de componentes Material 3 Expressive sobre la que se escriben las apps QML de
-Wysun (Music y Files primero; después PDF, Player, Recorder e instalador). Este documento explica qué ofrece, cuándo
+Wysun (Music y Files primero; después Player, Recorder e instalador). Este documento explica qué ofrece, cuándo
 usar cada pieza y cómo ampliarla. Diseño de origen: `docs/superpowers/specs/2026-10-26-wysun-qml-music-files-design.md`.
 
 ## Qué es y qué no es
@@ -241,3 +241,10 @@ región.
 - `M3Shapes` no pinta con el renderizador software (pruebas offscreen); ahí `ShapeEmblem` usa su forma de respaldo.
 - Sin `QtQuick.Controls`: no hay `ScrollBar` ni `ComboBox` todavía; se añadirán como componentes de la base cuando
   Music y Files los necesiten.
+
+## Hilos de Python en una app QML
+
+Una app con hilos de Python llama a `wysun_qml.engine.collect_on_gui_thread()`: la recolección automática de ciclos corre
+en el hilo que reserva memoria y podría destruir allí objetos Qt del hilo de la interfaz, con un fallo al azar. Además, un
+`QMimeData` creado en Python no debe seguir en el portapapeles al apagarse el intérprete (véase
+`wysun_files/quick/operations.py`).

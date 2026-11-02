@@ -587,6 +587,12 @@ Window {
             host: overlay
         }
 
+        ShortcutSheet {
+            id: shortcutSheet
+
+            host: overlay
+        }
+
         FilesDialogs {
             id: filesDialogs
 
@@ -692,6 +698,10 @@ Window {
             Shortcut {
                 sequence: "Ctrl+Shift+N"
                 onActivated: window.keyAction("newFolder")
+            }
+            Shortcut {
+                sequence: "F1"
+                onActivated: shortcutSheet.open()
             }
             Shortcut {
                 sequence: "Ctrl+I"

@@ -75,6 +75,35 @@ class Base(unittest.TestCase):
         raise KeyError(name)
 
 
+class GarbageCollectionTests(Base):
+    def test_python_collects_on_the_gui_thread_only(self):
+        # A collection started by a worker thread would destroy Qt objects there (their watchers' descriptors with them).
+        import gc
+        import threading
+        from PySide6.QtCore import QObject
+        self.assertFalse(gc.isenabled(), 'automatic collection may run in any thread')
+        seen = []
+
+        class Canary(QObject):
+            def __del__(self):
+                seen.append(threading.current_thread() is threading.main_thread())
+
+        canary = Canary()
+        canary.cycle = canary
+        del canary
+
+        def churn():
+            for _ in range(5):
+                _ = [[] for _ in range(100000)]
+
+        worker = threading.Thread(target=churn)
+        worker.start()
+        worker.join()
+        self.assertEqual(seen, [], 'collected by the worker')
+        self.assertTrue(self.h.wait_for(lambda: bool(seen), 8000), 'never collected')
+        self.assertEqual(seen, [True])
+
+
 class ListingTests(Base):
     def fill(self):
         (self.root / 'Música').mkdir()

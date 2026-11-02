@@ -3,6 +3,7 @@ one at a time with progress, conflicts that stop with the exact name, new folder
 the trash (in a private XDG_DATA_HOME) with undo, properties, opening and the terminal (F-40…F-49)."""
 import os
 from pathlib import Path
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -15,6 +16,51 @@ from wysun_qml import bootstrap  # noqa: E402
 
 bootstrap.preload_qt()
 from qml import support  # noqa: E402
+
+
+class CleanExitTests(unittest.TestCase):
+    def test_quitting_after_copying_does_not_crash(self):
+        # Qt announces the clipboard while the application goes away; nothing of ours may still listen.
+        script = '''
+import sys, tempfile
+from pathlib import Path
+from wysun_qml import bootstrap
+bootstrap.preload_qt()
+from PySide6.QtCore import QSettings
+from wysun_files.quick.window import QmlFilesWindow
+folder = Path(tempfile.mkdtemp())
+(folder / "a.txt").write_text("a")
+window = QmlFilesWindow([str(folder)], settings=QSettings(str(folder / "s.ini"), QSettings.IniFormat), thumbnails=False)
+window.present()
+window.ops.copy([str(folder / "a.txt")])
+window.app.processEvents()
+window.close()
+'''
+        done = subprocess.run([sys.executable, '-c', script], capture_output=True, text=True, timeout=60)
+        self.assertEqual(done.returncode, 0, done.stderr[-1500:])
+
+    def test_quitting_the_event_loop_after_copying_does_not_crash(self):
+        # As app.main does it: the window and the application end with the function.
+        script = '''
+import sys, tempfile
+from pathlib import Path
+from wysun_qml import bootstrap
+bootstrap.preload_qt()
+def main():
+    from PySide6.QtCore import QSettings, QTimer
+    from wysun_files.quick.window import QmlFilesWindow
+    folder = Path(tempfile.mkdtemp())
+    (folder / "a.txt").write_text("a")
+    window = QmlFilesWindow([str(folder)], settings=QSettings(str(folder / "s.ini"), QSettings.IniFormat), thumbnails=False)
+    window.app.aboutToQuit.connect(window.close)
+    window.present()
+    window.ops.copy([str(folder / "a.txt")])
+    QTimer.singleShot(100, window.window.close)
+    return window.app.exec()
+sys.exit(main())
+'''
+        done = subprocess.run([sys.executable, '-c', script], capture_output=True, text=True, timeout=60)
+        self.assertEqual(done.returncode, 0, done.stderr[-1500:])
 
 
 class OperationsTests(unittest.TestCase):
@@ -43,10 +89,16 @@ class OperationsTests(unittest.TestCase):
                                      thumbnails=False)
         self.addCleanup(self.files.close)
         self.ops = Operations(self.files)
+        self.addCleanup(self.ops.close)
         self.messages, self.failures = [], []
         self.ops.message.connect(self.messages.append)
         self.ops.failed.connect(lambda title, text: self.failures.append(text))
         self.h.wait_for(lambda: not self.model().property('loading'), 2000)
+
+    def tearDown(self):
+        # These tests stand in for another app with a QMimeData made in Python: it must not outlive the interpreter.
+        from PySide6.QtGui import QGuiApplication
+        QGuiApplication.clipboard().clear()
 
     def model(self):
         return self.files.property('current').property('model')
@@ -122,6 +174,19 @@ class OperationsTests(unittest.TestCase):
             gate.set()
             self.idle()
         self.assertTrue((self.dst / 'a.txt').exists())
+
+    def test_ending_keeps_what_another_app_copied(self):
+        from PySide6.QtCore import QMimeData
+        from PySide6.QtGui import QGuiApplication
+        from wysun_files.quick.operations import _release_clipboard
+        mime = QMimeData()
+        mime.setText('ajeno')
+        QGuiApplication.clipboard().setMimeData(mime)
+        _release_clipboard()
+        self.assertEqual(QGuiApplication.clipboard().text(), 'ajeno')
+        self.ops.copy(self.paths('a.txt'))
+        _release_clipboard()
+        self.assertFalse(self.ops.property('canPaste'))
 
     def test_paste_takes_files_copied_in_other_apps(self):
         from PySide6.QtCore import QMimeData, QUrl

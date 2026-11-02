@@ -3,7 +3,7 @@ text, so other file managers understand it), copy/move/trash/new/rename through 
 thread and one at a time, with progress for the status line, undo for the trash, properties, opening by kind
 (Wysun Player for media, the browser for PDF, the system for the rest) and a terminal in a folder. ``ops`` keeps its
 guarantees: it never overwrites and never deletes for good."""
-from datetime import datetime
+import atexit
 import os
 from pathlib import Path
 import shutil
@@ -14,6 +14,7 @@ import threading
 from PySide6.QtCore import Property, QMimeData, QObject, Qt, QUrl, Signal, Slot
 from PySide6.QtGui import QDesktopServices, QGuiApplication
 
+from wysun_core import paths as core_paths
 from wysun_files import ops
 from wysun_files.browser import open_pdf
 from wysun_files.core import listing
@@ -21,6 +22,7 @@ from wysun_media.source import kind_of as media_kind
 from wysun_player.client import launch
 
 GNOME = 'x-special/gnome-copied-files'
+OURS = 'application/x-wysun-files'         # marks what this process put on the clipboard
 OPEN_LIMIT = 10
 TERMINALS = ('ghostty', 'x-terminal-emulator', 'alacritty', 'kitty', 'xterm')
 VERBS = {'copy': 'Copiando', 'move': 'Moviendo', 'trash': 'Enviando a la papelera', 'mkdir': 'Creando carpeta',
@@ -29,14 +31,28 @@ DONE = {'copy': 'Copiado', 'move': 'Movido', 'mkdir': 'Carpeta creada', 'rename'
         'touch': 'Archivo creado'}
 
 
+def _release_clipboard():
+    """Give up what we put on the clipboard as the process ends (it would not outlive us anyway): PySide must not be
+    left destroying that data while the interpreter shuts down, which crashes. Someone else's content stays."""
+    if QGuiApplication.instance() is None:
+        return
+    clipboard = QGuiApplication.clipboard()
+    mime = clipboard.mimeData()
+    if mime is not None and mime.hasFormat(OURS):
+        clipboard.clear()
+        QGuiApplication.processEvents()
+
+
+atexit.register(_release_clipboard)
+
+
 def _items(count):
     return '1 elemento' if count == 1 else f'{count} elementos'
 
 
 def _trash_dirs(original):
     """The trash a file went to: the home one, or the ``.Trash-<uid>`` of its own disk."""
-    data = Path(os.environ.get('XDG_DATA_HOME') or Path.home() / '.local/share')
-    found = [data / 'Trash']
+    found = [core_paths.data_home() / 'Trash']
     path = Path(original).parent
     try:
         device = path.stat().st_dev
@@ -98,6 +114,7 @@ class Operations(QObject):
         self._relay.finished.connect(self._finished, Qt.QueuedConnection)
         clipboard = QGuiApplication.clipboard()
         clipboard.dataChanged.connect(self._clipboard_changed)
+        QGuiApplication.instance().aboutToQuit.connect(_release_clipboard)
         self._clipboard_changed()
 
     # ---------------------------------------------------------------- state
@@ -132,6 +149,7 @@ class Operations(QObject):
         mime.setUrls(urls)
         mime.setData(GNOME, (('cut' if cut else 'copy') + '\n' + '\n'.join(u.toString() for u in urls)).encode())
         mime.setText('\n'.join(paths))
+        mime.setData(OURS, b'1')
         QGuiApplication.clipboard().setMimeData(mime)
 
     @Slot('QVariantList')
@@ -146,6 +164,7 @@ class Operations(QObject):
             self._set_clipboard(list(paths), True)
             self.message.emit(f'{_items(len(paths))} listos para mover' if len(paths) > 1 else '1 elemento listo para mover')
 
+    @Slot()
     def _clipboard_changed(self):
         mime = QGuiApplication.clipboard().mimeData()
         cut = []
@@ -351,6 +370,9 @@ class Operations(QObject):
         return {'name': target.name or '/', 'subtitle': subtitle, 'kind': kind.kind, 'icon': kind.icon,
                 'badge': kind.badge, 'role': kind.role, 'rows': rows, 'path': str(target)}
 
-    def wait(self):
-        """Closing waits for a running operation (F-05)."""
-        return self._busy
+    def close(self):
+        """Stop listening: Qt announces the clipboard while the application goes away."""
+        try:
+            QGuiApplication.clipboard().dataChanged.disconnect(self._clipboard_changed)
+        except (RuntimeError, TypeError):
+            pass

@@ -1,4 +1,4 @@
-"""Thumbnails for QML as file URLs, in the freedesktop thumbnail cache (``$XDG_CACHE_HOME/thumbnails/large``) that
+"""Thumbnails for QML as file URLs, in the freedesktop thumbnail cache (``thumbnails/large`` under the user's cache) that
 other file managers share. Images keep today's limits (32 MB, 16 Mpx, two decoder threads); videos take a frame
 and their length (``Thumb::Movie::Length``), songs their embedded cover, both through ffmpeg with a timeout. A
 file that cannot be thumbnailed is remembered in ``fail/wysun`` until it changes. ``url()`` never blocks: it
@@ -14,6 +14,8 @@ import threading
 from PySide6.QtCore import QObject, QRunnable, QSize, QThreadPool, QUrl, Qt, Signal, Slot
 from PySide6.QtGui import QImage, QImageReader
 
+from wysun_core import paths as core_paths
+from wysun_core.jsonio import atomic_path
 from wysun_services.file_media import duration_label
 
 EDGE = 256                                   # freedesktop «large»
@@ -28,7 +30,7 @@ _POOL.setMaxThreadCount(2)
 
 
 def default_cache():
-    return Path(os.environ.get('XDG_CACHE_HOME') or Path.home() / '.cache') / 'thumbnails'
+    return core_paths.cache('thumbnails')
 
 
 def uri_of(path):
@@ -51,16 +53,9 @@ def _write(image, target, uri, mtime, extra=None):
     for key, value in (extra or {}).items():
         image.setText(key, value)
     _private_dir(target.parent)
-    temporary = target.with_name(f'.{target.name}.{os.getpid()}.{threading.get_ident()}.tmp')
-    descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-    os.close(descriptor)
-    try:
+    with atomic_path(target, mode=0o600) as temporary:
         if not image.save(str(temporary), 'PNG'):
             raise OSError('could not write the thumbnail')
-        os.replace(temporary, target)
-    finally:
-        if temporary.exists():
-            temporary.unlink()
 
 
 def _valid(file, uri, mtime):

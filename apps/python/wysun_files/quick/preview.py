@@ -12,6 +12,7 @@ import threading
 from PySide6.QtCore import Property, QObject, QTimer, QUrl, Qt, Signal, Slot
 from PySide6.QtGui import QImageReader
 
+from wysun_core import paths as core_paths
 from wysun_files import highlight, markdown
 from wysun_files.core import listing
 from wysun_files.kinds import preview_kind
@@ -109,13 +110,13 @@ def _markdown_html(text, colours):
     return blocks(markdown.parse(body))
 
 
-def _pdf_page(path, cache, mtime):
-    """First page of a PDF as a PNG in the cache (pdftoppm), and its page count (pdfinfo)."""
+def _pdf_page(path, cache, mtime, page=1):
+    """A page of a PDF as a PNG in the cache (pdftoppm), and its page count (pdfinfo)."""
     cache.mkdir(parents=True, exist_ok=True)
-    key = hashlib.md5(f'{path}\0{mtime}'.encode()).hexdigest()
+    key = hashlib.md5(f'{path}\0{mtime}\0{page}'.encode()).hexdigest()
     target = cache / f'{key}.png'
     if not target.is_file():
-        done = subprocess.run(['pdftoppm', '-f', '1', '-l', '1', '-singlefile', '-scale-to', '1200', '-png', path,
+        done = subprocess.run(['pdftoppm', '-f', str(page), '-l', str(page), '-singlefile', '-scale-to', '1200', '-png', path,
                                str(cache / key)], capture_output=True, timeout=15, check=False)
         if done.returncode != 0 or not target.is_file():
             return '', 0
@@ -177,7 +178,7 @@ def _folder_summary(path):
     return rows
 
 
-def describe(paths, colours, cache):
+def describe(paths, colours, cache, page=1):
     """Everything a selection shows. Runs in a worker thread."""
     if not paths:
         return {'mode': 'none'}
@@ -238,9 +239,10 @@ def describe(paths, colours, cache):
             if kind == 'video':
                 data['posterUrl'] = _poster(path, cache, info.st_mtime)
     elif kind == 'pdf':
-        page, pages = _pdf_page(path, cache, info.st_mtime)
-        if page:
-            data['imageUrl'] = QUrl.fromLocalFile(page).toString()
+        picture, pages = _pdf_page(path, cache, info.st_mtime, page)
+        if picture:
+            data['imageUrl'] = QUrl.fromLocalFile(picture).toString()
+            data['page'], data['pages'] = page, pages or 1
             meta.insert(1, _row('Páginas', str(pages or 1)))
         else:
             data['error'] = BROKEN['pdf']
@@ -279,8 +281,7 @@ class Preview(QObject):
 
     def __init__(self, cache=None, parent=None):
         super().__init__(parent)
-        base = Path(os.environ.get('XDG_CACHE_HOME') or Path.home() / '.cache')
-        self.cache = Path(cache) if cache else base / 'wysun/files-preview'
+        self.cache = Path(cache) if cache else core_paths.cache('wysun', 'files-preview')
         self._data, self._paths, self._colours = {'mode': 'none'}, [], {}
         self._generation, self._loading = 0, False
         self._relay = _Relay(self)
@@ -288,12 +289,15 @@ class Preview(QObject):
         self._debounce = QTimer(self, singleShot=True, interval=90)
         self._debounce.timeout.connect(self._load)
         self._closed = False
+        self._page = 1
 
     @Slot('QVariantList')
     def setSelection(self, paths):
         paths = [str(p) for p in paths]
         if paths == self._paths and not self._loading:
             return
+        if paths != self._paths:
+            self._page = 1
         self._paths = paths
         self._generation += 1
         if not paths:
@@ -304,6 +308,15 @@ class Preview(QObject):
             return
         self._set_loading(True)
         self._debounce.start()
+
+    @Slot(int)
+    def setPage(self, page):
+        """Show another page of the PDF on view."""
+        if 1 <= page <= int(self._data.get('pages', 1)) and page != self._page:
+            self._page = page
+            self._generation += 1
+            self._set_loading(True)
+            self._debounce.start()
 
     @Slot('QVariantMap')
     def setColors(self, colours):
@@ -320,11 +333,12 @@ class Preview(QObject):
             self.loadingChanged.emit()
 
     def _load(self):
-        generation, paths, colours, relay, cache = self._generation, list(self._paths), dict(self._colours), self._relay, self.cache
+        generation, paths, colours, relay, cache, page = (self._generation, list(self._paths), dict(self._colours), self._relay,
+                                                          self.cache, self._page)
 
         def work():
             try:
-                data = describe(paths, colours, cache)
+                data = describe(paths, colours, cache, page)
             except Exception as error:               # a preview never takes the window down
                 data = {'mode': 'file', 'name': os.path.basename(paths[0]), 'error': f'No se pudo leer el archivo: {error}',
                         'meta': []}
@@ -387,6 +401,14 @@ class Preview(QObject):
     @Property(str, notify=changed)
     def imageUrl(self):
         return self._get('imageUrl')
+
+    @Property(int, notify=changed)
+    def page(self):
+        return int(self._get('page', 1))
+
+    @Property(int, notify=changed)
+    def pages(self):
+        return int(self._get('pages', 1))
 
     @Property(str, notify=changed)
     def posterUrl(self):

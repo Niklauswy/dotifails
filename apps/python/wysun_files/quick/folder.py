@@ -13,6 +13,7 @@ from PySide6.QtCore import (Property, QAbstractListModel, QByteArray, QFileSyste
                             QRunnable, QThreadPool, QTimer, Qt, Signal, Slot)
 
 from wysun_files.core import listing
+from wysun_qml.engine import collect_on_gui_thread
 
 NAMES = ('path', 'name', 'isDir', 'kind', 'icon', 'glyph', 'role', 'badge', 'label', 'group', 'ext', 'size',
          'sizeText', 'modified', 'modifiedText', 'detail', 'snippet', 'thumb', 'duration', 'selected', 'cut', 'hidden',
@@ -68,6 +69,7 @@ class FolderModel(QAbstractListModel):
 
     def __init__(self, thumbs=None, special=None, parent=None):
         super().__init__(parent)
+        collect_on_gui_thread()                  # this model lists folders in worker threads
         self.thumbs = thumbs
         self.special = dict(special or {})       # path -> glyph (XDG places)
         self._root, self._error, self._loading = '', '', False
