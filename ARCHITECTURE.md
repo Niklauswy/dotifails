@@ -153,9 +153,8 @@ y el residente (`daemon`). Las preferencias de usuario viven en `~/.config/wysun
 Visor único de imágenes, video y audio (`wysun player`), una app QML (`apps/qml/player`, `wysun_player/quick`) sobre el motor
 común `wysun_media` (libmpv, sesión, colección, posiciones, MPRIS). Un proceso por usuario atiende todas las ventanas mientras haya
 alguna (socket en `$XDG_RUNTIME_DIR`); Files abre ahí cualquier medio. El video se dibuja con el render API OpenGL de libmpv dentro de
-la escena QML (bucle de render básico; respaldo por software). Recorder sigue embebiendo el reproductor de Widgets de `wysun_media`
-(con un `Host` de su tema, `wysun_recorder/ui/media_host.py`) hasta su migración. Detalle, atajos, decisiones y diagnóstico:
-`docs/player.md`. `apps/recorder/wysun_media` es un enlace al mismo código y cada release de Recorder lleva su copia.
+la escena QML (bucle de render básico; respaldo por software). El Recorder ya no reproduce: al terminar una grabación abre el MP4 aquí. Detalle,
+atajos, decisiones y diagnóstico: `docs/player.md`.
 
 ### Captura (`apps/recorder`)
 
@@ -167,8 +166,8 @@ importa código de `~/.local/share/wysun/app`. Sus datos son independientes (`~/
 
 **Grabación de pantalla**: la elección (ventana/región/pantalla), la cuenta atrás y el HUD viven en el shell
 (`wysun-shell record [start|toggle|pause|stop]`, IPC `recorder`; `modules/areapicker` en modo `record` + `modules/recorder`);
-el worker independiente de `wysun_recorder` hace la captura y `wysun recorder --start JSON` lo arranca sin ventana. La ventana Qt
-`wysun recorder` es solo biblioteca, reproducción con el componente compartido `wysun_media` y ajustes (`wysun_recorder/ui/app_*.py`, patrón de Music/Files). Atajos:
+el worker independiente de `wysun_recorder` hace la captura y `wysun recorder --start JSON` lo arranca sin ventana. Al parar, el MP4 se abre solo en Wysun Player. La ventana
+`wysun recorder` es solo de ajustes, en QML (`wysun_recorder/ui/window.py` y `ui/qml`, controles de WysunM3); gestionar y ver las grabaciones es de Files y del Player. Atajos:
 `Super+Shift+L`/`R` alternan (elegir y grabar / terminar), `Ctrl+Shift+R` pausa, `Ctrl+Shift+S` termina.
 
 ## 3. Runtime del shell (Qt / Quickshell / plugin)
@@ -404,8 +403,7 @@ QT_QPA_PLATFORM=offscreen python3 tests/utility_ui.py
 python3 tests/check_manifest.py
 python3 apps/recorder/run_tests.py                              # captura (medios serializados)
 python3 tests/wysun_installed_smoke.py                         # sobre la instalación real
-python3 -m unittest discover -s tests -p 'test_media_*.py'     # reproductor: componente, widget, tema y MPRIS (D-Bus propio)
-python3 tests/wayland_media_case.py                            # reproductor de Widgets del Recorder sobre el compositor real
+python3 -m unittest discover -s tests -p 'test_media_*.py'     # motor de medios: sesión, fuentes, colección, posiciones
 python3 -m unittest tests.test_qml_runtime -v                  # venv qml-runtime + suites QML (tests/qml) con su Python
 ```
 
