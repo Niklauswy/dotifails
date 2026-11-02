@@ -55,7 +55,7 @@ def main():
         print(json.dumps(session.status(),indent=2))
     else:
         from .ui import main as ui_main
-        ui_main()
+        raise SystemExit(ui_main())
 
 if __name__ == '__main__':
     main()

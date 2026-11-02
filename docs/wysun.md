@@ -5,8 +5,8 @@ Wysun es el nombre público del escritorio y del lanzador antes llamado Órbita.
 ## Fuente y distribución
 
 - `apps/python/`: lanzador, música, archivos y paneles Python/PySide6.
-- `apps/python/wysun_media/`, `player_app.py`: Wysun Player (visor de imágenes, video y audio) y el componente reutilizable que también usan Files y Recorder; ver `docs/player.md`.
-- `apps/recorder/wysun_recorder/`: Recorder, editor, biblioteca y trabajadores FFmpeg.
+- `apps/python/wysun_player/` y `apps/qml/player`: Wysun Player (visor de imágenes, video y audio) sobre el motor sin interfaz `apps/python/wysun_media/`; ver `docs/player.md`.
+- `apps/recorder/wysun_recorder/`: Recorder: trabajadores de captura FFmpeg y la ventana de ajustes en QML.
 - `apps/shell/modules/areapicker/`: captura de pantalla del shell (selección, anotación y OCR); sustituye a la app Wysun Screenshot.
 - `installer/main.py` y `installer/capture_distribution.py`: instalación común, respaldos, conflictos y recuperación.
 - `bin/wysun`: punto de entrada público. `wysun --help` enumera sus modos.
@@ -24,7 +24,7 @@ El cambio de nombre no mueve ni borra archivos personales. Se conservan:
 | Código del lanzador instalado | `~/.local/share/wysun/app/` |
 | Datos y preferencias del lanzador | `~/.local/share/wysun/`, `~/.config/wysun/` |
 | Música y biblioteca | `~/Music/Wysun`, `~/.local/share/wysun/music/` |
-| Proyectos de Recorder | `~/.local/share/wysun/recorder/recordings/` o la biblioteca elegida |
+| Proyectos de Recorder | `~/.local/share/wysun/recorder/recordings/` o la carpeta de videos elegida |
 | Preferencias de Recorder | `~/.config/wysun/recorder/` |
 | Sesiones de la antigua app Screenshot (se conservan, ya no se usan) | `~/.local/share/wybie-screenshot/` |
 | Exportaciones | Las carpetas elegidas en cada aplicación |
