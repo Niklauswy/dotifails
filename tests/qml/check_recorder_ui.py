@@ -33,8 +33,11 @@ class SettingsWindowTests(unittest.TestCase):
         from PySide6.QtCore import Qt
         cls.Qt = Qt
         cls.h = support.Harness.get()
+        from wysun_qml import engine as qml_engine
+        # Its own engine: the window sets its own `bridge` on the root context, which must not replace the Harness's.
+        _, cls.engine = qml_engine.create_engine('wysun-recorder-tests')
         cls.warnings = []
-        cls.h.engine.warnings.connect(lambda found: cls.warnings.extend(w.toString() for w in found))
+        cls.engine.warnings.connect(lambda found: cls.warnings.extend(w.toString() for w in found))
 
     def setUp(self):
         self.warnings.clear()
@@ -61,7 +64,7 @@ class SettingsWindowTests(unittest.TestCase):
             self.devices = mock.patch('wysun_recorder.headless.devices', return_value=devices)
             self.devices.start()
             self.addCleanup(self.devices.stop)
-        self.win = RecorderSettingsWindow(engine=self.h.engine)
+        self.win = RecorderSettingsWindow(engine=self.engine)
         self.win.bridge.setReducedMotion(True)
         self.window = self.win.window
         self.window.resize(640, 720)

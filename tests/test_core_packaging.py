@@ -50,9 +50,8 @@ class CorePackagingTests(unittest.TestCase):
 
     def test_capture_release_ships_theme_data(self):
         self.assertTrue((ROOT / 'apps/recorder/wysun_core/tokens.json').is_file())
-        source = (ROOT / 'apps/recorder/wysun_recorder/ui/tokens.py').read_text()
-        self.assertIn('from wysun_core.qt_theme import', source)
-        self.assertNotIn('theme_core', source)
+        self.assertTrue((ROOT / 'apps/recorder/wysun_core/qt_theme.py').is_file())
+        self.assertTrue((ROOT / 'apps/recorder/wysun_core/theme.py').is_file())
 
 
     def test_capture_release_ships_the_fonts(self):

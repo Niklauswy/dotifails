@@ -132,7 +132,7 @@ class WaylandImageTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'topología'):compose_frames([(red,{}),(blue,{})])
     def test_software_renderer_buffer_alignment_and_image_ownership(self):
         import ctypes as C
-        from wysun_media.video import SoftwareVideoView
+        from wysun_media.software import render
         seen=[]
         class Library:
             def mpv_render_context_render(self,context,params):
@@ -141,8 +141,8 @@ class WaylandImageTests(unittest.TestCase):
                 C.memset(self.address,127,self.count)
                 for offset in range(3,self.count,4):C.c_ubyte.from_address(self.address+offset).value=255      # bgra: opaque
                 return 0
-        library=Library();image=SoftwareVideoView._frame(library,None,21,19)
-        self.assertEqual(seen,[(0,0)]);self.assertEqual(image.width(),21);self.assertEqual(image.pixelColor(0,0).red(),127)
-        buffer_owner=bytes(image.constBits());self.assertEqual(buffer_owner[:4],bytes([127,127,127,255]),'the image owns its pixels after the render buffer is gone')
+        library=Library();pixels,width,height,stride=render(library,None,21,19)
+        self.assertEqual(seen,[(0,0)]);self.assertEqual((width,height,stride%64),(21,19,0));self.assertEqual(pixels[2],127);self.assertEqual(pixels[3],255)
+        self.assertEqual(pixels[:4],bytes([127,127,127,255]),'the frame owns its pixels after the render buffer is gone')
 
 if __name__=='__main__':unittest.main()

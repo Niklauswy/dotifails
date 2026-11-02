@@ -7,10 +7,11 @@ import media_support as support
 
 support.app()
 from wysun_media import mpv  # noqa: E402
+from PySide6.QtCore import QObject, Qt, Signal  # noqa: E402
 from wysun_media.errors import MediaError  # noqa: E402
 from wysun_media.session import MediaSession  # noqa: E402
 from wysun_media.source import open_source  # noqa: E402
-from wysun_media.video import SoftwareVideoView  # noqa: E402
+from wysun_media.software import SoftwareRenderer  # noqa: E402
 
 OPTIONS = {'ao': 'null', 'hwdec': 'no'}
 
@@ -21,6 +22,26 @@ def descriptors():
 
 def threads():
     return len(os.listdir('/proc/self/task'))
+
+
+class Relay(QObject):
+    ready = Signal()
+
+
+class Surface:
+    """A toolkit-free render target: mpv renders into memory on a worker thread and the newest frame is kept."""
+
+    def __init__(self, session, size=(320, 180)):
+        self.frame = None
+        self.relay = Relay()
+        self.relay.ready.connect(lambda: session.set_surface_ready(True), Qt.QueuedConnection)    # the worker only signals
+        self.renderer = SoftwareRenderer(session.ensure_core(), on_ready=self.relay.ready.emit, on_frame=self._take,
+                                         on_error=lambda text: None)
+        self.renderer.size = size
+        self.renderer.start()
+
+    def _take(self, pixels, width, height, stride):
+        self.frame = (pixels, width, height, stride)
 
 
 class SessionCase(unittest.TestCase):
@@ -46,13 +67,9 @@ class SessionCase(unittest.TestCase):
         return support.pump(lambda: session.state == 'playing')
 
     def with_surface(self, session):
-        view = SoftwareVideoView()
-        view.resize(320, 180)
-        view.ready.connect(lambda: session.set_surface_ready(True))
-        view.attach(session)
-        view.show()
-        self.addCleanup(view.release)
-        return view
+        surface = Surface(session)
+        self.addCleanup(surface.renderer.stop)        # before the session closes its core
+        return surface
 
 
 class AudioTests(SessionCase):
@@ -253,18 +270,17 @@ class VideoTests(SessionCase):
 
     def test_the_software_surface_is_opaque_for_the_compositor(self):
         """Whatever mpv writes in the alpha byte, what reaches the window must have no transparency."""
-        from PySide6.QtGui import QImage
         session = self.session()
-        view = self.with_surface(session)
+        surface = self.with_surface(session)
         self.play(session, 'h264.mp4')
-        self.assertTrue(support.pump(lambda: not view._image.isNull() and session.position > .3, 5))
-        rendered = QImage(view.size(), QImage.Format_ARGB32_Premultiplied)
-        rendered.fill(0)
-        view.render(rendered)
-        for x in range(0, rendered.width(), 37):
-            for y in range(0, rendered.height(), 29):
-                self.assertEqual(rendered.pixelColor(x, y).alpha(), 255, (x, y))
-        self.assertGreater(rendered.pixelColor(rendered.width() // 2, rendered.height() // 2).lightness(), 20, 'the video is visible')
+        self.assertTrue(support.pump(lambda: surface.frame is not None and session.position > .3, 5))
+        pixels, width, height, stride = surface.frame
+        self.assertEqual((width, height), (320, 180))
+        for x in range(0, width, 37):
+            for y in range(0, height, 29):
+                self.assertEqual(pixels[y * stride + x * 4 + 3], 255, (x, y))
+        middle = (height // 2) * stride + (width // 2) * 4
+        self.assertGreater(max(pixels[middle:middle + 3]), 20, 'the video is visible')
 
     def test_a_missing_libmpv_is_a_clear_error(self):
         session = MediaSession(options=OPTIONS)

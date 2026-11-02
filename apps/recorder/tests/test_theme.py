@@ -13,8 +13,7 @@ os.environ.pop('WYSUN_THEME',None)
 
 from PySide6.QtWidgets import QApplication
 from wysun_core import theme
-from wysun_core.qt_theme import color,tokens
-from wysun_recorder.ui.tokens import apply_theme
+from wysun_core.qt_theme import apply_palette,apply_style,color,tokens,watch_theme
 from PySide6.QtGui import QImage,QColor
 
 MODES=('light','dark')
@@ -33,7 +32,7 @@ def settle(app,seconds=.4):
 class CaptureTheme(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        write('light');Path(os.environ['XDG_STATE_HOME'],'wysun').mkdir(parents=True,exist_ok=True);cls.app=QApplication.instance() or QApplication([]);apply_theme(cls.app)
+        write('light');Path(os.environ['XDG_STATE_HOME'],'wysun').mkdir(parents=True,exist_ok=True);cls.app=QApplication.instance() or QApplication([]);cls.app.setStyle('Fusion');apply_palette(cls.app);apply_style(cls.app,'');watch_theme()
     def test_selection_in_file_changes_palette_and_tokens_live(self):
         for mode in MODES:
             write(mode);settle(self.app)
@@ -60,12 +59,6 @@ class CaptureTheme(unittest.TestCase):
             self.assertEqual(color('accent').name().upper(),'#A24670')
         finally:
             path.unlink(missing_ok=True);theme.invalidate();settle(self.app)
-    def test_material_symbol_fonts_render_every_glyph(self):
-        from wysun_recorder.ui.material import SYMBOLS, symbol_pixmap
-        from wysun_core.ui.fonts import SYMBOL_FAMILY, load_fonts
-        self.assertIn(SYMBOL_FAMILY, load_fonts())
-        for name in SYMBOLS:
-            self.assertIsNotNone(symbol_pixmap(name, color('text'), 24), name)
     def test_auto_and_an_old_file_use_the_default_palette_without_a_scheme(self):
         path=Path(CONFIG.name)/'wysun/theme.json'
         for text in ('{"mode":"auto"}',json.dumps({'style':'fluent','variant':'tokyo'})):

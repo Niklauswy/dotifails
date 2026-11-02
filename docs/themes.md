@@ -69,7 +69,7 @@ Las plantillas de hoja de estilo usan `@token`, `@grupo.clave` (`@rounding.mediu
    p.setBrush(color('accent'))           # al pintar, siempre se pide el color en ese momento
    on_theme_changed(self.refrescar)      # solo si guardas cachés (pixmaps, iconos, texto derivado)
    ```
-2. **Recorder**: lo mismo; su hoja global y `apply_theme(app)` viven en `wysun_recorder/ui/tokens.py`.
+2. **Recorder**: su ventana de ajustes es QML (WysunM3, `wysun_recorder/ui/qml`) y toma el tema como Music y Files; no hay hoja de estilos propia.
 3. **Quickshell**: usa `Colours.palette.m3*` y los tokens de forma del shell; nunca un color propio.
 4. Nunca escribas un color, radio, tamaño de letra o duración propios. `tests/test_theme_literals.py` falla si aparece un color literal (`#rrggbb`, `rgb()`, `QColor(1,2,3)`, `Qt.white`…).
 5. Prueba el widget en claro y oscuro (`WYSUN_THEME=light`, `WYSUN_THEME=dark`) y con wallpapers de colores distintos.

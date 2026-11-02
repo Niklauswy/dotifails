@@ -86,8 +86,7 @@ class WysunDistributionTests(unittest.TestCase):
         env = dict(os.environ, PYTHONPATH=str(release), HOME=str(self.home), QT_QPA_PLATFORM='offscreen')
         for variable in ('WAYLAND_DISPLAY', 'DISPLAY'):
             env.pop(variable, None)
-        code = ('import wysun_media, wysun_recorder.ui.media_host as host; from wysun_media.player import MediaPlayer; '
-                'print(wysun_media.__file__); print(host.__file__)')
+        code = ('import wysun_media, wysun_recorder.headless as headless; print(wysun_media.__file__); print(headless.__file__)')
         done = subprocess.run([sys.executable, '-P', '-c', code], cwd='/', env=env, capture_output=True, text=True, timeout=60)
         self.assertEqual(done.returncode, 0, done.stderr)
         for line in done.stdout.split():
@@ -105,15 +104,15 @@ class WysunDistributionTests(unittest.TestCase):
         shutil.copytree(ROOT / 'apps/recorder', source / 'apps/recorder', ignore=shutil.ignore_patterns('__pycache__', '*.pyc'))
         (source / 'bin').mkdir()
         shutil.copy2(ROOT / 'bin/wysun', source / 'bin/wysun')
-        player = source / 'apps/recorder/wysun_media/player.py'
-        player.write_text(player.read_text() + '\n# synthetic player change\n')
+        engine = source / 'apps/recorder/wysun_media/session.py'
+        engine.write_text(engine.read_text() + '\n# synthetic engine change\n')
         update = installer.Deployment(self.home, source)
         update.begin()
         self.addCleanup(update.lock.close)
         update.configure_wysun()
         update.finish()
         self.assertEqual(len(list(releases.iterdir())), 2, 'the shared package is part of the release hash')
-        self.assertNotIn('synthetic player change', (old / 'wysun_media/player.py').read_text())
+        self.assertNotIn('synthetic engine change', (old / 'wysun_media/session.py').read_text())
 
     def test_update_retires_old_launchers_it_wrote_and_keeps_private_roots(self):
         private = ('.local/share/wysun/recorder/recordings/old/project.json',

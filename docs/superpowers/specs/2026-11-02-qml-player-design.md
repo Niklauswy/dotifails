@@ -104,10 +104,10 @@ tienen el contraste correcto en claro y oscuro). El video va sobre `scrim`; todo
 
 ## Lo que se retira
 
-`wysun_player/window.py` y `wysun_player/host.py`. El reproductor de Widgets de `wysun_media` (`player.py`,
-`controls.py`, `bar.py`, `menus.py`, `audio.py`, `image.py`, `video.py`, `shape.py`, `symbols.py`, `host.py`) **se
-queda** hasta la migración del Recorder: su página de reproducción lo embebe y cada release lo lleva consigo (hallado al
-implementar). El render por software pasa a `wysun_media/software.py`, sin toolkit, y lo comparten ambos.
+`wysun_player/window.py` y `wysun_player/host.py`. El reproductor de Widgets de `wysun_media` (`player.py`, `controls.py`, `bar.py`,
+`menus.py`, `audio.py`, `image.py`, `video.py`, `shape.py`, `symbols.py`, `host.py`) se quedó mientras la página de reproducción del
+Recorder lo embebía y **se retiró con la migración del Recorder** (`2026-11-02-qml-recorder-design.md`). El render por software
+está en `wysun_media/software.py`, sin toolkit.
 
 ## Riesgos
 

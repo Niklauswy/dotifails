@@ -2,14 +2,14 @@
 
 Wysun Player es el visor de **imágenes, video y audio** de Wysun, una app QML sobre la base compartida WysunM3
 (`apps/qml/player`, `docs/qml-base.md`). Todo lo que abre un archivo multimedia para verlo o escucharlo usa Wysun Player;
-el motor (`wysun_media`: libmpv, sesión, colección, MPRIS) es común con el Recorder, que todavía embebe su reproductor de
-Widgets hasta su propia migración.
+el motor (`wysun_media`: libmpv, sesión, colección, MPRIS) no tiene interfaz propia. El Recorder ya no reproduce: al terminar una
+grabación abre el MP4 aquí.
 
 | Contexto | Comportamiento |
 |---|---|
 | Files: doble clic, Enter, «Abrir» | Abre Wysun Player directamente, sin pasar por `xdg-open`. Varios medios seleccionados abren **una** ventana con la selección en orden. |
 | Files: panel de detalles | Vista previa propia de Files (QML); «Abrir en Wysun Player» abre el archivo en el reproductor. |
-| Recorder | Su página de reproducción embebe el reproductor de Widgets de `wysun_media` (hasta la migración del Recorder). |
+| Recorder | Al terminar una grabación, el aviso «Grabación guardada» va seguido de `wysun player -- VIDEO` (`xdg-open` si falta el lanzador). |
 | Capturas del shell | «Guardar y ver» (`V`) guarda el PNG y lo abre; solo lo abre cuando el archivo ya existe. |
 | Otras aplicaciones y `xdg-open` | La instalación completa fija Wysun Player como aplicación predeterminada de sus imágenes, video y audio (§ Instalación). |
 | Wysun Music | Sigue siendo la app de biblioteca. Un audio suelto abierto desde Files se reproduce en Wysun Player. |
@@ -62,7 +62,7 @@ apps/python/
     quick/process.py     proceso QML: RequestServer, una ventana (Main.qml + controlador) por petición, salida tras la última
     quick/controller.py  PlayerController: la lógica de una ventana (abrir, colección, posiciones, acciones, información)
     quick/video.py       MpvVideo (QQuickFramebufferObject + render API OpenGL) y MpvSoftwareVideo (respaldo)
-  wysun_media/                  motor común (sin interfaz salvo el reproductor de Widgets que aún usa el Recorder)
+  wysun_media/                  motor común, sin interfaz
     source.py      validación y clasificación de archivos locales; errors.py: vocabulario de errores
     mpv.py         binding ctypes mínimo de libmpv (comandos asíncronos, propiedades observadas, render GL/SW)
     session.py     MediaSession: un archivo a la vez sobre un único núcleo mpv reutilizado
@@ -70,11 +70,8 @@ apps/python/
     collection.py  carpeta o lista explícita, anterior/siguiente   resume.py: posiciones recordadas
     cover.py       carátula incrustada de un audio (ffmpeg en segundo plano)
     mpris.py, integration.py  MPRIS, pista de pantalla encendida y pausa de Music
-    player.py, controls.py, bar.py, menus.py, image.py, audio.py, video.py, shape.py, symbols.py, host.py
-                   reproductor de Widgets del Recorder (se retira con su migración)
 apps/qml/player/   Main.qml (ventana, atajos, menús, información, avisos), ControlBar, SeekBar, ImageStage, AudioStage,
                    PlayerMenus; la carátula es el Cover de Music (`apps/qml/music/parts`)
-apps/recorder/wysun_media        enlace al mismo paquete (desarrollo); cada release de Recorder lleva su copia
 ```
 
 Decisiones:
@@ -131,12 +128,9 @@ lo que era predeterminado queda como alternativa en «Abrir con». El respaldo d
 ```sh
 python3 -m unittest tests.test_qml_runtime -v                    # incluye tests/qml/check_player_*.py (ventana, controlador, proceso,
                                                                  #   video, MPRIS) en el venv QML, offscreen y con D-Bus privado
-python3 -m unittest discover -s tests -p 'test_media_*.py'      # motor: sesión, fuentes, colección, posiciones; widgets del Recorder
+python3 -m unittest discover -s tests -p 'test_media_*.py'      # motor: sesión, fuentes, colección, posiciones
 python3 -m unittest discover -s tests -p 'test_player_*.py'     # cliente, instancia única con procesos reales, escritorio e instalador
-python3 apps/recorder/run_tests.py                               # incluye la página de reproducción de Recorder
 WYSUN_TEST_GL=1 QT_QPA_PLATFORM=wayland <venv>/bin/python3 -m unittest qml.check_player_video   # OpenGL en la sesión real
-python3 tests/wayland_media_case.py                             # reproductor de Widgets del Recorder en el compositor real
-python3 tests/media_benchmark.py                                # CPU, memoria, primer fotograma y fotogramas perdidos
 ```
 
 Los medios son sintéticos (`tests/media_fixtures.py`: H.264, VP9, HEVC, AV1, audio en seis formatos con y sin carátula, JPEG con las ocho

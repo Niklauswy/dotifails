@@ -17,11 +17,35 @@ from wysun_qml import bootstrap  # noqa: E402
 
 bootstrap.preload_qt()
 from qml import support  # noqa: E402
-from qml.check_player_controller import build_media  # noqa: E402
+from qml.check_player_controller import FF, build_media  # noqa: E402
 
 ROOT_IFACE = 'org.mpris.MediaPlayer2'
 PLAYER_IFACE = 'org.mpris.MediaPlayer2.Player'
 PROPS = 'org.freedesktop.DBus.Properties'
+
+
+def fake_music_class():
+    """Stands in for Wysun Music's MPRIS: a status and a Pause that records calls (needs dbus-python)."""
+    import dbus.service
+    from wysun_media import integration, mpris
+
+    class FakeMusic(dbus.service.Object):
+        def __init__(self, bus, status='Playing', answer=True):
+            self.name = dbus.service.BusName(integration.MUSIC, bus)
+            super().__init__(bus, mpris.OBJECT_PATH)
+            self.status, self.pauses, self.answer = status, 0, answer
+
+        @dbus.service.method(PROPS, in_signature='ss', out_signature='v', async_callbacks=('ok', 'fail'))
+        def Get(self, interface, key, ok, fail):
+            if self.answer:
+                ok(self.status)
+
+        @dbus.service.method(PLAYER_IFACE)
+        def Pause(self):
+            self.pauses += 1
+            self.status = 'Paused'
+
+    return FakeMusic
 
 
 @unittest.skipUnless(shutil.which('ffmpeg') and shutil.which('dbus-daemon'), 'ffmpeg and dbus-daemon needed')
@@ -41,6 +65,9 @@ class PlayerMprisTests(unittest.TestCase):
         scratch.mkdir(parents=True, exist_ok=True)
         cls.tmp = tempfile.TemporaryDirectory(prefix='player-mpris-', dir=scratch)
         cls.media = build_media(cls.tmp.name)
+        import subprocess
+        subprocess.run(FF + ['-f', 'lavfi', '-i', 'sine=frequency=440:duration=60', str(cls.media / 'long.mka')],
+                       check=True, timeout=30)
 
     @classmethod
     def tearDownClass(cls):
@@ -158,6 +185,54 @@ class PlayerMprisTests(unittest.TestCase):
         self.assertTrue(self.h.wait_for(hint, 3000))
         window.controller.session.set_paused(True)
         self.assertTrue(self.h.wait_for(lambda: not hint(), 3000), 'a paused video lets the screen sleep')
+
+    def music(self, **kwargs):
+        return fake_music_class()(self.client(), **kwargs)
+
+    def test_sound_pauses_a_playing_music_once_per_start(self):
+        music = self.music()
+        session = self.window('long.mka').controller.session
+        self.assertTrue(self.h.wait_for(lambda: music.pauses == 1, 5000))
+        session.set_muted(True)
+        self.h.pump(200)
+        session.set_muted(False)
+        self.h.pump(400)
+        self.assertEqual(music.pauses, 1, 'music was already paused, so it is left alone')
+        music.status = 'Playing'
+        session.set_muted(True)
+        self.h.wait_for(lambda: not session.audible, 2000)
+        session.set_muted(False)
+        self.assertTrue(self.h.wait_for(lambda: music.pauses == 2, 5000), 'a new start of sound pauses it again')
+
+    def test_a_silent_video_leaves_music_alone(self):
+        music = self.music()
+        self.assertTrue(self.playing(self.window('clip.mp4')))
+        self.h.pump(400)
+        self.assertEqual(music.pauses, 0)
+
+    def test_an_already_paused_music_is_not_touched(self):
+        music = self.music(status='Paused')
+        self.assertTrue(self.playing(self.window('long.mka')))
+        self.h.pump(400)
+        self.assertEqual(music.pauses, 0)
+
+    def test_no_music_means_no_delay_and_no_error(self):
+        import time
+        started = time.monotonic()
+        window = self.window('long.mka')
+        self.assertTrue(self.playing(window))
+        self.assertLess(time.monotonic() - started, 4)
+        self.assertEqual(window.controller.session.state, 'playing')
+
+    def test_music_that_never_answers_cannot_stall_playback(self):
+        music = self.music(answer=False)
+        window = self.window('long.mka')
+        session = window.controller.session
+        self.assertTrue(self.playing(window))
+        position = session.position
+        self.h.pump(600)
+        self.assertGreater(session.position, position, 'playback goes on while the request waits for its timeout')
+        self.assertEqual(music.pauses, 0)
 
 
 if __name__ == '__main__':

@@ -67,7 +67,7 @@ class OpenInPlayerTests(unittest.TestCase):
         notice = run.call_args.args[0]
         self.assertEqual((notice[0], 'Grabación guardada' in notice, str(self.video) in notice), ('notify-send', True, True))
         opened.assert_called_once_with(str(self.video))
-        self.assertFalse([call for call in popen.call_args_list if '--show' in call.args[0]])
+        popen.assert_not_called()                  # nothing else is launched: no Recorder window
 
     def test_a_missing_player_does_not_break_the_notice(self):
         ready = {'state': 'ready', 'output': str(self.video)}

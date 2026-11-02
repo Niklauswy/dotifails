@@ -5,12 +5,9 @@ to follow its status.json and send pause/resume/stop commands.
 """
 import os
 import shutil
-import sys
 from datetime import datetime
 from pathlib import Path
 
-from wysun_core import paths
-from wysun_core.jsonio import atomic_write_json
 
 
 def default_mic():
@@ -150,24 +147,3 @@ def notify_when_ready(project_dir, timeout=1800):
             subprocess.run(['notify-send', '-a', 'Wysun', '-u', 'critical', 'No se pudo preparar el MP4', str(state.get('error') or '')], check=False)
             return None
         time.sleep(1)
-
-
-def request_path():
-    """Where a video to show is handed to the running window (or the next one to start)."""
-    return paths.runtime(f'wysun-recorder-show-{os.getuid()}.json')
-
-
-def request_show(video):
-    atomic_write_json(request_path(), {'video': str(video)}, indent=None)
-
-
-def take_show_request():
-    """The video to open, once; None when nobody asked."""
-    import json
-    path = request_path()
-    try:
-        video = json.loads(path.read_text()).get('video')
-        path.unlink(missing_ok=True)
-        return video if video and Path(video).is_file() else None
-    except (OSError, ValueError, AttributeError):
-        return None

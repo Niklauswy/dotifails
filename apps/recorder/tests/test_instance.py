@@ -28,8 +28,3 @@ class InstanceTests(unittest.TestCase):
    finally:owner.close();peer.close()
    next_owner=Instance(directory);self.assertTrue(next_owner.claim());next_owner.close()
 
-class ActivationTests(unittest.TestCase):
- @classmethod
- def setUpClass(cls):
-  from PySide6.QtWidgets import QApplication
-  cls.app=QApplication.instance() or QApplication([])

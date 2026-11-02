@@ -50,5 +50,5 @@ Puedes ver el plan sin aplicar cambios:
 
 - Suites generales: `python3 -m unittest discover -s tests -v`, `QT_QPA_PLATFORM=offscreen python3 tests/utility_ui.py`, `python3 tests/check_manifest.py`.
 - Captura: `python3 apps/recorder/run_tests.py` (HOME/XDG temporales y sin sesión gráfica heredada).
-- Compositor real: `python3 tests/wayland_media_case.py` valida el reproductor (OpenGL, ocultar/mostrar, fugas) en la sesión gráfica.
+- Compositor real: `WYSUN_TEST_GL=1 QT_QPA_PLATFORM=wayland <venv>/bin/python3 -m unittest qml.check_player_video` valida el video de Wysun Player (OpenGL) en la sesión gráfica.
 - Las pruebas de medios y compositor se ejecutan en serie; un bloqueo del sandbox no demuestra un fallo del producto.

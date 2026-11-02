@@ -14,8 +14,7 @@ assets/licenses/GPL-3.0.txt and corresponding source in this capture release.
 
 Navigation/surface/text/state hierarchy from modules/nexus/NavPane.qml and
 components/{StyledRect,StyledText,StateLayer}.qml is translated into
-wysun_recorder/ui/material.py, layouts.py, components.py and settings.py, and
-wybieshot/ui/main.py. Preview/details grouping also draws from
+the Recorder's former Widgets interface (retired) and wybieshot/ui/main.py. Preview/details grouping also draws from
 modules/dashboard/Media.qml, dashboard/media/Details.qml and
 components/widgets/CoverArt.qml. These are native PySide6 translations of shell
 widgets, not an upstream capture or full-screen music application. Existing
