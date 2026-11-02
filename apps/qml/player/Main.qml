@@ -116,7 +116,17 @@ Window {
         }
 
         HoverHandler {
-            onPointChanged: window.activity()
+            // Qt hands over the same hover position on every video frame while the pointer rests; only a real movement
+            // is activity, or a pointer left over the window would keep the bar up for ever.
+            property point seen: Qt.point(-1, -1)
+
+            onPointChanged: {
+                const at = point.position;
+                if (at.x === seen.x && at.y === seen.y)
+                    return;
+                seen = at;
+                window.activity();
+            }
         }
 
         Keys.onPressed: event => {

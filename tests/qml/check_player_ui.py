@@ -135,6 +135,17 @@ class PlayerWindowTests(unittest.TestCase):
         self.assertTrue(bar.property('visible'))
         self.assertTrue(self.h.wait_for(lambda: not window.window.property('barShown'), 4000))
 
+    def test_a_pointer_that_rests_over_a_playing_video_does_not_keep_the_bar_up(self):
+        """Found live: Qt re-delivers the same hover position on every video frame, and each one counted as activity."""
+        window = self.open('clip.mp4')
+        self.assertTrue(self.h.wait_for(lambda: window.controller.session.state == 'playing', 8000))
+        qwin = window.window
+        self.assertTrue(self.h.wait_for(lambda: not qwin.property('barShown'), 5000), 'it hides on its own first')
+        self.h.move(qwin, 200, 150)                     # one real movement, away from the bar
+        self.assertTrue(qwin.property('barShown'), 'moving the pointer brings the bar back')
+        self.assertTrue(self.h.wait_for(lambda: not qwin.property('barShown'), 6000), 'and the bar goes again when it rests')
+        self.assertEqual(self.qml_warnings(), [])
+
     def test_media_shortcuts_reach_the_controller(self):
         from PySide6.QtCore import Qt
         window = self.open('tone.mka')
