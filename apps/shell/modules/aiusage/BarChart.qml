@@ -19,7 +19,7 @@ Item {
 
     signal picked(int index)
 
-    readonly property real top: {
+    readonly property real peak: {
         const max = Math.max(0, ...values);
         if (max <= 0)
             return 1;
@@ -40,7 +40,7 @@ Item {
         id: axisMetrics
 
         font: Tokens.font.label.small
-        text: root.formatValue(root.top)
+        text: root.formatValue(root.peak)
     }
 
     Repeater {
@@ -59,7 +59,7 @@ Item {
                 anchors.verticalCenter: parent.top
                 width: root.axisWidth - Tokens.spacing.small
                 horizontalAlignment: Text.AlignRight
-                text: root.formatValue(root.top * grid.modelData)
+                text: root.formatValue(root.peak * grid.modelData)
                 font: Tokens.font.label.small
                 color: Colours.palette.m3outline
             }
@@ -105,7 +105,7 @@ Item {
                     StyledRect {
                         anchors.bottom: parent.bottom
                         width: parent.width
-                        height: Math.max(slot.modelData > 0 ? 2 : 1, parent.height * slot.modelData / root.top)
+                        height: Math.max(slot.modelData > 0 ? 2 : 1, parent.height * slot.modelData / root.peak)
                         topLeftRadius: Math.min(width / 2, Tokens.rounding.extraSmall)
                         topRightRadius: topLeftRadius
                         color: slot.index === root.selected || slot.index === root.hovered ? Colours.palette.m3primary : Qt.alpha(Colours.palette.m3primary, slot.index === root.values.length - 1 ? 0.85 : 0.55)

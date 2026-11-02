@@ -8,6 +8,9 @@ extra usage in cents, cloud credits in dollars.
 """
 import calendar
 import importlib.util
+import re
+import shutil
+import subprocess
 import time
 from datetime import datetime
 from pathlib import Path
@@ -27,6 +30,25 @@ def _credentials():
 
 
 credentials = _credentials()
+
+
+_VERSION = []
+
+
+def _user_agent():
+    """Anthropic serves this endpoint to Claude Code: identify as its CLI, as CodexBar does."""
+    if not _VERSION:
+        version = '2.0.0'
+        binary = shutil.which('claude')
+        if binary:
+            try:
+                out = subprocess.run([binary, '--version'], capture_output=True, text=True, timeout=3).stdout
+                found = re.search(r'\d+\.\d+\.\d+', out or '')
+                version = found.group(0) if found else version
+            except (OSError, subprocess.SubprocessError):
+                pass
+        _VERSION.append(version)
+    return f'claude-cli/{_VERSION[0]} (external, cli)'
 
 
 def _oauth(home):
@@ -127,7 +149,8 @@ def usage(home, now, opener=None):
     scopes = oauth.get('scopes')
     if isinstance(scopes, list) and SCOPE not in scopes:
         return None, {'kind': 'scope', 'command': 'claude /login'}
-    headers = {'Authorization': 'Bearer ' + str(oauth['accessToken']), 'anthropic-beta': BETA}
+    headers = {'Authorization': 'Bearer ' + str(oauth['accessToken']), 'anthropic-beta': BETA,
+               'User-Agent': _user_agent(), 'Content-Type': 'application/json'}
     status, body = credentials.get_json(URL + '?cedar_ember=1', headers, frozenset({HOST}), opener=opener)
     if status in (400, 403) and 'user:profile' not in str(body):
         # Only the optional reset inventory was refused; ask again without it.
@@ -138,10 +161,10 @@ def usage(home, now, opener=None):
     if status == 403:
         return None, {'kind': 'scope', 'command': 'claude /login'}
     if status != 200 or not isinstance(body, dict):
-        return None, {'kind': 'network'}
+        return None, {'kind': 'network', 'status': status}
     limits = [_window('session', body.get('five_hour'), 300, now), _window('weekly', body.get('seven_day'), 10080, now)]
     limits += [_window(ident, body.get(key), 10080, now, label) for key, ident, label in MODEL_WINDOWS]
     limits = [row for row in limits if row]
     details = {'limits': limits, 'extra': _extra(body.get('extra_usage'), now), 'cloud': _cloud(body.get('iguana_necktie'), now),
                'resetCredits': _reset_credits(body.get('cedar_ember'), now)}
-    return (details if limits else None), (None if limits else {'kind': 'network'})
+    return (details if limits else None), (None if limits else {'kind': 'network', 'status': status})

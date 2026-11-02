@@ -231,6 +231,12 @@ class ClaudeApiTests(BackendHome):
             self.assertTrue(call['url'].startswith('https://api.anthropic.com/'), call['url'])
             self.assertLessEqual(call['timeout'], 5)
             self.assertEqual(call['headers'].get('Anthropic-beta'), 'oauth-2025-04-20')
+            self.assertRegex(call['headers'].get('User-agent', ''), r'^claude-cli/\S+ \(external, cli\)$')
+
+    def test_http_status_is_kept_for_diagnosis(self):
+        self.credentials()
+        claude = self.claude(self.collect(Opener({'https://api.anthropic.com/': (429, {'error': 'slow down'})})))
+        self.assertEqual(claude['error'], {'kind': 'network', 'status': 429})
 
     def test_without_credentials_nothing_changes(self):
         self.statusline(session=31)

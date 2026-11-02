@@ -57,7 +57,8 @@ ColumnLayout {
     Canvas {
         id: chart
 
-        readonly property real axis: Tokens.spacing.extraLarge + Tokens.spacing.small
+        readonly property real axis: Tokens.spacing.extraExtraLarge
+        readonly property real pad: Tokens.spacing.medium
         readonly property color line: Colours.palette.m3primary
         readonly property color grid: Colours.palette.m3outlineVariant
         readonly property color guideColour: Colours.palette.m3outline
@@ -78,7 +79,7 @@ ColumnLayout {
             ctx.reset();
             const w = width - axis, h = height - Tokens.spacing.large;
             const X = t => axis + Math.max(0, Math.min(1, (t - root.start) / Math.max(1, root.span))) * w;
-            const Y = left => h * (1 - left / 100);
+            const Y = left => pad + (h - pad) * (1 - left / 100);
             ctx.font = `${Tokens.font.label.small.pointSize}pt "${Tokens.font.label.small.family}"`;
             ctx.fillStyle = text;
             ctx.strokeStyle = grid;

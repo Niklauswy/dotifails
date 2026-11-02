@@ -313,11 +313,11 @@ ColumnLayout {
                 id: spark
 
                 readonly property var values: (root.day?.series?.[root.account.id]?.cost ?? []).slice(-14)
-                readonly property real top: Math.max(0.0001, ...values)
+                readonly property real peak: Math.max(0.0001, ...values)
 
                 Layout.fillWidth: true
                 Layout.topMargin: Tokens.spacing.small
-                implicitHeight: Tokens.spacing.extraLarge
+                Layout.preferredHeight: Tokens.spacing.extraLarge
                 spacing: 2
 
                 Repeater {
@@ -327,9 +327,9 @@ ColumnLayout {
                         required property real modelData
                         required property int index
 
-                        anchors.bottom: parent.bottom
+                        y: spark.height - height
                         width: (spark.width - spark.spacing * 13) / 14
-                        height: Math.max(2, spark.height * modelData / spark.top)
+                        height: Math.max(2, spark.height * modelData / spark.peak)
                         radius: Tokens.rounding.extraSmall
                         color: index === spark.values.length - 1 ? Colours.palette.m3primary : Qt.alpha(Colours.palette.m3primary, 0.45)
                     }

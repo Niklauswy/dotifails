@@ -96,6 +96,8 @@ ColumnLayout {
                 }
 
                 StyledText {
+                    Layout.fillWidth: true
+                    elide: Text.ElideRight
                     text: root.day >= 0 ? Qt.formatDate(new Date(root.dayStart * 1000), "dddd d MMMM") + " · " + Tr.tr("by hour") : Tr.tr("last %1 days · %2 a day").arg(root.values.length).arg(root.format(root.values.reduce((a, b) => a + b, 0) / Math.max(1, root.values.length))) + (root.byCost ? " · " + Tr.tr("estimate at API prices") : "")
                     font: Tokens.font.label.small
                     color: Colours.palette.m3onSurfaceVariant
@@ -224,7 +226,7 @@ ColumnLayout {
 
         readonly property var year: root.account.usage?.["365d"] ?? null
         readonly property var days: year?.series?.[root.account.id]?.tokens ?? []
-        readonly property real top: Math.max(1, ...days)
+        readonly property real peak: Math.max(1, ...days)
         readonly property int offset: year ? new Date(year.start * 1000).getDay() : 0
         readonly property int active: days.filter(v => v > 0).length
         readonly property int streak: {
@@ -282,7 +284,7 @@ ColumnLayout {
                     width: heat.cell
                     height: heat.cell
                     radius: Tokens.rounding.extraSmall / 2
-                    color: modelData > 0 ? Qt.alpha(Colours.palette.m3primary, 0.2 + 0.8 * Math.sqrt(modelData / activity.top)) : Qt.alpha(Colours.palette.m3onSurface, 0.07)
+                    color: modelData > 0 ? Qt.alpha(Colours.palette.m3primary, 0.2 + 0.8 * Math.sqrt(modelData / activity.peak)) : Qt.alpha(Colours.palette.m3onSurface, 0.07)
 
                     MouseArea {
                         anchors.fill: parent

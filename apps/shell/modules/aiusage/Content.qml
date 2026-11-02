@@ -211,7 +211,7 @@ Item {
                 }
 
                 Loader {
-                    id: page
+                    id: pageLoader
 
                     Layout.fillWidth: true
                     sourceComponent: {
