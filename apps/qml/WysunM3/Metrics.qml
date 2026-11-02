@@ -135,9 +135,10 @@ QtObject {
     readonly property int tabIndicatorMinWidth: 24
 
     // Menus (md-comp-menu): items 48 high, container 112-280 wide, level 2; they grow in from 80 %
+    readonly property int menuInset: 4                  // M3 Expressive: rows are rounded inside the panel
     readonly property int menuItemHeight: 48
     readonly property int menuMinWidth: 112
-    readonly property int menuMaxWidth: 280
+    readonly property int menuMaxWidth: 360             // past M3's 280: long labels with their shortcut must not collide
     readonly property int menuElevation: 2
     readonly property real menuEnterScale: 0.8
 

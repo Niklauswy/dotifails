@@ -62,8 +62,7 @@ Item {
         panel.y = Math.max(margin, Math.min(py, target.height - panel.height - margin));
         panel.transformOrigin = originY ? (originX ? Item.BottomRight : Item.BottomLeft) : (originX ? Item.TopRight : Item.TopLeft);
         _returnFocus = Window.activeFocusItem;
-        currentIndex = -1;
-        _step(1);
+        currentIndex = -1;                      // nothing lit until the pointer or an arrow chooses a row
         _open = true;
         panel.forceActiveFocus();
     }
@@ -105,10 +104,10 @@ Item {
             id: panel
 
             objectName: "menuPanel"
-            width: Math.max(Metrics.menuMinWidth, Math.min(Metrics.menuMaxWidth, column.widest))
+            width: Math.max(Metrics.menuMinWidth, Math.min(Metrics.menuMaxWidth, column.widest + 2 * Metrics.menuInset))
             height: column.implicitHeight + 2 * (Theme.padding.small ?? 0)
-            radius: Theme.rounding.extraSmall ?? 0
-            container: Theme.m3surfaceContainer
+            radius: Theme.rounding.large ?? 0
+            container: Theme.m3surfaceContainerHigh
             color: container
             level: Metrics.menuElevation
             opacity: root._open ? 1 : 0
@@ -159,8 +158,9 @@ Item {
                     return widest;
                 }
 
+                x: Metrics.menuInset
                 y: Theme.padding.small ?? 0
-                width: parent.width
+                width: parent.width - 2 * Metrics.menuInset
 
                 Repeater {
                     id: entries
@@ -180,7 +180,8 @@ Item {
                         Divider {
                             visible: !!entry.modelData.divider
                             anchors.verticalCenter: parent.verticalCenter
-                            width: parent.width
+                            x: Theme.padding.medium ?? 0
+                            width: parent.width - 2 * x
                         }
 
                         MenuItem {

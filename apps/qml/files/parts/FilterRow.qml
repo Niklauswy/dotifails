@@ -20,7 +20,14 @@ Item {
         }
     }
 
-    implicitHeight: box.height + (Theme.spacing.small ?? 0) + chips.height
+    // Only the kinds this folder holds; with fewer than two there is nothing to choose (a chip in use stays).
+    readonly property var kinds: {
+        const present = model ? model.groups : [];
+        const chosen = model ? model.group : "all";
+        return ["all"].concat(present).concat(chosen !== "all" && present.indexOf(chosen) < 0 ? [chosen] : []);
+    }
+
+    implicitHeight: box.height + (chips.visible ? (Theme.spacing.small ?? 0) + chips.height : 0)
 
     Rectangle {
         id: box
@@ -133,6 +140,7 @@ Item {
         anchors.topMargin: Theme.spacing.small ?? 0
         width: root.width
         spacing: Theme.spacing.small ?? 0
+        visible: root.kinds.length > 2 || (root.model !== null && root.model !== undefined && root.model.group !== "all")
 
         Repeater {
             model: [{id: "all", text: "Todo"}, {id: "folders", text: "Carpetas"}, {id: "images", text: "Imágenes"}, {id: "videos", text: "Vídeos"}, {id: "audio", text: "Audio"}, {id: "documents", text: "Documentos"}, {id: "code", text: "Código"}]
@@ -141,6 +149,7 @@ Item {
                 required property var modelData
 
                 objectName: "chip-" + modelData.id
+                visible: root.kinds.indexOf(modelData.id) >= 0
                 kind: "filter"
                 text: modelData.text
                 readonly property bool active: root.model ? root.model.group === modelData.id : modelData.id === "all"

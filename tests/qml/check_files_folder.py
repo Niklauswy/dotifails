@@ -152,11 +152,16 @@ class ListingTests(Base):
         self.fill()
         self.load()
         self.model.sortBy('size', True)
-        self.assertEqual(self.names()[:3], ['repos', 'Música', 'tesis.pdf'])
+        self.assertEqual(self.names()[:3], ['Música', 'repos', 'tesis.pdf'])
         self.assertEqual(self.model.property('sortKey'), 'size')
         self.assertTrue(self.model.property('descending'))
         self.model.sortBy('name', False)
         self.assertEqual(self.names()[0], 'Música')
+
+    def test_groups_follow_what_the_folder_holds(self):
+        self.fill()
+        self.load()
+        self.assertEqual(self.model.property('groups'), ['folders', 'documents'])
 
     def test_filters_and_hidden(self):
         self.fill()

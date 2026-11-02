@@ -64,6 +64,7 @@ class FilesActionTests(unittest.TestCase):
         (self.root / 'notas.md').write_text('# n')
         self.tab().navigate(str(self.root))
         self.wait()
+        self.model().sortBy('name', False)
         self.model().clearSelection()
         self.warnings.clear()
         self.h.call(self.window, 'focusFiles')

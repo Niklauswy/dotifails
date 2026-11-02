@@ -149,8 +149,7 @@ Rectangle {
             visible: preview.mode !== "none"
             width: parent.width
             type: "filled"
-            icon: "open_in_new"
-            text: preview.kind === "video" || preview.kind === "audio" || preview.kind === "image" ? "Abrir en Wysun Player" : "Abrir"
+            text: "Abrir"
             onClicked: root.openRequested()
         }
     }

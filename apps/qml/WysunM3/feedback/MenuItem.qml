@@ -1,5 +1,5 @@
 // One row of a Menu: 48 high, optional 24 px leading icon, body-large label, trailing shortcut hint.
-// entry: {id, text, icon?, shortcut?, disabled?}
+// entry: {id, text, icon?, shortcut?, disabled?, danger?}; `danger` (destructive) takes the error role.
 import QtQuick
 import WysunM3
 
@@ -9,7 +9,8 @@ Item {
     property var entry: ({})
     property bool current
     readonly property bool disabled: !!entry.disabled
-    readonly property color contentColor: disabled ? Qt.alpha(Theme.m3onSurface, Metrics.disabledContent) : Theme.m3onSurface
+    readonly property bool danger: !!entry.danger && !disabled
+    readonly property color contentColor: disabled ? Qt.alpha(Theme.m3onSurface, Metrics.disabledContent) : danger ? Theme.m3error : Theme.m3onSurface
     readonly property real contentWidth: row.implicitWidth + (shortcut.visible ? 2 * (Theme.spacing.medium ?? 0) + shortcut.implicitWidth : 0) + 2 * (Theme.padding.medium ?? 0)
 
     signal triggered
@@ -30,7 +31,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             visible: !!root.entry.icon && available
             name: root.entry.icon ?? ""
-            color: root.disabled ? root.contentColor : Theme.m3onSurfaceVariant
+            color: root.disabled || root.danger ? root.contentColor : Theme.m3onSurfaceVariant
         }
 
         Label {
@@ -58,6 +59,7 @@ Item {
 
     // The keyboard's current row shows the focus layer.
     StateLayer {
+        radius: Theme.rounding.medium ?? 0
         ripple: false
         disabled: root.disabled
         focused: root.current

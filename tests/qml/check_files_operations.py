@@ -301,6 +301,14 @@ class OperationsTests(unittest.TestCase):
         self.assertEqual(popen.call_args.args[0], ['/usr/bin/kitty'])
         self.assertEqual(popen.call_args.kwargs['cwd'], str(self.dst))
 
+    def test_ghostty_gets_its_own_instance_in_the_folder(self):
+        # With gtk-single-instance a launch goes to the running instance, which ignores the working directory.
+        from wysun_files.quick import operations as module
+        with patch.object(module.shutil, 'which', side_effect=lambda name: '/usr/bin/ghostty' if name == 'ghostty' else None), \
+                patch.object(module.subprocess, 'Popen') as popen:
+            self.ops.terminal(str(self.dst))
+        self.assertEqual(popen.call_args.args[0], ['/usr/bin/ghostty', '--gtk-single-instance=false', f'--working-directory={self.dst}'])
+
     def test_uris_for_dragging(self):
         self.assertEqual(self.ops.uris(self.paths('a.txt')), ['file://' + str(self.src / 'a.txt')])
 

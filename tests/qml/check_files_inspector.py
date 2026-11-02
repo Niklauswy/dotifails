@@ -48,6 +48,7 @@ class InspectorTests(unittest.TestCase):
         cls.win.present()
         cls.window.resize(1280, 800)
         cls.files, cls.preview = cls.win.files, cls.win.preview
+        cls.order = cls.files.settings
         cls.h.pump(100)
 
     @classmethod
@@ -63,6 +64,7 @@ class InspectorTests(unittest.TestCase):
         if self.window.property('expanded'):
             self.h.call(self.window, 'closePreview')
         self.tab().navigate(str(self.root))
+        self.model().sortBy('name', False)
         self.assertTrue(self.h.wait_for(lambda: not self.model().property('loading'), 3000))
         self.model().clearSelection()
         self.warnings.clear()
@@ -155,7 +157,8 @@ class InspectorTests(unittest.TestCase):
     def test_open_sends_a_picture_to_the_player_and_media_from_its_second(self):
         from wysun_files.quick import operations, preview as module
         self.select('a.png')
-        self.assertEqual(self.find('openButton').property('text'), 'Abrir en Wysun Player')
+        self.assertEqual(self.find('openButton').property('text'), 'Abrir')
+        self.assertEqual(self.find('openButton').property('icon'), '')
         with patch.object(operations, 'launch') as launch:
             self.click(self.find('openButton'))
         launch.assert_called_once_with([str(self.root / 'a.png')])
@@ -164,6 +167,11 @@ class InspectorTests(unittest.TestCase):
             self.click(self.find('openButton'))
         self.assertEqual(launch.call_args.args[0], [str(self.root / 'clip.mp4')])
         self.assertIn('start', launch.call_args.kwargs)
+
+    def test_no_panel_for_folders(self):
+        self.model().selectPaths([str(self.root / 'docs')])
+        self.h.pump(50)
+        self.assertFalse(self.window.property('inspectorShown'))
 
     def test_broken_picture(self):
         self.select('roto.png')

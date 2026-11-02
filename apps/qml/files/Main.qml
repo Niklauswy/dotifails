@@ -19,8 +19,9 @@ Window {
     property bool closeWhenIdle
     property string pendingProperties          // FileManager1.ShowItemProperties: shown once the folder is listed
     property bool expanded
+    property bool searching
     readonly property int mediaState: mediaPlayer.playbackState      // 0 stopped, 1 playing, 2 paused
-    readonly property bool inspectorShown: files.inspector && width >= FilesMetrics.inspectorFrom && model !== null && model.selectionCount > 0 && !expanded
+    readonly property bool inspectorShown: files.inspector && width >= FilesMetrics.inspectorFrom && model !== null && model.selectionHasFile && !expanded
     readonly property bool previewing: inspectorShown || expanded
     // Code and Markdown take their colours from the theme's roles.
     readonly property var codeColours: ({
@@ -96,6 +97,28 @@ Window {
         openPaths(chosen);
     }
 
+    // Search everywhere (Ctrl+K), over the launcher's index.
+    function beginSearch() {
+        searching = true;
+        fileSearch.refreshIndex();
+        searchBar.forceFocus();
+        searchBar.input.selectAll();
+    }
+
+    function endSearch() {
+        searching = false;
+        searchBar.text = "";
+        fileSearch.setQuery("");
+        focusFiles();
+    }
+
+    function revealResult(path) {
+        if (path === "")
+            return;
+        endSearch();
+        navigate(path);
+    }
+
     function followLink(href) {
         const target = preview.resolveLink(href);
         if (target === "")
@@ -124,6 +147,10 @@ Window {
 
     // Escape, from the innermost thing outwards (F-30): path field, filter field, selection, filter text.
     function cancel() {
+        if (searching) {
+            endSearch();
+            return;
+        }
         if (window.visibility === Window.FullScreen && expanded) {
             window.showNormal();
             return;
@@ -133,6 +160,12 @@ Window {
         } else if (pathBar.editing) {
             pathBar.finish();
         } else if (currentView && currentView.filters.focused) {
+            // In the field: first empty it, then back to the files.
+            if (model.filterText !== "") {
+                currentView.filters.input.text = "";
+                model.setFilterText("");
+                return;
+            }
             focusFiles();
         } else if (model && model.selectionCount > 0) {
             model.clearSelection();
@@ -348,8 +381,28 @@ Window {
                         }
                     }
 
+                    SearchBar {
+                        id: searchBar
+
+                        objectName: "searchBar"
+                        visible: window.searching
+                        anchors.left: lead.right
+                        anchors.leftMargin: Theme.spacing.small ?? 0
+                        anchors.right: trail.left
+                        anchors.rightMargin: Theme.spacing.small ?? 0
+                        anchors.verticalCenter: parent.verticalCenter
+                        placeholder: "Buscar en todos tus archivos"
+                        shortcut: ""
+                        onTextChanged: fileSearch.setQuery(text)
+                        onAccepted: window.revealResult(fileSearch.pathAt(results.currentIndex))
+                        input.Keys.onDownPressed: results.step(1)
+                        input.Keys.onUpPressed: results.step(-1)
+                    }
+
                     PathBar {
                         id: pathBar
+
+                        visible: !window.searching
 
                         objectName: "pathBar"
                         anchors.left: lead.right
@@ -377,6 +430,30 @@ Window {
                         anchors.verticalCenter: parent.verticalCenter
                         spacing: Theme.spacing.small ?? 0
 
+                        IconButton {
+                            objectName: "searchButton"
+                            anchors.verticalCenter: parent.verticalCenter
+                            icon: window.searching ? "close" : "search"
+                            onClicked: window.searching ? window.endSearch() : window.beginSearch()
+
+                            Tooltip {
+                                text: "Buscar en todos tus archivos · Ctrl+K"
+                            }
+                        }
+                        IconButton {
+                            objectName: "sortButton"
+                            visible: !window.searching
+                            anchors.verticalCenter: parent.verticalCenter
+                            icon: "sort"
+                            onClicked: {
+                                const point = mapToItem(null, 0, height);
+                                window.menus.sort(point.x, point.y);
+                            }
+
+                            Tooltip {
+                                text: "Ordenar"
+                            }
+                        }
                         SegmentedButtons {
                             objectName: "viewSwitch"
                             visible: window.width >= Metrics.windowMedium
@@ -421,6 +498,22 @@ Window {
                     anchors.top: bar.bottom
                     anchors.bottom: status.top
                     width: parent.width
+
+                    SearchResults {
+                        id: results
+
+                        z: 2
+                        anchors.fill: parent
+                        visible: window.searching
+                        onReveal: path => window.revealResult(path)
+                        onOpen: path => fileOps.open([path])
+
+                        Rectangle {
+                            anchors.fill: parent
+                            z: -1
+                            color: Theme.m3surface
+                        }
+                    }
 
                     Inspector {
                         id: inspector
@@ -709,6 +802,18 @@ Window {
             Shortcut {
                 sequence: "Ctrl+Shift+N"
                 onActivated: window.keyAction("newFolder")
+            }
+            Shortcut {
+                sequence: "Ctrl+K"
+                onActivated: window.beginSearch()
+            }
+            Shortcut {
+                sequence: "Ctrl+Return"
+                enabled: window.searching
+                onActivated: {
+                    fileOps.open([fileSearch.pathAt(results.currentIndex)]);
+                    window.endSearch();
+                }
             }
             Shortcut {
                 sequence: "F1"

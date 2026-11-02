@@ -1,6 +1,7 @@
 """The state of a Wysun Files window for QML: its tabs, each with a folder model and its own history, and the
 settings shared by all of them (view mode, hidden files, inspector), kept in ``QSettings('Wysun', 'Files')`` with
 the keys the Widgets window used."""
+import json
 import os
 from pathlib import Path
 
@@ -27,6 +28,7 @@ class Tab(QObject):
         self._model.setShowHidden(controller._hidden)
         self._model.loaded.connect(self._loaded)
         self._model.stateChanged.connect(self._settled)
+        self._model.userSorted.connect(self._sorted)
         self._path, self._history, self._future, self._reselect = '', [], [], []
         if not self.navigate(path):
             self.navigate(str(Path.home()))
@@ -50,9 +52,13 @@ class Tab(QObject):
         self._path, self._reselect = path, list(reselect)
         self._model.setFilterText('')
         self._model.setGroup('all')
+        self._model.set_order(*self.controller.order_of(path))
         self._model.setRoot(path)
         self.changed.emit()
         return True
+
+    def _sorted(self, key, descending):
+        self.controller.remember_order(self._path, key, descending)
 
     @Slot()
     def back(self):
@@ -193,6 +199,25 @@ class FilesController(QObject):
             self._tabs.append(Tab(self, path))
         for tab in self._tabs:
             tab.changed.connect(self._tab_changed)
+
+    def order_of(self, path):
+        """The folder's own order, else the newest first (settings ``sortKey``/``sortDesc`` change the default)."""
+        saved = self._orders().get(path)
+        if saved:
+            return saved[0], bool(saved[1])
+        return str(self.settings.value('sortKey', 'modified')), _flag(self.settings.value('sortDesc', True))
+
+    def remember_order(self, path, key, descending):
+        orders = self._orders()
+        orders[path] = [key, bool(descending)]
+        self.settings.setValue('folderOrders', json.dumps(orders))
+
+    def _orders(self):
+        try:
+            value = json.loads(self.settings.value('folderOrders', '{}') or '{}')
+            return value if isinstance(value, dict) else {}
+        except (TypeError, ValueError):
+            return {}
 
     @staticmethod
     def special_glyphs():

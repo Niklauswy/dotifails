@@ -65,6 +65,7 @@ class FolderModel(QAbstractListModel):
     rowsChanged = Signal()                  # count, total, summary
     orderChanged = Signal()                 # sortKey, descending, filterText, group, showHidden
     selectionChanged = Signal()
+    userSorted = Signal(str, bool)          # the user chose an order (each folder remembers its own)
     currentRowChanged = Signal()
 
     def __init__(self, thumbs=None, special=None, parent=None):
@@ -335,6 +336,12 @@ class FolderModel(QAbstractListModel):
         self._key, self._descending = key, bool(descending)
         self.orderChanged.emit()
         self._apply()
+        self.userSorted.emit(key, bool(descending))
+
+    def set_order(self, key, descending):
+        """The order of a folder about to be listed (not a choice of the user)."""
+        self._key, self._descending = key, bool(descending)
+        self.orderChanged.emit()
 
     @Slot(str)
     def setFilterText(self, text):
@@ -424,6 +431,11 @@ class FolderModel(QAbstractListModel):
     def selectedPaths(self):
         return [e.path for e in self._rows if e.path in self._selected]
 
+    @Property(bool, notify=selectionChanged)
+    def selectionHasFile(self):
+        """Whether the selection holds something other than folders (the inspector has nothing to add for those)."""
+        return any(self._rows[self._index[p]].is_dir is False for p in self._selected if p in self._index)
+
     @Property(int, notify=selectionChanged)
     def selectionCount(self):
         return len(self._selected)
@@ -502,6 +514,10 @@ class FolderModel(QAbstractListModel):
     @Property(str, notify=rowsChanged)
     def dominant(self):
         return listing.dominant([e for e in self._entries if self._hidden or not e.hidden])
+
+    @Property('QVariantList', notify=rowsChanged)
+    def groups(self):
+        return listing.present_groups([e for e in self._entries if self._hidden or not e.hidden])
 
     @Property(str, notify=orderChanged)
     def sortKey(self):

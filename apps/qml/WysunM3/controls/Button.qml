@@ -46,10 +46,13 @@ ButtonBase {
         return Theme.m3primary;
     }
 
+    readonly property real contentX: content.x
+
     Row {
         id: content
 
-        x: root._leading
+        // Centred when the button is wider than its content.
+        x: Math.max(root._leading, (root.width - content.implicitWidth) / 2)
         anchors.verticalCenter: parent.verticalCenter
         spacing: Theme.spacing.small ?? 0
 

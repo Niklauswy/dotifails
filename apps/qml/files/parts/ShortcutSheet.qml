@@ -7,7 +7,8 @@ Dialog {
 
     readonly property var rows: [
         ["Opciones del elemento actual", "Alt+K · Menú"],
-        ["Filtrar nombres", "Ctrl+F · escribir"],
+        ["Buscar en todos tus archivos", "Ctrl+K"],
+        ["Filtrar esta carpeta", "Ctrl+F · escribir"],
         ["Escribir una ruta", "Ctrl+L"],
         ["Nueva pestaña / cerrar pestaña", "Ctrl+T / Ctrl+W"],
         ["Cambiar de pestaña", "Ctrl+Tab · Ctrl+RePág / AvPág"],
