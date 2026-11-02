@@ -31,17 +31,5 @@ class InstallerLabelTests(unittest.TestCase):
             dialog.deleteLater()
 
 
-class FilesMonoTests(unittest.TestCase):
-    def test_code_font_is_the_mono_family_in_points(self):
-        from wysun_files.textview import mono_font
-        font = mono_font(scale=1)
-        self.assertEqual(font.family(), tokens()['font.family.mono'])
-        self.assertEqual(font.pointSizeF(), tokens()['font.body.medium.size'])
-
-    def test_markdown_code_css_names_the_mono_family(self):
-        from wysun_files.textview import ink
-        self.assertEqual(ink()['mono'], '"%s"' % tokens()['font.family.mono'])
-
-
 if __name__ == '__main__':
     unittest.main()

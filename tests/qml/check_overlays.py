@@ -67,6 +67,18 @@ class MenuTests(Base):
                 self.assertTrue(check(*geometry), geometry)
                 self.h.call(menu, 'close')
 
+    def test_a_new_model_is_measured_before_placing(self):
+        # Setting a longer model right before popup() near the bottom must still flip the menu up.
+        view = self.on_surface(self.BODY + '\nfunction swapAndPopup(y) { menu.model = '
+                               '[{id: "a", text: "Uno"}, {id: "b", text: "Dos"}, {id: "c", text: "Tres"}, {id: "d", text: "Cuatro"}, '
+                               '{id: "e", text: "Cinco"}, {id: "f", text: "Seis"}]; menu.popup(root, 40, y) }')
+        menu = self.menu(view)
+        self.h.call(view.rootObject(), 'swapAndPopup', 380)
+        py, height = menu.property('panelY'), menu.property('panelHeight')
+        self.assertGreater(height, 6 * 40)
+        self.assertLessEqual(py + height, 400)
+        self.h.call(menu, 'close')
+
     def test_measures_and_colours(self):
         self.h.use('green-dark')
         c = self.colours('green-dark')

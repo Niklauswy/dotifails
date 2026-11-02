@@ -1,4 +1,4 @@
-"""wysun_files.picker: document requests (PDF reader) and audio files/folders (Wysun Music import)."""
+"""wysun_files.picker: document requests (documents) and audio files/folders (Wysun Music import)."""
 import os
 from pathlib import Path
 import sys
@@ -7,30 +7,18 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'apps/python'))
-os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
 
 
 class PickerRequestTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        from PySide6.QtWidgets import QApplication
-        cls.app = QApplication.instance() or QApplication([])
         cls.home = tempfile.TemporaryDirectory()
+        cls.addClassCleanup(cls.home.cleanup)
 
     def selector(self, **request):
-        from wysun_files.picker import make_selector
-        chooser = make_selector(dict(initial=self.home.name, **request))
-        self.addCleanup(self.destroy, chooser)
-        return chooser
-
-    def destroy(self, chooser):
-        # Really gone (not just deleteLater without an event loop): later tests change the theme, and a live
-        # chooser would still be registered for it.
-        import gc
-        import shiboken6
-        chooser.close()
-        shiboken6.delete(chooser)
-        gc.collect()
+        from wysun_files.core.chooser import ChooserSession
+        from wysun_files.picker import request_options
+        return ChooserSession(*request_options(dict(initial=self.home.name, **request)))
 
     def test_audio_files_are_multiple_with_an_audio_filter(self):
         chooser = self.selector(kind='audio', multiple=True, title='Importar música')

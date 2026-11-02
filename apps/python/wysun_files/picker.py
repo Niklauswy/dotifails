@@ -1,23 +1,21 @@
-"""One-shot Wysun Files selector. JSON request on stdin, JSON response on stdout.
+"""One-shot Wysun Files selector. JSON request on stdin, JSON response on stdout (F-60).
 
-Requests: documents (``suffix`` pdf|md, ``save``) for the reader, or ``kind: "audio"`` with ``multiple`` files or a
-``directory`` for Wysun Music's import."""
+Requests: documents (``suffix`` pdf|md, ``save``), or ``kind: "audio"`` with ``multiple`` files or a ``directory``
+for Wysun Music's import. The answer is ``{"code": 0|1, "uris": [...], ...}`` as the portal would reply."""
 import json
 import os
 import sys
 from pathlib import Path
-from PySide6.QtWidgets import QApplication
-from wysun_core.qt_theme import watch_theme
-from wysun_files.chooser import FileChooser
 
 AUDIO = ('m4a', 'opus', 'mp3', 'flac', 'ogg', 'wav', 'aac')     # what Wysun Music imports
 
 
-def make_selector(request):
+def request_options(request):
+    """``(mode, title, options)`` of a picker request, as the portal would pass them."""
     initial = Path(request.get('initial') or str(Path.home())).expanduser()
     folder = initial if initial.is_dir() else initial.parent
     while not folder.is_dir() and folder != folder.parent:
-        folder = folder.parent      # a moved PDF: start from the nearest folder that still exists
+        folder = folder.parent      # a moved file: start from the nearest folder that still exists
     if not folder.is_dir():
         folder = Path.home()
     kind = request.get('kind', 'document')
@@ -26,7 +24,7 @@ def make_selector(request):
         options = {'current_folder': os.fsencode(folder), 'multiple': bool(request.get('multiple')) and not directory,
                    'directory': directory, 'accept_label': 'Importar',
                    'filters': [] if directory else [('Audio', [(0, f'*.{s}') for s in AUDIO])]}
-        return FileChooser('open', request.get('title', 'Importar música'), options)
+        return 'open', request.get('title', 'Importar música'), options
     if kind != 'document':
         raise ValueError('Unsupported request kind')
     suffix = request.get('suffix', 'pdf')
@@ -39,24 +37,35 @@ def make_selector(request):
     if save:
         options['default_suffix'] = suffix
         options['current_name'] = initial.name if not initial.is_dir() else f'documento.{suffix}'
-    return FileChooser('save' if save else 'open', request.get('title', 'Seleccionar documento'), options)
+    return ('save' if save else 'open'), request.get('title', 'Seleccionar documento'), options
 
 
-def main():
+def main(argv=None):
+    argv = sys.argv if argv is None else argv
+    from wysun_qml import bootstrap
+    bootstrap.ensure_runtime_python('wysun_files.picker', argv[1:])     # before reading stdin: exec keeps it unread
     request = json.loads(sys.stdin.buffer.readline(65536))
-    app = QApplication([sys.argv[0]])
-    app.setApplicationName('Wysun Files')
-    app.setOrganizationName('Wysun')
-    app.setDesktopFileName('wysun-files')
-    app.setStyle('Fusion')
-    chooser = make_selector(request)
+    mode, title, options = request_options(request)
+    bootstrap.require_qt()
+    bootstrap.configure_qt()
+    from wysun_files.quick.chooser import QmlChooserWindow
+    window = QmlChooserWindow(mode, title, options)
+    window.app.setApplicationName('Wysun Files')
+    window.app.setDesktopFileName('wysun-files')
+
     def completed(code, result):
+        result = dict(result)
+        if 'current_filter' in result:
+            name, rules = result['current_filter']
+            result['current_filter'] = [name, [list(rule) for rule in rules]]
+        if 'choices' in result:
+            result['choices'] = [list(pair) for pair in result['choices']]
         print(json.dumps(dict(code=code, **result)), flush=True)
-        app.quit()
-    chooser.completed.connect(completed)
-    watch_theme()
-    chooser.show()
-    return app.exec()
+        window.app.quit()
+
+    window.chooser.completed.connect(completed)
+    window.present()
+    return window.app.exec()
 
 
 if __name__ == '__main__':

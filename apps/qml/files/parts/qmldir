@@ -1,0 +1,19 @@
+singleton FilesMetrics 1.0 FilesMetrics.qml
+FileIcon 1.0 FileIcon.qml
+FileTile 1.0 FileTile.qml
+FileRow 1.0 FileRow.qml
+ListHeader 1.0 ListHeader.qml
+FolderHero 1.0 FolderHero.qml
+FilterRow 1.0 FilterRow.qml
+FolderView 1.0 FolderView.qml
+ScrollBar 1.0 ScrollBar.qml
+TabStrip 1.0 TabStrip.qml
+PathBar 1.0 PathBar.qml
+StatusLine 1.0 StatusLine.qml
+SelectionBar 1.0 SelectionBar.qml
+FilesMenus 1.0 FilesMenus.qml
+FilesDialogs 1.0 FilesDialogs.qml
+PreviewPane 1.0 PreviewPane.qml
+Inspector 1.0 Inspector.qml
+ExpandedPreview 1.0 ExpandedPreview.qml
+ShortcutSheet 1.0 ShortcutSheet.qml

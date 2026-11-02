@@ -40,15 +40,15 @@ El instalador conserva su propio diario de recuperación para los archivos despl
 - Ctrl+T/Ctrl+W: abrir/cerrar pestaña. Ctrl+L: escribir una ruta. Alt+flechas: historial y carpeta superior.
 - Ctrl+F filtra nombres en la carpeta actual; no es una búsqueda recursiva.
 - Ctrl+H muestra ocultos. Ctrl+C/X/V copia, corta y pega desde las vistas de archivos.
-- F2 cambia el nombre; Supr envía a la papelera tras confirmación. El panel de vista previa se abre solo (a la mitad del área) para archivos con algo que mostrar —imágenes, PDF, vídeo, audio, Markdown, código y texto— y se cierra para carpetas y archivos sin vista; Espacio la amplía a toda el área.
+- F2 cambia el nombre; Supr envía a la papelera tras confirmación. El inspector lateral se abre solo con una selección en ventanas de 1000 px o más (Ctrl+I lo activa o desactiva) y muestra imágenes, PDF con sus páginas, vídeo, audio, Markdown, código y texto, además de resúmenes de carpetas y de selecciones múltiples; Espacio amplía la vista a toda la ventana.
 - Alt+K abre las opciones del elemento actual; escribir filtra; Retroceso o ← sube de carpeta (y deja seleccionada la carpeta de la que vienes); Ctrl+Tab cambia de pestaña; F1 lista todos los atajos.
-- Las operaciones se ejecutan en segundo plano, una a la vez. Se rechazan colisiones en lugar de reemplazar archivos existentes. Una operación por lotes puede completarse parcialmente: el mensaje identifica los destinos ya procesados.
+- Las operaciones se ejecutan en segundo plano, una a la vez. Se rechazan colisiones en lugar de reemplazar archivos existentes. Tras enviar a la papelera, «Deshacer» restaura sin sobrescribir. Una operación por lotes puede completarse parcialmente: el mensaje identifica los destinos ya procesados.
 - Favoritos y preferencias se guardan mediante QSettings fuera del código.
 
 ## Alcance de esta versión
 
-Gestión de archivos locales con pestañas, lista/cuadrícula, favoritos, propiedades, terminal y vista previa existente de Wysun. No implementa montaje de volúmenes, conexiones remotas, extracción de archivos comprimidos, búsqueda recursiva ni una vista propia para restaurar la papelera. El gestor alternativo permanece disponible para esas tareas. Las aplicaciones compatibles con el portal utilizan el selector de Wysun.
+Gestión de archivos locales con pestañas, lista/cuadrícula, favoritos, propiedades, terminal y vista previa existente de Wysun. Expulsa medios extraíbles, pero no implementa montaje de volúmenes, conexiones remotas, extracción de archivos comprimidos, búsqueda recursiva ni una vista propia para restaurar la papelera. El gestor alternativo permanece disponible para esas tareas. Las aplicaciones compatibles con el portal utilizan el selector de Wysun.
 
 ## Verificación
 
-`python3 -m unittest discover -s tests -p test_files_ops.py -v` comprueba las operaciones con archivos temporales. `QT_QPA_PLATFORM=offscreen python3 tests/files_ui.py` comprueba modelos, navegación y operaciones desde la interfaz. Repetir sin offscreen en la sesión Wysun / Hyprland para validar la apertura gráfica; no basta la asociación MIME.
+`python3 -m unittest discover -s tests -p test_files_ops.py -v` comprueba las operaciones con archivos temporales. La interfaz es QML sobre `WysunM3` (`apps/qml/files`, puentes en `wysun_files/quick`); sus pruebas son `tests/qml/check_files_*.py` y corren con el Python del venv: `python3 -m unittest tests.test_qml_runtime -v`. Repetir sin offscreen en la sesión Wysun / Hyprland para validar la apertura gráfica; no basta la asociación MIME.

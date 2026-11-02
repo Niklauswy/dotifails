@@ -22,6 +22,7 @@ Item {
     signal destinationSelected(string id)
     signal headerAction(string actionId)
     signal contextRequested(string id, real x, real y)
+    signal trailingAction(string id)
 
     function openModal() {
         if (mode !== "modal" || modalOpen)
@@ -62,6 +63,7 @@ Item {
             onSelected: id => root.select(id)
             onHeaderAction: id => root.headerAction(id)
             onContextRequested: (id, x, y) => root.contextRequested(id, x, y)
+            onTrailingAction: id => root.trailingAction(id)
         }
     }
 
@@ -128,6 +130,7 @@ Item {
             enabled: root.modalOpen
             onSelected: id => root.select(id)
             onCloseRequested: root.closeModal()
+            onTrailingAction: id => root.trailingAction(id)
             onHeaderAction: id => root.headerAction(id)
             onContextRequested: (id, x, y) => root.contextRequested(id, x, y)
         }

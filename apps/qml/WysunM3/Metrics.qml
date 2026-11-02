@@ -118,6 +118,7 @@ QtObject {
     // of the approved mock-up (docs/design/qml-migration/files-adaptive-nav.html, decision D2). Items 56 high.
     readonly property int drawerWidth: 280
     readonly property int drawerItemHeight: 56
+    readonly property int navUsageWidth: 48             // usage bar of a drawer destination (Wysun: disks); not an M3 token
     readonly property int modalDrawerElevation: 1
     readonly property real scrimOpacity: 0.32
 

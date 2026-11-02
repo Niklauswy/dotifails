@@ -250,6 +250,36 @@ class TabTests(Base):
         self.assertEqual(secondary.property('currentId'), 'c')
 
 
+
+class DeviceDestinationTests(Base):
+    """A usage bar and a trailing action (Wysun Files' devices: free space, eject)."""
+
+    def adaptive(self):
+        return self.on_surface(
+            'property var log: []\n'
+            'AdaptiveNavigation { id: nav; objectName: "nav"; anchors.fill: parent; windowWidth: width; currentId: "home"\n'
+            '  destinations: [{id: "home", icon: "home", label: "Inicio"}, {id: "usb", icon: "usb", label: "KINGSTON",'
+            ' progress: 0.31, trailing: "11 GB libres", trailingAction: "eject", trailingActionLabel: "Expulsar"}]\n'
+            '  onDestinationSelected: id => root.log = root.log.concat(["go:" + id])\n'
+            '  onTrailingAction: id => root.log = root.log.concat(["action:" + id]) }',
+            1000, 480)
+
+    def test_usage_bar_and_trailing_action(self):
+        view = self.adaptive()
+        bars = [i for i in self.h.items(view, 'navProgress') if i.property('visible')]
+        self.assertEqual(len(bars), 1)
+        self.assertAlmostEqual(bars[0].property('value'), 0.31, places=2)
+        self.assertEqual([i for i in self.h.items(view, 'navProgress')][0].property('width') > 0, True)
+        button = self.child(view, 'navAction-usb')
+        self.assertTrue(button.property('visible'))
+        point = button.mapToItem(view.rootObject(), button.width() / 2, button.height() / 2)
+        self.h.click(view, point.x(), point.y())
+        self.assertEqual(view.rootObject().property('log').toVariant(), ['action:usb'], 'the action does not navigate')
+
+    def test_destinations_without_them_show_neither(self):
+        view = self.adaptive()
+        self.assertIsNone(self.child(view, 'navAction-home'))
+
 if __name__ == '__main__':
     unittest.main()
 

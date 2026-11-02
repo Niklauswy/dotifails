@@ -1,42 +1,56 @@
 #!/usr/bin/env python3
-"""Standalone Wysun file manager. Accepts local paths and file:// URLs."""
+"""Wysun Files (F-01, F-06): ``wysun files [CARPETA|ARCHIVO|file://…]…`` opens one window per process with a tab per
+location (a file opens its folder with it selected). Other schemes and missing locations are refused with a
+message; the window then opens in the home folder. The UI runs on the qml-runtime venv."""
+import os
+import signal
 import sys
 from pathlib import Path
-from PySide6.QtCore import QUrl
-from PySide6.QtWidgets import QApplication, QMessageBox
+from urllib.parse import unquote, urlparse
 
 
 def local_paths(arguments):
-    paths = []
+    """``(paths, problems)``: local folders/files to open, and what was refused (Qt-free)."""
+    paths, problems = [], []
     for value in arguments:
-        if value == '--':
+        if value == '--' or value.startswith('-'):
             continue
-        url = QUrl(value)
-        if url.scheme() and not url.isLocalFile():
-            raise ValueError('Solo se admiten carpetas locales: ' + value)
-        path = Path(url.toLocalFile() if url.isLocalFile() else value).expanduser().absolute()
-        if not path.exists():
-            raise ValueError('La ubicación no existe: ' + str(path))
-        paths.append(str(path if path.is_dir() else path.parent))
-    return paths or [str(Path.home())]
+        url = urlparse(value)
+        if url.scheme and url.scheme != 'file':
+            problems.append('Solo se admiten carpetas locales: ' + value)
+            continue
+        path = Path(unquote(url.path) if url.scheme == 'file' else value).expanduser().absolute()
+        if not os.path.lexists(path):
+            problems.append('La ubicación no existe: ' + str(path))
+            continue
+        paths.append(str(path))
+    return paths, problems
 
 
-def main():
-    app = QApplication([sys.argv[0]])
+def main(argv=None):
+    argv = sys.argv if argv is None else argv
+    from wysun_qml import bootstrap
+    bootstrap.ensure_runtime_python('wysun_files', argv[1:])
+    bootstrap.require_qt()
+    bootstrap.configure_qt()
+    paths, problems = local_paths(argv[1:])
+    from PySide6.QtCore import QTimer
+    from wysun_files.quick.window import QmlFilesWindow
+    window = QmlFilesWindow(paths or [str(Path.home())])
+    app = window.app
     app.setApplicationName('Wysun Files')
     app.setOrganizationName('Wysun')
     app.setDesktopFileName('wysun-files')
-    app.setStyle('Fusion')
-    try:
-        paths = local_paths(sys.argv[1:])
-    except ValueError as exc:
-        QMessageBox.warning(None, 'No se pudo abrir la ubicación', str(exc))
-        return 1
-    from wysun_files.window import FilesWindow
-    from wysun_core.qt_theme import watch_theme
-    window = FilesWindow(paths=paths)
-    watch_theme()
-    window.show()
+    for problem in problems:
+        sys.stderr.write(problem + '\n')
+        window.files.message.emit(problem)
+    window.present()
+    app.aboutToQuit.connect(window.close)
+    for number in (signal.SIGTERM, signal.SIGINT):
+        signal.signal(number, lambda *_: QTimer.singleShot(0, window.window.close))
+    wake = QTimer(app, interval=500)          # Python runs signal handlers between bytecodes
+    wake.timeout.connect(lambda: None)
+    wake.start()
     return app.exec()
 
 

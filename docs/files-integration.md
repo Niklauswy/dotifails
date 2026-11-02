@@ -34,7 +34,7 @@ cerrar ese gestor normalmente para que Wysun pueda adquirirlo.
 Comprobaciones:
 
 ```sh
-QT_QPA_PLATFORM=offscreen python3 tests/files_chooser_ui.py
+python3 -m unittest tests.test_qml_runtime -v   # incluye tests/qml/check_files_chooser.py
 # El bus es temporal; no modifica el portal de la sesión gráfica.
 dbus-run-session -- env QT_QPA_PLATFORM=offscreen python3 tests/files_portal_dbus.py
 systemctl --user status wysun-files-integration.service

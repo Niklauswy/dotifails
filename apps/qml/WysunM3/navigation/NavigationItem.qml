@@ -4,7 +4,9 @@
 // destination: {id, icon, activeIcon?, label, badge?, trailing?, image?, trailingIcon?, railLabel?, railIcon?};
 // `image` (e.g. a playlist cover) replaces the drawer icon, `trailingIcon` follows the label (e.g. a now-playing
 // mark), `railLabel`/`railIcon` shorten a destination in the rail. Right click emits contextRequested in window
-// coordinates.
+// coordinates. Drawer only: `progress` (0-1) draws a usage bar before the trailing text (a disk's fill, the text
+// then in label-small), `trailingAction` (+ `trailingActionLabel`) an icon button at the end that emits
+// actionTriggered instead of navigating (e.g. eject).
 import QtQuick
 import WysunM3
 
@@ -21,8 +23,11 @@ Item {
     readonly property string trailingText: destination.trailing ?? (typeof destination.badge === "number" && destination.badge > 0 ? (destination.badge > Metrics.badgeMaxCount ? Metrics.badgeMaxCount + "+" : String(destination.badge)) : "")
     readonly property string iconName: !drawer && destination.railIcon ? destination.railIcon : active && destination.activeIcon ? destination.activeIcon : destination.icon ?? ""
     readonly property string image: drawer ? destination.image ?? "" : ""
+    readonly property bool hasProgress: drawer && typeof destination.progress === "number"
+    readonly property string actionIcon: drawer ? destination.trailingAction ?? "" : ""
 
     signal clicked
+    signal actionTriggered
     signal stepRequested(int delta)
     signal contextRequested(real x, real y)
 
@@ -108,11 +113,21 @@ Item {
 
             Label {
                 anchors.verticalCenter: parent.verticalCenter
-                width: parent.width - Metrics.iconSize - parent.spacing - (trail.visible ? trail.implicitWidth + parent.spacing : 0) - (trailIcon.visible ? Metrics.iconSize + parent.spacing : 0)
+                width: parent.width - Metrics.iconSize - parent.spacing - (trail.visible ? trail.implicitWidth + parent.spacing : 0) - (trailIcon.visible ? Metrics.iconSize + parent.spacing : 0) - (usage.visible ? usage.width + parent.spacing : 0) - (action.visible ? action.width + parent.spacing : 0)
                 role: "label.large"
                 text: root.destination.label ?? ""
                 color: root.contentColor
                 elide: Text.ElideRight
+            }
+
+            LinearProgress {
+                id: usage
+
+                objectName: "navProgress"
+                anchors.verticalCenter: parent.verticalCenter
+                visible: root.hasProgress
+                width: Metrics.navUsageWidth
+                value: root.hasProgress ? Math.max(0, Math.min(1, root.destination.progress)) : 0
             }
 
             Label {
@@ -120,7 +135,7 @@ Item {
 
                 anchors.verticalCenter: parent.verticalCenter
                 visible: text !== ""
-                role: "label.large"
+                role: root.hasProgress ? "label.small" : "label.large"
                 text: root.trailingText
                 color: root.contentColor
             }
@@ -133,6 +148,16 @@ Item {
                 visible: (root.destination.trailingIcon ?? "") !== "" && available
                 name: root.destination.trailingIcon ?? ""
                 color: root.active ? root.contentColor : Theme.m3primary
+            }
+
+            Item {
+                // Keeps the row's height; the button itself sits above the pill's state layer.
+                id: action
+
+                visible: root.actionIcon !== ""
+                width: Metrics.iconButtonSize
+                height: Metrics.iconButtonSize
+                anchors.verticalCenter: parent.verticalCenter
             }
         }
 
@@ -147,6 +172,20 @@ Item {
         FocusRing {
             target: pill
             visible: root.drawer && root.activeFocus
+        }
+
+        IconButton {
+            objectName: root.actionIcon !== "" ? "navAction-" + root.destinationId : ""
+            visible: root.actionIcon !== ""
+            x: action.mapToItem(pill, 0, 0).x
+            anchors.verticalCenter: parent.verticalCenter
+            icon: root.actionIcon
+            onClicked: root.actionTriggered()
+
+            Tooltip {
+                text: root.destination.trailingActionLabel ?? ""
+                visible: text !== ""
+            }
         }
     }
 
