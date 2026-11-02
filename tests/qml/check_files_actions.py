@@ -173,6 +173,40 @@ class FilesActionTests(unittest.TestCase):
         self.assertIn('newFolder', background)
         self.h.call(menu, 'close')
 
+    def share_from_menu(self, *names):
+        self.select(*names)
+        self.h.call(self.find('folderView'), 'contextAtCurrent')
+        menu = self.find('contextMenu')
+        self.assertIn('share', [e['id'] for e in menu.property('model').toVariant() if 'id' in e])
+        self.h.call(menu, 'close')
+        menu.triggered.emit('share')
+        self.h.pump(30)
+        self.assertTrue(self.opened('shareDialog'))
+        return self.find('shareDialog')
+
+    def test_share_on_the_network(self):
+        from wysun_files.quick import operations as module
+        (self.root / 'Fotos').mkdir()
+        self.wait()
+        dialog = self.share_from_menu('tesis.pdf')
+        self.assertEqual(dialog.property('title'), 'Compartir «tesis.pdf» en la red')
+        self.assertFalse(self.find('shareUploads').property('visible'), 'uploads only for one folder')
+        self.h.call(dialog, 'close')
+        dialog = self.share_from_menu('Fotos')
+        self.assertTrue(self.find('shareUploads').property('visible'))
+        self.assertFalse(self.find('shareUploads').property('selected'), 'off by default')
+        self.find('shareUploads').setProperty('selected', True)
+        self.find('sharePassword').setProperty('selected', True)
+        self.h.call(dialog, 'close')
+        with patch.object(module.subprocess, 'Popen') as popen:
+            dialog.accepted.emit('share')
+            self.h.pump(30)
+        self.assertEqual(popen.call_args.args[0][3:], ['wysun_lanshare', '--subidas', '--clave', '--', str(self.root / 'Fotos')])
+        dialog = self.share_from_menu('Fotos')
+        self.assertFalse(self.find('shareUploads').property('selected'), 'every share starts with uploads off')
+        self.h.call(dialog, 'close')
+        self.assertEqual(self.warnings, [])
+
     def test_properties_dialog(self):
         self.h.call(self.win.window.property('dialogs'), 'properties', str(self.root / 'tesis.pdf'))
         self.assertTrue(self.opened('propertiesDialog'))

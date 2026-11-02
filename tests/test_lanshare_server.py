@@ -22,7 +22,7 @@ class Running:
 
     def __init__(self, case, paths, **kw):
         o = opts.Options(paths=[str(p) for p in paths], **kw)
-        self.app = server.App(o, environ={'XDG_RUNTIME_DIR': case.home})
+        self.app = server.App(o)
         self.srv, self.port = server.make_server(self.app, host='127.0.0.1', port=case.free_port())
         self.thread = threading.Thread(target=self.srv.serve_forever, daemon=True)
         self.thread.start()
@@ -150,7 +150,7 @@ class ServerTests(unittest.TestCase):
             busy.bind(('127.0.0.1', 0))
             busy.listen()
             port = busy.getsockname()[1]
-            app = server.App(opts.Options(paths=[str(self.folder)]), environ={'XDG_RUNTIME_DIR': self.home})
+            app = server.App(opts.Options(paths=[str(self.folder)]))
             srv, chosen = server.make_server(app, host='127.0.0.1', port=port)
             srv.server_close()
         self.assertGreater(chosen, port)

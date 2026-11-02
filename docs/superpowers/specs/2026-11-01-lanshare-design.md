@@ -96,9 +96,9 @@ Streaming con Range (Safari/iPhone), miniaturas y *sprites* con ffmpeg en `~/.ca
 - «Dejar de compartir» ejecuta `wysun lanshare --detener PID`, que comprueba que ese PID es un LANShare del usuario antes de enviarle SIGTERM.
 - Colores, radios y movimiento del shell (`Colours`, `Tokens`), como el resto de paneles.
 
-## Para Wysun Files (después de la migración)
+## Para Wysun Files (hecho el 2026-11-02, tras la migración a QML)
 
-Nota a entregar (en `docs/utilities.md` y aquí): en el clic derecho de un archivo, varios archivos o una carpeta, «Compartir en la red» abre un diálogo pequeño (subidas sí/no —solo para una carpeta—, contraseña sí/no) y lanza `wysun lanshare RUTA… [--subidas] [--clave]` desacoplado. Todo lo demás (estado, detener) lo hace la barra. No se hace en esta etapa.
+En el clic derecho de un archivo, varios archivos o una carpeta, «Compartir en la red» abre un diálogo pequeño (subidas sí/no —solo para una carpeta—, contraseña sí/no) y lanza `wysun lanshare RUTA… [--subidas] [--clave]` desacoplado. Todo lo demás (estado, detener) lo hace la barra. Con nada seleccionado, el clic derecho ofrece «Compartir esta carpeta en la red».
 
 ## Restricciones
 

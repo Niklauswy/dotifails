@@ -1,7 +1,7 @@
 """Who is using a LANShare, when it shuts itself down, and what the bar reads.
 
 Contract with the shell (apps/shell/services/LanShare.qml): every server keeps
-``$XDG_RUNTIME_DIR/wysun-lanshare/<pid>.json`` (private directory, atomic writes, at most about
+``<session runtime dir>/wysun-lanshare/<pid>.json`` (``wysun_core.paths.runtime_dir()``) (private directory, atomic writes, at most about
 once a second plus a heartbeat every HEARTBEAT seconds) and deletes it on exit. A file whose
 ``updated`` is older than three heartbeats belongs to a dead server.
 """
@@ -13,6 +13,7 @@ import signal
 import threading
 import time
 
+from wysun_core import paths
 from wysun_core.jsonio import atomic_path
 
 HEARTBEAT = 10
@@ -93,18 +94,17 @@ class Activity:
             return [dict(t) for t in self._transfers.values()]
 
 
-def status_dir(environ=None):
-    environ = os.environ if environ is None else environ
-    runtime = environ.get('XDG_RUNTIME_DIR') or f'/run/user/{os.getuid()}'
-    return Path(runtime) / 'wysun-lanshare'
+def status_dir(base=None):
+    """Where the status files live; ``base`` replaces the session runtime directory (tests)."""
+    return Path(base if base is not None else paths.runtime_dir()) / 'wysun-lanshare'
 
 
 class StatusFile:
-    def __init__(self, pid, info, environ=None, clock=time.time):
+    def __init__(self, pid, info, base=None, clock=time.time):
         self.pid = pid
         self.info = dict(info)
         self.clock = clock
-        self.path = status_dir(environ) / f'{pid}.json'
+        self.path = status_dir(base) / f'{pid}.json'
         self._written = None
         self._at = float('-inf')
 
@@ -154,9 +154,9 @@ def stop(pid):
     return True
 
 
-def prune(environ=None):
+def prune(base=None):
     """Delete the status files of servers that are no longer running."""
-    directory = status_dir(environ)
+    directory = status_dir(base)
     try:
         files = list(directory.glob('*.json'))
     except OSError:

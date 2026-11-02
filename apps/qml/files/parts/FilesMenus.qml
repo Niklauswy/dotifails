@@ -35,6 +35,7 @@ Item {
         entries.push({id: "copyPath", text: "Copiar ruta", icon: "link", shortcut: "Ctrl+Shift+C"});
         entries.push({id: "newFolder", text: "Nueva carpeta", icon: "create_new_folder", shortcut: "Ctrl+Shift+N", disabled: !idle});
         entries.push({id: "terminal", text: "Terminal aquí", icon: "terminal"});
+        entries.push({id: "share", text: any ? "Compartir en la red" : "Compartir esta carpeta en la red", icon: "share"});
         entries.push({id: "properties", text: "Propiedades", icon: "info", disabled: _paths.length > 1});
         contextMenu.model = entries;
         contextMenu.popup(null, x, y);
@@ -74,6 +75,10 @@ Item {
         case "terminal":
             // On a selected folder, that folder; else the one on view.
             fileOps.terminal(_paths.length === 1 && app.model.get(app.model.rowOf(_paths[0])).isDir === true ? _paths[0] : folder);
+            break;
+        case "share":
+            // The selection, or the folder on view when nothing is under the pointer (Wysun LANShare).
+            app.dialogs.share(_paths.length ? _paths : [folder], _paths.length ? _paths.length === 1 && app.model.get(app.model.rowOf(_paths[0])).isDir === true : true);
             break;
         case "copyPath":
             files.copyText(_paths.length === 1 ? _paths[0] : folder);

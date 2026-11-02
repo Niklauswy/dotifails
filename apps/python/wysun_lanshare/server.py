@@ -89,13 +89,12 @@ class Gate:
 class App:
     """Everything one running LANShare knows; the handler reaches it as self.server.app."""
 
-    def __init__(self, options, environ=None, clock=time.time):
+    def __init__(self, options, clock=time.time):
         self.options = options
         self.share = Share(options.paths)
         self.uploads = options.uploads and self.share.mode == 'folder'
         self.gate = Gate(options.password, clock)
         self.activity = status.Activity(options.idle, clock)
-        self.environ = environ
         self.host = socket.gethostname().split('.')[0] or 'Wysun'
 
 

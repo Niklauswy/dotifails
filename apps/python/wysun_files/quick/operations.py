@@ -9,17 +9,19 @@ from pathlib import Path
 import shutil
 import stat as stat_module
 import subprocess
+import sys
 import threading
 
 from PySide6.QtCore import Property, QMimeData, QObject, Qt, QUrl, Signal, Slot
 from PySide6.QtGui import QDesktopServices, QGuiApplication
 
 from wysun_core import paths as core_paths
+from wysun_core.launch import argv as module_argv
 from wysun_files import ops
 from wysun_files.browser import open_pdf
 from wysun_files.core import listing
 from wysun_media.source import kind_of as media_kind
-from wysun_player.client import launch
+from wysun_player.client import child_environment, launch
 
 GNOME = 'x-special/gnome-copied-files'
 OURS = 'application/x-wysun-files'         # marks what this process put on the clipboard
@@ -337,6 +339,27 @@ class Operations(QObject):
                                  stderr=subprocess.DEVNULL)
                 return
         self.failed.emit('Terminal no disponible', 'No se encontró una terminal compatible.')
+
+    @Slot('QVariantList', bool, bool, result=bool)
+    def shareOnNetwork(self, paths, uploads, password):
+        """`wysun lanshare PATH… [--subidas] [--clave]` on its own: the bar shows it and stops it from then on."""
+        paths = [p for p in paths if p]
+        if not paths:
+            return False
+        args = []
+        if uploads and len(paths) == 1 and os.path.isdir(paths[0]):
+            args.append('--subidas')
+        if password:
+            args.append('--clave')
+        # LANShare is stdlib + wysun_core: the system Python, outside the QML venv's Qt setup.
+        argv = module_argv('wysun_lanshare', *args, '--', *paths, python=str(Path(sys.base_prefix) / 'bin/python3'))
+        try:
+            subprocess.Popen(argv, env=child_environment(), cwd=os.path.dirname(paths[0]) or None, start_new_session=True,
+                             stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except OSError as error:
+            self.failed.emit('No se pudo compartir', error.strerror or str(error))
+            return False
+        return True
 
     # ---------------------------------------------------------------- properties
     @Slot(str, result='QVariantMap')

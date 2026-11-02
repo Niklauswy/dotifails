@@ -64,6 +64,19 @@ Item {
         trashDialog.open();
     }
 
+    // «Compartir en la red»: what Wysun LANShare needs to know; uploads only for one folder, both off by default.
+    function share(paths, oneFolder) {
+        if (!paths || paths.length === 0)
+            return;
+        shareDialog.paths = paths;
+        shareDialog.oneFolder = oneFolder === true;
+        const name = paths[0].slice(paths[0].lastIndexOf("/") + 1) || paths[0];
+        shareDialog.title = paths.length === 1 ? "Compartir «" + name + "» en la red" : "Compartir " + paths.length + " elementos en la red";
+        uploadsChip.selected = false;
+        passwordChip.selected = false;
+        shareDialog.open();
+    }
+
     function properties(path) {
         propertiesDialog.info = fileOps.properties(path);
         propertiesDialog.open();
@@ -120,6 +133,48 @@ Item {
         onAccepted: id => {
             if (id === "trash")
                 fileOps.trash(paths);
+        }
+    }
+
+    Dialog {
+        id: shareDialog
+
+        property var paths: []
+        property bool oneFolder
+
+        objectName: "shareDialog"
+        host: root.host
+        icon: "share"
+        message: "Cualquiera en esta red podrá verlo y descargarlo desde el navegador. La dirección aparece en la barra, que también sirve para dejar de compartir."
+        actions: [{id: "cancel", text: "Cancelar"}, {id: "share", text: "Compartir", primary: true}]
+        onAccepted: id => {
+            if (id !== "share")
+                return;
+            if (fileOps.shareOnNetwork(paths, oneFolder && uploadsChip.selected, passwordChip.selected))
+                root.app.snackbarHost.show({text: passwordChip.selected ? "Compartiendo en la red · la dirección y la contraseña están en la barra" : "Compartiendo en la red · la dirección está en la barra"});
+        }
+
+        Flow {
+            width: Metrics.dialogMinWidth + Metrics.textFieldMinWidth / 2
+            spacing: Theme.spacing.small ?? 0
+
+            Chip {
+                id: uploadsChip
+
+                objectName: "shareUploads"
+                visible: shareDialog.oneFolder
+                kind: "filter"
+                icon: "upload"
+                text: "Permitir subidas"
+            }
+            Chip {
+                id: passwordChip
+
+                objectName: "sharePassword"
+                kind: "filter"
+                icon: "key"
+                text: "Pedir contraseña"
+            }
         }
     }
 

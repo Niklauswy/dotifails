@@ -79,7 +79,7 @@ class ActivityTests(unittest.TestCase):
 class StatusFileTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
-        self.env = {'XDG_RUNTIME_DIR': self.tmp.name}
+        self.env = self.tmp.name
 
     def tearDown(self):
         self.tmp.cleanup()
@@ -89,7 +89,7 @@ class StatusFileTests(unittest.TestCase):
         act = status.Activity(600, clock)
         info = {'paths': ['/x/Videos'], 'title': 'Videos', 'addresses': ['http://10.0.0.2:8000'],
                 'port': 8000, 'password': 'k3m9rt', 'uploads': False}
-        sf = status.StatusFile(4242, info, environ=self.env, clock=clock)
+        sf = status.StatusFile(4242, info, base=self.env, clock=clock)
         sf.write(act, force=True)
         path = Path(self.tmp.name) / 'wysun-lanshare' / '4242.json'
         self.assertEqual(stat.S_IMODE(path.parent.stat().st_mode), 0o700)
@@ -104,7 +104,7 @@ class StatusFileTests(unittest.TestCase):
     def test_writes_are_throttled(self):
         clock = Clock()
         act = status.Activity(600, clock)
-        sf = status.StatusFile(1, {}, environ=self.env, clock=clock)
+        sf = status.StatusFile(1, {}, base=self.env, clock=clock)
         self.assertTrue(sf.write(act))
         act.touch('10.0.0.5', '')
         self.assertFalse(sf.write(act))

@@ -309,6 +309,22 @@ class OperationsTests(unittest.TestCase):
             self.ops.terminal(str(self.dst))
         self.assertEqual(popen.call_args.args[0], ['/usr/bin/ghostty', '--gtk-single-instance=false', f'--working-directory={self.dst}'])
 
+    def test_share_on_the_network_starts_lanshare_detached(self):
+        from wysun_files.quick import operations as module
+        with patch.object(module.subprocess, 'Popen') as popen:
+            self.assertTrue(self.ops.shareOnNetwork([str(self.src)], True, True))
+        argv, kwargs = popen.call_args.args[0], popen.call_args.kwargs
+        self.assertEqual(argv[0], str(Path(sys.base_prefix) / 'bin/python3'), 'the system Python, not the QML venv')
+        self.assertEqual(argv[1:], ['-P', '-m', 'wysun_lanshare', '--subidas', '--clave', '--', str(self.src)])
+        self.assertTrue(kwargs['start_new_session'])
+        self.assertNotIn('QML_IMPORT_PATH', kwargs['env'])
+        self.assertIn('PYTHONPATH', kwargs['env'])
+        with patch.object(module.subprocess, 'Popen') as popen:
+            self.assertTrue(self.ops.shareOnNetwork(self.paths('a.txt', 'b.txt'), True, False))
+        self.assertEqual(popen.call_args.args[0][1:], ['-P', '-m', 'wysun_lanshare', '--', *self.paths('a.txt', 'b.txt')],
+                         'uploads only for one folder')
+        self.assertFalse(self.ops.shareOnNetwork([], False, False))
+
     def test_uris_for_dragging(self):
         self.assertEqual(self.ops.uris(self.paths('a.txt')), ['file://' + str(self.src / 'a.txt')])
 
