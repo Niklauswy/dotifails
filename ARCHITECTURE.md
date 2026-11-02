@@ -166,7 +166,7 @@ importa código de `~/.local/share/wysun/app`. Sus datos son independientes (`~/
 
 **Grabación de pantalla**: la elección (ventana/región/pantalla), la cuenta atrás y el HUD viven en el shell
 (`wysun-shell record [start|toggle|pause|stop]`, IPC `recorder`; `modules/areapicker` en modo `record` + `modules/recorder`);
-el worker independiente de `wysun_recorder` hace la captura y `wysun recorder --start JSON` lo arranca sin ventana. Al parar, el MP4 se abre solo en Wysun Player. La ventana
+el worker independiente de `wysun_recorder` hace la captura y `wysun recorder --start JSON` lo arranca sin ventana. El selector pone una capa en cada monitor (el del puntero es el activo y toma el teclado), así que se puede elegir una ventana de cualquier monitor. Con las anotaciones abiertas, su barra trae pausa y parar (`Ctrl+Shift+R`/`S` también valen ahí): el HUD queda debajo de esa capa y no se puede pulsar. Al parar, el MP4 se abre solo en Wysun Player. La ventana
 `wysun recorder` es solo de ajustes, en QML (`wysun_recorder/ui/window.py` y `ui/qml`, controles de WysunM3); gestionar y ver las grabaciones es de Files y del Player. Atajos:
 `Super+Shift+L`/`R` alternan (elegir y grabar / terminar), `Ctrl+Shift+R` pausa, `Ctrl+Shift+S` termina.
 
