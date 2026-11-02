@@ -125,7 +125,7 @@ ColumnLayout {
                     implicitWidth: Tokens.spacing.small
                     implicitHeight: implicitWidth
                     radius: width / 2
-                    color: group.incident ? Colours.palette.m3tertiary : Colours.palette.m3success
+                    color: group.incident ? Colours.palette.m3tertiary : group.service?.indicator === "none" ? Colours.palette.m3success : Colours.palette.m3outline
                 }
             }
 

@@ -80,10 +80,10 @@ ColumnLayout {
                     Rectangle {
                         anchors.right: parent.right
                         anchors.bottom: parent.bottom
-                        implicitWidth: Tokens.spacing.small + 2
+                        implicitWidth: Tokens.spacing.small + Tokens.padding.extraSmall / 2
                         implicitHeight: implicitWidth
                         radius: width / 2
-                        border.width: 2
+                        border.width: Tokens.padding.extraSmall / 2
                         border.color: Colours.palette.m3surface
                         color: session.modelData.busy ? Colours.palette.m3success : Colours.palette.m3outline
 

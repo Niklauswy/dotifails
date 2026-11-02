@@ -100,7 +100,7 @@ ColumnLayout {
         Layout.leftMargin: Tokens.padding.small
         Layout.rightMargin: Tokens.padding.small
         Layout.preferredHeight: Tokens.sizes.aiUsage.typeBarHeight
-        spacing: 2
+        spacing: Tokens.padding.extraSmall / 2
 
         Repeater {
             model: root.kinds

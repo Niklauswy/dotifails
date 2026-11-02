@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import Wysun.Config
+import Wysun.I18n
 import qs.components
 import qs.components.controls
 import qs.services
@@ -77,7 +78,7 @@ Item {
                 implicitWidth: Tokens.spacing.small
                 implicitHeight: implicitWidth
                 radius: width / 2
-                border.width: 2
+                border.width: Tokens.padding.extraSmall / 2
                 border.color: Colours.palette.m3surface
                 color: Colours.palette.m3tertiary
             }
@@ -134,7 +135,8 @@ Item {
             Layout.alignment: Qt.AlignHCenter
             visible: root.style === "stacked"
             horizontalAlignment: Text.AlignHCenter
-            text: (root.session ? "S " + root.shown(root.session) : "") + (root.session && root.weekly ? "\n" : "") + (root.weekly ? "W " + root.shown(root.weekly) : "")
+            // TRANSLATORS: one-letter marks of the session (S) and weekly (W) limits in the bar
+            text: (root.session ? Tr.tr("S %1").arg(root.shown(root.session)) : "") + (root.session && root.weekly ? "\n" : "") + (root.weekly ? Tr.tr("W %1").arg(root.shown(root.weekly)) : "")
             font: Tokens.font.label.builders.small.weight(Font.DemiBold).build()
             color: Colours.palette.m3onSurface
         }

@@ -768,6 +768,7 @@ def opencode_records(accounts, now):
             for i, field in enumerate(FIELDS):
                 bucket[i] += row[field]
             bucket[4] = None if bucket[4] is None or row['cost'] is None else bucket[4] + row['cost']
+            record['state']['last'] = max(record['state'].get('last') or 0, row['time'])
         records += sessions.values()
     return records
 
@@ -848,7 +849,8 @@ def collect(now=None, live=True, opener=None):
     accounts = load_accounts()
     files = scan(accounts, now)
     claim_sessions(files, accounts, now)
-    records = list(files.values()) + opencode_records(accounts, now)
+    opencode = opencode_records(accounts, now)
+    records = list(files.values()) + opencode
     prices = load_pricing()
     folders = Counter(a['home'].name for a in accounts if a['provider'] == 'claude')
     shared_names = {name for name, count in folders.items() if count > 1}
@@ -899,11 +901,18 @@ def collect(now=None, live=True, opener=None):
     for account in unique:
         account['usage'] = summarise(records, [account['id']], now, prices)
     record_limits(unique, records, now)
-    agents = running_agents(accounts, files, now)
+    agents = running_agents(accounts, files, now, opencode)
     disk_usage(unique, now)
     snapshot = {'generatedAt': now, 'version': 2, 'status': status, 'agents': agents, 'accounts': unique, 'usage': summarise(records, ids, now, prices)}
     save_snapshot(snapshot)
     return snapshot
+
+
+def _lines_or_empty(path):
+    try:
+        return path.read_text(encoding='utf-8').splitlines()
+    except OSError:
+        return []
 
 
 def record_limits(accounts, records, now):
@@ -919,12 +928,25 @@ def record_limits(accounts, records, now):
                 continue
     except OSError:
         pass
-    entries = history.append(entries, accounts, now)
+    kept = [e for e in entries if e.get('t', 0) >= now - history.KEEP]
+    entries = history.append(kept, accounts, now)
+    added = entries[len(kept):]
+    # New points are appended; the file is rewritten without old points at most once a day.
+    marker = STATE / 'limits.compacted'
+    try:
+        due = len(kept) < len(_lines_or_empty(path)) and now - marker.stat().st_mtime >= 86400
+    except OSError:
+        due = len(kept) < len(_lines_or_empty(path))
     try:
         STATE.mkdir(parents=True, exist_ok=True)
-        temp = path.with_name(path.name + '.tmp')
-        temp.write_text(''.join(json.dumps(e, separators=(',', ':')) + '\n' for e in entries), encoding='utf-8')
-        os.replace(temp, path)
+        if due:
+            temp = path.with_name(path.name + '.tmp')
+            temp.write_text(''.join(json.dumps(e, separators=(',', ':')) + '\n' for e in entries), encoding='utf-8')
+            os.replace(temp, path)
+            marker.touch()
+        elif added:
+            with path.open('a', encoding='utf-8') as handle:
+                handle.write(''.join(json.dumps(e, separators=(',', ':')) + '\n' for e in added))
     except OSError:
         pass
     prices = load_pricing()
@@ -976,10 +998,19 @@ def disk_usage(accounts, now):
 BUSY_SECONDS = 15
 
 
-def session_details(files, provider, account, cwd, started, now):
-    """Model, tokens, cost and busy state of the newest log of `provider` in `cwd` since `started`."""
+def session_details(files, provider, account, cwd, started, now, extra=()):
+    """Model, tokens, cost and busy state of the newest log of `provider` in `cwd` since `started`.
+
+    `extra` are records without a log file (OpenCode sessions); their last message time stands for it.
+    """
     prices = load_pricing()
     best = None
+    for record in extra:
+        if record.get('provider') != provider or record['state'].get('project') != cwd:
+            continue
+        last = record['state'].get('last') or 0
+        if (not started or last >= started - 60) and (not best or last > best[0]):
+            best = (last, record)
     for path, record in files.items():
         if record.get('provider') != provider or record['state'].get('project') != cwd:
             continue
@@ -1003,19 +1034,19 @@ def session_details(files, provider, account, cwd, started, now):
             continue
         for name, row in by_model.items():
             tokens += sum(row[:4])
-            cost += cost_of(row[:4], price_for(name, prices)) or 0
+            cost += (row[4] if len(row) > 4 and row[4] is not None else cost_of(row[:4], price_for(name, prices))) or 0
             if int(hour) >= newest:
                 newest, model = int(hour), name
     return {'model': model, 'tokens': tokens, 'cost': round(cost, 4), 'busy': now - mtime < BUSY_SECONDS}
 
 
-def running_agents(accounts, files, now):
+def running_agents(accounts, files, now, extra=()):
     if '--no-agents' in sys.argv:
         return []
     homes = {(a['provider'], str(Path(a['home']).resolve())): a['id'] for a in accounts}
     try:
         return _sibling('agents').scan(Path('/proc'), homes, now,
-                                       lambda provider, account, cwd, started: session_details(files, provider, account, cwd, started, now))
+                                       lambda provider, account, cwd, started: session_details(files, provider, account, cwd, started, now, extra))
     except OSError:
         return []
 

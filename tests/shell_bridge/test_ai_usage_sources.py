@@ -446,6 +446,20 @@ class OpenCodeTests(BackendHome):
         self.assertEqual(api_calls(opener), [])
         self.assertTrue(account['session']['expired'])
 
+    def test_database_connections_are_closed(self):
+        import warnings
+        import gc
+        self.legacy('m1', 'deepseek', 'deepseek-v4')
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore')
+            gc.collect()  # the fixtures' own connections
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter('always')
+            self.backend._sibling('opencode').history(self.db, 0)
+            import gc
+            gc.collect()
+        self.assertFalse([w for w in caught if 'unclosed database' in str(w.message)])
+
     def test_db_opened_read_only(self):
         self.legacy('m1', 'deepseek', 'deepseek-v4')
         self.db.chmod(0o444)

@@ -30,6 +30,28 @@ class ServiceTests(unittest.TestCase):
     def test_backend_is_killed_when_it_hangs(self):
         self.assertIn('loader.running = false', SERVICE.read_text())
 
+    def test_account_page_lists_only_its_own_sessions(self):
+        self.assertIn('a.accountId === root.account.id', qml('AccountPage.qml'))
+
+    def test_settings_offer_every_spec_choice(self):
+        text = qml('SettingsPage.qml')
+        self.assertIn('value: "selected"', text)
+        self.assertIn('value: "7"', text)
+        self.assertIn('AiUsage.setSetting("selected"', text)
+
+    def test_idle_interval_text_follows_the_token(self):
+        for name in ('Content.qml', 'SettingsPage.qml'):
+            self.assertIn('idleInterval / 60000', qml(name), name)
+            self.assertNotIn('every 15 min', qml(name), name)
+
+    def test_unknown_status_is_not_shown_as_operational(self):
+        self.assertIn('indicator === "none"', qml('OverviewPage.qml'))
+
+    def test_stacked_indicator_letters_are_translated(self):
+        text = (SHELL / 'modules/bar/components/AiUsageIndicator.qml').read_text()
+        self.assertNotIn('"S "', text)
+        self.assertNotIn('"W "', text)
+
     def test_settings_live_in_their_own_file(self):
         self.assertIn('`${Paths.config}/ai-usage.json`', SERVICE.read_text())
 

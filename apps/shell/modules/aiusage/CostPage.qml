@@ -264,10 +264,11 @@ ColumnLayout {
             id: heat
 
             readonly property int columns: Math.ceil((activity.days.length + activity.offset) / 7)
-            readonly property real cell: Math.floor((width - (columns - 1) * 2) / Math.max(1, columns))
+            readonly property real gap: Tokens.padding.extraSmall / 2
+            readonly property real cell: Math.floor((width - (columns - 1) * gap) / Math.max(1, columns))
 
             Layout.fillWidth: true
-            implicitHeight: cell * 7 + 2 * 6
+            implicitHeight: cell * 7 + gap * 6
 
             Repeater {
                 model: activity.days
@@ -279,8 +280,8 @@ ColumnLayout {
                     required property int index
                     readonly property int position: index + activity.offset
 
-                    x: Math.floor(position / 7) * (heat.cell + 2)
-                    y: (position % 7) * (heat.cell + 2)
+                    x: Math.floor(position / 7) * (heat.cell + heat.gap)
+                    y: (position % 7) * (heat.cell + heat.gap)
                     width: heat.cell
                     height: heat.cell
                     radius: Tokens.rounding.extraSmall / 2

@@ -82,7 +82,27 @@ ColumnLayout {
         text: Tr.tr("Follows")
         detail: Tr.tr("Focused app: the provider whose agent runs in the active window")
         key: "indicatorFollows"
-        options: [{ value: "focused", text: Tr.tr("Focused app") }, { value: "tightest", text: Tr.tr("Tightest") }]
+        options: [{ value: "focused", text: Tr.tr("Focused app") }, { value: "tightest", text: Tr.tr("Tightest") }, { value: "selected", text: Tr.tr("One account") }]
+    }
+
+    // The account the bar shows when it follows one account.
+    RowLayout {
+        Layout.fillWidth: true
+        Layout.leftMargin: Tokens.padding.small
+        Layout.rightMargin: Tokens.padding.small
+        visible: root.settings.indicatorFollows === "selected"
+
+        StyledText {
+            Layout.fillWidth: true
+            text: Tr.tr("Account")
+            font: Tokens.font.body.medium
+        }
+
+        Segmented {
+            current: root.settings.selected ?? ""
+            options: AiUsage.visibleAccounts.filter(a => a.source !== "history").map(a => ({ value: a.id, text: AiUsage.names(a).label }))
+            onSelected: value => AiUsage.setSetting("selected", value)
+        }
     }
 
     Section {
@@ -113,7 +133,7 @@ ColumnLayout {
     Choice {
         text: Tr.tr("Working days for the weekly pace")
         key: "workDays"
-        options: [{ value: "auto", text: Tr.tr("All") }, { value: "5", text: "5" }, { value: "6", text: "6" }]
+        options: [{ value: "auto", text: Tr.tr("Automatic") }, { value: "5", text: "5" }, { value: "6", text: "6" }, { value: "7", text: "7" }]
     }
 
     Option {
@@ -179,7 +199,7 @@ ColumnLayout {
 
     Choice {
         text: Tr.tr("How often")
-        detail: root.settings.refresh === "manual" ? Tr.tr("Notifications need refreshes to arrive") : Tr.tr("Adaptive: every minute while an agent works, every 15 min otherwise")
+        detail: root.settings.refresh === "manual" ? Tr.tr("Notifications need refreshes to arrive") : Tr.tr("Adaptive: every minute while an agent works, every %1 min otherwise").arg(Math.round(Tokens.sizes.aiUsage.idleInterval / 60000))
         key: "refresh"
         options: [{ value: "adaptive", text: Tr.tr("Adaptive") }, { value: "60000", text: Tr.tr("1 min") }, { value: "300000", text: Tr.tr("5 min") }, { value: "900000", text: Tr.tr("15 min") }, { value: "manual", text: Tr.tr("Manual") }]
     }

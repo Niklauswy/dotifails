@@ -496,6 +496,24 @@ class AiUsageTests(unittest.TestCase):
     def test_prepare_other_providers_creates_nothing(self):
         self.assertIsNone(self.backend.prepare_account('opencode'))
 
+    def test_limit_points_are_appended_and_compacted_once_a_day(self):
+        self.limits_snapshot(1, 50, self.now + 600, self.now + 3600, self.now)
+        self.collect_at(self.now)
+        path = self.home / 'state/wysun/ai-usage/limits.jsonl'
+        inode = path.stat().st_ino
+        self.limits_snapshot(2, 51, self.now + 600, self.now + 3600, self.now + 60)
+        self.collect_at(self.now + 60)
+        self.assertEqual(path.stat().st_ino, inode)  # appended, not rewritten
+        self.assertEqual(len(path.read_text().splitlines()), 4)
+
+    def test_opencode_agent_gets_its_session_details(self):
+        details = self.backend.session_details({}, 'opencode', None, '/work/site', self.now - 120, self.now,
+                                               [{'provider': 'opencode', 'account': 'opencode:x', 'session': 's',
+                                                 'state': {'project': '/work/site', 'last': self.now - 5},
+                                                 'buckets': {str(int(self.now // 3600 * 3600)): {'deepseek/v4': [10, 0, 0, 90, 0.02]}}}])
+        self.assertEqual((details['model'], details['tokens'], details['busy']), ('deepseek/v4', 100, True))
+        self.assertAlmostEqual(details['cost'], 0.02)
+
     def test_sibling_modules_load_by_path(self):
         credentials = self.backend._sibling('credentials')
         self.assertTrue(callable(credentials.get_json))

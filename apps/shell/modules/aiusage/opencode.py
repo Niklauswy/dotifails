@@ -10,6 +10,7 @@ provider (MIT). Without a subscription or sign-in there is history and no quota.
 import importlib.util
 import json
 import sqlite3
+from contextlib import closing
 from pathlib import Path
 
 HOST = 'opencode.ai'
@@ -44,7 +45,7 @@ def _connect(db):
 
 def _rows(db, sql):
     try:
-        with _connect(db) as connection:
+        with closing(_connect(db)) as connection:
             return connection.execute(sql).fetchall()
     except sqlite3.Error:
         return []

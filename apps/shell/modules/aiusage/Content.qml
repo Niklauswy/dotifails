@@ -141,7 +141,7 @@ Item {
             StyledText {
                 readonly property bool troubled: AiUsage.visibleAccounts.some(a => !!a.error && a.error.kind !== "expired")
 
-                text: AiUsage.loading ? Tr.tr("Updating…") : troubled ? Tr.tr("An account could not be read") : AiUsage.snapshot ? Tr.tr("Updated %1").arg(Qt.formatTime(new Date(AiUsage.snapshot.generatedAt * 1000), "hh:mm")) + (AiUsage.interval === 0 ? " · " + Tr.tr("manual") : AiUsage.settings.refresh === "adaptive" ? " · " + (AiUsage.anyBusy ? Tr.tr("agent working, every minute") : Tr.tr("idle, every 15 min")) : "") : Tr.tr("Reading session logs…")
+                text: AiUsage.loading ? Tr.tr("Updating…") : troubled ? Tr.tr("An account could not be read") : AiUsage.snapshot ? Tr.tr("Updated %1").arg(Qt.formatTime(new Date(AiUsage.snapshot.generatedAt * 1000), "hh:mm")) + (AiUsage.interval === 0 ? " · " + Tr.tr("manual") : AiUsage.settings.refresh === "adaptive" ? " · " + (AiUsage.anyBusy ? Tr.tr("agent working, every minute") : Tr.tr("idle, every %1 min").arg(Math.round(Tokens.sizes.aiUsage.idleInterval / 60000))) : "") : Tr.tr("Reading session logs…")
                 font: Tokens.font.label.small
                 color: troubled ? Colours.palette.m3tertiary : Colours.palette.m3onSurfaceVariant
             }

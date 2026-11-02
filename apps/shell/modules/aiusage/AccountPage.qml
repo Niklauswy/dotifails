@@ -318,7 +318,7 @@ ColumnLayout {
                 Layout.fillWidth: true
                 Layout.topMargin: Tokens.spacing.small
                 Layout.preferredHeight: Tokens.spacing.extraLarge
-                spacing: 2
+                spacing: Tokens.padding.extraSmall / 2
 
                 Repeater {
                     model: spark.values
@@ -346,7 +346,8 @@ ColumnLayout {
         id: sessions
 
         Layout.topMargin: Tokens.spacing.small
-        agents: AiUsage.visibleAgents.filter(a => a.provider === root.account.provider)
+        // Its own sessions; one whose account is unknown shows under every account of its provider.
+        agents: AiUsage.visibleAgents.filter(a => a.provider === root.account.provider && (!a.accountId || a.accountId === root.account.id))
         now: root.now
     }
 
