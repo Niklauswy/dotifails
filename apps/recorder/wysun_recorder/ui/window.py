@@ -52,10 +52,10 @@ class RecorderSettingsWindow:
 
 def serve(instance):
     """Become the window of this user: Qt is imported only now."""
-    from PySide6.QtCore import QTimer
     from wysun_qml import bootstrap
-    bootstrap.require_qt()
+    bootstrap.require_qt()                   # the runtime's Qt before any PySide6 import: it would load another Qt
     bootstrap.configure_qt()
+    from PySide6.QtCore import QTimer
     win = RecorderSettingsWindow()
     app = win.app
     app.setApplicationName('Wysun Recorder')

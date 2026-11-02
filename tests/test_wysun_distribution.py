@@ -133,6 +133,31 @@ class WysunDistributionTests(unittest.TestCase):
         for line in lines[1:]:
             self.assertTrue(line.startswith(str(release)), line)
 
+    @unittest.skipUnless(qml_support.venv_python() and shell_runtime.__func__(), 'needs the qml-runtime venv and the shell runtime')
+    def test_the_released_window_starts_serves_and_ends_on_sigterm(self):
+        """The real entry point, as the launcher runs it: re-exec in the venv, private Qt first, window up, clean exit."""
+        import signal
+        import time
+        self.release()
+        run = self.home / 'run'
+        run.mkdir(mode=0o700)
+        env = self.clean_env(WYSUN_RUNTIME=str(self.shell_runtime()), WYSUN_QML_RUNTIME=str(qml_support.venv_python().parent.parent),
+                             XDG_RUNTIME_DIR=str(run))
+        process = subprocess.Popen([str(self.home / '.local/bin/wysun-recorder')], cwd='/', env=env, stdout=subprocess.PIPE,
+                                   stderr=subprocess.PIPE, text=True)
+        try:
+            deadline = time.monotonic() + 4
+            while time.monotonic() < deadline and process.poll() is None:
+                time.sleep(0.1)
+            self.assertIsNone(process.poll(), 'the window ended by itself: ' + (process.stderr.read() if process.poll() is not None else ''))
+            process.send_signal(signal.SIGTERM)
+            _, errors = process.communicate(timeout=20)
+        finally:
+            if process.poll() is None:
+                process.kill()
+        self.assertNotIn('Traceback', errors)
+        self.assertEqual(process.returncode, 0, errors[-1500:])
+
     def test_without_the_qml_runtime_only_the_window_fails(self):
         self.release()
         launcher = str(self.home / '.local/bin/wysun-recorder')
