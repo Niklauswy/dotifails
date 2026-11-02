@@ -108,30 +108,54 @@ Window {
                         title: "Cuenta atrás"
                         hint: "Tiempo antes de empezar a grabar. 0 empieza al instante."
                         control: Component {
-                            Row {
-                                spacing: Theme.spacing.small ?? 0
+                            PrefSlider {
+                                key: "countdown"
+                                from: 0
+                                to: 30
+                                suffix: "s"
+                            }
+                        }
+                    }
+                }
 
-                                Slider {
-                                    id: countdown
+                Section {
+                    title: "Puntero"
 
-                                    objectName: "countdown"
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    from: 0
-                                    to: 30
-                                    stepSize: 1
-                                    live: false
-                                    value: settings.values.countdown
-                                    onMoved: value => {
-                                        settings.setPref("countdown", Math.round(value));
-                                        countdown.value = Qt.binding(() => settings.values.countdown);
+                    SettingRow {
+                        title: "Estilo del puntero"
+                        hint: "Resaltado pone un aro de color alrededor del cursor en el video; Estela añade un rastro corto."
+                        control: Component {
+                            PrefDropdown {
+                                key: "cursor_preset"
+                                disabled: !settings.values.record_cursor
+                                model: [
+                                    {
+                                        value: "simple",
+                                        text: "Sencillo"
+                                    },
+                                    {
+                                        value: "presentation",
+                                        text: "Resaltado"
+                                    },
+                                    {
+                                        value: "trail",
+                                        text: "Estela"
                                     }
-                                }
-                                Label {
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    width: Metrics.iconButtonSize
-                                    role: "label.large"
-                                    text: Math.round(countdown.value) + " s"
-                                }
+                                ]
+                            }
+                        }
+                    }
+                    SettingRow {
+                        title: "Tamaño del aro"
+                        hint: "Más grande se distingue mejor en grabaciones de toda la pantalla."
+                        control: Component {
+                            PrefSlider {
+                                key: "cursor_size"
+                                from: 16
+                                to: 64
+                                step: 4
+                                suffix: "px"
+                                disabled: !settings.values.record_cursor
                             }
                         }
                     }

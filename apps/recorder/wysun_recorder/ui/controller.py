@@ -17,7 +17,7 @@ from ..schema import camera_style
 from .capture_feedback_prefs import load_countdown
 
 SHELL_KEYS = ('record_mic', 'record_system', 'record_cursor', 'record_camera', 'record_mic_device', 'camera_device',
-              'camera_corner', 'camera_shape', 'camera_size', 'countdown')
+              'camera_corner', 'camera_shape', 'camera_size', 'countdown', 'cursor_preset', 'cursor_size')
 FPS = (15, 24, 30, 60)
 QUALITY = ('compact', 'standard', 'high')
 MAX_ANSWER = 1 << 20
@@ -100,11 +100,14 @@ class SettingsController(QObject):
         except ValueError:
             style = camera_style({})
         fps, quality = prefs.get('fps', 30), prefs.get('quality', 'standard')
+        preset, size = prefs.get('cursor_preset'), prefs.get('cursor_size')
         return {'record_mic': bool(prefs.get('record_mic', False)), 'record_mic_device': str(prefs.get('record_mic_device') or ''),
                 'record_system': bool(prefs.get('record_system', True)), 'record_cursor': bool(prefs.get('record_cursor', True)),
                 'countdown': load_countdown(), 'record_camera': bool(prefs.get('record_camera', False)),
                 'camera_device': str(prefs.get('camera_device') or ''), 'camera_corner': style['corner'],
                 'camera_shape': style['shape'], 'camera_size': style['size'],
+                'cursor_preset': preset if preset in headless.CURSOR_PRESETS else headless.DEFAULT_CURSOR_PRESET,
+                'cursor_size': size if type(size) is int and 16 <= size <= 64 else headless.DEFAULT_CURSOR_SIZE,
                 'fps': fps if fps in FPS else 30, 'quality': quality if quality in QUALITY else 'standard',
                 'videos_folder': str(videolibrary.videos_root()), 'remember_source': bool(prefs.get('remember_source', True))}
 

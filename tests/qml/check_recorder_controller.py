@@ -21,7 +21,7 @@ NO_DEVICES = {'mics': [], 'cameras': []}
 def defaults():
     return {'record_mic': False, 'record_mic_device': '', 'record_system': True, 'record_cursor': True, 'countdown': 3,
             'record_camera': False, 'camera_device': '', 'camera_corner': 'bottom-right', 'camera_shape': 'circle',
-            'camera_size': 'medium', 'fps': 30, 'quality': 'standard',
+            'camera_size': 'medium', 'cursor_preset': 'presentation', 'cursor_size': 32, 'fps': 30, 'quality': 'standard',
             'videos_folder': str(Path.home() / 'Videos'), 'remember_source': True}
 
 
@@ -72,12 +72,14 @@ class ControllerTests(unittest.TestCase):
         changed = []
         ctl.valuesChanged.connect(lambda: changed.append(1))
         for key, value in (('record_mic', True), ('camera_corner', 'top-left'), ('fps', 60), ('quality', 'high'),
-                           ('remember_source', False)):
+                           ('remember_source', False), ('cursor_preset', 'trail'), ('cursor_size', 44)):
             ctl.setPref(key, value)
-        self.assertEqual(len(changed), 5)
+        self.assertEqual(len(changed), 7)
         prefs = self.prefs()
         self.assertEqual((prefs['record_mic'], prefs['camera_style']['corner'], prefs['fps'], prefs['quality'],
-                          prefs['remember_source']), (True, 'top-left', 60, 'high', False))
+                          prefs['remember_source'], prefs['cursor_preset'], prefs['cursor_size']),
+                         (True, 'top-left', 60, 'high', False, 'trail', 44))
+        self.assertEqual((ctl.values['cursor_preset'], ctl.values['cursor_size']), ('trail', 44))
         ctl.setPref('countdown', 5)
         self.assertEqual(json.loads((self.config / 'capture-ui.json').read_text())['countdown'], 5)
         self.assertEqual((ctl.values['record_mic'], ctl.values['camera_corner'], ctl.values['countdown']), (True, 'top-left', 5))
@@ -92,9 +94,10 @@ class ControllerTests(unittest.TestCase):
 
     def test_invalid_values_emit_a_message_and_change_nothing(self):
         ctl = self.controller()
-        for key, value in (('fps', 45), ('quality', 'x'), ('camera_shape', 'x'), ('nope', 1)):
+        for key, value in (('fps', 45), ('quality', 'x'), ('camera_shape', 'x'), ('nope', 1), ('cursor_preset', 'disco'),
+                           ('cursor_size', 5)):
             ctl.setPref(key, value)
-        self.assertEqual(len(self.messages), 4)
+        self.assertEqual(len(self.messages), 6)
         self.assertFalse((self.config / 'preferences.json').exists())
         self.assertEqual(ctl.values, defaults())
 

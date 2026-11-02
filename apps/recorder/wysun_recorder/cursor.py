@@ -9,6 +9,7 @@ import ctypes.util
 import json
 import math
 from pathlib import Path
+import re
 import subprocess
 import threading
 import time
@@ -23,13 +24,14 @@ CLICK_DURATION=.40
 
 def effect_settings(value):
     if not isinstance(value,dict):raise ValueError('Cursor effects must be an object')
-    if set(value)-{'preset','size','halo','clicks','trail','trail_duration'}:raise ValueError('Unknown cursor option')
+    if set(value)-{'preset','size','halo','clicks','trail','trail_duration','accent'}:raise ValueError('Unknown cursor option')
     preset=value.get('preset','simple')
     if preset not in ('simple','presentation','trail'):raise ValueError('Unknown cursor preset')
     defaults=dict(preset=preset,size=32,halo=True,clicks=True,trail=preset=='trail',trail_duration=.20)
     defaults.update(value)
     if type(defaults['size']) is not int or not 16<=defaults['size']<=64:raise ValueError('Cursor size must be 16–64 pixels')
     if any(type(defaults[k]) is not bool for k in ('halo','clicks','trail')):raise ValueError('Cursor effects require booleans')
+    if 'accent' in defaults and not (isinstance(defaults['accent'],str) and re.fullmatch(r'#[0-9A-Fa-f]{6}',defaults['accent'])):raise ValueError('Cursor accent must be #rrggbb')
     duration=defaults['trail_duration']
     if type(duration) not in (int,float) or not math.isfinite(duration) or not .10<=duration<=.40:raise ValueError('Trail duration must be 0.10–0.40 seconds')
     return {} if preset=='simple' else defaults

@@ -64,7 +64,7 @@ def start(spec):
     if shutil.disk_usage(library.root).free<512*1024*1024:raise ValueError('Libera al menos 512 MiB antes de grabar')
     config=CaptureConfig(str(library.new_directory()),os.environ.get('WAYLAND_DISPLAY') or os.environ.get('DISPLAY','portal'),rect,
         int(spec.get('fps') or prefs.get('fps') or 30),(spec.get('mic_device') or default_mic()) if spec.get('mic') else None,DEFAULT_SYSTEM_AUDIO if spec.get('system') else None,spec.get('camera_device') if spec.get('camera') else None,
-        quality=prefs.get('quality') or 'standard',cursor=bool(spec.get('cursor',True)),auto_finalize=True,output_dir=str(library.videos),
+        quality=prefs.get('quality') or 'standard',cursor=bool(spec.get('cursor',True)),cursor_effects=cursor_effects(prefs,accent_color()) if spec.get('cursor',True) else {},auto_finalize=True,output_dir=str(library.videos),
         title='Grabación '+datetime.now().strftime('%d-%m-%Y %H-%M-%S'),source_type=source,remember_source=bool(prefs.get('remember_source',True)),camera_style=prefs.get('camera_style') or {})
     config.validate()
     CaptureSession(config).start()
@@ -73,6 +73,37 @@ def start(spec):
 
 SHELL_PREFS = dict(record_mic=False, record_system=True, record_cursor=True, record_camera=False)
 TEXT_PREFS = ('record_mic_device', 'camera_device')
+CURSOR_PRESETS = ('simple', 'presentation', 'trail')
+DEFAULT_CURSOR_PRESET = 'presentation'
+DEFAULT_CURSOR_SIZE = 32
+
+
+def accent_color():
+    """The accent of the wallpaper's colour scheme as ``#rrggbb`` (the pointer's ring matches the desktop), or None."""
+    import json
+    import re
+    from wysun_core import paths
+    try:
+        primary = json.loads(paths.state('wysun', 'scheme.json').read_text())['colours']['primary']
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+    return '#' + primary.lower() if isinstance(primary, str) and re.fullmatch(r'[0-9A-Fa-f]{6}', primary) else None
+
+
+def cursor_effects(prefs, accent=None):
+    """The pointer highlight of a recording from the saved preferences: a ring (or a comet trail) around the native
+    cursor. Clicks are never asked for: they need a root helper that prompts for a password at every recording."""
+    from .cursor import effect_settings
+    preset = prefs.get('cursor_preset', DEFAULT_CURSOR_PRESET)
+    size = prefs.get('cursor_size', DEFAULT_CURSOR_SIZE)
+    if preset not in CURSOR_PRESETS:
+        preset = DEFAULT_CURSOR_PRESET
+    if type(size) is not int or not 16 <= size <= 64:
+        size = DEFAULT_CURSOR_SIZE
+    options = dict(preset=preset, size=size, clicks=False)
+    if accent:
+        options['accent'] = accent
+    return effect_settings(options)
 CAMERA_PREFS = {'camera_corner': 'corner', 'camera_shape': 'shape', 'camera_size': 'size'}
 
 
@@ -83,6 +114,9 @@ def shell_prefs():
     values = {key: bool(prefs.get(key, default)) for key, default in SHELL_PREFS.items()}
     from .ui.capture_feedback_prefs import load_countdown
     values['countdown'] = load_countdown()
+    values['cursor_preset'] = prefs.get('cursor_preset') if prefs.get('cursor_preset') in CURSOR_PRESETS else DEFAULT_CURSOR_PRESET
+    size = prefs.get('cursor_size')
+    values['cursor_size'] = size if type(size) is int and 16 <= size <= 64 else DEFAULT_CURSOR_SIZE
     for key in TEXT_PREFS:
         values[key] = prefs.get(key) or ''
     from .schema import camera_style
@@ -97,6 +131,18 @@ def set_shell_pref(key, value):
         save_preferences(**{key: str(value).lower() in ('1', 'true', 'yes')})
     elif key in TEXT_PREFS:
         save_preferences(**{key: str(value)})
+    elif key == 'cursor_preset':
+        if str(value) not in CURSOR_PRESETS:
+            raise ValueError('Estilo de puntero desconocido: ' + str(value))
+        save_preferences(cursor_preset=str(value))
+    elif key == 'cursor_size':
+        try:
+            size = int(value)
+        except (TypeError, ValueError):
+            raise ValueError('Tamaño de puntero inválido: ' + str(value)) from None
+        if not 16 <= size <= 64:
+            raise ValueError('El tamaño del puntero va de 16 a 64')
+        save_preferences(cursor_size=size)
     elif key in CAMERA_PREFS:
         from .schema import camera_style
         style = camera_style(preferences().get('camera_style'))

@@ -90,20 +90,33 @@ def paint_frame(frame,width,height,settings,snapshot,now=None):
     if point is None:return frame
     if len(frame)!=width*height*4:raise ValueError('BGRA debe estar empaquetado')
     from PySide6.QtCore import Qt,QPointF
-    from PySide6.QtGui import QImage,QPainter,QColor
+    from PySide6.QtGui import QImage,QPainter,QColor,QPen
     image=QImage(frame,width,height,width*4,QImage.Format_ARGB32).copy()
     painter=QPainter(image);painter.setRenderHint(QPainter.Antialiasing);painter.setPen(Qt.NoPen)
     scale=settings['size']/32
+    accent=settings.get('accent',CURSOR_ACCENT)
     def disc(position,radius,alpha):
-        color=QColor(CURSOR_ACCENT);color.setAlpha(max(0,min(255,alpha)))
+        color=QColor(accent);color.setAlpha(max(0,min(255,alpha)))
         painter.setBrush(color);painter.drawEllipse(QPointF(*position),radius,radius)
+    def ring(position,radius,width_,color):
+        painter.setBrush(Qt.NoBrush);painter.setPen(QPen(color,width_));painter.drawEllipse(QPointF(*position),radius,radius);painter.setPen(Qt.NoPen)
     if settings['trail']:
+        # A comet behind the pointer: bold near it, gone at the tail.
         previous=point
         for n in range(1,7):
             past=point_at(points,t-settings['trail_duration']*n/6)
             if past is None or math.dist(past,previous)>80:break
-            disc(past,(7-n*.65)*scale,255-(140+n*16));previous=past
-    if settings['halo']:disc(point,HALO_RADIUS*scale,35)
+            disc(past,(9-n*.9)*scale,215-n*28);previous=past
+    if settings['halo']:
+        # A soft disc under a bright ring with a white edge: it shows on dark, light and same-coloured desktops alike.
+        radius=HALO_RADIUS*scale
+        disc(point,radius,64)
+        edge=QColor('#ffffff');edge.setAlpha(215)  # theme-exception: borde blanco del aro dentro del vídeo
+        shade=QColor('#000000');shade.setAlpha(130)  # theme-exception: contorno oscuro del aro dentro del vídeo
+        ring(point,radius+3.6*scale,1.2*scale,shade)
+        ring(point,radius+2.25*scale,1.5*scale,edge)
+        line=QColor(accent);line.setAlpha(240)
+        ring(point,radius,3*scale,line)
     if settings['clicks']:
         for click in clicks:
             age=t-click[0]

@@ -20,7 +20,8 @@ from wysun_qml import bootstrap  # noqa: E402
 bootstrap.preload_qt()
 from qml import support  # noqa: E402
 
-CONTROLS = ('record_mic', 'record_mic_device', 'record_system', 'record_cursor', 'countdown', 'record_camera',
+CONTROLS = ('record_mic', 'record_mic_device', 'record_system', 'record_cursor', 'countdown', 'cursor_preset', 'cursor_size',
+            'record_camera',
             'camera_device', 'camera_corner', 'camera_shape', 'camera_size', 'fps', 'quality', 'chooseFolder',
             'remember_source', 'forgetPermissions')
 CAMERA = {'mics': [], 'cameras': [{'id': '/dev/video0', 'name': 'Cámara de prueba'}]}
@@ -128,6 +129,24 @@ class SettingsWindowTests(unittest.TestCase):
         for _ in range(4):
             self.h.key(self.window, self.Qt.Key_Right)
         self.assertEqual(json.loads((self.config / 'capture-ui.json').read_text())['countdown'], 7)
+
+    def test_the_pointer_style_and_size_are_chosen_here_and_follow_the_cursor_switch(self):
+        self.open()
+        self.assertEqual((self.item('cursor_preset').property('displayText'), self.item('cursor_size').property('value')),
+                         ('Resaltado', 32))
+        self.click('cursor_preset')
+        self.click_item(self.h.find_in(self.window.contentItem(), 'menuitem-trail'))
+        self.assertEqual(self.prefs()['cursor_preset'], 'trail')
+        slider = self.item('cursor_size')
+        self.reveal('cursor_size')
+        slider.forceActiveFocus(self.Qt.TabFocusReason)
+        for _ in range(2):
+            self.h.key(self.window, self.Qt.Key_Right)
+        self.assertEqual(self.prefs()['cursor_size'], 40)
+        self.assertFalse(self.item('cursor_preset').property('disabled'))
+        self.click('record_cursor')                                  # the cursor off: nothing to dress up
+        self.assertTrue(self.h.wait_for(lambda: self.item('cursor_preset').property('disabled'), 2000))
+        self.assertTrue(self.item('cursor_size').property('disabled'))
 
     def click_item(self, item):
         from PySide6.QtCore import QPointF
