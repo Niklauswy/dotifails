@@ -1,7 +1,8 @@
 """One-shot Wysun Files selector. JSON request on stdin, JSON response on stdout (F-60).
 
 Requests: documents (``suffix`` pdf|md, ``save``), ``kind: "audio"`` with ``multiple`` files or a ``directory``
-for Wysun Music's import, or ``kind: "media"`` / ``"subtitles"`` for Wysun Player. The answer is ``{"code": 0|1, "uris": [...], ...}`` as the portal would reply."""
+for Wysun Music's import, ``kind: "media"`` / ``"subtitles"`` for Wysun Player, or ``kind: "folder"`` for one folder
+(the Recorder's video folder). The answer is ``{"code": 0|1, "uris": [...], ...}`` as the portal would reply."""
 import json
 import os
 import sys
@@ -44,6 +45,9 @@ def request_options(request):
     if kind in ('media', 'subtitles'):
         return 'open', request.get('title', 'Abrir en Wysun Player' if kind == 'media' else 'Cargar subtítulos'), \
             _player_options(kind, folder)
+    if kind == 'folder':
+        return 'open', request.get('title', 'Elegir carpeta'), {'current_folder': os.fsencode(folder), 'multiple': False,
+                                                                'directory': True, 'accept_label': 'Elegir', 'filters': []}
     if kind != 'document':
         raise ValueError('Unsupported request kind')
     suffix = request.get('suffix', 'pdf')
