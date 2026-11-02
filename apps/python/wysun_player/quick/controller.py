@@ -11,7 +11,7 @@ from pathlib import Path
 import subprocess
 
 from PySide6.QtCore import Property, QObject, QProcess, QProcessEnvironment, QStandardPaths, QUrl, Signal, Slot
-from PySide6.QtGui import QGuiApplication, QImageReader
+from PySide6.QtGui import QGuiApplication, QImageIOHandler, QImageReader
 
 from wysun_core import launch
 from wysun_media.collection import Collection
@@ -61,6 +61,18 @@ def track_label(track):
     return text or f"Pista {track['id']}"
 
 
+def image_size(path):
+    """(width, height) of a picture as shown (EXIF rotation applied), read from its header; (0, 0) if unknown."""
+    reader = QImageReader(str(path))
+    reader.setAutoTransform(True)
+    size = reader.size()
+    if not size.isValid():
+        return 0, 0
+    if reader.transformation() & QImageIOHandler.Transformation.TransformationRotate90:
+        return size.height(), size.width()
+    return size.width(), size.height()
+
+
 def system_python():
     import sys
     return str(Path(sys.base_prefix) / 'bin/python3')
@@ -107,6 +119,7 @@ class PlayerController(QObject):
         self._cover_url = ''
         self._audio_title = self._audio_detail = ''
         self._image = {}
+        self._size = (0, 0)
         self._picker = None
         self._covers = covers or CoverStore()
         self._trash = trash or self._gio_trash
@@ -140,7 +153,8 @@ class PlayerController(QObject):
     coverUrl = Property(str, lambda self: self._cover_url, notify=mediaChanged)
     audioTitle = Property(str, lambda self: self._audio_title, notify=mediaChanged)
     audioDetail = Property(str, lambda self: self._audio_detail, notify=mediaChanged)
-    rendererName = Property(str, lambda self: self.renderer, constant=True)
+    rendererChanged = Signal()
+    rendererName = Property(str, lambda self: self.renderer, notify=rendererChanged)
 
     state = Property(str, lambda self: self.session.state, notify=playbackChanged)
     duration = Property(float, lambda self: self.session.duration, notify=playbackChanged)
@@ -194,6 +208,18 @@ class PlayerController(QObject):
         return [{'label': label, 'value': value} for label, value in rows]
 
     info = Property('QVariantList', _info, notify=infoChanged)
+
+    @Slot(str)
+    def renderFailed(self, reason):
+        """OpenGL could not draw the video: continue with the software item, once."""
+        if self.renderer == 'software':
+            self._fail(MediaError('render', detail=reason))
+            return
+        self.renderer = 'software'
+        self.session.set_surface_ready(False)
+        self.session.set_hwdec('no')
+        self.rendererChanged.emit()
+        self.infoChanged.emit()
 
     # ------------------------------------------------------------------ for the window and the integrations
     def attach_window(self, window):
@@ -264,10 +290,12 @@ class PlayerController(QObject):
         self.source, self.kind, self._error = source, source.kind, ''
         self.activated = False
         self._image = {}
+        self._size = (0, 0)
         if source.kind == 'image':
+            self._size = image_size(source.path)
             self.session.stop()
         else:
-            if start is None:
+            if start is None and self.positions is not None:
                 start = self.positions.get(source)
             if source.kind == 'audio':
                 self._audio_title, self._audio_detail = source.name, ''
@@ -360,12 +388,17 @@ class PlayerController(QObject):
         return True
 
     def _neighbours(self):
-        """Paths next to the current image, for QML to decode ahead."""
+        """The images next to the current one, for QML to decode ahead: [{url, width, height}]."""
         found = []
+        if self.kind != 'image':
+            return found
         for step in (1, -1):
             index = self.collection.neighbour(step)
             if index is not None:
-                found.append(QUrl.fromLocalFile(self.collection.paths[index]).toString())
+                path = self.collection.paths[index]
+                width, height = image_size(path)
+                if width:
+                    found.append({'url': QUrl.fromLocalFile(path).toString(), 'width': width, 'height': height})
         return found
 
     neighbours = Property('QVariantList', _neighbours, notify=mediaChanged)
@@ -402,6 +435,9 @@ class PlayerController(QObject):
         self.positions.put(self.source, 0.0 if ended else self.session.position, self.session.duration)
 
     # ------------------------------------------------------------------ images (drawn by QML)
+    imageWidth = Property(int, lambda self: self._size[0], notify=mediaChanged)
+    imageHeight = Property(int, lambda self: self._size[1], notify=mediaChanged)
+
     @Slot(int, int, int)
     def setImageInfo(self, width, height, frames):
         if self.source is None or self.kind != 'image':
@@ -616,6 +652,11 @@ class PlayerController(QObject):
         self.fullscreenChanged.emit()
         if notify:
             self.fullscreenRequested.emit(active)
+
+    @Slot(bool)
+    def noteFullscreen(self, active):
+        """The window entered or left full screen by itself (compositor, Esc handled elsewhere)."""
+        self.set_fullscreen(active, notify=False)
 
     @Slot()
     def toggleFullscreen(self):

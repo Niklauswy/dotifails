@@ -8,7 +8,6 @@ before the core goes away (mpv blocks destroying a core whose render context is 
 """
 import ctypes as C
 import os
-import threading
 
 from PySide6.QtCore import Property, QObject, QRectF, QTimer, Signal, Slot
 from PySide6.QtGui import QColor, QImage, QOpenGLContext
@@ -181,6 +180,11 @@ class _Relay(QObject):
         self.contextReady.connect(self._context_ready)
         self.frameReady.connect(self._frame_ready)
         self.failed.connect(self._failed)
+        item.visibleChanged.connect(self._visibility)
+
+    @Slot()
+    def _visibility(self):
+        self.item._visibility()
 
     @Slot()
     def _context_ready(self):
@@ -196,7 +200,7 @@ class _Relay(QObject):
 
 
 class MpvSoftwareVideo(QQuickPaintedItem):
-    """Frames rendered by mpv into memory on a worker thread, painted as one bounded QImage."""
+    """Frames rendered by mpv into memory on a worker thread (wysun_media.software), painted as one bounded QImage."""
 
     failed = Signal(str)
     sessionChanged = Signal()
@@ -205,13 +209,10 @@ class MpvSoftwareVideo(QQuickPaintedItem):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._session = None
+        self._renderer = None
         self._image = QImage()
         self._latest = QImage()
         self._pending = False
-        self._size = (640, 360)
-        self._thread = None
-        self._stop = threading.Event()
-        self._wake = threading.Event()
         self._frames = 0
         self._relay = _Relay(self)
         self.setOpaquePainting(True)
@@ -236,22 +237,48 @@ class MpvSoftwareVideo(QQuickPaintedItem):
 
     frames = Property(int, _get_frames, notify=framesChanged)
 
+    @property
+    def _thread(self):
+        """The worker thread while it runs (None once released): tests check it ended."""
+        return self._renderer._thread if self._renderer is not None else None
+
     def _start(self, session):
+        from wysun_media.software import SoftwareRenderer
         try:
             core = session.ensure_core()
         except Exception as error:
             self.failed.emit(str(error))
             return
-        self._stop.clear()
-        self._thread = threading.Thread(target=self._run, args=(core,), name='wysun-mpv-render', daemon=True)
-        self._thread.start()
+        relay = self._relay
+        self._renderer = SoftwareRenderer(core, on_ready=relay.contextReady.emit, on_frame=self._take,
+                                          on_error=relay.failed.emit)
+        self._renderer.size = self._pixels(self.width(), self.height())
+        self._renderer.visible = bool(self.isVisible())
+        self._renderer.start()
+
+    def _take(self, pixels, width, height, stride):
+        """Worker thread: keep the newest frame; one queued notice at a time."""
+        self._latest = QImage(pixels, width, height, stride, QImage.Format_ARGB32_Premultiplied).copy()
+        if not self._pending:
+            self._pending = True
+            self._relay.frameReady.emit()
+
+    def _pixels(self, width, height):
+        window = self.window()
+        ratio = window.devicePixelRatio() if window is not None else 1.0
+        return max(1, round(width * ratio)), max(1, round(height * ratio))
 
     def geometryChange(self, new, old):
         super().geometryChange(new, old)
-        window = self.window()
-        ratio = window.devicePixelRatio() if window is not None else 1.0
-        self._size = (max(1, round(new.width() * ratio)), max(1, round(new.height() * ratio)))
-        self._wake.set()
+        if self._renderer is not None:
+            self._renderer.size = self._pixels(new.width(), new.height())
+            self._renderer.wake()
+
+    def _visibility(self):
+        """Hidden (another kind of file on screen): frames are skipped instead of drawn."""
+        if self._renderer is not None:
+            self._renderer.visible = bool(self.isVisible())
+            self._renderer.wake()
 
     def _show_frame(self):
         self._image, self._pending = self._latest, False
@@ -263,78 +290,15 @@ class MpvSoftwareVideo(QQuickPaintedItem):
         if not self._image.isNull():
             painter.drawImage(QRectF(0, 0, self.width(), self.height()), self._image)
 
-    def _run(self, core):
-        lib = core.lib
-        callback = mpv.WAKEUP(lambda _: self._wake.set())
-        context = None
-        try:
-            context = core.render_context('sw')
-            lib.mpv_render_context_set_update_callback(context, callback, None)
-            self._relay.contextReady.emit()
-            while not self._stop.is_set():
-                if not self._wake.wait(.25):
-                    continue
-                self._wake.clear()
-                lib.mpv_render_context_update(context)
-                if not self._visible_now:
-                    skip = C.c_int(1)
-                    params = (mpv.Param * 2)(mpv.Param(mpv.RP_SKIP_RENDERING, _void(skip)), mpv.Param(0, None))
-                    lib.mpv_render_context_render(context, params)
-                    continue
-                image = self._frame(lib, context, *self._size)
-                if not self._stop.is_set():
-                    self._latest = image
-                    if not self._pending:
-                        self._pending = True
-                        self._relay.frameReady.emit()
-        except Exception as error:
-            self._relay.failed.emit(str(error))
-        finally:
-            if context is not None:
-                lib.mpv_render_context_set_update_callback(context, mpv.WAKEUP(), None)
-                lib.mpv_render_context_free(context)
-
-    _visible_now = True               # written on the GUI thread by itemChange; read by the worker
-
-    def itemChange(self, change, value):
-        if change == QQuickPaintedItem.ItemVisibleHasChanged:
-            self._visible_now = bool(self.isVisible())
-            self._wake.set()
-        super().itemChange(change, value)
-
     def _ready(self):
         if self._session is not None and self._session.core is not None:
             self._session.set_surface_ready(True)
 
-    @staticmethod
-    def _frame(lib, context, width, height):
-        """Render into an aligned buffer; the returned QImage owns a copy of the pixels."""
-        width, height = max(1, min(4096, width)), max(1, min(4096, height))
-        stride = (width * 4 + 63) // 64 * 64
-        buffer = C.create_string_buffer(stride * height + 63)
-        address = (C.addressof(buffer) + 63) & ~63
-        size = (C.c_int * 2)(width, height)
-        line = C.c_size_t(stride)
-        fmt = C.create_string_buffer(b'bgra')
-        params = (mpv.Param * 5)(mpv.Param(mpv.RP_SW_SIZE, C.cast(size, C.c_void_p)),
-                                 mpv.Param(mpv.RP_SW_FORMAT, C.cast(fmt, C.c_void_p)),
-                                 mpv.Param(mpv.RP_SW_STRIDE, _void(line)), mpv.Param(mpv.RP_SW_POINTER, address),
-                                 mpv.Param(0, None))
-        if lib.mpv_render_context_render(context, params) < 0:
-            raise RuntimeError('libmpv no pudo dibujar el fotograma')
-        view = (C.c_ubyte * (stride * height)).from_address(address)
-        # With a real alpha channel mpv writes 255 for video, so the frame is opaque on any compositor.
-        return QImage(memoryview(view), width, height, stride, QImage.Format_ARGB32_Premultiplied).copy()
-
     @Slot()
     def release(self):
-        self._stop.set()
-        self._wake.set()
-        thread, self._thread = self._thread, None
-        if thread is not None and thread is not threading.current_thread():
-            thread.join(timeout=5)
-            if thread.is_alive():
-                raise RuntimeError('El renderizador sigue finalizando; no se destruye su contexto activo')
+        renderer, self._renderer = self._renderer, None
+        if renderer is not None:
+            renderer.stop()
         self._image = self._latest = QImage()
         self._pending = False
 

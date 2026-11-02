@@ -34,6 +34,10 @@ def main(argv=None):
         # was sent, so reconnecting after a reply timeout would open the same files twice.
         if player_client.forward(payload, timeout=max(0.1, deadline - time.monotonic())):
             return 0
+        # Serving needs the qml-runtime venv (PySide6 on the shell's Qt). Forwarding above works with any Python,
+        # so opening a file in a running player never pays for the re-exec; the venv process runs this loop again.
+        from wysun_qml import bootstrap
+        bootstrap.ensure_runtime_python('wysun_player', sys.argv[1:] if argv is None else list(argv))
         owner = player_client.instance()
         if owner.claim():
             return serve(payload, owner)
@@ -46,7 +50,10 @@ def main(argv=None):
 def serve(first, owner):
     """Become the player process: import Qt only now, so a forwarded launch stays light."""
     release_on_termination(owner)            # until Qt takes over the signals in run()
-    from wysun_player.window import run
+    from wysun_qml import bootstrap
+    bootstrap.require_qt()
+    bootstrap.configure_qt()                 # plugins (wayland) before the application exists
+    from wysun_player.quick.process import run
     return run(first, owner)
 
 

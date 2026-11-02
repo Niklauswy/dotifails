@@ -40,7 +40,7 @@ def forward(payload, timeout=1.0):
 
 def command(payload):
     """argv that starts a new player for ``payload``."""
-    # The player is a Widgets app: from a QML app's venv (no QtWidgets) it still runs on the system Python.
+    # Started with the system Python: the player re-executes itself in the qml-runtime venv only if it must serve.
     argv = module_argv('wysun_player', python=str(Path(sys.base_prefix) / 'bin/python3'))
     if payload.get('paused'):
         argv.append('--paused')

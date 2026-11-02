@@ -79,12 +79,12 @@ class VideoItemTests(unittest.TestCase):
         self.h.pump(50)
 
     def test_renderer_choice(self):
-        os.environ['WYSUN_PLAYER_RENDERER'] = 'software'
-        try:
+        from unittest import mock
+        with mock.patch.dict(os.environ, {'WYSUN_PLAYER_RENDERER': 'software'}):
             self.assertEqual(self.video.renderer_name(), 'software')
-        finally:
-            del os.environ['WYSUN_PLAYER_RENDERER']
-        self.assertIn(self.video.renderer_name(), ('opengl', 'software'))
+        with mock.patch.dict(os.environ):
+            os.environ.pop('WYSUN_PLAYER_RENDERER', None)
+            self.assertIn(self.video.renderer_name(), ('opengl', 'software'))
 
     @unittest.skipUnless(os.environ.get('WYSUN_TEST_GL') == '1', 'needs a real GL session (WYSUN_TEST_GL=1, Wayland)')
     def test_gl_item_draws_and_frees_its_context_before_the_core(self):
