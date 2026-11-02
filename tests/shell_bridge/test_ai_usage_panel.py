@@ -69,5 +69,30 @@ class PanelTests(unittest.TestCase):
                 self.assertLessEqual(int(match.group(1)), 4, f'{path.name}: {match.group(0)}')
 
 
+class PageTests(unittest.TestCase):
+    def test_settings_write_through_service(self):
+        text = qml('SettingsPage.qml')
+        self.assertIn('AiUsage.setSetting(', text)
+        self.assertIn('AiUsage.setHidden(', text)
+        self.assertNotIn('FileView', text)
+        self.assertNotIn('setText(', text)
+
+    def test_disk_page_never_deletes(self):
+        text = qml('DiskPage.qml')
+        for word in ('rm ', '"rm"', 'unlink', 'remove', 'trash'):
+            self.assertNotIn(word, text)
+
+    def test_cost_page_has_four_tabs(self):
+        text = qml('CostPage.qml')
+        for value in ('"daily"', '"windows"', '"activity"', '"ledger"'):
+            self.assertIn(value, text)
+
+    def test_history_page_draws_the_even_use_guide(self):
+        text = qml('LimitHistoryPage.qml')
+        self.assertIn('limit.history', text)
+        self.assertIn('limit.windows', text)
+        self.assertIn('paceGuide', text)
+
+
 if __name__ == '__main__':
     unittest.main()
