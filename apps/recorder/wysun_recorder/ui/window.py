@@ -45,7 +45,8 @@ class RecorderSettingsWindow:
             window.resize(min(window.width(), area.width() - 32), min(window.height(), area.height() - 32))
             window.setPosition(area.x() + (area.width() - window.width()) // 2,
                                area.y() + (area.height() - window.height()) // 2)
-        window.show()
+            window.show()
+        # An open window is only brought forward: show() again would let the compositor maximize it.
         window.raise_()
         window.requestActivate()
 

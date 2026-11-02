@@ -175,6 +175,17 @@ class SettingsWindowTests(unittest.TestCase):
             thread.join(1)
         self.assertEqual((results, seen), ([0], ['focus']))
 
+    def test_presenting_a_visible_window_only_raises_and_activates_it(self):
+        """A second launch must not re-show the window: on Hyprland that left it maximized (found live)."""
+        self.open()
+        calls = []
+        self.window.show = lambda: calls.append('show')
+        self.window.showNormal = lambda: calls.append('showNormal')
+        self.window.setPosition = lambda *args: calls.append('setPosition')
+        self.window.resize = lambda *args: calls.append('resize')
+        self.win.present()
+        self.assertEqual(calls, [])
+
     def test_light_and_dark_follow_the_theme_live(self):
         self.open()
         for name in ('green-light', 'green-dark', 'orange-light', 'blue-dark'):
