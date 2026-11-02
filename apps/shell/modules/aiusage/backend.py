@@ -49,6 +49,8 @@ PRICING = Path(__file__).with_name('pricing.json')
 
 HOUR = 3600
 KEEP = 90 * 24 * HOUR
+# Token history is kept a year, for the activity map.
+YEAR = 366 * 24 * HOUR
 CACHE_VERSION = 7
 # Bucket fields: uncached input, cache read, cache write, output.
 FIELDS = ('input', 'cacheRead', 'cacheWrite', 'output')
@@ -275,7 +277,7 @@ def scan(accounts, now):
     """Refresh the per-file buckets; appended logs are read from their last offset."""
     cache = load_cache()
     files = cache['files']
-    cutoff = now - KEEP
+    cutoff = now - YEAR
     alive = set()
     for account in accounts:
         parser = PARSERS.get(account['provider'])
@@ -370,6 +372,8 @@ def ranges(now):
         '7d': {'start': midnight - 6 * 86400, 'step': 86400, 'points': 7},
         '30d': {'start': midnight - 29 * 86400, 'step': 86400, 'points': 30},
         '90d': {'start': midnight - 89 * 86400, 'step': 86400, 'points': 90},
+        '365d': {'start': midnight - 364 * 86400, 'step': 86400, 'points': 365},
+        'hours90': {'start': hour_now - (90 * 24 - 1) * HOUR, 'step': HOUR, 'points': 90 * 24},
     }
 
 
@@ -378,7 +382,7 @@ def summarise(records, keys, now, prices):
     result = {}
     for name, spec in ranges(now).items():
         start, step, points = spec['start'], spec['step'], spec['points']
-        series = {k: {'tokens': [0] * points, 'cost': [0.0] * points} for k in keys}
+        series = {k: {'tokens': [0] * points, 'cost': [0.0] * points, 'unpriced': [False] * points} for k in keys}
         sessions = {k: 0 for k in keys}
         models = {}
         projects = {}
@@ -414,6 +418,7 @@ def summarise(records, keys, now, prices):
                         totals[field] += row[i]
                     if cost is None:
                         totals['unpriced'] += tokens
+                        series[key]['unpriced'][index] = True
                     else:
                         series[key]['cost'][index] += cost
                         item['cost'] = (item['cost'] or 0) + cost
@@ -675,7 +680,7 @@ def opencode_records(accounts, now):
         if account['provider'] != 'opencode':
             continue
         sessions = {}
-        for row in _sibling('opencode').history(account['home'] / 'opencode.db', now - KEEP):
+        for row in _sibling('opencode').history(account['home'] / 'opencode.db', now - YEAR):
             record = sessions.setdefault(row['session'], {
                 'account': account['id'], 'provider': 'opencode', 'session': row['session'],
                 'state': {'project': row['project']}, 'buckets': {}})
@@ -799,9 +804,48 @@ def collect(now=None, live=True, opener=None):
     ids = [a['id'] for a in unique]
     for account in unique:
         account['usage'] = summarise(records, [account['id']], now, prices)
-    snapshot = {'generatedAt': now, 'accounts': unique, 'usage': summarise(records, ids, now, prices)}
+    record_limits(unique, records, now)
+    snapshot = {'generatedAt': now, 'version': 2, 'accounts': unique, 'usage': summarise(records, ids, now, prices)}
     save_snapshot(snapshot)
     return snapshot
+
+
+def record_limits(accounts, records, now):
+    """Store a point per changed limit and give every limit its burndown and previous windows."""
+    history = _sibling('limit_history')
+    path = STATE / 'limits.jsonl'
+    entries = []
+    try:
+        for line in path.read_text(encoding='utf-8').splitlines():
+            try:
+                entries.append(json.loads(line))
+            except ValueError:
+                continue
+    except OSError:
+        pass
+    entries = history.append(entries, accounts, now)
+    try:
+        STATE.mkdir(parents=True, exist_ok=True)
+        temp = path.with_name(path.name + '.tmp')
+        temp.write_text(''.join(json.dumps(e, separators=(',', ':')) + '\n' for e in entries), encoding='utf-8')
+        os.replace(temp, path)
+    except OSError:
+        pass
+    prices = load_pricing()
+    for account in accounts:
+        owned = [r for r in records if (r.get('owner') or r['account']) == account['id']]
+        history.attach(entries, account, lambda start, end, owned=owned: cost_between(owned, start, end, prices))
+
+
+def cost_between(records, start, end, prices):
+    total = 0.0
+    for record in records:
+        for hour, by_model in record['buckets'].items():
+            if start <= int(hour) < end:
+                for model, row in by_model.items():
+                    cost = row[4] if len(row) > 4 and row[4] is not None else cost_of(row[:4], price_for(model, prices))
+                    total += cost or 0
+    return total
 
 
 def save_snapshot(snapshot):

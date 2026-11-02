@@ -388,6 +388,79 @@ class AiUsageTests(unittest.TestCase):
         saved = json.loads((self.home / 'cache/wysun/ai-usage/snapshot.json').read_text())
         self.assertEqual(saved['generatedAt'], result['generatedAt'])
 
+    def limits_snapshot(self, session, weekly, session_reset, weekly_reset, at):
+        (self.home / 'state/wysun/ai-usage').mkdir(parents=True, exist_ok=True)
+        (self.home / 'state/wysun/ai-usage/claude.json').write_text(json.dumps({'captured_at': at, 'rate_limits': {
+            'five_hour': {'used_percentage': session, 'resets_at': session_reset},
+            'seven_day': {'used_percentage': weekly, 'resets_at': weekly_reset}}}))
+
+    def collect_at(self, now):
+        return self.backend.collect(now=now, live=False)
+
+    def test_history_keeps_points_of_the_current_window(self):
+        reset = self.now + 4 * 86400
+        for i, used in enumerate((10, 12, 15)):
+            at = self.now - (2 - i) * 1800
+            self.limits_snapshot(1, used, at + 3600, reset, at)
+            result = self.collect_at(at)
+        weekly = next(l for l in self.account('claude', result)['limits'] if l['id'] == 'weekly')
+        self.assertEqual([p[1] for p in weekly['history']], [10, 12, 15])
+        self.assertEqual(weekly['windows'], [])
+
+    def test_previous_windows_split_at_each_reset(self):
+        old_reset = self.now - 3600
+        self.limits_snapshot(1, 70, old_reset - 600, old_reset, old_reset - 7200)
+        self.collect_at(old_reset - 7200)
+        self.limits_snapshot(1, 88, old_reset - 600, old_reset, old_reset - 1800)
+        self.collect_at(old_reset - 1800)
+        self.limits_snapshot(1, 5, self.now + 600, self.now + 7 * 86400 - 3600, self.now)
+        weekly = next(l for l in self.account('claude', self.collect_at(self.now))['limits'] if l['id'] == 'weekly')
+        self.assertEqual([p[1] for p in weekly['history']], [5])
+        self.assertEqual(len(weekly['windows']), 1)
+        self.assertEqual(weekly['windows'][0]['usedPercent'], 88)
+        self.assertEqual(weekly['windows'][0]['endedAt'], int(old_reset))
+        self.assertIsNone(weekly['windows'][0]['exhaustedAt'])
+
+    def test_exhausted_time_is_recorded(self):
+        old_reset = self.now - 3600
+        self.limits_snapshot(1, 90, old_reset - 600, old_reset, old_reset - 7200)
+        self.collect_at(old_reset - 7200)
+        self.limits_snapshot(1, 100, old_reset - 600, old_reset, old_reset - 5400)
+        self.collect_at(old_reset - 5400)
+        self.limits_snapshot(1, 2, self.now + 600, self.now + 86400, self.now)
+        weekly = next(l for l in self.account('claude', self.collect_at(self.now))['limits'] if l['id'] == 'weekly')
+        self.assertAlmostEqual(weekly['windows'][0]['exhaustedAt'], old_reset - 5400, delta=1)
+
+    def test_points_older_than_90_days_are_dropped(self):
+        old = self.now - 91 * 86400
+        self.limits_snapshot(1, 50, old + 600, old + 3600, old)
+        self.collect_at(old)
+        self.limits_snapshot(1, 5, self.now + 600, self.now + 86400, self.now)
+        self.collect_at(self.now)
+        stored = (self.home / 'state/wysun/ai-usage/limits.jsonl').read_text().splitlines()
+        self.assertTrue(stored)
+        self.assertTrue(all(json.loads(line)['t'] >= self.now - 90 * 86400 for line in stored))
+
+    def test_unchanged_limits_are_not_stored_again_within_15_minutes(self):
+        self.limits_snapshot(1, 50, self.now + 600, self.now + 3600, self.now)
+        self.collect_at(self.now)
+        self.collect_at(self.now + 60)
+        stored = (self.home / 'state/wysun/ai-usage/limits.jsonl').read_text().splitlines()
+        self.assertEqual(len(stored), 2)  # session and weekly, once each
+
+    def test_year_and_hourly_ranges_exist(self):
+        usage = self.collect()['usage']
+        self.assertEqual(usage['365d']['points'], 365)
+        self.assertEqual(usage['hours90']['points'], 2160)
+        self.assertEqual(usage['hours90']['step'], 3600)
+
+    def test_daily_unpriced_flag(self):
+        self.claude_log([self.claude_entry('a', model='mystery-model-1')])
+        usage = self.collect()['usage']['30d']
+        key = self.account('claude')['id']
+        self.assertTrue(usage['series'][key]['unpriced'][-1])
+        self.assertFalse(usage['series'][key]['unpriced'][0])
+
     def test_sibling_modules_load_by_path(self):
         credentials = self.backend._sibling('credentials')
         self.assertTrue(callable(credentials.get_json))
