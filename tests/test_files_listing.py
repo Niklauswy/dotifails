@@ -130,6 +130,14 @@ class TextTests(unittest.TestCase):
         self.assertEqual(listing.summary([]), 'Vacía')
         self.assertEqual(listing.summary(entries[:1]), '1 carpeta')
 
+    def test_dominant_group(self):
+        E = listing.Entry
+        files = [E(n, '/' + n, False, False, False, 1, 0) for n in ('a.jpg', 'b.png', 'c.pdf')]
+        self.assertEqual(listing.dominant(files), 'images')
+        self.assertEqual(listing.dominant([E('d', '/d', True, False, False, 0, 0)]), 'folders')
+        self.assertEqual(listing.dominant([]), '')
+        self.assertEqual(listing.dominant([E('x.zip', '/x', False, False, False, 1, 0)]), '')
+
 
 class SortFilterTests(unittest.TestCase):
     def entries(self):

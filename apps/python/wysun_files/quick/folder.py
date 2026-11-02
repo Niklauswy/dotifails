@@ -497,6 +497,10 @@ class FolderModel(QAbstractListModel):
     def summary(self):
         return listing.summary([e for e in self._entries if self._hidden or not e.hidden])
 
+    @Property(str, notify=rowsChanged)
+    def dominant(self):
+        return listing.dominant([e for e in self._entries if self._hidden or not e.hidden])
+
     @Property(str, notify=orderChanged)
     def sortKey(self):
         return self._key

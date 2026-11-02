@@ -3,7 +3,8 @@ data (the same rules as the Widgets sidebar had)."""
 import shutil
 from pathlib import Path
 
-from wysun_services.file_media import human_size
+from wysun_files.core.listing import size_text
+
 
 SYSTEM_FS = {'tmpfs', 'devtmpfs', 'overlay', 'squashfs', 'proc', 'sysfs', 'cgroup2', 'efivarfs', 'ramfs'}
 # (title, QStandardPaths location name or None for home, Material symbol)
@@ -29,7 +30,7 @@ def usage(path):
     """``(used fraction, «N libres»)``, or ``(0, '')`` when the disk cannot be read."""
     try:
         disk = shutil.disk_usage(path)
-        return (disk.used / disk.total if disk.total else 0.0), f'{human_size(disk.free)} libres'
+        return (disk.used / disk.total if disk.total else 0.0), f'{size_text(disk.free)} libres'
     except OSError:
         return 0.0, ''
 

@@ -164,6 +164,20 @@ def summary(entries):
     return ' · '.join(parts) or 'Vacía'
 
 
+def dominant(entries):
+    """The chip group most of the files belong to ('folders' when there are only folders, '' when nothing stands
+    out): the folder header picks its emblem from it."""
+    counts = {}
+    for entry in entries:
+        if not entry.is_dir:
+            group = classify(entry.name, False).group
+            if group:
+                counts[group] = counts.get(group, 0) + 1
+    if counts:
+        return max(sorted(counts), key=counts.get)
+    return 'folders' if any(e.is_dir for e in entries) else ''
+
+
 # ---------------------------------------------------------------------------------------------- order
 def fold(text):
     return ''.join(c for c in unicodedata.normalize('NFKD', text.casefold()) if not unicodedata.combining(c))
