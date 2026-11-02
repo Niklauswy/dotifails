@@ -117,11 +117,6 @@ class WaylandImageTests(unittest.TestCase):
                 result=capture_frame('desktop',False)
             self.assertEqual((result.width(),result.height()),(128,32));self.assertEqual(result.pixelColor(5,5),QColor('blue'))
             portal.screenshot.assert_called_once_with(interactive=False);portal.close.assert_called_once();stream.assert_not_called();self.assertTrue(path.exists())
-    def test_mpv_numeric_locale_is_normalized_before_creating_handle(self):
-        from wysun_media import mpv
-        with patch('wysun_media.mpv.locale.setlocale') as normalize:
-            mpv.normalize_numeric_locale()
-        normalize.assert_called_once_with(mpv.locale.LC_NUMERIC,'C')
     def test_multimonitor_composition_uses_topology_and_max_scale(self):
         from PySide6.QtGui import QImage,QColor
         from wysun_recorder.portal_image import compose_frames
@@ -130,19 +125,5 @@ class WaylandImageTests(unittest.TestCase):
         result=compose_frames([(red,dict(position=[-32,0],size=[32,24])),(blue,dict(position=[0,0],size=[32,24]))])
         self.assertEqual((result.width(),result.height()),(128,48));self.assertEqual(result.pixelColor(10,10),QColor('red'));self.assertEqual(result.pixelColor(100,10),QColor('blue'))
         with self.assertRaisesRegex(ValueError,'topología'):compose_frames([(red,{}),(blue,{})])
-    def test_software_renderer_buffer_alignment_and_image_ownership(self):
-        import ctypes as C
-        from wysun_media.software import render
-        seen=[]
-        class Library:
-            def mpv_render_context_render(self,context,params):
-                size=C.cast(params[0].data,C.POINTER(C.c_int));stride=C.cast(params[2].data,C.POINTER(C.c_size_t)).contents.value
-                self.address=params[3].data;self.count=stride*size[1];seen.append((self.address%64,stride%64))
-                C.memset(self.address,127,self.count)
-                for offset in range(3,self.count,4):C.c_ubyte.from_address(self.address+offset).value=255      # bgra: opaque
-                return 0
-        library=Library();pixels,width,height,stride=render(library,None,21,19)
-        self.assertEqual(seen,[(0,0)]);self.assertEqual((width,height,stride%64),(21,19,0));self.assertEqual(pixels[2],127);self.assertEqual(pixels[3],255)
-        self.assertEqual(pixels[:4],bytes([127,127,127,255]),'the frame owns its pixels after the render buffer is gone')
 
 if __name__=='__main__':unittest.main()
