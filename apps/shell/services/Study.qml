@@ -8,8 +8,9 @@ import qs.utils
 import "StudyPlan.js" as Plan
 
 // Study mode (pomodoro). Owns the session, persists it in ${Paths.state}/study.json so a shell restart
-// resumes it, appends finished sessions to ${Paths.state}/study/sessions.jsonl and remembers the
-// setup panel in ${Paths.config}/study.json. StudyBlocker hides and restores apps from `active`.
+// resumes it (same boot only: after a shutdown or reboot it is closed, not resumed), appends finished
+// sessions to ${Paths.state}/study/sessions.jsonl and remembers the setup panel in ${Paths.config}/study.json.
+// StudyBlocker hides and restores apps from `active`.
 Singleton {
     id: root
 
@@ -22,6 +23,12 @@ Singleton {
     // historyRecord of the session that just ended, for the summary.
     property var lastSummary: null
     property bool loaded
+    // Kernel boot id: a saved session from another boot is closed instead of resumed.
+    property string bootId
+    property bool bootReady
+    property bool storeReady
+    property string savedText
+    property real lastSave
     // Creates the blocker with the service, so parked windows are recovered even with no UI open.
     readonly property var blocker: StudyBlocker
 
@@ -114,13 +121,17 @@ Singleton {
         const t = Date.now();
         const ended = session.done ? session : Plan.stop(session, t);
         const record = Plan.historyRecord(ended, t);
-        records = records.concat([record]);
-        // Appended, never rewritten: the history may not have loaded yet (restart right after a session ended).
-        Quickshell.execDetached(["sh", "-c", 'mkdir -p "$(dirname "$1")" && printf "%s\\n" "$2" >> "$1"', "sh", history.path, JSON.stringify(record)]);
+        appendHistory(record);
         lastSummary = record;
         session = Object.assign({}, ended, {done: true});
         save();
         finished();
+    }
+
+    // Appended, never rewritten: the history may not have loaded yet (restart right after a session ended).
+    function appendHistory(record: var): void {
+        records = records.concat([record]);
+        Quickshell.execDetached(["sh", "-c", 'mkdir -p "$(dirname "$1")" && printf "%s\\n" "$2" >> "$1"', "sh", history.path, JSON.stringify(record)]);
     }
 
     // The summary was closed: forget the finished session.
@@ -146,8 +157,40 @@ Singleton {
             finish();
     }
 
+    // The file copy carries the boot it belongs to and when it was last seen alive (heartbeat).
     function save(): void {
-        store.setText(JSON.stringify(session));
+        lastSave = Date.now();
+        store.setText(JSON.stringify(session ? Object.assign({}, session, {boot: bootId, seenAt: lastSave}) : null));
+    }
+
+    // Runs once, when both the saved session and the boot id are known.
+    function restore(): void {
+        if (loaded || !storeReady || !bootReady)
+            return;
+        let saved = null;
+        try {
+            saved = JSON.parse(savedText);
+        } catch (error) {}
+        if (saved && !saved.done && saved.boot === bootId) {
+            now = Date.now();
+            session = Plan.tick(saved, now);
+            if (session.done)
+                finish();
+        } else {
+            session = null;
+            if (saved && !saved.done)
+                closeStale(saved);
+        }
+        loaded = true;
+    }
+
+    // A session left running when the PC was shut down: record it up to the last moment it was seen
+    // (never the powered-off time) and drop it, without a summary or resuming.
+    function closeStale(saved: var): void {
+        const at = saved.seenAt || (saved.paused ? saved.pausedAt : saved.phaseStart);
+        const record = Plan.historyRecord(Plan.stop(saved, at), at);
+        appendHistory(record);
+        save();
     }
 
     function chime(kind: string): void {
@@ -165,6 +208,8 @@ Singleton {
             const next = Plan.tick(root.session, root.now);
             if (next.phase !== root.session.phase)
                 root.apply(next);
+            else if (root.now - root.lastSave >= 60000)
+                root.save();
         }
     }
 
@@ -187,28 +232,39 @@ Singleton {
         command: ["mkdir", "-p", `${Paths.state}/study`]
     }
 
+    Process {
+        running: true
+        command: ["cat", "/proc/sys/kernel/random/boot_id"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                root.bootId = text.trim();
+                root.bootReady = true;
+                root.restore();
+            }
+        }
+        // Without a boot id every saved session counts as stale (closed, never resumed).
+        onExited: code => {
+            if (code !== 0) {
+                root.bootReady = true;
+                root.restore();
+            }
+        }
+    }
+
     FileView {
         id: store
 
         path: `${Paths.state}/study.json`
         printErrors: false
         onLoaded: {
-            try {
-                const saved = JSON.parse(text());
-                if (saved && !saved.done) {
-                    root.now = Date.now();
-                    root.session = Plan.tick(saved, root.now);
-                    if (root.session.done)
-                        root.finish();
-                } else {
-                    root.session = null;
-                }
-            } catch (error) {
-                root.session = null;
-            }
-            root.loaded = true;
+            root.savedText = text();
+            root.storeReady = true;
+            root.restore();
         }
-        onLoadFailed: root.loaded = true
+        onLoadFailed: {
+            root.storeReady = true;
+            root.restore();
+        }
     }
 
     FileView {
