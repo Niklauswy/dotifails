@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Modo estudio · flujo completo</title>
+<style>
+:root{
+  --primary:#c6c2ee; --onPrimary:#3e3c60; --primaryContainer:#514e74; --onPrimaryContainer:#e4e0ff;
+  --secondaryContainer:#3b394d; --onSecondaryContainer:#e3dff8;
+  --tertiary:#ffdefb; --tertiaryContainer:#f8ccf6; --onTertiaryContainer:#624163;
+  --surface:#0e0e12; --sc:#1a191f; --sch:#201f26; --schh:#26252e; --scl:#141318;
+  --onSurface:#e8e4f0; --onSurfaceVariant:#aca9b5; --outline:#76747f; --outlineVariant:#484750;
+  --dec:cubic-bezier(.05,.7,.1,1); --acc:cubic-bezier(.3,0,.8,.15); --std:cubic-bezier(.2,0,0,1);
+}
+@property --a { syntax:'<angle>'; inherits:false; initial-value:0deg; }
+*{box-sizing:border-box}
+body{margin:0;background:var(--surface);color:var(--onSurface);font-family:"Google Sans Flex","Google Sans",system-ui,sans-serif}
+.wrap{max-width:1200px;margin:0 auto;padding:26px 24px 70px}
+h1{font-size:26px;font-weight:500;margin:0 0 4px}
+.sub{color:var(--onSurfaceVariant);font-size:14px;margin:0 0 18px;line-height:1.5}
+
+/* navegación de escenas */
+.nav{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;align-items:center}
+.nav button{font:inherit;font-size:13px;font-weight:500;border:0;border-radius:999px;padding:9px 14px;cursor:pointer;background:var(--sc);color:var(--onSurfaceVariant);transition:background .25s var(--std),color .25s,border-radius .3s var(--std)}
+.nav button:hover{background:var(--sch)}
+.nav button.on{background:var(--secondaryContainer);color:var(--onSecondaryContainer);border-radius:12px}
+.nav .play{margin-left:auto;background:var(--primary);color:var(--onPrimary)}
+.nav .n{opacity:.6;margin-right:6px}
+
+.stage-wrap{position:relative;width:100%;aspect-ratio:16/9;border-radius:18px;overflow:hidden;box-shadow:0 0 0 1px var(--outlineVariant)}
+.stage{position:absolute;left:0;top:0;width:1120px;height:630px;transform-origin:0 0;overflow:hidden;background:#000;user-select:none}
+
+/* escritorio */
+#wall{position:absolute;inset:0;background:
+  radial-gradient(60% 80% at 75% 20%,#4b4570 0,transparent 60%),
+  radial-gradient(50% 70% at 20% 85%,#6a4a6c 0,transparent 60%),
+  linear-gradient(160deg,#1c1a2a,#121118)}
+#bar{position:absolute;left:0;top:0;bottom:0;width:40px;background:var(--surface);display:flex;flex-direction:column;align-items:center;padding:10px 0;gap:10px}
+#bar .os{width:22px;height:22px;border-radius:8px;background:var(--primary)}
+#bar .ws{display:flex;flex-direction:column;gap:6px;margin-top:8px;background:var(--sc);padding:7px 5px;border-radius:999px}
+#bar .ws i{width:10px;height:10px;border-radius:50%;background:var(--outlineVariant)}
+#bar .ws i.on{height:22px;border-radius:6px;background:var(--primary)}
+#bar .clk{margin-top:auto;font-size:11px;line-height:1.25;text-align:center;color:var(--onSurfaceVariant);font-weight:500}
+.win{position:absolute;border-radius:14px;overflow:hidden;box-shadow:0 0 0 2px #ffffff10}
+#wLectio{background:#17161b}
+#wLectio .pg{position:absolute;left:50%;top:5%;width:min(62%,460px);transform:translateX(-50%);height:120%;background:#f3f0e8;border-radius:4px;padding:34px 38px;box-shadow:0 10px 40px #0009}
+.pg .t{height:12px;width:58%;background:#2b2730;border-radius:3px;margin-bottom:22px;opacity:.85}
+.pg .l{height:6px;background:#8b8692;border-radius:3px;margin:10px 0;opacity:.55}
+.pg .hl{background:#f0cf62;opacity:.9}
+#wBrave{background:#1d1c22}
+.tabs{height:30px;background:#141318;display:flex;align-items:flex-end;gap:4px;padding:0 8px}
+.tab{height:24px;width:120px;border-radius:8px 8px 0 0;background:#1d1c22;font-size:11px;color:var(--onSurfaceVariant);display:flex;align-items:center;padding:0 10px}
+.url{height:28px;margin:6px 10px;border-radius:999px;background:#2a2930;font-size:11px;color:var(--onSurfaceVariant);display:flex;align-items:center;padding:0 12px}
+.wiki{padding:10px 18px}.wiki .l{height:6px;background:#55535c;border-radius:3px;margin:9px 0}
+#wDiscord{background:#2b2d31;display:flex}
+#wDiscord .side{width:28%;background:#232428}
+#wDiscord .msg{flex:1;padding:16px}
+#wDiscord .msg div{height:7px;border-radius:3px;background:#4e5058;margin:12px 0}
+
+#veil{position:absolute;inset:0;background:#0a0a0e;opacity:0;pointer-events:none}
+#rim{position:absolute;inset:0;pointer-events:none;opacity:0;box-shadow:inset 0 0 0 1.5px #c6c2ee55,inset 0 0 90px #c6c2ee1c}
+#sweep{position:absolute;inset:0;pointer-events:none;opacity:0;padding:3px;
+  background:conic-gradient(from var(--a) at 50% 0%,transparent 0deg,var(--primary) 30deg,var(--tertiary) 50deg,transparent 90deg,transparent 270deg,var(--tertiary) 310deg,var(--primary) 330deg,transparent 360deg);
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask:linear-gradient(#000 0 0) content-box exclude,linear-gradient(#000 0 0);filter:blur(1px)}
+
+/* atajo */
+#keys{position:absolute;left:50%;bottom:28px;transform:translateX(-50%);display:flex;gap:8px;align-items:center;opacity:0;
+  background:color-mix(in srgb,var(--sch) 88%,transparent);padding:10px 14px;border-radius:18px;backdrop-filter:blur(14px);font-size:13px;color:var(--onSurfaceVariant)}
+.kc{min-width:38px;height:34px;padding:0 10px;border-radius:10px;background:var(--schh);color:var(--onSurface);display:grid;place-items:center;font-weight:500;box-shadow:0 3px 0 #0007;transition:transform .12s,box-shadow .12s,background .12s}
+.kc.dn{transform:translateY(3px);box-shadow:0 0 0 #0007;background:var(--primaryContainer)}
+
+/* panel superior (sale del borde, como los demás paneles) */
+#sheet{position:absolute;left:50%;top:0;transform:translateX(-50%);width:520px;height:0;overflow:hidden;border-radius:0 0 28px 28px;
+  background:var(--sc);box-shadow:0 18px 50px #0009;opacity:0;z-index:20}
+.sv{position:absolute;inset:0;opacity:0;pointer-events:none;transition:opacity .2s var(--std)}
+#sheet[data-view=setup] .sv-setup,#sheet[data-view=ritual] .sv-ritual,#sheet[data-view=summary] .sv-summary{opacity:1;pointer-events:auto;transition-delay:.1s}
+.sv-setup{padding:22px 26px;width:520px}
+.hdr{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+.badge{width:40px;height:40px;border-radius:14px;background:var(--tertiaryContainer);color:var(--onTertiaryContainer);display:grid;place-items:center}
+.hdr b{font-size:20px;font-weight:500}.hdr small{display:block;color:var(--onSurfaceVariant);font-size:12px;margin-top:2px}
+.lbl{font-size:12px;font-weight:500;color:var(--onSurfaceVariant);margin:14px 0 8px}
+.field{height:46px;border-radius:12px;background:var(--schh);display:flex;align-items:center;padding:0 14px;font-size:15px;gap:10px;box-shadow:inset 0 -2px 0 var(--primary)}
+.field .caret{width:1.5px;height:20px;background:var(--primary);animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.hint{display:flex;gap:6px;margin-top:8px}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{height:32px;border-radius:10px;padding:0 12px;display:flex;align-items:center;gap:6px;font-size:13px;font-weight:500;background:transparent;box-shadow:inset 0 0 0 1px var(--outlineVariant);color:var(--onSurfaceVariant);cursor:pointer;transition:background .25s var(--std),color .25s,box-shadow .25s,border-radius .3s var(--std)}
+.chip.sel{background:var(--secondaryContainer);color:var(--onSecondaryContainer);box-shadow:none;border-radius:16px}
+.chip.small{height:26px;font-size:12px;border-radius:8px}
+.seg{display:flex;border-radius:999px;box-shadow:inset 0 0 0 1px var(--outlineVariant);overflow:hidden}
+.seg span{flex:1;text-align:center;height:36px;display:grid;place-items:center;font-size:13px;font-weight:500;color:var(--onSurfaceVariant);cursor:pointer;transition:background .25s var(--std),color .25s}
+.seg span+span{box-shadow:-1px 0 0 var(--outlineVariant)}
+.seg span.sel{background:var(--secondaryContainer);color:var(--onSecondaryContainer)}
+.row{display:flex;align-items:center;justify-content:space-between;margin-top:16px}
+.row .tx{font-size:14px}.row .tx small{display:block;font-size:12px;color:var(--onSurfaceVariant);margin-top:2px}
+.sw{width:52px;height:32px;border-radius:999px;background:var(--primary);position:relative;cursor:pointer;transition:background .25s}
+.sw::after{content:"";position:absolute;top:4px;left:24px;width:24px;height:24px;border-radius:50%;background:var(--onPrimary);transition:left .35s var(--std),width .2s}
+.sw.off{background:var(--schh);box-shadow:inset 0 0 0 2px var(--outline)}.sw.off::after{left:8px;top:8px;width:16px;height:16px;background:var(--outline)}
+.foot{display:flex;align-items:center;justify-content:space-between;margin-top:22px}
+.foot small{color:var(--onSurfaceVariant);font-size:12px;max-width:260px;line-height:1.4}
+.btn{font:inherit;border:0;cursor:pointer;font-weight:500;font-size:14px;height:40px;padding:0 20px;border-radius:999px;background:var(--primary);color:var(--onPrimary);display:inline-flex;align-items:center;gap:8px;transition:border-radius .25s var(--std),transform .2s var(--std)}
+.btn:active{border-radius:12px;transform:scale(.97)}
+.btn.lg{height:52px;padding:0 28px;font-size:16px;border-radius:999px}
+.btn.tonal{background:var(--secondaryContainer);color:var(--onSecondaryContainer)}
+.btn.text{background:transparent;color:var(--primary);padding:0 12px}
+.btn.ter{background:var(--onTertiaryContainer);color:var(--tertiaryContainer)}
+
+.sv-ritual{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;text-align:center}
+.orb{width:74px;height:74px;border-radius:50%;margin-bottom:12px;position:relative;display:grid;place-items:center;color:var(--onTertiaryContainer)}
+.orb::before{content:"";position:absolute;inset:0;border-radius:inherit;background:radial-gradient(circle at 40% 35%,var(--tertiaryContainer),var(--primary));}
+.orb::after{content:"";position:absolute;inset:-14px;border-radius:50%;box-shadow:0 0 0 2px #c6c2ee44;}
+.orb svg{position:relative}
+.rt1{font-size:24px;font-weight:500}
+.rt2{font-size:14px;color:var(--onSurfaceVariant)}
+
+.sv-summary{padding:24px 28px;width:520px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:18px 0}
+.stat{background:var(--sch);border-radius:18px;padding:14px}
+.stat b{display:block;font-size:24px;font-weight:500}.stat span{font-size:12px;color:var(--onSurfaceVariant)}
+.week{display:flex;gap:8px;align-items:flex-end;height:46px}
+.week div{flex:1;text-align:center;font-size:11px;color:var(--onSurfaceVariant)}
+.week i{display:block;margin:0 auto 6px;width:100%;border-radius:6px;background:var(--secondaryContainer)}
+.week .today i{background:var(--primary)}
+
+/* píldora */
+#pill{position:absolute;left:50%;top:10px;transform:translateX(-50%);width:168px;height:34px;border-radius:17px;overflow:hidden;z-index:30;opacity:0;
+  background:color-mix(in srgb,var(--sch) 86%,transparent);backdrop-filter:blur(16px);box-shadow:0 8px 28px #0008,0 0 0 1px #ffffff14;color:var(--onSurface);cursor:default}
+.pv{position:absolute;inset:0;opacity:0;pointer-events:none;transition:opacity .18s var(--std)}
+#pill[data-view=compact] .pv-c,#pill[data-view=chime] .pv-c,#pill[data-view=card] .pv-card,#pill[data-view=msg] .pv-msg,#pill[data-view=break] .pv-break,#pill[data-view=exit] .pv-exit{opacity:1;pointer-events:auto;transition-delay:.12s}
+.pv-c{display:flex;align-items:center;justify-content:center;gap:10px;font-size:13px;font-weight:500;white-space:nowrap}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--primary);animation:breathe 5s ease-in-out infinite}
+.paused .dot{animation:none;opacity:.4}
+@keyframes breathe{0%,100%{transform:scale(.7);opacity:.55}50%{transform:scale(1.15);opacity:1}}
+.blocks{display:flex;gap:4px;align-items:center}
+.blocks i{width:8px;height:8px;border-radius:4px;background:#ffffff26;position:relative;overflow:hidden;transition:width .5s var(--std),background .4s}
+.blocks i.done{background:var(--primary)}
+.blocks i.now{width:22px}
+.blocks i.now::after{content:"";position:absolute;inset:0;background:var(--primary);transform-origin:left;transform:scaleX(var(--p,.3));transition:transform .8s var(--std)}
+.wave{display:none;color:var(--tertiary)}
+#pill[data-view=chime] .wave{display:block}#pill[data-view=chime] .dot{display:none}
+.pv-card{padding:16px 18px;width:320px}
+.pv-card .tk{font-size:15px;font-weight:500}.pv-card .ph{font-size:12px;color:var(--onSurfaceVariant);margin-top:2px;display:flex;gap:6px;align-items:center}
+.bigblocks{display:flex;gap:6px;margin:14px 0}
+.bigblocks i{flex:1;height:8px;border-radius:4px;background:#ffffff1f;position:relative;overflow:hidden}
+.bigblocks i.done{background:var(--primary)}
+.bigblocks i.now::after{content:"";position:absolute;inset:0;background:var(--primary);transform-origin:left;transform:scaleX(.4)}
+.acts{display:flex;gap:8px;align-items:center}
+.ib{width:40px;height:40px;border-radius:999px;border:0;background:var(--schh);color:var(--onSurface);display:grid;place-items:center;cursor:pointer;transition:border-radius .25s var(--std),background .2s}
+.ib:hover{background:var(--secondaryContainer)}.ib:active{border-radius:12px}
+.ib.main{width:56px;background:var(--primary);color:var(--onPrimary)}
+.ib.eye{margin-left:auto;background:transparent;color:var(--onSurfaceVariant)}
+.tm{font-size:12px;color:var(--onSurfaceVariant);max-width:0;overflow:hidden;white-space:nowrap;transition:max-width .4s var(--std)}
+.tm.show{max-width:80px}
+.pv-msg{display:flex;align-items:center;gap:10px;padding:0 14px;font-size:13px;white-space:nowrap}
+.pv-msg .mi{width:22px;height:22px;border-radius:7px;background:#5865f2;display:grid;place-items:center;color:#fff}
+.pv-break{padding:18px 20px;width:360px;color:var(--onTertiaryContainer)}
+.pv-break .bt{font-size:20px;font-weight:500;display:flex;align-items:center;gap:10px}
+.pv-break p{margin:6px 0 14px;font-size:13px;opacity:.85}
+.drain{height:6px;border-radius:3px;background:#62416326;overflow:hidden;margin-bottom:14px}
+.drain i{display:block;height:100%;width:100%;background:var(--onTertiaryContainer);border-radius:3px;opacity:.6}
+.pv-exit{padding:18px 20px;width:340px}
+.pv-exit .bt{font-size:18px;font-weight:500}.pv-exit p{margin:6px 0 16px;font-size:13px;color:var(--onSurfaceVariant)}
+.hold{position:relative;overflow:hidden;background:var(--schh);color:var(--onSurface)}
+.hold .fill{position:absolute;inset:0;background:var(--primaryContainer);transform-origin:left;transform:scaleX(0)}
+.hold span{position:relative}
+
+/* ventana fantasma (app no permitida) y página bloqueada */
+#ghost{position:absolute;left:280px;top:135px;width:560px;height:360px;opacity:0;z-index:25;display:flex;background:#2b2d31;border-radius:14px;overflow:hidden;box-shadow:0 20px 60px #000a}
+#ghost .side{width:28%;background:#232428}
+#blocked{position:absolute;inset:0;z-index:22;transform:translateX(100%);background:#1d1c22;display:flex;flex-direction:column}
+.bpage{flex:1;display:flex;align-items:center;justify-content:center;background:var(--surface)}
+.bcard{width:460px;text-align:center}
+.bcard .lk{width:72px;height:72px;border-radius:24px;margin:0 auto 18px;background:var(--secondaryContainer);color:var(--onSecondaryContainer);display:grid;place-items:center}
+.bcard h3{font-size:26px;font-weight:500;margin:0 0 8px}.bcard p{color:var(--onSurfaceVariant);font-size:14px;margin:0 0 20px;line-height:1.5}
+.bcard .chips{justify-content:center;margin-bottom:22px}
+.bcard>*{opacity:0}
+
+/* pantalla completa de entrada */
+#takeover{position:absolute;inset:0;z-index:26;opacity:0;pointer-events:none;overflow:hidden;
+  background:radial-gradient(120% 95% at 50% 0%,var(--primaryContainer) 0,#29264a 45%,#131219 100%);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;clip-path:inset(0 0 100% 0)}
+#takeover .big{position:absolute;left:50%;top:50%;width:560px;height:560px;margin:-280px 0 0 -280px;pointer-events:none}
+#takeover .big2{position:absolute;left:50%;top:50%;width:820px;height:820px;margin:-410px 0 0 -410px;pointer-events:none}
+.tt{font-size:68px;letter-spacing:-.5px;position:relative;color:var(--onPrimaryContainer);font-variation-settings:'wght' 520;font-weight:520;white-space:nowrap}
+.ts{font-size:16px;color:var(--onPrimaryContainer);opacity:.75;position:relative;margin-top:10px}
+.tchips{display:flex;gap:8px;margin-top:26px;position:relative}
+.tchip{height:34px;padding:0 16px;border-radius:17px;background:#ffffff16;color:var(--onPrimaryContainer);font-size:13px;display:flex;align-items:center;gap:6px;font-weight:500}
+.psweep{position:absolute;inset:0;border-radius:inherit;padding:1.5px;opacity:0;pointer-events:none;
+  background:conic-gradient(from var(--a),transparent 0deg,transparent 200deg,var(--primary) 290deg,var(--tertiary) 340deg,transparent 360deg);
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask:linear-gradient(#000 0 0) content-box exclude,linear-gradient(#000 0 0)}
+.bpage{position:relative;overflow:hidden}
+.bglow{position:absolute;inset:0;background:radial-gradient(38% 48% at 50% 42%,#514e7470,transparent 72%);opacity:0}
+.bshape{position:relative;width:132px;height:132px;margin:0 auto 20px;display:grid;place-items:center;color:var(--onSecondaryContainer)}
+.bshape svg.sh{position:absolute;inset:0;width:100%;height:100%}
+.bshape .ico{position:relative;display:grid}
+.bcard{position:relative}
+.bcard h3{font-variation-settings:'wght' 520}
+
+/* pie explicativo */
+.cap{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:16px}
+.cap .box{background:var(--sc);border-radius:20px;padding:16px 20px}
+.cap h3{margin:0 0 8px;font-size:17px;font-weight:500}
+.cap ul{margin:0;padding-left:18px;color:var(--onSurfaceVariant);font-size:13.5px;line-height:1.6}
+.tag{display:inline-block;font-size:11px;font-weight:500;padding:1px 7px;border-radius:6px;background:var(--tertiaryContainer);color:var(--onTertiaryContainer);margin-left:4px}
+.hintline{font-size:12.5px;color:var(--primary);margin-top:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Modo estudio · flujo completo</h1>
+  <p class="sub">Desde que lo activas hasta el resumen final. Pulsa una escena o <b>Reproducir todo</b>. Puedes tocar la maqueta: la píldora, los botones y los chips responden. Colores del wallpaper actual (oscuro).</p>
+
+  <div class="nav" id="nav"></div>
+
+  <div class="stage-wrap" id="sw"><div class="stage" id="st">
+    <div id="wall"></div>
+    <div id="bar"><div class="os"></div><div class="ws"><i class="on"></i><i></i><i></i><i></i></div><div class="clk">16<br>05</div></div>
+
+    <div class="win" id="wLectio"><div class="pg"><div class="t"></div>
+      <div class="l" style="width:96%"></div><div class="l" style="width:91%"></div><div class="l hl" style="width:68%"></div><div class="l" style="width:94%"></div><div class="l" style="width:87%"></div><div class="l" style="width:52%"></div>
+      <div class="l" style="width:95%;margin-top:24px"></div><div class="l" style="width:90%"></div><div class="l" style="width:97%"></div><div class="l" style="width:83%"></div><div class="l" style="width:93%"></div><div class="l" style="width:38%"></div>
+      <div class="l" style="width:92%;margin-top:24px"></div><div class="l" style="width:96%"></div><div class="l" style="width:70%"></div></div></div>
+    <div class="win" id="wBrave"><div class="tabs"><div class="tab">Protocolo TCP – Wikipedia</div></div><div class="url">es.wikipedia.org/wiki/TCP</div>
+      <div class="wiki"><div class="l" style="width:40%;height:10px;background:#8a8792"></div><div class="l" style="width:92%"></div><div class="l" style="width:86%"></div><div class="l" style="width:90%"></div><div class="l" style="width:60%"></div></div></div>
+    <div class="win" id="wDiscord"><div class="side"></div><div class="msg"><div style="width:60%"></div><div style="width:80%"></div><div style="width:45%"></div><div style="width:70%"></div></div></div>
+
+    <div id="veil"></div>
+    <div id="rim"></div>
+    <div id="sweep"></div>
+
+    <div id="blocked"><div class="tabs"><div class="tab">youtube.com</div></div><div class="url">youtube.com</div>
+      <div class="bpage"><div class="bglow" id="bglow"></div><div class="bcard">
+        <div class="bshape" id="bshape"><svg class="sh" viewBox="0 0 132 132"><path id="bpath" fill="var(--secondaryContainer)"/></svg><span class="ico" id="bico" data-i="lock" data-s="38"></span></div>
+        <h3>Esto puede esperar</h3>
+        <p class="bp">youtube.com no está en tu sesión de estudio.<br>Vas por el bloque 2 de 4. Al terminar, todo vuelve a abrirse.</p>
+        <div class="chips bch"><span class="chip small sel">Wikipedia</span><span class="chip small sel">Google</span><span class="chip small sel">WolframAlpha</span></div>
+        <button class="btn" id="backBtn"><span data-i="book" data-s="18"></span>Volver a Lectio</button>
+      </div></div></div>
+
+    <div id="takeover">
+      <svg class="big2" viewBox="0 0 820 820"><path id="tpath2" fill="none" stroke="#ffffff10" stroke-width="2"/></svg>
+      <svg class="big" viewBox="0 0 560 560"><path id="tpath" fill="#c6c2ee1f"/></svg>
+      <div class="tt" id="tt">Modo estudio</div>
+      <div class="ts" id="ts">4 bloques · 25 min de foco, 5 de descanso</div>
+      <div class="tchips"><span class="tchip">Lectio</span><span class="tchip">Wikipedia</span><span class="tchip">Google</span><span class="tchip">WolframAlpha</span></div>
+    </div>
+
+    <div id="keys"><span class="kc" id="k1">Super</span><span>+</span><span class="kc" id="k2">S</span><span style="margin-left:6px">Modo estudio</span></div>
+
+    <div id="sheet" data-view="setup">
+      <div class="sv sv-setup">
+        <div class="hdr"><div class="badge" data-i="school" data-s="22"></div><div><b>Sesión de estudio</b><small>Solo lo que necesitas, nada más.</small></div></div>
+        <div class="lbl">Duración</div>
+        <div class="chips" data-group><span class="chip">1 h</span><span class="chip sel">2 h</span><span class="chip">3 h</span><span class="chip">Hasta que pare</span></div>
+        <div class="lbl">Ritmo (foco / descanso)</div>
+        <div class="seg" data-group><span class="sel">25 / 5</span><span>50 / 10</span><span>90 / 20</span></div>
+        <div class="lbl">Permitido</div>
+        <div class="chips"><span class="chip sel" data-i-pre="book">Lectio</span><span class="chip sel">Wikipedia</span><span class="chip sel">Google</span><span class="chip sel">WolframAlpha</span><span class="chip"><span data-i="plus" data-s="16"></span>Añadir</span></div>
+        <div class="row"><div class="tx">Ocultar el tiempo<small>La píldora no enseña minutos; los ves solo si los pides.</small></div><div class="sw" id="swTime"></div></div>
+        <div class="foot"><small>4 bloques de foco con un descanso largo a mitad.</small><button class="btn lg" id="startBtn"><span data-i="play" data-s="20"></span>Empezar</button></div>
+      </div>
+      <div class="sv sv-summary">
+        <div class="hdr ss"><div class="badge" data-i="check" data-s="22"></div><div><b>Sesión terminada</b><small>Viernes 31 de octubre</small></div></div>
+        <div class="stats ss"><div class="stat"><b>4 / 4</b><span>bloques de foco</span></div><div class="stat"><b>1 h 40</b><span>estudiando</span></div><div class="stat"><b>3</b><span>distracciones frenadas</span></div></div>
+        <div class="lbl ss">Esta semana</div>
+        <div class="week ss"><div><i style="height:14px"></i>L</div><div><i style="height:26px"></i>M</div><div><i style="height:6px"></i>X</div><div><i style="height:20px"></i>J</div><div class="today"><i style="height:30px"></i>V</div><div><i style="height:3px;opacity:.4"></i>S</div><div><i style="height:3px;opacity:.4"></i>D</div></div>
+        <div class="foot ss"><button class="btn text">Otra sesión</button><button class="btn" id="closeBtn">Cerrar</button></div>
+      </div>
+    </div>
+
+    <div id="pill" data-view="compact"><span class="psweep" id="psweep"></span>
+      <div class="pv pv-c"><span class="dot"></span><span class="wave" data-i="volume" data-s="16"></span><span class="blocks" id="blocks"><i class="now"></i><i></i><i></i><i></i></span><span id="phase">Foco</span><span class="tm" id="tmC">· 18 min</span></div>
+      <div class="pv pv-card">
+        <div class="tk">Bloque 2 de 4</div>
+        <div class="ph"><span class="dot"></span><span id="cardPhase">Foco</span><span class="tm" id="tmK">· quedan 18 min</span></div>
+        <div class="bigblocks"><i class="done"></i><i class="now"></i><i></i><i></i></div>
+        <div class="acts"><button class="ib main" id="pauseBtn" title="Pausa"><span data-i="pause" data-s="20"></span></button><button class="ib" id="skipBtn" title="Saltar al descanso"><span data-i="skip" data-s="20"></span></button><button class="ib" id="stopBtn" title="Terminar"><span data-i="stop" data-s="18"></span></button><button class="ib eye" id="eyeBtn" title="Ver el tiempo"><span data-i="eye" data-s="20"></span></button></div>
+      </div>
+      <div class="pv pv-msg"><span class="mi" data-i="chat" data-s="14"></span><span><b>Discord</b> esperará al final de la sesión</span></div>
+      <div class="pv pv-break">
+        <div class="bt"><span data-i="coffee" data-s="22"></span><span id="brT">Descanso</span></div>
+        <p id="brP">Bloque 1 hecho. Levántate, estira, bebe agua.</p>
+        <div class="drain"><i id="drain"></i></div>
+        <div class="acts"><button class="btn ter" id="brBtn" style="height:36px">Saltar descanso</button></div>
+      </div>
+      <div class="pv pv-exit">
+        <div class="bt">¿Terminar la sesión?</div>
+        <p>Llevas 2 de 4 bloques. Lo que has hecho se guarda.</p>
+        <div class="acts"><button class="btn hold" id="holdBtn"><span class="fill" id="holdFill"></span><span>Mantén para salir</span></button><button class="btn tonal" id="keepBtn">Seguir</button></div>
+      </div>
+    </div>
+  </div></div>
+
+  <div class="cap"><div class="box"><h3 id="capT"></h3><ul id="capL"></ul><div class="hintline" id="capH"></div></div>
+    <div class="box"><h3>Cómo se mueve</h3><ul id="capM"></ul></div></div>
+</div>
+
+<script>
+const I={school:"M5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82zM12 3 1 9l11 6 9-4.91V17h2V9L12 3z",pause:"M6 19h4V5H6v14zm8-14v14h4V5h-4z",play:"M8 5v14l11-7z",skip:"M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z",stop:"M6 6h12v12H6z",eye:"M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z",volume:"M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z",chat:"M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z",book:"M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 4h5v8l-2.5-1.5L6 12V4z",plus:"M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z",check:"M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z",coffee:"M20 3H4v10c0 2.21 1.79 4 4 4h6c2.21 0 4-1.79 4-4v-3h2c1.11 0 2-.9 2-2V5c0-1.11-.89-2-2-2zm0 5h-2V5h2v3zM4 19h16v2H4z",lock:"M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zM9 8V6c0-1.66 1.34-3 3-3s3 1.34 3 3v2H9z"};
+document.querySelectorAll('[data-i]').forEach(e=>{const s=e.dataset.s||20;e.innerHTML=`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="currentColor"><path d="${I[e.dataset.i]}"/></svg>`;if(!e.classList.contains('wave'))e.style.display=e.style.display||'inline-grid';});
+
+const $=s=>document.querySelector(s), st=$('#st'), sw=$('#sw');
+function fit(){st.style.transform=`scale(${sw.clientWidth/1120})`}addEventListener('resize',fit);fit();
+
+/* curvas: muelles M3 Expressive aproximados con linear() */
+const SPRING='linear(0,.009,.035 2.1%,.141 4.4%,.281 6.7%,.723 12.9%,.938 16.7%,1.017 19.4%,1.077 22%,1.121 24.9%,1.137 27.3%,1.13 30%,1.093 34.6%,1.03 41.8%,1.003 46.4%,.989 51.4%,.987 55.4%,.999 69.9%,1.002 79%,1)';
+const SOFT='linear(0,.06 3%,.24 7.5%,.55 14%,.8 21%,.94 29%,1.01 37%,1.025 45%,1.012 60%,1)';
+const DEC='cubic-bezier(.05,.7,.1,1)', ACC='cubic-bezier(.3,0,.8,.15)', STD='cubic-bezier(.2,0,0,1)';
+
+let run=0, auto=false, cur=1;
+/* formas M3 (galleta de 9 y 12 lóbulos) dibujadas cada fotograma */
+const shapes=[];
+function cookie(C,R,n,amp,rot){let d='';for(let i=0;i<=240;i++){const t=i/240*Math.PI*2,r=R*(1+amp*Math.cos(n*(t+rot)));d+=(i?'L':'M')+(C+r*Math.cos(t)).toFixed(2)+' '+(C+r*Math.sin(t)).toFixed(2)}return d+'Z'}
+shapes.push({el:null,id:'tpath',C:280,R:230,n:9,amp:t=>.055+.025*Math.sin(t/900),rot:t=>t/9000});
+shapes.push({el:null,id:'tpath2',C:410,R:370,n:12,amp:t=>.03+.015*Math.sin(t/1300),rot:t=>-t/16000});
+shapes.push({el:null,id:'bpath',C:66,R:58,n:9,amp:t=>.07+.02*Math.sin(t/800),rot:t=>t/7000});
+(function loop(t){for(const s of shapes){s.el=s.el||document.getElementById(s.id);s.el.setAttribute('d',cookie(s.C,s.R,s.n,s.amp(t),s.rot(t)))}requestAnimationFrame(loop)})(0);
+const sleep=(ms,id)=>new Promise((res,rej)=>setTimeout(()=>id===run?res():rej('x'),ms));
+function A(el,kf,o){const a=el.animate(kf,Object.assign({fill:'forwards'},o));return a.finished.then(()=>{try{a.commitStyles()}catch(e){}a.cancel()}).catch(()=>{})}
+function S(el,css){Object.assign(el.style,css)}
+
+const W={lectio:$('#wLectio'),brave:$('#wBrave'),disc:$('#wDiscord')};
+const TILE={lectio:{left:'48px',top:'8px',width:'578px',height:'614px',borderRadius:'14px'},brave:{left:'634px',top:'8px',width:'478px',height:'303px'},disc:{left:'634px',top:'319px',width:'478px',height:'303px'}};
+const FULL={left:'0px',top:'0px',width:'1120px',height:'630px',borderRadius:'0px'};
+const PILL={top:'10px',width:'168px',height:'34px',borderRadius:'17px'};
+
+function desk(mode){
+  S(W.lectio,mode==='study'?FULL:TILE.lectio); S(W.lectio,{filter:'none'});
+  for(const k of ['brave','disc']) S(W[k],Object.assign({},TILE[k],{opacity:mode==='study'?0:1,transform:'none',filter:'none'}));
+  S($('#bar'),{transform:mode==='study'?'translateX(-110%)':'none'});
+  S($('#rim'),{opacity:mode==='study'?.6:0});
+}
+function reset(){
+  document.getAnimations().forEach(a=>a.cancel());
+  const sh=$('#sheet'),p=$('#pill');
+  S(sh,{height:'0px',width:'520px',top:'0px',opacity:0,borderRadius:'0 0 28px 28px'});sh.dataset.view='setup';
+  S(p,Object.assign({opacity:0,background:'',boxShadow:''},PILL,{transform:'translateX(-50%)'}));p.dataset.view='compact';p.classList.remove('paused');
+  S($('#veil'),{opacity:0});S($('#sweep'),{opacity:0});S($('#keys'),{opacity:0});
+  S($('#takeover'),{opacity:0,clipPath:'inset(0px 0px 630px 0px round 0px)'});S($('#psweep'),{opacity:0});S($('#bglow'),{opacity:0});S($('#blocked'),{transform:'translateX(100%)'});
+  document.querySelectorAll('.bcard>*,.ss,.rr,.bcard .chip,#tt,#ts,.tchip,#bico,.bp').forEach(e=>S(e,{opacity:'',transform:''}));
+  setBlocks(0,.35);$('#holdFill').style.transform='scaleX(0)';
+  $('#tmC').classList.remove('show');$('#tmK').classList.remove('show');
+  $('#brT').textContent='Descanso';$('#brP').textContent='Bloque 1 hecho. Levántate, estira, bebe agua.';$('#brBtn').textContent='Saltar descanso';
+  $('#phase').textContent='Foco';
+}
+function setBlocks(done,p){[...$('#blocks').children].forEach((i,k)=>{i.className=k<done?'done':k===done?'now':'';if(k===done)i.style.setProperty('--p',p)})}
+function morph(el,to,dur,ease){const cs=getComputedStyle(el);const from={};for(const k in to)from[k]=cs[k];return A(el,[from,to],{duration:dur,easing:ease})}
+function stagger(sel,delay0,step,id){document.querySelectorAll(sel).forEach((e,i)=>A(e,[{opacity:0,transform:'translateY(12px)'},{opacity:1,transform:'none'}],{duration:520,delay:delay0+i*step,easing:DEC}))}
+function sweep(){const s=$('#sweep');A(s,[{opacity:0,'--a':'0deg'},{opacity:1,offset:.15},{opacity:1,offset:.75},{opacity:0,'--a':'360deg'}],{duration:1700,easing:'cubic-bezier(.4,0,.2,1)'})}
+function showSheet(view,h){const sh=$('#sheet');sh.dataset.view=view;S(sh,{opacity:1});return morph(sh,{height:h+'px'},650,SOFT)}
+
+/* ---------- escenas ---------- */
+const SC=[
+ {t:'Activar',cap:'1 · Activar',
+  l:['Un atajo te lleva al panel. También se abre con <code>wysun study</code> o desde un botón de los ajustes rápidos.'],
+  h:'Atajo provisional: lo elegimos al final para que no choque con los que ya tienes.',
+  m:['Las teclas se hunden al pulsarlas: confirman que el atajo ha llegado.','El panel <b>baja desde el borde superior</b> con un muelle suave, igual que los demás paneles del shell. Las ventanas de detrás se oscurecen un poco.'],
+  async run(id){desk('normal');await sleep(500,id);A($('#keys'),[{opacity:0,transform:'translate(-50%,16px)'},{opacity:1,transform:'translate(-50%,0)'}],{duration:400,easing:DEC});
+   await sleep(650,id);$('#k1').classList.add('dn');await sleep(180,id);$('#k2').classList.add('dn');await sleep(380,id);$('#k1').classList.remove('dn');$('#k2').classList.remove('dn');
+   await sleep(120,id);A($('#keys'),[{opacity:1},{opacity:0,transform:'translate(-50%,10px)'}],{duration:260,easing:ACC});
+   A($('#veil'),[{opacity:0},{opacity:.35}],{duration:500,easing:STD});await showSheet('setup',440);if(auto){await sleep(900,id);go(2)}}},
+ {t:'Preparar',cap:'2 · Preparar la sesión',
+  l:['Sin preguntas de más: entras y eliges solo cuánto y cómo.','<b>Duración</b> de la sesión y <b>ritmo</b> de foco y descanso. Se recuerda lo último que usaste.','<b>Permitido</b>: Lectio y tus webs de estudio. Todo lo demás queda bloqueado. Puedes añadir o quitar.','<b>Ocultar el tiempo</b> viene activado de serie.'],
+  h:'Toca los chips y el interruptor. «Empezar» lanza la entrada.',
+  m:['Los chips cambian de forma al elegirlos: se redondean más y se rellenan.','El interruptor se desliza con un muelle.'],
+  async run(id){desk('normal');S($('#veil'),{opacity:.35});const sh=$('#sheet');sh.dataset.view='setup';S(sh,{opacity:1,height:'440px'});if(auto){await sleep(2600,id);go(3)}}},
+ {t:'Entrar',cap:'3 · La entrada',
+  l:['<b>El panel se abre hasta ocupar toda la pantalla</b>. Es el mismo panel creciendo, sin cortes.','<b>Pantalla completa</b> con el color de tu wallpaper: «Modo estudio», el ritmo y lo permitido. Detrás gira despacio una forma Material.','Mientras está cubierta, <b>se despeja la mesa</b>: las ventanas no permitidas se van, la barra se retira y Lectio pasa a pantalla completa.','<b>La pantalla se recoge en la píldora</b> de arriba y deja ver Lectio. La luz recorre todo el borde y se queda un halo tenue.'],
+  h:'Dura unos 3 s.',
+  m:['El panel crece con un muelle suave y sus esquinas se aplanan hasta llenar la pantalla.','«Modo estudio» se escribe pasando de trazo fino a normal (la fuente Google Sans Flex lo permite). Los chips aparecen uno tras otro.','Al recogerse, la pantalla entera se contrae justo hasta la píldora. Lectio se asienta con un ligero zoom hacia atrás, para dar sensación de llegada.'],
+  async run(id){desk('normal');S($('#veil'),{opacity:.35});const sh=$('#sheet'),tk=$('#takeover'),p=$('#pill');sh.dataset.view='setup';S(sh,{opacity:1,height:'440px'});
+   S(tk,{clipPath:'inset(0px 300px 190px 300px round 0px 0px 28px 28px)',opacity:0});S($('#tt'),{opacity:0});S($('#ts'),{opacity:0});document.querySelectorAll('.tchip').forEach(e=>S(e,{opacity:0}));
+   await sleep(500,id);const b=$('#startBtn');A(b,[{transform:'scale(1)',borderRadius:'999px'},{transform:'scale(.94)',borderRadius:'16px'},{transform:'scale(1)',borderRadius:'999px'}],{duration:320,easing:STD});
+   await sleep(180,id);sh.dataset.view='none';
+   A(tk,[{opacity:0},{opacity:1}],{duration:260,easing:STD});
+   A(tk,[{clipPath:'inset(0px 300px 190px 300px round 0px 0px 28px 28px)'},{clipPath:'inset(0px 0px 0px 0px round 0px 0px 0px 0px)'}],{duration:820,easing:SOFT});
+   A($('#tt'),[{opacity:0,fontVariationSettings:"'wght' 120",letterSpacing:'14px',transform:'translateY(18px)'},{opacity:1,fontVariationSettings:"'wght' 520",letterSpacing:'-.5px',transform:'none'}],{duration:1100,delay:260,easing:DEC});
+   A($('#ts'),[{opacity:0,transform:'translateY(10px)'},{opacity:.75,transform:'none'}],{duration:600,delay:620,easing:DEC});
+   document.querySelectorAll('.tchip').forEach((e,i)=>A(e,[{opacity:0,transform:'scale(.7)'},{opacity:1,transform:'scale(1)'}],{duration:620,delay:780+i*70,easing:SPRING}));
+   A(document.querySelector('#takeover .big'),[{transform:'scale(.35) rotate(-40deg)',opacity:0},{transform:'scale(1) rotate(0)',opacity:1}],{duration:1300,delay:120,easing:SOFT});
+   A(document.querySelector('#takeover .big2'),[{transform:'scale(.6)',opacity:0},{transform:'scale(1)',opacity:1}],{duration:1500,delay:200,easing:DEC});
+   await sleep(700,id);desk('study');S(sh,{opacity:0,height:'0px'});S($('#veil'),{opacity:0});S($('#rim'),{opacity:0});
+   await sleep(1500,id);
+   A($('#tt'),[{opacity:1,transform:'none'},{opacity:0,transform:'translateY(-14px) scale(.96)'}],{duration:260,easing:ACC});
+   A($('#ts'),[{opacity:.75},{opacity:0}],{duration:200,easing:ACC});
+   document.querySelectorAll('.tchip').forEach(e=>A(e,[{opacity:1},{opacity:0}],{duration:200,easing:ACC}));
+   await sleep(120,id);
+   A(W.lectio,[{transform:'scale(1.045)'},{transform:'scale(1)'}],{duration:1000,easing:DEC});
+   await A(tk,[{clipPath:'inset(0px 0px 0px 0px round 0px 0px 0px 0px)'},{clipPath:'inset(10px 476px 586px 476px round 17px 17px 17px 17px)'}],{duration:760,easing:SPRING});
+   S(p,{opacity:1});A(tk,[{opacity:1},{opacity:0}],{duration:160,easing:STD});
+   sweep();A($('#rim'),[{opacity:0},{opacity:.6}],{duration:1200,delay:500,easing:STD});
+   if(auto){await sleep(2400,id);go(4)}}},
+ {t:'Estudiando',cap:'4 · Durante el foco',
+  l:['La píldora muestra la <b>fase</b> y los <b>bloques</b> de la sesión: los hechos, el actual llenándose y los que faltan. Ningún reloj.','Al pasar el ratón <b>se despliega</b> con los controles: pausa, saltar al descanso y terminar.','El ojo muestra el tiempo que queda solo mientras lo tienes activado.','Los atajos hacen lo mismo sin tocar el ratón.'],
+  h:'Pasa el ratón por la píldora y prueba los botones.',
+  m:['El punto respira muy despacio, una vez cada 5 s: indica que el foco sigue en marcha sin llamar la atención.','Al desplegarse, la píldora crece como una tarjeta con un muelle. Al soltar el ratón se recoge.','En pausa, el punto deja de respirar y se apaga.'],
+  async run(id){desk('study');const p=$('#pill');S(p,{opacity:1});setBlocks(1,.4);
+   await sleep(900,id);if(!hover)expand();await sleep(2600,id);if(!hover)collapse();if(auto){await sleep(1400,id);go(5)}}},
+ {t:'Distracción',cap:'5 · Si algo intenta distraerte',
+  l:['<b>App no permitida</b> (Discord): no llega a abrirse. La píldora se alarga, la luz le da una vuelta y te dice que esperará al final.','<b>Web no permitida</b> (YouTube en Brave): en lugar de la página aparece «Esto puede esperar» con tus webs permitidas y un botón para volver a Lectio.','Cada intento suma en «distracciones frenadas» del resumen.'],
+  h:'Cómo bloquear las webs de verdad (políticas del navegador, permisos) se decide aparte.',
+  m:['Nada salta ni tiembla: la píldora crece con un muelle y la misma luz del borde de la entrada <b>recorre su contorno</b>.','En la página de bloqueo, la forma Material crece girando y el candado aparece dentro. El título pasa de trazo fino a normal, y los chips y el botón llegan en cascada.','La forma sigue respirando despacio mientras estás en esa página.'],
+  async run(id){desk('study');const p=$('#pill');S(p,{opacity:1});setBlocks(1,.55);
+   await sleep(800,id);p.dataset.view='msg';morph(p,{width:'320px'},620,SPRING);
+   A($('#psweep'),[{opacity:0,'--a':'0deg'},{opacity:1,offset:.2},{opacity:1,offset:.8},{opacity:0,'--a':'360deg'}],{duration:1400,delay:120,easing:'cubic-bezier(.4,0,.2,1)'});
+   A(document.querySelector('.pv-msg .mi'),[{transform:'scale(.4) rotate(-30deg)',opacity:0},{transform:'none',opacity:1}],{duration:600,delay:140,easing:SPRING});
+   await sleep(2600,id);p.dataset.view='compact';morph(p,{width:'168px'},520,SPRING);
+   await sleep(1000,id);blockedIn(id);if(auto){await sleep(3800,id);back()}}},
+ {t:'Descanso',cap:'6 · Fin del bloque y descanso',
+  l:['Al acabar el bloque suena un <b>sonido suave</b>; lo oyes aunque estés mirando el papel. La píldora brilla dos veces.','Se abre la tarjeta de <b>descanso</b> en otro color, con una sugerencia sencilla. Una barra se vacía poco a poco, sin números.','Al terminar el descanso no arranca sola: tú decides cuándo empezar el siguiente bloque.','Durante el descanso <b>el bloqueo sigue</b>.'],
+  h:'Las dos últimas son propuestas mías.',
+  m:['El bloque actual se termina de llenar antes del sonido, para que veas el cierre.','La píldora pasa al color terciario mientras se despliega, y Lectio se atenúa un poco para invitarte a apartar la vista.','Al volver, la tarjeta se recoge y el halo da otra vuelta, más corta.'],
+  async run(id){desk('study');const p=$('#pill');S(p,{opacity:1});setBlocks(0,.85);
+   await sleep(500,id);setBlocks(0,1);await sleep(700,id);setBlocks(1,0);p.dataset.view='chime';
+   A(p,[{boxShadow:'0 8px 28px #0008, 0 0 0 0 #ffdefb00'},{boxShadow:'0 8px 28px #0008, 0 0 0 8px #ffdefb55',offset:.25},{boxShadow:'0 8px 28px #0008, 0 0 0 0 #ffdefb00',offset:.5},{boxShadow:'0 8px 28px #0008, 0 0 0 8px #ffdefb55',offset:.75},{boxShadow:'0 8px 28px #0008, 0 0 0 0 #ffdefb00'}],{duration:1500,easing:'ease-in-out'});
+   await sleep(1600,id);A($('#veil'),[{opacity:0},{opacity:.45}],{duration:700,easing:STD});A(W.lectio,[{filter:'blur(0px)'},{filter:'blur(4px)'}],{duration:700,easing:STD});
+   p.dataset.view='break';A(p,[{background:'color-mix(in srgb,#201f26 86%,transparent)'},{background:'#f8ccf6'}],{duration:500,easing:STD});
+   morph(p,{width:'360px',height:'176px',borderRadius:'28px'},650,SPRING);
+   const dr=$('#drain');A(dr,[{transform:'scaleX(1)',transformOrigin:'left'},{transform:'scaleX(0)',transformOrigin:'left'}],{duration:6000,delay:600,easing:'linear'});
+   await sleep(6700,id);$('#brT').textContent='¿Seguimos?';$('#brP').textContent='Descanso terminado. Cuando quieras, empieza el bloque 2.';$('#brBtn').textContent='Empezar bloque 2';
+   breakDone=true;if(auto){await sleep(1500,id);endBreak()}}},
+ {t:'Salir antes',cap:'7 · Salir antes de tiempo',
+  l:['Desde la píldora, «Terminar» no corta en seco: pregunta y te recuerda cuánto llevas.','Para salir hay que <b>mantener pulsado</b> unos segundos. Así un impulso no te saca, y salir sigue siendo posible.','«Seguir» cierra la pregunta y vuelves al foco.'],
+  h:'Esto es una propuesta: falta decidir lo estricto que quieres que sea.',
+  m:['El botón se llena de izquierda a derecha mientras lo mantienes pulsado. Si lo sueltas, se vacía.','La tarjeta crece un poco más que la de controles para que la pregunta respire.'],
+  async run(id){desk('study');const p=$('#pill');S(p,{opacity:1});setBlocks(2,.2);
+   await sleep(500,id);p.dataset.view='card';await morph(p,{width:'320px',height:'150px',borderRadius:'24px'},520,SPRING);
+   await sleep(700,id);A($('#stopBtn'),[{borderRadius:'999px'},{borderRadius:'12px'},{borderRadius:'999px'}],{duration:300});
+   await sleep(250,id);p.dataset.view='exit';morph(p,{width:'340px',height:'150px'},500,SPRING);
+   if(auto){await sleep(1200,id);holdStart()}}},
+ {t:'Resumen',cap:'8 · Final y resumen',
+  l:['La píldora <b>baja y se abre</b> en el resumen: bloques completados, tiempo estudiado y distracciones frenadas.','Una tira con <b>tu semana</b> para ver la constancia, sin rachas que agobien.','El escritorio vuelve tal como lo dejaste: la barra, las ventanas y las apps que se bloquearon.'],
+  h:'Aquí el tiempo sí aparece, porque ya es pasado: suma, no cuenta atrás.',
+  m:['Es la entrada al revés: la píldora vuelve a ser panel y las ventanas regresan desde abajo, una tras otra.','La barra lateral entra con un muelle y el halo del borde se apaga.','«Cerrar» devuelve el panel al borde superior.'],
+  async run(id){desk('study');const p=$('#pill'),sh=$('#sheet');S(p,{opacity:1});setBlocks(4,0);
+   await sleep(500,id);p.dataset.view='none';
+   S(sh,Object.assign({opacity:1},PILL));sh.dataset.view='none';S(p,{opacity:0});
+   morph(sh,{top:'0px',width:'520px',height:'404px',borderRadius:'0 0 28px 28px'},760,SPRING);
+   setTimeout(()=>{if(id===run)sh.dataset.view='summary'},250);stagger('.ss',300,80,id);
+   A($('#rim'),[{opacity:.6},{opacity:0}],{duration:500,easing:STD});
+   morph(W.lectio,TILE.lectio,820,SOFT);
+   A($('#bar'),[{transform:'translateX(-110%)'},{transform:'none'}],{duration:620,delay:200,easing:SPRING});
+   ['brave','disc'].forEach((k,i)=>A(W[k],[{opacity:0,transform:'scale(.92) translateY(30px)',filter:'blur(8px)'},{opacity:1,transform:'none',filter:'blur(0)'}],{duration:560,delay:280+i*90,easing:DEC}));
+   A($('#veil'),[{opacity:0},{opacity:.35}],{duration:600,easing:STD});
+   if(auto){await sleep(3200,id);closeSheet();auto=false;syncNav()}}}
+];
+
+/* ---------- interacción ---------- */
+let hover=false, breakDone=false;
+const pill=$('#pill');
+function expand(){if(pill.dataset.view!=='compact'||cur!==4)return;pill.dataset.view='card';morph(pill,{width:'320px',height:'150px',borderRadius:'24px'},520,SPRING)}
+function collapse(){if(pill.dataset.view!=='card'||cur!==4)return;pill.dataset.view='compact';morph(pill,{width:'168px',height:'34px',borderRadius:'17px'},440,SPRING)}
+pill.addEventListener('mouseenter',()=>{hover=true;expand()});pill.addEventListener('mouseleave',()=>{hover=false;collapse()});
+$('#eyeBtn').onclick=()=>{$('#tmC').classList.toggle('show');$('#tmK').classList.toggle('show')};
+$('#pauseBtn').onclick=()=>{const ps=pill.classList.toggle('paused');$('#cardPhase').textContent=ps?'En pausa':'Foco';$('#phase').textContent=ps?'Pausa':'Foco';$('#pauseBtn').innerHTML=`<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="${ps?I.play:I.pause}"/></svg>`};
+$('#skipBtn').onclick=()=>go(6);
+$('#stopBtn').onclick=()=>{if(cur===4){cur=7;syncNav();pill.dataset.view='exit';morph(pill,{width:'340px',height:'150px'},500,SPRING)}};
+$('#startBtn').onclick=()=>{if(cur===2)go(3)};
+$('#backBtn').onclick=back;
+function blockedIn(id){const bl=$('#blocked');
+  ['#bshape','#bico','.bcard h3','.bp','.bcard .chip','#backBtn'].forEach(q=>document.querySelectorAll(q).forEach(e=>S(e,{opacity:0})));
+  document.querySelectorAll('.bcard>*').forEach(e=>S(e,{opacity:1}));
+  ['#bshape','#bico','.bcard h3','.bp','#backBtn'].forEach(q=>S(document.querySelector(q),{opacity:0}));document.querySelectorAll('.bcard .chip').forEach(e=>S(e,{opacity:0}));
+  A(bl,[{transform:'translateX(6%)',opacity:0},{transform:'none',opacity:1}],{duration:420,easing:DEC});
+  A($('#bglow'),[{opacity:0,transform:'scale(.6)'},{opacity:1,transform:'scale(1)'}],{duration:1400,delay:150,easing:DEC});
+  A($('#bshape'),[{opacity:0,transform:'scale(.2) rotate(-120deg)'},{opacity:1,transform:'scale(1) rotate(0)'}],{duration:1000,delay:220,easing:SPRING});
+  A($('#bico'),[{opacity:0,transform:'scale(.3) translateY(6px)'},{opacity:1,transform:'none'}],{duration:640,delay:520,easing:SPRING});
+  A(document.querySelector('.bcard h3'),[{opacity:0,fontVariationSettings:"'wght' 120",letterSpacing:'8px'},{opacity:1,fontVariationSettings:"'wght' 520",letterSpacing:'0px'}],{duration:900,delay:480,easing:DEC});
+  A($('.bp'),[{opacity:0,transform:'translateY(10px)'},{opacity:1,transform:'none'}],{duration:600,delay:700,easing:DEC});
+  document.querySelectorAll('.bcard .chip').forEach((e,i)=>A(e,[{opacity:0,transform:'scale(.7)'},{opacity:1,transform:'scale(1)'}],{duration:560,delay:860+i*80,easing:SPRING}));
+  A($('#backBtn'),[{opacity:0,transform:'scale(.85)',borderRadius:'12px'},{opacity:1,transform:'scale(1)',borderRadius:'999px'}],{duration:700,delay:1120,easing:SPRING});
+}
+function back(){A($('#blocked'),[{transform:'none',opacity:1},{transform:'translateX(6%)',opacity:0}],{duration:320,easing:ACC}).then(()=>S($('#blocked'),{transform:'translateX(100%)',opacity:1}));if(auto)setTimeout(()=>go(6),900)}
+$('#brBtn').onclick=()=>{breakDone?endBreak():(breakDone=true,endBreak())};
+function endBreak(){const id=run;breakDone=false;A($('#veil'),[{opacity:.45},{opacity:0}],{duration:600,easing:DEC});A(W.lectio,[{filter:'blur(4px)'},{filter:'blur(0px)'}],{duration:600,easing:DEC});
+  pill.dataset.view='compact';A(pill,[{background:'#f8ccf6'},{background:'color-mix(in srgb,#201f26 86%,transparent)'}],{duration:400,easing:STD});
+  morph(pill,{width:'168px',height:'34px',borderRadius:'17px'},520,SPRING).then(()=>{if(id===run){S(pill,{background:''});sweep()}});
+  if(auto)setTimeout(()=>{if(id===run)go(7)},2200)}
+let holdAnim=null;
+function holdStart(){holdAnim=$('#holdFill').animate([{transform:'scaleX(0)'},{transform:'scaleX(1)'}],{duration:2200,easing:'linear',fill:'forwards'});holdAnim.onfinish=()=>{holdAnim=null;go(8)}}
+function holdEnd(){if(!holdAnim)return;holdAnim.pause();const f=holdAnim;f.playbackRate=-3;f.play();f.onfinish=null;holdAnim=null}
+$('#holdBtn').addEventListener('pointerdown',holdStart);$('#holdBtn').addEventListener('pointerup',holdEnd);$('#holdBtn').addEventListener('pointerleave',holdEnd);
+$('#keepBtn').onclick=()=>{pill.dataset.view='compact';morph(pill,{width:'168px',height:'34px',borderRadius:'17px'},440,SPRING);cur=4;syncNav()};
+function closeSheet(){const sh=$('#sheet');sh.dataset.view='none';A(sh,[{height:getComputedStyle(sh).height},{height:'0px'}],{duration:380,easing:ACC});A($('#veil'),[{opacity:.35},{opacity:0}],{duration:400,easing:STD})}
+$('#closeBtn').onclick=closeSheet;
+document.querySelectorAll('[data-group]').forEach(g=>[...g.children].forEach(c=>c.onclick=()=>{[...g.children].forEach(x=>x.classList.remove('sel'));c.classList.add('sel')}));
+document.querySelectorAll('.sv-setup .chips:not([data-group]) .chip').forEach(c=>c.onclick=()=>c.classList.toggle('sel'));
+$('#swTime').onclick=e=>e.currentTarget.classList.toggle('off');
+
+/* navegación */
+const nav=$('#nav');
+SC.forEach((s,i)=>{const b=document.createElement('button');b.innerHTML=`<span class="n">${i+1}</span>${s.t}`;b.onclick=()=>{auto=false;go(i+1)};nav.appendChild(b)});
+const pb=document.createElement('button');pb.className='play';pb.textContent='▶ Reproducir todo';pb.onclick=()=>{auto=true;go(1)};nav.appendChild(pb);
+function syncNav(){[...nav.children].forEach((b,i)=>b.classList.toggle('on',i===cur-1));const s=SC[cur-1];$('#capT').textContent=s.cap;$('#capL').innerHTML=s.l.map(x=>`<li>${x}</li>`).join('');$('#capM').innerHTML=s.m.map(x=>`<li>${x}</li>`).join('');$('#capH').textContent=s.h||''}
+function go(n){cur=n;const id=++run;reset();syncNav();breakDone=false;SC[n-1].run(id).catch(()=>{})}
+go(+(location.hash.match(/s=(\d)/)||[0,1])[1]);
+</script>
+</body>
+</html>

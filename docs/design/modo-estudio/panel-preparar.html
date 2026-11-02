@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Panel de preparación · dos propuestas</title>
+<style>
+:root{
+  --primary:#c6c2ee; --onPrimary:#3e3c60; --primaryContainer:#514e74; --onPrimaryContainer:#e4e0ff;
+  --secondaryContainer:#3b394d; --onSecondaryContainer:#e3dff8; --secondary:#c7c4dc;
+  --surface:#0e0e12; --sc:#1a191f; --sch:#201f26; --schh:#26252e; --scl:#141318;
+  --onSurface:#e8e4f0; --onSurfaceVariant:#aca9b5; --outline:#76747f; --outlineVariant:#484750;
+  --std:cubic-bezier(.2,0,0,1);
+  --spring:linear(0,.009,.035 2.1%,.141 4.4%,.281 6.7%,.723 12.9%,.938 16.7%,1.017 19.4%,1.077 22%,1.121 24.9%,1.137 27.3%,1.13 30%,1.093 34.6%,1.03 41.8%,1.003 46.4%,.989 51.4%,.987 55.4%,.999 69.9%,1.002 79%,1);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--surface);color:var(--onSurface);font-family:"Google Sans Flex","Google Sans",system-ui,sans-serif}
+.wrap{max-width:1240px;margin:0 auto;padding:26px 24px 60px}
+h1{font-size:26px;font-weight:500;margin:0 0 4px}
+.sub{color:var(--onSurfaceVariant);font-size:14px;margin:0 0 22px;line-height:1.5}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+.opt{border-radius:24px;padding:16px;background:var(--scl);cursor:pointer;border:2px solid transparent;transition:border-color .25s var(--std)}
+.opt.selected{border-color:var(--primary)}
+.opt>h3{font-size:16px;font-weight:500;margin:14px 6px 4px}
+.opt>p{margin:0 6px;color:var(--onSurfaceVariant);font-size:13px;line-height:1.5}
+.scene{position:relative;height:660px;border-radius:16px;overflow:hidden;background:
+  radial-gradient(60% 80% at 75% 20%,#4b4570 0,transparent 60%),radial-gradient(50% 70% at 20% 85%,#6a4a6c 0,transparent 60%),linear-gradient(160deg,#1c1a2a,#121118)}
+.scene::after{content:"";position:absolute;inset:0;background:#0a0a0e8c}
+.sheet{position:absolute;left:50%;top:0;transform:translateX(-50%);width:440px;z-index:2;background:var(--sc);border-radius:0 0 28px 28px;box-shadow:0 18px 50px #0009;padding:24px}
+
+/* tipografía M3 */
+.headline{font-size:24px;line-height:32px;font-weight:400;margin:0}
+.support{font-size:14px;line-height:20px;color:var(--onSurfaceVariant);margin:4px 0 0;transition:opacity .2s}
+.title-s{font-size:14px;line-height:20px;font-weight:500;color:var(--onSurface);margin:24px 0 8px}
+.label-row{display:flex;justify-content:space-between;align-items:baseline;margin:24px 0 8px}
+.label-row .title-s{margin:0}
+.value{font-size:14px;font-weight:500;color:var(--primary)}
+
+/* chips de filtro M3 */
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{height:32px;border-radius:8px;padding:0 16px;display:inline-flex;align-items:center;gap:8px;font-size:14px;font-weight:500;
+  color:var(--onSurfaceVariant);box-shadow:inset 0 0 0 1px var(--outlineVariant);cursor:pointer;transition:background .2s var(--std),padding .25s var(--std),box-shadow .2s}
+.chip svg{width:0;opacity:0;transition:width .25s var(--std),opacity .2s;flex:none}
+.chip.sel{background:var(--secondaryContainer);color:var(--onSecondaryContainer);box-shadow:none;padding-left:8px}
+.chip.sel svg{width:18px;opacity:1}
+.chip.add{padding-left:8px}.chip.add svg{width:18px;opacity:1}
+.chip:hover{background:color-mix(in srgb,var(--onSurface) 8%,transparent)}.chip.sel:hover{background:color-mix(in srgb,var(--secondaryContainer) 88%,var(--onSurface))}
+
+/* botones segmentados M3 */
+.segm{display:flex;height:40px;border-radius:20px;box-shadow:inset 0 0 0 1px var(--outline);overflow:hidden}
+.segm span{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;font-size:14px;font-weight:500;color:var(--onSurface);cursor:pointer;transition:background .2s var(--std)}
+.segm span+span{box-shadow:-1px 0 0 var(--outline)}
+.segm span svg{width:0;opacity:0;transition:width .25s var(--std),opacity .2s}
+.segm span.sel{background:var(--secondaryContainer);color:var(--onSecondaryContainer)}
+.segm span.sel svg{width:18px;opacity:1}
+
+/* grupo de botones conectados (M3 Expressive) */
+.bgroup{display:flex;gap:2px}
+.bgroup span{flex:1;height:48px;display:grid;place-items:center;font-size:14px;font-weight:500;background:var(--schh);color:var(--onSurface);cursor:pointer;border-radius:8px;
+  transition:border-radius .45s var(--spring),background .2s var(--std),color .2s,flex .45s var(--spring)}
+.bgroup span:first-child{border-radius:24px 8px 8px 24px}.bgroup span:last-child{border-radius:8px 24px 24px 8px}
+.bgroup span.sel{background:var(--primary);color:var(--onPrimary);border-radius:24px;flex:1.25}
+.bgroup span small{display:block;font-size:11px;font-weight:400;opacity:.75;margin-top:-2px}
+.bgroup span div{text-align:center;line-height:1.2}
+.bgroup span:active{border-radius:14px}
+
+/* slider M3 Expressive */
+.slider{position:relative;height:44px;cursor:pointer;touch-action:none}
+.slider .tr{position:absolute;top:14px;height:16px;border-radius:8px}
+.slider .act{left:0;background:var(--primary);border-radius:8px 2px 2px 8px}
+.slider .ina{right:0;background:var(--secondaryContainer);border-radius:2px 8px 8px 2px}
+.slider .hd{position:absolute;top:0;width:4px;height:44px;margin-left:-2px;border-radius:2px;background:var(--primary);transition:width .15s}
+.slider:active .hd{width:2px;margin-left:-1px}
+.slider .stops{position:absolute;top:20px;left:0;right:0;pointer-events:none}
+.slider .stops i{position:absolute;width:4px;height:4px;border-radius:50%;margin-left:-2px;background:var(--onSecondaryContainer)}
+.slider .stops i.on{background:var(--onPrimary)}
+.ticks{display:flex;justify-content:space-between;font-size:11px;color:var(--onSurfaceVariant);margin-top:2px;padding:0 2px}
+
+/* fila con interruptor M3 */
+.li{display:flex;align-items:center;gap:16px;margin-top:20px;padding:4px 0}
+.li .tx{flex:1}.li .tx b{display:block;font-size:16px;line-height:24px;font-weight:400}.li .tx span{font-size:14px;line-height:20px;color:var(--onSurfaceVariant)}
+.sw{width:52px;height:32px;border-radius:16px;position:relative;cursor:pointer;flex:none;background:var(--primary);transition:background .2s var(--std),box-shadow .2s}
+.sw .th{position:absolute;top:4px;left:24px;width:24px;height:24px;border-radius:50%;background:var(--onPrimary);display:grid;place-items:center;color:var(--primary);
+  transition:left .35s var(--spring),width .2s,height .2s,top .2s,background .2s}
+.sw .th svg{width:16px;transition:opacity .15s}
+.sw.off{background:var(--schh);box-shadow:inset 0 0 0 2px var(--outline)}
+.sw.off .th{left:8px;top:8px;width:16px;height:16px;background:var(--outline)}.sw.off .th svg{opacity:0}
+
+.divider{height:1px;background:var(--outlineVariant);margin:20px 0 0}
+.actions{display:flex;justify-content:flex-end;gap:8px;margin-top:20px}
+.btn{font:inherit;border:0;cursor:pointer;font-weight:500;font-size:14px;height:40px;padding:0 24px;border-radius:20px;background:var(--primary);color:var(--onPrimary);display:inline-flex;align-items:center;gap:8px;transition:border-radius .3s var(--spring)}
+.btn:active{border-radius:10px}
+.btn.text{background:transparent;color:var(--primary);padding:0 12px}
+.btn.xl{width:100%;height:56px;font-size:16px;border-radius:28px;justify-content:center;margin-top:24px}
+.btn.xl:active{border-radius:16px}
+.notes{margin-top:22px;background:var(--sc);border-radius:20px;padding:16px 20px;font-size:13.5px;color:var(--onSurfaceVariant);line-height:1.6}
+.notes b{color:var(--onSurface);font-weight:500}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Panel de preparación · dos propuestas</h1>
+  <p class="sub">Sin icono y siguiendo las bases de Material You: escala tipográfica M3, chips de filtro con marca de selección, interruptor con icono y retícula de 8 px.
+    Las dos son interactivas: el resumen bajo el título se actualiza al cambiar duración y ritmo. Haz clic en la que prefieras.</p>
+
+  <div class="grid">
+    <!-- A -->
+    <div class="opt" data-choice="m3-clasico" onclick="toggleSelect && toggleSelect(this)">
+      <div class="scene"><div class="sheet" id="A">
+        <h2 class="headline">Sesión de estudio</h2>
+        <p class="support" data-sum>4 bloques de 25 min · descanso largo a mitad</p>
+
+        <div class="title-s">Duración</div>
+        <div class="segm" data-g="dur"><span data-v="60">${C}1 h</span><span data-v="120" class="sel">${C}2 h</span><span data-v="180">${C}3 h</span><span data-v="0">${C}Libre</span></div>
+
+        <div class="title-s">Ritmo</div>
+        <div class="segm" data-g="rit"><span data-v="25" class="sel">${C}25 / 5</span><span data-v="50">${C}50 / 10</span><span data-v="90">${C}90 / 20</span></div>
+
+        <div class="title-s">Permitido</div>
+        <div class="chips"><span class="chip sel">${C}Lectio</span><span class="chip sel">${C}Wikipedia</span><span class="chip sel">${C}Google</span><span class="chip sel">${C}WolframAlpha</span><span class="chip add">${P}Añadir</span></div>
+
+        <div class="li"><div class="tx"><b>Ocultar el tiempo</b><span>Solo verás los minutos si los pides</span></div><div class="sw"><span class="th">${C}</span></div></div>
+
+        <div class="actions"><button class="btn text">Cancelar</button><button class="btn">Empezar</button></div>
+      </div></div>
+      <h3>A · Material You clásico</h3>
+      <p>Botones segmentados con marca de selección, chips de filtro y acciones abajo a la derecha, como en un diálogo M3. Sobrio y muy legible.</p>
+    </div>
+
+    <!-- B -->
+    <div class="opt" data-choice="m3-expresivo" onclick="toggleSelect && toggleSelect(this)">
+      <div class="scene"><div class="sheet" id="B">
+        <h2 class="headline">Sesión de estudio</h2>
+        <p class="support" data-sum>4 bloques de 25 min · descanso largo a mitad</p>
+
+        <div class="label-row"><div class="title-s">Duración</div><div class="value" id="bval">2 h</div></div>
+        <div class="slider" id="sl"><div class="tr act"></div><div class="tr ina"></div><div class="stops"></div><div class="hd"></div></div>
+        <div class="ticks"><span>30 min</span><span>2 h</span><span>4 h</span><span>Libre</span></div>
+
+        <div class="title-s">Ritmo</div>
+        <div class="bgroup" data-g="rit"><span data-v="25" class="sel"><div>25 / 5<small>clásico</small></div></span><span data-v="50"><div>50 / 10<small>largo</small></div></span><span data-v="90"><div>90 / 20<small>profundo</small></div></span></div>
+
+        <div class="title-s">Permitido</div>
+        <div class="chips"><span class="chip sel">${C}Lectio</span><span class="chip sel">${C}Wikipedia</span><span class="chip sel">${C}Google</span><span class="chip sel">${C}WolframAlpha</span><span class="chip add">${P}Añadir</span></div>
+
+        <div class="li"><div class="tx"><b>Ocultar el tiempo</b><span>Solo verás los minutos si los pides</span></div><div class="sw"><span class="th">${C}</span></div></div>
+
+        <button class="btn xl">Empezar</button>
+      </div></div>
+      <h3>B · Material 3 Expressive</h3>
+      <p>Deslizador grueso para la duración, grupo de botones conectados que cambian de forma al elegir y un botón grande para empezar. Más táctil y con más movimiento.</p>
+    </div>
+  </div>
+
+  <div class="notes"><b>En las dos:</b> los colores salen del wallpaper (aquí, el actual en oscuro), sin icono decorativo, la cabecera en el estilo <i>headline small</i> y la línea de resumen como texto de apoyo.
+    El panel baja desde el borde superior como los demás del shell. Al pulsar Empezar se lanza la entrada a pantalla completa de la maqueta anterior, que no cambia.</div>
+</div>
+
+<script>
+const CHECK='<svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>';
+const PLUS='<svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>';
+document.body.innerHTML=document.body.innerHTML.replaceAll('${C}',CHECK).replaceAll('${P}',PLUS);
+
+const state={A:{dur:120,rit:25},B:{dur:120,rit:25}};
+const BRK={25:5,50:10,90:20};
+function fmt(m){return m>=60?(m%60?Math.floor(m/60)+' h '+m%60:m/60+' h'):m+' min'}
+function summary(id){const s=state[id],el=document.querySelector('#'+id+' [data-sum]');
+  let t;if(!s.dur)t=`Bloques de ${s.rit} min hasta que pares`;else{const n=Math.max(1,Math.round(s.dur/(s.rit+BRK[s.rit])));t=`${n} ${n>1?'bloques':'bloque'} de ${s.rit} min`+(n>=4?' · descanso largo a mitad':'')}
+  el.animate([{opacity:.3},{opacity:1}],{duration:250});el.textContent=t}
+document.querySelectorAll('.sheet').forEach(sh=>{
+  sh.addEventListener('click',e=>e.stopPropagation());
+  sh.querySelectorAll('[data-g]').forEach(g=>[...g.children].forEach(c=>c.onclick=()=>{[...g.children].forEach(x=>x.classList.remove('sel'));c.classList.add('sel');state[sh.id][g.dataset.g]=+c.dataset.v;summary(sh.id)}));
+  sh.querySelectorAll('.chip:not(.add)').forEach(c=>c.onclick=()=>c.classList.toggle('sel'));
+  sh.querySelectorAll('.sw').forEach(s=>s.onclick=()=>s.classList.toggle('off'));
+});
+document.querySelectorAll('.opt').forEach(o=>o.addEventListener('click',()=>{document.querySelectorAll('.opt').forEach(x=>x.classList.toggle('selected',x===o))}));
+
+/* deslizador: 30 min a 4 h en pasos de 30, último paso = libre */
+const sl=document.getElementById('sl'),steps=[30,60,90,120,150,180,210,240,0];
+const stops=sl.querySelector('.stops');steps.forEach((_,i)=>{const d=document.createElement('i');d.style.left=(i/(steps.length-1)*100)+'%';stops.appendChild(d)});
+let idx=3;
+function drawSl(){const pct=idx/(steps.length-1)*100;const gap=6;
+  sl.querySelector('.act').style.width=`calc(${pct}% - ${gap}px)`;sl.querySelector('.ina').style.width=`calc(${100-pct}% - ${gap}px)`;
+  sl.querySelector('.hd').style.left=pct+'%';[...stops.children].forEach((d,i)=>{d.classList.toggle('on',i<idx);d.style.opacity=i===idx?0:1});
+  document.getElementById('bval').textContent=steps[idx]?fmt(steps[idx]):'Libre';state.B.dur=steps[idx];summary('B')}
+function pick(e){const r=sl.getBoundingClientRect();const n=Math.round(Math.min(1,Math.max(0,(e.clientX-r.left)/r.width))*(steps.length-1));if(n!==idx){idx=n;drawSl()}}
+sl.addEventListener('pointerdown',e=>{sl.setPointerCapture(e.pointerId);pick(e);sl.onpointermove=pick});
+sl.addEventListener('pointerup',()=>sl.onpointermove=null);
+drawSl();
+</script>
+</body>
+</html>

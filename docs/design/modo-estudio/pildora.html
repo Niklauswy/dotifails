@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>La píldora · opciones</title>
+<style>
+:root{
+  --primary:#c6c2ee; --onPrimary:#3e3c60; --primaryContainer:#514e74; --onPrimaryContainer:#e4e0ff;
+  --secondaryContainer:#3b394d; --onSecondaryContainer:#e3dff8;
+  --tertiary:#ffdefb; --tertiaryContainer:#f8ccf6; --onTertiaryContainer:#624163;
+  --surface:#0e0e12; --sc:#1a191f; --sch:#201f26; --schh:#26252e; --scl:#141318;
+  --onSurface:#e8e4f0; --onSurfaceVariant:#aca9b5; --outline:#76747f; --outlineVariant:#484750;
+  --std:cubic-bezier(.2,0,0,1);
+  --spring:linear(0,.009,.035 2.1%,.141 4.4%,.281 6.7%,.723 12.9%,.938 16.7%,1.017 19.4%,1.077 22%,1.121 24.9%,1.137 27.3%,1.13 30%,1.093 34.6%,1.03 41.8%,1.003 46.4%,.989 51.4%,.987 55.4%,.999 69.9%,1.002 79%,1);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--surface);color:var(--onSurface);font-family:"Google Sans Flex","Google Sans",system-ui,sans-serif}
+.wrap{max-width:1240px;margin:0 auto;padding:26px 24px 60px}
+h1{font-size:26px;font-weight:500;margin:0 0 4px}
+.sub{color:var(--onSurfaceVariant);font-size:14px;margin:0 0 20px;line-height:1.5}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.opt{border-radius:24px;padding:14px;background:var(--scl);cursor:pointer;border:2px solid transparent;transition:border-color .25s var(--std)}
+.opt.selected{border-color:var(--primary)}
+.opt h3{font-size:16px;font-weight:500;margin:14px 6px 4px;display:flex;gap:10px;align-items:center}
+.opt h3 .k{width:26px;height:26px;border-radius:9px;background:var(--secondaryContainer);display:grid;place-items:center;font-size:13px}
+.opt p{margin:0 6px;color:var(--onSurfaceVariant);font-size:13px;line-height:1.5}
+
+.mini{position:relative;aspect-ratio:16/9;border-radius:14px;overflow:hidden;background:#17161b}
+.mini .page{position:absolute;left:50%;transform:translateX(-50%);top:9%;width:44%;height:110%;background:#f3f0e8;border-radius:3px;padding:6%;box-shadow:0 10px 40px #0009}
+.page .t{height:9px;width:58%;background:#2b2730;border-radius:3px;margin-bottom:16px;opacity:.85}
+.page .l{height:5px;background:#8b8692;border-radius:3px;margin:8px 0;opacity:.55}
+.page .hl{background:#f0cf62;opacity:.9}
+.halo{position:absolute;inset:0;pointer-events:none;box-shadow:inset 0 0 0 1.5px #c6c2ee44,inset 0 0 60px #c6c2ee14}
+
+/* píldora base */
+.pill{position:absolute;left:50%;top:10px;transform:translateX(-50%);height:32px;border-radius:16px;display:flex;align-items:center;gap:9px;padding:0 14px;
+  background:color-mix(in srgb,var(--sch) 88%,transparent);backdrop-filter:blur(16px);box-shadow:0 8px 24px #0008,0 0 0 1px #ffffff14;font-size:12.5px;font-weight:500;white-space:nowrap;
+  transition:width .5s var(--spring),height .5s var(--spring),border-radius .5s var(--spring),padding .4s var(--std),background .4s}
+.pill .lbl{transition:color .4s}
+.pill .tm{max-width:0;overflow:hidden;opacity:0;color:var(--onSurfaceVariant);transition:max-width .4s var(--std),opacity .3s}
+.mini:hover .pill .tm{max-width:70px;opacity:1}
+.mini:hover .pill{padding:0 16px}
+.flash{animation:flash 1.4s var(--std)}
+@keyframes flash{0%{box-shadow:0 8px 24px #0008,0 0 0 0 #ffdefb00}25%{box-shadow:0 8px 24px #0008,0 0 0 7px #ffdefb55}50%{box-shadow:0 8px 24px #0008,0 0 0 0 #ffdefb00}75%{box-shadow:0 8px 24px #0008,0 0 0 7px #ffdefb55}100%{box-shadow:0 8px 24px #0008,0 0 0 0 #ffdefb00}}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--primary);animation:breathe 5s ease-in-out infinite;transition:background .4s}
+@keyframes breathe{0%,100%{transform:scale(.7);opacity:.55}50%{transform:scale(1.15);opacity:1}}
+
+/* A bloques */
+.blocks{display:flex;gap:4px;align-items:center}
+.blocks i{width:8px;height:8px;border-radius:4px;background:#ffffff26;position:relative;overflow:hidden;transition:width .5s var(--std),background .4s}
+.blocks i.done{background:var(--primary)}
+.blocks i.now{width:22px}
+.blocks i.now::after{content:"";position:absolute;inset:0;background:var(--c,var(--primary));transform-origin:left;transform:scaleX(var(--p,0));transition:transform 1s linear}
+
+/* B anillo ondulado, C onda: svg */
+svg.wring{width:22px;height:22px;flex:none}
+svg.wline{width:84px;height:14px;flex:none}
+
+/* D borde de luz */
+svg.edge{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.mini .ghost{opacity:0;transform:translateX(-50%) translateY(-8px) scale(.9);transition:opacity .3s var(--std),transform .45s var(--spring)}
+.mini:hover .ghost{opacity:1;transform:translateX(-50%)}
+.hot{position:absolute;left:30%;right:30%;top:0;height:30%}
+
+.notes{margin-top:20px;background:var(--sc);border-radius:20px;padding:16px 20px;font-size:13.5px;color:var(--onSurfaceVariant);line-height:1.6}
+.notes b{color:var(--onSurface);font-weight:500}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>¿Cómo se ve la píldora mientras estudias?</h1>
+  <p class="sub">Cuatro opciones sobre Lectio en pantalla completa, con el halo del borde. Para que veas cómo evolucionan, aquí un bloque de foco dura 20 s y el descanso 6 s.
+    En ninguna aparecen minutos: <b>pasa el ratón por encima</b> y salen solo si los pides. Al cambiar de fase hay destello y sonido. Haz clic en la que prefieras.</p>
+
+  <div class="grid">
+    <div class="opt" data-choice="bloques" onclick="toggleSelect(this)">
+      <div class="mini"><div class="page"><div class="t"></div><div class="l" style="width:92%"></div><div class="l hl" style="width:70%"></div><div class="l" style="width:88%"></div><div class="l" style="width:95%"></div><div class="l" style="width:60%"></div></div><div class="halo"></div>
+        <div class="pill fx"><span class="dot"></span><span class="blocks"><i></i><i></i><i></i><i></i></span><span class="lbl ph">Foco</span><span class="tm"></span></div></div>
+      <h3><span class="k">A</span>Bloques de la sesión</h3>
+      <p>Ves la sesión entera: bloques hechos, el actual llenándose y los que faltan. Da sensación de avance, no de cuenta atrás.</p>
+    </div>
+
+    <div class="opt" data-choice="anillo-ondulado" onclick="toggleSelect(this)">
+      <div class="mini"><div class="page"><div class="t"></div><div class="l" style="width:92%"></div><div class="l hl" style="width:70%"></div><div class="l" style="width:88%"></div><div class="l" style="width:95%"></div><div class="l" style="width:60%"></div></div><div class="halo"></div>
+        <div class="pill fx"><svg class="wring" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="#ffffff1f" stroke-width="2.4"/><path class="wr" fill="none" stroke="var(--primary)" stroke-width="2.4" stroke-linecap="round"/></svg><span class="lbl ph">Foco</span><span class="lbl bk" style="color:var(--onSurfaceVariant);font-weight:400"></span><span class="tm"></span></div></div>
+      <h3><span class="k">B</span>Anillo ondulado</h3>
+      <p>El indicador circular ondulado de Material 3 Expressive. Se llena con el bloque y su onda se mueve despacio, así que se nota vivo sin números. Al lado, en qué bloque vas («1 de 4»).</p>
+    </div>
+
+    <div class="opt" data-choice="onda" onclick="toggleSelect(this)">
+      <div class="mini"><div class="page"><div class="t"></div><div class="l" style="width:92%"></div><div class="l hl" style="width:70%"></div><div class="l" style="width:88%"></div><div class="l" style="width:95%"></div><div class="l" style="width:60%"></div></div><div class="halo"></div>
+        <div class="pill fx"><span class="lbl ph">Foco</span><svg class="wline" viewBox="0 0 84 14"><path class="wl" fill="none" stroke="var(--primary)" stroke-width="3" stroke-linecap="round"/><path class="wt" fill="none" stroke="#ffffff1f" stroke-width="3" stroke-linecap="round"/></svg><span class="tm"></span></div></div>
+      <h3><span class="k">C</span>Onda lineal</h3>
+      <p>Una línea ondulada que avanza de izquierda a derecha durante el bloque, como el indicador lineal de Material Expressive. En el descanso la onda se calma y cambia de color.</p>
+    </div>
+
+    <div class="opt" data-choice="borde-luz" onclick="toggleSelect(this)">
+      <div class="mini"><div class="page"><div class="t"></div><div class="l" style="width:92%"></div><div class="l hl" style="width:70%"></div><div class="l" style="width:88%"></div><div class="l" style="width:95%"></div><div class="l" style="width:60%"></div></div>
+        <svg class="edge" preserveAspectRatio="none"><defs><filter id="gl" x="-5%" y="-5%" width="110%" height="110%"><feGaussianBlur stdDeviation="3"/></filter></defs>
+          <path class="eg" fill="none" stroke="var(--primary)" stroke-width="6" filter="url(#gl)" opacity=".7"/><path class="eg" fill="none" stroke="var(--primary)" stroke-width="2"/></svg>
+        <div class="hot"></div>
+        <div class="pill ghost fx"><span class="dot"></span><span class="lbl ph">Foco</span><span class="lbl bk" style="color:var(--onSurfaceVariant);font-weight:400"></span><span class="tm"></span></div></div>
+      <h3><span class="k">D</span>Borde de luz, sin píldora</h3>
+      <p>La línea de luz de la entrada se queda: <b>recorre el borde de la pantalla</b> a lo largo del bloque, empezando arriba en el centro. Nada encima de Lectio. La píldora aparece solo al acercar el ratón arriba.</p>
+    </div>
+  </div>
+
+  <div class="notes"><b>En todas:</b> al pasar el ratón la píldora se despliega con pausa, saltar y terminar (lo viste en la escena 4). En el descanso se pasa al color terciario.
+    El punto, o la onda, se mueve muy despacio para indicar que el foco sigue sin llamar la atención.</div>
+</div>
+
+<script>
+const FOCUS=20,BREAK=6;let t0=performance.now();
+function state(now){let s=(now-t0)/1000,blk=0,ph='Foco';
+  while(true){if(s<FOCUS){return{ph:'Foco',p:s/FOCUS,blk,len:FOCUS,s}}s-=FOCUS;if(s<BREAK){return{ph:'Descanso',p:s/BREAK,blk,len:BREAK,s}}s-=BREAK;blk=(blk+1)%4}}
+let lastPh='Foco';
+function wavyArc(p,ph){const C=12,R=8.5,a=1.1,k=10,N=80;let d='';const end=Math.max(.001,p)*Math.PI*2;
+  for(let i=0;i<=N;i++){const th=end*i/N-Math.PI/2,r=R+a*Math.sin(k*(th+Math.PI/2)+ph);d+=(i?'L':'M')+(C+r*Math.cos(th)).toFixed(2)+' '+(C+r*Math.sin(th)).toFixed(2)}return d}
+function wavyLine(p,ph,amp){const W=84,pad=2,x1=pad+(W-2*pad)*p;let d='';for(let x=pad;x<=x1;x+=1){d+=(x===pad?'M':'L')+x.toFixed(1)+' '+(7+amp*Math.sin(x/3.2+ph)).toFixed(2)}if(!d)d='M2 7';return{d,x1}}
+function edgePath(w,h){const r=14,cx=w/2;return `M${cx} 1 L${w-r} 1 Q${w-1} 1 ${w-1} ${r} L${w-1} ${h-r} Q${w-1} ${h-1} ${w-r} ${h-1} L${r} ${h-1} Q1 ${h-1} 1 ${h-r} L1 ${r} Q1 1 ${r} 1 Z`}
+function frame(now){const st=state(now),col=st.ph==='Foco'?'var(--primary)':'var(--tertiary)',wph=now/600;
+  if(st.ph!==lastPh){lastPh=st.ph;document.querySelectorAll('.fx').forEach(e=>{e.classList.remove('flash');void e.offsetWidth;e.classList.add('flash')})}
+  const remain=Math.max(1,Math.round((1-st.p)*(st.ph==='Foco'?25:5)));
+  document.querySelectorAll('.ph').forEach(e=>e.textContent=st.ph);
+  document.querySelectorAll('.bk').forEach(e=>e.textContent=(st.blk+1)+' de 4');
+  document.querySelectorAll('.tm').forEach(e=>e.textContent='· '+remain+' min');
+  document.querySelectorAll('.dot').forEach(e=>e.style.background=col);
+  document.querySelectorAll('.blocks').forEach(b=>[...b.children].forEach((i,k)=>{i.className=k<st.blk?'done':k===st.blk?'now':'';if(k===st.blk){i.style.setProperty('--p',st.ph==='Foco'?st.p:1);i.style.setProperty('--c',col)}}));
+  document.querySelectorAll('.wr').forEach(e=>{e.setAttribute('d',wavyArc(st.ph==='Foco'?st.p:1-st.p,wph));e.style.stroke=col});
+  document.querySelectorAll('.wl').forEach(e=>{const amp=st.ph==='Foco'?2.2:.6;const {d,x1}=wavyLine(st.ph==='Foco'?st.p:1-st.p,wph,amp);e.setAttribute('d',d);e.style.stroke=col;
+    e.parentNode.querySelector('.wt').setAttribute('d',x1<80?`M${Math.min(82,x1+5)} 7 L82 7`:'')});
+  document.querySelectorAll('svg.edge').forEach(s=>{const w=s.clientWidth,h=s.clientHeight;s.setAttribute('viewBox',`0 0 ${w} ${h}`);
+    s.querySelectorAll('.eg').forEach(e=>{if(e.dataset.w!=w){e.setAttribute('d',edgePath(w,h));e.dataset.w=w;e.dataset.L=e.getTotalLength()}
+      const L=+e.dataset.L,p=st.ph==='Foco'?st.p:1-st.p;e.style.strokeDasharray=`${L*p} ${L}`;e.style.stroke=col})});
+  requestAnimationFrame(frame)}
+requestAnimationFrame(frame);
+document.querySelectorAll('.opt').forEach(o=>o.addEventListener('click',()=>document.querySelectorAll('.opt').forEach(x=>x.classList.toggle('selected',x===o))));
+</script>
+</body>
+</html>
