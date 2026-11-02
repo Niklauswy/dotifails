@@ -85,6 +85,17 @@ Window {
         }
     }
 
+    // «Abrir» in the inspector: a song or video goes on in Wysun Player from the same second.
+    function openPreview() {
+        const chosen = preview.paths;
+        if (chosen.length === 1 && (preview.kind === "video" || preview.kind === "audio")) {
+            preview.continueInPlayer(chosen[0], mediaPlayer.position / 1000);
+            mediaPlayer.pause();
+            return;
+        }
+        openPaths(chosen);
+    }
+
     function followLink(href) {
         const target = preview.resolveLink(href);
         if (target === "")
@@ -421,7 +432,7 @@ Window {
                         x: window.inspectorShown ? parent.width - width - FilesMetrics.pagePadding : parent.width + FilesMetrics.pagePadding
                         visible: x < parent.width
                         player: mediaPlayer
-                        onExpandRequested: window.togglePreview()
+                        onOpenRequested: window.openPreview()
                         onLinkActivated: target => window.followLink(target)
 
                         Behavior on x {

@@ -385,6 +385,46 @@ class FilesWindowTests(unittest.TestCase):
         self.assertIsNone(self.find('nav-' + target))
         self.assertEqual(self.warnings, [])
 
+    def _wheel_folder(self):
+        import shutil
+        big = self.root / 'muchos'
+        big.mkdir(exist_ok=True)
+        self.addCleanup(shutil.rmtree, big, True)
+        for i in range(300):
+            (big / f'f{i:03d}.txt').touch()
+        self.tab().navigate(str(big))
+        self.wait()
+        return self.find('fileGrid')
+
+    def _send_wheel(self, point, pixel, angle, device):
+        from PySide6.QtCore import QPoint, Qt
+        from PySide6.QtGui import QGuiApplication, QWheelEvent
+        QGuiApplication.sendEvent(self.window, QWheelEvent(point, self.window.mapToGlobal(point), QPoint(0, pixel), QPoint(0, angle),
+                                                           Qt.NoButton, Qt.NoModifier, Qt.NoScrollPhase, False,
+                                                           Qt.MouseEventNotSynthesized, device))
+        self.h.pump(20)
+
+    def test_a_touchpad_scrolls(self):
+        from PySide6.QtCore import QPointF
+        from PySide6.QtGui import QInputDevice, QPointingDevice
+        grid = self._wheel_folder()
+        device = QPointingDevice('touchpad', 77, QInputDevice.DeviceType.TouchPad, QPointingDevice.PointerType.Finger,
+                                 QInputDevice.Capability.Position | QInputDevice.Capability.Scroll, 1, 0)
+        top = grid.property('contentY')
+        self._send_wheel(grid.mapToScene(QPointF(grid.width() / 2, grid.height() / 2)), -60, -120, device)
+        self.assertGreater(grid.property('contentY'), top)
+
+    def test_the_wheel_scrolls_from_anywhere_in_the_folder(self):
+        from PySide6.QtCore import QPointF
+        from PySide6.QtGui import QPointingDevice
+        grid = self._wheel_folder()
+        device = QPointingDevice.primaryPointingDevice()
+        for name, point in (('header', QPointF(grid.width() - 20, 30)), ('bottom', QPointF(grid.width() - 20, grid.height() - 10))):
+            with self.subTest(over=name):
+                before = grid.property('contentY')
+                self._send_wheel(grid.mapToScene(point), 0, -120, device)
+                self.assertGreater(grid.property('contentY'), before)
+
     def test_f1_lists_the_shortcuts(self):
         self.key(self.Qt.Key_F1)
         sheet = self.find('shortcutSheet')

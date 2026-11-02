@@ -4,6 +4,7 @@ media URL, the text and its HTML (code highlighted and Markdown rendered with th
 and the summaries of a folder or of a multiple selection. Only the latest selection is ever shown."""
 import hashlib
 from html import escape
+import json
 import os
 from pathlib import Path
 import subprocess
@@ -132,13 +133,24 @@ def _pdf_page(path, cache, mtime, page=1):
     return str(target), pages
 
 
-def _poster(path, cache, mtime):
-    """A frame of a video for the stopped player (the same frame as its thumbnail), as a PNG in the cache."""
+def _tags(path):
+    """``(title, artist)`` of a media file ('' when it has none)."""
+    try:
+        done = subprocess.run(['ffprobe', '-v', 'error', '-show_entries', 'format_tags=title,artist', '-of', 'json', path],
+                              capture_output=True, text=True, timeout=5, check=False)
+        tags = {k.lower(): v for k, v in json.loads(done.stdout or '{}').get('format', {}).get('tags', {}).items()}
+    except (OSError, subprocess.SubprocessError, ValueError):
+        return '', ''
+    return tags.get('title', ''), tags.get('artist', '')
+
+
+def _poster(path, cache, mtime, kind='video'):
+    """A video's frame or a song's cover for the player (as its thumbnail), as a PNG in the cache ('' when none)."""
     from .thumbs import make
     cache.mkdir(parents=True, exist_ok=True)
     target = cache / (hashlib.md5(f'{path}\0{mtime}\0poster'.encode()).hexdigest() + '.png')
     if not target.is_file():
-        image, _extra = make(path, 'video')
+        image, _extra = make(path, kind)
         if image.isNull() or not image.save(str(target), 'PNG'):
             return ''
     return QUrl.fromLocalFile(str(target)).toString()
@@ -205,13 +217,14 @@ def describe(paths, colours, cache, page=1):
         return {'mode': 'file', 'name': target.name, 'error': 'El archivo ya no existe.', 'meta': []}
     location = _home(str(target.parent))
     if target.is_dir():
-        return {'mode': 'folder', 'name': target.name or '/', 'subtitle': 'Carpeta', 'meta': _folder_summary(path)}
+        return {'mode': 'folder', 'name': target.name or '/', 'subtitle': 'Carpeta',
+                'meta': _folder_summary(path) + [_row('Ruta', path)]}
     kind_info = listing.classify(target.name, False)
     size = listing.size_text(info.st_size)
     data = {'mode': 'file', 'name': target.name, 'subtitle': f'{kind_info.label} · {size}', 'icon': kind_info.icon,
             'fileKind': kind_info.kind, 'badge': kind_info.badge, 'role': kind_info.role}
     kind = preview_kind(path)
-    meta = [_row('Tamaño', size), _row('Modificado', listing.full_date(info.st_mtime)), _row('Ruta', str(target.parent))]
+    meta = [_row('Tamaño', size), _row('Modificado', listing.full_date(info.st_mtime)), _row('Ruta', path)]
     url = QUrl.fromLocalFile(path).toString()
     if kind == 'image':
         reader = QImageReader(path)
@@ -236,8 +249,8 @@ def describe(paths, colours, cache, page=1):
             meta.insert(0, _row('Duración', ' · '.join(parts)))
             data['duration'] = float(probe.get('duration', 0))
             data['mediaUrl'] = url
-            if kind == 'video':
-                data['posterUrl'] = _poster(path, cache, info.st_mtime)
+            data['posterUrl'] = _poster(path, cache, info.st_mtime, kind)
+            data['mediaTitle'], data['mediaArtist'] = _tags(path)
     elif kind == 'pdf':
         picture, pages = _pdf_page(path, cache, info.st_mtime, page)
         if picture:
@@ -409,6 +422,14 @@ class Preview(QObject):
     @Property(int, notify=changed)
     def pages(self):
         return int(self._get('pages', 1))
+
+    @Property(str, notify=changed)
+    def mediaTitle(self):
+        return self._get('mediaTitle')
+
+    @Property(str, notify=changed)
+    def mediaArtist(self):
+        return self._get('mediaArtist')
 
     @Property(str, notify=changed)
     def posterUrl(self):
