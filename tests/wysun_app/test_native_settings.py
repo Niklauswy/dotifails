@@ -185,9 +185,11 @@ class NativeSettingsTests(unittest.TestCase):
         finally:os.close(read)
         with patch.object(clip,'drain_watch_offer') as drain,patch.object(clip.subprocess,'check_output',return_value='text/plain'),patch.object(clip,'read_offer',return_value=b'own fixture'),patch('builtins.print'):
             clip.snapshot();drain.assert_called_once()
-    def test_player_package_in_recorder_is_the_same_source(self):
+    def test_shared_packages_in_recorder_are_the_same_source(self):
         root=Path(__file__).resolve().parents[2]
-        link=root/'apps/recorder/wysun_media'
-        self.assertTrue(link.is_symlink());self.assertEqual(link.resolve(),(root/'apps/python/wysun_media').resolve())
+        for link,target in (('apps/recorder/wysun_core','apps/python/wysun_core'),('apps/recorder/wysun_qml','apps/python/wysun_qml'),
+                            ('apps/recorder/qml/WysunM3','apps/qml/WysunM3')):
+            self.assertTrue((root/link).is_symlink(),link);self.assertEqual((root/link).resolve(),(root/target).resolve(),link)
+        self.assertFalse((root/'apps/recorder/wysun_media').exists(),'the Recorder no longer ships the media engine')
 
 if __name__=='__main__':unittest.main()
