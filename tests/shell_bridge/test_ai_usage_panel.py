@@ -69,6 +69,39 @@ class PanelTests(unittest.TestCase):
                 self.assertLessEqual(int(match.group(1)), 4, f'{path.name}: {match.group(0)}')
 
 
+class NavigationTests(unittest.TestCase):
+    def test_a_press_in_the_panel_pins_it_open(self):
+        self.assertIn('root.interacted()', qml('Content.qml'))
+        self.assertIn('mouse.accepted = false', qml('Content.qml'))
+        self.assertIn('aiUsagePinned = true', qml('Wrapper.qml'))
+        self.assertIn('aiUsagePinned = false', qml('Wrapper.qml'))
+
+    def test_hover_never_closes_a_pinned_panel(self):
+        text = (SHELL / 'modules/drawers/Interactions.qml').read_text()
+        self.assertEqual(text.count('!aiUsageShortcutActive && !screenState.aiUsagePinned'), 2)
+        self.assertNotIn('if (!aiUsageShortcutActive)', text)
+
+    def test_every_navigation_starts_at_the_top(self):
+        text = qml('Content.qml')
+        for handler in ('onPageChanged', 'onProviderChanged', 'onAddingChanged'):
+            self.assertIn(handler, text)
+        self.assertIn('scroller.contentY = 0', text)
+
+
+class OverviewTests(unittest.TestCase):
+    def test_accounts_come_first_and_sessions_stay_in_the_account_page(self):
+        text = qml('OverviewPage.qml')
+        self.assertNotIn('SessionRows', text)
+        self.assertIn('SessionRows', qml('AccountPage.qml'))
+        self.assertLess(text.index('AiUsage.providers'), text.index('UsageSummary'))
+
+    def test_summary_adds_only_visible_accounts(self):
+        text = qml('UsageSummary.qml')
+        self.assertIn('Logic.aggregateUsage(AiUsage.visibleAccounts', text)
+        for field in ('cacheRead', 'savings', 'models', 'projects'):
+            self.assertIn(field, text)
+
+
 class PageTests(unittest.TestCase):
     def test_settings_write_through_service(self):
         text = qml('SettingsPage.qml')

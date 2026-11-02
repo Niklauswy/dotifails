@@ -14,6 +14,8 @@ PersistentProperties {
     property bool utilities
     property bool sidebar
     property bool aiUsage
+    // Clicked inside: stays open when the pointer leaves, until Esc, a click outside or its toggle.
+    property bool aiUsagePinned
     property string launcherCategory
     property bool emoji
     property bool cheatsheet

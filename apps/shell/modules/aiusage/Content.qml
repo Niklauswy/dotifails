@@ -29,6 +29,7 @@ Item {
     readonly property var selected: providerAccounts.find(a => a.id === selectedIds[provider]) ?? providerAccounts[0] ?? null
 
     signal closeRequested
+    signal interacted
 
     implicitWidth: Tokens.sizes.aiUsage.width
     implicitHeight: Math.min(root.maxHeight, header.implicitHeight + tabBar.implicitHeight + body.implicitHeight + Tokens.padding.large * 2 + Tokens.spacing.medium * 2)
@@ -63,6 +64,11 @@ Item {
         AiUsage.addAccount(provider);
         root.closeRequested();
     }
+
+    // Pages differ in height and scroll, so each one opens at its top.
+    onPageChanged: scroller.contentY = 0
+    onProviderChanged: scroller.contentY = 0
+    onAddingChanged: scroller.contentY = 0
 
     onTabsChanged: {
         if (!tabs.includes(provider))
@@ -163,6 +169,8 @@ Item {
         }
 
         Flickable {
+            id: scroller
+
             Layout.fillWidth: true
             Layout.fillHeight: true
             contentHeight: body.implicitHeight
@@ -229,6 +237,17 @@ Item {
                     }
                 }
             }
+        }
+    }
+
+    // Any press counts; it is not accepted, so it still reaches the control below.
+    MouseArea {
+        anchors.fill: parent
+        z: 1
+        acceptedButtons: Qt.AllButtons
+        onPressed: mouse => {
+            root.interacted();
+            mouse.accepted = false;
         }
     }
 

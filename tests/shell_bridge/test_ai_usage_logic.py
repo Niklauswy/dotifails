@@ -31,6 +31,53 @@ def account(ident, provider, limits, **extra):
     return f'({{id: "{ident}", provider: "{provider}", providerName: "{provider}", label: "{ident}", limits: [{", ".join(limits)}]{", " + fields if fields else ""}}})'
 
 
+class AggregateTests(unittest.TestCase):
+    ACCOUNTS = """[
+      {id: "a", usage: {"30d": {points: 30, sessionCount: 2,
+        totals: {input: 10, cacheRead: 60, cacheWrite: 10, output: 20, processed: 100, cost: 5, savings: 2, unpriced: 0},
+        models: [{model: "opus", provider: "claude", tokens: 100, cost: 5}],
+        projects: [{name: "shell", path: "/p/shell", tokens: 80, cost: 4}, {name: "web", path: "/p/web", tokens: 20, cost: 1}]}}},
+      {id: "b", usage: {"30d": {points: 30, sessionCount: 1,
+        totals: {input: 50, cacheRead: 0, cacheWrite: 0, output: 50, processed: 100, cost: 15, savings: 1, unpriced: 3},
+        models: [{model: "opus", provider: "claude", tokens: 40, cost: 10}, {model: "mystery", provider: "codex", tokens: 60, cost: null}],
+        projects: [{name: "shell", path: "/p/shell", tokens: 100, cost: 15}]}}},
+      {id: "empty", usage: null}
+    ]"""
+
+    def result(self):
+        return js(f'return aggregateUsage({self.ACCOUNTS}, "30d")')
+
+    def test_totals_add_across_accounts(self):
+        out = self.result()
+        self.assertEqual(out['totals']['processed'], 200)
+        self.assertEqual(out['totals']['cacheRead'], 60)
+        self.assertEqual(out['totals']['cost'], 20)
+        self.assertEqual(out['totals']['savings'], 3)
+        self.assertEqual(out['sessions'], 3)
+        self.assertEqual(out['points'], 30)
+
+    def test_models_merge_by_name_and_sort_by_cost(self):
+        models = self.result()['models']
+        self.assertEqual([m['model'] for m in models], ['opus', 'mystery'])
+        self.assertEqual(models[0]['tokens'], 140)
+        self.assertEqual(models[0]['cost'], 15)
+        self.assertEqual(models[0]['tokenShare'], 0.7)
+        self.assertEqual(models[0]['costShare'], 0.75)
+
+    def test_unknown_price_stays_unknown(self):
+        self.assertIsNone(self.result()['models'][1]['cost'])
+
+    def test_projects_merge_by_path(self):
+        projects = self.result()['projects']
+        self.assertEqual([p['name'] for p in projects], ['shell', 'web'])
+        self.assertEqual(projects[0]['tokens'], 180)
+
+    def test_no_accounts_is_empty_not_a_crash(self):
+        out = js('return aggregateUsage([], "30d")')
+        self.assertEqual(out['totals']['processed'], 0)
+        self.assertEqual(out['models'], [])
+
+
 class PaceTests(unittest.TestCase):
     def test_pace_hidden_before_three_percent(self):
         self.assertEqual(js(f'return pace({weekly(1, 0.02)}, NOW, "auto")'), {'early': True})

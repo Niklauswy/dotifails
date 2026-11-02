@@ -80,7 +80,7 @@ CustomMouseArea {
             if (!utilitiesShortcutActive)
                 screenState.utilities = false;
 
-            if (!aiUsageShortcutActive)
+            if (!aiUsageShortcutActive && !screenState.aiUsagePinned)
                 screenState.aiUsage = false;
 
             if (!popouts.currentName.startsWith("traymenu") || ((popouts.current as StackView)?.depth ?? 0) <= 1) {
@@ -225,7 +225,7 @@ CustomMouseArea {
         const inAiCorner = x > width - zone && y < zone;
         const showAiUsage = inAiCorner || (screenState.aiUsage && inTopPanel(panels.aiUsage, x, y));
 
-        if (!aiUsageShortcutActive) {
+        if (!aiUsageShortcutActive && !screenState.aiUsagePinned) {
             screenState.aiUsage = showAiUsage;
         } else if (showAiUsage) {
             aiUsageShortcutActive = false;

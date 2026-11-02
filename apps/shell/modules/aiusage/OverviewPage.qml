@@ -8,8 +8,8 @@ import qs.components
 import qs.services
 import "Format.js" as Format
 
-// Every visible account at a glance: spend of today and 30 days, running sessions, then one row
-// per account grouped by provider (two bars, or the tightest one in compact mode).
+// Every visible account at a glance: spend of today and 30 days, one row per account grouped by
+// provider (two bars, or the tightest one in compact mode), then what they add up to.
 ColumnLayout {
     id: root
 
@@ -73,18 +73,6 @@ ColumnLayout {
             font: Tokens.font.label.small
             color: Colours.palette.m3onSurfaceVariant
         }
-    }
-
-    Divider {
-        visible: sessions.visible
-    }
-
-    SessionRows {
-        id: sessions
-
-        Layout.topMargin: Tokens.spacing.small
-        agents: AiUsage.visibleAgents
-        now: root.now
     }
 
     Divider {}
@@ -268,6 +256,12 @@ ColumnLayout {
             }
         }
     }
+
+    Divider {
+        Layout.topMargin: Tokens.spacing.small
+    }
+
+    UsageSummary {}
 
     Divider {
         Layout.topMargin: Tokens.spacing.small

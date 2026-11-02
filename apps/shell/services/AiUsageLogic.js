@@ -188,3 +188,38 @@ function focusedProvider(agents, toplevels, focusedAddress) {
     const agent = (agents || []).find(a => windowForSession(a, toplevels) === focusedAddress);
     return agent ? agent.provider : "";
 }
+
+// Adds one range of usage across accounts: totals, sessions, and models and projects merged and
+// sorted by cost then tokens, with shares of the sum. A model whose price is unknown keeps a null cost.
+function aggregateUsage(accounts, range) {
+    const totals = { input: 0, cacheRead: 0, cacheWrite: 0, output: 0, processed: 0, cost: 0, savings: 0, unpriced: 0 };
+    const models = {};
+    const projects = {};
+    let sessions = 0;
+    let points = 0;
+    const merge = (into, key, item, fields) => {
+        const known = item.cost !== null && item.cost !== undefined;
+        const row = into[key] || (into[key] = Object.assign({}, fields, { tokens: 0, cost: null }));
+        row.tokens += item.tokens || 0;
+        if (known)
+            row.cost = (row.cost || 0) + item.cost;
+    };
+    for (const account of accounts || []) {
+        const usage = account.usage && account.usage[range];
+        if (!usage)
+            continue;
+        for (const field of Object.keys(totals))
+            totals[field] += (usage.totals && usage.totals[field]) || 0;
+        sessions += usage.sessionCount || 0;
+        points = Math.max(points, usage.points || 0);
+        for (const m of usage.models || [])
+            merge(models, m.model, m, { model: m.model, provider: m.provider });
+        for (const p of usage.projects || [])
+            merge(projects, p.path || p.name, p, { name: p.name, path: p.path });
+    }
+    const ranked = rows => Object.values(rows).map(row => Object.assign(row, {
+        tokenShare: totals.processed ? row.tokens / totals.processed : 0,
+        costShare: totals.cost ? (row.cost || 0) / totals.cost : 0
+    })).sort((a, b) => (b.cost || 0) - (a.cost || 0) || b.tokens - a.tokens);
+    return { totals, sessions, points, models: ranked(models), projects: ranked(projects) };
+}

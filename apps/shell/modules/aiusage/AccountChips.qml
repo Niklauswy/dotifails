@@ -8,8 +8,9 @@ import qs.components
 import qs.components.controls
 import qs.services
 
-// The visible accounts of one provider as chips (ring = share used of its tightest limit), plus "Add".
-Flow {
+// Picks the account of one provider, in the same language as the provider tabs: equal cells with
+// the name over a meter of its tightest limit, and a quiet button to add another account.
+RowLayout {
     id: root
 
     required property string provider
@@ -19,95 +20,103 @@ Flow {
     signal addRequested
 
     readonly property var accounts: AiUsage.providerAccounts(provider)
+    readonly property int columns: Math.max(1, Math.min(accounts.length, 3))
 
     Layout.fillWidth: true
     spacing: Tokens.spacing.small
 
-    Repeater {
-        model: root.accounts.length > 1 ? root.accounts : []
+    // With one account there is nothing to pick: its name is right below.
+    Item {
+        Layout.fillWidth: true
+        visible: root.accounts.length < 2
+    }
 
-        StyledRect {
-            id: chip
+    StyledRect {
+        Layout.fillWidth: true
+        visible: root.accounts.length > 1
+        implicitHeight: cells.implicitHeight + Tokens.padding.extraSmall * 2
+        radius: Tokens.rounding.large
+        color: Colours.tPalette.m3surfaceContainer
 
-            required property var modelData
-            readonly property bool active: root.current === modelData.id
-            readonly property var tight: modelData.limits?.length ? modelData.limits.reduce((m, l) => l.usedPercent > m.usedPercent ? l : m, modelData.limits[0]) : null
-            readonly property var who: AiUsage.names(modelData)
+        Flow {
+            id: cells
 
-            implicitWidth: row.implicitWidth + Tokens.padding.small + Tokens.padding.medium
-            implicitHeight: row.implicitHeight + Tokens.padding.extraSmall * 2
-            radius: Tokens.rounding.full
-            color: active ? Colours.palette.m3secondaryContainer : Colours.tPalette.m3surfaceContainer
-            border.width: active ? 1 : 0
-            border.color: Qt.alpha(Colours.palette.m3primary, 0.4)
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.margins: Tokens.padding.extraSmall
+            spacing: Tokens.spacing.extraSmall
 
-            StateLayer {
-                radius: chip.radius
-                color: Colours.palette.m3onSurface
-                onClicked: root.selected(chip.modelData.id)
-            }
+            Repeater {
+                model: root.accounts.length > 1 ? root.accounts : []
 
-            RowLayout {
-                id: row
+                StyledRect {
+                    id: cell
 
-                anchors.verticalCenter: parent.verticalCenter
-                anchors.left: parent.left
-                anchors.leftMargin: Tokens.padding.extraSmall
-                spacing: Tokens.spacing.small
+                    required property var modelData
+                    readonly property bool active: root.current === modelData.id
+                    readonly property var tight: modelData.limits?.length ? modelData.limits.reduce((m, l) => l.usedPercent > m.usedPercent ? l : m, modelData.limits[0]) : null
+                    readonly property real shown: AiUsage.settings.showUsed ? (tight?.usedPercent ?? 0) : 100 - (tight?.usedPercent ?? 0)
+                    readonly property color foreground: active ? Colours.palette.m3onSecondaryContainer : Colours.palette.m3onSurfaceVariant
 
-                CircularProgress {
-                    implicitSize: Tokens.sizes.aiUsage.barIndicatorSize
-                    strokeWidth: Tokens.padding.extraSmall / 2 + 1
-                    value: Math.max(0.03, (chip.tight?.usedPercent ?? 0) / 100)
-                    fgColour: AiUsage.severityColour(chip.tight?.usedPercent ?? 0)
-                    bgColour: Qt.alpha(Colours.palette.m3onSurface, 0.1)
-                }
+                    width: (cells.width - cells.spacing * (root.columns - 1)) / root.columns
+                    implicitHeight: content.implicitHeight + Tokens.padding.small * 2
+                    radius: Tokens.rounding.medium
+                    color: active ? Colours.palette.m3secondaryContainer : "transparent"
 
-                StyledText {
-                    text: chip.who.label
-                    font: Tokens.font.label.medium
-                    color: chip.active ? Colours.palette.m3onSecondaryContainer : Colours.palette.m3onSurfaceVariant
-                }
+                    Behavior on color {
+                        CAnim {}
+                    }
 
-                StyledText {
-                    visible: !!chip.modelData.plan
-                    text: chip.modelData.plan ?? ""
-                    font: Tokens.font.label.small
-                    color: Colours.palette.m3outline
+                    StateLayer {
+                        radius: cell.radius
+                        color: cell.foreground
+                        onClicked: root.selected(cell.modelData.id)
+                    }
+
+                    ColumnLayout {
+                        id: content
+
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        anchors.leftMargin: Tokens.padding.medium
+                        anchors.rightMargin: Tokens.padding.medium
+                        spacing: Tokens.spacing.extraSmall
+
+                        StyledText {
+                            Layout.fillWidth: true
+                            text: AiUsage.names(cell.modelData).label
+                            font: Tokens.font.label.builders.medium.weight(cell.active ? Font.DemiBold : Font.Medium).build()
+                            color: cell.foreground
+                            elide: Text.ElideRight
+                        }
+
+                        StyledRect {
+                            Layout.fillWidth: true
+                            implicitHeight: Tokens.sizes.aiUsage.modelBarHeight
+                            radius: Tokens.rounding.full
+                            opacity: cell.tight ? 1 : 0
+                            color: Qt.alpha(cell.foreground, 0.2)
+
+                            StyledRect {
+                                anchors.left: parent.left
+                                anchors.top: parent.top
+                                anchors.bottom: parent.bottom
+                                width: parent.width * Math.max(0, Math.min(1, cell.shown / 100))
+                                radius: Tokens.rounding.full
+                                color: AiUsage.severityColour(cell.tight?.usedPercent ?? 0)
+                            }
+                        }
+                    }
                 }
             }
         }
     }
 
-    StyledRect {
-        implicitWidth: add.implicitWidth + Tokens.padding.medium * 2
-        implicitHeight: add.implicitHeight + Tokens.padding.extraSmall * 2
-        radius: Tokens.rounding.full
-        color: Colours.tPalette.m3surfaceContainer
-
-        StateLayer {
-            radius: parent.radius
-            color: Colours.palette.m3onSurface
-            onClicked: root.addRequested()
-        }
-
-        RowLayout {
-            id: add
-
-            anchors.centerIn: parent
-            spacing: Tokens.spacing.extraSmall
-
-            MaterialIcon {
-                text: "add"
-                color: Colours.palette.m3onSurfaceVariant
-                fontStyle: Tokens.font.icon.small
-            }
-
-            StyledText {
-                text: Tr.tr("Add")
-                font: Tokens.font.label.medium
-                color: Colours.palette.m3onSurfaceVariant
-            }
-        }
+    IconButton {
+        icon: "person_add"
+        type: IconButton.Text
+        onClicked: root.addRequested()
     }
 }

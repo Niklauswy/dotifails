@@ -23,6 +23,8 @@ Item {
     onShouldBeActiveChanged: {
         if (shouldBeActive)
             Qt.callLater(() => content.item?.forceActiveFocus());
+        else
+            screenState.aiUsagePinned = false;
     }
 
     Behavior on offsetScale {
@@ -41,6 +43,7 @@ Item {
         sourceComponent: Content {
             maxHeight: root.maxHeight
             onCloseRequested: root.screenState.aiUsage = false
+            onInteracted: root.screenState.aiUsagePinned = true
         }
     }
 }
