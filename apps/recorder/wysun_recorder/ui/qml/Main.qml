@@ -8,7 +8,7 @@ Window {
 
     objectName: "recorderWindow"
     title: "Wysun Recorder"
-    width: Metrics.windowMedium * 1.1
+    width: Metrics.windowMedium * 1.3
     height: Metrics.windowExpanded
     minimumWidth: Metrics.windowMedium
     minimumHeight: Metrics.windowMedium * 0.7
@@ -54,7 +54,7 @@ Window {
                 id: column
 
                 x: (scroll.width - width) / 2
-                width: Math.min(scroll.width - 2 * (Theme.padding.large ?? 0), Metrics.windowMedium)
+                width: Math.min(scroll.width - 2 * (Theme.padding.large ?? 0), Metrics.windowExpanded)
 
                 Section {
                     title: "Al grabar"

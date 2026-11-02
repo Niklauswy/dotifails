@@ -19,7 +19,7 @@ Dropdown {
     }
 
     objectName: key
-    width: Metrics.textFieldMinWidth * 1.5
+    width: Metrics.textFieldMinWidth * 1.75
     current: _listed(saved) ? saved : fallback
     onActivated: value => {
         settings.setPref(key, numeric ? Number(value) : value);
