@@ -47,6 +47,8 @@ def _inside(real, root):
 
 
 def _parts(rel):
+    if '\x00' in (rel or ''):
+        return None
     parts = [p for p in (rel or '').replace('\\', '/').split('/') if p]
     if any(p.startswith('.') for p in parts):
         return None

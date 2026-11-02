@@ -10,6 +10,7 @@ from http import cookies
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import gzip
 import hmac
+import html
 import json
 import mimetypes
 import os
@@ -23,6 +24,7 @@ import sys
 import threading
 import time
 import urllib.parse
+import uuid
 import zipfile
 from concurrent.futures import ThreadPoolExecutor
 
@@ -36,6 +38,13 @@ PORT_TRIES = 20
 MAX_FAILS = 5
 BLOCK_SECONDS = 60
 COOKIE = 'wysun_lanshare'
+LAN_SUFFIXES = ('.local', '.lan', '.home', '.internal', '.localdomain', '.home.arpa')
+FREE_MARGIN = 256 * 1024 * 1024          # never fill the disk with an upload
+# Files a browser would run as a page (scripts on our origin): served as plain text, always.
+ACTIVE = {'.html', '.htm', '.xhtml', '.shtml', '.svg', '.svgz', '.xml', '.xsl', '.js', '.mjs'}
+PAGE_POLICY = ("default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; "
+               "media-src 'self'; frame-src 'self'; font-src 'self'; connect-src 'self'; object-src 'none'; "
+               "base-uri 'none'; form-action 'self'; frame-ancestors 'none'")
 
 for _type, _ext in (('video/mp4', '.m4v'), ('video/x-matroska', '.mkv'), ('video/mp2t', '.ts'), ('text/plain', '.md'),
                     ('text/plain', '.log'), ('image/avif', '.avif'), ('image/heic', '.heic'), ('font/ttf', '.ttf')):
@@ -96,13 +105,35 @@ class App:
         self.gate = Gate(options.password, clock)
         self.activity = status.Activity(options.idle, clock)
         self.host = socket.gethostname().split('.')[0] or 'Wysun'
+        self._hosts = set()
+        self._hosts_at = 0.0
+
+    def host_allowed(self, header):
+        """Only names that are really this machine (DNS rebinding: a foreign name pointing here gets nothing)."""
+        name = (header or '').strip().lower()
+        if name.startswith('['):
+            name = name[1:name.find(']')] if ']' in name else name
+        else:
+            name = name.rsplit(':', 1)[0] if name.count(':') == 1 else name
+        if not name:
+            return False
+        if name not in self._hosts and time.time() - self._hosts_at > 30:     # addresses change (DHCP, Wi-Fi)
+            local = self.host.lower()
+            # The machine's name alone or under a LAN-only suffix nobody can own on the internet.
+            names = {local, socket.gethostname().lower()}
+            self._hosts = ({'localhost', '127.0.0.1', '::1'} | names | {n + suffix for n in names for suffix in LAN_SUFFIXES}
+                           | {a['ip'] for a in net.addresses()})
+            self._hosts_at = time.time()
+        return name in self._hosts
 
 
 def notify(name, where):
     """System notification for a received file (the server sends it: no shell needed)."""
     if not shutil.which('notify-send'):
         return
-    argv = ['notify-send', '-a', 'Wysun LANShare', '-i', 'folder-download', 'Archivo recibido', f'{name} · {where}']
+    # The body is markup for the notification daemon: a file name must not become a link or a tag.
+    body = html.escape(f'{name} · {where}', quote=False)
+    argv = ['notify-send', '-a', 'Wysun LANShare', '-i', 'folder-download', 'Archivo recibido', body]
 
     def send():
         try:
@@ -131,6 +162,27 @@ class Counted:
 class Handler(BaseHTTPRequestHandler):
     protocol_version = 'HTTP/1.1'
     server_version = 'WysunLANShare/2'
+    timeout = 120                           # a connection that sends nothing is closed (slow clients cannot pile up)
+
+    def end_headers(self):
+        self.send_header('X-Content-Type-Options', 'nosniff')
+        self.send_header('Referrer-Policy', 'no-referrer')
+        super().end_headers()
+
+    def guard(self, write=False):
+        """Refuse foreign Host names, and writes a cross-site page could forge; True when it may go on."""
+        if not self.app.host_allowed(self.headers.get('Host')):
+            self.fail(421, 'Nombre de servidor desconocido')
+            return False
+        if write:
+            origin = self.headers.get('Origin')
+            same = origin is None or urllib.parse.urlparse(origin).netloc.lower() == (self.headers.get('Host') or '').lower()
+            # A custom header cannot cross sites without a CORS preflight, which this server never grants.
+            if self.headers.get('X-Wysun') != '1' or not same:
+                self.close_connection = True
+                self.fail(403, 'Petición no permitida')
+                return False
+        return True
 
     @property
     def app(self):
@@ -183,6 +235,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         path = self.route()
+        if not self.guard():
+            return None
         try:
             if path == '/' or path.startswith('/b/'):
                 return self.serve_static('index.html')
@@ -209,6 +263,8 @@ class Handler(BaseHTTPRequestHandler):
             return None
 
     def do_PUT(self):
+        if not self.guard(write=True):
+            return None
         if self.route() != '/api/upload':
             return self.fail(404, 'No encontrado')
         if self.authorised():
@@ -217,6 +273,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         path = self.route()
+        if not self.guard(write=True):
+            return None
         if path == '/api/login':
             return self.api_login()
         if path != '/api/mkdir':
@@ -235,7 +293,7 @@ class Handler(BaseHTTPRequestHandler):
         ctype = mimetypes.guess_type(p)[0] or 'application/octet-stream'
         if ctype.startswith('text/') or ctype.endswith('javascript'):
             ctype += '; charset=utf-8'
-        return self.send_bytes(data, ctype, extra={'Cache-Control': 'no-cache'})
+        return self.send_bytes(data, ctype, extra={'Cache-Control': 'no-cache', 'Content-Security-Policy': PAGE_POLICY})
 
     def serve_font(self, name):
         if name not in webtheme.FONTS.values():
@@ -326,23 +384,36 @@ class Handler(BaseHTTPRequestHandler):
             length = int(self.headers.get('Content-Length', ''))
         except ValueError:
             return self.fail(411, 'Falta Content-Length')
-        name = unique_name(directory, name)
-        dest = os.path.join(directory, name)
-        remaining = length
-        tid = self.app.activity.begin(self.ip(), self.agent(), name, length, 'up')
+        if length < 0:
+            return self.fail(400, 'Tamaño inválido')
         try:
-            # Hidden temporary next to the destination; it becomes the file only when every byte arrived.
-            with atomic_path(dest, mode=0o644) as tmp:
-                with open(tmp, 'wb') as f:
-                    while remaining > 0:
-                        buf = self.rfile.read(min(CHUNK, remaining))
-                        if not buf:
-                            break
-                        f.write(buf)
-                        remaining -= len(buf)
-                        self.app.activity.advance(tid, len(buf))
+            free = shutil.disk_usage(directory).free
+        except OSError:
+            free = 0
+        if length > free - FREE_MARGIN:
+            self.close_connection = True
+            return self.fail(507, 'No hay espacio suficiente en el equipo')
+        tid = self.app.activity.begin(self.ip(), self.agent(), name, length, 'up')
+        # A hidden part file next to the destination (no execute bit), linked to its name only when every byte
+        # arrived; a link never replaces an existing file, so an upload cannot overwrite anything.
+        part = os.path.join(directory, f'.wysun-upload-{uuid.uuid4().hex}.part')
+        try:
+            fd = os.open(part, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o644)
+            with os.fdopen(fd, 'wb') as f:
+                os.fchmod(f.fileno(), 0o644)
+                remaining = length
+                while remaining > 0:
+                    buf = self.rfile.read(min(CHUNK, remaining))
+                    if not buf:
+                        break
+                    f.write(buf)
+                    remaining -= len(buf)
+                    self.app.activity.advance(tid, len(buf))
                 if remaining:
                     raise Incomplete
+                f.flush()
+                os.fsync(f.fileno())
+            name = publish(part, directory, unique_name(directory, name))
         except Incomplete:
             self.close_connection = True
             return self.fail(400, 'Subida incompleta')
@@ -350,6 +421,10 @@ class Handler(BaseHTTPRequestHandler):
             return self.fail(500, f'No se pudo guardar: {ex.strerror}')
         finally:
             self.app.activity.end(tid)
+            try:
+                os.unlink(part)
+            except OSError:
+                pass
         notify(name, self.app.share.display(self.query().get('dir', '')))
         return self.send_json({'ok': True, 'name': name})
 
@@ -393,10 +468,13 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(206 if partial else 200)
         if partial:
             self.send_header('Content-Range', f'bytes {start}-{end}/{size}')
-        ctype = mimetypes.guess_type(p)[0] or 'application/octet-stream'
+        ext = os.path.splitext(p)[1].lower()
+        ctype = 'text/plain' if ext in ACTIVE else mimetypes.guess_type(p)[0] or 'application/octet-stream'
         if ctype.startswith('text/'):
             ctype += '; charset=utf-8'
         self.send_header('Content-Type', ctype)
+        # Shared files never run as part of the page; PDFs keep the browser's viewer (it needs no sandbox flag).
+        self.send_header('Content-Security-Policy', "frame-ancestors 'self'" if ext == '.pdf' else "sandbox; frame-ancestors 'self'")
         self.send_header('Accept-Ranges', 'bytes')
         self.send_header('Content-Length', str(length))
         if download:
@@ -446,6 +524,19 @@ class Handler(BaseHTTPRequestHandler):
         finally:
             self.app.activity.end(tid)
         return None
+
+
+def publish(part, directory, name):
+    """Give a finished upload its name without ever replacing a file: 'foto.jpg', else 'foto (2).jpg'…"""
+    base, ext = os.path.splitext(name)
+    for n in range(1, 10000):
+        candidate = name if n == 1 else f'{base} ({n}){ext}'
+        try:
+            os.link(part, os.path.join(directory, candidate))
+            return candidate
+        except FileExistsError:
+            continue
+    raise OSError(errno.EEXIST, 'Demasiados archivos con ese nombre')
 
 
 _packing = threading.Lock()

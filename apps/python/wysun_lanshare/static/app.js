@@ -94,7 +94,7 @@ async function start() {
     document.body.textContent = "No se pudo conectar.";
     return;
   }
-  document.title = `${state.info.title} · ${state.info.host}`;
+  document.title = `${state.info.title} · Wysun`;
   if (state.info.locked) return showGate();
   enter();
 }
@@ -102,14 +102,14 @@ async function start() {
 function showGate() {
   $("#shell").hidden = true;
   $("#gate").hidden = false;
-  $("#gate-host").textContent = state.info?.host || "LANShare";
+  $("#gate-host").textContent = "Wysun";
   setTimeout(() => $("#gate-input").focus(), 50);
 }
 
 $("#gate-form").addEventListener("submit", async ev => {
   ev.preventDefault();
   const card = $("#gate-form");
-  const r = await fetch("/api/login", { method: "POST", headers: { "Content-Type": "application/json" },
+  const r = await fetch("/api/login", { method: "POST", headers: { "Content-Type": "application/json", "X-Wysun": "1" },
                                          body: JSON.stringify({ clave: $("#gate-input").value }) });
   if (r.ok) { $("#gate").hidden = true; state.info.locked = false; return enter(); }
   const j = await r.json().catch(() => ({}));
@@ -120,7 +120,6 @@ $("#gate-form").addEventListener("submit", async ev => {
 
 function enter() {
   $("#shell").hidden = false;
-  $("#host").textContent = state.info.host;
   $("#lock").hidden = !state.info.password;
   $("#upload").hidden = $("#upload-fab").hidden = $("#mkdir").hidden = !state.info.uploads;
   setView(state.view);
@@ -522,6 +521,7 @@ function uploadFiles(files) {
     const label = el.querySelector(".n span:last-child");
     const xhr = new XMLHttpRequest();
     xhr.open("PUT", `/api/upload?dir=${encodeURIComponent(dir)}&name=${encodeURIComponent(f.name)}`);
+    xhr.setRequestHeader("X-Wysun", "1");   // the server refuses writes a foreign page could forge
     xhr.upload.onprogress = ev => {
       if (!ev.lengthComputable) return;
       const pct = Math.round((ev.loaded / ev.total) * 100);
@@ -574,7 +574,7 @@ $("#mkdir-dialog").addEventListener("close", async () => {
   const name = $("#mkdir-name").value.trim();
   if (dialog.returnValue !== "ok" || !name) return;
   try {
-    await api(`/api/mkdir?dir=${encodeURIComponent(state.dir)}&name=${encodeURIComponent(name)}`, { method: "POST" });
+    await api(`/api/mkdir?dir=${encodeURIComponent(state.dir)}&name=${encodeURIComponent(name)}`, { method: "POST", headers: { "X-Wysun": "1" } });
     toast("Carpeta creada");
     route();
   } catch (err) {

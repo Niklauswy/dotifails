@@ -132,7 +132,7 @@ html:not(.icons) .ms { visibility: hidden; }
   animation-delay: calc(var(--i, 0) * 18ms);
 }
 .row .name { display: flex; align-items: center; gap: var(--spacing-medium); min-width: 0; }
-.row .title { font: var(--font-title-small); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row .title { display: block; font: var(--font-title-small); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .row .meta { display: none; font: var(--font-body-small); color: var(--m3onSurfaceVariant); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .row .col { font: var(--font-body-small); color: var(--m3onSurfaceVariant); white-space: nowrap; }
 .row .act { justify-self: end; }
@@ -179,7 +179,7 @@ html:not(.icons) .ms { visibility: hidden; }
 .grid .row .act { position: absolute; top: 6px; right: 6px; background: var(--m3surfaceContainerLowest); opacity: 0; transition: opacity var(--anim-small); }
 .grid .row:hover .act, .grid .row:focus-within .act { opacity: 1; }
 .grid .row { position: relative; }
-.text { min-width: 0; }
+.text { flex: 1; min-width: 0; }
 
 /* ---------- side pane (wide screens) */
 .pane {
@@ -191,14 +191,16 @@ html:not(.icons) .ms { visibility: hidden; }
   border-radius: var(--rounding-large); overflow: hidden; background: var(--m3surfaceContainerHigh);
   aspect-ratio: 16 / 10; display: grid; place-items: center; color: var(--m3onSurfaceVariant); position: relative;
 }
-.pane .preview img, .pane .preview video { width: 100%; height: 100%; object-fit: contain; display: block; background: var(--m3surfaceContainerHigh); }
+/* Pictures and videos keep their own shape (portrait or landscape), never cropped, up to a height. */
+.pane .preview.k-image, .pane .preview.k-video { aspect-ratio: auto; min-height: 120px; }
+.pane .preview img, .pane .preview video { display: block; width: 100%; height: auto; max-height: min(56vh, 520px); object-fit: contain; }
 .pane .preview iframe { width: 100%; height: 100%; border: 0; background: var(--m3surfaceContainerLowest); }
 .pane .preview.tall { aspect-ratio: 3 / 4; }
 .pane .preview pre { margin: 0; padding: var(--padding-medium); width: 100%; height: 100%; overflow: auto; font: 12px/1.5 ui-monospace, monospace; white-space: pre-wrap; word-break: break-word; background: var(--m3surfaceContainerLowest); color: var(--m3onSurface); }
 .pane .preview audio { width: calc(100% - 24px); }
 .pane .preview > .ms { font-size: 56px; }
 .pane .preview.k-dir, .pane .preview.k-pdf, .pane .preview.k-text, .pane .preview.k-audio { color: inherit; }
-.pane h2 { margin: var(--spacing-extraSmall) 0 0; font: var(--font-title-large); word-break: break-word; }
+.pane h2 { margin: var(--spacing-extraSmall) 0 0; font: var(--font-title-medium); overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .kv { display: grid; grid-template-columns: 84px 1fr; gap: 6px var(--spacing-medium); font: var(--font-body-medium); margin: 0; }
 .kv dt { color: var(--m3onSurfaceVariant); }
 .kv dd { margin: 0; word-break: break-word; }
@@ -275,9 +277,10 @@ html:not(.icons) .ms { visibility: hidden; }
 .viewer-title b { font: var(--font-title-medium); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .viewer-title span { font: var(--font-body-small); opacity: .7; flex: none; }
 .icon-btn.on-dark { color: var(--m3surfaceContainerLowest); }
-.viewer-stage { flex: 1; min-height: 0; display: grid; place-items: center; padding: 0 var(--padding-medium) var(--padding-medium); }
+.viewer-stage { flex: 1; min-height: 0; position: relative; display: flex; align-items: center; justify-content: center; padding: 0 var(--padding-medium) var(--padding-medium); }
 .viewer-stage > * { max-width: 100%; max-height: 100%; animation: zoomin var(--anim-expressiveDefaultSpatial) var(--ease-emphasizedDecel) both; }
-.viewer-stage img, .viewer-stage video { object-fit: contain; width: 100%; height: 100%; }
+/* Always the whole picture or video inside the screen (controls included), whatever its size or shape. */
+.viewer-stage > img, .viewer-stage > video { position: absolute; top: 0; left: var(--padding-medium); right: var(--padding-medium); bottom: var(--padding-medium); width: calc(100% - 2 * var(--padding-medium)); height: calc(100% - var(--padding-medium)); max-width: none; max-height: none; object-fit: contain; }
 .viewer-stage iframe { width: min(1000px, 100%); height: 100%; border: 0; border-radius: var(--rounding-medium); background: var(--m3surfaceContainerLowest); }
 .viewer-stage pre { width: min(900px, 100%); height: 100%; overflow: auto; margin: 0; padding: var(--padding-large); border-radius: var(--rounding-medium); background: var(--m3surfaceContainerLowest); color: var(--m3onSurface); font: 13px/1.55 ui-monospace, monospace; white-space: pre-wrap; word-break: break-word; }
 .viewer-stage .other { display: flex; flex-direction: column; align-items: center; gap: var(--spacing-large); text-align: center; }
@@ -324,4 +327,6 @@ html:not(.icons) .ms { visibility: hidden; }
   .grid .items { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 0 var(--padding-extraSmall); gap: var(--spacing-small); }
   .grid .row .act { opacity: 1; }
   .viewer-nav { display: none; }
+  .viewer-stage { padding: 0 0 env(safe-area-inset-bottom); }
+  .viewer-stage > img, .viewer-stage > video { left: 0; right: 0; width: 100%; bottom: env(safe-area-inset-bottom); height: calc(100% - env(safe-area-inset-bottom)); }
 }

@@ -89,13 +89,13 @@ class ServerTests(unittest.TestCase):
         s = Running(self, [self.folder], uploads=True)
         notify = mock.patch.object(server, 'notify').start()
         self.addCleanup(mock.patch.stopall)
-        response, data = s.request('PUT', '/api/upload?dir=Clases&name=n.txt', body=b'abc')
+        response, data = s.request('PUT', '/api/upload?dir=Clases&name=n.txt', body=b'abc', headers={'X-Wysun': '1'})
         self.assertEqual(response.status, 200)
         self.assertEqual((self.folder / 'Clases' / 'n.txt').read_bytes(), b'abc')
         notify.assert_called_once_with('n.txt', 'Videos/Clases')
-        response, data = s.request('PUT', '/api/upload?dir=Clases&name=n.txt', body=b'de')
+        response, data = s.request('PUT', '/api/upload?dir=Clases&name=n.txt', body=b'de', headers={'X-Wysun': '1'})
         self.assertEqual(json.loads(data)['name'], 'n (2).txt')
-        self.assertEqual(s.request('POST', '/api/mkdir?dir=&name=Nueva')[0].status, 200)
+        self.assertEqual(s.request('POST', '/api/mkdir?dir=&name=Nueva', headers={'X-Wysun': '1'})[0].status, 200)
         self.assertTrue((self.folder / 'Nueva').is_dir())
 
     def test_password(self):
@@ -107,12 +107,12 @@ class ServerTests(unittest.TestCase):
         self.assertTrue(json.loads(s.request('GET', '/api/info')[1])['locked'])
         self.assertEqual(s.app.activity.version, version)
         self.assertEqual(s.request('GET', '/theme.css')[0].status, 200)
-        statuses = [s.request('POST', '/api/login', body=json.dumps({'clave': 'nope'}))[0].status for _ in range(5)]
+        statuses = [s.request('POST', '/api/login', body=json.dumps({'clave': 'nope'}), headers={'X-Wysun': '1'})[0].status for _ in range(5)]
         self.assertEqual(statuses, [403, 403, 403, 403, 429])
-        self.assertEqual(s.request('POST', '/api/login', body=json.dumps({'clave': 'k3m9rt'}))[0].status, 429)
+        self.assertEqual(s.request('POST', '/api/login', body=json.dumps({'clave': 'k3m9rt'}), headers={'X-Wysun': '1'})[0].status, 429)
         self.assertEqual(s.app.activity.version, version)
         s.app.gate.fails.clear()
-        response, _ = s.request('POST', '/api/login', body=json.dumps({'clave': ' k3m9rt '}))
+        response, _ = s.request('POST', '/api/login', body=json.dumps({'clave': ' k3m9rt '}), headers={'X-Wysun': '1'})
         self.assertEqual(response.status, 200)
         cookie = response.getheader('Set-Cookie')
         self.assertIn('HttpOnly', cookie)
@@ -144,6 +144,79 @@ class ServerTests(unittest.TestCase):
         names = sorted(zipfile.ZipFile(io.BytesIO(data)).namelist())
         self.assertEqual(names, ['Videos/Clases/y.txt', 'Videos/x.txt', 'informe.pdf'])
         self.assertEqual(s.request('PUT', '/api/upload?dir=Videos&name=n.txt', body=b'a')[0].status, 403)
+
+    # ---------------------------------------------------------------- security
+    def test_uploads_need_the_page_header_and_same_origin(self):
+        s = Running(self, [self.folder], uploads=True)
+        mock.patch.object(server, 'notify').start()
+        self.addCleanup(mock.patch.stopall)
+        self.assertEqual(s.request('PUT', '/api/upload?dir=&name=a.txt', body=b'a', headers={})[0].status, 403,
+                         'a plain cross-site form cannot send the custom header')
+        evil = {'X-Wysun': '1', 'Origin': 'http://evil.example'}
+        self.assertEqual(s.request('PUT', '/api/upload?dir=&name=a.txt', body=b'a', headers=evil)[0].status, 403)
+        self.assertEqual(s.request('POST', '/api/mkdir?dir=&name=X', headers=evil)[0].status, 403)
+        ok = {'X-Wysun': '1', 'Origin': f'http://127.0.0.1:{s.port}'}
+        self.assertEqual(s.request('PUT', '/api/upload?dir=&name=a.txt', body=b'a', headers=ok)[0].status, 200)
+        self.assertFalse((self.folder / 'a.txt').stat().st_mode & 0o111, 'never executable')
+
+    def test_unknown_host_is_refused(self):
+        s = Running(self, [self.folder])
+        self.assertEqual(s.request('GET', '/api/ls?path=', headers={'Host': 'evil.example'})[0].status, 421,
+                         'DNS rebinding: a foreign name pointing at us gets nothing')
+        self.assertEqual(s.request('GET', '/', headers={'Host': 'evil.example:8000'})[0].status, 421)
+        host = server.socket.gethostname().split('.')[0].lower()
+        self.assertEqual(s.request('GET', '/', headers={'Host': f'{host}.lan:8000'})[0].status, 200)
+        self.assertEqual(s.request('GET', '/', headers={'Host': f'{host}.evil.example'})[0].status, 421)
+
+    def test_active_content_is_served_as_text_in_a_sandbox(self):
+        (self.folder / 'evil.html').write_text('<script>alert(1)</script>')
+        (self.folder / 'evil.svg').write_text('<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>')
+        s = Running(self, [self.folder])
+        for name in ('evil.html', 'evil.svg'):
+            response, _ = s.request('GET', '/raw/' + name)
+            self.assertTrue(response.getheader('Content-Type').startswith('text/plain'), name)
+            self.assertEqual(response.getheader('X-Content-Type-Options'), 'nosniff')
+            self.assertIn('sandbox', response.getheader('Content-Security-Policy'))
+        page, _ = s.request('GET', '/')
+        self.assertIn("script-src 'self'", page.getheader('Content-Security-Policy'))
+        self.assertIn("frame-ancestors 'none'", page.getheader('Content-Security-Policy'))
+
+    def test_strange_paths_do_not_break_the_server(self):
+        s = Running(self, [self.folder])
+        for path in ('/raw/x%00.txt', '/api/ls?path=%00', '/raw/%2e%2e/%2e%2e/etc/passwd', '/zip/..%2f..'):
+            self.assertIn(s.request('GET', path)[0].status, (400, 404), path)
+        self.assertEqual(s.request('GET', '/raw/x.txt')[0].status, 200, 'still alive')
+
+    def test_upload_larger_than_the_free_space_is_refused(self):
+        s = Running(self, [self.folder], uploads=True)
+        headers = {'X-Wysun': '1', 'Content-Length': str(10 ** 15)}
+        conn = http.client.HTTPConnection('127.0.0.1', s.port, timeout=10)
+        conn.putrequest('PUT', '/api/upload?dir=&name=big.bin')
+        for key, value in headers.items():
+            conn.putheader(key, value)
+        conn.endheaders()
+        self.assertEqual(conn.getresponse().status, 507)
+        conn.close()
+        self.assertEqual(sorted(p.name for p in self.folder.iterdir()), ['Clases', 'x.txt'])
+
+    def test_upload_never_overwrites(self):
+        s = Running(self, [self.folder], uploads=True)
+        mock.patch.object(server, 'notify').start()
+        self.addCleanup(mock.patch.stopall)
+        real = server.unique_name
+        with mock.patch.object(server, 'unique_name', side_effect=lambda d, n: 'x.txt'):   # a race: the name was free
+            response, data = s.request('PUT', '/api/upload?dir=&name=x.txt', body=b'nuevo', headers={'X-Wysun': '1'})
+        self.assertEqual(response.status, 200)
+        self.assertEqual((self.folder / 'x.txt').read_text(), 'hola mundo')
+        self.assertNotEqual(json.loads(data)['name'], 'x.txt')
+        self.assertTrue(callable(real))
+
+    def test_notification_text_is_escaped(self):
+        with mock.patch.object(server.shutil, 'which', return_value='/usr/bin/notify-send'), \
+                mock.patch.object(server.threading, 'Thread') as thread:
+            server.notify('<b>x</b>&.txt', 'Videos')
+        argv = thread.call_args.kwargs['target'].__closure__[0].cell_contents
+        self.assertIn('&lt;b&gt;x&lt;/b&gt;&amp;.txt · Videos', argv)
 
     def test_busy_port_moves_on(self):
         with socket.socket() as busy:

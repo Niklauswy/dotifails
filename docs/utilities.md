@@ -40,4 +40,12 @@ Página en el estilo de Wysun, siempre clara, con los colores del fondo de panta
 - Contrato con la barra: `$XDG_RUNTIME_DIR/wysun-lanshare/<pid>.json`, privado y escrito de forma atómica. Se actualiza como mucho una vez por segundo y, como mínimo, cada 10 s, y se borra al salir. Ver `apps/python/wysun_lanshare/status.py`.
 - En Wysun Files: clic derecho → «Compartir en la red» (un archivo, varios o una carpeta). Pregunta si se permiten subidas (solo con una carpeta) y si se pide contraseña, y lanza `wysun lanshare RUTA… [--subidas] [--clave]` por separado.
 
-Escucha en todas las interfaces: úsalo en redes de confianza o con `--clave`.
+Escucha en todas las interfaces: úsalo en redes de confianza o con `--clave`. La contraseña viaja sin cifrar (HTTP), así que en una red ajena alguien que espíe el tráfico podría verla.
+
+Seguridad (probada en `tests/test_lanshare_server.py`):
+- El servidor **nunca ejecuta** nada. Lo que se sube se guarda sin permiso de ejecución, nunca reemplaza un archivo existente y se rechaza si no cabe en el disco (deja un margen de 256 MB).
+- `--subidas` no se permite en `/`, en tu carpeta personal (ni en sus carpetas superiores) ni en carpetas de `PATH`.
+- Solo se sirve lo compartido: sin `..`, sin ocultos y sin enlaces que salgan de la carpeta. Una ruta con bytes nulos devuelve 404.
+- HTML, SVG, XML y JS compartidos se sirven como texto plano en una caja aislada (`Content-Security-Policy: sandbox`, `nosniff`): no pueden ejecutar scripts en la página. La página tiene su propia CSP estricta y no se puede incrustar en otros sitios.
+- Las escrituras (subir, crear carpeta, contraseña) exigen la cabecera `X-Wysun` y el mismo origen, así que otra página web abierta en tu navegador no puede forjarlas. Solo se responde a nombres que son este equipo (IP, `NOMBRE.local`/`.lan`…), contra DNS rebinding.
+- Los nombres de archivo en las notificaciones se escapan. Una conexión que no envía nada se cierra a los 120 s.

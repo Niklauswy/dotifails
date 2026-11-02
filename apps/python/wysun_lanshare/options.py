@@ -44,6 +44,14 @@ def parse_duration(text):
     return int(match.group(1)) * {'s': 1, 'm': 60, 'h': 3600, '': 60}[match.group(2)]
 
 
+def risky_upload_folder(folder):
+    """Where an upload could end up running: /, the home folder (or above it), a folder of PATH."""
+    folder = os.path.realpath(folder)
+    home = os.path.realpath(os.path.expanduser('~'))
+    commands = {os.path.realpath(d) for d in os.environ.get('PATH', '').split(os.pathsep) if d}
+    return folder == os.sep or home == folder or home.startswith(folder.rstrip(os.sep) + os.sep) or folder in commands
+
+
 def _parser():
     ap = argparse.ArgumentParser(
         prog='wysun lanshare', description='Comparte carpetas o archivos con la red local.',
@@ -83,6 +91,9 @@ def parse(argv=None, rng=secrets):
         resolved.append(real)
     if args.subidas and (len(resolved) != 1 or not os.path.isdir(resolved[0])):
         ap.error('--subidas solo se puede usar al compartir una sola carpeta')
+    if args.subidas and risky_upload_folder(resolved[0]):
+        ap.error('--subidas no se permite en tu carpeta personal, en / ni en carpetas de programas (PATH): '
+                 'comparte una subcarpeta, por ejemplo ~/Descargas')
     idle = DEFAULT_IDLE
     if args.sin_limite:
         idle = None

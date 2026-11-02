@@ -6,6 +6,7 @@ import random
 import sys
 import tempfile
 import unittest
+import unittest.mock
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'apps/python'))
@@ -72,6 +73,15 @@ class OptionsTests(unittest.TestCase):
     def test_uploads_only_for_one_folder(self):
         self.fails('--subidas', 'a.txt')
         self.fails('--subidas', 'sub', 'a.txt')
+
+    def test_uploads_refused_where_a_file_could_become_a_command(self):
+        home = self.dir / 'casa'
+        (home / 'bin').mkdir(parents=True)
+        with unittest.mock.patch.dict(os.environ, {'HOME': str(home), 'PATH': f'{home / "bin"}:/usr/bin'}):
+            self.fails(str(home), '--subidas')
+            self.fails('/', '--subidas')
+            self.fails(str(home / 'bin'), '--subidas')
+            self.assertTrue(parse('sub', '--subidas').uploads)
 
     def test_several_paths(self):
         self.assertEqual(parse('a.txt', 'sub').paths, [str(self.dir / 'a.txt'), str(self.dir / 'sub')])
