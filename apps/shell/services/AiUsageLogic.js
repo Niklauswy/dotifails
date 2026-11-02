@@ -168,26 +168,23 @@ function alerts(previous, next, settings, seen, now, threshold) {
     return { notify: notify, seen: state, weeklyReset: weeklyReset };
 }
 
-// The Hyprland window running an agent: the nearest ancestor that owns a window. A terminal that hosts
-// several windows in one process is told apart by the window title; when it cannot be, null (never a guess).
+// The Hyprland window running an agent: the nearest ancestor that owns exactly one window. A terminal that
+// runs every window in one process (ghostty) cannot tell its windows apart: null, never a guess.
 function windowForSession(agent, toplevels) {
     for (const pid of agent.windowPids || []) {
         const own = (toplevels || []).filter(t => t.pid === pid);
         if (own.length === 1)
             return own[0].address;
-        if (own.length > 1) {
-            const folder = (agent.cwd || "").split("/").filter(Boolean).pop() || "";
-            const named = own.filter(t => folder && (t.title || "").includes(folder));
-            return named.length === 1 ? named[0].address : null;
-        }
+        if (own.length > 1)
+            return null;
     }
     return null;
 }
 
-// The provider whose agent runs inside the focused window, or "".
-function focusedProvider(agents, focusedPid) {
-    if (!focusedPid)
+// The provider whose agent runs in the focused window (by window address), or "".
+function focusedProvider(agents, toplevels, focusedAddress) {
+    if (!focusedAddress)
         return "";
-    const agent = (agents || []).find(a => (a.windowPids || []).includes(focusedPid));
+    const agent = (agents || []).find(a => windowForSession(a, toplevels) === focusedAddress);
     return agent ? agent.provider : "";
 }

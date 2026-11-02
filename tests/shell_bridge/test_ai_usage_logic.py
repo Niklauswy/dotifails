@@ -161,13 +161,18 @@ class FocusTests(unittest.TestCase):
         self.assertEqual(js(f'return windowForSession({agent}, [{{pid: 100, address: "0xa", title: "loom"}}])'), '0xa')
         self.assertIsNone(js(f'return windowForSession({agent}, [{{pid: 999, address: "0xb", title: "x"}}])'))
 
-    def test_ambiguous_window_is_told_apart_by_title_or_skipped(self):
+    def test_ambiguous_window_is_never_guessed(self):
         agent = '{cwd: "/home/u/loom", provider: "claude", windowPids: [200, 100]}'
-        windows = '[{pid: 100, address: "0xa", title: "nvim"}, {pid: 100, address: "0xb", title: "✳ loom"}]'
-        self.assertEqual(js(f'return windowForSession({agent}, {windows})'), '0xb')
-        same = '[{pid: 100, address: "0xa", title: "zsh"}, {pid: 100, address: "0xb", title: "zsh"}]'
-        self.assertIsNone(js(f'return windowForSession({agent}, {same})'))
+        windows = '[{pid: 100, address: "0xa", title: "~/loom"}, {pid: 100, address: "0xb", title: "✳ task"}]'
+        self.assertIsNone(js(f'return windowForSession({agent}, {windows})'))
 
+    def test_focused_provider_follows_the_focused_window_not_the_process(self):
+        agents = '[{provider: "claude", windowPids: [7, 100]}, {provider: "codex", windowPids: [8, 200]}]'
+        one_process = '[{pid: 100, address: "a", title: ""}, {pid: 100, address: "b", title: ""}]'
+        self.assertEqual(js(f'return focusedProvider({agents}, {one_process}, "b")'), '')
+        own = '[{pid: 100, address: "a", title: ""}, {pid: 200, address: "b", title: ""}]'
+        self.assertEqual(js(f'return focusedProvider({agents}, {own}, "b")'), 'codex')
+        self.assertEqual(js(f'return focusedProvider({agents}, {own}, "")'), '')
 
 if __name__ == '__main__':
     unittest.main()

@@ -63,17 +63,17 @@ Singleton {
     readonly property int interval: Logic.refreshInterval(settings.refresh, anyBusy, refCount > 0, Tokens.sizes.aiUsage)
 
     // The provider whose agent runs in the focused window; the last one is kept while other windows have focus.
-    readonly property int focusedPid: Hypr.activeToplevel?.lastIpcObject?.pid ?? 0
+    readonly property string focusedAddress: Hypr.activeToplevel?.address ?? ""
     property string lastFocusedProvider: ""
     readonly property var indicator: Logic.indicatorTarget(visibleAccounts, settings.indicatorFollows, lastFocusedProvider, settings.selected)
 
     signal weeklyReset
 
-    onFocusedPidChanged: updateFocus()
+    onFocusedAddressChanged: updateFocus()
     onAgentsChanged: updateFocus()
 
     function updateFocus(): void {
-        const provider = Logic.focusedProvider(visibleAgents, focusedPid);
+        const provider = Logic.focusedProvider(visibleAgents, windows(), focusedAddress);
         if (provider)
             lastFocusedProvider = provider;
     }
@@ -217,14 +217,17 @@ Singleton {
         Quickshell.execDetached(["sh", "-c", 'if command -v ghostty >/dev/null 2>&1; then exec ghostty -e "$@"; else exec foot "$@"; fi', "sh"].concat(argv));
     }
 
-    // Window of a running agent, or "" when it cannot be told apart.
-    function sessionWindow(agent: var): string {
-        const windows = Hypr.toplevels.values.map(t => ({
+    function windows(): var {
+        return Hypr.toplevels.values.map(t => ({
                     pid: t.lastIpcObject?.pid ?? 0,
                     address: t.address,
                     title: t.title ?? ""
                 }));
-        return Logic.windowForSession(agent, windows) ?? "";
+    }
+
+    // Window of a running agent, or "" when it cannot be told apart.
+    function sessionWindow(agent: var): string {
+        return Logic.windowForSession(agent, windows()) ?? "";
     }
 
     function focusSession(agent: var): bool {

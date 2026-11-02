@@ -94,6 +94,33 @@ class CredentialsTests(unittest.TestCase):
                                   opener=opener)
         self.assertLessEqual(opener.calls[0]['timeout'], 5)
 
+    def test_redirects_are_never_followed(self):
+        import urllib.request, urllib.response
+        seen = []
+
+        class Redirecting(urllib.request.BaseHandler):
+            handler_order = 100  # ahead of the real HTTPS handler: nothing reaches the network
+
+            def https_open(self, request):
+                seen.append((request.full_url, request.get_header('Authorization')))
+                headers = __import__('email.message').message.Message()
+                headers['Location'] = 'http://evil.example/steal'
+                response = urllib.response.addinfourl(io.BytesIO(b''), headers, request.full_url, 302)
+                response.msg = 'Found'
+                return response
+
+            def http_open(self, request):
+                seen.append((request.full_url, request.get_header('Authorization')))
+                response = urllib.response.addinfourl(io.BytesIO(b'{}'), {}, request.full_url, 200)
+                response.msg = 'OK'
+                return response
+
+        opener = self.credentials.build_opener(Redirecting())
+        status, body = self.credentials.get_json('https://api.anthropic.com/x', {'Authorization': 'Bearer ' + SENTINEL},
+                                                 frozenset({'api.anthropic.com'}), opener=opener.open)
+        self.assertEqual(status, 302)
+        self.assertEqual([url for url, _ in seen], ['https://api.anthropic.com/x'])
+
     def test_unreadable_file_is_none(self):
         self.assertIsNone(self.credentials.read_json(Path('/nonexistent/creds.json')))
         with tempfile.TemporaryDirectory() as tmp:

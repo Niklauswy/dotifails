@@ -12,6 +12,18 @@ from urllib.parse import urlparse
 MAX_TIMEOUT = 5.0
 
 
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    """urllib copies Authorization to a redirect's host; a redirect is answered as the error it is instead."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+def build_opener(*handlers):
+    """An opener that never follows redirects."""
+    return urllib.request.build_opener(_NoRedirect, *handlers)
+
+
 def read_json(path):
     """The parsed JSON file, or None when it is missing, unreadable or malformed (never its contents)."""
     try:
@@ -31,7 +43,7 @@ def get_json(url, headers, allowed, timeout=MAX_TIMEOUT, opener=None):
     if parsed.scheme != 'https' or parsed.hostname not in allowed:
         raise ValueError('host not allowed')
     request = urllib.request.Request(url, headers=dict(headers, Accept='application/json'))
-    opener = opener or urllib.request.urlopen
+    opener = opener or build_opener().open
     try:
         with opener(request, timeout=min(float(timeout), MAX_TIMEOUT)) as response:
             status, raw = getattr(response, 'status', 200), response.read()
