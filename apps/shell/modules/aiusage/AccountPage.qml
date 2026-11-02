@@ -2,184 +2,386 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Layouts
+import Quickshell
 import Wysun.Config
 import Wysun.I18n
 import qs.components
+import qs.components.controls
 import qs.services
 import "Format.js" as Format
 
-// One signed-in account: identity and plan, its limits and its own usage.
+// One account: notices, identity, its limits, billing rows when the provider reports them, cost,
+// running sessions and links.
 ColumnLayout {
     id: root
 
     required property var account
     property real now: Date.now()
 
-    readonly property color colour: AiUsage.colour(account.id)
-    readonly property string age: Format.age(account.updatedAt, now)
-    readonly property int resetCredits: account.resetCredits?.available ?? 0
+    signal limitRequested(int index)
+    signal costRequested
+    signal diskRequested
 
-    spacing: Tokens.spacing.medium
+    readonly property var who: AiUsage.names(account)
+    readonly property var service: AiUsage.status[account.provider]
+    readonly property bool incident: AiUsage.settings.status && !!service && ["minor", "major", "critical"].includes(service.indicator)
+    readonly property var day: account.usage?.["30d"]
+    readonly property real today: day?.series?.[account.id]?.cost?.[(day?.points ?? 1) - 1] ?? 0
+    readonly property var weekly: (account.limits ?? []).find(l => l.id === "weekly")
+    readonly property var links: ({
+            claude: ["https://claude.ai/settings/usage", "claude.ai/settings/usage"],
+            codex: ["https://chatgpt.com/codex/settings/usage", "chatgpt.com/codex/settings/usage"],
+            opencode: ["https://opencode.ai/auth", "opencode.ai"]
+        })
 
-    Card {
-        Layout.fillWidth: true
-
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: Tokens.spacing.medium
-
-            StyledRect {
-                implicitWidth: Tokens.sizes.aiUsage.limitBarHeight * 2
-                implicitHeight: implicitWidth
-                radius: Tokens.rounding.full
-                color: Qt.alpha(root.colour, 0.18)
-
-                ProviderLogo {
-                    anchors.centerIn: parent
-                    provider: root.account.provider
-                    colour: root.colour
-                    size: Tokens.spacing.extraLarge
-                }
-            }
-
-            ColumnLayout {
-                Layout.fillWidth: true
-                spacing: 0
-
-                RowLayout {
-                    spacing: Tokens.spacing.small
-
-                    StyledText {
-                        text: root.account.providerName
-                        font: Tokens.font.title.medium
-                    }
-
-                    Chip {
-                        visible: !!root.account.plan
-                        text: root.account.plan ?? ""
-                        accent: root.colour
-                    }
-
-                    Chip {
-                        visible: root.resetCredits > 0
-                        // TRANSLATORS: %1 = number of Codex rate-limit reset credits
-                        text: Tr.tr("%1 resets").arg(root.resetCredits)
-                        accent: Colours.palette.m3tertiary
-                    }
-                }
-
-                StyledText {
-                    Layout.fillWidth: true
-                    text: root.account.email || root.account.label
-                    font: Tokens.font.body.small
-                    color: Colours.palette.m3onSurfaceVariant
-                    elide: Text.ElideMiddle
-                }
-
-                StyledText {
-                    Layout.fillWidth: true
-                    text: {
-                        const source = root.account.source === "app-server" ? Tr.tr("live from Codex") : root.account.source === "statusline" ? Tr.tr("from Claude Code") : root.account.source === "history" ? Tr.tr("not signed in, from session history") : Tr.tr("from session logs");
-                        // TRANSLATORS: %1 = elapsed time such as "5m", %2 = where the limits came from
-                        return root.age ? Tr.tr("Updated %1 ago · %2").arg(root.age).arg(source) : Tr.tr("Updated just now · %1").arg(source);
-                    }
-                    font: Tokens.font.label.small
-                    color: Colours.palette.m3outline
-                    elide: Text.ElideRight
-                }
-            }
-        }
+    function open(url: string): void {
+        Quickshell.execDetached(["xdg-open", url]);
     }
 
-    Card {
+    function summary(): string {
+        const parts = (account.limits ?? []).map(l => `${AiUsage.limitTitle(l)} ${Math.round(l.usedPercent)}%`);
+        return `${account.providerName} · ${who.label}: ${parts.join(" · ")} · 30d ${Format.money(day?.totals?.cost ?? 0)}`;
+    }
+
+    spacing: Tokens.spacing.small
+
+    Banner {
+        visible: root.incident
+        icon: "warning"
+        tone: Colours.palette.m3tertiary
+        title: root.service?.description ?? ""
+        body: root.service?.url ? root.service.url.replace("https://", "") : ""
+        details: (root.service?.components ?? []).map(c => ({
+                    name: c.name,
+                    value: c.status === "operational" ? Tr.tr("Operational") : c.status.replace(/_/g, " "),
+                    colour: c.status === "operational" ? Colours.palette.m3success : Colours.palette.m3tertiary
+                }))
+    }
+
+    Banner {
+        visible: !!root.account.error && root.account.error.kind !== "expired"
+        icon: "error"
+        tone: Colours.palette.m3error
+        title: root.account.error?.kind === "auth" || root.account.error?.kind === "scope" ? Tr.tr("Could not read this account: sign in again") : Tr.tr("Could not refresh this account")
+        body: root.account.source === "statusline" ? Tr.tr("Showing the limits Claude Code reported last.") : ""
+        command: root.account.error?.command ?? ""
+    }
+
+    Banner {
+        visible: !!root.account.session && (root.account.session.expired || root.account.session.expiresAt - root.now / 1000 < 86400)
+        icon: "key"
+        tone: Colours.palette.m3tertiary
+        title: root.account.session?.expired ? Tr.tr("The sign-in has expired") : Tr.tr("The sign-in expires %1").arg(Qt.formatDateTime(new Date((root.account.session?.expiresAt ?? 0) * 1000), "ddd hh:mm"))
+        body: Tr.tr("Open it once so it renews its session.")
+        command: root.account.provider === "opencode" ? "opencode auth login" : root.account.provider === "codex" ? "codex login" : "claude"
+    }
+
+    Banner {
+        visible: AiUsage.settings.upcoming && !!root.weekly?.resetsAt && root.weekly.usedPercent < 100 && root.weekly.resetsAt - root.now / 1000 < 86400 && root.weekly.resetsAt > root.now / 1000
+        icon: "schedule"
+        tone: Colours.palette.m3primary
+        title: Tr.tr("Your weekly limit resets in %1").arg(Format.countdown(root.weekly?.resetsAt, root.now))
+        body: Tr.tr("%1% is still unused; what you do not use is lost.").arg(Math.round(100 - (root.weekly?.usedPercent ?? 0)))
+    }
+
+    // Identity
+    RowLayout {
         Layout.fillWidth: true
-        visible: !root.account.available
+        Layout.topMargin: Tokens.spacing.small
+        Layout.leftMargin: Tokens.padding.small
+        Layout.rightMargin: Tokens.padding.small
+        spacing: Tokens.spacing.medium
 
-        RowLayout {
+        StyledRect {
+            implicitWidth: Tokens.spacing.extraLarge + Tokens.spacing.medium
+            implicitHeight: implicitWidth
+            radius: Tokens.rounding.full
+            color: Qt.alpha(Colours.palette.m3primary, 0.16)
+
+            ProviderLogo {
+                anchors.centerIn: parent
+                provider: root.account.provider
+                colour: Colours.palette.m3primary
+            }
+        }
+
+        ColumnLayout {
             Layout.fillWidth: true
-            spacing: Tokens.spacing.small
+            spacing: 0
 
-            MaterialIcon {
-                text: "info"
-                color: Colours.palette.m3primary
-                fontStyle: Tokens.font.icon.medium
+            StyledText {
+                text: root.account.providerName
+                font: Tokens.font.title.medium
             }
 
             StyledText {
                 Layout.fillWidth: true
-                wrapMode: Text.WordWrap
-                text: root.account.reason === "statusline" ? Tr.tr("Limits appear after Claude Code refreshes its status line once.") : root.account.reason === "cli" ? Tr.tr("Codex CLI not found in PATH.") : root.account.reason === "history" ? Tr.tr("This account is not signed in; only its usage history is shown.") : Tr.tr("No limits reported yet.")
+                text: {
+                    const age = Format.age(root.account.updatedAt, root.now);
+                    const when = AiUsage.isStale(root.account) ? Tr.tr("data from %1 ago").arg(age) : age ? Tr.tr("updated %1 ago").arg(age) : Tr.tr("updated just now");
+                    return [root.who.email || root.who.label, when].filter(Boolean).join(" · ");
+                }
                 font: Tokens.font.body.small
-                color: Colours.palette.m3onSurfaceVariant
+                color: AiUsage.isStale(root.account) ? Colours.palette.m3tertiary : Colours.palette.m3onSurfaceVariant
+                elide: Text.ElideMiddle
             }
         }
+
+        Chip {
+            visible: !!root.account.plan
+            text: root.account.plan ?? ""
+        }
+    }
+
+    Divider {}
+
+    StyledText {
+        visible: !(root.account.limits?.length)
+        Layout.fillWidth: true
+        Layout.margins: Tokens.padding.small
+        wrapMode: Text.WordWrap
+        text: root.account.reason === "subscription" ? Tr.tr("No OpenCode Go subscription or sign-in yet; this is your local history.") : root.account.reason === "statusline" ? Tr.tr("Limits appear after Claude Code refreshes its status line once.") : root.account.reason === "cli" ? Tr.tr("Codex CLI not found in PATH.") : root.account.reason === "history" ? Tr.tr("This account is not signed in; only its usage history is shown.") : Tr.tr("No limits reported yet.")
+        font: Tokens.font.body.small
+        color: Colours.palette.m3onSurfaceVariant
     }
 
     Repeater {
         model: root.account.limits ?? []
 
-        Card {
-            id: limitCard
-
+        LimitBlock {
             required property var modelData
+            required property int index
 
-            Layout.fillWidth: true
-
-            LimitCard {
-                Layout.fillWidth: true
-                limit: limitCard.modelData
-                colour: root.colour
-                now: root.now
-                resetCredits: root.resetCredits
-            }
+            limit: modelData
+            now: root.now
+            onClicked: root.limitRequested(index)
         }
     }
 
-    // Banked resets are only shown; redeeming them stays in the provider's own tools.
-    Card {
+    // Billing and credits, only what the provider reports.
+    ColumnLayout {
         Layout.fillWidth: true
-        visible: root.resetCredits > 0
+        visible: AiUsage.settings.billing && (!!root.account.extra || !!root.account.cloud || root.account.credits !== null && root.account.credits !== undefined || (root.account.resetCredits?.available ?? 0) > 0 || !!root.account.renewsAt)
+        spacing: 0
 
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: Tokens.spacing.small
+        Divider {}
 
-            MaterialIcon {
-                text: "confirmation_number"
-                color: Colours.palette.m3tertiary
-                fontStyle: Tokens.font.icon.medium
-            }
+        LimitBlock {
+            visible: !!root.account.extra
+            clickable: false
+            limit: ({
+                    id: "extra",
+                    label: Tr.tr("Extra usage"),
+                    usedPercent: root.account.extra ? 100 * root.account.extra.spent / Math.max(0.01, root.account.extra.cap) : 0,
+                    resetsAt: root.account.extra?.resetsAt ?? null,
+                    windowMinutes: 43200
+                })
+            now: root.now
+        }
 
-            ColumnLayout {
+        MenuRow {
+            visible: !!root.account.extra
+            icon: "payments"
+            text: Tr.tr("%1 of %2 this month").arg(Format.money(root.account.extra?.spent ?? 0)).arg(Format.money(root.account.extra?.cap ?? 0))
+            enabled: false
+        }
+
+        MenuRow {
+            visible: !!root.account.cloud
+            icon: "cloud"
+            text: Tr.tr("Cloud session credits")
+            detail: root.account.cloud ? (root.account.cloud.expired ? Tr.tr("expired") : Format.money(root.account.cloud.remaining)) : ""
+            enabled: false
+        }
+
+        MenuRow {
+            visible: root.account.credits !== null && root.account.credits !== undefined
+            icon: "toll"
+            text: Tr.tr("Credits")
+            detail: String(root.account.credits ?? "")
+            trailing: "open_in_new"
+            onClicked: root.open(root.links[root.account.provider][0])
+        }
+
+        MenuRow {
+            visible: (root.account.resetCredits?.available ?? 0) > 0
+            icon: "confirmation_number"
+            // TRANSLATORS: %1 = number of saved limit resets
+            text: Tr.tr("%1 saved resets").arg(root.account.resetCredits?.available ?? 0)
+            detail: (root.account.resetCredits?.credits ?? []).filter(c => c.expiresAt).map(c => Tr.tr("expires in %1").arg(Format.countdown(c.expiresAt, root.now))).join(" · ")
+            trailing: "open_in_new"
+            onClicked: root.open(root.links[root.account.provider][0])
+        }
+
+        MenuRow {
+            visible: !!root.account.renewsAt
+            icon: "event_repeat"
+            text: Tr.tr("Plan renews")
+            detail: root.account.renewsAt ? Qt.formatDate(new Date(root.account.renewsAt * 1000), "d MMM") : ""
+            enabled: false
+        }
+    }
+
+    Divider {}
+
+    // Cost summary
+    Item {
+        Layout.fillWidth: true
+        implicitHeight: costColumn.implicitHeight + Tokens.padding.medium * 2
+
+        StateLayer {
+            radius: Tokens.rounding.large
+            color: Colours.palette.m3onSurface
+            onClicked: root.costRequested()
+        }
+
+        ColumnLayout {
+            id: costColumn
+
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            anchors.margins: Tokens.padding.small
+            spacing: Tokens.spacing.extraSmall
+
+            RowLayout {
                 Layout.fillWidth: true
-                spacing: 0
 
                 StyledText {
-                    // TRANSLATORS: %1 = number of banked rate-limit resets
-                    text: Tr.tr("%1 banked").arg(root.resetCredits)
+                    Layout.fillWidth: true
+                    text: Tr.tr("Cost")
                     font: Tokens.font.title.small
                 }
 
+                MaterialIcon {
+                    text: "chevron_right"
+                    color: Colours.palette.m3onSurfaceVariant
+                    fontStyle: Tokens.font.icon.small
+                }
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+
+                StyledText {
+                    Layout.fillWidth: true
+                    text: Tr.tr("Today")
+                    font: Tokens.font.body.small
+                    color: Colours.palette.m3onSurfaceVariant
+                }
+
+                StyledText {
+                    text: Format.tokens(root.day?.series?.[root.account.id]?.tokens?.[(root.day?.points ?? 1) - 1] ?? 0) + " " + Tr.tr("tokens")
+                    font: Tokens.font.body.small
+                    color: Colours.palette.m3onSurfaceVariant
+                }
+
+                StyledText {
+                    Layout.minimumWidth: Tokens.spacing.extraExtraLarge + Tokens.spacing.medium
+                    horizontalAlignment: Text.AlignRight
+                    text: Format.money(root.today)
+                    font: Tokens.font.label.builders.medium.weight(Font.DemiBold).build()
+                }
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+
+                StyledText {
+                    Layout.fillWidth: true
+                    text: Tr.tr("Last 30 days")
+                    font: Tokens.font.body.small
+                    color: Colours.palette.m3onSurfaceVariant
+                }
+
+                StyledText {
+                    text: Format.tokens(root.day?.totals?.processed ?? 0) + " " + Tr.tr("tokens")
+                    font: Tokens.font.body.small
+                    color: Colours.palette.m3onSurfaceVariant
+                }
+
+                StyledText {
+                    Layout.minimumWidth: Tokens.spacing.extraExtraLarge + Tokens.spacing.medium
+                    horizontalAlignment: Text.AlignRight
+                    text: Format.money(root.day?.totals?.cost ?? 0)
+                    font: Tokens.font.label.builders.medium.weight(Font.DemiBold).build()
+                }
+            }
+
+            // Last two weeks, newest brightest.
+            Row {
+                id: spark
+
+                readonly property var values: (root.day?.series?.[root.account.id]?.cost ?? []).slice(-14)
+                readonly property real top: Math.max(0.0001, ...values)
+
+                Layout.fillWidth: true
+                Layout.topMargin: Tokens.spacing.small
+                implicitHeight: Tokens.spacing.extraLarge
+                spacing: 2
+
                 Repeater {
-                    model: root.account.resetCredits?.credits ?? []
+                    model: spark.values
 
-                    StyledText {
-                        required property var modelData
+                    StyledRect {
+                        required property real modelData
+                        required property int index
 
-                        Layout.fillWidth: true
-                        text: (modelData.title || Tr.tr("Reset")) + (modelData.expiresAt ? " · " + Tr.tr("expires in %1").arg(Format.countdown(modelData.expiresAt, root.now)) : "")
-                        font: Tokens.font.label.small
-                        color: Colours.palette.m3onSurfaceVariant
-                        elide: Text.ElideRight
+                        anchors.bottom: parent.bottom
+                        width: (spark.width - spark.spacing * 13) / 14
+                        height: Math.max(2, spark.height * modelData / spark.top)
+                        radius: Tokens.rounding.extraSmall
+                        color: index === spark.values.length - 1 ? Colours.palette.m3primary : Qt.alpha(Colours.palette.m3primary, 0.45)
                     }
                 }
             }
         }
     }
 
-    UsageSection {
-        Layout.fillWidth: true
-        usage: root.account.usage
-        accounts: [root.account]
+    Divider {
+        visible: sessions.visible
+    }
+
+    SessionRows {
+        id: sessions
+
+        Layout.topMargin: Tokens.spacing.small
+        agents: AiUsage.visibleAgents.filter(a => a.provider === root.account.provider)
+        now: root.now
+    }
+
+    Divider {}
+
+    MenuRow {
+        icon: "hard_drive"
+        text: Tr.tr("Disk space")
+        detail: root.account.disk ? Format.bytes(root.account.disk.total) + " · " + root.account.disk.root : ""
+        trailing: "chevron_right"
+        visible: !!root.account.disk
+        onClicked: root.diskRequested()
+    }
+
+    MenuRow {
+        icon: "monitoring"
+        text: Tr.tr("Usage dashboard")
+        detail: root.links[root.account.provider]?.[1] ?? ""
+        trailing: "open_in_new"
+        onClicked: root.open(root.links[root.account.provider][0])
+    }
+
+    MenuRow {
+        visible: AiUsage.settings.status && !!root.service?.url
+        icon: "bigtop_updates"
+        text: Tr.tr("Service status")
+        dot: root.incident ? Colours.palette.m3tertiary : root.service?.indicator === "none" ? Colours.palette.m3success : Colours.palette.m3outline
+        detail: root.incident ? Tr.tr("Incident") : root.service?.indicator === "none" ? Tr.tr("Operational") : Tr.tr("Unknown")
+        trailing: "open_in_new"
+        onClicked: root.open(root.service.url)
+    }
+
+    MenuRow {
+        icon: "ios_share"
+        text: Tr.tr("Copy summary")
+        onClicked: Quickshell.clipboardText = root.summary()
     }
 }

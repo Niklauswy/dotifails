@@ -70,3 +70,14 @@ function pace(limit, nowMs) {
     const runsOutIn = rate > 0 ? (100 - limit.usedPercent) / rate : Infinity;
     return { delta: delta, lasts: runsOutIn >= left, runsOutAt: nowMs / 1000 + runsOutIn };
 }
+
+// Disk sizes, e.g. "1.8 GB", "320 MB".
+function bytes(value) {
+    const n = Number(value) || 0;
+    const units = [[1e12, "TB"], [1e9, "GB"], [1e6, "MB"], [1e3, "KB"]];
+    for (const [size, unit] of units) {
+        if (n >= size)
+            return (n / size).toFixed(n / size >= 100 ? 0 : 1) + " " + unit;
+    }
+    return n + " B";
+}

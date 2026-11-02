@@ -87,6 +87,14 @@ Singleton {
         return accounts.find(a => a.id === id) ?? null;
     }
 
+    function tightestOf(provider: string): var {
+        return Logic.tightest(providerAccounts(provider));
+    }
+
+    function providerName(provider: string): string {
+        return provider === "claude" ? "Claude" : provider === "codex" ? "Codex" : provider === "opencode" ? "OpenCode" : provider;
+    }
+
     function providerAccounts(provider: string): var {
         return visibleAccounts.filter(a => a.provider === provider);
     }
