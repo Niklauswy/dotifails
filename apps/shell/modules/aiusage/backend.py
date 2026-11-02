@@ -953,6 +953,37 @@ def service_status(providers, now, live, opener=None):
     return result
 
 
+def _write_json(path, value):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temp = path.with_name(path.name + '.tmp')
+    temp.write_text(json.dumps(value, indent=2) + '\n', encoding='utf-8')
+    os.replace(temp, path)
+
+
+def prepare_account(provider):
+    """A new, empty home for another account, set up so the panel finds it; its folder, or None.
+
+    Claude: ~/.claude-<n> whose settings.json runs the status line hook. Codex: ~/.codex-<n>, listed in
+    ai-accounts.json. The sign-in itself is the provider's own (`claude` /login, `codex login`).
+    """
+    if provider not in ('claude', 'codex'):
+        return None
+    n = 2
+    while (HOME / f'.{provider}-{n}').exists():
+        n += 1
+    folder = HOME / f'.{provider}-{n}'
+    folder.mkdir(mode=0o700)
+    if provider == 'claude':
+        hook = Path(__file__).with_name('statusline-hook.py')
+        _write_json(folder / 'settings.json', {'statusLine': {'type': 'command', 'command': f'python3 -I {hook}'}})
+    else:
+        config = _read_json(CONFIG / 'ai-accounts.json') or {}
+        accounts = config.get('accounts') if isinstance(config.get('accounts'), list) else []
+        config['accounts'] = accounts + [{'provider': 'codex', 'home': str(folder)}]
+        _write_json(CONFIG / 'ai-accounts.json', config)
+    return str(folder)
+
+
 def save_snapshot(snapshot):
     """Last result, read by the shell at start so the panel paints before the first refresh."""
     try:
@@ -965,4 +996,8 @@ def save_snapshot(snapshot):
 
 
 if __name__ == '__main__':
+    if '--prepare-account' in sys.argv:
+        index = sys.argv.index('--prepare-account')
+        print(prepare_account(sys.argv[index + 1] if index + 1 < len(sys.argv) else '') or '')
+        sys.exit(0)
     json.dump(collect(live='--offline' not in sys.argv), sys.stdout, separators=(',', ':'))

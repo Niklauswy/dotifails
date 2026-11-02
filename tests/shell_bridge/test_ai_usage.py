@@ -476,6 +476,26 @@ class AiUsageTests(unittest.TestCase):
     def test_snapshot_lists_agents(self):
         self.assertIsInstance(self.collect()['agents'], list)
 
+    def test_prepare_claude_account_writes_hook_settings(self):
+        (self.home / '.claude-2').mkdir()
+        folder = Path(self.backend.prepare_account('claude'))
+        self.assertEqual(folder, self.home / '.claude-3')
+        settings = json.loads((folder / 'settings.json').read_text())
+        self.assertIn('statusline-hook.py', settings['statusLine']['command'])
+        self.assertEqual(settings['statusLine']['type'], 'command')
+
+    def test_prepare_codex_account_registers_home(self):
+        self.configure([{'provider': 'codex', 'home': '~/.codex-work', 'label': 'Work'}])
+        folder = Path(self.backend.prepare_account('codex'))
+        self.assertEqual(folder, self.home / '.codex-2')
+        self.assertTrue(folder.is_dir())
+        accounts = json.loads((self.home / 'config/wysun/ai-accounts.json').read_text())['accounts']
+        self.assertEqual(accounts[0]['label'], 'Work')
+        self.assertEqual(accounts[-1], {'provider': 'codex', 'home': str(folder)})
+
+    def test_prepare_other_providers_creates_nothing(self):
+        self.assertIsNone(self.backend.prepare_account('opencode'))
+
     def test_sibling_modules_load_by_path(self):
         credentials = self.backend._sibling('credentials')
         self.assertTrue(callable(credentials.get_json))

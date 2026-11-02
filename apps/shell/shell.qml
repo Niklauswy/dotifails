@@ -20,6 +20,7 @@ import qs.modules.drawers
 import qs.modules.identify
 import qs.modules.launcher
 import qs.modules.study
+import qs.modules.aiusage as AiUsagePanel
 import qs.daemons
 
 ShellRoot {
@@ -66,6 +67,7 @@ ShellRoot {
     Cheatsheet {}
     WallpaperPicker {}
     StudyModule {}
+    AiUsagePanel.Confetti {}
 
     // Daemons
     BatteryMonitor {}

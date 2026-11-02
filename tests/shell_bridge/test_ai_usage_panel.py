@@ -94,5 +94,20 @@ class PageTests(unittest.TestCase):
         self.assertIn('paceGuide', text)
 
 
+class IndicatorTests(unittest.TestCase):
+    def test_indicator_uses_indicator_target(self):
+        text = (SHELL / 'modules/bar/components/AiUsageIndicator.qml').read_text()
+        self.assertIn('AiUsage.indicator', text)
+        self.assertIn('AiUsage.isStale(', text)
+        self.assertNotIn('AiUsage.tightest', text)
+        for style in ('"meters"', '"percent"', '"stacked"', '"pace"'):
+            self.assertIn(style, text)
+
+    def test_confetti_follows_weekly_reset(self):
+        text = qml('Confetti.qml')
+        self.assertIn('onWeeklyReset', text)
+        self.assertIn('Colours.palette', text)
+
+
 if __name__ == '__main__':
     unittest.main()
