@@ -514,7 +514,18 @@ def claude_profile(home):
             'extraUsage': profile.get('hasExtraUsageEnabled')}
 
 
-def claude_account(account, now, named_by_folder=True):
+def claude_account(account, now, named_by_folder=True, live=True, opener=None):
+    """Live usage from Anthropic's API when Claude Code's sign-in allows it, else the status line snapshot."""
+    api = _sibling('claude_api')
+    details, error = api.usage(account['home'], now, opener) if live else (None, None)
+    base = claude_statusline_account(account, now, named_by_folder)
+    base.update(session=api.session(account['home'], now), error=error, extra=None, cloud=None)
+    if details:
+        base.update(details, available=True, reason=None, source='api', updatedAt=now)
+    return base
+
+
+def claude_statusline_account(account, now, named_by_folder=True):
     info = claude_profile(account['home'])
     snapshot = claude_snapshot(account['home'], named_by_folder)
     if not snapshot:
@@ -671,9 +682,9 @@ def history_account(key, records, label, now):
             'source': 'history', 'updatedAt': seen, 'home': None}
 
 
-def describe(account, now, live, shared_names=frozenset()):
+def describe(account, now, live, shared_names=frozenset(), opener=None):
     if account['provider'] == 'claude':
-        details = claude_account(account, now, account['home'].name not in shared_names)
+        details = claude_account(account, now, account['home'].name not in shared_names, live, opener)
     else:
         details = codex_account(account, now, live)
     label = account['label'] or details.get('name') or (details.get('email') or '').split('@')[0] or NAMES[account['provider']]
@@ -701,7 +712,7 @@ def tell_apart(accounts, named):
                 account['label'] += f" ({Path(account['home']).name})"
 
 
-def collect(now=None, live=True):
+def collect(now=None, live=True, opener=None):
     now = time.time() if now is None else now
     accounts = load_accounts()
     files = scan(accounts, now)
@@ -711,7 +722,7 @@ def collect(now=None, live=True):
     folders = Counter(a['home'].name for a in accounts if a['provider'] == 'claude')
     shared_names = {name for name, count in folders.items() if count > 1}
     with ThreadPoolExecutor(max_workers=max(1, len(accounts))) as pool:
-        described = list(pool.map(lambda a: describe(a, now, live, shared_names), accounts))
+        described = list(pool.map(lambda a: describe(a, now, live, shared_names, opener), accounts))
     # Two homes signed in to the same Codex account report the same id; keep the first.
     unique, keys = [], set()
     for account in described:
