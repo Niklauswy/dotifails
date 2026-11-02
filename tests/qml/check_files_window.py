@@ -40,6 +40,7 @@ class FilesWindowTests(unittest.TestCase):
         cls.win.present()
         cls.window.resize(1180, 800)
         cls.files = cls.win.files
+        cls.files.setInspector(False)          # the inspector has its own checks (check_files_inspector)
         cls.h.pump(100)
 
     @classmethod

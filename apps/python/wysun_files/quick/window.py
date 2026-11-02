@@ -39,6 +39,9 @@ class QmlFilesWindow:
         self.ops = Operations(self.files, parent=self.engine)
         self.files.openRequested.connect(self.ops.open)
         self.bridges['fileOps'] = self.ops
+        from .preview import Preview
+        self.preview = Preview(parent=self.engine)
+        self.bridges['preview'] = self.preview
 
     def present(self):
         window = self.window
@@ -53,5 +56,6 @@ class QmlFilesWindow:
         window.requestActivate()
 
     def close(self):
+        self.preview.close()
         self.places.close()
         self.files.close()

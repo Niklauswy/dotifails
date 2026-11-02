@@ -2,6 +2,7 @@
 // the path and the view switch, one FolderView per tab, the floating selection bar and the status line. Python
 // provides `files` (tabs and settings), `places` and `bridge` (theme); later parts add operations and the preview.
 import QtQuick
+import QtMultimedia
 import WysunM3
 import "parts"
 
@@ -16,6 +17,85 @@ Window {
     readonly property var dialogs: filesDialogs
     readonly property var menus: filesMenus
     property bool closeWhenIdle
+    property bool expanded
+    readonly property int mediaState: mediaPlayer.playbackState      // 0 stopped, 1 playing, 2 paused
+    readonly property bool inspectorShown: files.inspector && width >= FilesMetrics.inspectorFrom && model !== null && model.selectionCount > 0 && !expanded
+    readonly property bool previewing: inspectorShown || expanded
+    // Code and Markdown take their colours from the theme's roles.
+    readonly property var codeColours: ({
+            keyword: Theme.m3primary,
+            string: Theme.m3tertiary,
+            number: Theme.m3secondary,
+            comment: Theme.m3outline,
+            function: Theme.m3primary,
+            type: Theme.m3secondary,
+            constant: Theme.m3tertiary,
+            key: Theme.m3secondary,
+            meta: Theme.m3outline,
+            link: Theme.m3primary,
+            code_bg: Theme.m3surfaceContainerHighest,
+            code_fg: Theme.m3onSurface,
+            muted: Theme.m3onSurfaceVariant,
+            text: Theme.m3onSurface,
+            mono: Theme.font.family?.mono ?? ""
+        })
+    onCodeColoursChanged: preview.setColors(codeColours)
+    onPreviewingChanged: updatePreview()
+
+    function updatePreview() {
+        preview.setSelection(previewing && model ? model.selectedPaths : []);
+    }
+
+    // Space (F-53): the expanded view of the one selected file.
+    function togglePreview() {
+        if (expanded) {
+            closePreview();
+            return;
+        }
+        const chosen = model ? model.selectedPaths : [];
+        if (chosen.length !== 1 || model.get(model.rowOf(chosen[0])).isDir) {
+            snackbars.show({text: "Selecciona un archivo para verlo en grande"});
+            return;
+        }
+        expanded = true;
+        updatePreview();
+        expandedView.forceActiveFocus();
+    }
+
+    function closePreview() {
+        if (window.visibility === Window.FullScreen)
+            window.showNormal();
+        expanded = false;
+        focusFiles();
+    }
+
+    // ← / → in the expanded view: the next file of the same kind in the folder's order.
+    function stepPreview(delta) {
+        const current = model.currentRow;
+        if (current < 0)
+            return;
+        const kind = model.get(current).kind;
+        for (let row = current + delta; row >= 0 && row < model.count; row += delta) {
+            if (model.get(row).kind === kind) {
+                model.select(row, "single");
+                updatePreview();
+                return;
+            }
+        }
+    }
+
+    function followLink(href) {
+        const target = preview.resolveLink(href);
+        if (target === "")
+            return;
+        if (target.indexOf("://") > 0 || target.startsWith("mailto:")) {
+            Qt.openUrlExternally(target);
+            return;
+        }
+        if (expanded)
+            closePreview();
+        navigate(target);
+    }
 
     function focusFiles() {
         currentView?.focusFiles();
@@ -32,7 +112,13 @@ Window {
 
     // Escape, from the innermost thing outwards (F-30): path field, filter field, selection, filter text.
     function cancel() {
-        if (pathBar.editing) {
+        if (window.visibility === Window.FullScreen && expanded) {
+            window.showNormal();
+            return;
+        } else if (expanded) {
+            closePreview();
+            return;
+        } else if (pathBar.editing) {
             pathBar.finish();
         } else if (currentView && currentView.filters.focused) {
             focusFiles();
@@ -89,6 +175,9 @@ Window {
         case "open":
             openPaths(chosen);
             break;
+        case "preview":
+            togglePreview();
+            break;
         }
     }
 
@@ -100,6 +189,7 @@ Window {
     color: Theme.m3surface
     // Closing waits for a running copy or move (F-05).
     onClosing: close => {
+        mediaPlayer.stop();
         if (fileOps.busy) {
             close.accepted = false;
             closeWhenIdle = true;
@@ -118,6 +208,7 @@ Window {
             tokens: bridge.tokens
             reducedMotion: bridge.reducedMotion
         }
+        Component.onCompleted: preview.setColors(window.codeColours)
 
         AdaptiveNavigation {
             id: nav
@@ -283,6 +374,19 @@ Window {
                             onActivated: value => files.setViewMode(value)
                         }
                         IconButton {
+                            objectName: "inspectorButton"
+                            visible: window.width >= FilesMetrics.inspectorFrom
+                            anchors.verticalCenter: parent.verticalCenter
+                            icon: "right_panel_open"
+                            checkable: true
+                            checked: files.inspector
+                            onClicked: files.setInspector(!files.inspector)
+
+                            Tooltip {
+                                text: "Vista previa · Ctrl+I"
+                            }
+                        }
+                        IconButton {
                             objectName: "moreButton"
                             anchors.verticalCenter: parent.verticalCenter
                             icon: "more_vert"
@@ -306,6 +410,26 @@ Window {
                     anchors.bottom: status.top
                     width: parent.width
 
+                    Inspector {
+                        id: inspector
+
+                        anchors.top: parent.top
+                        anchors.bottom: parent.bottom
+                        anchors.bottomMargin: Theme.spacing.small ?? 0
+                        width: FilesMetrics.inspectorWidth
+                        x: window.inspectorShown ? parent.width - width - FilesMetrics.pagePadding : parent.width + FilesMetrics.pagePadding
+                        visible: x < parent.width
+                        player: mediaPlayer
+                        onExpandRequested: window.togglePreview()
+                        onLinkActivated: target => window.followLink(target)
+
+                        Behavior on x {
+                            Anim {
+                                kind: "defaultSpatial"
+                            }
+                        }
+                    }
+
                     Repeater {
                         id: views
 
@@ -316,7 +440,15 @@ Window {
                             required property int index
 
                             objectName: "folderView"
-                            anchors.fill: parent
+                            anchors.top: parent.top
+                            anchors.bottom: parent.bottom
+                            width: parent.width - (window.inspectorShown ? FilesMetrics.inspectorWidth + FilesMetrics.pagePadding : 0)
+
+                            Behavior on width {
+                                Anim {
+                                    kind: "defaultSpatial"
+                                }
+                            }
                             visible: index === files.currentIndex
                             enabled: visible
                             focus: visible
@@ -353,6 +485,45 @@ Window {
                     operation: fileOps.busyText
                     progress: fileOps.progress
                 }
+            }
+        }
+
+        ExpandedPreview {
+            id: expandedView
+
+            anchors.fill: parent
+            open: window.expanded
+            player: mediaPlayer
+            onCloseRequested: window.closePreview()
+            onStepRequested: delta => window.stepPreview(delta)
+            onFullScreenRequested: window.visibility === Window.FullScreen ? window.showNormal() : window.showFullScreen()
+            onLinkActivated: target => window.followLink(target)
+        }
+
+        // One player for the inspector and the expanded view; a new file stops the previous one (F-51).
+        MediaPlayer {
+            id: mediaPlayer
+
+            objectName: "mediaPlayer"
+            source: window.previewing && (preview.kind === "video" || preview.kind === "audio") ? preview.mediaUrl : ""
+            videoOutput: window.expanded ? expandedView.pane.videoOutput : inspector.pane.videoOutput
+            audioOutput: AudioOutput {}
+        }
+
+        Connections {
+            target: window.model
+
+            function onSelectionChanged() {
+                if (window.previewing)
+                    window.updatePreview();
+            }
+        }
+
+        Connections {
+            target: files
+
+            function onCurrentChanged() {
+                window.updatePreview();
             }
         }
 
@@ -514,6 +685,10 @@ Window {
             Shortcut {
                 sequence: "Ctrl+Shift+N"
                 onActivated: window.keyAction("newFolder")
+            }
+            Shortcut {
+                sequence: "Ctrl+I"
+                onActivated: files.setInspector(!files.inspector)
             }
             Shortcut {
                 sequence: "Ctrl+Q"

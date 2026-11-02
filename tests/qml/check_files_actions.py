@@ -41,6 +41,7 @@ class FilesActionTests(unittest.TestCase):
         # A private trash; only now (the runtime is found through XDG_DATA_HOME while the engine starts).
         cls.env = patch.dict(os.environ, {'XDG_DATA_HOME': str(base / 'data')})
         cls.env.start()
+        cls.files.setInspector(False)          # the inspector has its own checks (check_files_inspector)
         cls.h.pump(100)
 
     @classmethod

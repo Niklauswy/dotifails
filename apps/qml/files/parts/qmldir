@@ -13,3 +13,6 @@ StatusLine 1.0 StatusLine.qml
 SelectionBar 1.0 SelectionBar.qml
 FilesMenus 1.0 FilesMenus.qml
 FilesDialogs 1.0 FilesDialogs.qml
+PreviewPane 1.0 PreviewPane.qml
+Inspector 1.0 Inspector.qml
+ExpandedPreview 1.0 ExpandedPreview.qml
