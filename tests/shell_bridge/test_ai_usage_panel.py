@@ -16,7 +16,6 @@ class ServiceTests(unittest.TestCase):
     def test_service_counts_only_visible_accounts(self):
         text = SERVICE.read_text()
         self.assertIn('Logic.tightest(visibleAccounts)', text)
-        self.assertIn('Logic.indicatorTarget(visibleAccounts', text)
         self.assertIn('Logic.visibleAccounts(list.accounts', text)
 
     def test_bars_show_what_is_left_by_default(self):
@@ -35,9 +34,7 @@ class ServiceTests(unittest.TestCase):
 
     def test_settings_offer_every_spec_choice(self):
         text = qml('SettingsPage.qml')
-        self.assertIn('value: "selected"', text)
         self.assertIn('value: "7"', text)
-        self.assertIn('AiUsage.setSetting("selected"', text)
 
     def test_idle_interval_text_follows_the_token(self):
         for name in ('Content.qml', 'SettingsPage.qml'):
@@ -46,11 +43,6 @@ class ServiceTests(unittest.TestCase):
 
     def test_unknown_status_is_not_shown_as_operational(self):
         self.assertIn('indicator === "none"', qml('OverviewPage.qml'))
-
-    def test_stacked_indicator_letters_are_translated(self):
-        text = (SHELL / 'modules/bar/components/AiUsageIndicator.qml').read_text()
-        self.assertNotIn('"S "', text)
-        self.assertNotIn('"W "', text)
 
     def test_settings_live_in_their_own_file(self):
         self.assertIn('`${Paths.config}/ai-usage.json`', SERVICE.read_text())
@@ -161,13 +153,14 @@ class PageTests(unittest.TestCase):
 
 
 class IndicatorTests(unittest.TestCase):
-    def test_indicator_uses_indicator_target(self):
-        text = (SHELL / 'modules/bar/components/AiUsageIndicator.qml').read_text()
-        self.assertIn('AiUsage.indicator', text)
-        self.assertIn('AiUsage.isStale(', text)
-        self.assertNotIn('AiUsage.tightest', text)
-        for style in ('"meters"', '"percent"', '"stacked"', '"pace"'):
-            self.assertIn(style, text)
+    def test_bar_has_no_ai_usage_entry(self):
+        # The panel is a hover away; the bar does not repeat a single account of it.
+        self.assertFalse((SHELL / 'modules/bar/components/AiUsageIndicator.qml').exists())
+        self.assertNotIn('aiUsage', (SHELL / 'modules/bar/Bar.qml').read_text())
+        self.assertNotIn('LIST_ENTRY(aiUsage', (SHELL / 'plugin/src/Wysun/Config/barconfig.hpp').read_text())
+        for text in (SERVICE.read_text(), qml('SettingsPage.qml')):
+            self.assertNotIn('indicatorStyle', text)
+            self.assertNotIn('indicatorFollows', text)
 
     def test_confetti_follows_weekly_reset(self):
         text = qml('Confetti.qml')

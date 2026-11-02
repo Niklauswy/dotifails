@@ -203,7 +203,6 @@ class AiUsageTokens : public settings::ObjectNode {
     // Remaining percent at or below which a limit notifies once per window.
     CONFIG_PROPERTY(int, alertThreshold, 10)
     CONFIG_PROPERTY(int, maxProjects, 6)
-    CONFIG_PROPERTY(int, barIndicatorSize, 22)
 };
 
 // Screenshot picker: a node hanging from strings tied to the output corners.

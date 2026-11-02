@@ -11,7 +11,7 @@ import "AiUsageLogic.js" as Logic
 // AI provider accounts, limits, local token usage, service status and running agents
 // (modules/aiusage/backend.py). The last result is cached, so the panel paints at once after a
 // restart. Settings live in ${Paths.config}/ai-usage.json; hidden accounts and disabled providers
-// count for nothing (tabs, totals, bar indicator, alerts). Refresh is adaptive by default: every
+// count for nothing (tabs, totals, sessions, alerts). Refresh is adaptive by default: every
 // minute while an agent works or the panel is open, every idleInterval otherwise.
 Singleton {
     id: root
@@ -39,9 +39,6 @@ Singleton {
             upcoming: true,
             confetti: true,
             refresh: "adaptive",
-            indicatorStyle: "meters",
-            indicatorFollows: "focused",
-            selected: "",
             providers: ({
                     claude: true,
                     codex: true,
@@ -63,21 +60,7 @@ Singleton {
     readonly property bool anyBusy: visibleAgents.some(a => a.busy)
     readonly property int interval: Logic.refreshInterval(settings.refresh, anyBusy, refCount > 0, Tokens.sizes.aiUsage)
 
-    // The provider whose agent runs in the focused window; the last one is kept while other windows have focus.
-    readonly property string focusedAddress: Hypr.activeToplevel?.address ?? ""
-    property string lastFocusedProvider: ""
-    readonly property var indicator: Logic.indicatorTarget(visibleAccounts, settings.indicatorFollows, lastFocusedProvider, settings.selected)
-
     signal weeklyReset
-
-    onFocusedAddressChanged: updateFocus()
-    onAgentsChanged: updateFocus()
-
-    function updateFocus(): void {
-        const provider = Logic.focusedProvider(visibleAgents, windows(), focusedAddress);
-        if (provider)
-            lastFocusedProvider = provider;
-    }
 
     function refresh(): void {
         if (!loader.running)

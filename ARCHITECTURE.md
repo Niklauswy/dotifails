@@ -114,9 +114,9 @@ sin el componente `desktop`.
   **Credenciales** (regla de `AGENTS.md`): `credentials.py` las lee justo antes de la petición y solo las envía por HTTPS al host
   oficial; nunca se escriben, renuevan, registran ni salen en la instantánea, la caché, avisos o errores
   (`tests/shell_bridge/test_ai_usage_sources.py` lo comprueba con credenciales sintéticas). Sin cookies del navegador.
-  Ajustes en `~/.config/wysun/ai-usage.json` (proveedores, cuentas ocultas, estilo y objetivo del indicador, usado/libre, hora
+  Ajustes en `~/.config/wysun/ai-usage.json` (proveedores, cuentas ocultas, usado/libre, hora
   exacta, guía de uso parejo, días de trabajo, facturación, resumen compacto, ocultar datos personales, estado de servicios, avisos,
-  frecuencia). Una cuenta oculta no cuenta para pestañas, totales, sesiones, indicador ni avisos. Refresco adaptativo: cada
+  frecuencia). Una cuenta oculta no cuenta para pestañas, totales, sesiones ni avisos. Refresco adaptativo: cada
   `refreshInterval` con un agente trabajando o el panel abierto, cada `idleInterval` (15 min) si no; también 1/5/15 min o manual.
   Avisos con `notify-send` (casi agotado, reiniciado, reinicio semanal cercano con cuota sin usar, sesión por caducar), una vez
   por ventana o etapa en `~/.local/state/wysun/ai-usage/alerts.json`; confeti opcional en el reinicio semanal (`Confetti.qml`).
@@ -124,8 +124,7 @@ sin el componente `desktop`.
   `ai-accounts.json` en Codex) y abre el login del propio proveedor en la terminal de Wysun. Etiquetas y carpetas extra:
   `~/.config/wysun/ai-accounts.json`. Caché incremental en `~/.cache/wysun/ai-usage` (también `status.json` y `disk.json`);
   precios en `modules/aiusage/pricing.json`, ampliables en `~/.config/wysun/ai-pricing.json`; logotipos de lobe-icons (MIT) en
-  `Logos.js`. El indicador de la barra (`AiUsageIndicator.qml`) muestra la app enfocada, el límite más ajustado o una cuenta,
-  como barras, icono con %, apilado o ritmo; se atenúa con un reloj si sus datos son viejos o no se pudieron leer.
+  `Logos.js`. La barra no tiene entrada de uso de IA: con varias cuentas una sola no servía, y el panel está a un hover.
   La última instantánea se guarda en `~/.cache/wysun/ai-usage/snapshot.json`, así el primer hover tras reiniciar ya tiene datos.
 - **Colores**: `~/.local/state/wysun/scheme.json`, producido por `wysun scheme` (`wysun_services.scheme`) a partir de los
   tokens de `apps/python/wysun_core/tokens.json` (las releases del Recorder lo llevan dentro de su `wysun_core`).

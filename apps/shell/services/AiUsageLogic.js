@@ -71,21 +71,6 @@ function tightest(accounts) {
     return best;
 }
 
-// What the bar indicator shows: the focused provider's tightest limit, a chosen account, or the overall tightest.
-function indicatorTarget(accounts, mode, focusedProvider, selectedId) {
-    if (mode === "focused" && focusedProvider) {
-        const own = tightest((accounts || []).filter(a => a.provider === focusedProvider));
-        if (own)
-            return own;
-    }
-    if (mode === "selected" && selectedId) {
-        const own = tightest((accounts || []).filter(a => a.id === selectedId));
-        if (own)
-            return own;
-    }
-    return tightest(accounts);
-}
-
 // Milliseconds between refreshes; 0 means manual.
 function refreshInterval(setting, anyBusy, panelOpen, tokens) {
     if (setting === "manual")
@@ -181,14 +166,6 @@ function windowForSession(agent, toplevels) {
             return null;
     }
     return null;
-}
-
-// The provider whose agent runs in the focused window (by window address), or "".
-function focusedProvider(agents, toplevels, focusedAddress) {
-    if (!focusedAddress)
-        return "";
-    const agent = (agents || []).find(a => windowForSession(a, toplevels) === focusedAddress);
-    return agent ? agent.provider : "";
 }
 
 // Adds one range of usage across accounts: totals, sessions, and models and projects merged and

@@ -69,43 +69,6 @@ ColumnLayout {
     }
 
     Section {
-        text: Tr.tr("Bar indicator")
-    }
-
-    Choice {
-        text: Tr.tr("Style")
-        key: "indicatorStyle"
-        options: [{ value: "meters", text: Tr.tr("Bars") }, { value: "percent", text: Tr.tr("Icon + %") }, { value: "stacked", text: Tr.tr("Stacked") }, { value: "pace", text: Tr.tr("Pace") }]
-    }
-
-    Choice {
-        text: Tr.tr("Follows")
-        detail: Tr.tr("Focused app: the provider whose agent runs in the active window")
-        key: "indicatorFollows"
-        options: [{ value: "focused", text: Tr.tr("Focused app") }, { value: "tightest", text: Tr.tr("Tightest") }, { value: "selected", text: Tr.tr("One account") }]
-    }
-
-    // The account the bar shows when it follows one account.
-    RowLayout {
-        Layout.fillWidth: true
-        Layout.leftMargin: Tokens.padding.small
-        Layout.rightMargin: Tokens.padding.small
-        visible: root.settings.indicatorFollows === "selected"
-
-        StyledText {
-            Layout.fillWidth: true
-            text: Tr.tr("Account")
-            font: Tokens.font.body.medium
-        }
-
-        Segmented {
-            current: root.settings.selected ?? ""
-            options: AiUsage.visibleAccounts.filter(a => a.source !== "history").map(a => ({ value: a.id, text: AiUsage.names(a).label }))
-            onSelected: value => AiUsage.setSetting("selected", value)
-        }
-    }
-
-    Section {
         text: Tr.tr("Show")
     }
 

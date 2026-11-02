@@ -133,14 +133,6 @@ class VisibilityTests(unittest.TestCase):
         accounts = f'[{account("h", "codex", [weekly(99, 0.5)], source="history")}, {account("b", "claude", [weekly(40, 0.5)])}]'
         self.assertEqual(js(f'return tightest({accounts}).account.id'), 'b')
 
-    def test_indicator_follows_focused_provider(self):
-        a = self.accounts()
-        self.assertEqual(js(f'return indicatorTarget({a}, "focused", "codex", "").account.id'), 'c')
-        self.assertEqual(js(f'return indicatorTarget({a}, "focused", "", "").account.id'), 'a')
-        self.assertEqual(js(f'return indicatorTarget({a}, "selected", "", "b").account.id'), 'b')
-        self.assertEqual(js(f'return indicatorTarget({a}, "tightest", "codex", "b").account.id'), 'a')
-        self.assertIsNone(js('return indicatorTarget([], "focused", "codex", "")'))
-
     def test_masked_names(self):
         result = js(f'return mask({account("a", "claude", [], email="me@uabc.edu.mx")}, true, 2)')
         self.assertEqual(result, {'label': 'Account 3', 'email': '••••@uabc.edu.mx'})
@@ -220,13 +212,6 @@ class FocusTests(unittest.TestCase):
         windows = '[{pid: 100, address: "0xa", title: "~/loom"}, {pid: 100, address: "0xb", title: "✳ task"}]'
         self.assertIsNone(js(f'return windowForSession({agent}, {windows})'))
 
-    def test_focused_provider_follows_the_focused_window_not_the_process(self):
-        agents = '[{provider: "claude", windowPids: [7, 100]}, {provider: "codex", windowPids: [8, 200]}]'
-        one_process = '[{pid: 100, address: "a", title: ""}, {pid: 100, address: "b", title: ""}]'
-        self.assertEqual(js(f'return focusedProvider({agents}, {one_process}, "b")'), '')
-        own = '[{pid: 100, address: "a", title: ""}, {pid: 200, address: "b", title: ""}]'
-        self.assertEqual(js(f'return focusedProvider({agents}, {own}, "b")'), 'codex')
-        self.assertEqual(js(f'return focusedProvider({agents}, {own}, "")'), '')
 
 if __name__ == '__main__':
     unittest.main()
