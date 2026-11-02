@@ -91,6 +91,9 @@ class PaceTests(unittest.TestCase):
         self.assertEqual(deficit['delta'], 35)
         self.assertFalse(deficit['lasts'])
 
+    def test_on_pace_lasts_until_reset(self):
+        self.assertTrue(js(f'return pace({weekly(45, 0.45)}, NOW, "auto").lasts'))
+
     def test_runs_out_estimate(self):
         # 80 % used after 45 % of 7 days: 20 % left at 80/(0.45*7d) per second.
         result = js(f'return pace({weekly(80, 0.45)}, NOW, "auto")')

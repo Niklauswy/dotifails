@@ -41,7 +41,8 @@ function pace(limit, now, workDays) {
     return {
         expected: expected,
         delta: Math.round(used - expected),
-        lasts: used < 100 && runsOutIn >= left,
+        // Within the hour of the reset counts as lasting: an exactly even pace ends right at it.
+        lasts: used < 100 && runsOutIn >= left - 3600,
         runsOutIn: runsOutIn,
         exhausted: used >= 100
     };
