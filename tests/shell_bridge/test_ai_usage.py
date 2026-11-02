@@ -461,6 +461,21 @@ class AiUsageTests(unittest.TestCase):
         self.assertTrue(usage['series'][key]['unpriced'][-1])
         self.assertFalse(usage['series'][key]['unpriced'][0])
 
+    def test_agent_session_details_come_from_its_newest_log(self):
+        path = self.claude_log([dict(self.claude_entry('a', model='claude-opus-5-5', output=500, ago=30), cwd='/work/site')])
+        files = self.backend.scan(self.backend.load_accounts(), self.now)
+        account = self.account('claude')['id']
+        details = self.backend.session_details(files, 'claude', account, '/work/site', self.now - 120, self.now)
+        self.assertEqual(details['model'], 'claude-opus-5-5')
+        self.assertEqual(details['tokens'], 100 + 1000 + 10 + 500)
+        self.assertTrue(details['busy'])
+        os.utime(path, (self.now - 60, self.now - 60))
+        self.assertFalse(self.backend.session_details(files, 'claude', account, '/work/site', self.now - 120, self.now)['busy'])
+        self.assertIsNone(self.backend.session_details(files, 'claude', account, '/elsewhere', self.now - 120, self.now))
+
+    def test_snapshot_lists_agents(self):
+        self.assertIsInstance(self.collect()['agents'], list)
+
     def test_sibling_modules_load_by_path(self):
         credentials = self.backend._sibling('credentials')
         self.assertTrue(callable(credentials.get_json))

@@ -807,7 +807,8 @@ def collect(now=None, live=True, opener=None):
     record_limits(unique, records, now)
     providers = sorted({a['provider'] for a in unique})
     status = service_status(providers, now, live and '--no-status' not in sys.argv, opener)
-    snapshot = {'generatedAt': now, 'version': 2, 'status': status, 'accounts': unique, 'usage': summarise(records, ids, now, prices)}
+    agents = running_agents(accounts, files, now)
+    snapshot = {'generatedAt': now, 'version': 2, 'status': status, 'agents': agents, 'accounts': unique, 'usage': summarise(records, ids, now, prices)}
     save_snapshot(snapshot)
     return snapshot
 
@@ -848,6 +849,53 @@ def cost_between(records, start, end, prices):
                     cost = row[4] if len(row) > 4 and row[4] is not None else cost_of(row[:4], price_for(model, prices))
                     total += cost or 0
     return total
+
+
+BUSY_SECONDS = 15
+
+
+def session_details(files, provider, account, cwd, started, now):
+    """Model, tokens, cost and busy state of the newest log of `provider` in `cwd` since `started`."""
+    prices = load_pricing()
+    best = None
+    for path, record in files.items():
+        if record.get('provider') != provider or record['state'].get('project') != cwd:
+            continue
+        if account and (record.get('owner') or record.get('account')) != account:
+            continue
+        try:
+            mtime = os.stat(path).st_mtime
+        except OSError:
+            continue
+        if started and mtime < started - 60:
+            continue
+        if not best or mtime > best[0]:
+            best = (mtime, record)
+    if not best:
+        return None
+    mtime, record = best
+    since = int((started or 0) // HOUR * HOUR)
+    tokens, cost, model, newest = 0, 0.0, None, -1
+    for hour, by_model in record['buckets'].items():
+        if int(hour) < since:
+            continue
+        for name, row in by_model.items():
+            tokens += sum(row[:4])
+            cost += cost_of(row[:4], price_for(name, prices)) or 0
+            if int(hour) >= newest:
+                newest, model = int(hour), name
+    return {'model': model, 'tokens': tokens, 'cost': round(cost, 4), 'busy': now - mtime < BUSY_SECONDS}
+
+
+def running_agents(accounts, files, now):
+    if '--no-agents' in sys.argv:
+        return []
+    homes = {(a['provider'], str(Path(a['home']).resolve())): a['id'] for a in accounts}
+    try:
+        return _sibling('agents').scan(Path('/proc'), homes, now,
+                                       lambda provider, account, cwd, started: session_details(files, provider, account, cwd, started, now))
+    except OSError:
+        return []
 
 
 STATUS_TTL = 120

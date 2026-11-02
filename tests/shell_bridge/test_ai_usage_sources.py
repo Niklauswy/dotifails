@@ -396,5 +396,78 @@ class ServiceStatusTests(BackendHome):
         self.assertGreater(len([c for c in opener.calls if 'status.' in c['url']]), 2)
 
 
+class AgentsTests(unittest.TestCase):
+    """A synthetic /proc: terminal 100 → shell 200 → claude 300 (→ child 301); codex 400 started by pid 1."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name)
+        self.proc = self.root / 'proc'
+        self.proc.mkdir()
+        (self.proc / 'stat').write_text('cpu 1 2 3\nbtime 1000000\n')
+        self.repo = self.root / 'repo'
+        (self.repo / '.git').mkdir(parents=True)
+        (self.repo / '.git/HEAD').write_text('ref: refs/heads/feat/export\n')
+        (self.repo / 'src').mkdir()
+        self.process(100, 1, 'ghostty', ['ghostty'])
+        self.process(200, 100, 'zsh', ['-zsh'])
+        self.process(300, 200, 'claude', ['claude'], cwd=self.repo / 'src',
+                     env={'CLAUDE_CONFIG_DIR': str(self.root / 'claude-2'), 'API_KEY': SENTINEL})
+        self.process(301, 300, 'claude', ['claude', '--child'], cwd=self.repo)
+        self.process(400, 1, 'codex', ['/usr/lib/node_modules/@openai/codex/bin/codex'], cwd=self.root,
+                     env={'CODEX_HOME': str(self.root / 'codex-home')})
+        self.process(500, 100, 'vim', ['vim'])
+        self.agents = module('agents')
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def process(self, pid, ppid, comm, argv, cwd=None, env=None, start_ticks=5000):
+        folder = self.proc / str(pid)
+        folder.mkdir()
+        (folder / 'comm').write_text(comm + '\n')
+        (folder / 'cmdline').write_bytes(b'\0'.join(a.encode() for a in argv) + b'\0')
+        (folder / 'environ').write_bytes(b'\0'.join(f'{k}={v}'.encode() for k, v in (env or {}).items()) + b'\0')
+        (folder / 'status').write_text(f'Name:\t{comm}\nPPid:\t{ppid}\nUid:\t{os.getuid()}\t{os.getuid()}\n')
+        fields = ['x'] * 52
+        fields[18] = str(start_ticks)  # field 22; after ")" field 3 (state) is the first one
+        (folder / 'stat').write_text(f'{pid} ({comm}) S ' + ' '.join(fields[:3] + fields[3:]) + '\n')
+        (folder / 'cwd').symlink_to(cwd or self.root)
+
+    def scan(self, logs=None):
+        homes = {('claude', str((self.root / 'claude-2').resolve())): 'claude:abc', ('codex', str((self.root / 'codex-home').resolve())): 'codex:def'}
+        return {a['pid']: a for a in self.agents.scan(self.proc, homes, 1_000_100.0, logs or (lambda *a: None))}
+
+    def test_agents_are_found_with_their_folder_and_branch(self):
+        found = self.scan()
+        self.assertEqual(set(found), {300, 400})
+        claude = found[300]
+        self.assertEqual((claude['provider'], claude['accountId']), ('claude', 'claude:abc'))
+        self.assertEqual(claude['cwd'], str(self.repo / 'src'))
+        self.assertEqual(claude['branch'], 'feat/export')
+        self.assertAlmostEqual(claude['startedAt'], 1_000_000 + 5000 / os.sysconf('SC_CLK_TCK'))
+        self.assertEqual(found[400]['accountId'], 'codex:def')
+
+    def test_only_home_variables_are_kept(self):
+        self.assertNotIn(SENTINEL, json.dumps(list(self.scan().values())))
+
+    def test_child_processes_are_not_counted_twice(self):
+        self.assertNotIn(301, self.scan())
+
+    def test_session_without_terminal_has_no_window_pids(self):
+        found = self.scan()
+        self.assertEqual(found[400]['windowPids'], [])
+        self.assertEqual(found[300]['windowPids'], [200, 100])
+
+    def test_busy_and_usage_come_from_the_session_log(self):
+        def logs(provider, account, cwd, started):
+            if provider == 'claude':
+                return {'model': 'claude-opus-5-5', 'tokens': 1200, 'cost': 0.42, 'busy': True}
+        claude = self.scan(logs)[300]
+        self.assertEqual((claude['model'], claude['tokens'], claude['cost'], claude['busy']),
+                         ('claude-opus-5-5', 1200, 0.42, True))
+        self.assertFalse(self.scan(logs)[400]['busy'])
+
+
 if __name__ == '__main__':
     unittest.main()
