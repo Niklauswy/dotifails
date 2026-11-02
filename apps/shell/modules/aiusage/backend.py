@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """AI provider accounts, limits and local usage for the shell's AI usage panel.
 
-Nothing here reads credentials. Each account is a CLI home the user is already
-signed in to:
+Credentials are read only where they improve the data and add no risk (AGENTS.md):
+just before their request, sent only over HTTPS to the provider's own host (credentials.py),
+never written, refreshed, logged, cached or put into the output. Each account is a CLI home
+the user is already signed in to:
   - Claude Code (CLAUDE_CONFIG_DIR, default ~/.claude): limits come from the
     status line command, which copies `rate_limits` to
     $XDG_STATE_HOME/wysun/ai-usage/claude[-<dir name>].json; the plan and
@@ -19,6 +21,7 @@ estimates from pricing.json, overridable in $XDG_CONFIG_HOME/wysun/ai-pricing.js
 Prints one JSON document on stdout.
 """
 import hashlib
+import importlib.util
 import json
 import os
 import selectors
@@ -83,6 +86,19 @@ def home_key(home):
 
 def account_id(provider, home):
     return provider + ':' + home_key(home)
+
+
+_SIBLINGS = {}
+
+
+def _sibling(name):
+    """A module beside this file; the backend runs with `python3 -I`, so its folder is not on sys.path."""
+    if name not in _SIBLINGS:
+        spec = importlib.util.spec_from_file_location(f'wysun_ai_usage_{name}', Path(__file__).with_name(f'{name}.py'))
+        loaded = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(loaded)
+        _SIBLINGS[name] = loaded
+    return _SIBLINGS[name]
 
 
 def load_accounts():

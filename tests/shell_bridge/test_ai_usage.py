@@ -388,6 +388,11 @@ class AiUsageTests(unittest.TestCase):
         saved = json.loads((self.home / 'cache/wysun/ai-usage/snapshot.json').read_text())
         self.assertEqual(saved['generatedAt'], result['generatedAt'])
 
+    def test_sibling_modules_load_by_path(self):
+        credentials = self.backend._sibling('credentials')
+        self.assertTrue(callable(credentials.get_json))
+        self.assertIs(self.backend._sibling('credentials'), credentials)
+
 
 if __name__ == '__main__':
     unittest.main()
