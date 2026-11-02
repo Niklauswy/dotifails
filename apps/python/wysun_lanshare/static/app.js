@@ -122,7 +122,7 @@ function enter() {
   $("#shell").hidden = false;
   $("#host").textContent = state.info.host;
   $("#lock").hidden = !state.info.password;
-  $("#upload").hidden = $("#fab").hidden = $("#mkdir").hidden = !state.info.uploads;
+  $("#upload").hidden = $("#upload-fab").hidden = $("#mkdir").hidden = !state.info.uploads;
   setView(state.view);
   route();
 }
@@ -544,7 +544,7 @@ function uploadFiles(files) {
 }
 const pick = () => $("#picker").click();
 $("#upload").addEventListener("click", pick);
-$("#fab").addEventListener("click", pick);
+$("#upload-fab").addEventListener("click", pick);
 $("#picker").addEventListener("change", ev => { uploadFiles([...ev.target.files]); ev.target.value = ""; });
 
 let dragDepth = 0;

@@ -32,7 +32,7 @@ class WebTests(unittest.TestCase):
 
     def test_upload_controls_start_hidden(self):
         html = (STATIC / 'index.html').read_text()
-        for element in ('id="upload"', 'id="fab"', 'id="mkdir"'):
+        for element in ('id="upload"', 'id="upload-fab"', 'id="mkdir"'):
             tag = html[html.rindex('<', 0, html.index(element)):html.index('>', html.index(element))]
             self.assertIn('hidden', tag, element)
 

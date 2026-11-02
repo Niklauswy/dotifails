@@ -60,6 +60,26 @@ StyledRect {
 
         spacing: 0
 
+        // Wysun LANShare: only while something is shared; hovering opens its popout.
+        Item {
+            readonly property string name: "lanshare"
+
+            visible: LanShare.active
+            Layout.alignment: Qt.AlignHCenter
+            Layout.bottomMargin: root.spacing
+            implicitWidth: shareIcon.implicitWidth
+            implicitHeight: shareIcon.implicitHeight
+
+            MaterialIcon {
+                id: shareIcon
+
+                animate: true
+                text: LanShare.busy ? "upload_file" : "share"
+                color: LanShare.busy ? Colours.palette.m3primary : root.colour
+                fill: 1
+            }
+        }
+
         Repeater {
             model: ScriptModel {
                 id: model

@@ -120,6 +120,11 @@ Item {
         }
 
         Popout {
+            name: "lanshare"
+            sourceComponent: LanSharePopout {}
+        }
+
+        Popout {
             name: "lockstatus"
             sourceComponent: LockStatus {}
         }
