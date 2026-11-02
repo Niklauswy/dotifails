@@ -42,7 +42,7 @@ ColumnLayout {
             Layout.fillWidth: true
             spacing: 0
 
-            Toggle {
+            Option {
                 icon: ""
                 logo: provider.modelData
                 text: AiUsage.providerName(provider.modelData)
@@ -54,7 +54,7 @@ ColumnLayout {
             Repeater {
                 model: provider.on ? provider.all : []
 
-                Toggle {
+                Option {
                     required property var modelData
 
                     Layout.leftMargin: Tokens.padding.large * 2
@@ -89,21 +89,21 @@ ColumnLayout {
         text: Tr.tr("Show")
     }
 
-    Toggle {
+    Option {
         text: Tr.tr("Show the used share")
         detail: Tr.tr("Off: bars and percentages show what is left")
         checked: root.settings.showUsed
         onToggled: checked => AiUsage.setSetting("showUsed", checked)
     }
 
-    Toggle {
+    Option {
         text: Tr.tr("Exact reset time")
         detail: Tr.tr("“Thu 13:24” instead of “in 3d 20h”")
         checked: root.settings.absoluteResets
         onToggled: checked => AiUsage.setSetting("absoluteResets", checked)
     }
 
-    Toggle {
+    Option {
         text: Tr.tr("Even-use guide")
         detail: Tr.tr("A mark on each bar and a line in the history")
         checked: root.settings.paceGuide
@@ -116,27 +116,27 @@ ColumnLayout {
         options: [{ value: "auto", text: Tr.tr("All") }, { value: "5", text: "5" }, { value: "6", text: "6" }]
     }
 
-    Toggle {
+    Option {
         text: Tr.tr("Extra usage, credits and billing")
         checked: root.settings.billing
         onToggled: checked => AiUsage.setSetting("billing", checked)
     }
 
-    Toggle {
+    Option {
         text: Tr.tr("Compact overview")
         detail: Tr.tr("One bar per account: the tightest")
         checked: root.settings.compact
         onToggled: checked => AiUsage.setSetting("compact", checked)
     }
 
-    Toggle {
+    Option {
         text: Tr.tr("Hide personal details")
         detail: Tr.tr("E-mail addresses and account names, also in notifications")
         checked: root.settings.hidePersonal
         onToggled: checked => AiUsage.setSetting("hidePersonal", checked)
     }
 
-    Toggle {
+    Option {
         text: Tr.tr("Check service status")
         detail: "status.anthropic.com · status.openai.com"
         checked: root.settings.status
@@ -147,27 +147,27 @@ ColumnLayout {
         text: Tr.tr("Notifications")
     }
 
-    Toggle {
+    Option {
         text: Tr.tr("Limit almost spent")
         detail: Tr.tr("Once per window, at %1% left").arg(Tokens.sizes.aiUsage.alertThreshold)
         checked: root.settings.notifyLow
         onToggled: checked => AiUsage.setSetting("notifyLow", checked)
     }
 
-    Toggle {
+    Option {
         text: Tr.tr("Limit reset")
         checked: root.settings.notifyReset
         onToggled: checked => AiUsage.setSetting("notifyReset", checked)
     }
 
-    Toggle {
+    Option {
         text: Tr.tr("Weekly reset with quota left")
         detail: Tr.tr("24 h and 1 h before")
         checked: root.settings.upcoming
         onToggled: checked => AiUsage.setSetting("upcoming", checked)
     }
 
-    Toggle {
+    Option {
         text: Tr.tr("Confetti on the weekly reset")
         checked: root.settings.confetti
         onToggled: checked => AiUsage.setSetting("confetti", checked)
@@ -191,7 +191,7 @@ ColumnLayout {
         color: Colours.palette.m3primary
     }
 
-    component Toggle: Item {
+    component Option: Item {
         id: toggle
 
         property string icon

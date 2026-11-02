@@ -100,6 +100,11 @@ Not ported: `NotificationServer` was ported later: the shell owns the notificati
 - License: MIT; text in [`LICENSES/MIT-lobe-icons.txt`](LICENSES/MIT-lobe-icons.txt).
 - `apps/shell/modules/aiusage/Logos.js` keeps the 24×24 path data of the Claude, Anthropic, Codex, OpenAI, Gemini, GitHub Copilot, Cursor, DeepSeek, Mistral and Grok marks, drawn in the theme colour by the AI usage panel. The marks are trademarks of their owners and only identify each provider's account.
 
+## CodexBar (reference)
+
+- Source: [steipete/CodexBar](https://github.com/steipete/CodexBar), MIT.
+- No code is bundled. The AI usage panel follows its layout and its documented provider formats: the fields of Anthropic's OAuth usage endpoint, OpenCode Go's usage API and local database, pace tracking and Statuspage status.
+
 ## Scope
 
 Derived Caelestia code carries GPL attribution in its source headers and in this file. The vendored Material You implementation retains its MIT copyright notice. Wysun's Python median-cut quantizer is original code and has no native build or install step.

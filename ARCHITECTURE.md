@@ -81,34 +81,51 @@ sin el componente `desktop`.
   región, Enter = salida completa; luego se ajusta por sus nodos. Barra: copiar y guardar (Enter), anotar (A: lápiz,
   rotulador, línea, flecha, rectángulo, elipse, texto, numerador y pixelado, con deshacer) o texto por OCR (T, Tesseract
   `spa+eng`, editable antes de copiar).
-- **Uso de IA** (`modules/aiusage`, servicio `services/AiUsage.qml`): panel que baja de la esquina superior derecha al pasar
-  el ratón (o `wysun-shell toggle ai`). Pestañas: Resumen y una por cuenta (Alt+1…9, Ctrl+Tab, Ctrl+R refresca, Esc cierra;
-  mientras está abierto toma el teclado con el mismo `HyprlandFocusGrab` que los demás paneles). Cada cuenta muestra plan, límites
-  con su ritmo y tokens/coste estimado de 24 h, 7, 30 y 90 días. `backend.py` no lee credenciales: Codex responde con su propia
-  sesión vía `codex app-server` (`account/read`, `account/rateLimits/read`) y Claude Code deja el estado de cada cuenta en
-  `~/.local/state/wysun/ai-usage` mediante `modules/aiusage/statusline-hook.py`, que llama la statusline de cada carpeta de Claude:
-  `claude-<clave>.json` (límites y carpeta; la clave es un hash de `CLAUDE_CONFIG_DIR`, así que carpetas con el mismo nombre no se
-  pisan, y un snapshot sin límites nunca borra ni tapa uno que sí los trae) y `sessions/<id de sesión>` (la clave de la cuenta que
-  corrió esa sesión; los logs de Claude no nombran su cuenta, así que con esto los tokens se reparten por cuenta aunque compartan
-  `projects/` por enlace simbólico). Las sesiones de Claude anteriores al hook y las carpetas sin marcador se asignan a la primera
-  cuenta que lee esos logs; los marcadores se borran a los 90 días. Las cuentas de Claude se descubren solas: cada carpeta cuyo hook
-  ha corrido aparece sin tocar `ai-accounts.json` (y desaparece si se borra la carpeta). Los nombres anteriores (`claude.json` y
-  `claude-<carpeta>.json`) se siguen leyendo; el segundo solo mientras ninguna otra cuenta de Claude tenga esa carpeta. El plan de
-  Claude sale de `oauthAccount` en `.claude.json`.
-  Las sesiones de Codex llevan `creator_account_id`, así que el historial se reparte por cuenta y las cuentas sin sesión iniciada
-  aparecen como pestañas de solo historial. Etiquetas y carpetas extra: `~/.config/wysun/ai-accounts.json`
-  (`{"accounts": [{"provider": "codex", "home": "…"} | {"provider": "codex", "accountId": "…", "label": "…"}]}`).
-  Cuenta nueva de Codex: iniciar sesión en la misma carpeta (aparece sola por su historial) o en otra con
-  `CODEX_HOME=<carpeta> codex login`, que se añade a ese archivo para tener límites en vivo. Cuenta nueva de Claude: basta con que
-  su `settings.json` tenga una statusline que llame al hook (el comando exacto, con y sin script de
-  statusline propio, está en el docstring de `statusline-hook.py`); no hay nada más que
-  configurar, y `ai-accounts.json` solo sirve para ponerle etiqueta. Las carpetas de logs se leen por su ruta real, de modo que una
-  carpeta compartida por enlace simbólico entre cuentas cuenta una sola vez.
-  Caché incremental en `~/.cache/wysun/ai-usage`; precios en `modules/aiusage/pricing.json`, ampliables en
-  `~/.config/wysun/ai-pricing.json`; logotipos de lobe-icons (MIT) en `Logos.js`.
-  También hay desglose por proyecto (carpeta de la sesión; los worktrees se suman a su repo) y una entrada `aiUsage` en la barra
-  con el límite más ajustado. Fuera del panel se refresca cada `backgroundInterval` y avisa con `notify-send` una vez por ventana al
-  llegar a `alertThreshold` (10 % por defecto) y otra al reiniciarse; lo ya avisado vive en `~/.local/state/wysun/ai-usage/alerts.json`.
+- **Uso de IA** (`modules/aiusage`, servicio `services/AiUsage.qml`, lógica pura en `services/AiUsageLogic.js`): panel que
+  baja de la esquina superior derecha al pasar el ratón (o `wysun-shell toggle ai`), al estilo de CodexBar. Pestañas: Resumen y
+  una por **proveedor** con cuentas visibles (Claude, Codex, OpenCode); dentro, chips para la cuenta (Alt+1…9 proveedor, Ctrl+Tab
+  cuenta, Ctrl+R refresca, Esc vuelve de una subpantalla y luego cierra; toma el teclado con el mismo `HyprlandFocusGrab`).
+  Secciones separadas por líneas, sin tarjetas. Cada cuenta: avisos (incidencia del servicio con sus componentes, error de lectura
+  con el comando para entrar, reinicio semanal cercano con cuota sin usar, sesión por caducar), identidad, un bloque por límite
+  (usado o libre, marca de uso parejo, reinicio y ritmo «en reserva/en déficit · llega al reinicio/se agota en…», oculto antes del
+  3 % de la ventana; los días de trabajo 5/6 cambian el ritmo semanal), uso extra, créditos y reinicios guardados cuando el
+  proveedor los da, coste de hoy y 30 días, sesiones activas y enlaces. Subpantallas: **historial del límite** (curva de lo que
+  queda, guía de uso parejo, proyección y ventanas anteriores con su coste), **coste** (diario con detalle por horas, por ventana
+  semanal, mapa de actividad anual, libro diario; reparto por modelo y por proyecto), **disco** y **ajustes**.
+  Fuentes (`backend.py` y sus hermanos, cargados por ruta porque corre con `python3 -I`):
+  - Claude: `GET https://api.anthropic.com/api/oauth/usage` con el token de Claude Code (`<home>/.credentials.json`;
+    `claude_api.py`) para límites, uso extra, créditos en la nube y reinicios; sin token, caducado o sin alcance `user:profile`,
+    la statusline: `modules/aiusage/statusline-hook.py` deja en `~/.local/state/wysun/ai-usage` `claude-<clave>.json` (límites
+    y carpeta; la clave es un hash de `CLAUDE_CONFIG_DIR`) y `sessions/<id de sesión>` (la cuenta que corrió esa sesión, para
+    repartir tokens aunque las cuentas compartan `projects/`). Las cuentas de Claude se descubren solas por el hook. El plan sale de
+    `oauthAccount` en `.claude.json`.
+  - Codex: `codex app-server` (`account/read`, `account/rateLimits/read`) con su propia sesión; los logs llevan
+    `creator_account_id`, así que el historial se reparte por cuenta y las cuentas sin sesión iniciada salen como solo historial.
+  - OpenCode (`opencode.py`): historial de `~/.local/share/opencode/opencode.db` (solo mensajes, en solo lectura, con el coste
+    que OpenCode registró) y cuota de OpenCode Go (`https://opencode.ai/zen/go/v1/usage`) con el login de su CLI. Sin
+    suscripción: solo historial.
+  - Estado de servicios (`service_status.py`): Statuspage público de Anthropic y OpenAI, caché de 2 min.
+  - Sesiones activas (`agents.py`): procesos `claude`, `codex` y `opencode` del usuario desde `/proc` (carpeta, rama, cuenta por
+    `CLAUDE_CONFIG_DIR`/`CODEX_HOME`, únicas variables de entorno que se miran); tocar una enfoca su ventana de Hyprland
+    (antecesor con ventana; en una terminal de un solo proceso con varias ventanas se distingue por el título o no se enfoca).
+  - Disco (`disk.py`): tamaño de cada carpeta por partes e ideas de limpieza, medido como mucho una vez al día; nunca borra.
+  - Historial de límites (`limit_history.py`): un punto por límite al cambiar (o cada 15 min) en
+    `~/.local/state/wysun/ai-usage/limits.jsonl`, 90 días; los tokens se guardan 366 días para el mapa anual.
+  **Credenciales** (regla de `AGENTS.md`): `credentials.py` las lee justo antes de la petición y solo las envía por HTTPS al host
+  oficial; nunca se escriben, renuevan, registran ni salen en la instantánea, la caché, avisos o errores
+  (`tests/shell_bridge/test_ai_usage_sources.py` lo comprueba con credenciales sintéticas). Sin cookies del navegador.
+  Ajustes en `~/.config/wysun/ai-usage.json` (proveedores, cuentas ocultas, estilo y objetivo del indicador, usado/libre, hora
+  exacta, guía de uso parejo, días de trabajo, facturación, resumen compacto, ocultar datos personales, estado de servicios, avisos,
+  frecuencia). Una cuenta oculta no cuenta para pestañas, totales, sesiones, indicador ni avisos. Refresco adaptativo: cada
+  `refreshInterval` con un agente trabajando o el panel abierto, cada `idleInterval` (15 min) si no; también 1/5/15 min o manual.
+  Avisos con `notify-send` (casi agotado, reiniciado, reinicio semanal cercano con cuota sin usar, sesión por caducar), una vez
+  por ventana o etapa en `~/.local/state/wysun/ai-usage/alerts.json`; confeti opcional en el reinicio semanal (`Confetti.qml`).
+  «Añadir cuenta» crea la carpeta (`backend.py --prepare-account claude|codex`, con el hook ya puesto en Claude o la entrada en
+  `ai-accounts.json` en Codex) y abre el login del propio proveedor en la terminal de Wysun. Etiquetas y carpetas extra:
+  `~/.config/wysun/ai-accounts.json`. Caché incremental en `~/.cache/wysun/ai-usage` (también `status.json` y `disk.json`);
+  precios en `modules/aiusage/pricing.json`, ampliables en `~/.config/wysun/ai-pricing.json`; logotipos de lobe-icons (MIT) en
+  `Logos.js`. El indicador de la barra (`AiUsageIndicator.qml`) muestra la app enfocada, el límite más ajustado o una cuenta,
+  como barras, icono con %, apilado o ritmo; se atenúa con un reloj si sus datos son viejos o no se pudieron leer.
   La última instantánea se guarda en `~/.cache/wysun/ai-usage/snapshot.json`, así el primer hover tras reiniciar ya tiene datos.
 - **Colores**: `~/.local/state/wysun/scheme.json`, producido por `wysun scheme` (`wysun_services.scheme`) a partir de los
   tokens de `apps/python/wysun_core/tokens.json` (las releases del Recorder lo llevan dentro de su `wysun_core`).
