@@ -42,8 +42,9 @@ SESSIONS = STATE / 'sessions'
 DEFAULT_HOMES = {
     'claude': Path(os.environ.get('CLAUDE_CONFIG_DIR') or HOME / '.claude'),
     'codex': Path(os.environ.get('CODEX_HOME') or HOME / '.codex'),
+    'opencode': Path(os.environ.get('XDG_DATA_HOME') or HOME / '.local/share') / 'opencode',
 }
-NAMES = {'claude': 'Claude', 'codex': 'Codex'}
+NAMES = {'claude': 'Claude', 'codex': 'Codex', 'opencode': 'OpenCode'}
 PRICING = Path(__file__).with_name('pricing.json')
 
 HOUR = 3600
@@ -118,7 +119,7 @@ def load_accounts():
             # A configured label may rename a default home.
             seen[key]['label'] = entry.get('label') or seen[key]['label']
             continue
-        if not home.is_dir():
+        if not home.is_dir() or (entry['provider'] == 'opencode' and not (home / 'opencode.db').is_file()):
             continue
         account = {'id': account_id(entry['provider'], home), 'provider': entry['provider'], 'home': home,
                    'label': entry.get('label')}
@@ -277,7 +278,9 @@ def scan(accounts, now):
     cutoff = now - KEEP
     alive = set()
     for account in accounts:
-        parser = PARSERS[account['provider']]
+        parser = PARSERS.get(account['provider'])
+        if not parser:
+            continue
         # Resolved, so a folder shared between homes by symlink is read once, for the first of them.
         for root in map(Path.resolve, log_roots(account)):
             if not root.is_dir():
@@ -398,8 +401,9 @@ def summarise(records, keys, now, prices):
                 index = max(0, min(points - 1, index))
                 for model, row in by_model.items():
                     price = price_for(model, prices)
-                    cost = cost_of(row, price)
-                    tokens = sum(row)
+                    # OpenCode rows carry the cost OpenCode itself recorded as a fifth field.
+                    cost = row[4] if len(row) > 4 and row[4] is not None else cost_of(row[:4], price)
+                    tokens = sum(row[:4])
                     series[key]['tokens'][index] += tokens
                     spent['tokens'] += tokens
                     spent['cost'] += cost or 0
@@ -664,6 +668,35 @@ def codex_account(account, now, live=True):
             'limits': rows, 'source': source, 'updatedAt': updated}
 
 
+def opencode_records(accounts, now):
+    """One usage record per OpenCode session, built from its database on every run (it is small)."""
+    records = []
+    for account in accounts:
+        if account['provider'] != 'opencode':
+            continue
+        sessions = {}
+        for row in _sibling('opencode').history(account['home'] / 'opencode.db', now - KEEP):
+            record = sessions.setdefault(row['session'], {
+                'account': account['id'], 'provider': 'opencode', 'session': row['session'],
+                'state': {'project': row['project']}, 'buckets': {}})
+            hour = str(int(row['time'] // HOUR * HOUR))
+            bucket = record['buckets'].setdefault(hour, {}).setdefault(row['model'], [0, 0, 0, 0, 0.0])
+            for i, field in enumerate(FIELDS):
+                bucket[i] += row[field]
+            bucket[4] = None if bucket[4] is None or row['cost'] is None else bucket[4] + row['cost']
+        records += sessions.values()
+    return records
+
+
+def opencode_account(account, now, live=True, opener=None):
+    module = _sibling('opencode')
+    limits, error = module.usage(account['home'], now, opener) if live else ([], None)
+    return {'email': None, 'name': None, 'organization': None, 'plan': 'Go' if limits else None, 'credits': None,
+            'available': bool(limits), 'reason': None if limits else 'subscription', 'limits': limits,
+            'source': 'opencode-api' if limits else 'local', 'updatedAt': now, 'error': error,
+            'session': module.session(account['home'], now)}
+
+
 def history_account(key, records, label, now):
     """A Codex account seen in the logs but not signed in to any home: usage and its last known limits."""
     snapshot = max((r['state'].get('limits') for r in records if r['state'].get('limits')),
@@ -685,6 +718,8 @@ def history_account(key, records, label, now):
 def describe(account, now, live, shared_names=frozenset(), opener=None):
     if account['provider'] == 'claude':
         details = claude_account(account, now, account['home'].name not in shared_names, live, opener)
+    elif account['provider'] == 'opencode':
+        details = opencode_account(account, now, live, opener)
     else:
         details = codex_account(account, now, live)
     label = account['label'] or details.get('name') or (details.get('email') or '').split('@')[0] or NAMES[account['provider']]
@@ -717,7 +752,7 @@ def collect(now=None, live=True, opener=None):
     accounts = load_accounts()
     files = scan(accounts, now)
     claim_sessions(files, accounts, now)
-    records = list(files.values())
+    records = list(files.values()) + opencode_records(accounts, now)
     prices = load_pricing()
     folders = Counter(a['home'].name for a in accounts if a['provider'] == 'claude')
     shared_names = {name for name, count in folders.items() if count > 1}

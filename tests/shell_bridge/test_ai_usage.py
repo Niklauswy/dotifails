@@ -17,7 +17,7 @@ HOOK = SOURCE.with_name('statusline-hook.py')
 def load(home):
     env = {'HOME': str(home), 'XDG_STATE_HOME': str(home / 'state'), 'XDG_CACHE_HOME': str(home / 'cache'),
            'XDG_CONFIG_HOME': str(home / 'config'), 'CLAUDE_CONFIG_DIR': str(home / '.claude'),
-           'CODEX_HOME': str(home / '.codex')}
+           'CODEX_HOME': str(home / '.codex'), 'XDG_DATA_HOME': str(home / '.local/share')}
     with mock.patch.dict(os.environ, env), mock.patch('pathlib.Path.home', return_value=home):
         spec = importlib.util.spec_from_file_location('wysun_ai_usage_backend', SOURCE)
         backend = importlib.util.module_from_spec(spec)

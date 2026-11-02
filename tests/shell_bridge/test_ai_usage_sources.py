@@ -237,5 +237,118 @@ class ClaudeApiTests(BackendHome):
         self.assertIsNone(claude['error'])
 
 
+class OpenCodeTests(BackendHome):
+    def setUp(self):
+        super().setUp()
+        self.data = self.home / '.local/share/opencode'
+        self.data.mkdir(parents=True)
+        self.db = self.data / 'opencode.db'
+        with sqlite3.connect(self.db) as db:
+            db.execute('create table message (id text primary key, session_id text, time_created int, time_updated int, data text)')
+            db.execute('create table session_message (id text primary key, session_id text, type text, seq int, '
+                       'time_created int, time_updated int, data text)')
+            db.execute('create table session (id text primary key, directory text)')
+            db.execute('create table session_v2 (id text primary key, directory text)')
+            db.execute('create table credential (id text, integration_id text, label text, value text, connector_id text, '
+                       'method_id text, active int, time_created int, time_updated int)')
+            db.execute("insert into session values ('s1', '/home/u/loom')")
+            db.execute("insert into session_v2 values ('s2', '/home/u/tesis')")
+
+    def legacy(self, ident, provider, model, output=100, cost=0.5, ago=60):
+        data = {'role': 'assistant', 'providerID': provider, 'modelID': model, 'cost': cost,
+                'path': {'cwd': '/home/u/loom'}, 'time': {'created': int((self.now - ago) * 1000)},
+                'tokens': {'input': 10, 'output': output, 'reasoning': 0, 'cache': {'read': 1000, 'write': 5}}}
+        with sqlite3.connect(self.db) as db:
+            db.execute('insert into message values (?, ?, 0, 0, ?)', (ident, 's1', json.dumps(data)))
+
+    def v2(self, ident, provider, model, output=100, cost=0.25, ago=60):
+        data = {'agent': 'build', 'model': {'id': model, 'providerID': provider}, 'cost': cost,
+                'time': {'created': int((self.now - ago) * 1000)},
+                'tokens': {'input': 20, 'output': output, 'reasoning': 0, 'cache': {'read': 0, 'write': 0}}}
+        with sqlite3.connect(self.db) as db:
+            db.execute("insert into session_message values (?, 's2', 'assistant', 1, 0, 0, ?)", (ident, json.dumps(data)))
+
+    def credential(self, integration='opencode-go', kind='key', expires_in=3600):
+        value = {'type': kind, 'key': SENTINEL} if kind == 'key' else {
+            'type': 'oauth', 'access': SENTINEL, 'refresh': SENTINEL, 'expires': int((self.now + expires_in) * 1000)}
+        with sqlite3.connect(self.db) as db:
+            db.execute("insert into credential values ('c1', ?, 'x', ?, null, null, 1, 0, 0)", (integration, json.dumps(value)))
+
+    def collect(self, opener=None):
+        return self.backend.collect(now=self.now, live=True, opener=opener or Opener())
+
+    def opencode(self, result):
+        return next(a for a in result['accounts'] if a['provider'] == 'opencode')
+
+    def test_history_counts_each_message_once(self):
+        self.legacy('m1', 'deepseek', 'deepseek-v4', output=100)
+        self.v2('m1', 'deepseek', 'deepseek-v4', output=100)
+        self.v2('m2', 'deepseek', 'deepseek-v4', output=200)
+        rows = self.backend._sibling('opencode').history(self.db, self.now - 86400)
+        self.assertEqual(sorted(r['output'] for r in rows), [100, 200])
+
+    def test_models_are_prefixed_by_provider_and_keep_their_cost(self):
+        self.legacy('m1', 'deepseek', 'deepseek-v4', cost=0.5)
+        self.v2('m2', 'openai', 'gpt-5.4', cost=0.25)
+        usage = self.opencode(self.collect())['usage']['24h']
+        models = {m['model']: m for m in usage['models']}
+        self.assertEqual(set(models), {'deepseek/deepseek-v4', 'openai/gpt-5.4'})
+        self.assertAlmostEqual(models['deepseek/deepseek-v4']['cost'], 0.5)
+        self.assertAlmostEqual(usage['totals']['cost'], 0.75)
+        self.assertEqual({p['name'] for p in usage['projects']}, {'loom', 'tesis'})
+
+    def test_no_login_keeps_history(self):
+        self.legacy('m1', 'deepseek', 'deepseek-v4')
+        opener = Opener()
+        account = self.opencode(self.collect(opener))
+        self.assertEqual(opener.calls, [])
+        self.assertEqual(account['limits'], [])
+        self.assertEqual(account['reason'], 'subscription')
+        self.assertGreater(account['usage']['30d']['totals']['output'], 0)
+
+    def test_go_quota_is_mapped(self):
+        self.credential()
+        body = {'usage': {'rolling': {'usagePercent': 12, 'resetInSec': 3600},
+                          'weekly': {'usagePercent': 30, 'resetInSec': 86400},
+                          'monthly': {'usagePercent': 50, 'resetInSec': 864000}}}
+        opener = Opener({'https://opencode.ai/zen/go/v1/usage': (200, body)})
+        account = self.opencode(self.collect(opener))
+        limits = {l['id']: l for l in account['limits']}
+        self.assertEqual(limits['session']['usedPercent'], 12)
+        self.assertAlmostEqual(limits['session']['resetsAt'], self.now + 3600, delta=2)
+        self.assertEqual(limits['monthly']['windowMinutes'], 43200)
+        self.assertEqual(account['source'], 'opencode-api')
+        self.assertEqual(opener.calls[0]['headers'].get('Authorization'), 'Bearer ' + SENTINEL)
+
+    def test_expired_oauth_login_is_not_used(self):
+        self.credential(integration='opencode', kind='oauth', expires_in=-10)
+        opener = Opener({'https://opencode.ai/': (200, {})})
+        account = self.opencode(self.collect(opener))
+        self.assertEqual(opener.calls, [])
+        self.assertTrue(account['session']['expired'])
+
+    def test_db_opened_read_only(self):
+        self.legacy('m1', 'deepseek', 'deepseek-v4')
+        self.db.chmod(0o444)
+        self.data.chmod(0o555)
+        try:
+            account = self.opencode(self.collect())
+        finally:
+            self.data.chmod(0o755)
+            self.db.chmod(0o644)
+        self.assertGreater(account['usage']['24h']['totals']['output'], 0)
+
+    def test_opencode_token_never_leaves_the_process(self):
+        self.credential()
+        result = self.collect(Opener({'https://opencode.ai/': (401, {'error': SENTINEL})}))
+        self.assertEqual(self.leaked(result), [])
+        self.assertEqual(self.opencode(result)['error']['kind'], 'auth')
+
+    def test_without_opencode_there_is_no_account(self):
+        self.db.unlink()
+        self.data.rmdir()
+        self.assertFalse([a for a in self.collect()['accounts'] if a['provider'] == 'opencode'])
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -1,0 +1,149 @@
+"""OpenCode: local usage history from its database and OpenCode Go quota with the CLI's own sign-in.
+
+History comes from the assistant messages in opencode.db (legacy `message` and v2 `session_message`,
+a migrated message counted once), opened read-only. Each message carries OpenCode's own cost.
+The quota comes from https://opencode.ai/zen/go/v1/usage with the sign-in the OpenCode CLI keeps
+(active `credential` row for `opencode-go`, else `opencode`; legacy auth.json `opencode-go` key),
+read just before the request and sent only to opencode.ai. Formats follow CodexBar's OpenCode Go
+provider (MIT). Without a subscription or sign-in there is history and no quota.
+"""
+import importlib.util
+import json
+import sqlite3
+from pathlib import Path
+
+HOST = 'opencode.ai'
+URL = f'https://{HOST}/zen/go/v1/usage'
+WINDOWS = (('rolling', 'session', 300), ('weekly', 'weekly', 10080), ('monthly', 'monthly', 43200))
+PERCENT_KEYS = ('usagePercent', 'usedPercent', 'percentUsed', 'percent', 'usage_percent', 'used_percent', 'utilization')
+RESET_KEYS = ('resetInSec', 'resetInSeconds', 'resetSeconds', 'reset_in_sec', 'resetsInSec')
+
+HISTORY_SQL = """
+SELECT m.id, m.data, COALESCE(s.directory, ''), m.session_id FROM message m LEFT JOIN session s ON s.id = m.session_id
+WHERE json_valid(m.data) AND json_extract(m.data, '$.role') = 'assistant'
+"""
+HISTORY_V2_SQL = """
+SELECT m.id, m.data, COALESCE(s.directory, ''), m.session_id FROM session_message m LEFT JOIN session_v2 s ON s.id = m.session_id
+WHERE m.type = 'assistant' AND json_valid(m.data)
+"""
+
+
+def _credentials():
+    spec = importlib.util.spec_from_file_location('wysun_ai_usage_credentials', Path(__file__).with_name('credentials.py'))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+credentials = _credentials()
+
+
+def _connect(db):
+    return sqlite3.connect(f'file:{db}?mode=ro', uri=True, timeout=2)
+
+
+def _rows(db, sql):
+    try:
+        with _connect(db) as connection:
+            return connection.execute(sql).fetchall()
+    except sqlite3.Error:
+        return []
+
+
+def history(db, since):
+    """Assistant messages newer than `since` (epoch s): time, session, project, provider, model, tokens and cost."""
+    found = {}
+    for sql, v2 in ((HISTORY_SQL, False), (HISTORY_V2_SQL, True)):
+        for ident, raw, directory, session_id in _rows(db, sql):
+            if ident in found:
+                continue
+            try:
+                data = json.loads(raw)
+            except ValueError:
+                continue
+            created = (data.get('time') or {}).get('created')
+            if not isinstance(created, (int, float)) or created / 1000 < since:
+                continue
+            model = data.get('model') if v2 else None
+            provider = (model or {}).get('providerID') if v2 else data.get('providerID')
+            name = (model or {}).get('id') if v2 else data.get('modelID')
+            tokens = data.get('tokens') or {}
+            cache = tokens.get('cache') or {}
+            cost = data.get('cost')
+            found[ident] = {
+                'time': created / 1000, 'session': session_id or '', 'project': directory or (data.get('path') or {}).get('cwd') or '',
+                'provider': provider or 'unknown', 'model': f"{provider or 'unknown'}/{name or 'unknown'}",
+                'input': int(tokens.get('input') or 0), 'cacheRead': int(cache.get('read') or 0),
+                'cacheWrite': int(cache.get('write') or 0),
+                'output': int(tokens.get('output') or 0) + int(tokens.get('reasoning') or 0),
+                'cost': float(cost) if isinstance(cost, (int, float)) else None,
+            }
+    return list(found.values())
+
+
+def _login(data_dir, now):
+    """(token, expiresAt) of the CLI sign-in for OpenCode Go; (None, expiresAt) when expired or ambiguous."""
+    rows = _rows(Path(data_dir) / 'opencode.db', "SELECT integration_id, value FROM credential WHERE active = 1 AND "
+                 "integration_id IN ('opencode-go', 'opencode') ORDER BY CASE integration_id WHEN 'opencode-go' THEN 0 ELSE 1 END")
+    if rows:
+        chosen = [value for integration, value in rows if integration == rows[0][0]]
+        if len(chosen) != 1:
+            return None, None
+        try:
+            value = json.loads(chosen[0])
+        except (TypeError, ValueError):
+            return None, None
+        if value.get('type') == 'key':
+            return value.get('key') or None, None
+        if value.get('type') == 'oauth':
+            expires = value.get('expires')
+            expires = expires / 1000 if isinstance(expires, (int, float)) else None
+            if not expires or expires <= now:
+                return None, expires
+            return value.get('access') or None, expires
+        return None, None
+    legacy = (credentials.read_json(Path(data_dir) / 'auth.json') or {}).get('opencode-go')
+    if isinstance(legacy, dict) and legacy.get('type') == 'api':
+        return legacy.get('key') or None, None
+    return None, None
+
+
+def session(data_dir, now):
+    """{'expiresAt', 'expired'} of an OAuth sign-in, or None (API keys do not expire). Never the token."""
+    token, expires = _login(data_dir, now)
+    if expires is None:
+        return None
+    return {'expiresAt': expires, 'expired': token is None}
+
+
+def _number(source, keys):
+    for key in keys:
+        value = source.get(key)
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            return float(value)
+    return None
+
+
+def usage(data_dir, now, opener=None):
+    """(limits, error): OpenCode Go windows, or ([], error|None) without a usable sign-in or subscription."""
+    token, expires = _login(data_dir, now)
+    if not token:
+        return [], ({'kind': 'expired', 'command': 'opencode auth login'} if expires else None)
+    status, body = credentials.get_json(URL, {'Authorization': 'Bearer ' + token}, frozenset({HOST}), opener=opener)
+    del token
+    if status in (401, 403):
+        return [], {'kind': 'auth', 'command': 'opencode auth login'}
+    if status != 200 or not isinstance(body, dict):
+        return [], ({'kind': 'network'} if status in (0, 429) or status >= 500 else None)
+    windows = body.get('usage') if isinstance(body.get('usage'), dict) else {}
+    limits = []
+    for key, ident, minutes in WINDOWS:
+        window = windows.get(key)
+        if not isinstance(window, dict):
+            continue
+        percent, reset = _number(window, PERCENT_KEYS), _number(window, RESET_KEYS)
+        if percent is None:
+            continue
+        limits.append({'id': ident, 'usedPercent': max(0.0, min(100.0, percent)),
+                       'resetsAt': int(now + reset) if reset else None, 'windowMinutes': minutes})
+    return limits, None
