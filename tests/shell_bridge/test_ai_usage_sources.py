@@ -201,6 +201,8 @@ class ClaudeApiTests(BackendHome):
         self.statusline(session=31)
         cases = {401: 'auth', 403: 'scope', 0: 'network'}
         for status, kind in cases.items():
+            # Each case starts without the backoff the previous refusal left.
+            (self.home / 'cache/wysun/ai-usage/claude-api.json').unlink(missing_ok=True)
             opener = Opener(error=OSError('down')) if status == 0 else Opener(
                 {'https://api.anthropic.com/': (status, {'error': {'message': 'missing scope user:profile'}})})
             claude = self.claude(self.collect(opener))
@@ -232,6 +234,28 @@ class ClaudeApiTests(BackendHome):
             self.assertLessEqual(call['timeout'], 5)
             self.assertEqual(call['headers'].get('Anthropic-beta'), 'oauth-2025-04-20')
             self.assertRegex(call['headers'].get('User-agent', ''), r'^claude-cli/\S+ \(external, cli\)$')
+
+    def test_api_is_asked_at_most_every_five_minutes(self):
+        self.credentials()
+        opener = Opener({'https://api.anthropic.com/': (200, self.usage_body())})
+        self.backend.collect(now=self.now, live=True, opener=opener)
+        self.backend.collect(now=self.now + 60, live=True, opener=opener)
+        self.assertEqual(len(api_calls(opener)), 1)
+        later = self.claude(self.backend.collect(now=self.now + 60, live=True, opener=opener))
+        self.assertEqual(later['source'], 'api')
+        self.assertEqual({l['id']: l['usedPercent'] for l in later['limits']}['session'], 12.0)
+        self.backend.collect(now=self.now + 301, live=True, opener=opener)
+        self.assertEqual(len(api_calls(opener)), 2)
+
+    def test_rate_limit_backs_off_and_keeps_the_last_values(self):
+        self.credentials()
+        self.backend.collect(now=self.now, live=True, opener=Opener({'https://api.anthropic.com/': (200, self.usage_body())}))
+        limited = Opener({'https://api.anthropic.com/': (429, {})})
+        result = self.claude(self.backend.collect(now=self.now + 301, live=True, opener=limited))
+        self.assertEqual(result['source'], 'api')
+        self.assertEqual(result['updatedAt'], self.now)
+        self.backend.collect(now=self.now + 600, live=True, opener=limited)
+        self.assertEqual(len(api_calls(limited)), 1)
 
     def test_http_status_is_kept_for_diagnosis(self):
         self.credentials()
@@ -370,17 +394,17 @@ def statuspage(indicator='none', description='All Systems Operational', componen
 class ServiceStatusTests(BackendHome):
     def test_incident_is_summarised(self):
         status = self.backend._sibling('service_status')
-        opener = Opener({'https://status.anthropic.com/': (200, statuspage(
+        opener = Opener({'https://status.claude.com/': (200, statuspage(
             'minor', 'Partially Degraded Service',
-            [('claude.ai', 'operational'), ('Claude Code', 'degraded_performance'), ('Claude API', 'partial_outage'),
+            [('claude.ai', 'operational'), ('Claude Code', 'degraded_performance'), ('Claude API (api.anthropic.com)', 'partial_outage'),
              ('Something else', 'operational')], ['Elevated errors on Claude Code']))})
         result = status.fetch('claude', opener=opener)
         self.assertEqual(result['indicator'], 'minor')
         self.assertEqual(result['description'], 'Elevated errors on Claude Code')
-        self.assertEqual([c['name'] for c in result['components']], ['claude.ai', 'Claude Code', 'Claude API'])
+        self.assertEqual([c['name'] for c in result['components']], ['claude.ai', 'Claude Code', 'Claude API (api.anthropic.com)'])
         self.assertEqual(result['components'][1]['status'], 'degraded_performance')
-        self.assertEqual(result['url'], 'https://status.anthropic.com')
-        self.assertTrue(opener.calls[0]['url'].startswith('https://status.anthropic.com/api/v2/summary.json'))
+        self.assertEqual(result['url'], 'https://status.claude.com')
+        self.assertTrue(opener.calls[0]['url'].startswith('https://status.claude.com/api/v2/summary.json'))
 
     def test_offline_status_is_unknown(self):
         result = self.backend._sibling('service_status').fetch('codex', opener=Opener(error=OSError('down')))
@@ -390,7 +414,7 @@ class ServiceStatusTests(BackendHome):
         self.assertEqual(self.backend._sibling('service_status').fetch('opencode', opener=Opener())['indicator'], 'unknown')
 
     def test_status_is_cached_for_two_minutes(self):
-        opener = Opener({'https://status.anthropic.com/': (200, statuspage()),
+        opener = Opener({'https://status.claude.com/': (200, statuspage()),
                          'https://status.openai.com/': (200, statuspage())})
         first = self.backend.collect(now=self.now, live=True, opener=opener)
         calls = len(opener.calls)

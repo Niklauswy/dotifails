@@ -138,7 +138,7 @@ ColumnLayout {
 
     Option {
         text: Tr.tr("Check service status")
-        detail: "status.anthropic.com · status.openai.com"
+        detail: "status.claude.com · status.openai.com"
         checked: root.settings.status
         onToggled: checked => AiUsage.setSetting("status", checked)
     }

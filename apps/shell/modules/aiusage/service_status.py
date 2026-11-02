@@ -3,7 +3,8 @@ import importlib.util
 from pathlib import Path
 
 PAGES = {
-    'claude': ('status.anthropic.com', ('claude.ai', 'Claude Code', 'Claude API', 'Console', 'platform.claude.com')),
+    'claude': ('status.claude.com', ('claude.ai', 'Claude Code', 'Claude API (api.anthropic.com)',
+                                     'Claude Console (platform.claude.com)')),
     'codex': ('status.openai.com', ('ChatGPT', 'Codex', 'API', 'APIs')),
 }
 INDICATORS = {'none', 'minor', 'major', 'critical', 'maintenance'}

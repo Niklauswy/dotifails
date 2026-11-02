@@ -523,14 +523,47 @@ def claude_profile(home):
             'extraUsage': profile.get('hasExtraUsageEnabled')}
 
 
+API_EVERY = 300
+API_BACKOFF = 900
+API_KEEP = 3600
+
+
+def claude_api_usage(account, now, opener=None):
+    """(details, updatedAt, error): Anthropic's usage, asked at most every API_EVERY seconds per account and
+    not again for API_BACKOFF after a refusal; meanwhile the last answer (no credentials in it) is reused."""
+    path = CACHE / 'claude-api.json'
+    cache = _read_json(path) or {}
+    entry = cache.get(account['id']) if isinstance(cache.get(account['id']), dict) else {}
+    error = None
+    if now >= entry.get('next', 0):
+        details, error = _sibling('claude_api').usage(account['home'], now, opener)
+        if details:
+            entry = {'details': details, 'at': now, 'next': now + API_EVERY, 'error': None}
+        elif error and error.get('kind') in ('network', 'auth', 'scope'):
+            entry = dict(entry, next=now + API_BACKOFF, error=error)
+        else:
+            entry = dict(entry, next=now + API_EVERY, error=error)
+        cache[account['id']] = entry
+        try:
+            CACHE.mkdir(parents=True, exist_ok=True)
+            temp = path.with_name(path.name + '.tmp')
+            temp.write_text(json.dumps(cache), encoding='utf-8')
+            os.replace(temp, path)
+        except OSError:
+            pass
+    fresh = entry.get('details') if now - entry.get('at', 0) < API_KEEP else None
+    error = entry.get('error')
+    return fresh, entry.get('at'), (None if fresh and error and error.get('kind') == 'network' else error)
+
+
 def claude_account(account, now, named_by_folder=True, live=True, opener=None):
     """Live usage from Anthropic's API when Claude Code's sign-in allows it, else the status line snapshot."""
     api = _sibling('claude_api')
-    details, error = api.usage(account['home'], now, opener) if live else (None, None)
+    details, at, error = claude_api_usage(account, now, opener) if live else (None, None, None)
     base = claude_statusline_account(account, now, named_by_folder)
     base.update(session=api.session(account['home'], now), error=error, extra=None, cloud=None)
     if details:
-        base.update(details, available=True, reason=None, source='api', updatedAt=now)
+        base.update(details, available=True, reason=None, source='api', updatedAt=at)
     return base
 
 
