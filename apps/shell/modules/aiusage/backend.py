@@ -805,7 +805,9 @@ def collect(now=None, live=True, opener=None):
     for account in unique:
         account['usage'] = summarise(records, [account['id']], now, prices)
     record_limits(unique, records, now)
-    snapshot = {'generatedAt': now, 'version': 2, 'accounts': unique, 'usage': summarise(records, ids, now, prices)}
+    providers = sorted({a['provider'] for a in unique})
+    status = service_status(providers, now, live and '--no-status' not in sys.argv, opener)
+    snapshot = {'generatedAt': now, 'version': 2, 'status': status, 'accounts': unique, 'usage': summarise(records, ids, now, prices)}
     save_snapshot(snapshot)
     return snapshot
 
@@ -846,6 +848,31 @@ def cost_between(records, start, end, prices):
                     cost = row[4] if len(row) > 4 and row[4] is not None else cost_of(row[:4], price_for(model, prices))
                     total += cost or 0
     return total
+
+
+STATUS_TTL = 120
+
+
+def service_status(providers, now, live, opener=None):
+    """Status per provider, refetched at most every STATUS_TTL seconds; the cached one when offline."""
+    path = CACHE / 'status.json'
+    cached = _read_json(path) or {}
+    result = {}
+    for provider in providers:
+        entry = cached.get(provider)
+        if live and (not isinstance(entry, dict) or now - entry.get('checkedAt', 0) >= STATUS_TTL):
+            entry = dict(_sibling('service_status').fetch(provider, opener=opener), checkedAt=now)
+        if isinstance(entry, dict):
+            result[provider] = entry
+    if live and result != cached:
+        try:
+            CACHE.mkdir(parents=True, exist_ok=True)
+            temp = path.with_name(path.name + '.tmp')
+            temp.write_text(json.dumps(result), encoding='utf-8')
+            os.replace(temp, path)
+        except OSError:
+            pass
+    return result
 
 
 def save_snapshot(snapshot):

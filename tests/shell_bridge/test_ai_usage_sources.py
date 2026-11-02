@@ -57,6 +57,11 @@ class Opener:
         raise OSError('no answer')
 
 
+def api_calls(opener):
+    """Calls to provider APIs, leaving out the public status pages."""
+    return [c for c in opener.calls if '//status.' not in c['url']]
+
+
 class CredentialsTests(unittest.TestCase):
     def setUp(self):
         self.credentials = module('credentials')
@@ -186,7 +191,7 @@ class ClaudeApiTests(BackendHome):
         self.statusline(session=31)
         opener = Opener({'https://api.anthropic.com/': (200, self.usage_body())})
         claude = self.claude(self.collect(opener))
-        self.assertEqual(opener.calls, [])
+        self.assertEqual(api_calls(opener), [])
         self.assertEqual(claude['source'], 'statusline')
         self.assertTrue(claude['session']['expired'])
         self.assertEqual(claude['limits'][0]['usedPercent'], 31)
@@ -207,7 +212,7 @@ class ClaudeApiTests(BackendHome):
         self.credentials(scopes=('user:inference',))
         opener = Opener({'https://api.anthropic.com/': (200, self.usage_body())})
         claude = self.claude(self.collect(opener))
-        self.assertEqual(opener.calls, [])
+        self.assertEqual(api_calls(opener), [])
         self.assertEqual(claude['error']['kind'], 'scope')
 
     def test_token_never_leaves_the_process(self):
@@ -221,8 +226,8 @@ class ClaudeApiTests(BackendHome):
         self.credentials()
         opener = Opener({'https://api.anthropic.com/': (200, self.usage_body())})
         self.collect(opener)
-        self.assertTrue(opener.calls)
-        for call in opener.calls:
+        self.assertTrue(api_calls(opener))
+        for call in api_calls(opener):
             self.assertTrue(call['url'].startswith('https://api.anthropic.com/'), call['url'])
             self.assertLessEqual(call['timeout'], 5)
             self.assertEqual(call['headers'].get('Anthropic-beta'), 'oauth-2025-04-20')
@@ -231,7 +236,7 @@ class ClaudeApiTests(BackendHome):
         self.statusline(session=31)
         opener = Opener()
         claude = self.claude(self.collect(opener))
-        self.assertEqual(opener.calls, [])
+        self.assertEqual(api_calls(opener), [])
         self.assertEqual(claude['source'], 'statusline')
         self.assertIsNone(claude['session'])
         self.assertIsNone(claude['error'])
@@ -301,7 +306,7 @@ class OpenCodeTests(BackendHome):
         self.legacy('m1', 'deepseek', 'deepseek-v4')
         opener = Opener()
         account = self.opencode(self.collect(opener))
-        self.assertEqual(opener.calls, [])
+        self.assertEqual(api_calls(opener), [])
         self.assertEqual(account['limits'], [])
         self.assertEqual(account['reason'], 'subscription')
         self.assertGreater(account['usage']['30d']['totals']['output'], 0)
@@ -324,7 +329,7 @@ class OpenCodeTests(BackendHome):
         self.credential(integration='opencode', kind='oauth', expires_in=-10)
         opener = Opener({'https://opencode.ai/': (200, {})})
         account = self.opencode(self.collect(opener))
-        self.assertEqual(opener.calls, [])
+        self.assertEqual(api_calls(opener), [])
         self.assertTrue(account['session']['expired'])
 
     def test_db_opened_read_only(self):
@@ -348,6 +353,47 @@ class OpenCodeTests(BackendHome):
         self.db.unlink()
         self.data.rmdir()
         self.assertFalse([a for a in self.collect()['accounts'] if a['provider'] == 'opencode'])
+
+
+def statuspage(indicator='none', description='All Systems Operational', components=(), incidents=()):
+    return {'status': {'indicator': indicator, 'description': description},
+            'components': [{'id': n, 'name': n, 'status': s, 'group_id': None, 'group': False} for n, s in components],
+            'incidents': [{'name': n, 'status': 'investigating', 'updated_at': '2026-11-01T17:12:00Z'} for n in incidents]}
+
+
+class ServiceStatusTests(BackendHome):
+    def test_incident_is_summarised(self):
+        status = self.backend._sibling('service_status')
+        opener = Opener({'https://status.anthropic.com/': (200, statuspage(
+            'minor', 'Partially Degraded Service',
+            [('claude.ai', 'operational'), ('Claude Code', 'degraded_performance'), ('Claude API', 'partial_outage'),
+             ('Something else', 'operational')], ['Elevated errors on Claude Code']))})
+        result = status.fetch('claude', opener=opener)
+        self.assertEqual(result['indicator'], 'minor')
+        self.assertEqual(result['description'], 'Elevated errors on Claude Code')
+        self.assertEqual([c['name'] for c in result['components']], ['claude.ai', 'Claude Code', 'Claude API'])
+        self.assertEqual(result['components'][1]['status'], 'degraded_performance')
+        self.assertEqual(result['url'], 'https://status.anthropic.com')
+        self.assertTrue(opener.calls[0]['url'].startswith('https://status.anthropic.com/api/v2/summary.json'))
+
+    def test_offline_status_is_unknown(self):
+        result = self.backend._sibling('service_status').fetch('codex', opener=Opener(error=OSError('down')))
+        self.assertEqual(result['indicator'], 'unknown')
+
+    def test_provider_without_status_page(self):
+        self.assertEqual(self.backend._sibling('service_status').fetch('opencode', opener=Opener())['indicator'], 'unknown')
+
+    def test_status_is_cached_for_two_minutes(self):
+        opener = Opener({'https://status.anthropic.com/': (200, statuspage()),
+                         'https://status.openai.com/': (200, statuspage())})
+        first = self.backend.collect(now=self.now, live=True, opener=opener)
+        calls = len(opener.calls)
+        self.backend.collect(now=self.now + 60, live=True, opener=opener)
+        self.assertEqual(len([c for c in opener.calls if 'status.' in c['url']]),
+                         len([c for c in opener.calls[:calls] if 'status.' in c['url']]))
+        self.assertEqual(first['status']['claude']['indicator'], 'none')
+        self.backend.collect(now=self.now + 200, live=True, opener=opener)
+        self.assertGreater(len([c for c in opener.calls if 'status.' in c['url']]), 2)
 
 
 if __name__ == '__main__':
