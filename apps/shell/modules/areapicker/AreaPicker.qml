@@ -127,10 +127,10 @@ Scope {
 
         property point cursor
 
-        // Only the output being captured gets an overlay: the selection lives on one
-        // output, and every extra layer window costs a frozen frame and a teardown.
+        // Every output gets an overlay, so a window (or screen) of any monitor can be picked: the output under
+        // the pointer is the active one (the others are dimmed more) and the only one that takes the keyboard.
         Variants {
-            model: Screens.screens.filter(s => s.name === root.session?.screenName)
+            model: Screens.screens
 
             StyledWindow {
                 id: win

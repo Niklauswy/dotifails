@@ -13,8 +13,10 @@ StyledRect {
     id: root
 
     required property Annotations annotations
-    // Drawing over a recording instead of a capture: no pixelate, no copy or save, but clear and done.
+    // Drawing over a recording instead of a capture: no pixelate, no copy or save, but clear, pause, stop and done.
     property bool live
+    // The recording is paused (the pause button becomes resume).
+    property bool paused
 
     // Theme swatches for marks; they follow the active scheme.
     readonly property var swatches: [Colours.palette.m3error, Colours.palette.m3primary, Colours.palette.m3tertiary, Colours.palette.m3secondary, Colours.palette.m3onSurface, Colours.palette.m3surface]
@@ -34,6 +36,8 @@ StyledRect {
     signal save
     signal cancel
     signal clear
+    signal pause
+    signal stop
 
     implicitWidth: row.implicitWidth + Tokens.padding.small * 2
     implicitHeight: row.implicitHeight + Tokens.padding.small * 2
@@ -186,6 +190,28 @@ StyledRect {
             }
         }
 
+        Separator {
+            visible: root.live
+        }
+
+        // The recording stays under control while drawing: the HUD sits below this layer and cannot be clicked.
+        Tool {
+            objectName: "pauseRecording"
+            visible: root.live
+            icon: root.paused ? "play_arrow" : "pause"
+            hint: root.paused ? Tr.tr("Resume · Ctrl+Shift+R") : Tr.tr("Pause · Ctrl+Shift+R")
+            onClicked: root.pause()
+        }
+
+        Tool {
+            objectName: "stopRecording"
+            visible: root.live
+            icon: "stop"
+            iconTint: Colours.palette.m3error
+            hint: Tr.tr("Stop recording · Ctrl+Shift+S")
+            onClicked: root.stop()
+        }
+
         Tool {
             icon: root.live ? "check" : "close"
             hint: root.live ? Tr.tr("Done · Esc") : Tr.tr("Cancel · Esc")
@@ -208,6 +234,8 @@ StyledRect {
         property string hint
         property bool active
         property real iconScale: 1
+        // A fixed icon colour (the stop button); transparent keeps the theme's.
+        property color iconTint: "transparent"
 
         signal clicked
 
@@ -230,7 +258,7 @@ StyledRect {
             anchors.centerIn: parent
             text: tool.icon
             fill: tool.active ? 1 : 0
-            color: tool.active ? Colours.palette.m3onSecondaryContainer : Colours.palette.m3onSurface
+            color: tool.iconTint.a > 0 ? tool.iconTint : tool.active ? Colours.palette.m3onSecondaryContainer : Colours.palette.m3onSurface
             fontStyle: Tokens.font.icon.medium
             scale: tool.iconScale
         }

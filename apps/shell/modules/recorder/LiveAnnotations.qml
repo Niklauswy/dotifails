@@ -58,6 +58,10 @@ Scope {
                         return;
                     if (event.key === Qt.Key_Escape)
                         Recorder.annotating = false;
+                    else if (ctrl && shift && event.key === Qt.Key_S)
+                        Recorder.stop();
+                    else if (ctrl && shift && event.key === Qt.Key_R)
+                        Recorder.togglePause();
                     else if (ctrl && event.key === Qt.Key_Z)
                         shift ? marks.redo() : marks.undo();
                     else if (ctrl && event.key === Qt.Key_Y)
@@ -96,11 +100,14 @@ Scope {
 
                     live: true
                     annotations: marks
+                    paused: Recorder.paused
                     visible: win.open || opacity > 0
                     opacity: win.open ? 1 : 0
                     x: Math.max(gap, Math.min(stage.width - width - gap, win.area.x + win.area.width / 2 - width / 2))
                     y: below + height + gap <= stage.height ? below : above >= gap ? above : stage.height - height - gap
                     onCancel: Recorder.annotating = false
+                    onStop: Recorder.stop()
+                    onPause: Recorder.togglePause()
                     onClear: {
                         marks.marks = [];
                         marks.undone = [];
