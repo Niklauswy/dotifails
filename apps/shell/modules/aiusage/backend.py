@@ -808,6 +808,7 @@ def collect(now=None, live=True, opener=None):
     providers = sorted({a['provider'] for a in unique})
     status = service_status(providers, now, live and '--no-status' not in sys.argv, opener)
     agents = running_agents(accounts, files, now)
+    disk_usage(unique, now)
     snapshot = {'generatedAt': now, 'version': 2, 'status': status, 'agents': agents, 'accounts': unique, 'usage': summarise(records, ids, now, prices)}
     save_snapshot(snapshot)
     return snapshot
@@ -849,6 +850,35 @@ def cost_between(records, start, end, prices):
                     cost = row[4] if len(row) > 4 and row[4] is not None else cost_of(row[:4], price_for(model, prices))
                     total += cost or 0
     return total
+
+
+DISK_TTL = 86400
+
+
+def disk_usage(accounts, now):
+    """Each account's folder size, measured at most once a day (cached by account id)."""
+    path = CACHE / 'disk.json'
+    cached = _read_json(path) or {}
+    result, changed = {}, False
+    for account in accounts:
+        if account.get('source') == 'history' or not account.get('home'):
+            continue
+        entry = cached.get(account['id'])
+        if not isinstance(entry, dict) or now - entry.get('measuredAt', 0) >= DISK_TTL:
+            home = Path(str(HOME) + account['home'][1:] if account['home'].startswith('~') else account['home'])
+            entry = _sibling('disk').measure(home, account['provider'], now)
+            entry['root'] = str(home).replace(str(HOME), '~', 1)
+            changed = True
+        result[account['id']] = entry
+        account['disk'] = entry
+    if changed:
+        try:
+            CACHE.mkdir(parents=True, exist_ok=True)
+            temp = path.with_name(path.name + '.tmp')
+            temp.write_text(json.dumps(result), encoding='utf-8')
+            os.replace(temp, path)
+        except OSError:
+            pass
 
 
 BUSY_SECONDS = 15

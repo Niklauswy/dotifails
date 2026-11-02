@@ -469,5 +469,58 @@ class AgentsTests(unittest.TestCase):
         self.assertFalse(self.scan(logs)[400]['busy'])
 
 
+class DiskTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name) / '.claude'
+        self.now = time.time()
+        self.file('projects/p/a.jsonl', 1000)
+        self.file('projects/p/old.jsonl', 300, age_days=120)
+        self.file('file-history/x', 200)
+        self.file('settings.json', 50)
+        outside = Path(self.tmp.name) / 'outside'
+        outside.mkdir()
+        (outside / 'big').write_bytes(b'x' * 100000)
+        (self.root / 'linked').symlink_to(outside)
+        self.disk = module('disk')
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def file(self, relative, size, age_days=0):
+        path = self.root / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(b'x' * size)
+        if age_days:
+            stamp = self.now - age_days * 86400
+            os.utime(path, (stamp, stamp))
+
+    def test_sizes_by_part(self):
+        result = self.disk.measure(self.root, 'claude', self.now)
+        parts = {p['name']: p['size'] for p in result['parts']}
+        self.assertEqual(parts['projects/'], 1300)
+        self.assertEqual(parts['file-history/'], 200)
+        self.assertEqual(result['measuredAt'], self.now)
+
+    def test_symlinks_outside_root_are_not_followed(self):
+        self.assertLess(self.disk.measure(self.root, 'claude', self.now)['total'], 100000)
+
+    def test_old_logs_tip_counts_only_files_older_than_90_days(self):
+        tips = {t['kind']: t['size'] for t in self.disk.measure(self.root, 'claude', self.now)['tips']}
+        self.assertEqual(tips['old-logs'], 300)
+        self.assertEqual(tips['file-history'], 200)
+
+
+class DiskCacheTests(BackendHome):
+    def test_measured_at_most_once_a_day(self):
+        (self.home / '.claude/projects').mkdir()
+        first = next(a for a in self.backend.collect(now=self.now, live=False)['accounts'] if a['provider'] == 'claude')
+        (self.home / '.claude/projects/new.jsonl').write_bytes(b'x' * 5000)
+        later = next(a for a in self.backend.collect(now=self.now + 3600, live=False)['accounts'] if a['provider'] == 'claude')
+        self.assertEqual(later['disk']['total'], first['disk']['total'])
+        nextday = next(a for a in self.backend.collect(now=self.now + 90000, live=False)['accounts'] if a['provider'] == 'claude')
+        self.assertGreaterEqual(nextday['disk']['total'], first['disk']['total'] + 5000)
+
+
 if __name__ == '__main__':
     unittest.main()
