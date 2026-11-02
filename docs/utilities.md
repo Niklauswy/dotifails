@@ -31,7 +31,7 @@ wysun lanshare --puerto 9000                # por defecto 8000; si está ocupado
 wysun lanshare --detener PID                # lo usa la barra
 ```
 
-Página en el estilo de Wysun, siempre clara, con los colores del fondo de pantalla. En el celular muestra una lista; en la computadora, una lista con panel de vista previa y un visor a pantalla completa. Tiene miniaturas y vistas previas de video al pasar el dedo o el ratón (necesitan `ffmpeg`/`ffprobe`; sin ellos no hay miniaturas), reproducción con saltos (Range, compatible con Safari/iPhone) y descarga de carpetas o de toda la lista en `.zip`. Las fuentes las sirve el propio servidor, así que funciona sin internet. Caché en `~/.cache/wysun/lanshare`.
+Página en el estilo de Wysun, siempre clara, con los colores del fondo de pantalla. En el celular muestra una lista; en la computadora, una lista con panel de vista previa y un visor a pantalla completa. Tiene miniaturas y vistas previas de video al pasar el dedo o el ratón (necesitan `ffmpeg`/`ffprobe`; sin ellos no hay miniaturas), reproducción con saltos (Range, compatible con Safari/iPhone) y descarga de carpetas o de toda la lista en `.zip`. Las fuentes las sirve el propio servidor, así que funciona sin internet. Caché en `~/.cache/wysun/lanshare`; las copias de video para celular (los videos que declaran un nivel H.264 que el teléfono rechaza se reenvasan sin recodificar) ocupan como máximo 2 GB y se borran primero las vistas hace más tiempo.
 
 - Las **subidas están apagadas** por defecto: sin `--subidas` el servidor rechaza subir y crear carpetas. Al terminar cada subida llega una notificación.
 - Con `--clave`, quien abre la página escribe la contraseña una vez. Tras 5 intentos fallidos esa IP espera un minuto.

@@ -158,6 +158,45 @@ def cached_image(path, kind):
         return None
 
 
+COMPAT_LIMIT = 2 * 1024 ** 3     # phone copies kept at most; the least recently watched go first
+
+
+def trim(folder, limit, keep=None):
+    """Delete finished .mp4 copies under folder, oldest use (mtime) first, until it holds at most limit bytes.
+    keep is never deleted. A copy being streamed survives deletion: the open file stays readable."""
+    copies = []
+    for base, _, names in os.walk(folder):
+        for name in names:
+            if name.startswith('.') or not name.endswith('.mp4'):
+                continue
+            full = os.path.join(base, name)
+            try:
+                st = os.stat(full)
+            except OSError:
+                continue
+            copies.append((st.st_mtime, st.st_size, full))
+    total = sum(size for _, size, _ in copies)
+    for _, size, full in sorted(copies):
+        if total <= limit:
+            break
+        if full == keep:
+            continue
+        try:
+            os.unlink(full)
+            total -= size
+        except OSError:
+            pass
+
+
+def _used(out):
+    try:
+        os.utime(out)
+    except OSError:
+        pass
+    trim(os.path.join(cache_dir(), "compat"), COMPAT_LIMIT, keep=out)
+    return out
+
+
 def playable(path):
     """A copy phones can play when the video only declares a level they refuse (Recorder files say 6.2): the same
     streams, without re-encoding, with the level it really needs; cached. The original path otherwise."""
@@ -173,21 +212,21 @@ def playable(path):
         return path
     out = os.path.join(cache_dir(), "compat", key[:2], key + ".mp4")
     if os.path.exists(out):
-        return out
+        return _used(out)
     if os.path.exists(out + ".fail"):
         return path
     with _key_guard:
         lock = _key_locks.setdefault(out, threading.Lock())
     with lock:
         if os.path.exists(out):
-            return out
+            return _used(out)
         try:
             with atomic_path(out) as tmp:
                 cmd = FF + ["-i", path, "-map", "0", "-c", "copy", "-bsf:v", f"h264_metadata=level={level}",
                             "-movflags", "+faststart", str(tmp)]
                 if subprocess.run(cmd, capture_output=True, timeout=1800).returncode != 0 or not tmp.exists():
                     raise Incomplete
-            return out
+            return _used(out)
         except (OSError, subprocess.SubprocessError, Incomplete):
             try:
                 with atomic_path(out + ".fail") as tmp:
