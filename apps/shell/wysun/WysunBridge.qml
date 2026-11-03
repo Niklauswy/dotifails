@@ -127,6 +127,9 @@ Scope {
         function media(identity: string): bool { return root.showMedia(identity); }
         // Names every screen for a few seconds (Settings > Displays > Identify).
         function identify(): bool { DisplayIdentify.show(); return true; }
+        // Wysun Processes: thumbnails of windows (JSON {address: path}) and locate-on-screen.
+        function thumbs(addresses: string): string { return WindowTools.requestThumbs(addresses); }
+        function locate(address: string): bool { return WindowTools.locate(address); }
         // Eyedropper without the Colors panel (Super+Shift+C).
         function pickColor(): bool { return colors.pick(); }
         function close(): void { root.close(); }

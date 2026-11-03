@@ -2,7 +2,10 @@
 window thumbnails and locate-on-screen. Thumbnails and locating come from the shell (`wysun-shell thumbs|locate`);
 without it they degrade to nothing and the window keeps working."""
 import json
+import os
+from pathlib import Path
 import re
+import shutil
 import subprocess
 
 ADDRESS = re.compile(r'^0x[0-9a-fA-F]+$')
@@ -53,9 +56,22 @@ class Hypr:
     def close(self, address):
         return self._call(['hyprctl', 'dispatch', 'closewindow', 'address:' + _checked(address)]) is not None
 
+    @staticmethod
+    def thumbs_dir():
+        from wysun_core.paths import runtime_dir
+        return Path(runtime_dir()) / 'wysun-processes' / 'thumbs'
+
+    def cleanup(self):
+        """Forget the thumbnails: they only live while the window is open."""
+        shutil.rmtree(self.thumbs_dir(), ignore_errors=True)
+
     def thumbnails(self, addresses):
         wanted = [_checked(a) for a in addresses]
         if not wanted:
+            return {}
+        try:
+            os.makedirs(self.thumbs_dir(), mode=0o700, exist_ok=True)
+        except OSError:
             return {}
         done = self._call(['wysun-shell', 'thumbs', ','.join(wanted)])
         try:

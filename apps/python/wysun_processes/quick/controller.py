@@ -185,6 +185,9 @@ class ProcessesController(QObject):
             self._thread.wait(2000)
             self._thread = None
         self._pool.waitForDone(2000)
+        cleanup = getattr(self.hypr, 'cleanup', None)
+        if cleanup:
+            cleanup()
 
     def _periodic(self):
         if self._page == 'services':
