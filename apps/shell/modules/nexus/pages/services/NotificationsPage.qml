@@ -1,5 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
+import Quickshell
+import Quickshell.Io
 import Wysun.Config
 import Wysun.I18n
 import qs.components.controls
@@ -40,6 +42,30 @@ PageBase {
 
     title: Tr.tr("Notifications")
     isSubPage: true
+
+    // Resource alerts of Wysun Processes (read by the Wysun resident, wysun_services/process_watch.py).
+    property var procAlerts: ({alerts: false, cpu: 90, minutes: 3, memory_gb: 0})
+
+    function setProcAlert(key, value) {
+        const next = Object.assign({}, procAlerts);
+        next[key] = value;
+        procAlerts = next;
+        procAlertsFile.setText(JSON.stringify(next, null, 2) + "\n");
+    }
+
+    FileView {
+        id: procAlertsFile
+
+        path: (Quickshell.env("XDG_CONFIG_HOME") || Quickshell.env("HOME") + "/.config") + "/wysun/processes.json"
+        printErrors: false
+        watchChanges: true
+        onFileChanged: reload()
+        onLoaded: {
+            try {
+                root.procAlerts = Object.assign({alerts: false, cpu: 90, minutes: 3, memory_gb: 0}, JSON.parse(text()));
+            } catch (e) {}
+        }
+    }
 
     ColumnLayout {
         anchors.horizontalCenter: parent.horizontalCenter
@@ -188,6 +214,50 @@ PageBase {
             text: Tr.tr("Now playing")
             checked: GlobalConfig.utilities.toasts.nowPlaying
             onToggled: GlobalConfig.utilities.toasts.nowPlaying = checked
+        }
+
+        // Resource alerts (Wysun Processes)
+        SectionHeader {
+            text: "Avisos de consumo"
+        }
+
+        ToggleRow {
+            first: true
+            text: "Avisar si una app consume demasiado"
+            subtext: "Con Ver, Terminar y Silenciar 1 h. Lo comprueba el residente de Wysun cada 5 s"
+            checked: root.procAlerts.alerts
+            onToggled: root.setProcAlert("alerts", checked)
+        }
+
+        StepperRow {
+            label: "Umbral de CPU"
+            subtext: "Porcentaje de un núcleo"
+            value: root.procAlerts.cpu
+            from: 50
+            to: 400
+            stepSize: 10
+            onMoved: v => root.setProcAlert("cpu", Math.round(v))
+        }
+
+        StepperRow {
+            label: "Durante (minutos)"
+            subtext: "Tiempo seguido por encima del umbral antes de avisar"
+            value: root.procAlerts.minutes
+            from: 1
+            to: 15
+            stepSize: 1
+            onMoved: v => root.setProcAlert("minutes", Math.round(v))
+        }
+
+        StepperRow {
+            last: true
+            label: "Memoria (GB)"
+            subtext: "Avisar cuando una app supere esta memoria; 0 lo desactiva"
+            value: root.procAlerts.memory_gb
+            from: 0
+            to: 64
+            stepSize: 1
+            onMoved: v => root.setProcAlert("memory_gb", Math.round(v))
         }
     }
 }

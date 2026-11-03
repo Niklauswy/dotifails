@@ -22,13 +22,11 @@ ShellRoot {{
 
 
 class ShellModuleLoadTests(unittest.TestCase):
-    def test_modules_load_in_a_private_quickshell(self):
+    def probe(self, modules, imports, items):
         runtime = Path.home() / '.local/share/wysun/runtime'
         binary = runtime / 'quickshell/bin/quickshell'
         if not binary.exists():
             self.skipTest('shell runtime not built')
-        present = [m for m in MODULES if (SHELL / 'modules' / m).is_dir()]
-        names = {'windowtools': 'WindowTools', 'anr': 'Anr', 'forcequit': 'ForceQuit'}
         with tempfile.TemporaryDirectory() as tmp:
             home = Path(tmp)
             shell = home / 'shell'
@@ -36,12 +34,13 @@ class ShellModuleLoadTests(unittest.TestCase):
             for sub in ('utils', 'components', 'services', 'assets', 'wysun', 'extras'):
                 if (SHELL / sub).exists():
                     (shell / sub).symlink_to(SHELL / sub)
-            (shell / 'modules').mkdir()
-            for module in present:
-                (shell / 'modules' / module).symlink_to(SHELL / 'modules' / module)
-            (shell / 'shell.qml').write_text(PROBE.format(
-                imports='\n'.join(f'import qs.modules.{m}' for m in present),
-                items='\n'.join(f'    {names[m]} {{}}' for m in present)))
+            if modules == 'all':
+                (shell / 'modules').symlink_to(SHELL / 'modules')
+            else:
+                (shell / 'modules').mkdir()
+                for module in modules:
+                    (shell / 'modules' / module).symlink_to(SHELL / 'modules' / module)
+            (shell / 'shell.qml').write_text(PROBE.format(imports='\n'.join(imports), items='\n'.join(items)))
             env = dict(os.environ, HOME=tmp, QT_QPA_PLATFORM='offscreen', WAYLAND_DISPLAY='',
                        HYPRLAND_INSTANCE_SIGNATURE='', WYSUN_LIB_DIR=str(runtime / 'shell/lib/wysun'),
                        QML_IMPORT_PATH=os.pathsep.join([str(runtime / 'shell/lib/qt6/qml'),
@@ -66,6 +65,16 @@ class ShellModuleLoadTests(unittest.TestCase):
         self.assertEqual(bad, [], out[-3000:])
         if not no_backend:
             self.assertIn('PROBE_DONE', out, out[-3000:])
+
+    def test_modules_load_in_a_private_quickshell(self):
+        names = {'windowtools': 'WindowTools', 'anr': 'Anr', 'forcequit': 'ForceQuit'}
+        present = [m for m in MODULES if (SHELL / 'modules' / m).is_dir()]
+        self.probe(present, [f'import qs.modules.{m}' for m in present], [f'    {names[m]} {{}}' for m in present])
+
+    def test_alert_settings_page_loads(self):
+        # The section of Settings > Notifications that writes ~/.config/wysun/processes.json.
+        self.probe('all', ['import qs.modules.nexus.pages.services'],
+                   ['    property Item notificationsPage: NotificationsPage {}'])
 
 
 if __name__ == '__main__':

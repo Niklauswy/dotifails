@@ -57,6 +57,17 @@ class ClipboardDaemon(QObject):
             kind='color' if color_value(text) else 'url' if re.fullmatch(r'https?://\S+',text.strip()) else 'text'
             self.store.clip(kind,text,blob=rich,source=source,meta={'mime_envelope':True})
 
+def start_process_watch(app):
+    """The opt-in alerts of Wysun Processes (wysun_services/process_watch.py); a failure never stops the resident."""
+    try:
+        from wysun_services.process_watch import DbusNotifier, ProcessWatch
+        watch=ProcessWatch()
+        watch.notify=DbusNotifier(watch.action)
+        timer=QTimer(app);timer.timeout.connect(watch.tick);timer.start(5000)
+        return watch,timer
+    except Exception:
+        return None
+
 def owner():
     return SingleInstance(f'wysun-daemon-{os.getuid()}')
 
@@ -86,6 +97,7 @@ def main(argv=None):
     if not resident.claim():return 0                          # another resident is starting
     app=QGuiApplication(['wysun','--name','wysun']);app.setApplicationName('Wysun');app.setApplicationDisplayName('Wysun');app.setDesktopFileName('wysun');app.setQuitOnLastWindowClosed(False)
     resident_window=ClipboardDaemon()  # noqa: F841 (kept alive for the whole session)
+    watch=start_process_watch(app)  # noqa: F841 (opt-in resource alerts; kept alive for the session)
     def request(line):
         mode=line.decode('utf-8',errors='ignore').strip()
         if mode=='ping':return b'pong'
