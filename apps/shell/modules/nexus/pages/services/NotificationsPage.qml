@@ -50,19 +50,18 @@ PageBase {
         const next = Object.assign({}, procAlerts);
         next[key] = value;
         procAlerts = next;
-        procAlertsFile.setText(JSON.stringify(next, null, 2) + "\n");
+        root.procAlertsFile.setText(JSON.stringify(next, null, 2) + "\n");
     }
 
-    FileView {
-        id: procAlertsFile
+    property FileView procAlertsFile: FileView {
 
         path: (Quickshell.env("XDG_CONFIG_HOME") || Quickshell.env("HOME") + "/.config") + "/wysun/processes.json"
         printErrors: false
         watchChanges: true
-        onFileChanged: reload()
+        onFileChanged: root.procAlertsFile.reload()
         onLoaded: {
             try {
-                root.procAlerts = Object.assign({alerts: false, cpu: 90, minutes: 3, memory_gb: 0}, JSON.parse(text()));
+                root.procAlerts = Object.assign({alerts: false, cpu: 90, minutes: 3, memory_gb: 0}, JSON.parse(root.procAlertsFile.text()));
             } catch (e) {}
         }
     }
