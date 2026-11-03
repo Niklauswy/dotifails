@@ -25,7 +25,15 @@ class FakeHypr:
 
     def windows(self):
         return [dict(address='0xaa', pid=10, app_id='firefox', title='GitHub', workspace=1, active=False, monitor=0),
-                dict(address='0xbb', pid=20, app_id='kitty', title='btop', workspace=2, active=True, monitor=0)]
+                dict(address='0xbb', pid=20, app_id='kitty', title='btop', workspace=2, active=True, monitor=0),
+                dict(address='0xcc', pid=999, app_id='brave-browser', title='Claude Code Docs', workspace=7,
+                     active=False, monitor=1)]
+
+    def monitors(self):
+        # Not in x order: the Philips panel is first in physical space, but is id 0.
+        return [dict(id=1, name='DP-1', make='LG Electronics', model='LG ULTRAGEAR', x=1920, y=0, activeWorkspace=7),
+                dict(id=0, name='DP-2', make='Philips Consumer Electronics Company', model='PHL 271E1', x=0, y=0,
+                     activeWorkspace=2)]
 
     def active_workspace(self):
         return 2
@@ -117,12 +125,35 @@ class ControllerTests(unittest.TestCase):
         self.c.select('g:firefox')
         self.assertLessEqual(len(self.c.property('history')['cpu']), 60)
 
-    def test_apps_by_workspace(self):
-        apps = self.c.property('workspaces')
-        self.assertEqual([w['id'] for w in apps], [1, 2])
-        self.assertTrue(apps[1]['current'])
-        self.assertEqual(apps[0]['windows'][0]['app'], 'firefox')
+    def test_apps_by_monitor_and_workspace(self):
+        columns = self.c.property('monitorColumns')
+        self.assertEqual([c['connector'] for c in columns], ['DP-2', 'DP-1'])
+        self.assertEqual([c['label'] for c in columns], ['Philips', 'LG'])
+        self.assertEqual([c['side'] for c in columns], ['izquierda', 'derecha'])
+        left, right = columns
+        self.assertEqual([s['id'] for s in left['workspaces']], [1, 2])
+        self.assertTrue(left['workspaces'][1]['current'])
+        self.assertEqual(left['workspaces'][0]['windows'][0]['app'], 'firefox')
+        self.assertEqual([s['id'] for s in right['workspaces']], [7])
+        self.assertEqual(right['workspaces'][0]['windows'][0]['app'], 'brave-browser')
         self.assertIn('firefox', self.c.property('stats'))
+
+    def test_a_windowless_scope_of_a_windowed_program_gets_segundo_plano(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            write_proc(tmp, 999, 'brave', cgroup='0::/user.slice/user-1000.slice/user@1000.service/'
+                                         'app-org.chromium.Chromium-999.scope\n', rss_pages=1000)
+            write_proc(tmp, 998, 'brave', cgroup='0::/user.slice/user-1000.slice/user@1000.service/'
+                                         'app-brave-998.scope\n', rss_pages=2000)
+            from wysun_processes.core.sampler import Sampler
+            from wysun_processes.quick.controller import ProcessesController
+            c = ProcessesController(sampler=Sampler(proc_root=tmp), hypr=FakeHypr(), auto=False)
+            c.tick()
+            c.tick()
+            groups = {app['app']: app for app in c.property('windowless')}
+            self.assertIn('brave', groups)
+            self.assertEqual(groups['brave']['name'], 'Brave · segundo plano')
+            self.assertNotIn('org.chromium.Chromium', groups)      # the window owner is not windowless
+            c.close()
 
     def test_locate_without_shell_says_so(self):
         messages = []

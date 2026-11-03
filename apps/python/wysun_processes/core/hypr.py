@@ -36,6 +36,18 @@ class Hypr:
         except ValueError:
             return None
 
+    def monitors(self):
+        """The active outputs with their physical position and active workspace; disabled ones are not columns."""
+        out = []
+        for m in self._json('monitors') or []:
+            if m.get('disabled'):
+                continue
+            active = m.get('activeWorkspace') or 0
+            out.append(dict(id=m.get('id', 0), name=m.get('name', ''), make=m.get('make', ''),
+                            model=m.get('model', ''), x=m.get('x', 0), y=m.get('y', 0),
+                            activeWorkspace=active.get('id', 0) if isinstance(active, dict) else active))
+        return out
+
     def windows(self):
         out = []
         for c in self._json('clients') or []:
@@ -88,7 +100,9 @@ class Hypr:
             data = json.loads(done.stdout.strip() or '{}') if done else {}
         except ValueError:
             return {}
-        return {k: v for k, v in data.items() if k in wanted and isinstance(v, str)}
+        # The shell keeps the paths it wrote in memory; a restart of the app may have removed the files, so a path
+        # only counts while the file is there (otherwise the row keeps its drawn preview and Qt logs no warning).
+        return {k: v for k, v in data.items() if k in wanted and isinstance(v, str) and os.path.isfile(v)}
 
     def locate(self, address):
         done = self._call(['wysun-shell', 'locate', _checked(address)])

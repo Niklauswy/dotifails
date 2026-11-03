@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 import subprocess
 import sys
+import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -19,6 +20,15 @@ CLIENTS = [
      'focusHistoryID': 5, 'monitor': -1, 'mapped': False, 'hidden': True},
 ]
 
+MONITORS = [
+    {'id': 1, 'name': 'DP-1', 'make': 'LG Electronics', 'model': 'LG ULTRAGEAR', 'x': 1920, 'y': 0,
+     'activeWorkspace': {'id': 7, 'name': '7'}, 'disabled': False},
+    {'id': 2, 'name': 'DP-2', 'make': 'Philips Consumer Electronics Company', 'model': 'PHL 271E1', 'x': 0, 'y': 0,
+     'activeWorkspace': {'id': 3, 'name': '3'}, 'disabled': False},
+    {'id': 3, 'name': 'HDMI-A-1', 'make': 'Unknown', 'model': 'Unknown', 'x': 3840, 'y': 0,
+     'activeWorkspace': {'id': 1, 'name': '1'}, 'disabled': True},
+]
+
 
 class Runner:
     def __init__(self, fail=()):
@@ -30,6 +40,8 @@ class Runner:
             raise FileNotFoundError(cmd[0])
         if cmd[:2] == ['hyprctl', '-j'] and cmd[2] == 'clients':
             return subprocess.CompletedProcess(cmd, 0, json.dumps(CLIENTS), '')
+        if cmd[:2] == ['hyprctl', '-j'] and cmd[2] == 'monitors':
+            return subprocess.CompletedProcess(cmd, 0, json.dumps(MONITORS), '')
         if cmd[:2] == ['hyprctl', '-j'] and cmd[2] == 'activeworkspace':
             return subprocess.CompletedProcess(cmd, 0, '{"id": 2}', '')
         if cmd[:2] == ['wysun-shell', 'thumbs']:
@@ -45,6 +57,15 @@ class HyprTests(unittest.TestCase):
         self.assertEqual([w['address'] for w in windows], ['0xaa', '0xbb'])
         self.assertEqual(windows[1], dict(address='0xbb', pid=22010, app_id='kitty', title='btop', workspace=2,
                                           active=True, monitor=0))
+
+    def test_monitors(self):
+        monitors = hypr.Hypr(run=Runner()).monitors()
+        self.assertEqual([m['id'] for m in monitors], [1, 2])        # disabled outputs are not columns
+        self.assertEqual(monitors[1], dict(id=2, name='DP-2', make='Philips Consumer Electronics Company',
+                                           model='PHL 271E1', x=0, y=0, activeWorkspace=3))
+
+    def test_monitors_without_hyprctl(self):
+        self.assertEqual(hypr.Hypr(run=Runner(fail=('hyprctl',))).monitors(), [])
 
     def test_active_workspace(self):
         self.assertEqual(hypr.Hypr(run=Runner()).active_workspace(), 2)
@@ -72,9 +93,22 @@ class HyprTests(unittest.TestCase):
             hypr.Hypr(run=Runner()).focus('0xaa; rm -rf')
 
     def test_shell_ipc(self):
-        h = hypr.Hypr(run=Runner())
-        self.assertEqual(h.thumbnails(['0xaa', '0xbb']), {'0xaa': '/run/x/0xaa.png'})
-        self.assertTrue(h.locate('0xaa'))
+        with tempfile.TemporaryDirectory() as tmp:
+            path = str(Path(tmp) / '0xaa.png')
+            Path(path).write_bytes(b'png')
+
+            class Existing(Runner):
+                def __call__(self, cmd, **kw):
+                    if cmd[:2] == ['wysun-shell', 'thumbs']:
+                        return subprocess.CompletedProcess(cmd, 0, json.dumps({'0xaa': path}), '')
+                    return super().__call__(cmd, **kw)
+            h = hypr.Hypr(run=Existing())
+            self.assertEqual(h.thumbnails(['0xaa', '0xbb']), {'0xaa': path})
+            self.assertTrue(h.locate('0xaa'))
+
+    def test_stale_thumbnail_paths_are_not_returned(self):
+        # The shell remembers what it wrote; a file removed since then must not be handed to QML.
+        self.assertEqual(hypr.Hypr(run=Runner()).thumbnails(['0xaa']), {})
 
     def test_shell_unavailable(self):
         h = hypr.Hypr(run=Runner(fail=('wysun-shell', 'hyprctl')))

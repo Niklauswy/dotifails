@@ -8,7 +8,7 @@ from pathlib import Path
 from PySide6.QtCore import (QObject, QProcess, QRunnable, QThread, QThreadPool, QTimer, Property, Signal, Slot)
 from PySide6.QtGui import QGuiApplication
 
-from wysun_processes.core import actions, views
+from wysun_processes.core import actions, apps as apps_core, views
 from wysun_processes.core.hypr import windows_by_app
 from .models import KeyedModel
 
@@ -146,7 +146,8 @@ class ProcessesController(QObject):
         self._system = {k: deque(maxlen=HISTORY) for k in SYSTEM_KEYS}
         self._system_top = deque(maxlen=HISTORY)
         self._summary, self._stats, self._details = {}, {}, {}
-        self._workspaces, self._background, self._windows, self._thumbs = [], [], [], {}
+        self._windows, self._thumbs = [], {}
+        self._columns, self._windowless, self._system_windowless = [], [], {}
         self._services, self._service_unit, self._log, self._journal = [], '', [], None
         self._startup, self._ready = [], 0.0
         self._undo = None
@@ -303,39 +304,62 @@ class ProcessesController(QObject):
         current = self.hypr.active_workspace()
         rows = self._snapshot.rows if self._snapshot else []
         by_app = windows_by_app(windows, rows)
-        app_of = {w['address']: app for app, ws in by_app.items() for w in ws}
-        spaces = {}
+        app_of = {w['address']: app for app, space in by_app.items() for w in space}
+        by_pid = {r['pid']: r for r in rows}
+        monitors = self.hypr.monitors()
+        if not monitors:
+            # No `hyprctl monitors` (or a stub without it): one column per monitor id seen in the clients, so no
+            # window disappears and the page still works.
+            monitors = [dict(id=number, name='', make='', model='', x=number, y=0, activeWorkspace=current)
+                        for number in sorted({w['monitor'] for w in windows})]
+        thumbs = self.hypr.thumbnails([w['address'] for w in windows]) if self._page == 'apps' else {}
+        entries = []
+        window_names = {}
         for w in windows:
             app = app_of.get(w['address'], w['app_id'])
-            spaces.setdefault(w['workspace'], []).append(dict(
-                address=w['address'], app=app, appId=w['app_id'], title=w['title'], name=self.catalog.name(app),
-                icon=self.catalog.icon(app) or self.catalog.icon(w['app_id']),
-                tint=self.catalog.tint(app) or self.catalog.tint(w['app_id']), active=w['active']))
-        workspaces = [dict(id=k, current=k == current, windows=v) for k, v in sorted(spaces.items())]
-        windowed = set(app_of.values())
-        background = sorted({r['app'] for r in rows if r['uid'] == self.uid and r['app'] not in windowed
-                             and r['app'] in self._stats and r['app'] not in ('systemd', 'Hyprland')})
-        background = [dict(app=a, name=DISPLAY.get(a) or self.catalog.name(a), icon=self.catalog.icon(a),
-                           tint=self.catalog.tint(a)) for a in background]
+            chosen = apps_core.preferred_app(w['app_id'], app, self.catalog.entry)
+            name = apps_core.app_label(w['app_id'], app, self.catalog.entry) or app or w['app_id']
+            owner = by_pid.get(w['pid'])
+            if owner:                           # background scopes of the same program share the process name
+                window_names[owner['name']] = name
+            entries.append(dict(
+                address=w['address'], app=app, appId=w['app_id'], ws=w['workspace'], title=w['title'],
+                workspace=w['workspace'], monitor=w['monitor'], active=w['active'], name=name,
+                icon=self.catalog.icon(chosen) or self.catalog.icon(w['app_id']),
+                tint=self.catalog.tint(chosen) or self.catalog.tint(w['app_id']),
+                thumb=('file://' + thumbs[w['address']] + '?t=%d' % self._ticks) if w['address'] in thumbs else ''))
+        columns = apps_core.group_windows(monitors, entries)
+        # `windowed_apps` are the app keys that own a window (excluded from «Sin ventana»). A background scope of a
+        # windowed program has a different key (Brave's is `brave`, its windows' is Chromium), so `programs` compares
+        # the process names the window and the background scope share to mark it «· segundo plano».
+        windowed_apps = set(app_of.values())
+        programs = set(window_names)
+        mine = [r for r in rows if r['uid'] == self.uid and r['app'] in self._stats]
+        user, system = apps_core.windowless_groups(mine, windowed_apps)
+        windowless = [self._windowless_item(group, programs, window_names) for group in user]
+        system_windowless = apps_core.system_summary([
+            self._windowless_item(group, programs, window_names, system=True) for group in system])
         self._windows = windows
-        if self._page == 'apps':
-            thumbs = self.hypr.thumbnails([w['address'] for w in windows])
-            for space in workspaces:
-                for w in space['windows']:
-                    w['thumb'] = ('file://' + thumbs[w['address']] + '?t=%d' % self._ticks) if w['address'] in thumbs else ''
-        else:
-            for space in workspaces:
-                for w in space['windows']:
-                    w['thumb'] = ''
-        if workspaces != self._workspaces or background != self._background:
-            self._workspaces, self._background = workspaces, background
+        if (columns, windowless, system_windowless) != (self._columns, self._windowless, self._system_windowless):
+            self._columns, self._windowless, self._system_windowless = columns, windowless, system_windowless
             self.appsChanged.emit()
 
+    def _windowless_item(self, group, programs, names, system=False):
+        app = group['app']
+        # A window names the background scopes of the same program (Brave, Microsoft Edge); other user apps take
+        # their desktop entry or a readable class. System services stay technical (`dbus-daemon`).
+        name = names.get(app) or DISPLAY.get(app) or (app if system
+                                                      else apps_core.app_label(app, app, self.catalog.entry)) or app
+        if app in programs:
+            name += ' · segundo plano'
+        return dict(group, name=name, icon=self.catalog.icon(app), tint=self.catalog.tint(app))
+
     def _address_for(self, app):
-        for space in self._workspaces:
-            for w in space['windows']:
-                if w['app'] == app:
-                    return w['address']
+        for column in self._columns:
+            for space in column['workspaces']:
+                for window in space['windows']:
+                    if window['app'] == app:
+                        return window['address']
         return ''
 
     # ------------------------------------------------------------------ selection
@@ -745,12 +769,16 @@ class ProcessesController(QObject):
 
     # ------------------------------------------------------------------ apps page
     @Property('QVariantList', notify=appsChanged)
-    def workspaces(self):
-        return self._workspaces
+    def monitorColumns(self):
+        return self._columns
 
     @Property('QVariantList', notify=appsChanged)
-    def background(self):
-        return self._background
+    def windowless(self):
+        return self._windowless
+
+    @Property('QVariantMap', notify=appsChanged)
+    def systemWindowless(self):
+        return self._system_windowless
 
     @Slot(str, result='QVariantList')
     def appProcesses(self, app):

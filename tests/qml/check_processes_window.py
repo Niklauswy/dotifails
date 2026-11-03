@@ -46,6 +46,7 @@ class WindowTests(unittest.TestCase):
         write_proc(proc, 11, 'Web Content', ppid=10, cgroup=FIREFOX)
         write_proc(proc, 20, 'kitty', cgroup=KITTY)
         write_proc(proc, 21, 'btop', ppid=20, cgroup=KITTY, state='R')
+        write_proc(proc, 30, 'dbus-daemon', cgroup='0::/user.slice/user-1000.slice/user@1000.service\n', rss_pages=20000)
         from wysun_processes.core.sampler import Sampler
         from wysun_processes.quick.controller import ProcessesController
         from wysun_processes.quick.window import QmlProcessesWindow
@@ -80,21 +81,101 @@ class WindowTests(unittest.TestCase):
         self.c.setQuery('')
         self.c.setMode('apps')
         self.h.pump(30)
+        page = self.find('appsPage')
+        if page:
+            page.setProperty('selectedColumn', 0)
+            page.setProperty('selectedRow', 0)
+            page.setProperty('systemExpanded', False)
+        self.h.pump(20)
 
     def find(self, name):
         return self.h.find_in(self.window.contentItem(), name) or self.window.findChild(self.QObject, name)
+
+    def find_all(self, name):
+        found, stack = [], [self.window.contentItem()]
+        while stack:
+            item = stack.pop()
+            if item.objectName() == name:
+                found.append(item)
+            stack.extend(reversed(item.childItems()))
+        return found
 
     def key(self, key, text=''):
         self.h.key(self.window, key, text=text)
         self.h.pump(30)
 
     def test_loads_clean_in_both_modes(self):
-        for palette in ('default-dark', 'default-light'):
+        self.key(self.Qt.Key_3, '3')
+        for palette in ('default-dark', 'default-light', 'green-dark', 'orange-light'):
             self.win.bridge.setPreview(support.palettes()[palette])
             self.h.pump(60)
         self.win.bridge.setPreview(None)
+        self.key(self.Qt.Key_1, '1')
         self.assertEqual([w for w in self.warnings if 'processes' in w], [])
+        self.assertEqual([w for w in self.warnings if 'AppsPage' in w or 'WindowTile' in w], [])
         self.assertIsNotNone(self.find('processTable'))
+
+    def test_apps_columns_follow_monitor_x(self):
+        self.key(self.Qt.Key_3, '3')
+        self.window.resize(1826, 1036)          # present() capped the window to the offscreen screen; widen for 3 columns
+        self.h.pump(120)
+        columns = self.c.property('monitorColumns')
+        self.assertEqual([c['label'] for c in columns], ['Philips', 'LG'])
+        first = next(item for item in self.find_all('monitorColumn-DP-2') if item.isVisible())
+        second = next(item for item in self.find_all('monitorColumn-DP-1') if item.isVisible())
+        self.assertIsNotNone(first)
+        self.assertIsNotNone(second)
+        origin = self.window.contentItem()
+        self.assertLess(first.mapToItem(origin, 0, 0).x(), second.mapToItem(origin, 0, 0).x())
+        self.assertGreater(first.width(), 0)
+        self.assertFalse(self.find('appsPage').property('stacked'))
+        self.window.resize(1280, 820)
+        self.h.pump(80)
+
+    def test_narrow_window_stacks_columns_with_the_side_last(self):
+        self.key(self.Qt.Key_3, '3')
+        self.window.resize(900, 1000)
+        self.h.pump(120)
+        page = self.find('appsPage')
+        self.assertTrue(page.property('stacked'))
+        first = next(item for item in self.find_all('monitorColumn-DP-2') if item.isVisible())
+        second = next(item for item in self.find_all('monitorColumn-DP-1') if item.isVisible())
+        side = next(item for item in self.find_all('windowlessColumn') if item.isVisible())
+        origin = self.window.contentItem()
+        self.assertEqual(first.mapToItem(origin, 0, 0).x(), second.mapToItem(origin, 0, 0).x())
+        self.assertLess(first.mapToItem(origin, 0, 0).y(), second.mapToItem(origin, 0, 0).y())
+        self.assertLess(second.mapToItem(origin, 0, 0).y(), side.mapToItem(origin, 0, 0).y())
+        self.window.resize(1280, 820)
+        self.h.pump(80)
+
+    def test_arrows_cross_monitor_columns(self):
+        self.key(self.Qt.Key_3, '3')
+        self.h.pump(80)
+        page = self.find('appsPage')
+        self.assertEqual(page.property('selectedColumn'), 0)
+        self.key(self.Qt.Key_Right)
+        self.assertEqual(page.property('selectedColumn'), 1)
+        self.key(self.Qt.Key_Left)
+        self.assertEqual(page.property('selectedColumn'), 0)
+
+    def test_system_windowless_folds_into_one_line(self):
+        self.key(self.Qt.Key_3, '3')
+        self.h.pump(80)
+        self.assertIsNone(self.find('windowlessRow-dbus-daemon'))
+        system = self.find('systemWindowless')
+        self.assertTrue(system.property('visible'))
+        self.assertIn('Sistema', self.find('systemWindowlessLabel').property('text'))
+        expected = len(self.c.property('windowless')) + len(self.c.property('systemWindowless').get('apps', []))
+        self.assertEqual(self.find('windowlessCount').property('text'), str(expected))
+        expanded = self.find('systemWindowlessApps')
+        self.assertFalse(expanded.property('visible'))
+        page = self.find('appsPage')
+        page.setProperty('selectedColumn', len(self.c.property('monitorColumns')))
+        page.setProperty('selectedRow', 0)
+        self.key(self.Qt.Key_Return)
+        self.assertTrue(expanded.property('visible'))
+        self.key(self.Qt.Key_Return)
+        self.assertFalse(expanded.property('visible'))
 
     def test_arrows_move_selection(self):
         self.c.setMode('list')
