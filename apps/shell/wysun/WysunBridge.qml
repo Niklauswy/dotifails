@@ -127,8 +127,9 @@ Scope {
         function media(identity: string): bool { return root.showMedia(identity); }
         // Names every screen for a few seconds (Settings > Displays > Identify).
         function identify(): bool { DisplayIdentify.show(); return true; }
-        // Wysun Processes: thumbnails of windows (JSON {address: path}) and locate-on-screen.
-        function thumbs(addresses: string): string { return WindowTools.requestThumbs(addresses); }
+        // Wysun Processes: thumbnails of windows (JSON {address: path}) and locate-on-screen. The optional width
+        // is the capture size in device pixels; empty means the usual 480.
+        function thumbs(addresses: string, width: string): string { return WindowTools.requestThumbs(addresses, width); }
         function locate(address: string): bool { return WindowTools.locate(address); }
         // Super+Shift+Esc: ask over the active window whether to force it closed.
         function forceQuit(): bool { return ForceQuit.request(); }

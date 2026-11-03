@@ -1,5 +1,5 @@
-"""Window tools for Wysun Processes in the shell: address parsing, halo placement on the right monitor, the label of
-a window on another workspace (WindowToolsLogic.js, node) and the IPC wiring (thumbs/locate)."""
+"""Window tools for Wysun Processes in the shell: address parsing, halo placement on the right monitor, when locating
+has to focus the window first (WindowToolsLogic.js, node) and the IPC wiring (thumbs/locate)."""
 import json
 from pathlib import Path
 import shutil
@@ -41,24 +41,68 @@ class LogicTests(unittest.TestCase):
         self.assertFalse(js('return placement({at: [10, 10], size: [100, 100]}, {name: "DP-1", x: 0, y: 0, width: 1920, height: 1080}, {name: "DP-2", activeWs: 1}, 1).visible'))
         self.assertFalse(js('return placement({at: [10, 10], size: [100, 100]}, {name: "DP-1", x: 0, y: 0, width: 1920, height: 1080}, {name: "DP-1", activeWs: 2}, 1).visible'))
 
-    def test_label(self):
-        self.assertEqual(js('return elsewhere("Firefox", 3)'), 'Firefox está en el espacio 3')
-        self.assertEqual(js('return elsewhere("", 3)'), 'La ventana está en el espacio 3')
+    def test_locating_elsewhere_focuses_the_window_first(self):
+        self.assertTrue(js('return needsFocus(3, null)'))                    # no monitor known
+        self.assertTrue(js('return needsFocus(3, {activeWorkspace: 1})'))    # another workspace on its monitor
+        self.assertFalse(js('return needsFocus(3, {activeWorkspace: 3})'))
 
-    def test_thumbnail_path(self):
-        self.assertEqual(js('return thumbPath("/run/user/1000", "0xAB")'), '/run/user/1000/wysun-processes/thumbs/ab.png')
+    def test_capture_width_defaults_and_is_clamped(self):
+        self.assertEqual(js('return thumbWidth(undefined)'), 480)       # existing callers keep the 480 px capture
+        self.assertEqual(js('return thumbWidth("")'), 480)
+        self.assertEqual(js('return thumbWidth("nope")'), 480)
+        self.assertEqual(js('return thumbWidth("900")'), 900)
+        self.assertEqual(js('return thumbWidth(100)'), 160)
+        self.assertEqual(js('return thumbWidth(5000)'), 1920)
+        self.assertEqual(js('return thumbWidth("720.5")'), 480)          # not an integer: the safe default
+
+    def test_thumbnail_path_is_per_address_and_width(self):
+        self.assertEqual(js('return thumbPath("/run/user/1000", "0xAB", 480)'),
+                         '/run/user/1000/wysun-processes/thumbs/ab@480.png')
+        self.assertEqual(js('return thumbPath("/run/user/1000", "0xAB", 900)'),
+                         '/run/user/1000/wysun-processes/thumbs/ab@900.png')
+        # A large capture has its own file: it never replaces the row's small one.
+        self.assertNotEqual(js('return thumbPath("/run/x", "0xaa", 480)'),
+                            js('return thumbPath("/run/x", "0xaa", 1920)'))
+        self.assertEqual(js('return thumbPath("/run/x", "../evil", 480)'), '')
+        self.assertNotEqual(js('return thumbKey("0xaa", 480)'), js('return thumbKey("0xaa", 900)'))
+
+    def test_capture_size_follows_the_window(self):
+        self.assertEqual(js('return thumbSize([1600, 900], 800)'), {'width': 800, 'height': 450})
+        self.assertEqual(js('return thumbSize([700, 1200], 800)'), {'width': 800, 'height': 1371})
+        self.assertEqual(js('return thumbSize(null, 480)'), {'width': 480, 'height': 270})
 
 
 class WiringTests(unittest.TestCase):
     def test_bridge_exposes_thumbs_and_locate(self):
         qml = (SHELL / 'wysun/WysunBridge.qml').read_text()
-        self.assertIn('function thumbs(addresses: string): string', qml)
+        self.assertIn('function thumbs(addresses: string, width: string): string', qml)
+        self.assertIn('WindowTools.requestThumbs(addresses, width)', qml)
         self.assertIn('function locate(address: string): bool', qml)
 
     def test_launcher_script_forwards_them(self):
         script = (ROOT / 'bin/wysun-shell').read_text()
-        self.assertIn('thumbs) shift; exec "$runtime" ipc call wysunShell thumbs', script)
+        self.assertIn('thumbs) shift; exec "$runtime" ipc call wysunShell thumbs "${1:-}" "${2:-}"', script)
         self.assertIn('locate) shift; exec "$runtime" ipc call wysunShell locate', script)
+
+    def test_locate_focuses_the_window_instead_of_offering_a_capsule(self):
+        service = (SHELL / 'services/WindowTools.qml').read_text()
+        self.assertIn('Logic.needsFocus', service)
+        self.assertIn('focusTarget();', service)
+        self.assertNotIn('targetLabel', service)                  # the capsule text is gone
+        focus = service.split('function focusTarget()', 1)[1].split('// Returns the thumbnails', 1)[0]
+        self.assertNotIn('showing = false', focus)                # the halo stays after focusing
+        module = (SHELL / 'modules/windowtools/WindowTools.qml').read_text()
+        self.assertNotIn('capsule', module)
+        self.assertIn('mask: Region {}', module)                  # every click passes through
+
+    def test_service_caches_per_address_and_width(self):
+        service = (SHELL / 'services/WindowTools.qml').read_text()
+        self.assertIn('property int pendingWidth', service)
+        self.assertIn('Logic.thumbKey(a, pixels)', service)
+        self.assertIn('Logic.thumbKey(address, width)', service)
+        module = (SHELL / 'modules/windowtools/WindowTools.qml').read_text()
+        self.assertIn('Logic.thumbSize(toplevel?.lastIpcObject?.size, WindowTools.pendingWidth)', module)
+        self.assertIn('WindowTools.captured(modelData, width, path)', module)
 
     def test_module_is_loaded_by_the_shell(self):
         self.assertIn('WindowTools {}', (SHELL / 'shell.qml').read_text())

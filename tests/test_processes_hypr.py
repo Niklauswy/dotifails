@@ -13,9 +13,9 @@ from wysun_processes.core import hypr  # noqa: E402
 
 CLIENTS = [
     {'address': '0xaa', 'pid': 3011, 'class': 'firefox', 'title': 'GitHub', 'workspace': {'id': 1, 'name': '1'},
-     'focusHistoryID': 1, 'monitor': 0, 'mapped': True, 'hidden': False},
+     'focusHistoryID': 1, 'monitor': 0, 'mapped': True, 'hidden': False, 'size': [1600, 900]},
     {'address': '0xbb', 'pid': 22010, 'class': 'kitty', 'title': 'btop', 'workspace': {'id': 2, 'name': '2'},
-     'focusHistoryID': 0, 'monitor': 0, 'mapped': True, 'hidden': False},
+     'focusHistoryID': 0, 'monitor': 0, 'mapped': True, 'hidden': False, 'size': [700, 1200]},
     {'address': '0xcc', 'pid': 1, 'class': '', 'title': '', 'workspace': {'id': -1, 'name': ''},
      'focusHistoryID': 5, 'monitor': -1, 'mapped': False, 'hidden': True},
 ]
@@ -56,7 +56,7 @@ class HyprTests(unittest.TestCase):
         windows = hypr.Hypr(run=Runner()).windows()
         self.assertEqual([w['address'] for w in windows], ['0xaa', '0xbb'])
         self.assertEqual(windows[1], dict(address='0xbb', pid=22010, app_id='kitty', title='btop', workspace=2,
-                                          active=True, monitor=0))
+                                          active=True, monitor=0, size=[700, 1200]))
 
     def test_monitors(self):
         monitors = hypr.Hypr(run=Runner()).monitors()
@@ -109,11 +109,24 @@ class HyprTests(unittest.TestCase):
             class Existing(Runner):
                 def __call__(self, cmd, **kw):
                     if cmd[:2] == ['wysun-shell', 'thumbs']:
+                        self.calls.append(cmd)
                         return subprocess.CompletedProcess(cmd, 0, json.dumps({'0xaa': path}), '')
                     return super().__call__(cmd, **kw)
-            h = hypr.Hypr(run=Existing())
+            runner = Existing()
+            h = hypr.Hypr(run=runner)
             self.assertEqual(h.thumbnails(['0xaa', '0xbb']), {'0xaa': path})
+            self.assertEqual(runner.calls[-1], ['wysun-shell', 'thumbs', '0xaa,0xbb'])   # the old 480 px request
+            h.thumbnails(['0xaa'], 900)
+            self.assertEqual(runner.calls[-1], ['wysun-shell', 'thumbs', '0xaa', '900'])
             self.assertTrue(h.locate('0xaa'))
+
+    def test_capture_width_is_clamped_or_omitted(self):
+        self.assertIsNone(hypr.capture_width(None))          # the shell's default stays 480 px
+        self.assertIsNone(hypr.capture_width('nope'))
+        self.assertEqual(hypr.capture_width(900), 900)
+        self.assertEqual(hypr.capture_width('832.4'), 832)
+        self.assertEqual(hypr.capture_width(20), 160)
+        self.assertEqual(hypr.capture_width(9999), 1920)
 
     def test_stale_thumbnail_paths_are_not_returned(self):
         # The shell remembers what it wrote; a file removed since then must not be handed to QML.

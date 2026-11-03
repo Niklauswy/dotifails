@@ -10,7 +10,7 @@ case "${1:-}" in
     search) shift; exec "$runtime" ipc call wysunShell search "${1:-}" ;;
     media) shift; exec "$runtime" ipc call wysunShell media "${1:-}" ;;
     identify) exec "$runtime" ipc call wysunShell identify ;;
-    thumbs) shift; exec "$runtime" ipc call wysunShell thumbs "${1:-}" ;;
+    thumbs) shift; exec "$runtime" ipc call wysunShell thumbs "${1:-}" "${2:-}" ;;
     locate) shift; exec "$runtime" ipc call wysunShell locate "${1:-}" ;;
     forcequit) exec "$runtime" ipc call wysunShell forceQuit ;;
     color-pick) exec "$runtime" ipc call wysunShell pickColor ;;

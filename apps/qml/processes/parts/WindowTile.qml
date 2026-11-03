@@ -17,8 +17,10 @@ Item {
     property var host: null
     readonly property color tintColour: (entry.tint ?? "") !== "" ? Qt.color(entry.tint) : Theme.m3secondary
     readonly property bool reveal: hover.hovered || selected
-    // 160 px at the tokens' scale: enough to recognise the window without taking the row's reading width.
-    readonly property real thumbWidth: Theme.spacing.extraExtraLarge * 3 + Theme.spacing.large
+    // 160 px at the tokens' scale: enough to recognise the window without taking the row's reading width. The page
+    // owns the measure (and derives the capture size from it).
+    readonly property real thumbWidth: row.host && row.host.rowThumbWidth > 0
+        ? row.host.rowThumbWidth : Theme.spacing.extraExtraLarge * 3 + Theme.spacing.large
     readonly property real thumbHeight: thumbWidth * 9 / 16
     readonly property real pad: Theme.spacing.small ?? 0
     readonly property real fraction: {

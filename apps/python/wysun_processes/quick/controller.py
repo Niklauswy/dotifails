@@ -10,13 +10,16 @@ from PySide6.QtCore import (QObject, QProcess, QRunnable, QThread, QThreadPool, 
 from PySide6.QtGui import QGuiApplication
 
 from wysun_processes.core import actions, apps as apps_core, presence, views
-from wysun_processes.core.hypr import windows_by_app
+from wysun_processes.core.hypr import capture_width, windows_by_app
 from .models import KeyedModel
 
 HISTORY = 60
 PRESENCE_POLL = 4000          # how often the cheap monitor/window state is read, off the GUI thread
-THUMB_REFRESH = 10.0          # seconds between thumbnail captures while the Apps page stays open
+THUMB_REFRESH = 10.0          # seconds between the Apps rows' small captures while the page stays open
+THUMB_PREVIEW_REFRESH = 3.0   # seconds between the app sheet's large captures while the sheet stays open
 THUMB_RETRY = 3.0             # seconds between retries while the shell has not written a requested capture
+THUMB_DEFAULT_WIDTH = 480     # the shell's default until the Apps rows report their real row width × DPR
+THUMB_WIDTH_STEP = 64         # buckets of the sheet's capture width, so dragging it does not write a file per pixel
 ROW_ROLES = ('key', 'title', 'name', 'app', 'pid', 'ppid', 'depth', 'group', 'kids', 'expanded', 'appRow', 'cpu',
              'mem', 'gpu', 'io', 'threads', 'nice', 'state', 'stateLabel', 'user', 'mine', 'icon', 'tint', 'age')
 DISPLAY = {'quickshell': 'Wysun Shell', 'Hyprland': 'Hyprland', 'pipewire': 'PipeWire', 'wireplumber': 'WirePlumber'}
@@ -134,6 +137,7 @@ class ProcessesController(QObject):
     summaryChanged = Signal()
     stateChanged = Signal()
     appsChanged = Signal()
+    previewChanged = Signal()
     statsChanged = Signal()
     servicesChanged = Signal()
     startupChanged = Signal()
@@ -176,7 +180,11 @@ class ProcessesController(QObject):
         self._ticks = 0
         self._suspended, self._window_visible = '', True
         self._presence_busy = False
+        # Captures are cached per (address, width): the rows' small image and the sheet's large one never replace
+        # each other, and both are only ever written by the shell into its runtime directory.
         self._thumb_addresses, self._thumb_paths, self._thumbs_at = None, {}, 0.0
+        self._list_thumb_width = THUMB_DEFAULT_WIDTH
+        self._preview_address, self._preview_width, self._preview_at = '', 0, 0.0
         self._windows_busy, self._windows_due = False, True
         self._relay = _Relay(self)
         self._relay.done.connect(lambda callback, result: callback(result))
@@ -395,16 +403,32 @@ class ProcessesController(QObject):
 
     # ------------------------------------------------------------------ windows
     def _windows_data(self):
-        """The slow part of a window refresh (`hyprctl` and the shell's thumbnails), safe off the GUI thread."""
+        """The slow part of a window refresh (`hyprctl` and the shell's thumbnails), safe off the GUI thread. One
+        capture lane per pass: the open sheet's large image while there is one, the rows' small images otherwise, so
+        the shell never captures the same window twice at once."""
         windows = self.hypr.windows()
         addresses = [w['address'] for w in windows]
         now = time.monotonic()
-        missing = any(not os.path.isfile(self._thumb_paths.get(address, '')) for address in addresses)
-        wanted = (addresses != self._thumb_addresses or now - self._thumbs_at >= THUMB_REFRESH
-                  or (missing and now - self._thumbs_at >= THUMB_RETRY))
+        paths = dict(self._thumb_paths)
+        listed, listed_at = self._thumb_addresses, self._thumbs_at
+        list_width = self._list_thumb_width
+        preview, preview_width, preview_at = self._preview_address, self._preview_width, self._preview_at
+
+        shifted = addresses != listed
+        missing = any(not os.path.isfile(paths.get((address, list_width), '')) for address in addresses)
+        list_due = shifted or now - listed_at >= THUMB_REFRESH or (missing and now - listed_at >= THUMB_RETRY)
+        preview_open = bool(preview) and preview in addresses
+        preview_due = preview_open and now - preview_at >= THUMB_PREVIEW_REFRESH
+
+        lane, wanted, width = '', [], 0
+        if preview_due:
+            lane, wanted, width = 'preview', [preview], preview_width
+        elif list_due:
+            lane, wanted, width = 'list', addresses, list_width
         return dict(windows=windows, current=self.hypr.active_workspace(), monitors=self.hypr.monitors(),
-                    addresses=addresses, thumbs=self.hypr.thumbnails(addresses) if wanted else {}, now=now,
-                    requested=wanted)
+                    addresses=addresses, list_width=list_width, lane=lane, width=width, now=now,
+                    preview=preview, preview_width=preview_width,
+                    thumbs=self.hypr.thumbnails(wanted, width) if wanted else {})
 
     def _refresh_windows(self):
         """Refresh the Apps columns; `auto` runs the compositor and shell calls in the pool, tests call it inline."""
@@ -424,11 +448,24 @@ class ProcessesController(QObject):
 
     def _apply_windows(self, data):
         windows, current, monitors = data['windows'], data['current'], data['monitors']
-        if data['requested']:
+        if data['lane'] == 'preview':
+            # A late answer for a sheet that was closed or resized is dropped: another capture owns the slot.
+            if (data['preview'], data['width']) == (self._preview_address, self._preview_width):
+                self._preview_at = data['now']
+                path = data['thumbs'].get(data['preview'])
+                if path:
+                    before = self._thumb_url(self._preview_address, self._preview_width)
+                    self._thumb_paths[(data['preview'], data['width'])] = path
+                    if self._thumb_url(self._preview_address, self._preview_width) != before:
+                        self.previewChanged.emit()
+        elif data['lane'] == 'list' and data['list_width'] == self._list_thumb_width:
             if data['addresses'] != self._thumb_addresses:
-                self._thumb_paths = {}
+                keep = set(data['addresses'])
+                self._thumb_paths = {key: value for key, value in self._thumb_paths.items()
+                                     if key[1] != data['list_width'] or key[0] in keep}
             self._thumb_addresses, self._thumbs_at = data['addresses'], data['now']
-            self._thumb_paths.update(data['thumbs'])
+            self._thumb_paths.update({(address, data['list_width']): path
+                                      for address, path in data['thumbs'].items()})
         rows = self._snapshot.rows if self._snapshot else []
         by_app = windows_by_app(windows, rows)
         app_of = {w['address']: app for app, space in by_app.items() for w in space}
@@ -453,7 +490,7 @@ class ProcessesController(QObject):
                 workspace=w['workspace'], monitor=w['monitor'], active=w['active'], name=name,
                 icon=self.catalog.icon(chosen) or self.catalog.icon(w['app_id']),
                 tint=self.catalog.tint(chosen) or self.catalog.tint(w['app_id']),
-                thumb=self._thumb_url(w['address'])))
+                size=w.get('size') or [0, 0], thumb=self._thumb_url(w['address'], data['list_width'])))
         columns = apps_core.group_windows(monitors, entries)
         # `windowed_apps` are the app keys that own a window (excluded from «Sin ventana»). A background scope of a
         # windowed program has a different key (Brave's is `brave`, its windows' is Chromium), so `programs` compares
@@ -473,16 +510,68 @@ class ProcessesController(QObject):
             self._thumb_urls = thumbs
             self.appsChanged.emit()
 
-    def _thumb_url(self, address):
-        """A stable URL per capture: the file's mtime changes only when the shell writes a new image, so QML caches
-        the decode between refreshes instead of reloading a `?t=<tick>` URL every tick."""
-        path = self._thumb_paths.get(address)
+    def _thumb_url(self, address, width=None):
+        """A stable URL per (address, width) capture: the file's mtime changes only when the shell writes a new
+        image, so QML caches the decode between refreshes instead of reloading a `?t=<tick>` URL every tick."""
+        path = self._thumb_paths.get((address, self._list_thumb_width if width is None else width))
+        if not path:
+            # The first capture after a size change: show the window's previous capture while the shell writes the
+            # new one, instead of flashing a placeholder for a few seconds.
+            older = [(pixels, saved) for (other, pixels), saved in self._thumb_paths.items() if other == address]
+            path = max(older)[1] if older else ''
         if not path:
             return ''
         try:
             return 'file://' + path + '?v=' + str(os.stat(path).st_mtime_ns)
         except OSError:
             return ''
+
+    @Slot(int)
+    def setListThumbWidth(self, width):
+        """The Apps rows know their thumbnail's device pixels (row width × DPR): capture at that size instead of
+        the shell's 480 px default, which is more than a row can show."""
+        pixels = capture_width(width)
+        if pixels is None or pixels == self._list_thumb_width:
+            return
+        self._list_thumb_width = pixels
+        self._thumbs_at = 0.0                    # a new size is a new capture: do not wait for the next refresh
+        self._windows_due = True
+        if self._page == 'apps':
+            self._refresh_windows()
+
+    @staticmethod
+    def _preview_pixels(width):
+        """Buckets the sheet's request so dragging its edge does not write one file per pixel."""
+        pixels = capture_width(width)
+        if pixels is None:
+            return None
+        return ((pixels + THUMB_WIDTH_STEP - 1) // THUMB_WIDTH_STEP) * THUMB_WIDTH_STEP
+
+    @Slot(str, int)
+    def requestPreview(self, address, width):
+        """The open app sheet asks for its own window at the preview's device pixels. `_windows_data` refreshes it at
+        most every `THUMB_PREVIEW_REFRESH` seconds, off the GUI thread, and only while the sheet stays open."""
+        pixels = self._preview_pixels(width)
+        if not address or pixels is None:
+            return
+        if (address, pixels) == (self._preview_address, self._preview_width):
+            return
+        self._preview_address, self._preview_width, self._preview_at = address, pixels, 0.0
+        self.previewChanged.emit()
+        self._windows_due = True
+        if self._page == 'apps':
+            self._refresh_windows()
+
+    @Slot(str, int)
+    def releasePreview(self, address, width):
+        """The sheet closed: stop recapturing its large image (the rows' small lane takes over again)."""
+        pixels = self._preview_pixels(width)
+        if not self._preview_address:
+            return
+        if address != self._preview_address or (pixels is not None and pixels != self._preview_width):
+            return
+        self._preview_address, self._preview_width, self._preview_at = '', 0, 0.0
+        self.previewChanged.emit()
 
     def _windowless_item(self, group, programs, names, system=False):
         app = group['app']
@@ -926,6 +1015,20 @@ class ProcessesController(QObject):
     @Property('QVariantMap', notify=appsChanged)
     def systemWindowless(self):
         return self._system_windowless
+
+    # The open app sheet's own capture (a different width from the rows' one, cached separately). Empty while no
+    # sheet is open, so QML falls back to the row thumbnail and never asks for a big capture from the list.
+    @Property(str, notify=previewChanged)
+    def previewAddress(self):
+        return self._preview_address
+
+    @Property(str, notify=previewChanged)
+    def previewThumb(self):
+        return self._thumb_url(self._preview_address, self._preview_width) if self._preview_address else ''
+
+    @Property(int, notify=previewChanged)
+    def previewWidth(self):
+        return self._preview_width
 
     @Slot(str, result='QVariantList')
     def appProcesses(self, app):

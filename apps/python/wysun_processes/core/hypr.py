@@ -9,12 +9,26 @@ import shutil
 import subprocess
 
 ADDRESS = re.compile(r'^0x[0-9a-fA-F]+$')
+MIN_THUMB_WIDTH = 160
+MAX_THUMB_WIDTH = 1920
 
 
 def _checked(address):
     if not ADDRESS.match(str(address)):
         raise ValueError('Dirección de ventana no válida')
     return address
+
+
+def capture_width(width):
+    """A requested capture width in device pixels, clamped to what the shell accepts; `None` keeps its default
+    (480 px). Junk is treated as `None` instead of asking the shell for an impossible image."""
+    if width is None:
+        return None
+    try:
+        value = int(round(float(width)))
+    except (TypeError, ValueError):
+        return None
+    return max(MIN_THUMB_WIDTH, min(MAX_THUMB_WIDTH, value))
 
 
 class Hypr:
@@ -57,7 +71,8 @@ class Hypr:
                 continue
             out.append(dict(address=c['address'], pid=c.get('pid', 0), app_id=c.get('class', ''),
                             title=c.get('title', ''), workspace=c['workspace']['id'],
-                            active=c.get('focusHistoryID') == 0, monitor=c.get('monitor', 0)))
+                            active=c.get('focusHistoryID') == 0, monitor=c.get('monitor', 0),
+                            size=c.get('size') or [0, 0]))
         return out
 
     def active_workspace(self):
@@ -89,7 +104,8 @@ class Hypr:
         """Forget the thumbnails: they only live while the window is open."""
         shutil.rmtree(self.thumbs_dir(), ignore_errors=True)
 
-    def thumbnails(self, addresses):
+    def thumbnails(self, addresses, width=None):
+        """`{address: path}` of the shell's captures at `width` device pixels (its 480 px default when omitted)."""
         wanted = [_checked(a) for a in addresses]
         if not wanted:
             return {}
@@ -97,7 +113,11 @@ class Hypr:
             os.makedirs(self.thumbs_dir(), mode=0o700, exist_ok=True)
         except OSError:
             return {}
-        done = self._call(['wysun-shell', 'thumbs', ','.join(wanted)])
+        command = ['wysun-shell', 'thumbs', ','.join(wanted)]
+        pixels = capture_width(width)
+        if pixels is not None:
+            command.append(str(pixels))
+        done = self._call(command)
         try:
             data = json.loads(done.stdout.strip() or '{}') if done else {}
         except ValueError:

@@ -21,13 +21,15 @@ KITTY = '0::/user.slice/user-1000.slice/user@1000.service/app.slice/app-kitty-2.
 
 class FakeHypr:
     def __init__(self):
-        self.located, self.focused = [], []
+        self.located, self.focused, self.thumb_calls = [], [], []
 
     def windows(self):
-        return [dict(address='0xaa', pid=10, app_id='firefox', title='GitHub', workspace=1, active=False, monitor=0),
-                dict(address='0xbb', pid=20, app_id='kitty', title='btop', workspace=2, active=True, monitor=0),
+        return [dict(address='0xaa', pid=10, app_id='firefox', title='GitHub', workspace=1, active=False, monitor=0,
+                     size=[1600, 900]),
+                dict(address='0xbb', pid=20, app_id='kitty', title='btop', workspace=2, active=True, monitor=0,
+                     size=[700, 1200]),
                 dict(address='0xcc', pid=999, app_id='brave-browser', title='Claude Code Docs', workspace=7,
-                     active=False, monitor=1)]
+                     active=False, monitor=1, size=[1920, 1080])]
 
     def monitors(self):
         # Not in x order: the Philips panel is first in physical space, but is id 0.
@@ -45,7 +47,8 @@ class FakeHypr:
     def close(self, address):
         return True
 
-    def thumbnails(self, addresses):
+    def thumbnails(self, addresses, width=None):
+        self.thumb_calls.append((list(addresses), width))
         return {}
 
     def locate(self, address):
@@ -155,6 +158,48 @@ class ControllerTests(unittest.TestCase):
             self.assertIn('brave', groups)
             self.assertEqual(groups['brave']['name'], 'Brave · segundo plano')
             self.assertNotIn('org.chromium.Chromium', groups)      # the window owner is not windowless
+            c.close()
+
+    def test_rows_and_the_sheet_capture_at_their_own_width(self):
+        class PathsHypr(FakeHypr):
+            def __init__(self, folder):
+                super().__init__()
+                self.folder = Path(folder)
+
+            def thumbnails(self, addresses, width=None):
+                self.thumb_calls.append((list(addresses), width))
+                out = {}
+                for address in addresses:
+                    path = self.folder / f'{address}@{width}.png'
+                    path.write_bytes(b'png')
+                    out[address] = str(path)
+                return out
+
+        with tempfile.TemporaryDirectory() as tmp:
+            from wysun_processes.core.sampler import Sampler
+            from wysun_processes.quick.controller import ProcessesController
+            hypr = PathsHypr(tmp)
+            c = ProcessesController(sampler=Sampler(proc_root=self.tmp.name), hypr=hypr, auto=False)
+            c.tick()
+            c.tick()
+            c.setPage('apps')
+            c.setListThumbWidth(320)
+            c._refresh_windows()
+            self.assertEqual(hypr.thumb_calls[-1], (['0xaa', '0xbb', '0xcc'], 320))
+            row = c.property('monitorColumns')[0]['workspaces'][0]['windows'][0]
+            self.assertIn('@320.png', row['thumb'])
+
+            c.requestPreview('0xaa', 823)                 # bucketed to 832 device px, fetched on its own lane
+            self.assertEqual(hypr.thumb_calls[-1], (['0xaa'], 832))
+            self.assertEqual(c.property('previewAddress'), '0xaa')
+            self.assertEqual(c.property('previewWidth'), 832)
+            self.assertIn('@832.png', c.property('previewThumb'))
+            # The row keeps its small capture: the large one never replaced it (nor the other way around).
+            self.assertIn('@320.png', c.property('monitorColumns')[0]['workspaces'][0]['windows'][0]['thumb'])
+
+            c.releasePreview('0xaa', 823)
+            self.assertEqual(c.property('previewAddress'), '')
+            self.assertEqual(c.property('previewThumb'), '')
             c.close()
 
     def test_locate_without_shell_says_so(self):

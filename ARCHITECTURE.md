@@ -58,7 +58,8 @@ sin el componente `desktop`.
 `WysunBridge` y los demonios `BatteryMonitor`, `IdleInhibit`. Los atajos viven en `hyprland.lua`.
 
 - **IPC**: `wysunShell` (en `apps/shell/wysun/WysunBridge.qml`): `toggle|open <superficie>`, `surfaces`, `close`, `status`,
-  `reloadPreferences`, `theme`, `openThemeSettings`; para Processes, `thumbs <direcciones>`, `locate <dirección>` y `forceQuit`.
+  `reloadPreferences`, `theme`, `openThemeSettings`; para Processes, `thumbs <direcciones> [ancho]`, `locate <dirección>` y
+  `forceQuit`.
   La **única lista de superficies** es `surfaces` de ese archivo
   (`wysun-shell surfaces` la imprime: dashboard, windows, overview, cheatsheet, wallpapers, launcher, emoji, menu, quicksettings,
   notifications, sidebar, session, ai, colors, study). `wysun SUPERFICIE` y `wysun-shell SUPERFICIE` la alternan; ningún
@@ -83,10 +84,12 @@ sin el componente `desktop`.
   rotulador, línea, flecha, rectángulo, elipse, texto, numerador y pixelado, con deshacer) o texto por OCR (T, Tesseract
   `spa+eng`, editable antes de copiar).
 - **Ventanas de Processes** (`modules/windowtools`, `modules/anr`, `modules/forcequit`, `services/WindowTools.qml`,
-  `services/ForceQuit.qml`): Wysun Processes pide al shell miniaturas (`wysun-shell thumbs <direcciones>`: hasta 24, PNG en
+  `services/ForceQuit.qml`): Wysun Processes pide al shell miniaturas (`wysun-shell thumbs <direcciones> [ancho]`: hasta
+  24, `ancho` opcional en píxeles de 160 a 1920 —480 por defecto—, una caché por dirección y ancho, PNG en
   `$XDG_RUNTIME_DIR/wysun-processes/thumbs`, captura apagada a los 12 s sin peticiones) y «localizar» (`wysun-shell locate
-  <dirección>`: halo en el acento que atenúa el resto, o cápsula «<ventana> está en el espacio N» con «Ir» si la ventana
-  está en otro espacio; 2,6 s). `modules/anr` reconoce el diálogo `hyprland-dialog` de Hyprland (`misc:enable_anr_dialog` queda
+  <dirección>`: si la ventana está en otro espacio o su monitor muestra otro, primero se la enfoca (`focuswindow` en la
+  sintaxis Lua de la sesión) y después el halo en el acento atenúa el resto; 2,6 s). `modules/anr` reconoce el diálogo
+  `hyprland-dialog` de Hyprland (`misc:enable_anr_dialog` queda
   como está), lee de su línea de comandos qué ventana se colgó y muestra sobre ella la tarjeta de Wysun (icono o glifo,
   barra de espera, Esperar / Forzar cierre; la ventana se atenúa con un brillo que la recorre); solo entonces mueve el
   diálogo de Hyprland a `special:wysun-anr`, y si algo falla antes el diálogo original queda como respaldo. `Super+Shift+Esc`

@@ -241,8 +241,39 @@ class WindowTests(unittest.TestCase):
         self.key(self.Qt.Key_Return)
         sheet = self.find('appSheetHost')
         self.assertTrue(sheet.property('opened'))
+        self.assertEqual(self.c.property('previewAddress'), '0xaa')      # only while the sheet is open
         self.key(self.Qt.Key_Escape)
         self.assertFalse(sheet.property('opened'))
+        self.assertEqual(self.c.property('previewAddress'), '')
+
+    def test_apps_rows_ask_for_a_capture_of_their_own_size(self):
+        self.key(self.Qt.Key_3, '3')
+        self.h.pump(60)
+        # Offscreen DPR is 1: the row thumbnail is 160 CSS px, not the shell's old fixed 480.
+        self.assertEqual(self.c._list_thumb_width, 160)
+
+    def test_apps_sheet_preview_follows_the_window_aspect(self):
+        self.key(self.Qt.Key_3, '3')
+        self.h.pump(60)
+        page = self.find('appsPage')
+        self.assertIsNotNone(page)
+        # FakeHypr: 0xaa is 1600×900 (wide) and 0xbb is 700×1200 (tall). Open each row's sheet.
+        for address, ratio in (('0xaa', 1600 / 900), ('0xbb', 700 / 1200)):
+            entries = self.h.call(page, 'entries', 0)
+            index = next(i for i, entry in enumerate(entries) if entry.get('address') == address)
+            page.setProperty('selectedRow', index)
+            self.h.pump(20)
+            self.key(self.Qt.Key_Return)
+            preview = self.find('appSheetPreview')
+            self.assertIsNotNone(preview, address)
+            self.assertAlmostEqual(preview.width() / preview.height(), ratio, delta=0.02)
+            # The capture is the shown width in device pixels (bucketed), never the old fixed 480.
+            capture = self.c.property('previewWidth')
+            self.assertEqual(self.c.property('previewAddress'), address)
+            self.assertGreaterEqual(capture, preview.width())
+            self.assertLessEqual(capture, preview.width() + 64)
+            self.key(self.Qt.Key_Escape)
+            self.h.pump(60)
 
     def test_services_without_systemd(self):
         self.key(self.Qt.Key_4, '4')

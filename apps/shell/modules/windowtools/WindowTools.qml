@@ -10,9 +10,9 @@ import qs.components.containers
 import qs.services
 import "../../services/WindowToolsLogic.js" as Logic
 
-// Draws what services/WindowTools asks for: the locate halo (on the monitor that shows the window; elsewhere a
-// capsule with «Ir») and the thumbnail captures, made in an invisible item of the first screen's window. The windows
-// let clicks through except over the capsule, take no keyboard focus and exist only while needed.
+// Draws what services/WindowTools asks for: the locate halo on the monitor that shows the window (the service
+// focuses it first when it is elsewhere) and the thumbnail captures, made in an invisible item of the first screen's
+// window. The windows let every click through, take no keyboard focus and exist only while needed.
 Scope {
     id: root
 
@@ -33,25 +33,13 @@ Scope {
                 readonly property var place: Logic.placement(ipc, monitor ? {name: monitor.name, x: monitor.x, y: monitor.y, width: monitor.width, height: monitor.height} : null,
                                                              {name: modelData.name, activeWs: monitor?.activeWorkspace?.id ?? -1}, targetWs)
                 readonly property bool here: WindowTools.showing && place.visible
-                readonly property bool capsule: WindowTools.showing && !anyHere() && modelData === Quickshell.screens[0]
-
-                function anyHere() {
-                    for (const s of Quickshell.screens) {
-                        const m = Hypr.monitorFor(s);
-                        if (m && target && m.name === target.monitor?.name && m.activeWorkspace?.id === targetWs)
-                            return true;
-                    }
-                    return false;
-                }
 
                 screen: modelData
                 name: "windowtools"
                 WlrLayershell.layer: WlrLayer.Overlay
                 WlrLayershell.exclusionMode: ExclusionMode.Ignore
                 WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
-                mask: Region {
-                    item: win.capsule ? pill : null
-                }
+                mask: Region {}
 
                 anchors.top: true
                 anchors.bottom: true
@@ -123,67 +111,6 @@ Scope {
                     }
                 }
 
-                // Elsewhere: a capsule with the workspace and «Ir».
-                Rectangle {
-                    id: pill
-
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    y: win.capsule ? Tokens.padding.extraLarge * 2 : -height
-                    width: pillRow.implicitWidth + Tokens.padding.large * 2
-                    height: pillRow.implicitHeight + Tokens.padding.medium * 2
-                    radius: height / 2
-                    color: Colours.palette.m3surfaceContainerHigh
-                    visible: y > -height
-
-                    Behavior on y {
-                        Anim {
-                            type: Anim.DefaultSpatial
-                        }
-                    }
-
-                    Row {
-                        id: pillRow
-
-                        anchors.centerIn: parent
-                        spacing: Tokens.spacing.medium
-
-                        MaterialIcon {
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: "my_location"
-                            color: Colours.palette.m3primary
-                        }
-
-                        StyledText {
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: Logic.elsewhere(win.ipc?.class ?? WindowTools.targetLabel, win.targetWs)
-                            font: Tokens.font.body.medium
-                        }
-
-                        StyledRect {
-                            anchors.verticalCenter: parent.verticalCenter
-                            implicitWidth: goLabel.implicitWidth + Tokens.padding.large * 2
-                            implicitHeight: goLabel.implicitHeight + Tokens.padding.small * 2
-                            radius: height / 2
-                            color: Colours.palette.m3primary
-
-                            StyledText {
-                                id: goLabel
-
-                                anchors.centerIn: parent
-                                text: "Ir"
-                                color: Colours.palette.m3onPrimary
-                                font: Tokens.font.label.large
-                            }
-
-                            MouseArea {
-                                anchors.fill: parent
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: WindowTools.focusTarget()
-                            }
-                        }
-                    }
-                }
-
                 // Thumbnail captures: rendered into images by grabToImage, never shown (opacity 0).
                 Item {
                     visible: win.modelData === Quickshell.screens[0]
@@ -197,10 +124,11 @@ Scope {
 
                             required property string modelData
                             readonly property var toplevel: WindowTools.toplevel(modelData)
+                            readonly property var size: Logic.thumbSize(toplevel?.lastIpcObject?.size, WindowTools.pendingWidth)
                             property int done: -1
 
-                            width: 480
-                            height: toplevel?.lastIpcObject?.size ? Math.round(480 * toplevel.lastIpcObject.size[1] / Math.max(1, toplevel.lastIpcObject.size[0])) : 270
+                            width: size.width
+                            height: size.height
                             captureSource: toplevel?.wayland ?? null
                             live: false
 
@@ -208,10 +136,10 @@ Scope {
                                 if (!hasContent || done === WindowTools.generation)
                                     return;
                                 done = WindowTools.generation;
-                                const path = Logic.thumbPath(WindowTools.runtimeDir, modelData);
+                                const path = Logic.thumbPath(WindowTools.runtimeDir, modelData, width);
                                 grabToImage(result => {
                                     if (result.saveToFile(path))
-                                        WindowTools.captured(modelData, path);
+                                        WindowTools.captured(modelData, width, path);
                                 }, Qt.size(width, height));
                             }
 

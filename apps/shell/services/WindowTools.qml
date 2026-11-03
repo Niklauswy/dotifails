@@ -6,9 +6,9 @@ import Quickshell.Hyprland
 import "WindowToolsLogic.js" as Logic
 
 // Window tools for Wysun Processes: locate a window on screen (a pulsing halo in the accent colour, the rest dimmed;
-// a capsule when it is on another workspace) and thumbnails of windows, captured by the shell (ScreencopyView) into
-// $XDG_RUNTIME_DIR/wysun-processes/thumbs and never anywhere else. modules/windowtools draws and captures; `alive`
-// keeps its windows only while something is showing or thumbnails were asked for recently.
+// on another workspace the compositor is asked to focus it first) and thumbnails of windows, captured by the shell
+// (ScreencopyView) into $XDG_RUNTIME_DIR/wysun-processes/thumbs and never anywhere else. modules/windowtools draws
+// and captures; `alive` keeps its windows only while something is showing or thumbnails were asked for recently.
 Singleton {
     id: root
 
@@ -17,9 +17,9 @@ Singleton {
     property bool alive: showing || capturing
     property bool capturing
     property var target: null                 // the HyprlandToplevel being located
-    property string targetLabel
-    property var thumbs: ({})                 // address (no 0x) -> path, written this session
-    property var pending: []                  // addresses (no 0x) to capture
+    property var thumbs: ({})                 // "<address>@<width>" -> path, written this session
+    property var pending: []                  // addresses (no 0x) to capture at `pendingWidth`
+    property int pendingWidth: 480            // device pixels of the requested capture (Logic clamps it)
     property int generation: 0
 
     function toplevel(address) {
@@ -35,7 +35,12 @@ Singleton {
         if (!t)
             return false;
         target = t;
-        targetLabel = t.lastIpcObject?.title ?? "";
+        // On another workspace (or a monitor showing another one) the halo cannot be drawn until the window is
+        // visible: focus it first with the session's dispatch syntax, then show the halo on it.
+        const monitor = t.monitor;
+        if (Logic.needsFocus(t.workspace?.id ?? -1,
+                            monitor ? {activeWorkspace: monitor.activeWorkspace?.id ?? -1} : null))
+            focusTarget();
         showing = true;
         hide.restart();
         return true;
@@ -46,30 +51,34 @@ Singleton {
     }
 
     function focusTarget(): void {
-        if (target) {
-            const address = "0x" + String(target.address).replace(/^0x/, "");
-            Hypr.dispatch(Hypr.usingLua ? `hl.dsp.focus({window="address:${address}"})` : `focuswindow address:${address}`);
-        }
-        showing = false;
+        if (!target)
+            return;
+        const address = "0x" + String(target.address).replace(/^0x/, "");
+        Hypr.dispatch(Hypr.usingLua ? `hl.dsp.focus({window="address:${address}"})` : `focuswindow address:${address}`);
     }
 
-    // Returns the thumbnails already written (JSON {"0x…": path}) and asks for fresh ones of `text`'s windows.
-    function requestThumbs(text): string {
+    // Returns the thumbnails already written at `width` (JSON {"0x…": path}) and asks for fresh ones of `text`'s
+    // windows. Width is optional: 480 px unless the caller asks for another size (clamped by Logic).
+    function requestThumbs(text, width): string {
+        const pixels = Logic.thumbWidth(width);
         const wanted = Logic.parseAddresses(text).filter(a => toplevel(a) !== null);
         const out = {};
-        for (const a of wanted)
-            if (thumbs[a])
-                out["0x" + a] = thumbs[a];
+        for (const a of wanted) {
+            const path = thumbs[Logic.thumbKey(a, pixels)];
+            if (path)
+                out["0x" + a] = path;
+        }
         pending = wanted;
+        pendingWidth = pixels;
         generation++;
         capturing = wanted.length > 0;
         idle.restart();
         return JSON.stringify(out);
     }
 
-    function captured(address, path): void {
+    function captured(address, width, path): void {
         const next = Object.assign({}, thumbs);
-        next[address] = path;
+        next[Logic.thumbKey(address, width)] = path;
         thumbs = next;
     }
 

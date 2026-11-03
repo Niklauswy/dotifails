@@ -3,6 +3,7 @@
 // lists the user's windowless apps by memory and folds the session's plumbing into a single «Sistema» line. A row
 // opens its app sheet with a container transform. Narrow windows stack the columns with «Sin ventana» last.
 import QtQuick
+import QtQuick.Window
 import WysunM3
 import "Fmt.js" as Fmt
 
@@ -10,6 +11,12 @@ Item {
     id: page
 
     objectName: "appsPage"
+
+    // The rows ask the shell for a capture of their own size (a 160 CSS px thumbnail at the output's DPR) instead of
+    // the 480 px default, which is more pixels than a row can show.
+    readonly property real dpr: Screen.devicePixelRatio > 0 ? Screen.devicePixelRatio : 1
+    readonly property real rowThumbWidth: Theme.spacing.extraExtraLarge * 3 + Theme.spacing.large
+    readonly property int captureWidth: Math.max(160, Math.min(1920, Math.round(rowThumbWidth * dpr)))
 
     property bool shown
     property bool live: true          // the page and the window can be seen: only then do its animations run
@@ -62,6 +69,9 @@ Item {
     }
 
     signal showProcesses(string app)
+
+    Component.onCompleted: procs.setListThumbWidth(captureWidth)
+    onCaptureWidthChanged: procs.setListThumbWidth(captureWidth)
 
     // Rows of one column: windows for a monitor column, the windowless apps (and the folded system line) for the
     // side one. Keys are handled on this flat sequence.
