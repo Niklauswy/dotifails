@@ -16,14 +16,34 @@ Item {
 
     signal action
 
-    implicitWidth: column.implicitWidth
+    // The width comes from the text itself, capped by a readable measure: reading `column`'s width here would close
+    // a binding loop when only `anchors.centerIn` sets the item's position and the column would shrink to the emblem.
+    readonly property int _margin: Theme.padding.extraLarge ?? 0
+    readonly property real _contentWidth: Math.max(titleMetrics.advanceWidth, messageMetrics.advanceWidth,
+                                                   root.actionText !== "" ? action.implicitWidth : 0)
+    implicitWidth: Math.max(Metrics.emptyEmblemSize,
+                            Math.min(Metrics.emptyStateMaxWidth, _contentWidth)) + 2 * _margin
     implicitHeight: column.implicitHeight
+
+    TextMetrics {
+        id: titleMetrics
+
+        font: titleLabel.font
+        text: root.title
+    }
+
+    TextMetrics {
+        id: messageMetrics
+
+        font: messageLabel.font
+        text: root.message
+    }
 
     Column {
         id: column
 
         anchors.centerIn: parent
-        width: Math.min(parent.width - 2 * (Theme.padding.extraLarge ?? 0), Metrics.textFieldMinWidth * 2)
+        width: Math.max(0, Math.min(root.width - 2 * root._margin, Metrics.emptyStateMaxWidth))
         spacing: Theme.spacing.large ?? 0
 
         ShapeEmblem {
@@ -67,6 +87,9 @@ Item {
         }
 
         Label {
+            id: titleLabel
+
+            objectName: "emptyTitle"
             width: parent.width
             visible: root.title !== ""
             role: "headline.small"
@@ -76,6 +99,9 @@ Item {
         }
 
         Label {
+            id: messageLabel
+
+            objectName: "emptyMessage"
             width: parent.width
             visible: root.message !== ""
             role: "body.medium"
@@ -86,6 +112,8 @@ Item {
         }
 
         Button {
+            id: action
+
             objectName: "emptyAction"
             anchors.horizontalCenter: parent.horizontalCenter
             visible: root.actionText !== ""

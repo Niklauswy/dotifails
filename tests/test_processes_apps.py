@@ -95,13 +95,15 @@ class SystemTests(unittest.TestCase):
                      'Xwayland', 'systemd', 'systemd-journald', '(sd-pam)', 'start-hyprland', 'mpris-proxy',
                      'wl-paste', 'journalctl', 'timeout', 'cat', 'sh', 'zsh', 'bash', 'Hyprland',
                      'chrome_crashpad', 'msedge_crashpad', 'brave-browser-s', 'nmcli', 'MainThread',
-                     'memfd:dwarfs', 'node_repl', '2.1.317', 'head', 'sleep', 'grep'):
+                     'memfd:dwarfs', 'node_repl', '2.1.317', 'head', 'sleep', 'grep',
+                     'wysun-services.wayland-clipboard'):
             self.assertTrue(apps.is_system(name), name)
 
     def test_desktop_apps_and_user_tools_are_not_system(self):
         # No desktop entry is not a reason to hide an app the user is running: only the plumbing list folds.
         for name in ('firefox', 'brave-browser', 'wysun-processes', 'quickshell', 'org.gnome.Nautilus', 'Code',
-                     'brave', 'msedge', 'hermes', 'opencode', 'claude', 'orca.AppImage', 'local-tool'):
+                     'brave', 'msedge', 'hermes', 'opencode', 'claude', 'orca.AppImage', 'local-tool',
+                     'wysun-services.daemon', 'wysun-files.service'):
             self.assertFalse(apps.is_system(name), name)
 
     def test_an_empty_name_is_system(self):
@@ -138,6 +140,14 @@ class WindowlessTests(unittest.TestCase):
         self.assertEqual([g['app'] for g in user], ['brave'])
         self.assertEqual(system, [])
 
+    def test_wysun_daemon_and_service_stay_user_while_the_clipboard_helper_is_system(self):
+        rows = [dict(app='wysun-services.daemon', cpu=0, mem=60),
+                dict(app='wysun-files.service', cpu=0, mem=50),
+                dict(app='wysun-services.wayland-clipboard', cpu=0, mem=1)]
+        user, system = apps.windowless_groups(rows, set())
+        self.assertEqual([g['app'] for g in user], ['wysun-services.daemon', 'wysun-files.service'])
+        self.assertEqual([g['app'] for g in system], ['wysun-services.wayland-clipboard'])
+
 
 class NameTests(unittest.TestCase):
     entries = {'brave-browser': {'name': 'Brave', 'desktop': 'brave-browser'},
@@ -166,6 +176,17 @@ class NameTests(unittest.TestCase):
         self.assertEqual(apps.app_label('microsoft-edge', 'org.chromium.Chromium', self.entries.get),
                          'Microsoft Edge')
         self.assertEqual(apps.app_label('orca.AppImage', 'orca.AppImage', {}.get), 'Orca')
+
+    def test_wysun_modules_keep_a_readable_name(self):
+        # `python -m wysun_services.daemon` reaches the list as `wysun-services.daemon`; the last component alone
+        # would read "Daemon", "Service" or "Wayland".
+        self.assertEqual(apps.wysun_name('wysun-services.daemon'), 'Wysun daemon')
+        self.assertEqual(apps.wysun_name('wysun-files.service'), 'Wysun Files')
+        self.assertEqual(apps.wysun_name('wysun-services.wayland-clipboard'), 'Wysun clipboard')
+        self.assertEqual(apps.wysun_name('wysun-processes'), '')
+        self.assertEqual(apps.brand_name('wysun-services.daemon'), 'Wysun daemon')
+        self.assertEqual(apps.app_label('wysun-services.daemon', 'python3', {}.get), 'Wysun daemon')
+        self.assertEqual(apps.app_label('wysun-files.service', 'python3', {}.get), 'Wysun Files')
 
 
 if __name__ == '__main__':

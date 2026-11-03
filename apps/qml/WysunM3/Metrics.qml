@@ -110,10 +110,12 @@ QtObject {
     // Cards (md-comp-*-card): elevated cards rest at level 1
     readonly property int cardElevation: 1
 
-    // Empty states: the emblem is larger than an avatar-sized one and springs in from this scale
+    // Empty states: the emblem is larger than an avatar-sized one and springs in from this scale; the text column
+    // stays readable at the md-comp-dialog max width (560)
     readonly property int emptyEmblemSize: 112
     readonly property real emptyEmblemEnterScale: 0.6
     readonly property real emptyEmblemEnterTurn: -30
+    readonly property int emptyStateMaxWidth: 560
 
     // Window size classes (M3 adaptive layout): compact < 600 -> modal drawer, medium 600-839 -> rail,
     // expanded >= 840 -> standard drawer

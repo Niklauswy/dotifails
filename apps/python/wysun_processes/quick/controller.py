@@ -290,7 +290,7 @@ class ProcessesController(QObject):
     def title_of(self, row):
         app = row.get('app', '')
         if row.get('group') or row.get('appRow'):
-            return DISPLAY.get(app) or self.catalog.name(app)
+            return DISPLAY.get(app) or apps_core.wysun_name(app) or self.catalog.name(app)
         return row.get('name', '')
 
     def _on_snapshot(self, snapshot):
@@ -487,9 +487,10 @@ class ProcessesController(QObject):
     def _windowless_item(self, group, programs, names, system=False):
         app = group['app']
         # A window names the background scopes of the same program (Brave, Microsoft Edge); other user apps take
-        # their desktop entry or a readable class. System services stay technical (`dbus-daemon`).
-        name = names.get(app) or DISPLAY.get(app) or (app if system
-                                                      else apps_core.app_label(app, app, self.catalog.entry)) or app
+        # their desktop entry or a readable class. System services stay technical (`dbus-daemon`), but Wysun's own
+        # modules keep their known name.
+        name = (names.get(app) or DISPLAY.get(app) or apps_core.wysun_name(app)
+                or (app if system else apps_core.app_label(app, app, self.catalog.entry)) or app)
         if app in programs:
             name += ' · segundo plano'
         return dict(group, name=name, icon=self.catalog.icon(app), tint=self.catalog.tint(app))

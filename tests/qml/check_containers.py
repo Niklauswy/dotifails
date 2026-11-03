@@ -138,6 +138,21 @@ class EmptyStateTests(Base):
         view = self.on_surface('EmptyState { anchors.fill: parent; title: "Nada" }', 360, 360)
         self.assertFalse(self.child(view, 'emptyAction').property('visible'))
 
+    def test_centred_empty_state_keeps_its_title_on_one_line(self):
+        # Only `anchors.centerIn`: the item takes its implicit width, so that width must come from the text and
+        # never from its own width (a binding loop used to shrink it to the emblem and wrap the title word by word).
+        from PySide6.QtGui import QFontMetricsF
+        view = self.on_surface('EmptyState { objectName: "e"; anchors.centerIn: parent; icon: "web_asset_off"; '
+                               'title: "No hay ventanas abiertas"; '
+                               'message: "Aquí aparecerán las ventanas de Hyprland con lo que gasta cada una" }',
+                               1000, 400)
+        state = self.child(view, 'e')
+        title = self.child(view, 'emptyTitle')
+        self.assertGreater(state.property('width'), 200, 'the empty state took the width of its emblem')
+        self.assertEqual(title.property('lineCount'), 1, 'the title wrapped one word per line')
+        self.assertLessEqual(title.property('height'), QFontMetricsF(title.property('font')).height() * 1.5,
+                             'the painted title is more than one line tall')
+
 
 class TopAppBarTests(Base):
     def test_heights(self):

@@ -13,6 +13,15 @@ SYSTEM_NAMES = frozenset({'wireplumber', 'swayidle', 'xwayland', 'sd-pam', '(sd-
                           'brave-browser-s', 'head', 'tail', 'sleep', 'grep', 'sed', 'awk', 'find', 'ls', 'rm', 'cp',
                           'mv', 'mkdir', 'tee', 'xargs', 'sort', 'uniq', 'curl', 'wget', 'watch', 'env', 'nohup',
                           'ps', 'pgrep', 'pkill', 'kill', 'du', 'df', 'date', 'echo', 'test'})
+# Wysun's own background pieces, named as the app does: their `python -m wysun_<module>` key ends in `.daemon`,
+# `.service` or `.wayland-clipboard`, and the generic fallback would only keep that last word ("Daemon", "Service",
+# "Wayland"). The clipboard resident's wl-paste watcher is session plumbing: it folds into «Sistema».
+WYSUN_NAMES = {
+    'wysun-services.daemon': 'Wysun daemon',
+    'wysun-files.service': 'Wysun Files',
+    'wysun-services.wayland-clipboard': 'Wysun clipboard',
+}
+SYSTEM_APPS = frozenset({'wysun-services.wayland-clipboard'})
 TECHNICAL_NAME = re.compile(r'^\d+(?:\.\d+)+$')
 GENERIC_MAKE = frozenset({'unknown', 'generic', 'default', 'inc.', 'inc', 'ltd.', 'ltd', 'corp.', 'corporation',
                           'company', 'electronics'})
@@ -84,7 +93,7 @@ def is_system(app):
     name = (app or '').strip().casefold()
     if not name:
         return True
-    if name in SYSTEM_NAMES or any(name.startswith(prefix) for prefix in SYSTEM_PREFIXES):
+    if name in SYSTEM_APPS or name in SYSTEM_NAMES or any(name.startswith(prefix) for prefix in SYSTEM_PREFIXES):
         return True
     return bool(TECHNICAL_NAME.match(name))
 
@@ -136,10 +145,19 @@ def entry_matches(app_id, entry):
     return desktop == app or desktop.rsplit('.', 1)[-1] == app.rsplit('.', 1)[-1]
 
 
+def wysun_name(app):
+    """The name of one of Wysun's own process modules (`wysun-services.daemon` → «Wysun daemon»,
+    `wysun-files.service` → «Wysun Files»), else `''`."""
+    return WYSUN_NAMES.get((app or '').strip().casefold(), '')
+
+
 def brand_name(app_id):
     """A readable fallback from a window class when no desktop entry really belongs to it: `brave-browser` →
-    `Brave`, `org.gnome.Nautilus` → `Nautilus`, `orca.AppImage` → `Orca`."""
+    `Brave`, `org.gnome.Nautilus` → `Nautilus`, `orca.AppImage` → `Orca`; Wysun's own modules keep their name."""
     text = (app_id or '').strip()
+    known = wysun_name(text)
+    if known:
+        return known
     last = text.rsplit('.', 1)[-1]
     if '.' in text and last.casefold() in ('appimage', 'bin', 'exe', 'sh', 'py', 'run'):
         text = text.rsplit('.', 2)[-2] if text.count('.') >= 2 else text.rsplit('.', 1)[0]
@@ -156,7 +174,10 @@ def brand_name(app_id):
 def app_label(app_id, app, entry_of):
     """The name of a window's app: the desktop entry of its class, the process app's entry, or the class itself.
     This is what keeps a Brave window named Brave (the browser's entry) and Wysun Processes named that (its own
-    entry) instead of Chromium and python3."""
+    entry) instead of Chromium and python3; Wysun's own module keys keep their known name."""
+    known = wysun_name(app_id) or wysun_name(app)
+    if known:
+        return known
     for candidate in (app_id, app):
         if not candidate:
             continue

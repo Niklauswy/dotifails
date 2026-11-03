@@ -114,6 +114,13 @@ class SamplerTests(unittest.TestCase):
     def test_command_app_names_a_wysun_module(self):
         self.assertEqual(sampler.command_app(b'python3\0-P\0-m\0wysun_processes\0'), 'wysun-processes')
         self.assertEqual(sampler.command_app(b'/venv/bin/python3\0-m\0wysun_music\0'), 'wysun-music')
+        self.assertEqual(sampler.command_app(b'/usr/bin/python3\0-P\0-m\0wysun_services.daemon\0'),
+                         'wysun-services.daemon')
+        self.assertEqual(sampler.command_app(b'/usr/bin/python3\0-P\0-m\0wysun_files.service\0'),
+                         'wysun-files.service')
+        self.assertEqual(sampler.command_app(b'/usr/bin/wl-paste\0--watch\0/usr/bin/python3\0-P\0-m\0'
+                                             b'wysun_services.wayland_clipboard\0--snapshot\0'),
+                         'wysun-services.wayland-clipboard')
         self.assertEqual(sampler.command_app(b'python3\0-m\0http.server\0'), '')
         self.assertEqual(sampler.command_app(b'python3\0script.py\0'), '')
         self.assertEqual(sampler.command_app(b''), '')
