@@ -94,6 +94,15 @@ class CredentialsTests(unittest.TestCase):
                                   opener=opener)
         self.assertLessEqual(opener.calls[0]['timeout'], 5)
 
+    def test_requests_identify_themselves(self):
+        opener = Opener({'https://api.anthropic.com/': (200, {})})
+        self.credentials.get_json('https://api.anthropic.com/x', {}, frozenset({'api.anthropic.com'}), opener=opener)
+        self.assertEqual(opener.calls[0]['headers'].get('User-agent'), 'Wysun/1 (ai-usage)')
+        # A caller with its own identity (Claude Code's endpoint wants its CLI's) keeps it.
+        self.credentials.get_json('https://api.anthropic.com/x', {'User-Agent': 'claude-cli/2 (external, cli)'},
+                                  frozenset({'api.anthropic.com'}), opener=opener)
+        self.assertEqual(opener.calls[1]['headers'].get('User-agent'), 'claude-cli/2 (external, cli)')
+
     def test_redirects_are_never_followed(self):
         import urllib.request, urllib.response
         seen = []
@@ -386,9 +395,11 @@ class OpenCodeTests(BackendHome):
         with sqlite3.connect(self.db) as db:
             db.execute("insert into session_message values (?, 's2', 'assistant', 1, 0, 0, ?)", (ident, json.dumps(data)))
 
-    def credential(self, integration='opencode-go', kind='key', expires_in=3600):
+    def credential(self, integration='opencode-go', kind='key', expires_in=3600, metadata=None):
         value = {'type': kind, 'key': SENTINEL} if kind == 'key' else {
             'type': 'oauth', 'access': SENTINEL, 'refresh': SENTINEL, 'expires': int((self.now + expires_in) * 1000)}
+        if metadata is not None:
+            value['metadata'] = metadata
         with sqlite3.connect(self.db) as db:
             db.execute("insert into credential values ('c1', ?, 'x', ?, null, null, 1, 0, 0)", (integration, json.dumps(value)))
 
@@ -426,18 +437,46 @@ class OpenCodeTests(BackendHome):
 
     def test_go_quota_is_mapped(self):
         self.credential()
-        body = {'usage': {'rolling': {'usagePercent': 12, 'resetInSec': 3600},
-                          'weekly': {'usagePercent': 30, 'resetInSec': 86400},
-                          'monthly': {'usagePercent': 50, 'resetInSec': 864000}}}
+        body = {'usage': {'rolling': {'status': 'ok', 'percent': 12, 'resetsAt': iso(self.now + 3600)},
+                          'weekly': {'status': 'ok', 'percent': 30, 'resetsAt': iso(self.now + 86400)},
+                          'monthly': {'status': 'rate-limited', 'percent': 99, 'resetsAt': iso(self.now + 864000)}}}
         opener = Opener({'https://opencode.ai/zen/go/v1/usage': (200, body)})
         account = self.opencode(self.collect(opener))
         limits = {l['id']: l for l in account['limits']}
         self.assertEqual(limits['session']['usedPercent'], 12)
         self.assertAlmostEqual(limits['session']['resetsAt'], self.now + 3600, delta=2)
         self.assertEqual(limits['monthly']['windowMinutes'], 43200)
+        self.assertEqual(limits['monthly']['usedPercent'], 100)
         self.assertEqual(account['source'], 'opencode-api')
         call = next(c for c in opener.calls if c['url'].startswith('https://opencode.ai/'))
         self.assertEqual(call['headers'].get('Authorization'), 'Bearer ' + SENTINEL)
+
+    def test_legacy_numeric_resets_are_still_read(self):
+        self.credential()
+        body = {'usage': {'rolling': {'usagePercent': 12, 'resetInSec': 3600}}}
+        account = self.opencode(self.collect(Opener({'https://opencode.ai/zen/go/v1/usage': (200, body)})))
+        self.assertAlmostEqual(account['limits'][0]['resetsAt'], self.now + 3600, delta=2)
+
+    def test_no_subscription_is_not_a_sign_in_problem(self):
+        self.credential(integration='opencode', kind='oauth')
+        account = self.opencode(self.collect(Opener({'https://opencode.ai/': (403, {'type': 'EntitlementError'})})))
+        self.assertIsNone(account['error'])
+        self.assertEqual(account['limits'], [])
+        self.assertEqual(account['reason'], 'subscription')
+
+    def test_a_blocked_request_is_not_reported_as_a_bad_sign_in(self):
+        self.credential(integration='opencode', kind='oauth')
+        blocked = {'type': 'https://developers.cloudflare.com/support/troubleshooting/http-status-codes/'
+                           'cloudflare-1xxx-errors/error-1010/', 'title': 'Error 1010: Access denied', 'status': 403}
+        account = self.opencode(self.collect(Opener({'https://opencode.ai/': (403, blocked)})))
+        self.assertEqual(account['error']['kind'], 'network')
+        self.assertEqual(account['reason'], 'error')
+
+    def test_sign_in_metadata_names_the_account(self):
+        self.credential(integration='opencode', kind='oauth',
+                        metadata={'email': 'user@example.com', 'orgName': 'Personal'})
+        account = self.opencode(self.collect(Opener({'https://opencode.ai/': (200, {'usage': {}})})))
+        self.assertEqual((account['email'], account['organization']), ('user@example.com', 'Personal'))
 
     def test_expired_oauth_login_is_not_used(self):
         self.credential(integration='opencode', kind='oauth', expires_in=-10)

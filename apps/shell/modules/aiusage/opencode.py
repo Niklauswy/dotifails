@@ -11,13 +11,14 @@ import importlib.util
 import json
 import sqlite3
 from contextlib import closing
+from datetime import datetime
 from pathlib import Path
 
 HOST = 'opencode.ai'
 URL = f'https://{HOST}/zen/go/v1/usage'
 WINDOWS = (('rolling', 'session', 300), ('weekly', 'weekly', 10080), ('monthly', 'monthly', 43200))
 PERCENT_KEYS = ('usagePercent', 'usedPercent', 'percentUsed', 'percent', 'usage_percent', 'used_percent', 'utilization')
-RESET_KEYS = ('resetInSec', 'resetInSeconds', 'resetSeconds', 'reset_in_sec', 'resetsInSec')
+RESET_KEYS = ('resetsAt', 'resets_at', 'resetAt', 'reset_at', 'resetInSec', 'resetInSeconds', 'resetSeconds', 'reset_in_sec', 'resetsInSec')
 
 HISTORY_SQL = """
 SELECT m.id, m.data, COALESCE(s.directory, ''), m.session_id FROM message m LEFT JOIN session s ON s.id = m.session_id
@@ -82,20 +83,26 @@ def history(db, since):
     return list(found.values())
 
 
-def _login(data_dir, now):
-    """(token, expiresAt) of the CLI sign-in for OpenCode Go; (None, expiresAt) when expired or ambiguous."""
+def _credential(data_dir):
+    """The active CLI sign-in value (opencode-go first, then opencode), or None. Never printed."""
     rows = _rows(Path(data_dir) / 'opencode.db', "SELECT integration_id, value FROM credential WHERE active = 1 AND "
                  "integration_id IN ('opencode-go', 'opencode') ORDER BY CASE integration_id WHEN 'opencode-go' THEN 0 ELSE 1 END")
-    if rows:
-        chosen = [value for integration, value in rows if integration == rows[0][0]]
-        if len(chosen) != 1:
-            return None, None
-        try:
-            value = json.loads(chosen[0])
-        except (TypeError, ValueError):
-            return None, None
-        if not isinstance(value, dict):
-            return None, None
+    if not rows:
+        return None
+    chosen = [value for integration, value in rows if integration == rows[0][0]]
+    if len(chosen) != 1:
+        return None
+    try:
+        value = json.loads(chosen[0])
+    except (TypeError, ValueError):
+        return None
+    return value if isinstance(value, dict) else None
+
+
+def _login(data_dir, now):
+    """(token, expiresAt) of the CLI sign-in for OpenCode Go; (None, expiresAt) when expired or ambiguous."""
+    value = _credential(data_dir)
+    if value is not None:
         if value.get('type') == 'key':
             return value.get('key') or None, None
         if value.get('type') == 'oauth':
@@ -109,6 +116,13 @@ def _login(data_dir, now):
     if isinstance(legacy, dict) and legacy.get('type') == 'api':
         return legacy.get('key') or None, None
     return None, None
+
+
+def profile(data_dir):
+    """E-mail and workspace the CLI sign-in carries, for the account header; never the token."""
+    value = _credential(data_dir) or {}
+    metadata = value.get('metadata') if isinstance(value.get('metadata'), dict) else {}
+    return {'email': metadata.get('email'), 'organization': metadata.get('orgName')}
 
 
 def session(data_dir, now):
@@ -127,6 +141,25 @@ def _number(source, keys):
     return None
 
 
+def _reset(source, now):
+    """Absolute reset time: the API sends ISO-8601 `resetsAt`; older answers sent seconds from now."""
+    for key in RESET_KEYS:
+        value = source.get(key)
+        if isinstance(value, str):
+            try:
+                return datetime.fromisoformat(value.replace('Z', '+00:00')).timestamp()
+            except ValueError:
+                continue
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            return now + value
+    return None
+
+
+def _cloudflare_block(body):
+    """Cloudflare's bot filter answers 403 with its own JSON, not the provider's refusal."""
+    return isinstance(body, dict) and 'cloudflare.com' in str(body.get('type') or '')
+
+
 def usage(data_dir, now, opener=None):
     """(limits, error): OpenCode Go windows, or ([], error|None) without a usable sign-in or subscription."""
     token, expires = _login(data_dir, now)
@@ -134,8 +167,11 @@ def usage(data_dir, now, opener=None):
         return [], ({'kind': 'expired', 'command': 'opencode auth login'} if expires else None)
     status, body = credentials.get_json(URL, {'Authorization': 'Bearer ' + token}, frozenset({HOST}), opener=opener)
     del token
-    if status in (401, 403):
+    if status == 401:
         return [], {'kind': 'auth', 'command': 'opencode auth login'}
+    if status == 403:
+        # A valid sign-in without OpenCode Go behind it is not a sign-in problem.
+        return [], ({'kind': 'network'} if _cloudflare_block(body) else None)
     if status != 200 or not isinstance(body, dict):
         return [], ({'kind': 'network'} if status in (0, 429) or status >= 500 else None)
     windows = body.get('usage') if isinstance(body.get('usage'), dict) else {}
@@ -144,9 +180,13 @@ def usage(data_dir, now, opener=None):
         window = windows.get(key)
         if not isinstance(window, dict):
             continue
-        percent, reset = _number(window, PERCENT_KEYS), _number(window, RESET_KEYS)
+        percent = _number(window, PERCENT_KEYS)
+        if window.get('status') == 'rate-limited':
+            # The published percent is floored, so a spent window can still read 99.
+            percent = 100.0
         if percent is None:
             continue
+        reset = _reset(window, now)
         limits.append({'id': ident, 'usedPercent': max(0.0, min(100.0, percent)),
-                       'resetsAt': int(now + reset) if reset else None, 'windowMinutes': minutes})
+                       'resetsAt': int(reset) if reset else None, 'windowMinutes': minutes})
     return limits, None

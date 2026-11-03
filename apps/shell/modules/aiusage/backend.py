@@ -776,8 +776,10 @@ def opencode_records(accounts, now):
 def opencode_account(account, now, live=True, opener=None):
     module = _sibling('opencode')
     limits, error = module.usage(account['home'], now, opener) if live else ([], None)
-    return {'email': None, 'name': None, 'organization': None, 'plan': 'Go' if limits else None, 'credits': None,
-            'available': bool(limits), 'reason': None if limits else 'subscription', 'limits': limits,
+    who = module.profile(account['home'])
+    return {'email': who.get('email'), 'name': None, 'organization': who.get('organization'),
+            'plan': 'Go' if limits else None, 'credits': None,
+            'available': bool(limits), 'reason': None if limits else ('error' if error else 'subscription'), 'limits': limits,
             'source': 'opencode-api' if limits else 'local', 'updatedAt': now, 'error': error,
             'session': module.session(account['home'], now)}
 
