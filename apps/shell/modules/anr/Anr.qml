@@ -149,7 +149,7 @@ Scope {
                     Rectangle {
                         anchors.fill: parent
                         radius: Tokens.rounding.large
-                        color: Qt.alpha(Colours.palette.m3scrim, 0.45)
+                        color: Qt.alpha(Colours.palette.m3scrim, 0.62)
                     }
 
                     Rectangle {
@@ -214,6 +214,8 @@ Scope {
                             color: Colours.palette.m3errorContainer
 
                             Image {
+                                id: appImage
+
                                 anchors.centerIn: parent
                                 width: parent.width * 0.6
                                 height: width
@@ -224,7 +226,7 @@ Scope {
 
                             MaterialIcon {
                                 anchors.centerIn: parent
-                                visible: !win.entry?.icon
+                                visible: appImage.status !== Image.Ready
                                 text: "hourglass_top"
                                 color: Colours.palette.m3onErrorContainer
                             }
@@ -257,10 +259,13 @@ Scope {
                             }
 
                             StyledRect {
+                                id: track
+
                                 anchors.verticalCenter: parent.verticalCenter
                                 implicitWidth: parent.width - x
                                 implicitHeight: Tokens.padding.extraSmall
                                 radius: height / 2
+                                clip: true
                                 color: Colours.palette.m3surfaceContainerHighest
 
                                 StyledRect {
@@ -271,7 +276,7 @@ Scope {
 
                                     NumberAnimation on implicitWidth {
                                         from: 0
-                                        to: card.width - Tokens.padding.extraLarge * 2
+                                        to: track.width
                                         duration: Tokens.anim.durations.extraLarge * 8
                                         running: root.showing
                                     }
