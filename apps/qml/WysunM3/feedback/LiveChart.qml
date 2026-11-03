@@ -216,12 +216,12 @@ Item {
 
         visible: root.hoverIndex >= 0
         z: 3
-        width: tipLabel.implicitWidth + (Theme.padding.normal ?? 0) * 2
+        width: tipLabel.implicitWidth + (Theme.padding.medium ?? 0) * 2
         height: tipLabel.implicitHeight + (Theme.padding.small ?? 0) * 2
         radius: Theme.rounding.small ?? 0
         color: Theme.m3inverseSurface
         x: Math.max(0, Math.min(root.width - width, (root.hoverIndex >= 0 ? root.xAt(root.hoverIndex, root.first.length) : 0) - width / 2))
-        y: Math.max(0, (root.hoverIndex >= 0 ? root.yAt(root.first[root.hoverIndex]) : 0) - height - (Theme.spacing.normal ?? 0))
+        y: Math.max(0, (root.hoverIndex >= 0 ? root.yAt(root.first[root.hoverIndex]) : 0) - height - (Theme.spacing.medium ?? 0))
 
         Label {
             id: tipLabel

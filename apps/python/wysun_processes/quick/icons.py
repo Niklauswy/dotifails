@@ -64,7 +64,10 @@ class Catalog:
 
     def name(self, app_id):
         entry = self.entry(app_id)
-        return entry['name'] if entry else app_id
+        if entry:
+            return entry['name']
+        base = (app_id or '').rsplit('.', 1)[-1] if '.' in (app_id or '') and ' ' not in app_id else (app_id or '')
+        return base[:1].upper() + base[1:] if '.' in (app_id or '') else (app_id or '')
 
     def _find(self, icon):
         if not icon:

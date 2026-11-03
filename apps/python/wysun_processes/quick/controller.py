@@ -14,7 +14,7 @@ from .models import KeyedModel
 
 HISTORY = 60
 ROW_ROLES = ('key', 'title', 'name', 'app', 'pid', 'ppid', 'depth', 'group', 'kids', 'expanded', 'appRow', 'cpu',
-             'mem', 'gpu', 'io', 'threads', 'nice', 'state', 'stateLabel', 'user', 'mine', 'icon', 'tint')
+             'mem', 'gpu', 'io', 'threads', 'nice', 'state', 'stateLabel', 'user', 'mine', 'icon', 'tint', 'age')
 DISPLAY = {'quickshell': 'Wysun Shell', 'Hyprland': 'Hyprland', 'pipewire': 'PipeWire', 'wireplumber': 'WirePlumber'}
 SYSTEM_KEYS = ('cpu', 'mem', 'gpu', 'disk', 'net')
 
@@ -262,6 +262,11 @@ class ProcessesController(QObject):
         out, self._matched = views.build(self._snapshot.rows, self._mode, query, self._sort, self._descending,
                                          self._expanded, self._mine, self.uid)
         items = []
+        uptime = (self._snapshot.system or {}).get('uptime') or 0
+        clock = os.sysconf('SC_CLK_TCK')
+        starts = {}
+        for r in self._snapshot.rows:
+            starts[r['app']] = min(starts.get(r['app'], 1 << 62), int(r['start']))
         for row in out:
             items.append({**{k: row.get(k) for k in ROW_ROLES if k in row}, 'key': row['key'],
                           'title': self.title_of(row), 'name': row.get('name', ''), 'app': row.get('app', ''),
@@ -273,7 +278,9 @@ class ProcessesController(QObject):
                           'threads': row.get('threads', 0), 'nice': row.get('nice', 0), 'state': row.get('state', ''),
                           'stateLabel': row.get('state_label', ''), 'user': row.get('user', ''),
                           'mine': row.get('uid') == self.uid, 'icon': self.catalog.icon(row.get('app', '')),
-                          'tint': self.catalog.tint(row.get('app', ''))})
+                          'tint': self.catalog.tint(row.get('app', '')),
+                          'age': max(0.0, uptime - (starts.get(row.get('app'), 0) if row.get('group') else
+                                                    int(row.get('start') or 0)) / clock) if uptime else 0.0})
         self._rowsm.replace(items)
         keys = self._rowsm.keys()
         if self._selected_key not in keys:
@@ -738,6 +745,12 @@ class ProcessesController(QObject):
     @Property('QVariantList', notify=appsChanged)
     def background(self):
         return self._background
+
+    @Slot(str, result='QVariantList')
+    def appProcesses(self, app):
+        kids = sorted(self._children(app), key=lambda r: -r['cpu'])
+        return [dict(key=views.key_of(r), name=r['name'], pid=r['pid'], cpu=r['cpu'], mem=r['mem'], state=r['state'])
+                for r in kids[:12]]
 
     @Slot(str, bool)
     def closeApp(self, app, force):

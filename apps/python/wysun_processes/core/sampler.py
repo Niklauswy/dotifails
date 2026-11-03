@@ -19,6 +19,7 @@ def application_group(cgroup, fallback):
     if not match:
         return fallback
     name = re.sub(r'-(?:[0-9]+|[0-9a-f]{8,})$', '', match[1])
+    name = re.sub(r'-transient$', '', name)
     name = re.sub(r'^(?:gnome|kde|dbus|flatpak)-', '', name, flags=re.I)
     return name.replace('\\x2d', '-') or fallback
 

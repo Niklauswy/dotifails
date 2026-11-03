@@ -51,3 +51,4 @@ Slider 1.0 controls/Slider.qml
 RollingNumber 1.0 feedback/RollingNumber.qml
 LiveChart 1.0 feedback/LiveChart.qml
 StateShape 1.0 shapes/StateShape.qml
+ScrollIndicator 1.0 controls/ScrollIndicator.qml

@@ -61,6 +61,43 @@ Page {
     }
 
     Section {
+        title: "Indicador de desplazamiento"
+        note: "Aparece al desplazar o al pasar el cursor; el pulgar se puede arrastrar."
+
+        Item {
+            width: Metrics.textFieldMinWidth
+            height: Metrics.emblemSize * 2
+
+            Flickable {
+                id: scroller
+
+                anchors.fill: parent
+                clip: true
+                contentHeight: Metrics.emblemSize * 8
+
+                Column {
+                    Repeater {
+                        model: 8
+
+                        Label {
+                            required property int index
+
+                            height: Metrics.emblemSize
+                            text: "Proceso " + (index + 1)
+                        }
+                    }
+                }
+            }
+
+            ScrollIndicator {
+                anchors.right: parent.right
+                height: parent.height
+                flickable: scroller
+            }
+        }
+    }
+
+    Section {
         title: "Forma de estado"
         note: "Trabajando gira; en espera, círculo; pausado, cuadrado; zombi, estallido; grupo, sol."
 

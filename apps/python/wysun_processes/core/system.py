@@ -142,7 +142,7 @@ class System:
         if result['gpu'] is None and engines_gpu is not None:
             result['gpu'] = engines_gpu
         uptime = _read(self.proc / 'uptime').split()
-        result.update(pressure=pressure(self.proc), load=os.getloadavg(), temps=self.temps(),
+        result.update(pressure=pressure(self.proc), load=list(os.getloadavg()), temps=self.temps(),
                       uptime=float(uptime[0]) if uptime else 0.0, count=len(rows),
                       running=sum(r['state'] == 'R' for r in rows), threads=sum(r['threads'] for r in rows))
         return result

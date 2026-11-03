@@ -139,6 +139,7 @@ y objetos con propiedades y señales. QML solo presenta.
 | `OverlayLayer` | El host de las superposiciones; uno al final del elemento raíz | — | — |
 | `RollingNumber` | Cifras en vivo que cambian a menudo (CPU, memoria, recuentos): los dígitos ruedan con el muelle | Texto estático | rol de tipo |
 | `LiveChart` | Series temporales del último minuto; desplazamiento continuo, guía al pasar el cursor (`scrub`), marcas de picos | Comparar categorías | — |
+| `ScrollIndicator` | Barra fina para un `Flickable` largo: aparece al desplazar o al pasar el cursor, el pulgar se arrastra | Listas cortas | ancho `spacing.medium` |
 | `StateShape` | El estado de un proceso o elemento vivo como forma M3 que se transforma (trabajando, en espera, pausado…) | Iconos de lista | 56 por defecto |
 
 La galería (`python3 -m wysun_qml`) muestra cada componente con sus variantes y estados; es la referencia visual.
@@ -244,8 +245,7 @@ región.
 
 - Las superposiciones viven dentro de la ventana: un menú no puede salir de ella.
 - `M3Shapes` no pinta con el renderizador software (pruebas offscreen); ahí `ShapeEmblem` usa su forma de respaldo.
-- Sin `QtQuick.Controls`: no hay `ScrollBar` todavía (`Switch` y `Dropdown` ya existen); se añadirá como componente
-  de la base cuando una app lo necesite.
+- Sin `QtQuick.Controls`: en lugar de `ScrollBar` está `ScrollIndicator` (Files conserva su copia propia).
 
 ## Hilos de Python en una app QML
 
