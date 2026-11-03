@@ -29,7 +29,7 @@ Window {
     height: 820
     minimumWidth: 720
     minimumHeight: 480
-    visible: true
+    visible: false          // present() shows it once the app id (wysun-processes) is set
     title: "Wysun Processes"
     color: Theme.m3surface
 

@@ -17,6 +17,7 @@ class QmlProcessesWindow:
             self.app, self.engine = qml_engine.create_engine('wysun-processes')
         else:
             self.app, self.engine = None, engine
+        QGuiApplication.setDesktopFileName('wysun-processes')     # the Wayland app id, before the window maps
         self.bridge = theme_bridge.ThemeBridge(parent=self.engine)
         if controller is None:
             from wysun_processes.core.services import Services
