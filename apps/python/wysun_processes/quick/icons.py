@@ -11,8 +11,8 @@ FALLBACK = 'application-x-executable'
 
 
 def data_dirs():
-    home = Path(os.environ.get('XDG_DATA_HOME') or Path.home() / '.local/share')
-    return [home] + [Path(d) for d in (os.environ.get('XDG_DATA_DIRS') or '/usr/local/share:/usr/share').split(':') if d]
+    from wysun_core.paths import data_home
+    return [data_home()] + [Path(d) for d in (os.environ.get('XDG_DATA_DIRS') or '/usr/local/share:/usr/share').split(':') if d]
 
 
 def icon_theme():

@@ -54,10 +54,6 @@ class OverlayWindowTests(unittest.TestCase):
         found = [p for p in qml_files() if 'HyprlandFocusGrab' in p.read_text() and 'WlrKeyboardFocus.OnDemand' in p.read_text()]
         self.assertEqual(relative(found), sorted(['components/OverlayWindow.qml'] + self.NOT_OVERLAYS))
 
-    def test_process_window_is_a_regular_window(self):
-        # Documented exception: a resizable toplevel with a title and minimum size, not an overlay.
-        self.assertRegex(qml('modules/processes/ProcessWindow.qml'), r'(?m)^FloatingWindow\s*\{')
-
     def test_launcher_keeps_its_own_escape(self):
         # Escape closes the action menu, the expanded preview or a stacked folder before the launcher.
         self.assertIn('closeOnEscape: false', qml('modules/launcher/Launcher.qml'))
@@ -110,7 +106,7 @@ class SingleDefinitionTests(unittest.TestCase):
 
     def test_one_hero_card(self):
         self.assertEqual(inline('HeroCard'), [])
-        # The usage card stays with the other performance cards that Processes also imports.
+        # The usage card stays with the other performance cards.
         self.assertEqual(named('HeroCard'), ['modules/dashboard/performance/HeroCard.qml'])
         self.assertEqual(named('PrefixHero'), ['modules/launcher/PrefixHero.qml'])
 

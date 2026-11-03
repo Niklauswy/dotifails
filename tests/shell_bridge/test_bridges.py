@@ -171,7 +171,10 @@ class DispatcherTests(unittest.TestCase):
 
     def test_every_surface_toggles_in_short_and_long_form(self):
         names = self.surfaces()
-        for name in ('colors', 'processes', 'launcher', 'emoji', 'session', 'dashboard'):
+        for name in ('colors', 'launcher', 'emoji', 'session', 'dashboard'):
+            self.assertIn(name, names)
+        self.assertNotIn('processes', names)        # Wysun Processes is an app now (wysun processes)
+        for name in ('colors',):
             self.assertIn(name, names)
         self.assertNotIn('test', names)
         for name in names:
@@ -193,7 +196,7 @@ class DispatcherTests(unittest.TestCase):
 
     def test_bridge_routes_own_modules_and_lists_its_surfaces(self):
         qml = (SHELL / 'wysun/WysunBridge.qml').read_text()
-        for name in ('processes', 'colors'):
+        for name in ('colors',):
             self.assertIn(f'if (kind === "{name}")', qml)
             self.assertIn(f'return {name}.open(toggle)', qml)
         self.assertIn('function surfaces(): string', qml)

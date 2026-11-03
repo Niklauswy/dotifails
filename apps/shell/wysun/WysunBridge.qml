@@ -7,7 +7,6 @@ import qs.services
 import qs.utils
 import qs.modules.nexus
 import qs.modules.colors
-import qs.modules.processes
 import "../services/WidgetScreens.js" as WidgetScreens
 
 Scope {
@@ -16,8 +15,7 @@ Scope {
     // (`wysun-shell surfaces` prints it). Each name maps to its ScreenState flag; '' = its own module.
     readonly property var surfaces: ({ dashboard: 'dashboard', windows: 'dashboard',
         overview: 'overview', cheatsheet: 'cheatsheet', wallpapers: 'wallpapers', launcher: 'launcher', emoji: 'emoji', menu: 'utilities', quicksettings: 'utilities', notifications: 'sidebar', sidebar: 'sidebar', session: 'session', ai: 'aiUsage',
-        colors: '', processes: '', study: '' })
-    Processes { id: processes }
+        colors: '', study: '' })
     Colors { id: colors }
     // Own keys only: a name such as "toString" must not resolve through the prototype.
     function fieldOf(kind) { return Object.prototype.hasOwnProperty.call(surfaces, kind) ? surfaces[kind] : undefined; }
@@ -30,7 +28,6 @@ Scope {
         return kind !== 'launcher' || GlobalConfig.forScreen(state.modelData.name).launcher.enabled;
     }
     function close() {
-        processes.close();
         colors.close();
         for (const screen of Quickshell.screens) {
             const state = ShellState.forScreen(screen);
@@ -45,7 +42,6 @@ Scope {
             }
             return colors.open(toggle);
         }
-        if (kind === "processes") return processes.open(toggle);
         if (kind === "study") return Study.toggle();
         const state = current(kind), field = fieldOf(kind);
         if (!state || !field || !available(kind, state)) return false;
@@ -146,7 +142,7 @@ Scope {
                 primaryScreen: Screens.primaryName, widgetScreens: Screens.widgetScreens.map(s => s.name),
                 widgetMode: Screens.widgetsOnlyPrimary ? 'primary' : 'all',
                 openByScreen: Quickshell.screens.map(s => ({screen: s.name, surfaces: Object.keys(root.surfaces).filter(k => ShellState.forScreen(s)?.[root.surfaces[k]])})),
-                open: (state ? Object.keys(root.surfaces).filter(k => state[root.surfaces[k]]) : []).concat(processes.window ? ['processes'] : [], colors.window ? ['colors'] : []),
+                open: (state ? Object.keys(root.surfaces).filter(k => state[root.surfaces[k]]) : []).concat(colors.window ? ['colors'] : []),
                 scheme: Colours.scheme });
         }
     }

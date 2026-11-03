@@ -35,10 +35,9 @@ def read_desktop(path):
 
 
 def write_desktop(path, entry):
+    from wysun_core.jsonio import atomic_write_text
     path.parent.mkdir(parents=True, exist_ok=True)
-    temp = path.with_suffix('.tmp')
-    temp.write_text('[Desktop Entry]\n' + ''.join(f'{k}={v}\n' for k, v in entry.items()))
-    temp.replace(path)
+    atomic_write_text(path, '[Desktop Entry]\n' + ''.join(f'{k}={v}\n' for k, v in entry.items()))
 
 
 class Startup:

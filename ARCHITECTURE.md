@@ -14,7 +14,7 @@ paquetes, rutas, sockets, variables y desktop ids (sección 7). El código deriv
 apps/
   shell/        Shell Quickshell (QML) + plugin C++ `Wysun.*`        → ~/.local/share/wysun/quickshell
   python/       Raíz de paquetes Python (un paquete por app, nada suelto)  → ~/.local/share/wysun/app
-                wysun_core, wysun_music, wysun_files, wysun_media, wysun_player,
+                wysun_core, wysun_music, wysun_files, wysun_media, wysun_player, wysun_processes,
                 wysun_settings, wysun_services (backends del shell y residente),
                 utilidades del día a día (wysun_lanshare, …), vendor/
   recorder/     Wysun Recorder (paquete wysun_recorder)              → ~/.local/share/wysun/capture/releases/<hash>
@@ -48,7 +48,7 @@ sin el componente `desktop`.
 | Hyprland 0.55.x | Compositor, configuración Lua `~/.config/wysun/hyprland.lua` (de `config/.config/wysun/hyprland.lua`) | `wysun-session` (sesión “Wysun / Hyprland”) |
 | `wysun-session-services` | Supervisor: `wysun-shell`, `wysun-idle` (swayidle configurable: bloqueo/pantalla), `wysun daemon`, polkit | Hyprland `exec` |
 | Shell (`wysun-shell` → `runtime.sh` → Quickshell) | Barra, dashboard, lanzador QML, menús, notificaciones (vista), OSD, sesión, fondos | supervisor |
-| `wysun daemon` (`python3 -m wysun_services.daemon`) | Residente Qt sin ventanas: registra el historial del portapapeles; `wysun reload` lo reinicia con el código instalado; socket `$XDG_RUNTIME_DIR/wysun-daemon-<uid>.sock`. El lanzador, Colors, Processes y Settings son del shell; Music y Files son procesos propios | supervisor |
+| `wysun daemon` (`python3 -m wysun_services.daemon`) | Residente Qt sin ventanas: registra el historial del portapapeles; `wysun reload` lo reinicia con el código instalado; socket `$XDG_RUNTIME_DIR/wysun-daemon-<uid>.sock`. El lanzador, Colors y Settings son del shell; Music, Files y Processes son procesos propios | supervisor |
 | Shell (Quickshell) | Único dueño de D-Bus de notificaciones (`NotificationServer` en `apps/shell/services/Notifs.qml`); No molestar: `wysun-shell dnd on\|off\|toggle\|status` | supervisor |
 | Apps (Music, Files, Player, Recorder) | Ventanas Qt bajo demanda (`wysun <modo>`), cada una en su proceso | usuario |
 
@@ -60,7 +60,7 @@ sin el componente `desktop`.
 - **IPC**: `wysunShell` (en `apps/shell/wysun/WysunBridge.qml`): `toggle|open <superficie>`, `surfaces`, `close`, `status`,
   `reloadPreferences`, `theme`, `openThemeSettings`. La **única lista de superficies** es `surfaces` de ese archivo
   (`wysun-shell surfaces` la imprime: dashboard, windows, overview, cheatsheet, wallpapers, launcher, emoji, menu, quicksettings,
-  notifications, sidebar, session, ai, colors, processes). `wysun SUPERFICIE` y `wysun-shell SUPERFICIE` la alternan; ningún
+  notifications, sidebar, session, ai, colors, study). `wysun SUPERFICIE` y `wysun-shell SUPERFICIE` la alternan; ningún
   lanzador repite la lista y el shell responde `false` a un nombre que no conoce. `wysun-shell status` devuelve JSON.
 - **Capas Layer Shell**: espacio de nombres `wysun-*` (`wysun-drawers`, `wysun-background`, `wysun-border-exclusion`…). Las reglas de
   Hyprland usan `^wysun-.*$`.
@@ -147,6 +147,16 @@ proceso que lanza otro módulo usa `wysun_core.launch` (misma raíz, `-P`). Ning
 backends del shell (`launcher_data`, `code_preview`, `process_data`, `utility_data`, `color_data`, `scheme`, `wallpaper_media`…),
 y el residente (`daemon`). Las preferencias de usuario viven en `~/.config/wysun/` y los datos en
 `~/.local/share/wysun/` (sección 7).
+
+### Wysun Processes (`apps/python/wysun_processes`, `apps/qml/processes`)
+
+Monitor de procesos como app QML sobre `WysunM3` (`wysun processes [consulta]`, `Super+Shift+K`), ventana en mosaico y una sola
+instancia por usuario (socket en `$XDG_RUNTIME_DIR`; una segunda llamada le pasa la consulta y la enfoca). El núcleo sin Qt
+(`core/`) muestrea `/proc` (CPU, memoria, E/S, GPU por DRM fdinfo, app por su `app-*.scope`), construye las vistas por app,
+árbol y lista, actúa con identidad comprobada (pidfd + inicio), lista `systemd --user` con su registro y el arranque de la
+sesión (nunca escribe `hyprland.lua`: `exec-once` es de solo lectura; autostart por anulaciones en `~/.config/autostart`,
+retrasos de servicios con un drop-in). `quick/` es el puente Qt; las ventanas de Hyprland, sus miniaturas y «localizar» vienen
+del shell por `wysun-shell thumbs|locate`. No guarda nada en disco. Diseño: `docs/superpowers/specs/2026-11-02-wysun-processes-app-design.md`.
 
 ### Wysun Player y `wysun_media` (`apps/python/wysun_media`, `wysun_player`)
 
@@ -364,7 +374,7 @@ Nunca reiniciar Hyprland ni el login para actualizar un panel.
   reversión con watchdog independiente) y asignaciones persistentes de workspaces por monitor. Reutiliza
   `environment_settings.py`, `display_layout.py` y `hypr_settings.py`. No hay sección Escritorio ni páginas
   Terminal, Notificaciones, Inicio, Archivos y copias, Efectos, Ventanas, Atajos, SSH o Processes en Settings.
-  Wi-Fi, VPN y Bluetooth usan Red y Dispositivos conectados. `wysun processes` alterna su propio panel, fuera de Nexus.
+  Wi-Fi, VPN y Bluetooth usan Red y Dispositivos conectados. `wysun processes` abre la app Wysun Processes, fuera de Nexus.
 - **Tema**: un solo estilo, Material You; el color sale del wallpaper (`scheme.json`) y la selección, en
   `~/.config/wysun/theme.json`, es solo el modo (`auto`, `light`, `dark`). Los tokens viven en `apps/python/wysun_core/tokens.json`; Quickshell lee los colores por
   `apps/shell/services/Colours.qml` (vía `scheme.json`) y la forma del mismo `tokens.json` instalado; `tests/test_theme_literals.py` rechaza colores literales

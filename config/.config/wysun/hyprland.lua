@@ -21,7 +21,6 @@ hl.on("hyprland.start", function () hl.exec_cmd("wysun-session-services") end)
 hl.on("hyprland.start", function () hl.exec_cmd("wysun workspaces") end)
 hl.on("monitor.added", function () hl.exec_cmd("wysun workspaces") end)
 -- Keep the primary Python launcher at its own responsive popup geometry.
-hl.window_rule({ name = "wysun-processes", match = { title = "^Wysun Processes$" }, float = true, center = true })
 hl.window_rule({ name = "wysun-panels", match = { class = "^(wysun-music|wysun-recorder)$" }, float = true, center = true, border_size = 0, rounding = 0, no_shadow = true })
 -- The consent provider is a native MainWindow, but behaves as a dialog.
 hl.window_rule({ name = "wysun-portal-picker", match = { class = "^hyprland-share-picker$", title = "^Select what to share$" }, float = true, center = true })

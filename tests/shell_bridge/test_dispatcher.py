@@ -52,7 +52,7 @@ class DispatcherTests(unittest.TestCase):
     def test_every_shell_surface_toggles_through_the_shell(self):
         names = bridge_surfaces()
         self.assertIn('colors', names)
-        self.assertIn('processes', names)
+        self.assertNotIn('processes', names)
         for name in names:
             status, run, execute = self.invoke((name,))
             self.assertEqual(status, 0, name)
@@ -71,7 +71,7 @@ class DispatcherTests(unittest.TestCase):
     def test_a_silent_rejecting_or_missing_shell_fails_visibly(self):
         for kwargs in ({'response': 'false\n'}, {'code': 1}, {'code': 2}, {'error': FileNotFoundError()},
                        {'error': subprocess.TimeoutExpired('ipc', 3)}):
-            for args in ((), ('processes',), ('settings', 'displays')):
+            for args in ((), ('colors',), ('settings', 'displays')):
                 status, run, execute = self.invoke(args, **kwargs)
                 self.assertEqual(status, 1, (args, kwargs))
                 self.assertTrue(self.err, (args, kwargs))
@@ -85,7 +85,8 @@ class DispatcherTests(unittest.TestCase):
                                         (('wallpaper', 'list'), 'wysun_services.wallpaper', ['list']),
                                         (('workspaces',), 'wysun_settings.runtime', ['workspaces']),
                                         (('daemon',), 'wysun_services.daemon', []),
-                                        (('reload',), 'wysun_services.daemon', ['reload'])):
+                                        (('reload',), 'wysun_services.daemon', ['reload']),
+                                        (('processes', 'firefox'), 'wysun_processes', ['firefox'])):
             _, run, execute = self.invoke(args)
             run.assert_not_called()
             execute.assert_not_called()
@@ -177,7 +178,7 @@ class DispatcherTests(unittest.TestCase):
             self.assertIn(copy, text, copy)
 
     def test_a_surface_takes_no_arguments(self):
-        status, run, _ = self.invoke(('processes', 'extra'))
+        status, run, _ = self.invoke(('colors', 'extra'))
         self.assertEqual(status, 2)
         run.assert_not_called()
 

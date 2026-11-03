@@ -150,6 +150,48 @@ class SamplerTests(unittest.TestCase):
             self.assertLess(time.perf_counter() - began, 0.06)
 
 
+class PortedTests(unittest.TestCase):
+    """Cases carried over from the retired shell panel's backend tests."""
+
+    def test_tree_cycle_is_bounded(self):
+        rows = [row(1, 'a', 'A', ppid=2), row(2, 'b', 'B', ppid=1)]
+        out, _ = views.build(rows, 'tree', views.parse_query('a'), 'cpu', True, set(), False, 1000)
+        self.assertLessEqual(len(out), 2)
+
+    def test_drm_shared_clients_are_counted_once(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            fdinfo = Path(tmp) / '2/fdinfo'
+            fdinfo.mkdir(parents=True)
+            for fd in ('4', '5'):
+                (fdinfo / fd).write_text('drm-pdev: 0000:00:02.0\ndrm-client-id: 7\ndrm-engine-render: 200000000 ns\n')
+            s = sampler.Sampler(proc_root=tmp)
+            self.assertEqual(s._drm(2, (2, '1')), 200000000)
+
+    def test_protected_session_cannot_change_priority(self):
+        from unittest.mock import patch
+        protected = dict(pid=1, name='Hyprland', uid=os.getuid(), state='S', start='1')
+        with patch.object(actions.guard(), 'checked', return_value=protected), patch.object(os, 'setpriority') as change:
+            with self.assertRaises(PermissionError):
+                actions.set_priority(sampler.Sampler(proc_root=tempfile.gettempdir()), 'p:1:1', 5)
+            change.assert_not_called()
+
+    def test_own_child_priority_and_terminate(self):
+        import subprocess
+        child = subprocess.Popen([sys.executable, '-c', 'import time;time.sleep(30)'])
+        try:
+            from wysun_services.process_data import process_record
+            key = f"p:{child.pid}:{process_record(child.pid)['start']}"
+            s = sampler.Sampler()
+            actions.set_priority(s, key, 7)
+            self.assertEqual(os.getpriority(os.PRIO_PROCESS, child.pid), 7)
+            self.assertEqual(actions.act(s, key, 'terminate'), 1)
+            child.wait(timeout=3)
+        finally:
+            if child.poll() is None:
+                child.kill()
+                child.wait()
+
+
 class ActionTests(unittest.TestCase):
     def test_act_rejects_reused_pid(self):
         with self.assertRaisesRegex(RuntimeError, 'El PID cambió de proceso'):

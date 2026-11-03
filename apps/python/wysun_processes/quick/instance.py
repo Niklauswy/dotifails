@@ -1,13 +1,13 @@
 """One Wysun Processes window per user: a second `wysun processes [query]` hands its query to the open window
-through a local socket in $XDG_RUNTIME_DIR and exits."""
+through a local socket in the session runtime directory and exits."""
 import os
 
 from PySide6.QtNetwork import QLocalServer, QLocalSocket
 
 
 def default_name():
-    runtime = os.environ.get('XDG_RUNTIME_DIR') or '/tmp'
-    return os.path.join(runtime, 'wysun-processes-%d' % os.getuid())
+    from wysun_core.paths import runtime_dir
+    return os.path.join(str(runtime_dir()), 'wysun-processes-%d' % os.getuid())
 
 
 class Instance:
