@@ -123,11 +123,21 @@ Item {
                     icon: page.hot ? "bolt" : "monitoring"
                     iconColor: Theme.m3onPrimaryContainer
 
-                    SequentialAnimation on scale {
-                        running: !Motion.reduced && page.shown && page.live
-                        loops: Animation.Infinite
-                        NumberAnimation { to: 1.06; duration: Theme.duration(page.hot ? "normal" : "extraLarge") * 2; easing.type: Easing.BezierSpline; easing.bezierCurve: Motion.bezier("standard") }
-                        NumberAnimation { to: 1; duration: Theme.duration(page.hot ? "normal" : "extraLarge") * 2; easing.type: Easing.BezierSpline; easing.bezierCurve: Motion.bezier("standard") }
+                    // One short beat per new sample (not an infinite loop): the page idles between samples.
+                    SequentialAnimation {
+                        id: orbBeat
+
+                        NumberAnimation { target: orb; property: "scale"; to: page.hot ? 1.08 : 1.04; duration: Motion.ms("fastEffects"); easing.type: Easing.BezierSpline; easing.bezierCurve: Motion.bezier("standard") }
+                        NumberAnimation { target: orb; property: "scale"; to: 1; duration: Motion.ms("defaultEffects"); easing.type: Easing.BezierSpline; easing.bezierCurve: Motion.bezier("standard") }
+                    }
+
+                    Connections {
+                        target: procs
+                        enabled: !Motion.reduced && page.shown && page.live
+
+                        function onSampled() {
+                            orbBeat.restart();
+                        }
                     }
                 }
 

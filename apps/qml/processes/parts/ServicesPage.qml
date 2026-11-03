@@ -235,9 +235,13 @@ Item {
                                 visible: !unitRow.isHeader && unitRow.modelData.state === "active" && !Motion.reduced
                                 opacity: 0
 
+                                // One ripple when the unit becomes active (or its row appears active), never a loop:
+                                // a list of running services would otherwise keep the window rendering forever.
+                                onVisibleChanged: if (visible && page.shown) ripple.restart()
+
                                 SequentialAnimation {
-                                    running: ring.visible && page.shown
-                                    loops: Animation.Infinite
+                                    id: ripple
+
                                     ParallelAnimation {
                                         NumberAnimation { target: ring; property: "scale"; from: 0.6; to: 2.2; duration: Theme.duration("extraLarge") * 2; easing.type: Easing.BezierSpline; easing.bezierCurve: Motion.bezier("emphasizedDecel") }
                                         NumberAnimation { target: ring; property: "opacity"; from: 0.6; to: 0; duration: Theme.duration("extraLarge") * 2; easing.type: Easing.BezierSpline; easing.bezierCurve: Motion.bezier("emphasizedDecel") }

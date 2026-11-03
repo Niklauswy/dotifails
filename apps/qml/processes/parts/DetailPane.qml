@@ -70,9 +70,21 @@ Rectangle {
             spacing: Theme.spacing.medium ?? 0
 
             StateShape {
+                id: stateShape
+
                 state: pane.group ? "G" : (pane.item.state ?? "")
                 size: Metrics.emblemSize
                 color: Qt.tint(Theme.m3surfaceContainerHighest, Qt.alpha(pane.tintColour, 0.32))
+
+                // One lobe per new sample while the process works: the pane idles between samples.
+                Connections {
+                    target: procs
+                    enabled: !procs.frozen && pane.visible
+
+                    function onSampled() {
+                        stateShape.nudge();
+                    }
+                }
 
                 AppIcon {
                     anchors.centerIn: parent
