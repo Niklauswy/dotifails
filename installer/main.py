@@ -216,6 +216,7 @@ class Deployment:
         """The file manager's launcher, menu entry, D-Bus/systemd activation and portal backend; no associations."""
         from capture_distribution import _publish
         self.deploy(self.source/'config/.local/share/applications/wysun-files.desktop',Path('.local/share/applications/wysun-files.desktop'))
+        self.deploy(self.source/'config/.local/share/applications/wysun-processes.desktop',Path('.local/share/applications/wysun-processes.desktop'))
         service='wysun-files-integration.service'
         command='/usr/bin/env "PYTHONPATH='+str(self.home/'.local/share/wysun/app')+'" /usr/bin/python3 -P -m wysun_files.service'
         self.generated('[Unit]\nDescription=Wysun file chooser and file manager integration\nAfter=graphical-session-pre.target\n\n[Service]\nType=dbus\nBusName=org.freedesktop.impl.portal.desktop.wysun\nExecStart='+command+'\nRestart=on-failure\nTimeoutStopSec=5\n',Path('.config/systemd/user')/service)
