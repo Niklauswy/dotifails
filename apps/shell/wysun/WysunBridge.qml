@@ -32,6 +32,9 @@ Scope {
         for (const screen of Quickshell.screens) {
             const state = ShellState.forScreen(screen);
             if (state) for (const name of Object.values(surfaces)) if (name) state[name] = false;
+            // A detached bar panel («winfo», Nexus) is not one of the ScreenState surfaces: close it too, which
+            // also releases a window pinned by `windowinfo` (Wrapper.close resets winfoClient).
+            ShellState.componentsFor(screen)?.panels?.popouts?.close();
         }
     }
     function show(kind, toggle) {

@@ -32,6 +32,14 @@ class LogicTests(unittest.TestCase):
         self.assertTrue(js('return sameAddress("0x55dE", "55de")'))
         self.assertFalse(js('return sameAddress("0x55de", "55df")'))
 
+    def test_window_panel_targets_a_screen_that_has_drawers(self):
+        # Drawers (bar and its popouts) live on Screens.widgetScreens; with widget mode «primary» the focused
+        # monitor can be another one, where componentsFor(...).panels is null.
+        self.assertEqual(js('return screenWithDrawers([{name: "DP-1"}], {name: "DP-2"})'), {'name': 'DP-1'})
+        self.assertEqual(js('return screenWithDrawers([{name: "DP-1"}, {name: "DP-2"}], {name: "DP-2"})'), {'name': 'DP-2'})
+        self.assertIsNone(js('return screenWithDrawers([], {name: "DP-2"})'))
+        self.assertIsNone(js('return screenWithDrawers(null, null)'))
+
     def test_one_address_actions_accept_exactly_one_valid_address(self):
         self.assertEqual(js('return singleAddress("0xaa")'), 'aa')
         self.assertEqual(js('return singleAddress(" 0xAB ")'), 'ab')
@@ -112,6 +120,8 @@ class WiringTests(unittest.TestCase):
         self.assertIn('function windowInfo(address): bool', service)
         self.assertIn('Logic.singleAddress(address)', service)
         self.assertIn('"wysun-processes"', service)               # picks the monitor showing Processes
+        self.assertIn('Logic.screenWithDrawers(Screens.widgetScreens', service)  # ...but only where the bar exists
+        self.assertIn('ShellState.componentsFor(barScreen())', service)
         self.assertIn('popouts.openWinfo(t)', service)
         wrapper = (SHELL / 'modules/bar/popouts/Wrapper.qml').read_text()
         self.assertIn('property var winfoClient: null', wrapper)
@@ -119,6 +129,15 @@ class WiringTests(unittest.TestCase):
         self.assertIn('function openWinfo(client): void', wrapper)
         self.assertIn('client: root.winfoTarget', wrapper)
         self.assertIn('winfoClient = null;', wrapper)             # reset on close (and on the bar's own path)
+
+    def test_close_dismisses_the_detached_panel_and_unpins_winfo(self):
+        # `wysun-shell close` must close the detached «winfo» too; Wrapper.close resets winfoClient so the bar's
+        # own panel follows the active window again.
+        bridge = (SHELL / 'wysun/WysunBridge.qml').read_text()
+        close = bridge.split('function close()', 1)[1].split('function show(', 1)[0]
+        self.assertIn('panels?.popouts?.close()', close)
+        wrapper = (SHELL / 'modules/bar/popouts/Wrapper.qml').read_text()
+        self.assertIn('winfoClient = null;', wrapper.split('function close(): void', 1)[1])
 
     def test_service_caches_per_address_and_width(self):
         service = (SHELL / 'services/WindowTools.qml').read_text()

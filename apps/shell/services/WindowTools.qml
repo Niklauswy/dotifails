@@ -57,26 +57,29 @@ Singleton {
         Hypr.dispatch(Hypr.usingLua ? `hl.dsp.focus({window="address:${address}"})` : `focuswindow address:${address}`);
     }
 
-    // The screen whose shell shows Wysun Processes (its bar and popouts): the monitor of its window, else the
-    // focused one. The window's Wayland app id is `wysun-processes` (window.py sets it before mapping).
+    // The ShellScreen of a Hyprland monitor, needed because popouts are per screen.
     function screenForMonitor(monitor): ShellScreen {
         if (!monitor)
             return null;
         return Quickshell.screens.find(s => Hypr.monitorFor(s)?.name === monitor.name) ?? null;
     }
 
-    function processesScreen(): ShellScreen {
+    // The screen whose shell can host the window panel: the monitor of Wysun Processes, else the focused one, but
+    // restricted to the screens Drawers is built for (Screens.widgetScreens). With widget mode «primary» the bar
+    // and its popouts exist only on the primary screen, wherever the focus or the Processes window is. The
+    // window's Wayland app id is `wysun-processes` (window.py sets it before mapping).
+    function barScreen(): ShellScreen {
         const own = Hyprland.toplevels.values.find(t => t.lastIpcObject?.class === "wysun-processes");
-        return screenForMonitor(own?.monitor) ?? screenForMonitor(Hypr.focusedMonitor);
+        return Logic.screenWithDrawers(Screens.widgetScreens,
+                                       screenForMonitor(own?.monitor) ?? screenForMonitor(Hypr.focusedMonitor));
     }
 
-    // Opens the bar's detached «winfo» (live preview + details) for one window, on the same screen as Processes.
+    // Opens the bar's detached «winfo» (live preview + details) for one window, on the screen that has the bar.
     function windowInfo(address): bool {
         const t = toplevel(Logic.singleAddress(address));
         if (!t)
             return false;
-        const screen = processesScreen();
-        const popouts = screen ? ShellState.componentsFor(screen)?.panels?.popouts : null;
+        const popouts = ShellState.componentsFor(barScreen())?.panels?.popouts ?? null;
         if (!popouts)
             return false;
         popouts.openWinfo(t);

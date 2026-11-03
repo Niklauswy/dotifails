@@ -33,6 +33,17 @@ function sameAddress(a, b) {
     return strip(a) !== "" && strip(a) === strip(b);
 }
 
+// `wanted` (the monitor of Wysun Processes, else the focused one) when it is one of `widgetScreens` — the screens
+// Drawers is built for — else the first of them: the bar's popouts exist only there. `null` without any screen.
+function screenWithDrawers(widgetScreens, wanted) {
+    var list = widgetScreens || [];
+    var name = wanted ? String(wanted.name || "") : "";
+    for (var i = 0; i < list.length; i++)
+        if (name && list[i].name === name)
+            return list[i];
+    return list.length ? list[0] : null;
+}
+
 // Where the halo goes on `screen` ({name, activeWs}) for a window ({at, size}) on `monitor`
 // ({name, x, y, width, height}) and workspace `ws`: hidden unless that screen shows that workspace.
 function placement(win, monitor, screen, ws) {
