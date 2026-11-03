@@ -78,11 +78,15 @@ function thumbKey(address, width) {
 }
 
 // Only ever inside `runtimeDir` (see the header of services/WindowTools.qml): addresses are hex, widths are numbers.
-function thumbPath(runtimeDir, address, width) {
+// The optional `generation` makes each capture its own file: a capture is never written over the file the app is
+// already showing (a reader would see a truncated PNG while the compositor keeps the old one).
+function thumbPath(runtimeDir, address, width, generation) {
     var clean = cleanAddress(address);
     if (!clean)
         return "";
-    return runtimeDir + "/wysun-processes/thumbs/" + clean + "@" + thumbWidth(width) + ".png";
+    var gen = Number(generation);
+    var stamp = Number.isInteger(gen) && gen > 0 ? "-" + gen : "";
+    return runtimeDir + "/wysun-processes/thumbs/" + clean + "@" + thumbWidth(width) + stamp + ".png";
 }
 
 // The size of a capture: the requested width and the window's own aspect (16:9 while Hyprland has no size yet).

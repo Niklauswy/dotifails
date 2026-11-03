@@ -198,6 +198,10 @@ class ControllerTests(unittest.TestCase):
             self.assertEqual(c.property('previewAddress'), '0xaa')
             self.assertEqual(c.property('previewWidth'), 832)
             self.assertIn('@832.png', c.property('previewThumb'))
+            # Until the sheet's own capture exists it shows its placeholder: never the row's small image stretched.
+            saved = c._thumb_paths.pop(('0xaa', 832))
+            self.assertEqual(c.property('previewThumb'), '')
+            c._thumb_paths[('0xaa', 832)] = saved
             # The row keeps its small capture: the large one never replaced it (nor the other way around).
             self.assertIn('@320.png', c.property('monitorColumns')[0]['workspaces'][0]['windows'][0]['thumb'])
 

@@ -4,6 +4,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Wayland
 import Quickshell.Hyprland
+import Wysun
 import Wysun.Config
 import qs.components
 import qs.components.containers
@@ -136,7 +137,7 @@ Scope {
                                 if (!hasContent || done === WindowTools.generation)
                                     return;
                                 done = WindowTools.generation;
-                                const path = Logic.thumbPath(WindowTools.runtimeDir, modelData, width);
+                                const path = Logic.thumbPath(WindowTools.runtimeDir, modelData, width, WindowTools.generation);
                                 grabToImage(result => {
                                     if (result.saveToFile(path))
                                         WindowTools.captured(modelData, width, path);

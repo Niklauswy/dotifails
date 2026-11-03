@@ -81,6 +81,18 @@ class LogicTests(unittest.TestCase):
         self.assertEqual(js('return thumbPath("/run/x", "../evil", 480)'), '')
         self.assertNotEqual(js('return thumbKey("0xaa", 480)'), js('return thumbKey("0xaa", 900)'))
 
+    def test_each_capture_is_a_new_file(self):
+        # The app may still be reading the previous capture while the shell writes the next one: a fresh file
+        # (never an overwrite) keeps both readable.
+        self.assertEqual(js('return thumbPath("/run/user/1000", "0xAB", 480, 7)'),
+                         '/run/user/1000/wysun-processes/thumbs/ab@480-7.png')
+        self.assertNotEqual(js('return thumbPath("/run/x", "0xaa", 480, 7)'),
+                            js('return thumbPath("/run/x", "0xaa", 480, 8)'))
+        self.assertEqual(js('return thumbPath("/run/x", "0xaa", 480, "nope")'),
+                         '/run/x/wysun-processes/thumbs/aa@480.png')
+        self.assertEqual(js('return thumbPath("/run/x", "0xaa", 480, -3)'),
+                         '/run/x/wysun-processes/thumbs/aa@480.png')
+
     def test_capture_size_follows_the_window(self):
         self.assertEqual(js('return thumbSize([1600, 900], 800)'), {'width': 800, 'height': 450})
         self.assertEqual(js('return thumbSize([700, 1200], 800)'), {'width': 800, 'height': 1371})
@@ -144,7 +156,11 @@ class WiringTests(unittest.TestCase):
         self.assertIn('property int pendingWidth', service)
         self.assertIn('Logic.thumbKey(a, pixels)', service)
         self.assertIn('Logic.thumbKey(address, width)', service)
+        # Captures never overwrite a file the app may be showing, and only two generations are kept.
+        self.assertIn('CUtils.deleteFile', service)
+        self.assertIn('older !== previous && older !== path', service)
         module = (SHELL / 'modules/windowtools/WindowTools.qml').read_text()
+        self.assertIn('Logic.thumbPath(WindowTools.runtimeDir, modelData, width, WindowTools.generation)', module)
         self.assertIn('Logic.thumbSize(toplevel?.lastIpcObject?.size, WindowTools.pendingWidth)', module)
         self.assertIn('WindowTools.captured(modelData, width, path)', module)
 

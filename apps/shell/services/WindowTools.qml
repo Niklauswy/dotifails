@@ -3,6 +3,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Hyprland
+import Wysun
 import "WindowToolsLogic.js" as Logic
 
 // Window tools for Wysun Processes: locate a window on screen (a pulsing halo in the accent colour, the rest dimmed;
@@ -18,6 +19,7 @@ Singleton {
     property bool capturing
     property var target: null                 // the HyprlandToplevel being located
     property var thumbs: ({})                 // "<address>@<width>" -> path, written this session
+    property var stale: ({})                  // "<address>@<width>" -> the previous path, kept one capture
     property var pending: []                  // addresses (no 0x) to capture at `pendingWidth`
     property int pendingWidth: 480            // device pixels of the requested capture (Logic clamps it)
     property int generation: 0
@@ -106,9 +108,19 @@ Singleton {
     }
 
     function captured(address, width, path): void {
+        const key = Logic.thumbKey(address, width);
+        const previous = thumbs[key];
+        const older = stale[key];
         const next = Object.assign({}, thumbs);
-        next[Logic.thumbKey(address, width)] = path;
+        next[key] = path;
         thumbs = next;
+        const aged = Object.assign({}, stale);
+        aged[key] = previous;
+        stale = aged;
+        // Each capture is a new file (thumbPath's generation), so the previous one stays readable while the app
+        // switches to the new URL. Keep one spare and remove the file from two captures ago.
+        if (older && older !== previous && older !== path)
+            CUtils.deleteFile(Qt.resolvedUrl(older));
     }
 
     Timer {

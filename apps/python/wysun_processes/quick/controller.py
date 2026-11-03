@@ -454,9 +454,9 @@ class ProcessesController(QObject):
                 self._preview_at = data['now']
                 path = data['thumbs'].get(data['preview'])
                 if path:
-                    before = self._thumb_url(self._preview_address, self._preview_width)
+                    before = self._thumb_url(self._preview_address, self._preview_width, fallback=False)
                     self._thumb_paths[(data['preview'], data['width'])] = path
-                    if self._thumb_url(self._preview_address, self._preview_width) != before:
+                    if self._thumb_url(self._preview_address, self._preview_width, fallback=False) != before:
                         self.previewChanged.emit()
         elif data['lane'] == 'list' and data['list_width'] == self._list_thumb_width:
             if data['addresses'] != self._thumb_addresses:
@@ -510,13 +510,13 @@ class ProcessesController(QObject):
             self._thumb_urls = thumbs
             self.appsChanged.emit()
 
-    def _thumb_url(self, address, width=None):
-        """A stable URL per (address, width) capture: the file's mtime changes only when the shell writes a new
-        image, so QML caches the decode between refreshes instead of reloading a `?t=<tick>` URL every tick."""
+    def _thumb_url(self, address, width=None, fallback=True):
+        """A stable URL per (address, width) capture: the shell gives every capture its own file (it never rewrites
+        one the app may be reading), so QML always opens a complete PNG. `fallback` shows the window's previous
+        capture (at another width) while the requested one is written; the sheet turns it off so a large preview
+        is never the row's small image stretched."""
         path = self._thumb_paths.get((address, self._list_thumb_width if width is None else width))
-        if not path:
-            # The first capture after a size change: show the window's previous capture while the shell writes the
-            # new one, instead of flashing a placeholder for a few seconds.
+        if not path and fallback:
             older = [(pixels, saved) for (other, pixels), saved in self._thumb_paths.items() if other == address]
             path = max(older)[1] if older else ''
         if not path:
@@ -1032,7 +1032,7 @@ class ProcessesController(QObject):
 
     @Property(str, notify=previewChanged)
     def previewThumb(self):
-        return self._thumb_url(self._preview_address, self._preview_width) if self._preview_address else ''
+        return self._thumb_url(self._preview_address, self._preview_width, fallback=False) if self._preview_address else ''
 
     @Property(int, notify=previewChanged)
     def previewWidth(self):
