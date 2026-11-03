@@ -132,6 +132,24 @@ class ControllerTests(unittest.TestCase):
         self.assertEqual(self.hypr.located, ['0xaa'])
         self.assertIn('shell', messages[-1])
 
+    def test_open_context_prefers_the_app_named_like_the_query(self):
+        import time
+        from wysun_processes.core.sampler import Sampler
+        from wysun_processes.quick.controller import ProcessesController
+        with tempfile.TemporaryDirectory() as tmp:
+            write_proc(tmp, 30, 'brave', cgroup=KITTY.replace('kitty', 'brave'))
+            write_proc(tmp, 31, 'brave', ppid=30, cgroup=KITTY.replace('kitty', 'brave'))
+            write_proc(tmp, 40, 'brave', cgroup=FIREFOX.replace('firefox', 'chromium'), utime=0)
+            write_proc(tmp, 41, 'brave', ppid=40, cgroup=FIREFOX.replace('firefox', 'chromium'), utime=0)
+            c = ProcessesController(sampler=Sampler(proc_root=tmp), hypr=FakeHypr(), auto=False)
+            c.tick()
+            time.sleep(0.05)
+            write_proc(tmp, 40, 'brave', cgroup=FIREFOX.replace('firefox', 'chromium'), utime=50)
+            c.tick()
+            c.openContext('brave')                # chromium is busier, but brave is the app named so
+            self.assertEqual(c.property('selectedKey'), 'g:brave')
+            c.close()
+
     def test_single_instance_forwards_query(self):
         from wysun_processes.quick.instance import Instance
         received = []

@@ -732,10 +732,13 @@ class ProcessesController(QObject):
         """`wysun processes <query>`: filter and select the first match (its app group when there is one)."""
         self.setMode('apps')
         self.setQuery(query)
-        keys = self._rowsm.keys()
-        groups = [k for k in keys if k.startswith('g:')]
-        if keys:
-            self._set_selected(groups[0] if groups else keys[0])
+        rows = self._rowsm.items()
+        words = views.parse_query(query).words
+        named = lambda r: all(w in (r['app'] + ' ' + r['title']).casefold() for w in words) if words else False
+        tops = [r for r in rows if r['depth'] == 0]
+        best = next((r for r in tops if named(r)), None) or next((r for r in tops if r['group']), None) or (tops or [None])[0]
+        if best:
+            self._set_selected(best['key'])
 
     # ------------------------------------------------------------------ apps page
     @Property('QVariantList', notify=appsChanged)
