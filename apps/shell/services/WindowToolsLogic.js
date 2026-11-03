@@ -21,6 +21,13 @@ function parseAddresses(text) {
     return out;
 }
 
+// One address for actions that target a single window (locate, windowinfo); "" for anything else, so malformed or
+// repeated input never reaches a dispatch.
+function singleAddress(text) {
+    var out = parseAddresses(text);
+    return out.length === 1 ? out[0] : "";
+}
+
 function sameAddress(a, b) {
     var strip = function (v) { return String(v || "").toLowerCase().replace(/^0x/, ""); };
     return strip(a) !== "" && strip(a) === strip(b);

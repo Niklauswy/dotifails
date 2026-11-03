@@ -149,6 +149,13 @@ Item {
                 sheetHost.close();
                 return true;
             }
+            if (event.text === "e" || event.text === "E") {
+                const shown = currentEntry();
+                if (shown && shown.kind === "window") {
+                    procs.showWindowInfo(shown.address ?? "");
+                    return true;
+                }
+            }
             return false;
         }
         if (!columnCount)
@@ -241,7 +248,7 @@ Item {
             anchors.leftMargin: Theme.spacing.medium ?? 0
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
-            text: "←/→ cambia de columna · Enter abre · L localiza · Supr cierra"
+            text: "←/→ cambia de columna · Enter abre · L localiza · E vista en vivo · Supr cierra"
             role: "body.small"
             color: Theme.m3onSurfaceVariant
             elide: Text.ElideRight

@@ -22,10 +22,11 @@ Dialog {
                 ["Terminar", "Supr"], ["Forzar el cierre", "⇧ Supr"],
                 ["Pausar o reanudar", "P"], ["Prioridad", "+  −"],
                 ["Ir a su ventana", "W"], ["Localizar en pantalla", "L"],
-                ["Copiar PID", "Y"], ["Ordenar por columna", "S"],
-                ["Mis procesos · todos", "U"], ["Congelar los datos", "Espacio"],
-                ["Panel de detalle", "I"], ["Pestañas del detalle", "[  ]"],
-                ["Secciones", "1 … 5"], ["Esta ayuda", "?"]
+                ["Vista en vivo de la ventana", "E"], ["Copiar PID", "Y"],
+                ["Ordenar por columna", "S"], ["Mis procesos · todos", "U"],
+                ["Congelar los datos", "Espacio"], ["Panel de detalle", "I"],
+                ["Pestañas del detalle", "[  ]"], ["Secciones", "1 … 5"],
+                ["Esta ayuda", "?"], ["Cerrar la hoja o la ayuda", "Esc"]
             ]
 
             Row {

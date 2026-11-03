@@ -106,6 +106,14 @@ Item {
             }
 
             Button {
+                objectName: "windowInfoButton"
+                type: "tonal"
+                icon: "live_tv"
+                text: "En vivo"
+                onClicked: procs.showWindowInfo(sheet.entry.address ?? "")
+            }
+
+            Button {
                 type: "tonal"
                 icon: "list"
                 text: "Procesos"

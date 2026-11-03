@@ -79,6 +79,11 @@ class ShellModuleLoadTests(unittest.TestCase):
         self.probe('all', ['import qs.modules.nexus.pages.services'],
                    ['    property Item notificationsPage: NotificationsPage {}'])
 
+    def test_bar_popouts_load(self):
+        # The winfo popout Processes opens through IPC lives in the bar's popouts; compile it without a compositor.
+        self.probe('all', ['import qs.modules.bar.popouts'],
+                   ['    property Component winfoPopout: Component { Wrapper { screen: null; offsetScale: 1 } }'])
+
 
 if __name__ == '__main__':
     unittest.main()

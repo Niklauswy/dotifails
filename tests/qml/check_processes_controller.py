@@ -21,7 +21,7 @@ KITTY = '0::/user.slice/user-1000.slice/user@1000.service/app.slice/app-kitty-2.
 
 class FakeHypr:
     def __init__(self):
-        self.located, self.focused, self.thumb_calls = [], [], []
+        self.located, self.focused, self.thumb_calls, self.window_info_calls = [], [], [], []
 
     def windows(self):
         return [dict(address='0xaa', pid=10, app_id='firefox', title='GitHub', workspace=1, active=False, monitor=0,
@@ -54,6 +54,10 @@ class FakeHypr:
     def locate(self, address):
         self.located.append(address)
         return False
+
+    def window_info(self, address):
+        self.window_info_calls.append(address)
+        return True
 
 
 class ControllerTests(unittest.TestCase):

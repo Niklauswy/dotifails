@@ -131,6 +131,8 @@ Scope {
         // is the capture size in device pixels; empty means the usual 480.
         function thumbs(addresses: string, width: string): string { return WindowTools.requestThumbs(addresses, width); }
         function locate(address: string): bool { return WindowTools.locate(address); }
+        // The bar's live window panel («winfo») for one window, used by Processes' app sheet.
+        function windowinfo(address: string): bool { return WindowTools.windowInfo(address); }
         // Super+Shift+Esc: ask over the active window whether to force it closed.
         function forceQuit(): bool { return ForceQuit.request(); }
         // Eyedropper without the Colors panel (Super+Shift+C).

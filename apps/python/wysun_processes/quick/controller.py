@@ -984,6 +984,14 @@ class ProcessesController(QObject):
             self.message.emit('No se pudo localizar: el shell no responde.', False)
 
     @Slot(str)
+    def showWindowInfo(self, address):
+        """The app sheet's «En vivo»: the shell's live window panel for one window (its bar «winfo» popout)."""
+        if not address:
+            self.message.emit('No tiene ventana abierta.', False)
+        elif not self.hypr.window_info(address):
+            self.message.emit('No se pudo abrir la vista en vivo: el shell no responde.', False)
+
+    @Slot(str)
     def selectApp(self, app):
         self.setMode('apps')
         kids = self._children(app)

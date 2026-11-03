@@ -130,6 +130,12 @@ class Hypr:
         done = self._call(['wysun-shell', 'locate', _checked(address)])
         return bool(done) and done.stdout.strip() == 'true'
 
+    def window_info(self, address):
+        """Opens the shell's live window panel (`wysun-shell windowinfo`) for `address`, on the screen that shows
+        Processes. False when the shell cannot (it validates the address again and knows the window)."""
+        done = self._call(['wysun-shell', 'windowinfo', _checked(address)])
+        return bool(done) and done.stdout.strip() == 'true'
+
 
 def windows_by_app(windows, rows):
     """`{app: [window, …]}`: each window belongs to the app of its process (or of its nearest known ancestor)."""

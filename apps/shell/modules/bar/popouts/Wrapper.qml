@@ -31,6 +31,10 @@ Item {
 
     property string detachedMode
     property string queuedMode
+    // The window the detached «winfo» panel shows. `null` follows the active toplevel (the bar's usual behaviour);
+    // `openWinfo()` pins one window until the popout closes, which restores the default.
+    property var winfoClient: null
+    readonly property var winfoTarget: winfoClient ?? Hypr.activeToplevel
 
     // Dummy object so Tokens attached prop resolves to global config
     // Anim configs are not per-monitor
@@ -47,6 +51,7 @@ Item {
     function detach(mode: string): void {
         setAnims(true);
         if (mode === "winfo") {
+            winfoClient = null;                 // the bar's own path follows the active window
             detachedMode = mode;
         } else {
             queuedMode = mode;
@@ -56,9 +61,16 @@ Item {
         focus = true;
     }
 
+    // Opens the detached «winfo» panel for one window (Wysun Processes' «En vivo»), on this screen's popouts.
+    function openWinfo(client): void {
+        detach("winfo");
+        winfoClient = client ?? null;
+    }
+
     function close(): void {
         hasCurrent = false;
         detachedMode = "";
+        winfoClient = null;                     // back to Hypr.activeToplevel for the next bar opening
     }
 
     implicitWidth: nonAnimWidth
@@ -123,7 +135,7 @@ Item {
 
         sourceComponent: WindowInfo {
             screen: root.screen
-            client: Hypr.activeToplevel
+            client: root.winfoTarget
         }
     }
 

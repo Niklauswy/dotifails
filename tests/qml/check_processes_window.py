@@ -246,6 +246,23 @@ class WindowTests(unittest.TestCase):
         self.assertFalse(sheet.property('opened'))
         self.assertEqual(self.c.property('previewAddress'), '')
 
+    def test_apps_sheet_opens_the_live_window_panel(self):
+        self.c.hypr.window_info_calls.clear()
+        self.key(self.Qt.Key_3, '3')
+        self.h.pump(60)
+        self.key(self.Qt.Key_Return)
+        button = self.find('windowInfoButton')
+        self.assertIsNotNone(button)
+        self.assertEqual(button.property('text'), 'En vivo')
+        self.assertEqual(button.property('icon'), 'live_tv')
+        self.key(self.Qt.Key_E, 'e')                       # the sheet's V-free shortcut
+        self.assertEqual(self.c.hypr.window_info_calls, ['0xaa'])
+        from PySide6.QtCore import QMetaObject, Qt
+        QMetaObject.invokeMethod(button, 'clicked', Qt.DirectConnection)
+        self.h.pump(30)
+        self.assertEqual(self.c.hypr.window_info_calls, ['0xaa', '0xaa'])
+        self.key(self.Qt.Key_Escape)
+
     def test_apps_rows_ask_for_a_capture_of_their_own_size(self):
         self.key(self.Qt.Key_3, '3')
         self.h.pump(60)

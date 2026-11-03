@@ -32,6 +32,13 @@ class LogicTests(unittest.TestCase):
         self.assertTrue(js('return sameAddress("0x55dE", "55de")'))
         self.assertFalse(js('return sameAddress("0x55de", "55df")'))
 
+    def test_one_address_actions_accept_exactly_one_valid_address(self):
+        self.assertEqual(js('return singleAddress("0xaa")'), 'aa')
+        self.assertEqual(js('return singleAddress(" 0xAB ")'), 'ab')
+        self.assertEqual(js('return singleAddress("0xaa,0xbb")'), '')
+        self.assertEqual(js('return singleAddress("0xaa; rm -rf")'), '')
+        self.assertEqual(js('return singleAddress("")'), '')
+
     def test_halo_on_the_monitor_of_the_window(self):
         out = js('''return placement({at: [1992, 22], size: [1826, 1036]}, {name: "DP-2", x: 1920, y: 0, width: 1920, height: 1080},
                                     {name: "DP-2", activeWs: 8}, 8)''')
@@ -94,6 +101,24 @@ class WiringTests(unittest.TestCase):
         module = (SHELL / 'modules/windowtools/WindowTools.qml').read_text()
         self.assertNotIn('capsule', module)
         self.assertIn('mask: Region {}', module)                  # every click passes through
+
+    def test_windowinfo_opens_the_bar_panel_for_a_validated_window(self):
+        qml = (SHELL / 'wysun/WysunBridge.qml').read_text()
+        self.assertIn('function windowinfo(address: string): bool', qml)
+        self.assertIn('WindowTools.windowInfo(address)', qml)
+        script = (ROOT / 'bin/wysun-shell').read_text()
+        self.assertIn('windowinfo) shift; exec "$runtime" ipc call wysunShell windowinfo', script)
+        service = (SHELL / 'services/WindowTools.qml').read_text()
+        self.assertIn('function windowInfo(address): bool', service)
+        self.assertIn('Logic.singleAddress(address)', service)
+        self.assertIn('"wysun-processes"', service)               # picks the monitor showing Processes
+        self.assertIn('popouts.openWinfo(t)', service)
+        wrapper = (SHELL / 'modules/bar/popouts/Wrapper.qml').read_text()
+        self.assertIn('property var winfoClient: null', wrapper)
+        self.assertIn('readonly property var winfoTarget: winfoClient ?? Hypr.activeToplevel', wrapper)
+        self.assertIn('function openWinfo(client): void', wrapper)
+        self.assertIn('client: root.winfoTarget', wrapper)
+        self.assertIn('winfoClient = null;', wrapper)             # reset on close (and on the bar's own path)
 
     def test_service_caches_per_address_and_width(self):
         service = (SHELL / 'services/WindowTools.qml').read_text()

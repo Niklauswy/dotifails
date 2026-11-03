@@ -31,7 +31,7 @@ Singleton {
     }
 
     function locate(address): bool {
-        const t = toplevel(address);
+        const t = toplevel(Logic.singleAddress(address));
         if (!t)
             return false;
         target = t;
@@ -55,6 +55,32 @@ Singleton {
             return;
         const address = "0x" + String(target.address).replace(/^0x/, "");
         Hypr.dispatch(Hypr.usingLua ? `hl.dsp.focus({window="address:${address}"})` : `focuswindow address:${address}`);
+    }
+
+    // The screen whose shell shows Wysun Processes (its bar and popouts): the monitor of its window, else the
+    // focused one. The window's Wayland app id is `wysun-processes` (window.py sets it before mapping).
+    function screenForMonitor(monitor): ShellScreen {
+        if (!monitor)
+            return null;
+        return Quickshell.screens.find(s => Hypr.monitorFor(s)?.name === monitor.name) ?? null;
+    }
+
+    function processesScreen(): ShellScreen {
+        const own = Hyprland.toplevels.values.find(t => t.lastIpcObject?.class === "wysun-processes");
+        return screenForMonitor(own?.monitor) ?? screenForMonitor(Hypr.focusedMonitor);
+    }
+
+    // Opens the bar's detached «winfo» (live preview + details) for one window, on the same screen as Processes.
+    function windowInfo(address): bool {
+        const t = toplevel(Logic.singleAddress(address));
+        if (!t)
+            return false;
+        const screen = processesScreen();
+        const popouts = screen ? ShellState.componentsFor(screen)?.panels?.popouts : null;
+        if (!popouts)
+            return false;
+        popouts.openWinfo(t);
+        return true;
     }
 
     // Returns the thumbnails already written at `width` (JSON {"0x…": path}) and asks for fresh ones of `text`'s
