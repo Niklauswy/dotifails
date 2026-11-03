@@ -160,7 +160,7 @@ function root(query, ctx, extra) {
     if (/^kill(\s|$)/i.test(q))
         return Quick.killRows(live.procs && live.procs.query === q.slice(4).trim() ? live.procs.items : [], q.length > 4);
     const ts = Search.terms(q);
-    let rows = Quick.rows(q, more);
+    let rows = Quick.runningRows(q, live.windows || [], live.names || {}).concat(Quick.rows(q, more));
     const calc = Calc.evaluate(q);
     if (calc)
         rows.push({kind: "calc", key: "calc", title: calc.result, subtitle: calc.expression, icon: "calculate", type: "Calculator", value: calc.value, expression: calc.expression, section: ""});

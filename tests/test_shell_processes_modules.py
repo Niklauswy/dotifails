@@ -71,6 +71,9 @@ class ShellModuleLoadTests(unittest.TestCase):
         present = [m for m in MODULES if (SHELL / 'modules' / m).is_dir()]
         self.probe(present, [f'import qs.modules.{m}' for m in present], [f'    {names[m]} {{}}' for m in present])
 
+    def test_launcher_process_pane_loads(self):
+        self.probe('all', ['import qs.modules.launcher'], ['    property Item processPane: ProcessPane {}'])
+
     def test_alert_settings_page_loads(self):
         # The section of Settings > Notifications that writes ~/.config/wysun/processes.json.
         self.probe('all', ['import qs.modules.nexus.pages.services'],

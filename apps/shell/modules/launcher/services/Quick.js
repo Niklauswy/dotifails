@@ -181,8 +181,43 @@ function killRows(items, wanted) {
         if (f.length < 4 || PROTECTED.indexOf(f[0].toLowerCase()) >= 0)
             return;
         var count = Number(f[1]);
-        rows.push({kind: "kill", key: "kill:" + f[0], title: "Quit " + f[0], subtitle: count + (count === 1 ? " process" : " processes") + " · " + f[2] + "% CPU · " + f[3] + " MB",
-                   icon: "dangerous", type: "Quit", name: f[0], section: wanted ? "Matching processes" : "Using the most CPU"});
+        rows.push({kind: "kill", key: "kill:" + f[0], title: "Cerrar " + f[0], subtitle: count + (count === 1 ? " proceso" : " procesos") + " · " + f[2] + " % CPU · " + f[3] + " MB",
+                   icon: "dangerous", type: "Cerrar", name: f[0], section: wanted ? "Procesos que coinciden" : "Usando más CPU"});
+    });
+    return rows;
+}
+
+// Open apps whose class, title or app name matches `q` (2+ letters), one row per app with all its windows: the
+// «En ejecución» group, shown with the live process pane (ProcessPane.qml). `windows` = [{address, cls, title,
+// pid, workspace}], `names` = class -> app name. The session itself is never offered.
+function runningRows(q, windows, names) {
+    var t = String(q || "").trim().toLowerCase();
+    if (t.length < 2)
+        return [];
+    var apps = {}, order = [];
+    (windows || []).forEach(function (w) {
+        var cls = String(w.cls || "");
+        if (!cls || PROTECTED.indexOf(cls.toLowerCase()) >= 0)
+            return;
+        if (!apps[cls]) {
+            apps[cls] = {cls: cls, titles: [], addresses: [], pids: [], workspace: w.workspace};
+            order.push(cls);
+        }
+        var a = apps[cls];
+        a.titles.push(String(w.title || ""));
+        a.addresses.push(w.address);
+        if (a.pids.indexOf(w.pid) < 0)
+            a.pids.push(w.pid);
+    });
+    var rows = [];
+    order.forEach(function (cls) {
+        var a = apps[cls], name = (names || {})[cls] || cls;
+        var hay = (cls + " " + name + " " + a.titles.join(" ")).toLowerCase();
+        if (hay.indexOf(t) < 0 || rows.length >= 4)
+            return;
+        rows.push({kind: "proc", key: "proc:" + cls, title: name, subtitle: a.addresses.length === 1 ? (a.titles[0] || "abierta") : a.addresses.length + " ventanas",
+                   icon: "memory", type: "En ejecución", app: cls, name: name, address: a.addresses[0], addresses: a.addresses,
+                   pids: a.pids, workspace: a.workspace, windowTitle: a.titles[0] || "", section: "En ejecución"});
     });
     return rows;
 }

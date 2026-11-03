@@ -14,7 +14,8 @@ function primaryLabel(row) {
     case "calc": case "clip": case "history": case "translate": case "variant": case "value": return "Copy";
     case "link": return "Open";
     case "timer": return "Start";
-    case "kill": return "Quit";
+    case "kill": return "Cerrar";
+    case "proc": return "Ir a la ventana";
     case "run": case "openwith": return row.kind === "run" ? "Run" : "Open";
     case "cmd": return row.view ? "Open" : "Run";
     case "web": return "Search";

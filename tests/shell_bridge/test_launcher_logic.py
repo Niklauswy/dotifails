@@ -18,7 +18,7 @@ class LauncherLogicTests(unittest.TestCase):
             text = (SERVICES / name).read_text().replace('.pragma library', '')
             parts.append('\n'.join(l for l in text.splitlines() if not l.startswith('.import')))
         # Results.js uses Search./Calc. namespaces from .import; provide them over the shared scope.
-        script = '\n'.join(parts) + '\nvar Search = {terms, rank, rankScored, score, termScore}; var Usage = {normal, frecency, hourAffinity, record, queryBoosts, booster, suggested, suggestionScore, fromRecent}; var Calc = {evaluate}; var Files = {isImage, icon, row, isEditable}; var Quick = {link, duration, timer, tools, killRows, rows, base64, unbase64}; var Translate = {splitQuery, guessTarget, otherTarget, languageName, googleUrl, memoryUrl, parseGoogle, parseMemory, openUrl, atUrl, parseAt, parseSuggest, suggestUrl, sameText};\n' + body
+        script = '\n'.join(parts) + '\nvar Search = {terms, rank, rankScored, score, termScore}; var Usage = {normal, frecency, hourAffinity, record, queryBoosts, booster, suggested, suggestionScore, fromRecent}; var Calc = {evaluate}; var Files = {isImage, icon, row, isEditable}; var Quick = {link, duration, timer, tools, killRows, runningRows, rows, base64, unbase64}; var Translate = {splitQuery, guessTarget, otherTarget, languageName, googleUrl, memoryUrl, parseGoogle, parseMemory, openUrl, atUrl, parseAt, parseSuggest, suggestUrl, sameText};\n' + body
         result = subprocess.run([node], input=script, capture_output=True, text=True, timeout=10)
         self.assertEqual(result.returncode, 0, result.stderr)
 
@@ -255,8 +255,8 @@ check(Quick.base64('hola ñ') === 'aG9sYSDDsQ==' && Quick.unbase64('aG9sYSDDsQ==
 check(first('b64 hola ñ').value === 'aG9sYSDDsQ==' && first('urlenc a b&c').value === 'a%20b%26c' && first('urldec a%20b').value === 'a b', 'encoders');
 check(first('ts 1700000000').value.indexOf('2023-11-1') === 0 && first('ts').value === String(Math.floor(now / 1000)), 'timestamps');
 var kill = root('kill bra', base, {live: {procs: {query: 'bra', items: ['brave\t19\t139\t3425', 'Hyprland\t1\t15\t116', 'brave-browser-s\t1\t0\t3']}}});
-check(kill.length === 2 && kill[0].kind === 'kill' && kill[0].name === 'brave' && kill[0].subtitle === '19 processes · 139% CPU · 3425 MB' && kill[0].section === 'Matching processes', 'kill rows, the session is never offered: ' + JSON.stringify(kill.map(r => r.name)));
-check(root('kill', base, {live: {procs: {query: '', items: ['brave\t19\t139\t3425']}}})[0].section === 'Using the most CPU', 'bare kill lists the busiest');
+check(kill.length === 2 && kill[0].kind === 'kill' && kill[0].name === 'brave' && kill[0].subtitle === '19 procesos · 139 % CPU · 3425 MB' && kill[0].section === 'Procesos que coinciden', 'kill rows, the session is never offered: ' + JSON.stringify(kill.map(r => r.name)));
+check(root('kill', base, {live: {procs: {query: '', items: ['brave\t19\t139\t3425']}}})[0].section === 'Usando más CPU', 'bare kill lists the busiest');
 check(root('kill bra', base, {live: {procs: {query: 'old', items: ['brave\t19\t139\t3425']}}}).length === 0, 'stale process lists are not shown');
 check(root('killer queen', base, more).some(r => r.kind !== 'kill'), 'only the word kill starts it');
 var order = root('fire.com', base, more);

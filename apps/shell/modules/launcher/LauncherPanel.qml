@@ -84,7 +84,10 @@ Item {
     readonly property var results: current.id === "root" ? (query.trim() === "" ? Results.keepOrder(suggestSnapshot, LauncherIndex.context.apps.concat(LauncherIndex.context.commands, LauncherIndex.context.settings)) : Results.root(query, LauncherIndex.context, extrasFor(query.trim()))) : Results.view(current.id, query, LauncherIndex.context, current.target, filter)
     readonly property var items: flatten(results)
     readonly property var row: items[selected] ?? null
-    readonly property bool previewOn: !!row && ["file", "clip"].includes(row.kind)
+    readonly property bool filePreview: !!row && ["file", "clip"].includes(row.kind)
+    readonly property bool processPreview: !!row && ["proc", "kill"].includes(row.kind)
+    readonly property bool previewOn: filePreview || processPreview
+    onRowChanged: ProcStats.track(row)
     readonly property bool busy: (LauncherIndex.filesBusy && (current.id === "root" || current.id === "files" || current.id === "browse") && query.trim() !== "") || (current.id === "browse" && LauncherIndex.browseBusy)
 
     readonly property var placeholders: ({
@@ -300,6 +303,8 @@ Item {
         default:
             if (/^kill(\s|$)/i.test(q))
                 extra.live = {procs: {query: Suggest.query, items: Suggest.items}};
+            else if (q.length >= 2)
+                extra.live = runningWindows();
         }
         return extra;
     }
@@ -439,6 +444,42 @@ Item {
             Quickshell.execDetached(argv);
     }
 
+    // Open windows for «En ejecución» (Quick.runningRows): class, title, pid and workspace, with app names.
+    function runningWindows(): var {
+        const windows = [], names = {};
+        for (const t of Hypr.toplevels.values) {
+            const ipc = t.lastIpcObject;
+            if (!ipc?.class)
+                continue;
+            windows.push({address: "0x" + String(t.address).replace(/^0x/, ""), cls: ipc.class, title: ipc.title ?? "", pid: ipc.pid ?? 0,
+                          workspace: ipc.workspace?.id ?? 0});
+            if (!(ipc.class in names))
+                names[ipc.class] = DesktopEntries.heuristicLookup(ipc.class)?.name ?? ipc.class;
+        }
+        return {windows: windows, names: names};
+    }
+
+    // Ctrl+W closes (each window gracefully; a kill row's processes with SIGTERM), Ctrl+Shift+W forces (SIGKILL).
+    // Both ask for a second press first.
+    function closeProcessRow(r: var, force: bool): void {
+        const key = (force ? "force:" : "close:") + r.key;
+        if (confirmKey !== key) {
+            confirmKey = key;
+            return;
+        }
+        if (r.kind === "proc") {
+            if (force)
+                for (const pid of r.pids)
+                    Quickshell.execDetached(["kill", "-KILL", String(pid)]);
+            else
+                for (const address of r.addresses)
+                    Hypr.dispatch(Hypr.usingLua ? `hl.dsp.window.close({window="address:${address}"})` : `closewindow address:${address}`);
+        } else {
+            Quickshell.execDetached(["pkill", force ? "-KILL" : "-TERM", "-x", r.name]);
+        }
+        close();
+    }
+
     function showWindow(address: string): void {
         Quickshell.execDetached(["wysun", "activate", address.startsWith("0x") ? address : "0x" + address]);
     }
@@ -502,6 +543,10 @@ Item {
             return;
         case "timer":
             Timers.start(r.seconds, r.label);
+            close();
+            return;
+        case "proc":
+            showWindow(r.address);
             close();
             return;
         case "kill":
@@ -661,6 +706,22 @@ Item {
             else if (e.key === Qt.Key_Tab || e.key === Qt.Key_Backtab || e.key === Qt.Key_Escape || e.key === Qt.Key_Left) previewFocus = false;
             else e.accepted = false;
             return;
+        }
+        if (processPreview && ctrl) {
+            if (e.key === Qt.Key_Return || e.key === Qt.Key_Enter) {
+                Quickshell.execDetached(["wysun", "processes", row.kind === "proc" ? row.app : row.name]);
+                close();
+                return;
+            }
+            if (e.key === Qt.Key_L && row.kind === "proc") {
+                WindowTools.locate(row.address);
+                close();
+                return;
+            }
+            if (e.key === Qt.Key_W) {
+                closeProcessRow(row, (e.modifiers & Qt.ShiftModifier) !== 0);
+                return;
+            }
         }
         if (e.key === Qt.Key_Escape) {
             if (stack.length > 1) pop(); else close();
@@ -1277,16 +1338,32 @@ Item {
                 }
             }
 
+            ProcessPane {
+                x: body.listWidth + Tokens.spacing.medium
+                width: body.width - x
+                height: parent.height - Tokens.padding.small
+                opacity: root.processPreview ? 1 : 0
+                visible: opacity > 0.01
+                row: root.processPreview ? root.row : null
+                panel: root
+
+                Behavior on opacity {
+                    Anim {
+                        type: Anim.DefaultEffects
+                    }
+                }
+            }
+
             PreviewPane {
                 id: preview
 
                 x: body.listWidth + (root.expandedPreview ? 0 : Tokens.spacing.medium)
                 width: body.width - x
                 height: parent.height - Tokens.padding.small
-                opacity: root.previewOn ? 1 : 0
+                opacity: root.filePreview ? 1 : 0
                 visible: opacity > 0.01
                 scale: root.scale
-                row: root.previewOn ? root.row : null
+                row: root.filePreview ? root.row : null
                 focusedPane: root.previewFocus
                 expanded: root.expandedPreview
                 onExpandRequested: root.expandedPreview = true
