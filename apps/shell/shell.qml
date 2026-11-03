@@ -20,6 +20,7 @@ import qs.modules.background
 import qs.modules.drawers
 import qs.modules.identify
 import qs.modules.windowtools
+import qs.modules.anr
 import qs.modules.launcher
 import qs.modules.study
 import qs.modules.aiusage as AiUsagePanel
@@ -60,6 +61,7 @@ ShellRoot {
     AreaPicker {}
     Identify {}
     WindowTools {}
+    Anr {}
     RecordingHud {}
     RecordingBorder {}
     CameraMarker {}
