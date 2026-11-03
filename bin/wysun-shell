@@ -12,6 +12,7 @@ case "${1:-}" in
     identify) exec "$runtime" ipc call wysunShell identify ;;
     thumbs) shift; exec "$runtime" ipc call wysunShell thumbs "${1:-}" ;;
     locate) shift; exec "$runtime" ipc call wysunShell locate "${1:-}" ;;
+    forcequit) exec "$runtime" ipc call wysunShell forceQuit ;;
     color-pick) exec "$runtime" ipc call wysunShell pickColor ;;
     theme) shift; exec "$runtime" ipc call wysunShell theme "$@" ;;
     theme-settings) shift; exec "$runtime" ipc call wysunShell openThemeSettings "$@" ;;

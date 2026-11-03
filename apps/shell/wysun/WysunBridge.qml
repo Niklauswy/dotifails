@@ -130,6 +130,8 @@ Scope {
         // Wysun Processes: thumbnails of windows (JSON {address: path}) and locate-on-screen.
         function thumbs(addresses: string): string { return WindowTools.requestThumbs(addresses); }
         function locate(address: string): bool { return WindowTools.locate(address); }
+        // Super+Shift+Esc: ask over the active window whether to force it closed.
+        function forceQuit(): bool { return ForceQuit.request(); }
         // Eyedropper without the Colors panel (Super+Shift+C).
         function pickColor(): bool { return colors.pick(); }
         function close(): void { root.close(); }

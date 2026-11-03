@@ -171,6 +171,7 @@ hl.bind("SUPER + CTRL + ALT + space", hl.dsp.exec_cmd("notify-send -a Wysun -u l
 hl.bind("SUPER + SHIFT + space", hl.dsp.exec_cmd("wysun shell menu"), {description="Wysun | extra | Alias adicional sin desplazar baseline"})
 hl.bind("SUPER + E", hl.dsp.exec_cmd("wysun files"), {description="Wysun | extra | Alias adicional sin desplazar baseline"})
 hl.bind("SUPER + CTRL + ALT + L", hl.dsp.exec_cmd("wysun lock"), {description="Wysun | extra | Alias adicional sin desplazar baseline"})
+hl.bind("SUPER + SHIFT + Escape", hl.dsp.exec_cmd("wysun-shell forcequit"), {description="Wysun | extra | Forzar el cierre de la ventana activa (pregunta antes)"})
 hl.bind("SUPER + CTRL + ALT + Escape", hl.dsp.exec_cmd("wysun recover"), {description="Wysun | extra | Recuperación: cierra overlays de captura y del shell y relanza el shell si cayó; no depende del shell"})
 hl.bind("SUPER + SHIFT + R", hl.dsp.exec_cmd("wysun-shell record toggle"), {description="Wysun | extra | Alias de grabar pantalla"})
 hl.bind("SUPER + Q", hl.dsp.window.close(), {description="Wysun | extra | Alias adicional sin desplazar baseline"})
