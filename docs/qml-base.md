@@ -137,6 +137,9 @@ y objetos con propiedades y señales. QML solo presenta.
 | `Surface` | Contenedor con rol, elevación (sombra y tinte tonal), borde y estado deshabilitado | — | niveles 0-5 |
 | `StateLayer`, `FocusRing` | Hacer interactivo un elemento propio: capa 8/12/12/16 %, onda y anillo de foco de teclado | Componentes que ya los traen | anillo 3 px a 2 px |
 | `OverlayLayer` | El host de las superposiciones; uno al final del elemento raíz | — | — |
+| `RollingNumber` | Cifras en vivo que cambian a menudo (CPU, memoria, recuentos): los dígitos ruedan con el muelle | Texto estático | rol de tipo |
+| `LiveChart` | Series temporales del último minuto; desplazamiento continuo, guía al pasar el cursor (`scrub`), marcas de picos | Comparar categorías | — |
+| `StateShape` | El estado de un proceso o elemento vivo como forma M3 que se transforma (trabajando, en espera, pausado…) | Iconos de lista | 56 por defecto |
 
 La galería (`python3 -m wysun_qml`) muestra cada componente con sus variantes y estados; es la referencia visual.
 

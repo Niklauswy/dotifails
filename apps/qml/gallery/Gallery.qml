@@ -19,7 +19,8 @@ Window {
         {id: "lists", icon: "list", label: "Listas y tarjetas", badge: 10000},
         {id: "navigation", icon: "menu_open", label: "Navegación"},
         {id: "overlays", icon: "layers", label: "Superposiciones"},
-        {id: "empty", icon: "inbox", label: "Estados vacíos"}
+        {id: "empty", icon: "inbox", label: "Estados vacíos"},
+        {id: "live", icon: "monitoring", label: "Datos en vivo"}
     ]
     readonly property var files: ({
             theme: "ThemePage.qml",
@@ -30,7 +31,8 @@ Window {
             lists: "ListsPage.qml",
             navigation: "NavigationPage.qml",
             overlays: "OverlaysPage.qml",
-            empty: "EmptyPage.qml"
+            empty: "EmptyPage.qml",
+            live: "LivePage.qml"
         })
     readonly property Item currentPage: pages.currentItem
 

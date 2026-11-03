@@ -48,3 +48,6 @@ Snackbar 1.0 feedback/Snackbar.qml
 SnackbarHost 1.0 feedback/SnackbarHost.qml
 Tooltip 1.0 feedback/Tooltip.qml
 Slider 1.0 controls/Slider.qml
+RollingNumber 1.0 feedback/RollingNumber.qml
+LiveChart 1.0 feedback/LiveChart.qml
+StateShape 1.0 shapes/StateShape.qml
