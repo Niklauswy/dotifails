@@ -54,10 +54,38 @@ class RunningRowsTests(unittest.TestCase):
 
 class ProcLogicTests(unittest.TestCase):
     PS = '"1 0 0.0 1000 systemd\\n10 1 20.5 300000 firefox\\n11 10 9.5 200000 Isolated Web Co\\n12 11 1.0 1000 forkserver\\n20 1 3.0 50000 kitty\\n"'
+    TREE = ('"1 0 0.0 1000 init\\n10 1 20.5 300000 firefox\\n11 10 9.5 200000 Isolated Web Co\\n'
+            '12 11 1.0 1000 forkserver\\n13 10 0.5 2000 quickshell\\n20 1 3.0 50000 kitty\\n'
+            '21 20 0.1 1000 sh\\n22 20 0.4 3000 helper\\n"')
 
     def test_parse_and_aggregate_a_tree(self):
         out = js(f'const t = parsePs({self.PS}); return aggregate(t, [10])')
         self.assertEqual(out, {'cpu': 31.0, 'memory': 501000 * 1024, 'count': 3})
+
+    def test_windowless_pids_are_the_tree_without_its_windows(self):
+        out = js(f'const t = parsePs({self.TREE}); return windowlessPids(t, [10], [10], PROTECTED).sort((a, b) => a - b)')
+        self.assertEqual(out, [11, 12])
+
+    def test_window_pids_are_excluded(self):
+        out = js(f'const t = parsePs({self.TREE}); return windowlessPids(t, [10], [10, 11], PROTECTED).sort((a, b) => a - b)')
+        self.assertEqual(out, [12])
+
+    def test_protected_names_are_never_returned(self):
+        out = js(f'const t = parsePs({self.TREE}); return windowlessPids(t, [10, 20], [10, 20], PROTECTED).sort((a, b) => a - b)')
+        self.assertEqual(out, [11, 12, 22])
+
+    def test_pid_one_is_never_returned(self):
+        out = js(f'const t = parsePs({self.TREE}); return windowlessPids(t, [1], [], PROTECTED)')
+        self.assertNotIn(1, out)
+        self.assertIn(10, out)
+
+    def test_force_set_is_the_whole_tree_minus_protected(self):
+        out = js(f'const t = parsePs({self.TREE}); return treePids(t, [10, 20], PROTECTED).sort((a, b) => a - b)')
+        self.assertEqual(out, [10, 11, 12, 20, 22])
+
+    def test_sample_freshness(self):
+        out = js('return [isFresh(100, 101.5, 2), isFresh(100, 102, 2), isFresh(100, 103, 2), isFresh(0, 100, 2)]')
+        self.assertEqual(out, [True, True, False, False])
 
     def test_by_name(self):
         out = js(f'const t = parsePs({self.PS}); return byName(t, "kitty")')
@@ -83,6 +111,26 @@ class WiringTests(unittest.TestCase):
         self.assertIn('ScreencopyView', pane)
         for label in ('Ir a la ventana', 'Abrir en Processes', 'Localizar en pantalla', 'Cerrar', 'Forzar cierre'):
             self.assertIn(label, pane, label)
+
+    def test_close_uses_only_a_fresh_process_table(self):
+        panel = (LAUNCHER / 'LauncherPanel.qml').read_text()
+        start = panel.index('function closeProcessRow')
+        body = panel[start:panel.index('function showWindow', start)]
+        self.assertNotIn('ProcStats.table', body)
+        self.assertIn('ProcStats.freshTable(', body)
+
+    def test_stopping_tracking_drops_the_process_sample(self):
+        stats = (LAUNCHER / 'services/ProcStats.qml').read_text()
+        start = stats.index('function track(')
+        body = stats[start:stats.index('function sample(', start)]
+        for cleared in ('table = null', 'previous = null', 'stamp = 0'):
+            self.assertIn(cleared, body)
+
+    def test_a_late_sample_does_not_restore_a_stopped_table(self):
+        stats = (LAUNCHER / 'services/ProcStats.qml').read_text()
+        start = stats.index('onStreamFinished:')
+        body = stats[start:stats.index('root.current = s', start)]
+        self.assertLess(body.index('if (!t)'), body.index('root.table = table'))
 
 
 if __name__ == '__main__':

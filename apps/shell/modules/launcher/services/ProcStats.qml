@@ -15,12 +15,16 @@ Singleton {
     property var current: ({cpu: 0, memory: 0, count: 0})
     property var history: []
     property var previous: null
+    property var table: null             // latest parsed `ps`; only freshTable() hands it out
     property real stamp: 0
 
     function track(row: var): void {
         const key = row?.key ?? "";
         if (!row || !["proc", "kill"].includes(row.kind)) {
             tracked = null;
+            table = null;
+            previous = null;
+            stamp = 0;
             return;
         }
         if (tracked?.key !== key) {
@@ -36,6 +40,11 @@ Singleton {
         ps.running = true;
     }
 
+    // The latest sample, only while it is at most `maxAgeSeconds` old: a stale table may hold reused pids.
+    function freshTable(maxAgeSeconds: real): var {
+        return Logic.isFresh(stamp, Date.now() / 1000, maxAgeSeconds) ? table : null;
+    }
+
     Timer {
         interval: 1000
         running: root.tracked !== null
@@ -49,14 +58,16 @@ Singleton {
         command: ["ps", "-eo", "pid=,ppid=,cputimes=,rss=,comm="]
         stdout: StdioCollector {
             onStreamFinished: {
-                const now = Date.now() / 1000;
-                const table = Logic.withRates(Logic.parsePs(text), root.previous, root.stamp ? now - root.stamp : 0);
-                root.previous = Logic.parsePs(text);
-                root.stamp = now;
                 const t = root.tracked;
                 if (!t)
                     return;
-                const s = t.pids ? Logic.aggregate(table, t.pids) : Logic.byName(table, t.name);
+                const now = Date.now() / 1000;
+                const table = Logic.parsePs(text);
+                root.table = table;
+                const rates = Logic.withRates(table, root.previous, root.stamp ? now - root.stamp : 0);
+                root.previous = table;
+                root.stamp = now;
+                const s = t.pids ? Logic.aggregate(rates, t.pids) : Logic.byName(rates, t.name);
                 root.current = s;
                 root.history = Logic.pushSample(root.history, s.cpu);
             }

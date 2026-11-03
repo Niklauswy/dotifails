@@ -14,6 +14,8 @@ import qs.services
 import qs.modules.launcher.services
 import "services/Actions.js" as Actions
 import "services/Files.js" as Files
+import "services/ProcLogic.js" as Logic
+import "services/Quick.js" as Quick
 import "services/Results.js" as Results
 import "services/Translate.js" as Translate
 
@@ -459,8 +461,10 @@ Item {
         return {windows: windows, names: names};
     }
 
-    // Ctrl+W closes (each window gracefully; a kill row's processes with SIGTERM), Ctrl+Shift+W forces (SIGKILL).
-    // Both ask for a second press first.
+    // Ctrl+W closes a running app (every window, then SIGTERM to the processes of its trees that own no window, when a
+    // `ps` sample at most 2 s old is available) or a kill row's processes (SIGTERM); Ctrl+Shift+W forces (SIGKILL to
+    // the whole tree, or only its window pids without a fresh sample). Never a PROTECTED name, init or pid <= 1. Both
+    // ask for a second press first.
     function closeProcessRow(r: var, force: bool): void {
         const key = (force ? "force:" : "close:") + r.key;
         if (confirmKey !== key) {
@@ -468,12 +472,19 @@ Item {
             return;
         }
         if (r.kind === "proc") {
-            if (force)
-                for (const pid of r.pids)
+            const table = ProcStats.freshTable(2);
+            if (force) {
+                // Without a sample yet only the pids that own windows are known.
+                const pids = table ? Logic.treePids(table, r.pids, Quick.PROTECTED) : r.pids.filter(pid => pid > 1);
+                for (const pid of pids)
                     Quickshell.execDetached(["kill", "-KILL", String(pid)]);
-            else
+            } else {
                 for (const address of r.addresses)
                     Hypr.dispatch(Hypr.usingLua ? `hl.dsp.window.close({window="address:${address}"})` : `closewindow address:${address}`);
+                if (table)
+                    for (const pid of Logic.windowlessPids(table, r.pids, r.pids, Quick.PROTECTED))
+                        Quickshell.execDetached(["kill", "-TERM", String(pid)]);
+            }
         } else {
             Quickshell.execDetached(["pkill", force ? "-KILL" : "-TERM", "-x", r.name]);
         }
