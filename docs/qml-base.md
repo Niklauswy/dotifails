@@ -1,8 +1,8 @@
 # Base QML compartida (WysunM3)
 
 `apps/qml/WysunM3` es la biblioteca de componentes Material 3 Expressive sobre la que se escriben las apps QML de
-Wysun (Music, Files, Player y los ajustes del Recorder; el instalador se queda en Widgets). Este documento explica qué ofrece, cuándo
-usar cada pieza y cómo ampliarla. Diseño de origen: `docs/superpowers/specs/2026-10-26-wysun-qml-music-files-design.md`.
+Wysun (Music, Files, Player, Processes y los ajustes del Recorder; el instalador se queda en Widgets). Este documento
+explica qué ofrece, cuándo usar cada pieza y cómo ampliarla. Diseño de origen: `docs/superpowers/specs/2026-10-26-wysun-qml-music-files-design.md`.
 
 ## Qué es y qué no es
 
@@ -137,10 +137,10 @@ y objetos con propiedades y señales. QML solo presenta.
 | `Surface` | Contenedor con rol, elevación (sombra y tinte tonal), borde y estado deshabilitado | — | niveles 0-5 |
 | `StateLayer`, `FocusRing` | Hacer interactivo un elemento propio: capa 8/12/12/16 %, onda y anillo de foco de teclado | Componentes que ya los traen | anillo 3 px a 2 px |
 | `OverlayLayer` | El host de las superposiciones; uno al final del elemento raíz | — | — |
-| `RollingNumber` | Cifras en vivo que cambian a menudo (CPU, memoria, recuentos): los dígitos ruedan con el muelle | Texto estático | rol de tipo |
-| `LiveChart` | Series temporales del último minuto; desplazamiento continuo, guía al pasar el cursor (`scrub`), marcas de picos | Comparar categorías | — |
+| `RollingNumber` | Cifras en vivo que cambian a menudo (CPU, memoria, recuentos): `text`, `role` y `color`; cada dígito es una columna 0-9 del ancho de un `0` que se desliza con `defaultSpatial` y salta con movimiento reducido | Texto estático | rol de tipo |
+| `LiveChart` | Series temporales: `series` (una lista por serie), `colors`, `maxValue`, `capacity` e `interval`; desplazamiento continuo, rejilla, relleno y punto opcionales, `scrub` con `formatValue`/`labelAt`, `markers` (`[{index, color, glyph}]`) y señal `hovered(index)` | Comparar categorías | — |
 | `ScrollIndicator` | Barra fina para un `Flickable` largo: aparece al desplazar o al pasar el cursor, el pulgar se arrastra | Listas cortas | ancho `spacing.medium` |
-| `StateShape` | El estado de un proceso o elemento vivo como forma M3 que se transforma (trabajando, en espera, pausado…) | Iconos de lista | 56 por defecto |
+| `StateShape` | El estado de un proceso o elemento vivo como forma M3 que se transforma: `state` (`R` trabajando, `S`/`D` en espera, `T`/`t` pausado, `Z` zombi, `G` grupo), `color`, `size` (56 por defecto) y el icono como contenido; la forma de `ShapeEmblem` morfa con `defaultSpatial` (con M3Shapes) | Iconos de lista | 56 por defecto |
 
 La galería (`python3 -m wysun_qml`) muestra cada componente con sus variantes y estados; es la referencia visual.
 
