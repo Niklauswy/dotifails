@@ -54,6 +54,14 @@ class RollingNumberTests(Base):
         self.assertEqual(self.h.call(n, 'shownText'), '9.8 GB')
         self.assertEqual(self.warnings, [])
 
+    def test_inactive_number_jumps_to_its_value(self):
+        view = self.h.view('RollingNumber { objectName: "n"; active: false; text: "42%" }', 200, 60)
+        n = self.child(view, 'n')
+        n.setProperty('text', '57%')
+        self.h.pump(1)
+        self.assertEqual(self.h.call(n, 'shownText'), '57%')
+        self.assertEqual(self.warnings, [])
+
 
 class LiveChartTests(Base):
     def test_scrub_reports_index_and_label(self):
@@ -73,6 +81,20 @@ class LiveChartTests(Base):
     def test_auto_maximum(self):
         view = self.h.view('LiveChart { objectName: "c"; anchors.fill: parent; series: [[2, 40, 8]] }', 200, 80)
         self.assertGreaterEqual(self.child(view, 'c').property('effectiveMax'), 40)
+
+    def test_inactive_chart_does_not_slide(self):
+        view = self.h.view('LiveChart { objectName: "c"; anchors.fill: parent; active: false; interval: 1000 }',
+                           200, 80)
+        chart = self.child(view, 'c')
+        self.h.bridge.setReducedMotion(False)
+        chart.setProperty('series', [[1, 2, 3, 4]])
+        self.h.pump(50)
+        self.assertEqual(chart.property('progress'), 1)
+        chart.setProperty('active', True)
+        chart.setProperty('series', [[2, 3, 4, 5]])
+        self.h.pump(50)
+        self.assertLess(chart.property('progress'), 1)
+        self.assertEqual(self.warnings, [])
 
 
 class StateShapeTests(Base):

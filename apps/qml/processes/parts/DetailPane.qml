@@ -13,10 +13,14 @@ Rectangle {
     readonly property bool group: !!item.group
     readonly property var hist: procs.history
     readonly property var info: procs.details
+    property bool live: true          // the page and the window can be seen: only then do its animations run
     property string metric: "cpu"
     property string tab: group ? "children" : "info"
-    readonly property var tabs: group ? [{id: "children", text: "Procesos"}, {id: "info", text: "Detalles"}]
-                                      : [{id: "info", text: "Detalles"}, {id: "threads", text: "Hilos"}, {id: "files", text: "Archivos"}, {id: "net", text: "Red"}]
+    readonly property var groupTabs: [{id: "children", text: "Procesos"}, {id: "info", text: "Detalles"}]
+    readonly property var processTabs: [{id: "info", text: "Detalles"}, {id: "threads", text: "Hilos"},
+                                         {id: "files", text: "Archivos"}, {id: "net", text: "Red"}]
+    // Stable arrays: a new `tabs` identity every tick rebuilt the TabBar and restarted its indicator springs forever.
+    readonly property var tabs: group ? groupTabs : processTabs
     readonly property color tintColour: (item.tint ?? "") !== "" ? Qt.color(item.tint) : Theme.m3primary
     readonly property color lineColour: Qt.tint(Theme.m3primary, Qt.alpha(tintColour, 0.6))
     readonly property var series: hist[metric] ?? []
@@ -212,6 +216,7 @@ Rectangle {
                     objectName: "detailFigure"
                     text: pane.metricValue()
                     role: "headline.medium"
+                    active: pane.live
                 }
 
                 Label {
@@ -243,6 +248,7 @@ Rectangle {
                 anchors.margins: Theme.padding.medium ?? 0
                 series: [pane.series]
                 colors: [pane.lineColour]
+                active: pane.live
                 interval: procs.interval
                 scrub: true
                 maxValue: pane.metric === "gpu" ? 100 : 0

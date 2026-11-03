@@ -12,6 +12,7 @@ Item {
     objectName: "appsPage"
 
     property bool shown
+    property bool live: true          // the page and the window can be seen: only then do its animations run
     property int selectedColumn: 0
     property int selectedRow: 0
     property bool systemExpanded: false

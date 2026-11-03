@@ -1,5 +1,6 @@
-// A live chart of the last `capacity` samples (CPU, memory, traffic…). New samples slide in continuously over
-// `interval` ms instead of jumping; the first series gets a gradient fill. With `scrub`, the pointer shows a guide,
+// A live chart of the last `capacity` samples (CPU, memory, traffic…). New samples slide in over the short effects token
+// (well under the one-second sampling interval, so the scene graph is idle between samples) instead of jumping;
+// the first series gets a gradient fill. With `scrub`, the pointer shows a guide,
 // a dot and a label (`formatValue(value)` and `labelAt(index)`), and `markers` ([{index, color, glyph}]) pin a
 // small badge on chosen samples (e.g. the app that caused a peak). Colours come from the theme (pass roles in
 // `colors`). Use for time series; not for comparing categories.
@@ -14,6 +15,7 @@ Item {
     property real maxValue: 0                       // 0: fit to the data
     property int capacity: 60
     property int interval: 1000
+    property bool active: true                      // false: new series jump into place without sliding (hidden page)
     property bool grid: true
     property bool fill: true
     property bool dot: true
@@ -60,14 +62,20 @@ Item {
         slide.stop();
         progress = 1;
     }
+    onActiveChanged: if (!active) {
+        slide.stop();
+        progress = 1;
+    }
     Component.onCompleted: _ready = true
     onHoverIndexChanged: hovered(hoverIndex)
     onSeriesChanged: {
-        if (Motion.reduced || !_ready) {
+        if (!active || Motion.reduced || !_ready) {
+            slide.stop();
             progress = 1;
             return;
         }
-        slide.stop();
+        if (slide.running)              // one bounded slide per sample, not restarted by every binding refresh
+            return;
         progress = 0;
         slide.start();
     }
@@ -84,7 +92,7 @@ Item {
         property: "progress"
         from: 0
         to: 1
-        duration: Motion.reduced ? 0 : root.interval
+        duration: Motion.ms("fastEffects")         // bounded: the window idles between one-second samples
         easing.type: Easing.Linear
     }
 

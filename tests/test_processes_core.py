@@ -14,7 +14,8 @@ from wysun_processes.core import actions, sampler, views  # noqa: E402
 
 
 def write_proc(root, pid, name='app', ppid=1, state='S', utime=0, rss_pages=100, threads=1, nice=0, start=1000,
-               uid=None, cgroup='0::/user.slice/user-1000.slice/user@1000.service/app.slice/app-firefox-123.scope\n'):
+               uid=None, cgroup='0::/user.slice/user-1000.slice/user@1000.service/app.slice/app-firefox-123.scope\n',
+               cmdline=None):
     folder = Path(root) / str(pid)
     folder.mkdir(parents=True, exist_ok=True)
     fields = [state, str(ppid)] + ['0'] * 9 + [str(utime), '0'] + ['0'] * 3 + [str(nice), str(threads), '0',
@@ -22,6 +23,8 @@ def write_proc(root, pid, name='app', ppid=1, state='S', utime=0, rss_pages=100,
     (folder / 'stat').write_text(f'{pid} ({name}) ' + ' '.join(fields) + '\n')
     (folder / 'cgroup').write_text(cgroup)
     (folder / 'io').write_text('read_bytes: 0\nwrite_bytes: 0\n')
+    if cmdline is not None:
+        (folder / 'cmdline').write_bytes(cmdline)
     return folder
 
 
@@ -107,6 +110,23 @@ class SamplerTests(unittest.TestCase):
         cg = '0::/user.slice/user-1000.slice/user@1000.service/app.slice/app-gnome-org.gnome.Nautilus-99.scope\n'
         self.assertEqual(sampler.application_group(cg, 'x'), 'org.gnome.Nautilus')
         self.assertEqual(sampler.application_group('0::/init.scope\n', 'systemd'), 'systemd')
+
+    def test_command_app_names_a_wysun_module(self):
+        self.assertEqual(sampler.command_app(b'python3\0-P\0-m\0wysun_processes\0'), 'wysun-processes')
+        self.assertEqual(sampler.command_app(b'/venv/bin/python3\0-m\0wysun_music\0'), 'wysun-music')
+        self.assertEqual(sampler.command_app(b'python3\0-m\0http.server\0'), '')
+        self.assertEqual(sampler.command_app(b'python3\0script.py\0'), '')
+        self.assertEqual(sampler.command_app(b''), '')
+
+    def test_a_wysun_module_without_app_scope_gets_its_desktop_name(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            write_proc(tmp, 10, 'python3', cgroup='0::/user.slice/user-1000.slice/session-4.scope\n',
+                       cmdline=b'/venv/bin/python3\0-P\0-m\0wysun_processes\0')
+            write_proc(tmp, 11, 'python3', cgroup='0::/user.slice/user-1000.slice/session-4.scope\n',
+                       cmdline=b'python3\0-m\0http.server\0')
+            rows = {r['pid']: r for r in sampler.Sampler(proc_root=tmp).sample().rows}
+            self.assertEqual(rows[10]['app'], 'wysun-processes')
+            self.assertEqual(rows[11]['app'], 'python3')
 
     def test_sampler_reads_self(self):
         snap = sampler.Sampler().sample()

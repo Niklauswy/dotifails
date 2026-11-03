@@ -59,6 +59,8 @@ def main(argv=None):
     # with any Python, so presenting an open window never pays for the re-exec.
     from wysun_qml import bootstrap
     bootstrap.ensure_runtime_python('wysun_music', argv[1:])
+    from wysun_qml import naming
+    naming.set_process_name('wysun-music')            # ps/top read the app, not `python3`
     bootstrap.require_qt()
     bootstrap.configure_qt()                    # plugins (wayland) before the application exists
     if not owner.claim():

@@ -38,6 +38,8 @@ def main(argv=None):
         # so opening a file in a running player never pays for the re-exec; the venv process runs this loop again.
         from wysun_qml import bootstrap
         bootstrap.ensure_runtime_python('wysun_player', sys.argv[1:] if argv is None else list(argv))
+        from wysun_qml import naming
+        naming.set_process_name('wysun-player')       # ps/top read the app, not `python3`
         owner = player_client.instance()
         if owner.claim():
             return serve(payload, owner)

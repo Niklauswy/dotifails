@@ -37,7 +37,8 @@ class Hypr:
             return None
 
     def monitors(self):
-        """The active outputs with their physical position and active workspace; disabled ones are not columns."""
+        """The active outputs with their physical position, active workspace and DPMS state; disabled ones are not
+        columns and do not keep the window visible."""
         out = []
         for m in self._json('monitors') or []:
             if m.get('disabled'):
@@ -45,7 +46,8 @@ class Hypr:
             active = m.get('activeWorkspace') or 0
             out.append(dict(id=m.get('id', 0), name=m.get('name', ''), make=m.get('make', ''),
                             model=m.get('model', ''), x=m.get('x', 0), y=m.get('y', 0),
-                            activeWorkspace=active.get('id', 0) if isinstance(active, dict) else active))
+                            activeWorkspace=active.get('id', 0) if isinstance(active, dict) else active,
+                            dpms=bool(m.get('dpmsStatus', True))))
         return out
 
     def windows(self):

@@ -62,10 +62,19 @@ class HyprTests(unittest.TestCase):
         monitors = hypr.Hypr(run=Runner()).monitors()
         self.assertEqual([m['id'] for m in monitors], [1, 2])        # disabled outputs are not columns
         self.assertEqual(monitors[1], dict(id=2, name='DP-2', make='Philips Consumer Electronics Company',
-                                           model='PHL 271E1', x=0, y=0, activeWorkspace=3))
+                                           model='PHL 271E1', x=0, y=0, activeWorkspace=3, dpms=True))
 
     def test_monitors_without_hyprctl(self):
         self.assertEqual(hypr.Hypr(run=Runner(fail=('hyprctl',))).monitors(), [])
+
+    def test_monitors_report_dpms(self):
+        class Off(Runner):
+            def __call__(self, cmd, **kw):
+                if cmd[:3] == ['hyprctl', '-j', 'monitors']:
+                    self.calls.append(cmd)
+                    return subprocess.CompletedProcess(cmd, 0, json.dumps([dict(MONITORS[0], dpmsStatus=False)]), '')
+                return super().__call__(cmd, **kw)
+        self.assertEqual([m['dpms'] for m in hypr.Hypr(run=Off()).monitors()], [False])
 
     def test_active_workspace(self):
         self.assertEqual(hypr.Hypr(run=Runner()).active_workspace(), 2)

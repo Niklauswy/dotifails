@@ -118,6 +118,7 @@ Item {
             anchors.fill: parent
             source: sheet.entry.thumb ?? ""
             fillMode: Image.PreserveAspectFit
+            cache: true
             visible: status === Image.Ready
         }
 

@@ -137,8 +137,8 @@ y objetos con propiedades y señales. QML solo presenta.
 | `Surface` | Contenedor con rol, elevación (sombra y tinte tonal), borde y estado deshabilitado | — | niveles 0-5 |
 | `StateLayer`, `FocusRing` | Hacer interactivo un elemento propio: capa 8/12/12/16 %, onda y anillo de foco de teclado | Componentes que ya los traen | anillo 3 px a 2 px |
 | `OverlayLayer` | El host de las superposiciones; uno al final del elemento raíz | — | — |
-| `RollingNumber` | Cifras en vivo que cambian a menudo (CPU, memoria, recuentos): `text`, `role` y `color`; cada dígito es una columna 0-9 del ancho de un `0` que se desliza con `defaultSpatial` y salta con movimiento reducido | Texto estático | rol de tipo |
-| `LiveChart` | Series temporales: `series` (una lista por serie), `colors`, `maxValue`, `capacity` e `interval`; desplazamiento continuo, rejilla, relleno y punto opcionales, `scrub` con `formatValue`/`labelAt`, `markers` (`[{index, color, glyph}]`) y señal `hovered(index)` | Comparar categorías | — |
+| `RollingNumber` | Cifras en vivo que cambian a menudo (CPU, memoria, recuentos): `text`, `role` y `color`; cada dígito es una columna 0-9 del ancho de un `0` que se desliza con `fastEffects` y salta con movimiento reducido o con `active: false` (página oculta) | Texto estático | rol de tipo |
+| `LiveChart` | Series temporales: `series` (una lista por serie), `colors`, `maxValue`, `capacity` e `interval`; la serie nueva entra con un deslizamiento corto (`fastEffects`, no continuo), rejilla, relleno y punto opcionales, `scrub` con `formatValue`/`labelAt`, `markers` (`[{index, color, glyph}]`) y señal `hovered(index)`; con `active: false` entra de golpe (nada anima fuera de pantalla) | Comparar categorías | — |
 | `ScrollIndicator` | Barra fina para un `Flickable` largo: aparece al desplazar o al pasar el cursor, el pulgar se arrastra | Listas cortas | ancho `spacing.medium` |
 | `StateShape` | El estado de un proceso o elemento vivo como forma M3 que se transforma: `state` (`R` trabajando, `S`/`D` en espera, `T`/`t` pausado, `Z` zombi, `G` grupo), `color`, `size` (56 por defecto) y el icono como contenido; la forma de `ShapeEmblem` morfa con `defaultSpatial` (con M3Shapes) | Iconos de lista | 56 por defecto |
 
@@ -249,7 +249,10 @@ región.
 
 ## Hilos de Python en una app QML
 
-Una app con hilos de Python llama a `wysun_qml.engine.collect_on_gui_thread()`: la recolección automática de ciclos corre
-en el hilo que reserva memoria y podría destruir allí objetos Qt del hilo de la interfaz, con un fallo al azar. Además, un
-`QMimeData` creado en Python no debe seguir en el portapapeles al apagarse el intérprete (véase
-`wysun_files/quick/operations.py`).
+Una app con hilos de Python llama a `wysun_qml.engine.collect_on_gui_thread()`: la recolección automática sigue
+desactivada (correría en el hilo que reserva memoria y podría destruir allí objetos Qt del hilo de la interfaz), pero
+al arrancar se congelan los objetos que ya están vivos (`gc.freeze()`), se suben los umbrales y el recolector completo
+se ejecuta en el hilo de la interfaz cada 15 s; con los objetos de arranque congelados la pasada es barata y no
+provoca los tirones del `gc.collect()` completo cada 4 s anterior. `collect_on_gui_thread(interval_ms=…)` permite
+cambiar el intervalo (las pruebas usan uno corto). Además, un `QMimeData` creado en Python no debe seguir en el
+portapapeles al apagarse el intérprete (véase `wysun_files/quick/operations.py`).

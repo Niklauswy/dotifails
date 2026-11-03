@@ -10,7 +10,7 @@ from wysun_services.process_data import STATES, username
 
 EMA = 0.15          # weight of the newest sample in the smoothed values that order the rows
 SMOOTHED = ('cpu', 'gpu', 'io')
-RESCAN = 10        # samples between full scans of a process' descriptors for DRM clients
+RESCAN = 30       # samples between full scans of a process' descriptors for DRM clients
 
 
 def application_group(cgroup, fallback):
@@ -30,6 +30,20 @@ def _slurp(path):
         return os.read(fd, 8192)
     finally:
         os.close(fd)
+
+
+def command_app(cmdline):
+    """The app a `python -m wysun_<x>` command line belongs to (`wysun-<x>`), else `''`. Wysun apps launched
+    outside a desktop app scope share the session scope, so their kernel name is just `python3`; their module
+    still names the desktop entry (`wysun-processes` → «Wysun Processes»). Read once per process, never per tick."""
+    parts = bytes(cmdline or b'').split(b'\0')
+    try:
+        module = parts[parts.index(b'-m') + 1].decode('utf-8', 'replace')
+    except (ValueError, IndexError):
+        return ''
+    if not module.startswith('wysun_'):
+        return ''
+    return 'wysun-' + module[len('wysun_'):].replace('_', '-')
 
 
 @dataclass
@@ -121,11 +135,17 @@ class Sampler:
                 known = self.identity.get(key)
                 if known is None:
                     uid = os.stat(folder).st_uid
+                    name = head.split('(', 1)[1]
                     try:
                         with open(folder + '/cgroup') as handle:
-                            app = application_group(handle.read(), head.split('(', 1)[1])
+                            app = application_group(handle.read(), name)
                     except OSError:
-                        app = head.split('(', 1)[1]
+                        app = name
+                    if app == name:                   # no app scope: a Wysun module still names its desktop entry
+                        try:
+                            app = command_app(_slurp(folder + '/cmdline')) or app
+                        except OSError:
+                            pass
                     known = (uid, username(uid), app)
                 identity[key] = known
                 row = dict(pid=pid, name=head.split('(', 1)[1], state=fields[0], ppid=int(fields[1]),
@@ -133,16 +153,19 @@ class Sampler:
                            mem=int(fields[21]) * self.page, uid=known[0], user=known[1], app=known[2], key=key)
             except (OSError, ValueError, IndexError):
                 continue
-            try:
-                io = _slurp(folder + '/io')
-                at = io.index(b'read_bytes:') + 11
-                read = int(io[at:io.index(b'\n', at)])
-                at = io.index(b'write_bytes:') + 12
-                write = int(io[at:io.index(b'\n', at)])
-            except (OSError, ValueError, KeyError):
-                read = write = None
-            drm = self._drm(pid, key) if self.real and known[0] == self.uid else None
             old = self.previous.get(key)
+            if old and ticks == old[0]:
+                read, write = old[1], old[2]     # no CPU time since the last sample: no I/O to account for
+            else:
+                try:
+                    io = _slurp(folder + '/io')
+                    at = io.index(b'read_bytes:') + 11
+                    read = int(io[at:io.index(b'\n', at)])
+                    at = io.index(b'write_bytes:') + 12
+                    write = int(io[at:io.index(b'\n', at)])
+                except (OSError, ValueError, KeyError):
+                    read = write = None
+            drm = self._drm(pid, key) if self.real and known[0] == self.uid else None
             span = now - old[3] if old else 0
             if old and span > 0:
                 row['cpu'] = max(0.0, (ticks - old[0]) / self.clock / span * 100)

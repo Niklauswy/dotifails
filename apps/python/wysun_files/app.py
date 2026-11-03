@@ -31,6 +31,8 @@ def main(argv=None):
     argv = sys.argv if argv is None else argv
     from wysun_qml import bootstrap
     bootstrap.ensure_runtime_python('wysun_files', argv[1:])
+    from wysun_qml import naming
+    naming.set_process_name('wysun-files')            # ps/top read the app, not `python3`
     bootstrap.require_qt()
     bootstrap.configure_qt()
     paths, problems = local_paths(argv[1:])

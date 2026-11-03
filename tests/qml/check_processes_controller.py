@@ -126,6 +126,7 @@ class ControllerTests(unittest.TestCase):
         self.assertLessEqual(len(self.c.property('history')['cpu']), 60)
 
     def test_apps_by_monitor_and_workspace(self):
+        self.c.setPage('apps')
         columns = self.c.property('monitorColumns')
         self.assertEqual([c['connector'] for c in columns], ['DP-2', 'DP-1'])
         self.assertEqual([c['label'] for c in columns], ['Philips', 'LG'])
@@ -149,6 +150,7 @@ class ControllerTests(unittest.TestCase):
             c = ProcessesController(sampler=Sampler(proc_root=tmp), hypr=FakeHypr(), auto=False)
             c.tick()
             c.tick()
+            c.setPage('apps')
             groups = {app['app']: app for app in c.property('windowless')}
             self.assertIn('brave', groups)
             self.assertEqual(groups['brave']['name'], 'Brave · segundo plano')
@@ -179,6 +181,92 @@ class ControllerTests(unittest.TestCase):
             c.tick()
             c.openContext('brave')                # chromium is busier, but brave is the app named so
             self.assertEqual(c.property('selectedKey'), 'g:brave')
+            c.close()
+
+    def test_keyed_model_notifies_only_the_roles_that_changed(self):
+        model = self.c.property('rows')
+        signals = []
+        model.dataChanged.connect(lambda top, bottom, roles: signals.append((top.row(), bottom.row(), roles)))
+        items = [dict(item) for item in model.items()]
+        model.replace(items)                          # same content: no notification at all
+        self.assertEqual(signals, [])
+        changed = [dict(item) for item in items]
+        changed[0]['cpu'] = 12345.5
+        model.replace(changed)
+        self.assertEqual(len(signals), 1)
+        top, bottom, roles = signals[0]
+        self.assertEqual((top, bottom), (0, 0))
+        self.assertEqual(roles, [model.roleFor('cpu')])
+
+    def test_selection_changed_only_when_the_key_changes(self):
+        from wysun_processes.core.sampler import Sampler
+        from wysun_processes.quick.controller import ProcessesController
+        c = ProcessesController(sampler=Sampler(proc_root=self.tmp.name), hypr=FakeHypr(), auto=False)
+        c.tick()
+        c.tick()
+        signals = []
+        c.selectionChanged.connect(lambda: signals.append(c.property('selectedKey')))
+        c._rebuild()
+        self.assertEqual(signals, [])
+        other = next(key for key in c.property('rows').keys() if key != c.property('selectedKey'))
+        c.select(other)
+        self.assertEqual(signals, [other])
+        c.close()
+
+    def test_summary_and_stats_emit_only_when_their_content_changes(self):
+        from wysun_processes.core.sampler import Sampler, Snapshot
+        from wysun_processes.quick.controller import ProcessesController
+        c = ProcessesController(sampler=Sampler(proc_root=self.tmp.name), hypr=FakeHypr(), auto=False)
+        snap = Snapshot([], dict(cpu=1.0, memory=2, uptime=3))
+        counts = {'summary': 0, 'stats': 0}
+        c.summaryChanged.connect(lambda: counts.__setitem__('summary', counts['summary'] + 1))
+        c.statsChanged.connect(lambda: counts.__setitem__('stats', counts['stats'] + 1))
+        c._on_snapshot(snap)
+        c._on_snapshot(snap)
+        self.assertEqual(counts, {'summary': 1, 'stats': 0})
+        c.close()
+
+    def test_a_hidden_window_pauses_the_controller(self):
+        from wysun_processes.core.sampler import Sampler
+        from wysun_processes.quick.controller import ProcessesController
+        c = ProcessesController(sampler=Sampler(proc_root=self.tmp.name), hypr=FakeHypr(), auto=False)
+        c.tick()
+        c.setWindowVisible(False)
+        self.assertTrue(c.property('suspended'))
+        c.tick()                                      # a sample while hidden must not rebuild nor notify
+        self.assertEqual(len(c.property('rows').keys()), 2)
+        c.setWindowVisible(True)
+        self.assertFalse(c.property('suspended'))
+        c.tick()
+        c.close()
+
+    def test_a_wysun_module_process_reads_its_desktop_name(self):
+        from wysun_processes.core.sampler import Sampler
+        from wysun_processes.quick.controller import ProcessesController
+
+        class FakeCatalog:
+            def name(self, app):
+                return {'wysun-processes': 'Wysun Processes'}.get(app, app)
+
+            def icon(self, app):
+                return ''
+
+            def tint(self, app):
+                return ''
+
+            def entry(self, app):
+                return None
+
+        with tempfile.TemporaryDirectory() as tmp:
+            for pid in (50, 51):
+                write_proc(tmp, pid, 'python3', ppid=50 if pid == 51 else 1,
+                           cgroup='0::/user.slice/user-1000.slice/session-4.scope\n',
+                           cmdline=b'/venv/bin/python3\0-P\0-m\0wysun_processes\0')
+            c = ProcessesController(sampler=Sampler(proc_root=tmp), hypr=FakeHypr(), catalog=FakeCatalog(), auto=False)
+            c.tick()
+            c.tick()
+            rows = {row['key']: row for row in c.property('rows').items()}
+            self.assertEqual(rows['g:wysun-processes']['title'], 'Wysun Processes')
             c.close()
 
     def test_single_instance_forwards_query(self):

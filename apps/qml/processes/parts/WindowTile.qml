@@ -99,7 +99,7 @@ Item {
                     source: row.entry.thumb ?? ""
                     fillMode: Image.PreserveAspectCrop
                     asynchronous: true
-                    cache: false
+                    cache: true
                     visible: status === Image.Ready
                 }
 

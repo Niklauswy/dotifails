@@ -8,6 +8,7 @@ Item {
     id: page
 
     property bool shown
+    property bool live: true          // the page and the window can be seen: only then do its animations run
     property Item overlayHost
     property bool detailShown: true
     readonly property real gap: Theme.spacing.medium ?? 0
@@ -286,17 +287,45 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
 
                     Rectangle {
+                        id: liveDot
+
                         anchors.verticalCenter: parent.verticalCenter
                         width: Theme.spacing.small ?? 0
                         height: width
                         radius: width / 2
                         color: procs.frozen ? Theme.m3outline : Theme.m3success
 
-                        SequentialAnimation on opacity {
-                            running: !procs.frozen && !Motion.reduced
-                            loops: Animation.Infinite
-                            NumberAnimation { to: 0.35; duration: Theme.duration("extraLarge"); easing.type: Easing.BezierSpline; easing.bezierCurve: Motion.bezier("standard") }
-                            NumberAnimation { to: 1; duration: Theme.duration("extraLarge"); easing.type: Easing.BezierSpline; easing.bezierCurve: Motion.bezier("standard") }
+                        // One short pulse per sample, not an endless loop: between samples the window is idle.
+                        SequentialAnimation {
+                            id: livePulse
+
+                            NumberAnimation {
+                                target: liveDot
+                                property: "opacity"
+                                to: 0.35
+                                duration: Motion.ms("fastEffects") / 2
+                                easing.type: Easing.BezierSpline
+                                easing.bezierCurve: Motion.bezier("standard")
+                            }
+
+                            NumberAnimation {
+                                target: liveDot
+                                property: "opacity"
+                                to: 1
+                                duration: Motion.ms("fastEffects") / 2
+                                easing.type: Easing.BezierSpline
+                                easing.bezierCurve: Motion.bezier("standard")
+                            }
+                        }
+
+                        Connections {
+                            target: procs
+
+                            enabled: !procs.frozen && !Motion.reduced && page.shown && page.live
+
+                            function onSampled() {
+                                livePulse.restart();
+                            }
                         }
                     }
 
@@ -455,6 +484,7 @@ Item {
                     Behavior on y {
                         Anim {
                             kind: "defaultSpatial"
+                            duration: Motion.ms("fastEffects")
                         }
                     }
                 }
@@ -470,22 +500,26 @@ Item {
                     onActivated: page.returnFocus()
                 }
 
+                // Rows reorder every sample: short, bounded slides instead of a 500 ms animation per row per tick.
                 move: Transition {
                     Anim {
                         properties: "y"
                         kind: "defaultSpatial"
+                        duration: Motion.ms("fastEffects") / 2
                     }
                 }
                 moveDisplaced: Transition {
                     Anim {
                         properties: "y"
                         kind: "defaultSpatial"
+                        duration: Motion.ms("fastEffects") / 2
                     }
                 }
                 displaced: Transition {
                     Anim {
                         properties: "y"
                         kind: "defaultSpatial"
+                        duration: Motion.ms("fastEffects") / 2
                     }
                 }
                 add: Transition {
@@ -598,6 +632,7 @@ Item {
 
             width: page.detailWidth
             height: parent.height
+            live: page.live && page.detailShown
             onCloseRequested: page.detailShown = false
         }
     }

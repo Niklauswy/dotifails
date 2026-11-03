@@ -8,6 +8,7 @@ Item {
     id: page
 
     property bool shown
+    property bool live: true          // the page and the window can be seen: only then do its animations run
     property int selected: 0
     readonly property var items: procs.startupItems
     readonly property real span: Math.max(3, Math.ceil(Math.max(procs.readyAt, ...items.map(i => (i.ready_s ?? 0) + (i.delay ?? 0))) + 1))
@@ -84,6 +85,7 @@ Item {
                         text: procs.readyAt.toFixed(1) + " s"
                         role: "headline.small"
                         color: Theme.m3primary
+                        active: page.shown && page.live
                     }
                 }
 

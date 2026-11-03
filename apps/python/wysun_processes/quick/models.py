@@ -1,6 +1,13 @@
 """Keyed list models for Wysun Processes. Updates are applied as removals, moves and insertions so QML views can
-animate rows sliding into their new place instead of being rebuilt every second."""
+animate rows sliding into their new place instead of being rebuilt every second. Rows that stay in place notify
+only the roles whose value changed."""
 from PySide6.QtCore import QAbstractListModel, QByteArray, QModelIndex, Qt, Signal, Slot, Property
+
+
+def changed_roles(before, after, roles):
+    """The roles whose value differs between two rows (`roles` in their declared order). Pure: the model uses it to
+    keep `dataChanged` scoped to what really changed."""
+    return [name for name in roles if before.get(name) != after.get(name)]
 
 
 class KeyedModel(QAbstractListModel):
@@ -49,7 +56,8 @@ class KeyedModel(QAbstractListModel):
         return self._items
 
     def replace(self, items):
-        """Make the model hold `items` (dicts with a unique 'key'), moving rows that only changed place."""
+        """Make the model hold `items` (dicts with a unique 'key'), moving rows that only changed place and
+        notifying each row kept in place only for the roles whose value changed."""
         before = len(self._items)
         wanted = [item['key'] for item in items]
         keep = set(wanted)
@@ -58,22 +66,30 @@ class KeyedModel(QAbstractListModel):
                 self.beginRemoveRows(QModelIndex(), row, row)
                 del self._items[row]
                 self.endRemoveRows()
+        changed = []
         for target, item in enumerate(items):
             key = item['key']
             if target < len(self._items) and self._items[target]['key'] == key:
+                roles = changed_roles(self._items[target], item, self._roles)
                 self._items[target] = item
+                if roles:
+                    changed.append((target, roles))
                 continue
             current = next((i for i in range(target, len(self._items)) if self._items[i]['key'] == key), -1)
             if current >= 0:
+                roles = changed_roles(self._items[current], item, self._roles)
                 self.beginMoveRows(QModelIndex(), current, current, QModelIndex(), target)
                 del self._items[current]
                 self._items.insert(target, item)
                 self.endMoveRows()
+                if roles:
+                    changed.append((target, roles))
             else:
                 self.beginInsertRows(QModelIndex(), target, target)
                 self._items.insert(target, item)
                 self.endInsertRows()
-        if self._items:
-            self.dataChanged.emit(self.index(0, 0), self.index(len(self._items) - 1, 0))
+        for row, roles in changed:
+            index = self.index(row, 0)
+            self.dataChanged.emit(index, index, [self._ids[name] for name in roles])
         if len(self._items) != before:
             self.countChanged.emit()

@@ -175,7 +175,7 @@ Item {
 
                 Behavior on color {
                     ColorAnimation {
-                        duration: Motion.ms("slowEffects")
+                        duration: Motion.ms("fastEffects")       // bounded: rows update every second
                     }
                 }
 
@@ -189,7 +189,8 @@ Item {
 
                     Behavior on width {
                         Anim {
-                            kind: "defaultSpatial"
+                            kind: "fastEffects"
+                            duration: Motion.ms("fastEffects")
                         }
                     }
                 }

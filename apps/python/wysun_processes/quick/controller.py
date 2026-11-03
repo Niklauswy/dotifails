@@ -4,15 +4,19 @@ workspace, user services with their live journal, and the session startup. QML o
 from collections import deque
 import os
 from pathlib import Path
+import time
 
 from PySide6.QtCore import (QObject, QProcess, QRunnable, QThread, QThreadPool, QTimer, Property, Signal, Slot)
 from PySide6.QtGui import QGuiApplication
 
-from wysun_processes.core import actions, apps as apps_core, views
+from wysun_processes.core import actions, apps as apps_core, presence, views
 from wysun_processes.core.hypr import windows_by_app
 from .models import KeyedModel
 
 HISTORY = 60
+PRESENCE_POLL = 4000          # how often the cheap monitor/window state is read, off the GUI thread
+THUMB_REFRESH = 10.0          # seconds between thumbnail captures while the Apps page stays open
+THUMB_RETRY = 3.0             # seconds between retries while the shell has not written a requested capture
 ROW_ROLES = ('key', 'title', 'name', 'app', 'pid', 'ppid', 'depth', 'group', 'kids', 'expanded', 'appRow', 'cpu',
              'mem', 'gpu', 'io', 'threads', 'nice', 'state', 'stateLabel', 'user', 'mine', 'icon', 'tint', 'age')
 DISPLAY = {'quickshell': 'Wysun Shell', 'Hyprland': 'Hyprland', 'pipewire': 'PipeWire', 'wireplumber': 'WirePlumber'}
@@ -44,13 +48,26 @@ class _Worker(QObject):
         self.sampler = sampler
         self.interval = interval
         self.timer = None
+        self._running = True
 
     @Slot()
     def start(self):
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.sample)
-        self.timer.start(self.interval)
-        self.sample()
+        self.setRunning(self._running)
+
+    @Slot(bool)
+    def setRunning(self, running):
+        """Pause the sampler while nothing can be seen; resuming samples immediately."""
+        self._running = bool(running)
+        if not self.timer:
+            return
+        if running:
+            self.sample()
+            if not self.timer.isActive():
+                self.timer.start(self.interval)
+        else:
+            self.timer.stop()
 
     @Slot()
     def sample(self):
@@ -112,6 +129,8 @@ def connections(pid):
 
 class ProcessesController(QObject):
     selectionChanged = Signal()
+    valuesChanged = Signal()
+    sampled = Signal()
     summaryChanged = Signal()
     stateChanged = Signal()
     appsChanged = Signal()
@@ -120,6 +139,7 @@ class ProcessesController(QObject):
     startupChanged = Signal()
     detailsChanged = Signal()
     logChanged = Signal()
+    suspendedChanged = Signal()
     logLine = Signal('QVariantMap')
     confirmNeeded = Signal(str, str, int, int)       # action, label, number of processes, current nice
     message = Signal(str, bool)                      # text, offers undo
@@ -147,11 +167,17 @@ class ProcessesController(QObject):
         self._system_top = deque(maxlen=HISTORY)
         self._summary, self._stats, self._details = {}, {}, {}
         self._windows, self._thumbs = [], {}
+        self._app_addresses = {}
+        self._thumb_urls = {}
         self._columns, self._windowless, self._system_windowless = [], [], {}
         self._services, self._service_unit, self._log, self._journal = [], '', [], None
         self._startup, self._ready = [], 0.0
         self._undo = None
         self._ticks = 0
+        self._suspended, self._window_visible = '', True
+        self._presence_busy = False
+        self._thumb_addresses, self._thumb_paths, self._thumbs_at = None, {}, 0.0
+        self._windows_busy, self._windows_due = False, True
         self._relay = _Relay(self)
         self._relay.done.connect(lambda callback, result: callback(result))
         self._pool = QThreadPool(self)
@@ -167,6 +193,10 @@ class ProcessesController(QObject):
             self._service_timer = QTimer(self, interval=5000)
             self._service_timer.timeout.connect(self._periodic)
             self._service_timer.start()
+            self._presence_timer = QTimer(self, interval=PRESENCE_POLL)
+            self._presence_timer.timeout.connect(self._check_presence)
+            self._presence_timer.start()
+            QTimer.singleShot(PRESENCE_POLL // 2, self._check_presence)
             QTimer.singleShot(200, self.refreshServices)
             QTimer.singleShot(400, self.refreshStartup)
 
@@ -179,6 +209,10 @@ class ProcessesController(QObject):
             self._journal.kill()
             self._journal.waitForFinished(500)
             self._journal = None
+        for timer in ('_presence_timer', '_service_timer'):
+            found = getattr(self, timer, None)
+            if found is not None:
+                found.stop()
         if self._thread is not None:
             from PySide6.QtCore import QMetaObject, Qt
             QMetaObject.invokeMethod(self._worker, 'stop', Qt.BlockingQueuedConnection)
@@ -191,6 +225,8 @@ class ProcessesController(QObject):
             cleanup()
 
     def _periodic(self):
+        if self._suspended:
+            return
         if self._page == 'services':
             self.refreshServices()
 
@@ -198,6 +234,57 @@ class ProcessesController(QObject):
     def tick(self):
         """One synchronous sample (tests and `auto=False`)."""
         self._on_snapshot(self.sampler.sample())
+
+    # ------------------------------------------------------------------ presence
+    def _check_presence(self):
+        """Read what is visible off the GUI thread (`hyprctl monitors`/`clients`) and pause or resume sampling."""
+        if self._presence_busy or self._thread is None:
+            return
+        self._presence_busy = True
+
+        def work():
+            return self.hypr.monitors(), self.hypr.windows()
+
+        def finish(result):
+            self._presence_busy = False
+            if isinstance(result, Exception):
+                return
+            monitors, windows = result
+            rows = self._snapshot.rows if self._snapshot else []
+            self._app_addresses = {app: space[0]['address'] for app, space in windows_by_app(windows, rows).items()
+                                   if space}
+            reason = presence.suspend_reason(monitors, windows)
+            self._set_suspended(reason if self._window_visible else (reason or 'window'))
+        self._async(work, finish)
+
+    def _set_suspended(self, reason):
+        if reason == self._suspended:
+            return
+        self._suspended = reason
+        if self._thread is not None:
+            from PySide6.QtCore import QMetaObject, Qt, Q_ARG
+            QMetaObject.invokeMethod(self._worker, 'setRunning', Qt.QueuedConnection, Q_ARG(bool, not reason))
+        if not reason:
+            self._windows_due = True
+        self.suspendedChanged.emit()
+
+    @Slot(bool)
+    def setWindowVisible(self, visible):
+        """The QML window's own state (mapped, not minimised); the compositor poll covers other workspaces/DPMS."""
+        visible = bool(visible)
+        if visible == self._window_visible:
+            return
+        self._window_visible = visible
+        if not visible:
+            self._set_suspended(self._suspended or 'window')
+        elif self._thread is None:
+            self._set_suspended('')
+        else:
+            QTimer.singleShot(600, self._check_presence)    # let the window map before the compositor is asked
+
+    @Property(bool, notify=suspendedChanged)
+    def suspended(self):
+        return bool(self._suspended)
 
     # ------------------------------------------------------------------ sampling
     def title_of(self, row):
@@ -207,6 +294,8 @@ class ProcessesController(QObject):
         return row.get('name', '')
 
     def _on_snapshot(self, snapshot):
+        if self._suspended:                      # a late sample from before the pause: nothing can be seen
+            return
         self._ticks += 1
         alive = set()
         for row in snapshot.rows:
@@ -245,19 +334,25 @@ class ProcessesController(QObject):
             if app not in apps:
                 del self._app_history[app]
         self._system_top.append(max(apps, key=lambda k: apps[k]['cpu']) if apps else '')
+        old_stats = self._stats
         self._stats = apps
+        old_summary = self._summary
         self._summary = dict(system, processes=len(snapshot.rows),
                              io=sum(r['io'] for r in snapshot.rows), cores_count=len(system.get('cores') or []))
         self._snapshot = snapshot
-        if self._ticks == 1 or self._ticks % 3 == 0:
+        if self._page == 'apps' and (self._ticks % 3 == 0 or self._windows_due):
+            self._windows_due = False
             self._refresh_windows()
         if self._frozen:
             return
         self._rebuild()
-        self.summaryChanged.emit()
-        self.statsChanged.emit()
+        if self._summary != old_summary:
+            self.summaryChanged.emit()
+        if self._stats != old_stats:
+            self.statsChanged.emit()
         if self._ticks % 3 == 0 and self._selected_key:
             self._load_details()
+        self.sampled.emit()                     # one bounded pulse per new sample in QML (not an infinite loop)
 
     def _rebuild(self):
         if self._snapshot is None:
@@ -295,24 +390,55 @@ class ProcessesController(QObject):
                 self._set_selected('', details=False)
         else:
             self._last_index = keys.index(self._selected_key)
-            self.selectionChanged.emit()
+        self.valuesChanged.emit()
         self.stateChanged.emit()
 
     # ------------------------------------------------------------------ windows
-    def _refresh_windows(self):
+    def _windows_data(self):
+        """The slow part of a window refresh (`hyprctl` and the shell's thumbnails), safe off the GUI thread."""
         windows = self.hypr.windows()
-        current = self.hypr.active_workspace()
+        addresses = [w['address'] for w in windows]
+        now = time.monotonic()
+        missing = any(not os.path.isfile(self._thumb_paths.get(address, '')) for address in addresses)
+        wanted = (addresses != self._thumb_addresses or now - self._thumbs_at >= THUMB_REFRESH
+                  or (missing and now - self._thumbs_at >= THUMB_RETRY))
+        return dict(windows=windows, current=self.hypr.active_workspace(), monitors=self.hypr.monitors(),
+                    addresses=addresses, thumbs=self.hypr.thumbnails(addresses) if wanted else {}, now=now,
+                    requested=wanted)
+
+    def _refresh_windows(self):
+        """Refresh the Apps columns; `auto` runs the compositor and shell calls in the pool, tests call it inline."""
+        if self._windows_busy:
+            return
+        if self._thread is None:
+            self._apply_windows(self._windows_data())
+            return
+        self._windows_busy = True
+
+        def finish(result):
+            self._windows_busy = False
+            if isinstance(result, Exception) or self._page != 'apps' or self._suspended:
+                return
+            self._apply_windows(result)
+        self._async(self._windows_data, finish)
+
+    def _apply_windows(self, data):
+        windows, current, monitors = data['windows'], data['current'], data['monitors']
+        if data['requested']:
+            if data['addresses'] != self._thumb_addresses:
+                self._thumb_paths = {}
+            self._thumb_addresses, self._thumbs_at = data['addresses'], data['now']
+            self._thumb_paths.update(data['thumbs'])
         rows = self._snapshot.rows if self._snapshot else []
         by_app = windows_by_app(windows, rows)
         app_of = {w['address']: app for app, space in by_app.items() for w in space}
+        self._app_addresses = {app: space[0]['address'] for app, space in by_app.items() if space}
         by_pid = {r['pid']: r for r in rows}
-        monitors = self.hypr.monitors()
         if not monitors:
             # No `hyprctl monitors` (or a stub without it): one column per monitor id seen in the clients, so no
             # window disappears and the page still works.
             monitors = [dict(id=number, name='', make='', model='', x=number, y=0, activeWorkspace=current)
                         for number in sorted({w['monitor'] for w in windows})]
-        thumbs = self.hypr.thumbnails([w['address'] for w in windows]) if self._page == 'apps' else {}
         entries = []
         window_names = {}
         for w in windows:
@@ -327,7 +453,7 @@ class ProcessesController(QObject):
                 workspace=w['workspace'], monitor=w['monitor'], active=w['active'], name=name,
                 icon=self.catalog.icon(chosen) or self.catalog.icon(w['app_id']),
                 tint=self.catalog.tint(chosen) or self.catalog.tint(w['app_id']),
-                thumb=('file://' + thumbs[w['address']] + '?t=%d' % self._ticks) if w['address'] in thumbs else ''))
+                thumb=self._thumb_url(w['address'])))
         columns = apps_core.group_windows(monitors, entries)
         # `windowed_apps` are the app keys that own a window (excluded from «Sin ventana»). A background scope of a
         # windowed program has a different key (Brave's is `brave`, its windows' is Chromium), so `programs` compares
@@ -339,10 +465,24 @@ class ProcessesController(QObject):
         windowless = [self._windowless_item(group, programs, window_names) for group in user]
         system_windowless = apps_core.system_summary([
             self._windowless_item(group, programs, window_names, system=True) for group in system])
+        thumbs = {w['address']: w['thumb'] for w in entries}
         self._windows = windows
-        if (columns, windowless, system_windowless) != (self._columns, self._windowless, self._system_windowless):
+        if ((columns, windowless, system_windowless, thumbs)
+                != (self._columns, self._windowless, self._system_windowless, self._thumb_urls)):
             self._columns, self._windowless, self._system_windowless = columns, windowless, system_windowless
+            self._thumb_urls = thumbs
             self.appsChanged.emit()
+
+    def _thumb_url(self, address):
+        """A stable URL per capture: the file's mtime changes only when the shell writes a new image, so QML caches
+        the decode between refreshes instead of reloading a `?t=<tick>` URL every tick."""
+        path = self._thumb_paths.get(address)
+        if not path:
+            return ''
+        try:
+            return 'file://' + path + '?v=' + str(os.stat(path).st_mtime_ns)
+        except OSError:
+            return ''
 
     def _windowless_item(self, group, programs, names, system=False):
         app = group['app']
@@ -355,6 +495,9 @@ class ProcessesController(QObject):
         return dict(group, name=name, icon=self.catalog.icon(app), tint=self.catalog.tint(app))
 
     def _address_for(self, app):
+        address = self._app_addresses.get(app)
+        if address:
+            return address
         for column in self._columns:
             for space in column['workspaces']:
                 for window in space['windows']:
@@ -369,11 +512,13 @@ class ProcessesController(QObject):
         keys = self._rowsm.keys()
         if key in keys:
             self._last_index = keys.index(key)
-        if changed:
-            self._details = {}
-            self.detailsChanged.emit()
+        if not changed:
+            return
+        self._details = {}
+        self.detailsChanged.emit()
         self.selectionChanged.emit()
-        if changed and details and key:
+        self.valuesChanged.emit()
+        if details and key:
             self._load_details()
 
     def _row(self, key):
@@ -421,11 +566,11 @@ class ProcessesController(QObject):
     def selectedKey(self):
         return self._selected_key
 
-    @Property(int, notify=selectionChanged)
+    @Property(int, notify=valuesChanged)
     def selectedIndex(self):
         return self._rowsm.indexOf(self._selected_key)
 
-    @Property('QVariantMap', notify=selectionChanged)
+    @Property('QVariantMap', notify=valuesChanged)
     def selected(self):
         row = self._row(self._selected_key)
         if not row:
@@ -433,7 +578,7 @@ class ProcessesController(QObject):
         row['windowAddress'] = self._address_for(row.get('app', ''))
         return row
 
-    @Property('QVariantMap', notify=selectionChanged)
+    @Property('QVariantMap', notify=valuesChanged)
     def history(self):
         key = self._selected_key
         if key.startswith('g:'):
@@ -624,6 +769,7 @@ class ProcessesController(QObject):
         if page != self._page:
             self._page = page
             if page == 'apps':
+                self._windows_due = True
                 self._refresh_windows()
             if page == 'services':
                 self.refreshServices()

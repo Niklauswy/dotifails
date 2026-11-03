@@ -9,6 +9,7 @@ Item {
     id: page
 
     property bool shown
+    property bool live: true          // the page and the window can be seen: only then do its animations run
     property string resource: "cpu"
     property var compare: []
     readonly property var sum: procs.summary
@@ -123,7 +124,7 @@ Item {
                     iconColor: Theme.m3onPrimaryContainer
 
                     SequentialAnimation on scale {
-                        running: !Motion.reduced && page.shown
+                        running: !Motion.reduced && page.shown && page.live
                         loops: Animation.Infinite
                         NumberAnimation { to: 1.06; duration: Theme.duration(page.hot ? "normal" : "extraLarge") * 2; easing.type: Easing.BezierSpline; easing.bezierCurve: Motion.bezier("standard") }
                         NumberAnimation { to: 1; duration: Theme.duration(page.hot ? "normal" : "extraLarge") * 2; easing.type: Easing.BezierSpline; easing.bezierCurve: Motion.bezier("standard") }
@@ -237,6 +238,7 @@ Item {
                             height: parent.height * 0.62
                             series: [page.percentSeries(tile.modelData.id)]
                             colors: [tile.tone]
+                            active: page.shown && page.live
                             maxValue: 105
                             grid: false
                             dot: false
@@ -270,6 +272,7 @@ Item {
                             RollingNumber {
                                 text: page.value(tile.modelData.id)
                                 role: "headline.small"
+                                active: page.shown && page.live
                             }
 
                             Label {
@@ -350,6 +353,7 @@ Item {
                             objectName: "perfChart"
                             width: parent.width
                             height: Metrics.topAppBarLarge * 1.6
+                            active: page.shown && page.live
                             series: [page.percentSeries(page.resource)].concat(page.compare.map(c => page.percentSeries(c)))
                             colors: [Theme["m3" + chartCard.current.role]].concat(page.compare.map(c => Theme["m3" + page.resources.find(r => r.id === c).role]))
                             maxValue: 105

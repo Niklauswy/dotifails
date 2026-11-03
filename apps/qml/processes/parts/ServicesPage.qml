@@ -9,6 +9,7 @@ Item {
     id: page
 
     property bool shown
+    property bool live: true          // the page and the window can be seen: only then do its animations run
     property string filter: "all"
     property string query
     property int selected: 0
@@ -428,6 +429,7 @@ Item {
                             text: detail.s.next_us ? page.countdown(detail.s.next_us) : ""
                             role: "title.large"
                             color: Theme.m3onTertiaryContainer
+                            active: page.shown && page.live
                         }
                     }
                 }

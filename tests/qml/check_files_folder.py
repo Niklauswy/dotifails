@@ -100,8 +100,11 @@ class GarbageCollectionTests(Base):
         worker.start()
         worker.join()
         self.assertEqual(seen, [], 'collected by the worker')
-        self.assertTrue(self.h.wait_for(lambda: bool(seen), 8000), 'never collected')
+        from wysun_qml.engine import collect_on_gui_thread
+        collect_on_gui_thread(interval_ms=100)        # only the interval changes: the timer must do the work
+        self.assertTrue(self.h.wait_for(lambda: bool(seen), 2000), 'the GUI-thread timer never collected')
         self.assertEqual(seen, [True])
+        collect_on_gui_thread()                       # back to the app default for the rest of the suites
 
 
 class ListingTests(Base):

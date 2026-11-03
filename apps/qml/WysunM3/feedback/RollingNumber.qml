@@ -10,6 +10,7 @@ Item {
     property string text
     property string role: "headline.medium"
     property color color: Theme.m3onSurface
+    property bool active: true                      // false: digits jump to their new value instead of rolling
     readonly property var type: Theme.typeFont(role)
     readonly property real lineHeight: Math.ceil(metrics.height)
 
@@ -83,8 +84,11 @@ Item {
                     y: cell.digit ? -Number(cell.ch) * root.lineHeight : 0
 
                     Behavior on y {
+                        enabled: root.active
+
                         Anim {
-                            kind: "defaultSpatial"
+                            kind: "fastEffects"       // short: it finishes well before the next sample
+                            duration: Motion.ms("fastEffects")
                         }
                     }
 

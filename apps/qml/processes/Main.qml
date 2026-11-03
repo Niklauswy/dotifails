@@ -10,11 +10,31 @@ Window {
 
     property string page: "procs"
     readonly property Item overlayHost: overlay
-    readonly property var pages: ({ procs: procsPage, perf: perfPage, apps: appsPage, services: servicesPage, startup: startupPage })
+    // Nothing animates while the window cannot be seen: on another workspace, minimised, or every output off.
+    readonly property bool onScreen: visible && visibility !== Window.Minimized && !procs.suspended
     readonly property var order: ["procs", "perf", "apps", "services", "startup"]
 
+    function loaderFor(id) {
+        if (id === "procs")
+            return procsLoader;
+        if (id === "perf")
+            return perfLoader;
+        if (id === "apps")
+            return appsLoader;
+        if (id === "services")
+            return servicesLoader;
+        if (id === "startup")
+            return startupLoader;
+        return null;
+    }
+
+    function pageItem(id) {
+        const loader = loaderFor(id);
+        return loader ? loader.item : null;
+    }
+
     function go(id) {
-        if (!pages[id])
+        if (window.order.indexOf(id) < 0)
             return;
         page = id;
         procs.setPage(id);
@@ -32,6 +52,12 @@ Window {
     visible: false          // present() shows it once the app id (wysun-processes) is set
     title: "Wysun Processes"
     color: Theme.m3surface
+
+    onVisibleChanged: procs.setWindowVisible(visible && visibility !== Window.Minimized)
+    onVisibilityChanged: function (visibility) {
+        procs.setWindowVisible(visible && visibility !== Window.Minimized);
+    }
+    Component.onCompleted: procs.setWindowVisible(visible && visibility !== Window.Minimized)
 
     Item {
         id: root
@@ -55,7 +81,9 @@ Window {
             }
             if (ctrl && event.key === Qt.Key_F) {
                 window.go("procs");
-                procsPage.focusSearch();
+                const procPage = window.pageItem("procs");
+                if (procPage)
+                    procPage.focusSearch();
                 event.accepted = true;
                 return;
             }
@@ -73,11 +101,13 @@ Window {
             }
             if (event.text === "/") {
                 window.go("procs");
-                procsPage.focusSearch();
+                const procPage = window.pageItem("procs");
+                if (procPage)
+                    procPage.focusSearch();
                 event.accepted = true;
                 return;
             }
-            const current = window.pages[window.page];
+            const current = window.pageItem(window.page);
             if (current && current.handleKey(event))
                 event.accepted = true;
         }
@@ -109,47 +139,93 @@ Window {
 
                 anchors.fill: parent
 
-                ProcessesPage {
-                    id: procsPage
-
-                    objectName: "procsPage"
-                    anchors.fill: parent
-                    shown: window.page === "procs"
-                    overlayHost: overlay
-                    onReturnFocus: root.forceActiveFocus()
-                }
-
-                PerfPage {
-                    id: perfPage
+                // Only the current section exists: each page is a Loader and leaving it destroys its items. What the
+                // user expects to keep (query, filters, selection, view mode) lives in the controller.
+                Loader {
+                    id: procsLoader
 
                     anchors.fill: parent
-                    shown: window.page === "perf"
-                }
+                    active: window.page === "procs"
 
-                AppsPage {
-                    id: appsPage
-
-                    anchors.fill: parent
-                    shown: window.page === "apps"
-                    onShowProcesses: app => {
-                        window.go("procs");
-                        procs.selectApp(app);
+                    sourceComponent: Component {
+                        ProcessesPage {
+                            objectName: "procsPage"
+                            anchors.fill: parent
+                            shown: window.page === "procs"
+                            live: window.onScreen
+                            overlayHost: overlay
+                            onReturnFocus: root.forceActiveFocus()
+                        }
                     }
                 }
 
-                ServicesPage {
-                    id: servicesPage
+                Loader {
+                    id: perfLoader
 
                     anchors.fill: parent
-                    shown: window.page === "services"
-                    onReturnFocus: root.forceActiveFocus()
+                    active: window.page === "perf"
+
+                    sourceComponent: Component {
+                        PerfPage {
+                            objectName: "perfPage"
+                            anchors.fill: parent
+                            shown: window.page === "perf"
+                            live: window.onScreen
+                        }
+                    }
                 }
 
-                StartupPage {
-                    id: startupPage
+                Loader {
+                    id: appsLoader
 
                     anchors.fill: parent
-                    shown: window.page === "startup"
+                    active: window.page === "apps"
+
+                    sourceComponent: Component {
+                        AppsPage {
+                            objectName: "appsPage"
+                            anchors.fill: parent
+                            shown: window.page === "apps"
+                            live: window.onScreen
+                            onShowProcesses: app => {
+                                window.go("procs");
+                                procs.selectApp(app);
+                            }
+                        }
+                    }
+                }
+
+                Loader {
+                    id: servicesLoader
+
+                    anchors.fill: parent
+                    active: window.page === "services"
+
+                    sourceComponent: Component {
+                        ServicesPage {
+                            objectName: "servicesPage"
+                            anchors.fill: parent
+                            shown: window.page === "services"
+                            live: window.onScreen
+                            onReturnFocus: root.forceActiveFocus()
+                        }
+                    }
+                }
+
+                Loader {
+                    id: startupLoader
+
+                    anchors.fill: parent
+                    active: window.page === "startup"
+
+                    sourceComponent: Component {
+                        StartupPage {
+                            objectName: "startupPage"
+                            anchors.fill: parent
+                            shown: window.page === "startup"
+                            live: window.onScreen
+                        }
+                    }
                 }
             }
         }

@@ -220,6 +220,21 @@ class WindowTests(unittest.TestCase):
             self.assertEqual(self.c.property('page'), page)
         self.assertEqual([w for w in self.warnings if 'processes' in w], [])
 
+    def test_only_the_current_section_is_instantiated(self):
+        self.key(self.Qt.Key_1, '1')
+        self.assertIsNotNone(self.find('procsPage'))
+        self.assertIsNone(self.find('perfPage'))
+        self.c.setQuery('kit')
+        self.h.pump(30)
+        selected = self.c.property('selectedKey')
+        self.key(self.Qt.Key_2, '2')
+        self.assertIsNone(self.find('procsPage'))
+        self.assertIsNotNone(self.find('perfPage'))
+        self.key(self.Qt.Key_1, '1')
+        self.assertIsNotNone(self.find('procsPage'))
+        self.assertEqual(self.c.property('query'), 'kit')       # controller state survives the round trip
+        self.assertEqual(self.c.property('selectedKey'), selected)
+
     def test_apps_sheet_opens_and_closes(self):
         self.key(self.Qt.Key_3, '3')
         self.h.pump(60)
