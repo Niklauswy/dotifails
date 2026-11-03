@@ -91,7 +91,8 @@ def configure(deployment):
              '.config/xdg-desktop-portal/wysun-portals.conf')
     for relative in ('.local/share/applications/wysun-music.desktop',
                      '.local/share/icons/hicolor/scalable/apps/musika.svg',
-                     '.local/share/applications/wysun-files.desktop'):
+                     '.local/share/applications/wysun-files.desktop',
+                     '.local/share/applications/wysun-processes.desktop'):
         _publish(d, (d.source / 'config' / relative).read_text(), relative)
     for path in sorted((d.source / 'assets/backgrounds').glob('*')):
         if path.is_file():_publish_asset(d, path, '.local/share/backgrounds/' + path.name)

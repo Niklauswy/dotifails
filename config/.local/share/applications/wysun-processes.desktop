@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Wysun Processes
+Comment=Mira y gestiona los procesos, las apps y los servicios
+Exec=wysun processes
+Icon=utilities-system-monitor
+Terminal=false
+Categories=System;Monitor;
+Keywords=procesos;tareas;administrador;monitor;rendimiento;servicios;processes;task;manager;
+StartupNotify=true
+StartupWMClass=wysun-processes

@@ -20,7 +20,7 @@ MODULES = {
     'player': ('app', 'wysun_player', []), 'scheme': ('app', 'wysun_services.scheme', []),
     'wallpaper': ('app', 'wysun_services.wallpaper', []), 'workspaces': ('app', 'wysun_settings.runtime', ['workspaces']),
     'daemon': ('app', 'wysun_services.daemon', []), 'reload': ('app', 'wysun_services.daemon', ['reload']),
-    'lanshare': ('app', 'wysun_lanshare', []),
+    'lanshare': ('app', 'wysun_lanshare', []), 'processes': ('app', 'wysun_processes', []),
 }
 # Programs of their own next to this one: command -> (executable, leading arguments).
 PROGRAMS = {
