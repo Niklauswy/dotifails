@@ -54,8 +54,18 @@ class HyprTests(unittest.TestCase):
         h = hypr.Hypr(run=runner)
         h.focus('0xaa')
         h.close('0xaa')
-        self.assertEqual(runner.calls[-2], ['hyprctl', 'dispatch', 'focuswindow', 'address:0xaa'])
-        self.assertEqual(runner.calls[-1], ['hyprctl', 'dispatch', 'closewindow', 'address:0xaa'])
+        self.assertEqual(runner.calls[-2], ['hyprctl', 'dispatch', 'hl.dsp.focus({window="address:0xaa"})'])
+        self.assertEqual(runner.calls[-1], ['hyprctl', 'dispatch', 'hl.dsp.window.close({window="address:0xaa"})'])
+
+    def test_classic_config_falls_back_to_dispatcher_words(self):
+        class Classic(Runner):
+            def __call__(self, cmd, **kw):
+                self.calls.append(cmd)
+                ok = cmd[:2] == ['hyprctl', 'dispatch'] and not cmd[2].startswith('hl.')
+                return subprocess.CompletedProcess(cmd, 0, 'ok\n' if ok else 'error\n', '')
+        runner = Classic()
+        self.assertTrue(hypr.Hypr(run=runner).focus('0xaa'))
+        self.assertEqual(runner.calls[-1], ['hyprctl', 'dispatch', 'focuswindow', 'address:0xaa'])
 
     def test_rejects_bad_address(self):
         with self.assertRaises(ValueError):

@@ -19,8 +19,11 @@ def main(argv=None):
     instance = Instance()
     if instance.forward(query):
         try:
-            subprocess.run(['hyprctl', 'dispatch', 'focuswindow', 'class:^wysun-processes$'], capture_output=True,
-                           timeout=2, check=False)
+            done = subprocess.run(['hyprctl', 'dispatch', 'hl.dsp.focus({window="class:^wysun-processes$"})'],
+                                  capture_output=True, text=True, timeout=2, check=False)
+            if done.stdout.strip() != 'ok':
+                subprocess.run(['hyprctl', 'dispatch', 'focuswindow', 'class:^wysun-processes$'], capture_output=True,
+                               timeout=2, check=False)
         except (OSError, subprocess.SubprocessError):
             pass
         return 0

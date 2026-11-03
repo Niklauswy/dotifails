@@ -30,11 +30,14 @@ class LogicTests(unittest.TestCase):
     def test_recognises_the_dialog(self):
         self.assertTrue(js('return isAnrDialog("hyprland-dialog", "Application Not Responding")'))
         self.assertTrue(js('return isAnrDialog("", "Application Not Responding")'))
-        self.assertFalse(js('return isAnrDialog("hyprland-dialog", "Permission request")'))
+        self.assertTrue(js('return isAnrDialog("hyprland-dialog", "")'))      # the title arrives later
+        self.assertFalse(js('return isAnrDialog("kitty", "")'))
 
     def test_reads_title_and_class_from_the_command_line(self):
         self.assertEqual(js(f'return parseCmdline("{CMDLINE}")'), {'title': 'GitHub - wysun - Firefox', 'cls': 'firefox'})
         self.assertIsNone(js('return parseCmdline("hyprland-dialog\\u0000--title\\u0000x")'))
+        other = CMDLINE.replace('Application Not Responding', 'Permission request')
+        self.assertIsNone(js(f'return parseCmdline("{other}")'))
 
     def test_matches_the_hung_window(self):
         out = js('''return matchWindow([

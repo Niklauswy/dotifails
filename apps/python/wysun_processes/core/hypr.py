@@ -50,11 +50,21 @@ class Hypr:
         data = self._json('activeworkspace') or {}
         return data.get('id', 0)
 
+    def _dispatch(self, lua, legacy):
+        """Hyprland with a Lua config takes `hl.dsp…` expressions; a classic config, dispatcher words."""
+        done = self._call(['hyprctl', 'dispatch', lua])
+        if done is not None and done.stdout.strip() == 'ok':
+            return True
+        done = self._call(['hyprctl', 'dispatch', *legacy])
+        return done is not None and done.stdout.strip() == 'ok'
+
     def focus(self, address):
-        return self._call(['hyprctl', 'dispatch', 'focuswindow', 'address:' + _checked(address)]) is not None
+        a = _checked(address)
+        return self._dispatch(f'hl.dsp.focus({{window="address:{a}"}})', ['focuswindow', 'address:' + a])
 
     def close(self, address):
-        return self._call(['hyprctl', 'dispatch', 'closewindow', 'address:' + _checked(address)]) is not None
+        a = _checked(address)
+        return self._dispatch(f'hl.dsp.window.close({{window="address:{a}"}})', ['closewindow', 'address:' + a])
 
     @staticmethod
     def thumbs_dir():

@@ -46,8 +46,10 @@ Singleton {
     }
 
     function focusTarget(): void {
-        if (target)
-            Hyprland.dispatch("focuswindow address:0x" + String(target.address).replace(/^0x/, ""));
+        if (target) {
+            const address = "0x" + String(target.address).replace(/^0x/, "");
+            Hypr.dispatch(Hypr.usingLua ? `hl.dsp.focus({window="address:${address}"})` : `focuswindow address:${address}`);
+        }
         showing = false;
     }
 

@@ -7,13 +7,17 @@
 var TITLE = "Application Not Responding";
 var PROTECTED = ["quickshell", "hyprland", "xwayland", "wysun-shell"];
 
+// Hyprland's dialog maps before its title is set: its class is enough here; parseCmdline() confirms the title.
 function isAnrDialog(cls, title) {
-    return String(title || "") === TITLE;
+    return String(title || "") === TITLE || String(cls || "") === "hyprland-dialog";
 }
 
 // "/proc/<pid>/cmdline" text (NUL separated) -> {title, cls} of the hung window, or null.
 function parseCmdline(text) {
     var args = String(text || "").split("\u0000");
+    var t = args.indexOf("--title");
+    if (t < 0 || args[t + 1] !== TITLE)
+        return null;
     var i = args.indexOf("--text");
     if (i < 0 || i + 1 >= args.length)
         return null;

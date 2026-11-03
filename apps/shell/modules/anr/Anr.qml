@@ -32,7 +32,7 @@ Scope {
 
     function wait(): void {
         if (dialog)
-            Hyprland.dispatch("closewindow address:0x" + dialog);
+            Hypr.dispatch(Hypr.usingLua ? `hl.dsp.window.close({window="address:0x${dialog}"})` : `closewindow address:0x${dialog}`);
         reset();
     }
 
@@ -40,7 +40,7 @@ Scope {
         if (hung && hung.pid > 1)
             Quickshell.execDetached(["kill", "-KILL", String(hung.pid)]);
         if (dialog)
-            Hyprland.dispatch("closewindow address:0x" + dialog);
+            Hypr.dispatch(Hypr.usingLua ? `hl.dsp.window.close({window="address:0x${dialog}"})` : `closewindow address:0x${dialog}`);
         reset();
     }
 
@@ -134,7 +134,8 @@ Scope {
                 Component.onCompleted: {
                     // The card is up: now Hyprland's own dialog can step aside.
                     if (root.dialog)
-                        Hyprland.dispatch("movetoworkspacesilent special:wysun-anr,address:0x" + root.dialog);
+                        Hypr.dispatch(Hypr.usingLua ? `hl.dsp.window.move({workspace="special:wysun-anr",follow=false,window="address:0x${root.dialog}"})`
+                                                    : `movetoworkspacesilent special:wysun-anr,address:0x${root.dialog}`);
                 }
 
                 // The hung window, greyed, with a sheen sweeping across.
