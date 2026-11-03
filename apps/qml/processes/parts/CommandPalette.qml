@@ -26,7 +26,6 @@ Item {
             {group: "Ir a", icon: "monitoring", text: "Rendimiento", keys: "2", run: () => root.go("perf")},
             {group: "Ir a", icon: "apps", text: "Apps", keys: "3", run: () => root.go("apps")},
             {group: "Ir a", icon: "settings_suggest", text: "Servicios", keys: "4", run: () => root.go("services")},
-            {group: "Ir a", icon: "rocket_launch", text: "Inicio", keys: "5", run: () => root.go("startup")},
             {group: "Vista", icon: "account_tree", text: "Ver como árbol", keys: "V", run: () => procs.setMode("tree")},
             {group: "Vista", icon: "view_agenda", text: "Ver por app", keys: "V", run: () => procs.setMode("apps")},
             {group: "Vista", icon: "person", text: procs.mine ? "Mostrar todos los usuarios" : "Solo mis procesos", keys: "U", run: () => procs.setMine(!procs.mine)}

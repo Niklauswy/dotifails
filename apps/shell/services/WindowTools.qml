@@ -59,35 +59,6 @@ Singleton {
         Hypr.dispatch(Hypr.usingLua ? `hl.dsp.focus({window="address:${address}"})` : `focuswindow address:${address}`);
     }
 
-    // The ShellScreen of a Hyprland monitor, needed because popouts are per screen.
-    function screenForMonitor(monitor): ShellScreen {
-        if (!monitor)
-            return null;
-        return Quickshell.screens.find(s => Hypr.monitorFor(s)?.name === monitor.name) ?? null;
-    }
-
-    // The screen whose shell can host the window panel: the monitor of Wysun Processes, else the focused one, but
-    // restricted to the screens Drawers is built for (Screens.widgetScreens). With widget mode «primary» the bar
-    // and its popouts exist only on the primary screen, wherever the focus or the Processes window is. The
-    // window's Wayland app id is `wysun-processes` (window.py sets it before mapping).
-    function barScreen(): ShellScreen {
-        const own = Hyprland.toplevels.values.find(t => t.lastIpcObject?.class === "wysun-processes");
-        return Logic.screenWithDrawers(Screens.widgetScreens,
-                                       screenForMonitor(own?.monitor) ?? screenForMonitor(Hypr.focusedMonitor));
-    }
-
-    // Opens the bar's detached «winfo» (live preview + details) for one window, on the screen that has the bar.
-    function windowInfo(address): bool {
-        const t = toplevel(Logic.singleAddress(address));
-        if (!t)
-            return false;
-        const popouts = ShellState.componentsFor(barScreen())?.panels?.popouts ?? null;
-        if (!popouts)
-            return false;
-        popouts.openWinfo(t);
-        return true;
-    }
-
     // Returns the thumbnails already written at `width` (JSON {"0x…": path}) and asks for fresh ones of `text`'s
     // windows. Width is optional: 480 px unless the caller asks for another size (clamped by Logic).
     function requestThumbs(text, width): string {

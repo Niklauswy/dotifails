@@ -102,21 +102,6 @@ Item {
 
             Button {
                 type: "tonal"
-                icon: "my_location"
-                text: "Localizar"
-                onClicked: procs.locateApp(sheet.entry.app)
-            }
-
-            Button {
-                objectName: "windowInfoButton"
-                type: "tonal"
-                icon: "live_tv"
-                text: "En vivo"
-                onClicked: procs.showWindowInfo(sheet.entry.address ?? "")
-            }
-
-            Button {
-                type: "tonal"
                 icon: "list"
                 text: "Procesos"
                 onClicked: sheet.showProcesses(sheet.entry.app)

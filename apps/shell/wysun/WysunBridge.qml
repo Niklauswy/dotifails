@@ -32,8 +32,7 @@ Scope {
         for (const screen of Quickshell.screens) {
             const state = ShellState.forScreen(screen);
             if (state) for (const name of Object.values(surfaces)) if (name) state[name] = false;
-            // A detached bar panel («winfo», Nexus) is not one of the ScreenState surfaces: close it too, which
-            // also releases a window pinned by `windowinfo` (Wrapper.close resets winfoClient).
+            // A detached bar panel («winfo», Nexus) is not one of the ScreenState surfaces: close it too.
             ShellState.componentsFor(screen)?.panels?.popouts?.close();
         }
     }
@@ -134,8 +133,6 @@ Scope {
         // is the capture size in device pixels; empty means the usual 480.
         function thumbs(addresses: string, width: string): string { return WindowTools.requestThumbs(addresses, width); }
         function locate(address: string): bool { return WindowTools.locate(address); }
-        // The bar's live window panel («winfo») for one window, used by Processes' app sheet.
-        function windowinfo(address: string): bool { return WindowTools.windowInfo(address); }
         // Super+Shift+Esc: ask over the active window whether to force it closed.
         function forceQuit(): bool { return ForceQuit.request(); }
         // Eyedropper without the Colors panel (Super+Shift+C).

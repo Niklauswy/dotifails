@@ -21,9 +21,7 @@ class QmlProcessesWindow:
         self.bridge = theme_bridge.ThemeBridge(parent=self.engine)
         if controller is None:
             from wysun_processes.core.services import Services
-            from wysun_processes.core.startup import Startup
-            services = Services()
-            controller = ProcessesController(services=services, startup=Startup(services=services), parent=self.engine)
+            controller = ProcessesController(services=Services(), parent=self.engine)
         self.procs = controller
         context = self.engine.rootContext()
         context.setContextProperty('bridge', self.bridge)

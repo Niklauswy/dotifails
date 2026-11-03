@@ -21,7 +21,7 @@ KITTY = '0::/user.slice/user-1000.slice/user@1000.service/app.slice/app-kitty-2.
 
 class FakeHypr:
     def __init__(self):
-        self.located, self.focused, self.thumb_calls, self.window_info_calls = [], [], [], []
+        self.located, self.focused, self.thumb_calls = [], [], []
 
     def windows(self):
         return [dict(address='0xaa', pid=10, app_id='firefox', title='GitHub', workspace=1, active=False, monitor=0,
@@ -55,10 +55,6 @@ class FakeHypr:
         self.located.append(address)
         return False
 
-    def window_info(self, address):
-        self.window_info_calls.append(address)
-        return True
-
 
 class ControllerTests(unittest.TestCase):
     @classmethod
@@ -72,8 +68,7 @@ class ControllerTests(unittest.TestCase):
         from wysun_processes.core.sampler import Sampler
         from wysun_processes.quick.controller import ProcessesController
         cls.hypr = FakeHypr()
-        cls.c = ProcessesController(sampler=Sampler(proc_root=proc), hypr=cls.hypr, services=None, startup=None,
-                                    auto=False)
+        cls.c = ProcessesController(sampler=Sampler(proc_root=proc), hypr=cls.hypr, services=None, auto=False)
         cls.c.tick()
         cls.c.tick()
 

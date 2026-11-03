@@ -58,8 +58,8 @@ sin el componente `desktop`.
 `WysunBridge` y los demonios `BatteryMonitor`, `IdleInhibit`. Los atajos viven en `hyprland.lua`.
 
 - **IPC**: `wysunShell` (en `apps/shell/wysun/WysunBridge.qml`): `toggle|open <superficie>`, `surfaces`, `close`, `status`,
-  `reloadPreferences`, `theme`, `openThemeSettings`; para Processes, `thumbs <direcciones> [ancho]`, `locate <dirección>`,
-  `windowinfo <dirección>` y `forceQuit`.
+  `reloadPreferences`, `theme`, `openThemeSettings`; para Processes, `thumbs <direcciones> [ancho]`, `locate <dirección>` y
+  `forceQuit`.
   La **única lista de superficies** es `surfaces` de ese archivo
   (`wysun-shell surfaces` la imprime: dashboard, windows, overview, cheatsheet, wallpapers, launcher, emoji, menu, quicksettings,
   notifications, sidebar, session, ai, colors, study). `wysun SUPERFICIE` y `wysun-shell SUPERFICIE` la alternan; ningún
@@ -88,9 +88,7 @@ sin el componente `desktop`.
   24, `ancho` opcional en píxeles de 160 a 1920 —480 por defecto—, una caché por dirección y ancho, PNG en
   `$XDG_RUNTIME_DIR/wysun-processes/thumbs`, captura apagada a los 12 s sin peticiones) y «localizar» (`wysun-shell locate
   <dirección>`: si la ventana está en otro espacio o su monitor muestra otro, primero se la enfoca (`focuswindow` en la
-  sintaxis Lua de la sesión) y después el halo en el acento atenúa el resto; 2,6 s). La hoja de Apps abre además el panel
-  en vivo de la barra para esa ventana (`wysun-shell windowinfo <dirección>`: popout «winfo» con `ScreencopyView live` en
-  el monitor que muestra Processes; sin dirección o con una ventana inexistente, `false`). `modules/anr` reconoce el diálogo
+  sintaxis Lua de la sesión) y después el halo en el acento atenúa el resto; 2,6 s). `modules/anr` reconoce el diálogo
   `hyprland-dialog` de Hyprland (`misc:enable_anr_dialog` queda
   como está), lee de su línea de comandos qué ventana se colgó y muestra sobre ella la tarjeta de Wysun (icono o glifo,
   barra de espera, Esperar / Forzar cierre; la ventana se atenúa con un brillo que la recorre); solo entonces mueve el
@@ -167,15 +165,14 @@ y el residente (`daemon`). Las preferencias de usuario viven en `~/.config/wysun
 ### Wysun Processes (`apps/python/wysun_processes`, `apps/qml/processes`)
 
 Monitor de procesos como app QML sobre `WysunM3` (`wysun processes [consulta]`, `Super+Shift+K`), ventana en mosaico con
-cinco secciones (Procesos, Rendimiento, Apps, Servicios e Inicio) y una sola instancia por usuario (socket en
+cuatro secciones (Procesos, Rendimiento, Apps y Servicios) y una sola instancia por usuario (socket en
 `$XDG_RUNTIME_DIR`; una segunda llamada le pasa la consulta y la enfoca, y la ventana filtra por ella y selecciona la app
 nombrada). El núcleo sin Qt (`core/`) muestrea `/proc` (CPU, memoria, E/S, GPU por DRM fdinfo, app por su `app-*.scope`),
 construye las vistas por app, árbol y lista, actúa con identidad comprobada (pidfd + inicio), lista `systemd --user` con su
-registro en vivo y el arranque de la sesión (nunca escribe `hyprland.lua`: `exec-once` es de solo lectura; el autostart XDG
-se anula con un archivo en `~/.config/autostart` y los servicios se retrasan con un drop-in). `quick/` es el puente Qt; las ventanas de Hyprland, sus miniaturas, «localizar» y la
-vista en vivo vienen del shell por `wysun-shell thumbs|locate|windowinfo`. No guarda historial ni estado propio: las miniaturas viven en
-`$XDG_RUNTIME_DIR/wysun-processes/thumbs` mientras la ventana está abierta, y los cambios de Inicio escriben solo esas
-anulaciones y drop-ins. Diseño: `docs/superpowers/specs/2026-11-02-wysun-processes-app-design.md`.
+registro en vivo. `quick/` es el puente Qt; las ventanas de Hyprland, sus miniaturas y «localizar» (desde Procesos) vienen
+del shell por `wysun-shell thumbs|locate`. Apps agrupa las ventanas por monitor y espacio; su hoja muestra la ventana con
+su forma y nitidez reales, sin acciones de localizar ni vista en vivo. No guarda historial ni estado propio: las
+miniaturas viven en `$XDG_RUNTIME_DIR/wysun-processes/thumbs` mientras la ventana está abierta. Diseño: `docs/superpowers/specs/2026-11-02-wysun-processes-app-design.md`.
 
 ### Wysun Player y `wysun_media` (`apps/python/wysun_media`, `wysun_player`)
 
@@ -449,7 +446,7 @@ python3 -m unittest tests.test_shell_processes_modules -v       # módulos del s
 ```
 
 `tests/test_processes_core.py`, `test_processes_services.py`, `test_processes_hypr.py` y `test_process_watch.py` cubren el
-núcleo, los servicios y el inicio, Hyprland y los avisos. `tests/shell_bridge` incluye `test_window_tools.py`,
+núcleo, los servicios, Hyprland y los avisos. `tests/shell_bridge` incluye `test_window_tools.py`,
 `test_anr_logic.py`, `test_forcequit.py` y `test_launcher_processes.py`; `tests/qml` incluye
 `check_processes_components.py`, `check_processes_controller.py` y `check_processes_window.py` (corren con
 `tests.test_qml_runtime`). `tests/test_shell_processes_modules.py` compila `windowtools`, `anr`, `forcequit`, el panel de

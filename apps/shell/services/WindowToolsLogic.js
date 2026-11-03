@@ -21,7 +21,7 @@ function parseAddresses(text) {
     return out;
 }
 
-// One address for actions that target a single window (locate, windowinfo); "" for anything else, so malformed or
+// One address for actions that target a single window (locate); "" for anything else, so malformed or
 // repeated input never reaches a dispatch.
 function singleAddress(text) {
     var out = parseAddresses(text);
@@ -31,17 +31,6 @@ function singleAddress(text) {
 function sameAddress(a, b) {
     var strip = function (v) { return String(v || "").toLowerCase().replace(/^0x/, ""); };
     return strip(a) !== "" && strip(a) === strip(b);
-}
-
-// `wanted` (the monitor of Wysun Processes, else the focused one) when it is one of `widgetScreens` — the screens
-// Drawers is built for — else the first of them: the bar's popouts exist only there. `null` without any screen.
-function screenWithDrawers(widgetScreens, wanted) {
-    var list = widgetScreens || [];
-    var name = wanted ? String(wanted.name || "") : "";
-    for (var i = 0; i < list.length; i++)
-        if (name && list[i].name === name)
-            return list[i];
-    return list.length ? list[0] : null;
 }
 
 // Where the halo goes on `screen` ({name, activeWs}) for a window ({at, size}) on `monitor`

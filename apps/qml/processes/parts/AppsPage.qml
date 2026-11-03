@@ -149,13 +149,6 @@ Item {
                 sheetHost.close();
                 return true;
             }
-            if (event.text === "e" || event.text === "E") {
-                const shown = currentEntry();
-                if (shown && shown.kind === "window") {
-                    procs.showWindowInfo(shown.address ?? "");
-                    return true;
-                }
-            }
             return false;
         }
         if (!columnCount)
@@ -187,11 +180,6 @@ Item {
         if (event.key === Qt.Key_Delete) {
             if (entry.kind !== "system")
                 procs.closeApp(entry.app, event.modifiers & Qt.ShiftModifier);
-            return true;
-        }
-        if (event.text === "l" || event.text === "L") {
-            if (entry.kind !== "system")
-                procs.locateApp(entry.app);
             return true;
         }
         if (event.text === "w") {
@@ -248,7 +236,7 @@ Item {
             anchors.leftMargin: Theme.spacing.medium ?? 0
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
-            text: "←/→ cambia de columna · Enter abre · L localiza · E vista en vivo · Supr cierra"
+            text: "←/→ cambia de columna · Enter abre · Supr cierra"
             role: "body.small"
             color: Theme.m3onSurfaceVariant
             elide: Text.ElideRight
@@ -491,7 +479,6 @@ Item {
                                         page.selectedRow = rowIndex;
                                         page.openWindow(modelData);
                                     }
-                                    onLocate: procs.locateApp(modelData.app)
                                     onCloseApp: procs.closeApp(modelData.app, false)
                                     onSelectedChanged: {
                                         if (selected)

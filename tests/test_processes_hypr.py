@@ -48,8 +48,6 @@ class Runner:
             return subprocess.CompletedProcess(cmd, 0, '{"0xaa": "/run/x/0xaa.png"}\n', '')
         if cmd[:2] == ['wysun-shell', 'locate']:
             return subprocess.CompletedProcess(cmd, 0, 'true\n', '')
-        if cmd[:2] == ['wysun-shell', 'windowinfo']:
-            return subprocess.CompletedProcess(cmd, 0, 'true\n', '')
         return subprocess.CompletedProcess(cmd, 0, 'ok\n', '')
 
 
@@ -121,13 +119,6 @@ class HyprTests(unittest.TestCase):
             h.thumbnails(['0xaa'], 900)
             self.assertEqual(runner.calls[-1], ['wysun-shell', 'thumbs', '0xaa', '900'])
             self.assertTrue(h.locate('0xaa'))
-            self.assertTrue(h.window_info('0xaa'))
-            self.assertEqual(runner.calls[-1], ['wysun-shell', 'windowinfo', '0xaa'])
-
-    def test_window_info_rejects_bad_address_and_survives_a_missing_shell(self):
-        with self.assertRaises(ValueError):
-            hypr.Hypr(run=Runner()).window_info('0xaa; rm -rf')
-        self.assertFalse(hypr.Hypr(run=Runner(fail=('wysun-shell',))).window_info('0xaa'))
 
     def test_capture_width_is_clamped_or_omitted(self):
         self.assertIsNone(hypr.capture_width(None))          # the shell's default stays 480 px

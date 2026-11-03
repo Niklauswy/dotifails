@@ -1,4 +1,4 @@
-"""Wysun Processes: systemd --user services and the session startup sources (core/services.py, core/startup.py),
+"""Wysun Processes: systemd --user services (core/services.py),
 with fake runners and temporary homes — nothing touches the real user session."""
 import json
 import os
@@ -11,7 +11,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'apps/python'))
 
-from wysun_processes.core import services, startup  # noqa: E402
+from wysun_processes.core import services  # noqa: E402
 
 UNITS = [
     {'unit': 'pipewire.service', 'load': 'loaded', 'active': 'active', 'sub': 'running', 'description': 'PipeWire'},
@@ -123,73 +123,6 @@ def write_stat(proc, pid, comm, start):
     fields = ['S', '1'] + ['0'] * 17 + [str(start)] + ['0', '0']
     (folder / 'stat').write_text(f'{pid} ({comm}) ' + ' '.join(fields) + '\n')
     (folder / 'cmdline').write_bytes(comm.encode() + b'\0')
-
-
-class StartupTests(unittest.TestCase):
-    def setUp(self):
-        self.tmp = tempfile.TemporaryDirectory()
-        self.home = Path(self.tmp.name) / 'home'
-        self.etc = Path(self.tmp.name) / 'etc/xdg/autostart'
-        self.etc.mkdir(parents=True)
-        (self.etc / 'nextcloud.desktop').write_text('[Desktop Entry]\nName=Nextcloud\nExec=nextcloud --background\n')
-        self.proc = Path(self.tmp.name) / 'proc'
-        clock = os.sysconf('SC_CLK_TCK')
-        write_stat(self.proc, 100, 'Hyprland', 10 * clock)
-        write_stat(self.proc, 120, 'wysun-session-s', 11 * clock)
-        self.env = {'XDG_CONFIG_DIRS': str(Path(self.tmp.name) / 'etc/xdg')}
-
-    def tearDown(self):
-        self.tmp.cleanup()
-
-    def make(self, xdg=True):
-        return startup.Startup(home=self.home, hypr_config=ROOT / 'config/.config/wysun/hyprland.lua',
-                               proc_root=self.proc, services=None, env=self.env, xdg_active=xdg)
-
-    def test_exec_once_read_only(self):
-        s = self.make()
-        once = [i for i in s.items() if i['source'] == 'exec-once']
-        self.assertEqual([i['name'] for i in once], ['wysun-session-services', 'wysun workspaces'])
-        self.assertFalse(any(i['editable'] for i in once))
-        self.assertAlmostEqual(once[0]['started_s'], 1.0, places=1)
-        with self.assertRaises(PermissionError):
-            s.set_enabled(once[0]['id'], False)
-
-    def test_autostart_disable_override(self):
-        s = self.make()
-        item = next(i for i in s.items() if i['name'] == 'Nextcloud')
-        self.assertTrue(item['editable'] and item['enabled'])
-        s.set_enabled(item['id'], False)
-        override = self.home / '.config/autostart/nextcloud.desktop'
-        self.assertIn('Hidden=true', override.read_text())
-        self.assertNotIn('Hidden', (self.etc / 'nextcloud.desktop').read_text())
-        self.assertFalse(next(i for i in s.items() if i['name'] == 'Nextcloud')['enabled'])
-        s.set_enabled(item['id'], True)
-        self.assertFalse(override.exists())
-
-    def test_delay_wrapper_and_revert(self):
-        s = self.make()
-        item = next(i for i in s.items() if i['name'] == 'Nextcloud')
-        s.set_delay(item['id'], 5)
-        text = (self.home / '.config/autostart/nextcloud.desktop').read_text()
-        self.assertIn("Exec=sh -c 'sleep 5; exec nextcloud --background'", text)
-        self.assertIn('X-Wysun-Delay=5', text)
-        self.assertEqual(next(i for i in s.items() if i['name'] == 'Nextcloud')['delay'], 5)
-        s.set_delay(item['id'], 0)
-        self.assertFalse((self.home / '.config/autostart/nextcloud.desktop').exists())
-
-    def test_xdg_hidden_when_session_does_not_run_it(self):
-        self.assertFalse(any(i['source'] == 'autostart' for i in self.make(xdg=False).items()))
-
-    def test_systemd_delay_drop_in(self):
-        s = self.make()
-        path = s.systemd_delay('syncthing.service', 10)
-        self.assertEqual(path, self.home / '.config/systemd/user/syncthing.service.d/wysun-delay.conf')
-        self.assertIn('ExecStartPre=/bin/sleep 10', path.read_text())
-        s.systemd_delay('syncthing.service', 0)
-        self.assertFalse(path.exists())
-
-    def test_ready_at(self):
-        self.assertGreaterEqual(self.make().ready_at(), 1.0)
 
 
 if __name__ == '__main__':

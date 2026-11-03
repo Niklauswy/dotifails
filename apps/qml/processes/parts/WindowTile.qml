@@ -1,6 +1,6 @@
 // A window as a row of the Apps section: a medium 16:9 live thumbnail from the shell (a drawn preview in the app's
 // tint while there is none), its name (from the window's desktop entry), the full title, CPU and memory and a thin
-// usage bar. Hovering or selecting shows Abrir, Localizar and Cerrar as icon buttons.
+// usage bar. Hovering or selecting shows Abrir and Cerrar as icon buttons.
 import QtQuick
 import WysunM3
 import "Fmt.js" as Fmt
@@ -30,7 +30,6 @@ Item {
     }
 
     signal clicked
-    signal locate
     signal closeApp
 
     implicitHeight: thumbHeight + pad * 2
@@ -217,11 +216,6 @@ Item {
             IconButton {
                 icon: "open_in_full"
                 onClicked: row.clicked()
-            }
-
-            IconButton {
-                icon: "my_location"
-                onClicked: row.locate()
             }
 
             IconButton {

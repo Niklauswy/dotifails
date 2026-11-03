@@ -1,6 +1,6 @@
 """Wysun Processes' QML window (venv Python, offscreen): loads clean in dark and light, keyboard navigation of the
-table, the query bar and its filter chips, view switching, the confirmation dialog, the five sections, the app
-sheet (container transform), services without systemd and read-only exec-once entries in Inicio."""
+table, the query bar and its filter chips, view switching, the confirmation dialog, the four sections, the app
+sheet (container transform) and services without systemd."""
 from pathlib import Path
 import sys
 import tempfile
@@ -24,16 +24,6 @@ class NoServices:
         return []
 
 
-class FakeStartup:
-    def items(self):
-        return [dict(id='session:Hyprland', name='Hyprland', source='session', editable=False, enabled=True, delay=0,
-                     started_s=0.0, ready_s=0.4, impact=2, app='Hyprland'),
-                dict(id='once:wysun workspaces', name='wysun workspaces', source='exec-once', editable=False,
-                     enabled=True, delay=0, started_s=0.8, ready_s=0.8, impact=1, app='wysun'),
-                dict(id='systemd:syncthing.service', name='syncthing', source='systemd', editable=True, enabled=True,
-                     delay=0, started_s=1.0, ready_s=2.2, impact=3, app='syncthing')]
-
-
 class WindowTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -51,7 +41,7 @@ class WindowTests(unittest.TestCase):
         from wysun_processes.quick.controller import ProcessesController
         from wysun_processes.quick.window import QmlProcessesWindow
         cls.c = ProcessesController(sampler=Sampler(proc_root=proc), hypr=FakeHypr(), services=NoServices(),
-                                    startup=FakeStartup(), auto=False)
+                                    auto=False)
         cls.warnings = []
         cls.win = QmlProcessesWindow(controller=cls.c)
         cls.win.engine.warnings.connect(lambda errors: cls.warnings.extend(e.toString() for e in errors))
@@ -61,9 +51,7 @@ class WindowTests(unittest.TestCase):
         cls.win.present()
         for _ in range(3):
             cls.c.tick()
-        cls.c.refreshStartup()
         cls.c.refreshServices()
-        cls.h.wait_for(lambda: cls.c.property('startupItems'), 2000)
         cls.h.pump(100)
 
     @classmethod
@@ -215,7 +203,7 @@ class WindowTests(unittest.TestCase):
 
     def test_sections_by_number(self):
         for key, page in ((self.Qt.Key_2, 'perf'), (self.Qt.Key_3, 'apps'), (self.Qt.Key_4, 'services'),
-                          (self.Qt.Key_5, 'startup'), (self.Qt.Key_1, 'procs')):
+                          (self.Qt.Key_5, 'services'), (self.Qt.Key_1, 'procs')):
             self.key(key, chr(key))
             self.assertEqual(self.c.property('page'), page)
         self.assertEqual([w for w in self.warnings if 'processes' in w], [])
@@ -245,23 +233,6 @@ class WindowTests(unittest.TestCase):
         self.key(self.Qt.Key_Escape)
         self.assertFalse(sheet.property('opened'))
         self.assertEqual(self.c.property('previewAddress'), '')
-
-    def test_apps_sheet_opens_the_live_window_panel(self):
-        self.c.hypr.window_info_calls.clear()
-        self.key(self.Qt.Key_3, '3')
-        self.h.pump(60)
-        self.key(self.Qt.Key_Return)
-        button = self.find('windowInfoButton')
-        self.assertIsNotNone(button)
-        self.assertEqual(button.property('text'), 'En vivo')
-        self.assertEqual(button.property('icon'), 'live_tv')
-        self.key(self.Qt.Key_E, 'e')                       # the sheet's V-free shortcut
-        self.assertEqual(self.c.hypr.window_info_calls, ['0xaa'])
-        from PySide6.QtCore import QMetaObject, Qt
-        QMetaObject.invokeMethod(button, 'clicked', Qt.DirectConnection)
-        self.h.pump(30)
-        self.assertEqual(self.c.hypr.window_info_calls, ['0xaa', '0xaa'])
-        self.key(self.Qt.Key_Escape)
 
     def test_apps_rows_ask_for_a_capture_of_their_own_size(self):
         self.key(self.Qt.Key_3, '3')
@@ -295,13 +266,6 @@ class WindowTests(unittest.TestCase):
     def test_services_without_systemd(self):
         self.key(self.Qt.Key_4, '4')
         self.assertTrue(self.find('servicesEmpty').property('visible'))
-
-    def test_startup_exec_once_has_no_switch(self):
-        self.key(self.Qt.Key_5, '5')
-        self.h.pump(60)
-        self.assertIsNotNone(self.find('startupRow-once:wysun workspaces'))
-        self.assertIsNone(self.find('startupSwitch-once:wysun workspaces'))
-        self.assertIsNotNone(self.find('startupSwitch-systemd:syncthing.service'))
 
     def test_palette_and_help(self):
         self.h.key(self.window, self.Qt.Key_K, self.Qt.ControlModifier)

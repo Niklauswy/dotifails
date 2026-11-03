@@ -1,6 +1,6 @@
 """The bridge between Wysun Processes' Qt-free core and its QML window (`procs` in QML): sampling on a worker
 thread, the table model, selection, histories for the charts, actions with confirmation, Hyprland windows by
-workspace, user services with their live journal, and the session startup. QML only presents."""
+workspace, and user services with their live journal. QML only presents."""
 from collections import deque
 import os
 from pathlib import Path
@@ -140,7 +140,6 @@ class ProcessesController(QObject):
     previewChanged = Signal()
     statsChanged = Signal()
     servicesChanged = Signal()
-    startupChanged = Signal()
     detailsChanged = Signal()
     logChanged = Signal()
     suspendedChanged = Signal()
@@ -148,7 +147,7 @@ class ProcessesController(QObject):
     confirmNeeded = Signal(str, str, int, int)       # action, label, number of processes, current nice
     message = Signal(str, bool)                      # text, offers undo
 
-    def __init__(self, sampler=None, hypr=None, services=None, startup=None, catalog=None, auto=True, parent=None):
+    def __init__(self, sampler=None, hypr=None, services=None, catalog=None, auto=True, parent=None):
         super().__init__(parent)
         if sampler is None:
             from wysun_processes.core.sampler import Sampler
@@ -159,7 +158,7 @@ class ProcessesController(QObject):
         if catalog is None:
             from .icons import Catalog
             catalog = Catalog()
-        self.sampler, self.hypr, self.services_core, self.startup_core, self.catalog = sampler, hypr, services, startup, catalog
+        self.sampler, self.hypr, self.services_core, self.catalog = sampler, hypr, services, catalog
         self._rowsm = KeyedModel(ROW_ROLES, self)
         self.uid = os.getuid()
         self._mode, self._query, self._sort, self._descending = 'apps', '', 'cpu', True
@@ -175,7 +174,6 @@ class ProcessesController(QObject):
         self._thumb_urls = {}
         self._columns, self._windowless, self._system_windowless = [], [], {}
         self._services, self._service_unit, self._log, self._journal = [], '', [], None
-        self._startup, self._ready = [], 0.0
         self._undo = None
         self._ticks = 0
         self._suspended, self._window_visible = '', True
@@ -206,7 +204,6 @@ class ProcessesController(QObject):
             self._presence_timer.start()
             QTimer.singleShot(PRESENCE_POLL // 2, self._check_presence)
             QTimer.singleShot(200, self.refreshServices)
-            QTimer.singleShot(400, self.refreshStartup)
 
     # ------------------------------------------------------------------ plumbing
     def _async(self, fn, callback):
@@ -863,8 +860,6 @@ class ProcessesController(QObject):
                 self._refresh_windows()
             if page == 'services':
                 self.refreshServices()
-            if page == 'startup':
-                self.refreshStartup()
             self.stateChanged.emit()
 
     @Property(int, notify=stateChanged)
@@ -982,14 +977,6 @@ class ProcessesController(QObject):
             self.message.emit('No tiene ventana abierta.', False)
         elif not self.hypr.locate(address):
             self.message.emit('No se pudo localizar: el shell no responde.', False)
-
-    @Slot(str)
-    def showWindowInfo(self, address):
-        """The app sheet's «En vivo»: the shell's live window panel for one window (its bar «winfo» popout)."""
-        if not address:
-            self.message.emit('No tiene ventana abierta.', False)
-        elif not self.hypr.window_info(address):
-            self.message.emit('No se pudo abrir la vista en vivo: el shell no responde.', False)
 
     @Slot(str)
     def selectApp(self, app):
@@ -1141,51 +1128,3 @@ class ProcessesController(QObject):
         level, stamp, text = entry
         clock = time.strftime('%H:%M:%S', time.localtime(stamp / 1e6)) if stamp else '—'
         return dict(level=level, time=clock, text=text)
-
-    # ------------------------------------------------------------------ startup
-    @Property('QVariantList', notify=startupChanged)
-    def startupItems(self):
-        return self._startup
-
-    @Property(float, notify=startupChanged)
-    def readyAt(self):
-        return self._ready
-
-    @Slot()
-    def refreshStartup(self):
-        if self.startup_core is None:
-            return
-
-        def work():
-            items = self.startup_core.items()
-            times = [i['ready_s'] for i in items if i['enabled'] and not i['delay'] and i['ready_s'] is not None]
-            return items, (max(times) if times else 0.0)
-
-        def finish(result):
-            if isinstance(result, Exception):
-                return
-            items, ready = result
-            for item in items:
-                item['icon'] = self.catalog.icon(item.get('app', ''))
-                item['tint'] = self.catalog.tint(item.get('app', ''))
-            self._startup, self._ready = items, ready
-            self.startupChanged.emit()
-        self._async(work, finish)
-
-    @Slot(str, bool)
-    def setStartupEnabled(self, item_id, enabled):
-        self._startup_change(lambda: self.startup_core.set_enabled(item_id, enabled))
-
-    @Slot(str, int)
-    def setStartupDelay(self, item_id, seconds):
-        self._startup_change(lambda: self.startup_core.set_delay(item_id, seconds))
-
-    def _startup_change(self, fn):
-        if self.startup_core is None:
-            return
-
-        def finish(result):
-            if isinstance(result, Exception):
-                self.message.emit(str(result), False)
-            self.refreshStartup()
-        self._async(fn, finish)

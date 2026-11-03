@@ -1,4 +1,4 @@
-// Wysun Processes: an adaptive rail with five sections (Procesos, Rendimiento, Apps, Servicios, Inicio), the
+// Wysun Processes: an adaptive rail with four sections (Procesos, Rendimiento, Apps, Servicios), the
 // confirmation dialog, the command palette, the shortcuts help and the snackbars. Python provides `procs` (the
 // controller) and `bridge` (theme). Every section handles its own keys through handleKey(event).
 import QtQuick
@@ -12,7 +12,7 @@ Window {
     readonly property Item overlayHost: overlay
     // Nothing animates while the window cannot be seen: on another workspace, minimised, or every output off.
     readonly property bool onScreen: visible && visibility !== Window.Minimized && !procs.suspended
-    readonly property var order: ["procs", "perf", "apps", "services", "startup"]
+    readonly property var order: ["procs", "perf", "apps", "services"]
 
     function loaderFor(id) {
         if (id === "procs")
@@ -23,8 +23,6 @@ Window {
             return appsLoader;
         if (id === "services")
             return servicesLoader;
-        if (id === "startup")
-            return startupLoader;
         return null;
     }
 
@@ -94,7 +92,7 @@ Window {
                 event.accepted = true;
                 return;
             }
-            if (event.text >= "1" && event.text <= "5") {
+            if (event.text >= "1" && event.text <= String(window.order.length)) {
                 window.go(window.order[Number(event.text) - 1]);
                 event.accepted = true;
                 return;
@@ -123,8 +121,7 @@ Window {
                 {id: "procs", icon: "list_alt", label: "Procesos"},
                 {id: "perf", icon: "monitoring", label: "Rendimiento"},
                 {id: "apps", icon: "apps", label: "Apps"},
-                {id: "services", icon: "settings_suggest", label: "Servicios", badge: procs.failedCount > 0 ? procs.failedCount : undefined},
-                {id: "startup", icon: "rocket_launch", label: "Inicio"}
+                {id: "services", icon: "settings_suggest", label: "Servicios", badge: procs.failedCount > 0 ? procs.failedCount : undefined}
             ]
             fab: Component {
                 Fab {
@@ -208,22 +205,6 @@ Window {
                             shown: window.page === "services"
                             live: window.onScreen
                             onReturnFocus: root.forceActiveFocus()
-                        }
-                    }
-                }
-
-                Loader {
-                    id: startupLoader
-
-                    anchors.fill: parent
-                    active: window.page === "startup"
-
-                    sourceComponent: Component {
-                        StartupPage {
-                            objectName: "startupPage"
-                            anchors.fill: parent
-                            shown: window.page === "startup"
-                            live: window.onScreen
                         }
                     }
                 }
