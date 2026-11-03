@@ -6,6 +6,7 @@ import Quickshell.Wayland
 import Quickshell.Hyprland
 import Wysun.Config
 import qs.components
+import qs.components.containers
 import qs.services
 import "../../services/WindowToolsLogic.js" as Logic
 
