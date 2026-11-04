@@ -91,7 +91,8 @@ class MusicStore:
         CREATE TABLE IF NOT EXISTS playlist_tracks (playlist TEXT NOT NULL, track TEXT NOT NULL, position INTEGER NOT NULL,
             PRIMARY KEY (playlist, track));
         CREATE TABLE IF NOT EXISTS history (track TEXT PRIMARY KEY, played REAL NOT NULL, plays INTEGER DEFAULT 1);
-        PRAGMA user_version=2;
+        CREATE TABLE IF NOT EXISTS catalog (track TEXT PRIMARY KEY, data TEXT NOT NULL);
+        PRAGMA user_version=3;
         ''')
 
     def favorites(self):
@@ -191,6 +192,14 @@ class MusicStore:
 
     def most_played(self, limit=20):
         return [row[0] for row in self.db.execute('SELECT track FROM history ORDER BY plays DESC, played DESC LIMIT ?', (limit,))]
+
+    # Songs heard by streaming (not on disk): enough to show them in history and to play them again.
+    def catalog(self):
+        return {key: json.loads(data) for key, data in self.db.execute('SELECT track,data FROM catalog')}
+
+    def remember(self, key, track):
+        self.db.execute('INSERT OR REPLACE INTO catalog VALUES(?,?)', (key, json.dumps(track, ensure_ascii=False)))
+        self.db.commit()
 
     def close(self):
         self.db.close()

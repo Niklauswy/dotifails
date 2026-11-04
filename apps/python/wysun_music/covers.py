@@ -59,7 +59,7 @@ class CoverStore(QObject):
         if key.startswith('artist:'):
             self.metadata.artist(key.split(':', 1)[1])  # Wikimedia photo, credited source
             return
-        collection = self.library.state['collections'].get(key)
+        collection = self.library.raw_collection(key)
         if collection is not None:
             if collection.get('cover_url'):
                 url = collection['cover_url']
