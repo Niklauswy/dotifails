@@ -46,7 +46,8 @@ def edit_state():
 
 def update_track(key, **values):
     with edit_state() as state:
-        state['tracks'][key].update(values)
+        if key in state['tracks']:          # a cancelled song may have left the queue meanwhile
+            state['tracks'][key].update(values)
 
 
 def canonical(text):
@@ -69,14 +70,18 @@ def equivalent_track(state,source):
 
 
 def enqueue(manifest):
+    """Queue every track not yet in the library. Newly queued tracks carry the batch they came in (``batch``:
+    collection id and time, ``batch_title``), which «Añadir música» shows as one card with its progress."""
     with edit_state() as state:
         for collection in manifest['collections']:
+            batch = f"{collection['id']}:{int(time.time())}"
             keys = list(state['collections'].get(collection['id'], {}).get('tracks', [])) if collection.get('append') else []
             for source in collection['tracks']:
                 key = source['id'] if source.get('album_audio_of') else equivalent_track(state,source)
                 keys.append(key)
                 if key not in state['tracks']:
-                    state['tracks'][key] = dict(source, status='pending', progress='', error='',reference_duration=source.get('duration',0))
+                    state['tracks'][key] = dict(source, status='pending', progress='', error='',reference_duration=source.get('duration',0),
+                                                batch=batch, batch_title=collection.get('title', ''))
                 elif source.get('youtube_url') and state['tracks'][key].get('status')!='ready':
                     state['tracks'][key]['youtube_url'] = source['youtube_url']
                 if len(source['id'])==22 and source['id'].isalnum():
@@ -95,9 +100,78 @@ def set_paused(paused):
 
 def retry_failed():
     with edit_state() as state:
+        migrate(state)
         for track in state['tracks'].values():
-            if track['status'] in {'error', 'review'}:
+            if track['status'] in FAILED:
                 track.update(status='pending', error='', progress='')
+        state['paused'] = False
+
+
+FAILED = {'error', 'missing'}
+
+
+def migrate(state):
+    """Libraries from before «Revisar versión» was retired: a kept file is ready, nothing found is missing."""
+    changed = False
+    for track in state['tracks'].values():
+        if track.get('status') == 'review':
+            ready = bool(track.get('path')) and Path(track['path']).is_file()
+            track.update(status='ready' if ready else 'missing', progress='', error='' if ready else track.get('error', ''))
+            changed = True
+    return changed
+
+
+def batches(state):
+    """Download batches that still have work or failures, oldest first."""
+    found = {}
+    for track in state['tracks'].values():
+        token = track.get('batch')
+        if not token:
+            continue
+        batch = found.setdefault(token, dict(id=token, title=track.get('batch_title') or 'Canciones sueltas', total=0,
+                                             done=0, failed=0, active='', progress='', unfinished=False))
+        batch['total'] += 1
+        status = track.get('status')
+        if status == 'ready':
+            batch['done'] += 1
+            continue
+        batch['unfinished'] = True
+        if status in FAILED:
+            batch['failed'] += 1
+        elif status == 'downloading' and not batch['active']:
+            batch['active'] = f"{track.get('title', '')} · {track.get('artist', '')}"
+            batch['progress'] = track.get('progress', '')
+    rows = [b for b in found.values() if b.pop('unfinished')]
+    return sorted(rows, key=lambda b: int(b['id'].rsplit(':', 1)[-1]) if b['id'].rsplit(':', 1)[-1].isdigit() else 0)
+
+
+def cancel_batch(token):
+    """Forget what the batch has not downloaded; the song downloading now stops and is removed too."""
+    with edit_state() as state:
+        dropped = set()
+        for key, track in list(state['tracks'].items()):
+            if track.get('batch') != token or track.get('status') == 'ready':
+                continue
+            if track.get('status') == 'downloading':
+                track['cancel'] = True
+            else:
+                dropped.add(key)
+                del state['tracks'][key]
+        for collection in state['collections'].values():
+            collection['tracks'] = [k for k in collection.get('tracks', []) if k not in dropped]
+
+
+def forget_track(key):
+    with edit_state() as state:
+        state['tracks'].pop(key, None)
+        for collection in state['collections'].values():
+            collection['tracks'] = [k for k in collection.get('tracks', []) if k != key]
+
+
+def use_version(key, youtube_url):
+    """«Elegir otra versión»: download this video for the song."""
+    with edit_state() as state:
+        state['tracks'][key].update(youtube_url=youtube_url, status='pending', error='', progress='')
         state['paused'] = False
 
 
@@ -184,7 +258,7 @@ def download_track(key, track):
     update_track(key, status='downloading', progress='Buscando audio oficial…', error='')
     url = find_video(track)
     if not url:
-        update_track(key, status='review', progress='', error='No se encontró una versión que coincida con título y artista.')
+        update_track(key, status='missing', progress='', error='No se encontró una versión que coincida con título y artista.')
         return
     update_track(key, youtube_url=url, progress='Preparando descarga…')
     LIBRARY.mkdir(parents=True, exist_ok=True)
@@ -206,7 +280,15 @@ def download_track(key, track):
                 if time.monotonic()-last_update > .8:
                     update_track(key, progress=line[-180:])
                     last_update = time.monotonic()
+                    if read_state()['tracks'].get(key, {}).get('cancel'):
+                        process.kill()
+                        break
             code = process.wait()
+        if read_state()['tracks'].get(key, {}).get('cancel'):
+            for partial in LIBRARY.glob(key+'.*'):
+                partial.unlink(missing_ok=True)
+            forget_track(key)
+            return
         if code == 0:
             paths = [p for p in LIBRARY.glob(key+'.*') if p.suffix.lower() in SUFFIXES]
             if paths:
@@ -214,9 +296,6 @@ def download_track(key, track):
                 metadata = probe(path)
                 if not metadata.get('duration'):
                     raise RuntimeError('El archivo descargado no contiene audio válido.')
-                if (track.get('album_audio_of') or track.get('prefer_audio')) and abs(metadata['duration']-(track.get('reference_duration') or track.get('duration',0)))>2:
-                    update_track(key, status='review', path=str(path), progress='', error='La duración no coincide con la versión de álbum; se conserva el archivo para revisar.')
-                    return
                 update_track(key, status='ready', path=str(path), progress='', error='', **metadata)
                 return
         last_error = '\n'.join(lines[-8:])
@@ -233,8 +312,11 @@ def worker():
         except BlockingIOError:
             return
         with edit_state() as state:
-            for track in state['tracks'].values():
-                if track['status'] == 'downloading':
+            migrate(state)
+            for key, track in list(state['tracks'].items()):
+                if track.get('cancel'):
+                    del state['tracks'][key]
+                elif track['status'] == 'downloading':
                     track['status'] = 'pending'
         with ThreadPoolExecutor(max_workers=2) as executor:
             active = {}
@@ -252,7 +334,7 @@ def worker():
                     key, track = active.pop(future)
                     try:
                         future.result()
-                        status = read_state()['tracks'][key]['status']
+                        status = read_state()['tracks'].get(key, {}).get('status', 'cancelled')
                         print(status.upper()+':', track['artist'], '—', track['title'], flush=True)
                     except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as error:
                         update_track(key, status='error', progress='', error=str(error)[-1500:])

@@ -14,8 +14,8 @@ from wysun_music import data as music_data
 from .models import _KeyedModel
 from .text import clock, songs
 
-STATUS = {'pending': 'En cola', 'downloading': 'Descargando', 'error': 'Error', 'review': 'Revisar versión'}
-TONE = {'pending': 'muted', 'downloading': 'accent', 'error': 'error', 'review': 'warning'}
+STATUS = {'pending': 'En cola', 'downloading': 'Descargando', 'error': 'Error', 'missing': 'No encontrada'}
+TONE = {'pending': 'muted', 'downloading': 'accent', 'error': 'error', 'missing': 'warning'}
 SEARCH_TIMEOUT_MS = 90000
 HINT = 'Los enlaces de Spotify importan la lista completa y descargan el mejor audio disponible.'
 
@@ -319,7 +319,7 @@ class AddMusic(QObject):
     def render_queue(self):
         counts = self.library.download_counts()
         queued = counts['pending'] + counts['downloading']
-        attention = counts['error'] + counts['review']
+        attention = counts['error'] + counts['missing']
         paused = bool(self.library.state.get('paused'))
         self._summary = (f"{counts['ready']} guardadas · {queued} en cola · {attention} requieren atención"
                          + (' · cola pausada' if paused else ''))

@@ -225,7 +225,7 @@ class Library(QObject):
 
     # ------------------------------------------------------------- downloads
     def download_counts(self):
-        counts = dict(ready=0, pending=0, downloading=0, error=0, review=0)
+        counts = dict(ready=0, pending=0, downloading=0, error=0, missing=0)
         for track in self.state['tracks'].values():
             counts[track.get('status')] = counts.get(track.get('status'), 0) + 1
         return counts
