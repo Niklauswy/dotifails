@@ -20,8 +20,8 @@ hl.on("hyprland.start", function () hl.exec_cmd("wysun-session-services") end)
 -- (or automatic 1-5 / 6-9 / 10) layout is pinned at login and on hotplug.
 hl.on("hyprland.start", function () hl.exec_cmd("wysun workspaces") end)
 hl.on("monitor.added", function () hl.exec_cmd("wysun workspaces") end)
--- Keep the primary Python launcher at its own responsive popup geometry.
-hl.window_rule({ name = "wysun-panels", match = { class = "^(wysun-music|wysun-recorder)$" }, float = true, center = true, border_size = 0, rounding = 0, no_shadow = true })
+-- Recorder settings float as a centred panel; Wysun Music tiles like any window.
+hl.window_rule({ name = "wysun-panels", match = { class = "^wysun-recorder$" }, float = true, center = true, border_size = 0, rounding = 0, no_shadow = true })
 -- The consent provider is a native MainWindow, but behaves as a dialog.
 hl.window_rule({ name = "wysun-portal-picker", match = { class = "^hyprland-share-picker$", title = "^Select what to share$" }, float = true, center = true })
 hl.window_rule({ name = "wysun-file-chooser", match = { class = "^wysun-files$", title = ".*Wysun Selector" }, float = true, center = true })
