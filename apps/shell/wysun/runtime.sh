@@ -4,7 +4,7 @@ set -eu
 runtime="${WYSUN_RUNTIME:-${XDG_DATA_HOME:-$HOME/.local/share}/wysun/runtime}"
 qs="$runtime/quickshell/bin/quickshell"
 if [ ! -x "$qs" ]; then
-    echo 'Wysun: falta el runtime del shell. Ejecuta: python3 installer/runtime_build.py (o ./instalar.sh --wysun-only).' >&2
+    echo 'Wysun: falta el runtime del shell. Ejecuta: python3 installer/runtime_build.py (o wysun update).' >&2
     exit 1
 fi
 export QML_IMPORT_PATH="$runtime/shell/lib/qt6/qml:$runtime/deps/lib/qt6/qml"

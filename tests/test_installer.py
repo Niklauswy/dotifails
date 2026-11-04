@@ -44,15 +44,52 @@ class InstallerTests(unittest.TestCase):
    shim=self.home/'node';shim.symlink_to(self.home/'.local/bin/mise')
    self.assertEqual(subprocess.check_output([str(shim)],text=True).strip(),'node')
   finally:d.lock.close()
- def test_wysun_only_preserves_other_configs_and_private_data(self):
+ def test_update_applies_only_this_machines_components_and_keeps_unmanaged_files(self):
   source=Path(__file__).parents[1]
-  with tempfile.TemporaryDirectory() as tmp:
+  with tempfile.TemporaryDirectory() as tmp,patch.dict(os.environ,{'WYSUN_SKIP_RUNTIME':'1'}):
    home=Path(tmp);nvim=home/'.config/nvim/init.lua';nvim.parent.mkdir(parents=True);nvim.write_text('my editor')
+   gtk=home/'.config/gtk-3.0/settings.ini';gtk.parent.mkdir(parents=True);gtk.write_text('mine')
    note=home/'.local/share/wysun/notes/private.md';note.parent.mkdir(parents=True);note.write_text('private')
-   self.assertEqual(m.main(['install','--source',str(source),'--target-home',tmp,'--wysun-only']),0)
-   self.assertEqual(nvim.read_text(),'my editor');self.assertEqual(note.read_text(),'private');self.assertFalse((home/'.local/share/wysun/app/notes_window.py').exists());self.assertFalse((home/'.config/sxhkd').exists());self.assertTrue((home/'.local/share/icons/hicolor/scalable/apps/musika.svg').is_file());self.assertIn('Name=Wysun Music',(home/'.local/share/applications/wysun-music.desktop').read_text())
-   self.assertEqual(m.main(['install','--source',str(source),'--target-home',tmp,'--wysun-only']),0)
-   backup=json.loads((home/'.local/state/wysun/install/installed.json').read_text())['last_backup'];journal=json.loads((home/'.local/state/wysun/install/backups'/backup/'journal.json').read_text());self.assertEqual(journal['operations'],[])
+   receipt=home/'.local/state/wysun/install/installed.json';receipt.parent.mkdir(parents=True);receipt.write_text(json.dumps({'files':{},'components':['desktop']}))
+   self.assertEqual(m.main(['apply','--source',str(source),'--target-home',tmp,'--config-only']),0)
+   self.assertEqual(nvim.read_text(),'my editor');self.assertEqual(gtk.read_text(),'mine','an update never takes over a file it did not manage')
+   self.assertEqual(note.read_text(),'private');self.assertFalse((home/'.zshrc').exists(),'terminal is not added to a machine without it')
+   self.assertTrue((home/'.local/share/wysun/app/wysun_core/tokens.json').is_file());self.assertIn('Name=Wysun Music',(home/'.local/share/applications/wysun-music.desktop').read_text())
+   self.assertFalse((home/'.local/bin/wysun-installer').exists());self.assertEqual(json.loads(receipt.read_text())['components'],['desktop'])
+   self.assertEqual(m.main(['apply','--source',str(source),'--target-home',tmp,'--config-only']),0)
+   backup=json.loads(receipt.read_text())['last_backup'];journal=json.loads((home/'.local/state/wysun/install/backups'/backup/'journal.json').read_text());self.assertEqual(journal['operations'],[])
+ def test_fresh_install_adopts_existing_files_with_backup(self):
+  dest=self.home/'.config/app';dest.parent.mkdir();dest.write_text('original')
+  d=self.deploy();d.deploy(self.input,Path('.config/app'));self.assertEqual(dest.read_text(),'new');self.assertEqual((d.backup/'before/.config/app').read_text(),'original');d.lock.close()
+  dest.unlink();(self.home/'.local/state/wysun/install/installed.json').unlink();dest.write_text('original')
+  d=self.deploy();d.adopt=False;d.deploy(self.input,Path('.config/app'));self.assertEqual(dest.read_text(),'original');self.assertEqual(d.kept,['.config/app']);self.assertEqual(d.conflicts,[]);d.lock.close()
+ def test_system_steps_run_only_when_their_inputs_change(self):
+  source=Path(__file__).parents[1];components=('desktop','wayland')
+  inputs=m.system_inputs(source,components)
+  self.assertEqual(set(inputs),{'packages','session','extras'})
+  steps=m.plan(source,components,False,inputs,dict(inputs))
+  self.assertNotIn('Paquetes del sistema',steps);self.assertNotIn('Registrar la sesión Wysun / Hyprland',steps)
+  steps=m.plan(source,components,False,inputs,dict(inputs,packages='old'))
+  self.assertIn('Paquetes del sistema',steps);self.assertNotIn('Registrar la sesión Wysun / Hyprland',steps)
+  self.assertIn('Arranque: GRUB, Plymouth y pantalla de acceso',m.plan(source,m.EVERYTHING,False))
+ def test_check_and_pull_follow_the_upstream_branch(self):
+  import subprocess
+  g=lambda *a,cwd=None:subprocess.run(['git',*a],cwd=cwd,check=True,capture_output=True,text=True)
+  env={'GIT_AUTHOR_NAME':'t','GIT_AUTHOR_EMAIL':'t@t','GIT_COMMITTER_NAME':'t','GIT_COMMITTER_EMAIL':'t@t','GIT_CONFIG_GLOBAL':'/dev/null'}
+  with patch.dict(os.environ,env):
+   remote=self.root/'remote.git';g('init','-q','--bare','-b','main',str(remote))
+   work=self.root/'work';g('clone','-q',str(remote),str(work));(work/'a').write_text('1');g('add','a',cwd=work);g('commit','-qm','one',cwd=work);g('push','-q','origin','HEAD:main',cwd=work)
+   clone=self.root/'clone';g('clone','-q','--branch','main',str(remote),str(clone))
+   receipt=self.home/'.local/state/wysun/install/installed.json';receipt.parent.mkdir(parents=True);receipt.write_text(json.dumps({'files':{},'source':str(clone)}))
+   state=m.check_updates(self.home);self.assertEqual((state['available'],state['behind'],state['error']),(False,0,None))
+   (work/'a').write_text('2');g('commit','-qam','two',cwd=work);g('push','-q','origin','HEAD:main',cwd=work)
+   state=m.check_updates(self.home);self.assertEqual((state['available'],state['behind'],state['branch']),(True,1,'main'))
+   self.assertEqual(json.loads((self.home/'.local/state/wysun/update.json').read_text()),state)
+   m.pull(clone);self.assertEqual((clone/'a').read_text(),'2')
+   (clone/'a').write_text('local');g('commit','-qam','diverge',cwd=clone);(work/'a').write_text('3');g('commit','-qam','three',cwd=work);g('push','-q','origin','HEAD:main',cwd=work)
+   with self.assertRaises(RuntimeError):m.pull(clone)
+   receipt.write_text(json.dumps({'files':{},'source':str(self.root/'missing')}))
+   state=m.check_updates(self.home);self.assertFalse(state['available']);self.assertTrue(state['error'])
  def setUp(self):
   self.temp=tempfile.TemporaryDirectory();self.root=Path(self.temp.name);self.home=self.root/'home';self.home.mkdir();self.source=self.root/'source';self.source.mkdir();self.input=self.source/'file';self.input.write_text('new')
  def tearDown(self):self.temp.cleanup()

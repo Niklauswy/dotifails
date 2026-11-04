@@ -105,8 +105,7 @@ Decisiones:
 
 ## Dependencias y diagnóstico
 
-Requiere `libmpv2`, FFmpeg (ya instalados con mpv) y el runtime QML de Wysun (venv `qml-runtime` sobre el Qt del shell), que instala
-`./instalar.sh --wysun-only`. Variables (solo diagnóstico):
+Requiere `libmpv2`, FFmpeg (ya instalados con mpv) y el runtime QML de Wysun (venv `qml-runtime` sobre el Qt del shell), que instala el instalador común y `wysun update` mantiene. Variables (solo diagnóstico):
 
 | Variable | Efecto |
 |---|---|
@@ -118,10 +117,10 @@ El diálogo «Información» (`I`) muestra decodificador, renderizador y fotogra
 
 ### Instalación y asociaciones
 
-`./instalar.sh --wysun-only` actualiza el código y la entrada `.desktop` (`Exec=wysun player -- %F`), y **no** toca asociaciones. La instalación
+`wysun update` actualiza el código y la entrada `.desktop` (`Exec=wysun player -- %F`). La instalación
 completa añade a `~/.config/mimeapps.list` Wysun Player como predeterminado de los tipos de su `.desktop` (imágenes, video y audio; no SVG);
 lo que era predeterminado queda como alternativa en «Abrir con». El respaldo del instalador guarda el archivo anterior y
-`wysun-install restore ID` lo recupera, rescatando en `changes-before-restore/` lo que se haya editado después.
+`wysun restore ID` lo recupera, rescatando en `changes-before-restore/` lo que se haya editado después.
 
 ## Pruebas
 

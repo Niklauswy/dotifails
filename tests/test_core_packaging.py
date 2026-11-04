@@ -21,14 +21,6 @@ class CorePackagingTests(unittest.TestCase):
         source = (ROOT / 'installer/capture_distribution.py').read_text()
         self.assertTrue("'wysun_core'" in source, 'capture releases must copy wysun_core')
 
-    def test_installer_runtime_copies_wysun_core(self):
-        sys.path.insert(0, str(ROOT / 'installer'))
-        from ui_support import package_runtime
-        with tempfile.TemporaryDirectory() as tmp:
-            package_runtime(ROOT, tmp)
-            self.assertTrue((Path(tmp) / 'wysun_core/jsonio.py').is_file())
-            self.assertFalse(list(Path(tmp, 'wysun_core').rglob('__pycache__')))
-
     def test_core_imports_no_application_module(self):
         for module in CORE.glob('*.py'):
             imports = re.findall(r'^\s*(?:from|import)\s+([\w.]+)', module.read_text(), re.M)

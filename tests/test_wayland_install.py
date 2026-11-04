@@ -40,9 +40,14 @@ class WaylandInstallTests(unittest.TestCase):
         (self.source / 'apps/shell/shell.qml').write_text('import Quickshell\nShellRoot {}\n')
 
     def install(self):
+        # A machine whose receipt has only the session component, applied as `wysun update` does.
+        receipt = self.home / '.local/state/wysun/install/installed.json'
+        if not receipt.exists():
+            receipt.parent.mkdir(parents=True, exist_ok=True)
+            receipt.write_text(json.dumps({'files': {}, 'components': ['wayland']}))
         with contextlib.redirect_stdout(io.StringIO()):
-            return installer.main(['install', '--source', str(self.source), '--target-home',
-                                   str(self.home), '--components', 'wayland', '--config-only'])
+            return installer.main(['apply', '--source', str(self.source), '--target-home',
+                                   str(self.home), '--config-only'])
 
     def test_portal_check_reads_only_existing_unique_owner_and_never_activates(self):
         module = runpy.run_path(str(ROOT / 'bin/wysun-session'))
@@ -133,37 +138,36 @@ class WaylandInstallTests(unittest.TestCase):
         self.assertFalse((root / 'usr/local/bin/wysun-session').exists())
         self.assertEqual(login.read_text(), 'user-session=wysun\n')
 
-    def test_wysun_only_updates_managed_shell_without_session_config(self):
+    def test_update_keeps_edited_shortcuts_as_a_conflict_and_ships_new_shell_code(self):
         self.assertEqual(self.install(), 0)
         config = self.home / '.config/wysun/hyprland.lua'
         config.write_text('-- personal bindings\n')
         (self.source / 'apps/shell/shell.qml').write_text('// new shell code\n')
-        with contextlib.redirect_stdout(io.StringIO()), \
-             patch.object(installer.Deployment, 'configure_files', side_effect=AssertionError('portal rewrite requested')):
-            self.assertEqual(installer.main(['install', '--source', str(self.source),
-                '--target-home', str(self.home), '--wysun-only']), 0)
+        self.assertEqual(self.install(), 2)
         self.assertEqual(config.read_text(), '-- personal bindings\n')
         self.assertEqual((self.home / '.local/share/wysun/quickshell/shell.qml').read_text(), '// new shell code\n')
         self.assertFalse((self.home / '.config/sxhkd').exists())
 
-    def test_qml_library_is_deployed_next_to_quickshell_and_updated_with_wysun_only(self):
+    def test_qml_library_is_deployed_next_to_quickshell_and_updated(self):
         self.assertEqual(self.install(), 0)
         library = self.home / '.local/share/wysun/qml'
         self.assertTrue((library / 'WysunM3/qmldir').is_file())
         (self.source / 'apps/qml/WysunM3/Extra.qml').write_text('import QtQuick\nItem {}\n')
-        with contextlib.redirect_stdout(io.StringIO()):
-            self.assertEqual(installer.main(['install', '--source', str(self.source),
-                '--target-home', str(self.home), '--wysun-only']), 0)
+        self.assertEqual(self.install(), 0)
         self.assertTrue((library / 'WysunM3/Extra.qml').is_file())
 
-    def test_incompatible_packages_fail_before_journal_or_deployment(self):
+    def test_incompatible_packages_fail_before_any_configuration_is_deployed(self):
         with patch.object(installer, 'host_supported', return_value={'ID': 'parrot'}), \
              patch.object(Path, 'home', return_value=self.home), \
              patch.object(installer.os, 'geteuid', return_value=1000), \
-             patch('wayland.simulate_packages', side_effect=RuntimeError('ABI conflict')):
+             patch.object(installer, 'prepare_repositories'), \
+             patch.object(installer, 'run'), \
+             patch('wayland.simulate_packages', side_effect=RuntimeError('ABI conflict')), \
+             contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
             with self.assertRaisesRegex(RuntimeError, 'ABI conflict'):
-                installer.main(['install', '--source', str(self.source), '--components', 'wayland'])
-        self.assertEqual(list(self.home.iterdir()), [])
+                installer.main(['install', '--source', str(self.source)])
+        self.assertFalse((self.home / '.config').exists())
+        self.assertFalse((self.home / '.local/share/wysun/app').exists())
 
     def test_runtime_is_built_into_the_private_prefix(self):
 
@@ -188,17 +192,12 @@ class WaylandInstallTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, 'serie comprobada 0.55'):
                 wayland.check_repository(ROOT, {'ID': 'debian'})
 
-    def test_cli_dry_run_resolves_exact_packages_without_creating_journal(self):
-        args=['install','--source',str(self.source),'--target-home',str(self.home),
-              '--components','wayland','--dry-run']
+    def test_cli_dry_run_lists_the_plan_without_creating_anything(self):
         output=io.StringIO()
-        with patch.object(installer,'host_supported',return_value={'ID':'debian'}), \
-             patch.object(installer,'package_names',return_value=['hyprland/trixie-backports']), \
-             patch.object(wayland,'simulate_packages',return_value='APT exact fixture plan') as simulate, \
-             contextlib.redirect_stdout(output):
-            self.assertEqual(installer.main(args),0)
-        self.assertIn('APT exact fixture plan',output.getvalue())
-        self.assertEqual(simulate.call_args.kwargs['wanted'],['hyprland/trixie-backports'])
+        with contextlib.redirect_stdout(output):
+            self.assertEqual(installer.main(['install','--source',str(self.source),'--target-home',str(self.home),'--dry-run']),0)
+        self.assertIn('Paquetes del sistema',output.getvalue())
+        self.assertIn('Arranque',output.getvalue())
         self.assertEqual(list(self.home.iterdir()),[])
 
     def test_code_launchers_resolve_managed_code_with_separate_xdg_data(self):

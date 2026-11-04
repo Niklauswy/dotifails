@@ -1,6 +1,6 @@
 # Integración de Archivos con el escritorio
 
-`./instalar.sh --wysun-only` registra por usuario el backend `wysun` de
+`wysun update` registra por usuario el backend `wysun` de
 `org.freedesktop.impl.portal.FileChooser` y el servicio `org.freedesktop.FileManager1`.
 Configura además `inode/directory=wysun-files.desktop` en el hogar de destino, conservando las otras asociaciones MIME. La instalación completa incluye los paquetes del portal y `gio`. El código está en `apps/python/wysun_files/chooser.py` y `files_service.py`.
 

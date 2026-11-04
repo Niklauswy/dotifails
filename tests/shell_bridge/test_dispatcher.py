@@ -112,7 +112,8 @@ class DispatcherTests(unittest.TestCase):
                                          (('shell', 'record', 'pause'), 'wysun-shell', ['record', 'pause']),
                                          (('lock',), 'wysun-lock', []),
                                          (('session-check',), 'wysun-session', ['--check']),
-                                         (('install', '--wysun-only'), 'wysun-install', ['install', '--wysun-only']),
+                                         (('install',), 'wysun-install', ['install']),
+                                         (('update', '--check'), 'wysun-install', ['update', '--check']),
                                          (('doctor',), 'wysun-install', ['doctor']),
                                          (('activate', '0x1'), 'wysun-wm', ['activate', '0x1'])):
             _, run, execute = self.invoke(args)

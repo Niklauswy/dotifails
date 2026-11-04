@@ -14,7 +14,7 @@ apps/python/wysun_NOMBRE/
 ```
 
 - Se abre con `wysun NOMBRE`: una entrada en `MODULES` de `bin/wysun` (`'NOMBRE': ('app', 'wysun_NOMBRE', [])`) y una línea en su ayuda. Nada de lanzadores sueltos ni alias.
-- Se instala y actualiza con el resto de Wysun (`./instalar.sh --wysun-only` → `~/.local/share/wysun/app/`).
+- Se instala y actualiza con el resto de Wysun (`wysun update` → `~/.local/share/wysun/app/`).
 - Solo biblioteca estándar salvo motivo explícito; si un programa externo (como `ffmpeg`) falta, la utilidad sigue funcionando sin esa parte.
 - Datos y caché fuera del repositorio: `~/.cache/wysun/NOMBRE`, `~/.local/share/wysun/NOMBRE`, `~/.config/wysun/NOMBRE*`.
 - Añade el paquete a `PACKAGES` de `tests/test_python_layout.py` y una prueba en `tests/shell_bridge/test_dispatcher.py`.

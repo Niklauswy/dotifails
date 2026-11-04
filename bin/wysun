@@ -26,7 +26,7 @@ MODULES = {
 PROGRAMS = {
     'shell': ('wysun-shell', []), 'lock': ('wysun-lock', []), 'recover': ('wysun-recover', []),
     'recorder': ('wysun-recorder', []), 'session-check': ('wysun-session', ['--check']),
-    'install': ('wysun-install', ['install']), 'doctor': ('wysun-install', ['doctor']),
+    'install': ('wysun-install', ['install']), 'update': ('wysun-install', ['update']), 'doctor': ('wysun-install', ['doctor']),
     'activate': ('wysun-wm', ['activate']),
 }
 HELP = '''Wysun · escritorio
@@ -45,6 +45,7 @@ Uso: wysun [ORDEN] [opciones]
   daemon | reload        residente del portapapeles; reload lo reinicia con el código nuevo
   shell ORDEN            wysun-shell (record, screenshot, dnd, status…)
   lock | recover | session-check | workspaces | activate CLASE
+  update [--check]       git pull del repositorio de este equipo y aplica los cambios
   install | doctor       instalador (wysun-install)
 
 Si el shell no responde, falla de forma visible: no hay ventanas alternativas.'''
@@ -110,7 +111,7 @@ def main():
         try:
             os.execv(executable, [executable, *leading, *args])
         except OSError as exc:
-            print(f'Wysun: no se pudo ejecutar {program} ({exc.strerror}). ¿Está instalado? Prueba `./instalar.sh --wysun-only`.', file=sys.stderr)
+            print(f'Wysun: no se pudo ejecutar {program} ({exc.strerror}). ¿Está instalado? Prueba `wysun update` o `./instalar.sh`.', file=sys.stderr)
             return 127
         return 0
     if command == 'music-mini':

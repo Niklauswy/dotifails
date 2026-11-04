@@ -11,7 +11,7 @@ Wysun es el nombre público del escritorio y del lanzador antes llamado Órbita.
 - `installer/main.py` y `installer/capture_distribution.py`: instalación común, respaldos, conflictos y recuperación.
 - `bin/wysun`: punto de entrada público. `wysun --help` enumera sus modos.
 
-`./instalar.sh --wysun-only` actualiza toda la familia usando el mismo procedimiento que la instalación completa. No instala dependencias, no modifica atajos y no reinicia el escritorio. La instalación completa incluye las dependencias de captura en los componentes de escritorio y sesión: PySide6, FFmpeg, mpv, portal Wayland, audio y Tesseract.
+`wysun update` actualiza toda la familia usando el mismo procedimiento que la instalación completa. Reaplica código, aplicaciones, configuración, atajos y lanzador; cuando cambiaron sus entradas, también paquetes, runtime y herramientas de Neovim. Ejecuta `wysun reload` y reinicia solo el shell si cambió `apps/shell`; no reinicia Hyprland. La instalación completa incluye las dependencias de captura del escritorio y la sesión: PySide6, FFmpeg, mpv, portal Wayland, audio y Tesseract.
 
 El código de captura se publica en `.local/share/wysun/capture/releases/<hash>/`. Cada actualización conserva las versiones anteriores para no cambiar los módulos de un trabajador en ejecución. Actualizar no detiene una grabación ni cierra sus ventanas. Una ventana que ya está abierta conservará su versión y su título hasta cerrarla normalmente.
 
@@ -36,7 +36,7 @@ Los accesos del menú conservan sus IDs existentes y cambian su nombre visible; 
 
 ## Alcance
 
-Esta integración cambia la distribución y los nombres públicos. Conserva las interfaces, motores, formatos y funciones existentes. La sesión Wysun / Hyprland se prepara con el componente `wayland`, activo por defecto; consulta [instalación y recuperación](wayland.md). Las funciones de captura usan los portales XDG (Screenshot y ScreenCast/PipeWire) y no XWayland.
+Esta integración cambia la distribución y los nombres públicos. Conserva las interfaces, motores, formatos y funciones existentes. La sesión Wysun / Hyprland se prepara en la instalación completa; consulta [instalación y recuperación](wayland.md). Las funciones de captura usan los portales XDG (Screenshot y ScreenCast/PipeWire) y no XWayland.
 
 ## Temas
 

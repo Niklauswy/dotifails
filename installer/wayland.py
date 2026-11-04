@@ -156,21 +156,3 @@ def ensure_qml_runtime(deployment):
     except (subprocess.CalledProcessError, OSError) as error:
         print('AVISO: no se pudo preparar qml-runtime (' + str(error) + '). Las apps QML no arrancarán hasta que '
               'se cree: python3 installer/qml_runtime.py', file=sys.stderr, flush=True)
-
-
-def update_runtime(deployment):
-    """Application-only update when the optional shell is already managed."""
-    d = deployment
-    if '.local/share/wysun/quickshell' not in d.receipt['files']:
-        return
-    from capture_distribution import _publish
-    d.deploy(d.source / 'apps/shell', Path('.local/share/wysun/quickshell'))
-    if (d.source / 'apps/qml').is_dir():
-        _publish_asset(d, d.source / 'apps/qml', '.local/share/wysun/qml')
-    if not d.conflicts:
-        deploy_tokens(d)
-        ensure_runtime(d)
-        ensure_qml_runtime(d)
-    for name in SESSION_COMMANDS:
-        _publish(d, (d.source / 'bin' / name).read_text(), '.local/bin/' + name, executable=True)
-

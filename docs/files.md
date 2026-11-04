@@ -4,7 +4,7 @@ La fuente de la aplicación está en `apps/python/wysun_files/app.py`; el instal
 
 ## Instalación
 
-Desde la raíz del repositorio, ejecutar `./instalar.sh --wysun-only`. El perfil completo `desktop` despliega los mismos archivos. Ambos usan el registro de respaldos y conflictos del instalador para instalar:
+Desde la raíz del repositorio, ejecutar `wysun update`; la instalación completa despliega los mismos archivos. Ambos usan el registro de respaldos y conflictos del instalador para instalar:
 
 - `bin/wysun` → `~/.local/bin/wysun`; la app se abre con `wysun files [CARPETA...]`.
 - `config/.local/share/applications/wysun-files.desktop` → `~/.local/share/applications/wysun-files.desktop`.
@@ -12,7 +12,7 @@ Desde la raíz del repositorio, ejecutar `./instalar.sh --wysun-only`. El perfil
 
 Si el código de Wysun presenta conflictos, resolverlos antes de activar el nuevo gestor. Tras una instalación sin conflictos, ejecutar `wysun reload` y comprobar la apertura real. El lanzador independiente acepta rutas y URL `file://`, por ejemplo `wysun-files "$HOME/Downloads"`.
 
-El perfil de escritorio del instalador configura **Wysun Archivos como gestor predeterminado** para `inode/directory`, tanto en una instalación nueva como con `--wysun-only`. La asociación se escribe en el hogar de destino y participa en los respaldos y la recuperación del instalador. Las preferencias MIME de otros tipos de archivo se conservan.
+El instalador configura **Wysun Archivos como gestor predeterminado** para `inode/directory`, tanto en una instalación nueva como en `wysun update`. La asociación se escribe en el hogar de destino y participa en los respaldos y la recuperación del instalador. Las preferencias MIME de otros tipos de archivo se conservan.
 
 También instala el selector de archivos de Wysun y el servicio «Mostrar en carpeta» para aplicaciones compatibles. En una instalación completa se incluyen `xdg-desktop-portal`, su alternativa GTK y `gio`. Véase [Integración con el escritorio](files-integration.md).
 

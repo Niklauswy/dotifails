@@ -216,7 +216,7 @@ $XDG_DATA_HOME/wysun/runtime/            (por defecto ~/.local/share/wysun/runti
   `--print-packages`. Caché de compilación: `~/.cache/wysun/build`.
 - **Arranque**: `apps/shell/wysun/runtime.sh` exporta `QML_IMPORT_PATH=<runtime>/shell/lib/qt6/qml:<runtime>/deps/lib/qt6/qml` y
   `WYSUN_LIB_DIR`, y ejecuta `quickshell -p <config>`. Los RPATH de los binarios eligen Qt; no se exporta `LD_LIBRARY_PATH`.
-- **Cambiar el plugin C++**: editar `apps/shell/plugin`, `python3 installer/runtime_build.py` (o `./instalar.sh --wysun-only`),
+- **Cambiar el plugin C++**: editar `apps/shell/plugin`, `python3 installer/runtime_build.py` (o `wysun update`),
   reiniciar el shell (sección 5).
 - **Otra máquina**: `./instalar.sh` (componente `wayland`) instala paquetes de build, ejecuta `runtime_build.py` y despliega el
   shell. La construcción limpia Debian 13 terminó; el artefacto se revalidó tras corregir `libpulse0` (alcance en `docs/validation.md`).
@@ -232,7 +232,7 @@ $XDG_DATA_HOME/wysun/qml-runtime/   venv --system-site-packages con PySide6_Esse
 $XDG_DATA_HOME/wysun/qml/WysunM3/   la biblioteca (copia de apps/qml/WysunM3); qml/gallery/ la galería
 ```
 
-- `installer/qml_runtime.py` crea o valida el venv (componente `wayland`, también con `--wysun-only`; solo si falta o
+- `installer/qml_runtime.py` crea o valida el venv (componente `wayland`, también con `wysun update`; solo si falta o
   el sello difiere; un fallo de red es un aviso). `WYSUN_SKIP_RUNTIME=1` lo omite.
 - `wysun_qml.bootstrap` re-ejecuta la app con el Python del venv, precarga las `libQt6*` del runtime por ruta absoluta
   antes de importar PySide6 y apunta plugins e imports QML al runtime (sin `LD_LIBRARY_PATH`).
@@ -244,32 +244,25 @@ $XDG_DATA_HOME/wysun/qml/WysunM3/   la biblioteca (copia de apps/qml/WysunM3); q
 
 ## 4. Instalador (`instalar.sh` → `installer/main.py`)
 
-Python estándar (+ PySide6 para la GUI). Instala por **componentes** (`desktop, wayland, terminal, editor, tools, boot`), con plan
-(`--plan`, `--dry-run`), diario escrito antes de cada cambio, huellas por archivo, respaldo en
-`~/.local/state/wysun/install/backups/<id>/` y `flock`. Modos parciales que no tocan paquetes:
+Python estándar, solo terminal. Diario escrito antes de cada cambio, huellas por archivo, respaldo en
+`~/.local/state/wysun/install/backups/<id>/` y `flock`. Órdenes (`wysun-install`, también `wysun install|update|doctor`):
 
-| Modo | Efecto |
+| Orden | Efecto |
 |---|---|
-| `--wysun-only` | Despliega `apps/python`, `apps/shell`, `apps/recorder`, `bin/*`, retira los lanzadores de versiones anteriores (`RETIRED_COMMANDS`: solo los suyos sin cambios y que `~/.config/wysun/*.lua` ya no llama) y reconstruye el runtime si cambió. No cambia atajos, notas, historial ni colores |
-| `--installer-only` | El propio instalador y su CLI `wysun-install` (`wysun install`) |
-| `--boot-only` | GRUB/Plymouth/greeter (respalda `/etc` y `/boot`) |
-| `--config-only` | Archivos de usuario sin paquetes |
+| `./instalar.sh` (`install`) | Todo: backports si faltan, paquetes, herramientas con SHA-256, configuración y apps, sesión, arranque (GRUB, Plymouth, greetd), Neovim y Flatpaks. Solo admite `--dry-run` |
+| `wysun update` | `git pull --ff-only` en la fuente del recibo (sin red: aplica la copia local; rama divergente: se detiene) y ejecuta el `apply` del instalador recién traído: configuración, apps, atajos y runtime (incremental) siempre; paquetes, sesión, arranque, Neovim y Flatpaks solo si cambió su entrada (`system_inputs`, guardadas en el recibo como `inputs`). Solo los componentes del recibo; no toma archivos que nunca administró (`Deployment.adopt`). Después `wysun reload` y reinicia solo el shell si cambió |
+| `wysun update --check` | `git fetch` y escribe `~/.local/state/wysun/update.json` (`available`, `behind`, `error`…), que lee el aviso de la barra (`services/WysunUpdate.qml`) |
+| `doctor`, `restore [ID]` | Diagnóstico y restauración de un respaldo |
 
-Piezas: `main.py` (despliegue, restauración, `doctor`), `install_model.py` (componentes, paquetes, comprobaciones),
-`wayland.py` (sesión Hyprland, shell, runtime, portales), `runtime_build.py`, `capture_distribution.py` (releases de captura),
-`session_registration.py` (entrada de sesión en el gestor de acceso, reversible), `boot*.py`, `gui.py`.
-`WYSUN_SKIP_RUNTIME=1` omite el runtime (pruebas).
+`--source`, `--target-home` y `--config-only` existen para pruebas (HOME temporal, sin paquetes ni sudo). La rama es `main`
+(`BRANCH`); `bootstrap.sh` clona en `~/.local/share/wysun/source`, que queda como fuente del equipo.
 
-La nueva base gráfica se abre con `./wysun-installer`; `./wysun-installer --preview` recorre una instalación nueva con
-operaciones simuladas en memoria. `preview_process.py` separa esa demostración de `process_runner.py`. El gestor instalado
-lleva un subconjunto de los controles Material de Music/Files, fuentes y tokens mediante `ui_support.py`, por lo que puede
-abrir antes de instalar el escritorio y sin conservar el checkout. Recorrido y piezas visuales en `scenes.py`;
-`docs/installer.md` documenta el funcionamiento y los límites de validación.
-
-Las opciones explícitas `--prepare-repositories` y `--upgrade-system` preparan backports nativos y actualizaciones de la
-distribución actual, respectivamente. Se actualizan índices y se resuelven dependencias antes del upgrade. La preparación
-de fuentes tiene su propio diario bajo `/var/lib/wysun/repositories/backups/`; no se reemplazan fuentes ajenas ni claves.
-La recuperación de archivos no revierte paquetes. Estos modos no se combinan con `--config-only` o `--only`.
+Piezas: `main.py` (despliegue, actualización, restauración, `doctor`), `install_model.py` (componentes, paquetes),
+`wayland.py` (sesión Hyprland, shell, runtime, portales), `runtime_build.py`, `qml_runtime.py`, `capture_distribution.py`
+(releases de captura), `repositories.py` (backports nativos con diario propio en `/var/lib/wysun/repositories/backups/`; no
+reemplaza fuentes ajenas ni claves), `session_registration.py` (entrada de sesión, reversible), `boot.py`.
+`WYSUN_SKIP_RUNTIME=1` omite el runtime (pruebas). La recuperación de archivos no revierte paquetes. El instalador gráfico
+se retiró; una actualización quita `wysun-installer` y sus entradas de menú (`INSTALLER_RETIRED`).
 
 ### Configuración general vs. de la máquina
 
@@ -287,7 +280,7 @@ Procedimiento seguro (el que se usó para el rebranding):
 1. **Probar** en el repo: `python3 -m unittest discover -s tests`, y el runtime con HOME/XDG temporales.
 2. **Respaldar**: `cp -a ~/.config/wysun ~/.local/bin/wysun* ~/.local/share/wysun-backups/<fecha>/`,
    más `tar` de `~/.local/share/wysun/{quickshell,app}`. El instalador además guarda su propio respaldo por ejecución.
-3. **Desplegar**: `./instalar.sh --wysun-only`. Si hay conflictos, no sobrescribe; revisar `incoming/` en el respaldo.
+3. **Desplegar**: `wysun update`. Si hay conflictos, no sobrescribe; revisar `incoming/` en el respaldo.
 4. **Recargar**: `wysun reload` reinicia el residente del portapapeles con el código nuevo; las apps toman el código nuevo al
    abrirse. Si cambió `apps/shell` o el plugin, reiniciar solo el shell (no Hyprland):
    `pkill -x quickshell; setsid ~/.local/bin/wysun-shell >~/.local/state/wysun/shell.log 2>&1 &`.

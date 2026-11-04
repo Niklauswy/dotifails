@@ -125,6 +125,11 @@ Item {
         }
 
         Popout {
+            name: "wysunupdate"
+            sourceComponent: WysunUpdatePopout {}
+        }
+
+        Popout {
             name: "lockstatus"
             sourceComponent: LockStatus {}
         }

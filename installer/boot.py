@@ -285,7 +285,7 @@ class BootDeployment:
         self.skipped=[]
         if 'greeter' in self.components and not self.path('usr/sbin/greetd').exists():
             self.skipped.append('Pantalla de acceso omitida: falta greetd. Instálalo con '
-                                '«sudo apt install greetd qt6-shader-baker» y repite ./instalar.sh --boot-only.')
+                                '«sudo apt install greetd qt6-shader-baker» y repite ./instalar.sh.')
         if 'greeter' in self.components and self.path('usr/sbin/greetd').exists():
             plans.extend([
                 ('greeter',GREETER,('greeter',)),
@@ -474,7 +474,7 @@ def main():
         for group,rel,_ in deployment.plan():print(f'{group}: /{rel}')
         for notice in deployment.skipped:print(notice)
         return 0
-    if os.geteuid()!=0:raise RuntimeError('Este paso escribe en /boot y /etc. Ejecuta ./instalar.sh --boot-only con sudo disponible.')
+    if os.geteuid()!=0:raise RuntimeError('Este paso escribe en /boot y /etc. Ejecuta ./instalar.sh con sudo disponible.')
     if args.list:
         items=[]
         for path in sorted((deployment.state/'backups').glob('*/journal.json'),reverse=True):

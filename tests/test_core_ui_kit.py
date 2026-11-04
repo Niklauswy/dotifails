@@ -9,7 +9,6 @@ KIT = ('StateLayer', 'PillButton', 'Chip', 'Slider', 'ElidedLabel', 'Panel', 'Na
 CORE_UI = ROOT / 'apps/python/wysun_core/ui'
 # Different widgets that only share a name with a kit class (compared when the kit was extracted).
 DISTINCT = {
-    'installer/material_widgets.py:Panel': "the installer's hero panel, unrelated to the kit surface",
 }
 
 

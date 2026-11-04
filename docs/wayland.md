@@ -1,6 +1,6 @@
 # Sesión Wysun / Hyprland
 
-Wysun se ejecuta sobre **Hyprland 0.55.x (Wayland)** con la barra y los paneles de Quickshell 0.3.x. El componente `wayland` está activo por defecto: no existe una sesión X11 alternativa en este repositorio.
+Wysun se ejecuta sobre **Hyprland 0.55.x (Wayland)** con la barra y los paneles de Quickshell 0.3.x. La sesión se instala con el escritorio; no existe una sesión X11 alternativa en este repositorio.
 
 Las aplicaciones de `apps/python/` siguen siendo Python/PySide6 y se ejecutan en Wayland nativo cuando el plugin lo permite, o sobre XWayland sin funciones X11 propias. Las funciones del escritorio no dependen de herramientas X11 (gestión de ventanas, `xrandr` ni portapapeles X11): Hyprland y sus utilidades son la única vía.
 
@@ -8,13 +8,13 @@ Las aplicaciones de `apps/python/` siguen siendo Python/PySide6 y se ejecutan en
 
 - Debian 13 (trixie) o Parrot 7 (echo), x86_64.
 - El instalador usa el repositorio de la distribución y sus *backports* (`trixie-backports` o `echo-backports`). No añade ni mezcla repositorios externos.
-- Versiones comprobadas: `hyprland` 0.55.x, `xdg-desktop-portal-hyprland` 1.4.x, `hyprpicker` 0.4.x. Quickshell no viene del sistema: se compila en un runtime privado (`installer/runtime_build.py`, versiones en `manifests/runtime.json`) junto con Qt 6.9.3; el plan incluye sus paquetes de compilación y la primera instalación tarda lo que dure esa compilación. El instalador rechaza el plan antes de aplicar cambios si otra serie aparece.
+- Versiones comprobadas: `hyprland` 0.55.x, `xdg-desktop-portal-hyprland` 1.4.x, `hyprpicker` 0.4.x. Quickshell no viene del sistema: se compila en un runtime privado (`installer/runtime_build.py`, versiones en `manifests/runtime.json`) junto con Qt 6.9.3; la instalación incluye sus paquetes de compilación y la primera instalación tarda lo que dure esa compilación. El instalador rechaza la instalación antes de aplicar cambios si otra serie aparece.
 - `xwayland` y las bibliotecas X11 se conservan para aplicaciones heredadas. XWayland no convierte una captura X11 en una captura nativa: Recorder usa siempre el portal.
 
 Puedes ver el plan sin aplicar cambios:
 
 ```sh
-./instalar.sh --source "$PWD" --components desktop,wayland --plan
+./instalar.sh --dry-run
 ```
 
 ## Sesión y registro
@@ -34,15 +34,15 @@ Puedes ver el plan sin aplicar cambios:
 ## Actualización y recuperación
 
 ```sh
-./instalar.sh --wysun-only && `wysun reload`
-`wysun reload`              # reinicia el residente del portapapeles con el código nuevo
+wysun update
+wysun reload              # reinicia el residente del portapapeles con el código nuevo
 ```
 
-- `--wysun-only` no instala paquetes, no cambia atajos y no reinicia Hyprland. Actualiza el código, el lanzador `wysun` (y retira los anteriores) y, si ya está administrado, el shell de Quickshell; si cambió `apps/shell`, reinicia solo el shell (`pkill -x quickshell; setsid wysun-shell &`).
+- `wysun update` hace `git pull --ff-only` en la copia fuente y reaplica código, aplicaciones, configuración, atajos y lanzador; cuando cambiaron sus entradas, también paquetes, runtime privado, herramientas de Neovim, pantallas de arranque y registro de la sesión. Ejecuta `wysun reload` y, si cambió `apps/shell`, reinicia solo el shell (`pkill -x quickshell; setsid wysun-shell &`). No reinicia Hyprland.
 - Los atajos viven en `config/.config/wysun/hyprland.lua` y en los ajustes nativos. Un cambio en ellos se aplica a la configuración activa con respaldo y respetando las asignaciones del usuario; el instalador no los sobrescribe.
 - Selector de ScreenCast: `~/.config/hypr/xdph.conf` activa `allow_token_by_default` y `custom_picker_binary = ~/.local/bin/wysun-share-picker`. El Recorder deja una petición de un solo uso (`$XDG_RUNTIME_DIR/wysun-recorder-share-request.json`, 10 s) con la pantalla elegida en su barra; el selector la responde sin ventana. Cualquier otra aplicación ve `hyprland-share-picker`. Recuperar: borrar `xdph.conf` y `systemctl --user restart xdg-desktop-portal-hyprland` (solo con autorización y sin grabaciones activas).
 - Escritorios fijos: `wysun workspaces` (llamado desde `hyprland.start` y `monitor.added`) regenera `~/.config/wysun/hypr-workspaces.lua` con el reparto guardado en Ajustes o, si no hay, el automático (1–5 / 6–9 / 10 en el portátil) y lo aplica en vivo. El automático no se guarda en `environment.json`. Para recuperar: borrar el fragmento y ejecutar `wysun workspaces`.
-- `wysun-install restore ID` recupera archivos de configuración anteriores. Los respaldos de la sesión viven en `/var/lib/wysun/wayland-session/` y `~/.local/state/wysun/install/backups/`.
+- `wysun restore ID` recupera archivos de configuración anteriores. Los respaldos de la sesión viven en `/var/lib/wysun/wayland-session/` y `~/.local/state/wysun/install/backups/`.
 - Bloqueo: `wysun-lock` abre el bloqueo de Wysun, una terminal de refinamiento inspirada en Severance (`apps/shell/lock.qml` → `modules/lockscreen/`). Es un proceso Quickshell propio, lanzado con el runtime de Wysun (no el `quickshell` del sistema) y separado del shell. Usa `WlSessionLock` (ext-session-lock-v1: si el proceso muere, la sesión sigue bloqueada) y `PamContext` con el servicio empaquetado `apps/shell/assets/pam.d/wysun-lock`, que solo hace `auth include /etc/pam.d/login`, igual que swaylock, sin tocar `/etc/pam.d`. Los shaders GLSL (`modules/lockscreen/shaders`) se compilan con el `qsb` del runtime a `~/.cache/wysun/lock-shaders/<hash>`; si no se puede, la presentación queda plana y el bloqueo funciona igual. Si el bloqueo no se confirma, se usa swaylock; también se puede elegir con `~/.config/wysun/lock.json` (`{"backend": "swaylock"}`) o `WYSUN_LOCK_BACKEND=swaylock`. `wysun-lock --preview` abre la misma escena en una ventana normal, sin bloquear ni usar PAM (la contraseña de prueba es «wysun»). Recuperación si la pantalla de bloqueo se cuelga: cambia a una TTY (Ctrl+Alt+F3), inicia sesión y ejecuta `hyprctl --instance 0 'keyword misc:allow_session_lock_restore 1'` y `WAYLAND_DISPLAY=wayland-1 wysun-lock` para relanzarlo.
 - Inactividad: `wysun-idle run` (hijo de `wysun-session-services`) vigila `swayidle` según `~/.config/wysun/idle.json` (`lock_minutes`, `display_off_minutes`, `lock_before_sleep`; 0 = nunca; por defecto no bloquea por inactividad y sí antes de suspender). Ajustes → Lock & Idle lo cambia en vivo (`wysun-idle set`). En una sesión iniciada antes de este cambio, `wysun-idle` pausa (SIGSTOP) el swayidle heredado de 600 s y lo reanuda al salir.
 

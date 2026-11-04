@@ -28,7 +28,7 @@ Las suites de captura y compositor se ejecutaron en serie. Las pruebas de captur
 
 ## Despliegue y sesión activa
 
-- `./instalar.sh --wysun-only` terminó sin conflictos. Respaldo: `~/.local/state/wysun/install/backups/20261019T171709Z-b34e4e`.
+- La actualización de Wysun terminó sin conflictos. Respaldo: `~/.local/state/wysun/install/backups/20261019T171709Z-b34e4e`.
 - `wysun reload` completó correctamente y Quickshell mantiene la capa `wysun-desktop`.
 - Despliegue posterior de las correcciones de Screenshot y libmpv: respaldo `~/.local/state/wysun/install/backups/20261019T194412Z-be2f10` y release `aceb815c873d1b5c38f8`; tras alinear los nombres visibles, respaldo `~/.local/state/wysun/install/backups/20261019T195009Z-7a25ea` y release final `6075afe7c99700d9094b`. recarga del residente correcta y `WYSUN_INSTALLED_SMOKE_OK`.
 - Comprobación real en la sesión Wayland activa: se abrió la ventana de Wysun, el menú de acciones, la lista de ventanas de Hyprland, el menú contextual del portapapeles y Ajustes con sus diez secciones.

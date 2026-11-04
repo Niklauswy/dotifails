@@ -3,7 +3,7 @@
 - Wysun Screenshot (`wybieshot`) se retiró: las capturas de pantalla las hace el shell (`apps/shell/modules/areapicker`). No reintroducir aquí una app de capturas.
 
 - Esta carpeta es la fuente de desarrollo integrada en este repositorio. No modificar las copias instaladas ni la copia histórica del repositorio `loom`.
-- El instalador común distribuye ambos paquetes en versiones inmutables. Actualizar con `./instalar.sh --wysun-only`; no usar los instaladores históricos de `scripts/` para el escritorio integrado.
+- El instalador común distribuye ambos paquetes en versiones inmutables. Actualizar con `wysun update`; no usar los instaladores históricos de `scripts/` para el escritorio integrado.
 - El paquete es `wysun_recorder`; sus datos viven en `~/.local/share/wysun/recorder`, `~/.config/wysun/recorder` y `~/.local/state/wysun/recorder`. Conservar los formatos de proyecto y no tocar los datos antiguos de `~/.local/share/wybie-screenshot`. Wysun es la identidad visible. No copiar bibliotecas, grabaciones, capturas, preferencias ni otros datos privados al repositorio.
 - El controlador de captura no depende de la GUI; los trabajadores deben poder finalizar una grabación aunque se cierre la ventana. No reiniciar ni terminar una grabación para actualizar el código.
 - FFmpeg usa un origen temporal compartido para pantalla, audio y cámara. No reiniciar los timestamps de cada flujo por separado.

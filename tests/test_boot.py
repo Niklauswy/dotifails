@@ -264,11 +264,13 @@ class BootTests(unittest.TestCase):
         d.restore(ident)
         self.assertEqual((d.state/'backups'/ident/'changes-before-restore/etc/greetd/config.toml').read_text(),'my later settings')
 
-    def test_greetd_login_is_never_planned_by_default(self):
+    def test_boot_helper_plans_greetd_only_when_asked_and_the_full_install_asks(self):
         groups={group for group,_,_ in boot.BootDeployment(SOURCE,self.root,self.runner).plan()}
         self.assertEqual(groups,{'grub','plymouth'})
-        from install_model import InstallOptions
-        self.assertNotIn('greetd',InstallOptions(SOURCE,components=('boot',)).summary()['packages'])
+        import main
+        from install_model import package_names
+        self.assertIn('greeter',main.BOOT_SCREENS)
+        self.assertIn('greetd',package_names(SOURCE,('boot',),(),main.BOOT_SCREENS,inspect_installed=False))
 
     def test_greeter_needs_greetd_installed(self):
         (self.root/'usr/sbin/greetd').unlink()

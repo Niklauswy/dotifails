@@ -19,9 +19,9 @@ PRELOAD = ('Core', 'Gui', 'DBus', 'Network', 'OpenGL', 'Qml', 'QmlMeta', 'QmlMod
 STAMP = 'WYSUN_QML_RUNTIME.json'
 REEXEC = 'WYSUN_QML_REEXEC'
 RUNTIME_HINT = ('Wysun: falta el runtime del shell (Qt privado); sin él PySide6 cargaría otro Qt. Instálalo con '
-                './instalar.sh --wysun-only.\n')
+                'wysun update (en un equipo nuevo, ./instalar.sh).\n')
 HINT = ('Wysun: falta el runtime QML (venv de PySide6). Créalo con: python3 installer/qml_runtime.py '
-        '(o ./instalar.sh --wysun-only).\n')
+        '(o wysun update).\n')
 
 
 def _data_home():

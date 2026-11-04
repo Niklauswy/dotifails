@@ -129,7 +129,7 @@ class InstallerTests(unittest.TestCase):
     def test_updating_wysun_alone_never_changes_what_files_open_with(self):
         home = self.home('[Default Applications]\nimage/png=viewnior.desktop;\n')
         deployment = self.deployment(home)
-        deployment.configure_files()                                  # what an --wysun-only update runs on its own
+        deployment.configure_files()                                  # what an update runs on its own
         deployment.configure_wysun()
         deployment.finish()
         parser = mimeapps(home)

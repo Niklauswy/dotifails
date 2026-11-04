@@ -80,6 +80,26 @@ StyledRect {
             }
         }
 
+        // Wysun update: only while the source has new commits; hovering opens its popout.
+        Item {
+            readonly property string name: "wysunupdate"
+
+            visible: WysunUpdate.available
+            Layout.alignment: Qt.AlignHCenter
+            Layout.bottomMargin: root.spacing
+            implicitWidth: updateIcon.implicitWidth
+            implicitHeight: updateIcon.implicitHeight
+
+            MaterialIcon {
+                id: updateIcon
+
+                animate: true
+                text: "system_update"
+                color: root.colour
+                fill: 1
+            }
+        }
+
         Repeater {
             model: ScriptModel {
                 id: model

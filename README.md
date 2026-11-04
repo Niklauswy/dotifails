@@ -10,46 +10,28 @@ Wysun es el nuevo nombre de Órbita. El lanzador, Music, Files y Recorder se des
 - `wysun music`, `wysun files`, `wysun settings`: aplicaciones y ajustes.
 - `wysun recorder`: biblioteca y editor de vídeo; `wysun recorder --quick-record`: preparar una grabación.
 - `wysun-shell screenshot`: selecciona una región para copiar y guardar, anotar o leer su texto.
-- `./instalar.sh --wysun-only`: actualizar la familia completa.
+- `wysun update`: actualizar la familia completa.
 
 La actualización no sustituye las grabaciones activas; los datos privados viven fuera del repositorio, bajo las rutas `wysun`. [Integración, nombres y compatibilidad](docs/wysun.md).
 
 ## Sesión Wysun / Hyprland
 
-El componente `wayland` se instala por defecto y prepara **Wysun / Hyprland**, Quickshell y las aplicaciones Python/PySide6 conservadas. Revisa paquetes, portales, selección y recuperación en la [guía Wayland](docs/wayland.md).
+La instalación prepara la sesión **Wysun / Hyprland**, Quickshell y las aplicaciones Python/PySide6 conservadas. Revisa paquetes, portales, sesión y recuperación en la [guía Wayland](docs/wayland.md).
 
-```sh
-./instalar.sh --source "$PWD" --components desktop,wayland --plan
-```
-
-## Instalar
+## Instalar en otro equipo
 
 Desde una cuenta normal con acceso a `sudo`, conexión a Internet y varios GB libres:
 
 ```sh
-sudo apt-get update && sudo apt-get install --yes git python3 ca-certificates && git clone --depth 1 https://github.com/Niklauswy/dotifails.git wysun-shell && cd wysun-shell && ./instalar.sh
+git clone https://github.com/Niklauswy/dotifails.git ~/.local/share/wysun/source
+~/.local/share/wysun/source/instalar.sh
 ```
 
-Si ya tienes esta carpeta, ejecuta `./instalar.sh`. Desde una sesión gráfica abre el **instalador visual**: bienvenida, vista previa del tema, componentes, aplicaciones opcionales, revisión, progreso real y primeros pasos. Si falta Qt, ofrece preparar únicamente la interfaz desde la terminal. La instalación del escritorio empieza después de revisar el plan.
+`sh bootstrap.sh` hace exactamente eso: clona la rama `main` y ejecuta el instalador. La copia se queda en `~/.local/share/wysun/source` y es la fuente de las actualizaciones de ese equipo. Si ya tienes el repositorio, ejecuta `./instalar.sh` desde su raíz.
 
-Puedes seleccionar escritorio, sesión Wysun / Hyprland, terminal, Neovim, herramientas y el arranque Macrodata; el escritorio, la sesión y Neovim incluyen lo que necesitan. Desmarcar algo conserva su instalación actual. GRUB, carga y acceso también se eligen por separado. El instalador conserva los cambios personales, muestra conflictos, guarda el registro y permite recuperar respaldos del hogar o del arranque. [Guía del instalador visual](docs/installer.md).
+`./instalar.sh` instala todo: paquetes, runtime privado del shell, sesión Wysun / Hyprland, aplicaciones, terminal, Neovim, arranque (GRUB, Plymouth y la pantalla de acceso) y Brave/Discord/Obsidian por Flatpak. No tiene opciones y solo acepta `--dry-run`, que muestra el plan sin cambiar nada. No lo ejecutes con `sudo`: pide autorización cuando la necesita. Una instalación nueva usa el fondo `purple-abstract` y Material You: los colores salen del wallpaper y el modo (automático, claro u oscuro) se conserva al actualizar. Al terminar, cierra sesión cuando quieras y elige **Wysun / Hyprland** en el gestor de acceso. El instalador conserva los cambios personales, muestra conflictos, guarda el registro y permite recuperar respaldos.
 
-Una instalación nueva usa el fondo `purple-abstract` y Material You: los colores salen del wallpaper y el modo (automático, claro u oscuro) se conserva al actualizar. No lo ejecutes con `sudo`: la interfaz pide autorización cuando corresponde. Al terminar, cierra sesión cuando quieras y elige **Wysun / Hyprland** en el gestor de acceso. El instalador mantiene abierta tu sesión.
-
-El instalador se valida con HOME/XDG temporales y con una sesión Wayland anidada. Consulta el alcance exacto en [Validación](docs/validation.md).
-
-```sh
-./instalar.sh --gui
-./instalar.sh --cli
-./instalar.sh --dry-run
-./instalar.sh --components terminal,editor --plan
-./instalar.sh --extras brave,discord,obsidian
-./instalar.sh --profile samsung-touchscreen
-```
-
-Los argumentos de instalación mantienen el modo terminal, así como las ejecuciones sin sesión gráfica. `--cli` lo fuerza explícitamente y `--plan` muestra paquetes, versiones y comando sin aplicar cambios.
-
-El perfil Samsung es opcional y específico del equipo con pantalla táctil defectuosa. No se aplica a otras instalaciones. Las aplicaciones opcionales se instalan desde Flathub para el usuario; también puedes instalar solo una, por ejemplo `--extras obsidian`.
+El instalador se valida con HOME/XDG temporales y con una sesión Wayland anidada. Consulta el alcance exacto en [Validación](docs/validation.md) y la [guía del instalador](docs/installer.md).
 
 ## Qué incluye
 
@@ -86,25 +68,30 @@ Los paquetes APT y las aplicaciones Flatpak reciben las versiones que publica ca
 
 Ver todos en [hyprland.lua](config/.config/wysun/hyprland.lua). Los paneles tienen navegación por teclado y Escape para cerrar.
 
-## Actualizar y recuperar
+## Actualizar
 
 ```sh
-wysun-installer
+wysun update
+wysun update --check
 wysun doctor
-wysun-install update
-wysun-install update --source /ruta/wysun-shell
-wysun-install update --wysun-only && wysun reload
-wysun-install restore
-wysun-install restore ID_DEL_RESPALDO
 ```
 
-Para actualizar únicamente el instalador y su entrada en el menú de aplicaciones: `./instalar.sh --installer-only`. No reinstala Wysun, paquetes ni configuraciones del escritorio.
+`wysun update` hace `git pull --ff-only` en la copia fuente y vuelve a aplicar. Siempre: código, aplicaciones, configuración, atajos y lanzador. Solo cuando cambiaron sus entradas: paquetes del sistema, reconstrucción del runtime privado, herramientas de Neovim, pantallas de arranque y registro de la sesión; pide `sudo` solo entonces. Después ejecuta `wysun reload` y, si cambió `apps/shell`, reinicia solo el shell. Aplica solo los componentes que ese equipo ya tiene.
+
+Un icono en la barra avisa cuando hay cambios en `main`; al pulsarlo abre una terminal con `wysun update`. `wysun update --check` escribe `~/.local/state/wysun/update.json` e imprime el mismo JSON sin aplicar nada.
 
 Las configuraciones se instalan como **copias** editables. Antes de reemplazarlas se guardan en `~/.local/state/wysun/install/backups/ID/before/`, junto con un diario de operaciones. Si has editado un archivo administrado, una actualización lo conserva y deja la propuesta en `incoming/`; devuelve código 2 para indicar conflictos. Los cambios locales incluyen archivos borrados deliberadamente.
 
-Para desarrollar los menús, editar `apps/python/` en este repositorio y ejecutar `./instalar.sh --wysun-only && wysun reload`. Así el escritorio usa el mismo código que recibirá una instalación nueva. Notas y Color son ventanas nativas independientes; sus datos privados se conservan aparte. [Flujo de desarrollo y actualización](docs/maintenance.md#cambiar-órbita-y-usar-la-misma-versión-en-tu-escritorio).
+Para desarrollar los menús, edita `apps/python/` en este repositorio, haz commit y `git push`, y despliega con `wysun update`. Así el escritorio usa el mismo código que recibirá una instalación nueva. Notas y Color son ventanas nativas independientes; sus datos privados se conservan aparte. [Flujo de desarrollo y actualización](docs/maintenance.md#cambiar-wysun-y-usar-la-misma-versión-en-tu-escritorio).
 
-`restore` recupera el estado anterior y conserva ediciones posteriores en `changes-before-restore/`. Se deben restaurar los respaldos de más reciente a más antiguo. No desinstala paquetes APT/Flatpak ni borra datos personales de Wysun. Una instalación fallida muestra el ID recuperable y puede repetirse después de corregir la causa.
+## Recuperar
+
+```sh
+wysun restore
+wysun restore ID_DEL_RESPALDO
+```
+
+`wysun restore` recupera el estado anterior y conserva ediciones posteriores en `changes-before-restore/`. Se deben restaurar los respaldos de más reciente a más antiguo. No desinstala paquetes APT/Flatpak ni borra datos personales de Wysun. Una instalación fallida muestra el ID recuperable y puede repetirse después de corregir la causa.
 
 La configuración del escritorio y las fuentes viven en `~/.config` y `~/.local/share`; los comandos en `~/.local/bin`. Las herramientas conservan directorios por versión para permitir restaurar los enlaces activos. [Arquitectura y pruebas](docs/maintenance.md).
 
@@ -128,10 +115,10 @@ En Ajustes → Wallpaper & style eliges el fondo con el carrusel (`Super+Shift+W
 
 ### Utilidades del día a día
 
-Cada utilidad es un paquete propio en `apps/python` y se abre con `wysun`; se instalan y actualizan con el resto de Wysun (`./instalar.sh --wysun-only`). [Guía](docs/utilities.md).
+Cada utilidad es un paquete propio en `apps/python` y se abre con `wysun`; se instalan y actualizan con el resto de Wysun (`wysun update`). [Guía](docs/utilities.md).
 
 - `wysun lanshare [CARPETA]`: comparte una carpeta con la red local desde el navegador (explorar, ver video con miniaturas, subir y descargar carpetas en `.zip`).
 
 ### Arranque y acceso
 
-La selección completa incluye el arranque inspirado en *Severance*: GRUB como la tarjeta azul de una cinta de formación (con efecto VHS), y Plymouth como un CRT de oficina en fósforo que hojea el índice de proyectos, abre Cold Harbor y llena el indicador con el progreso real. Se actualizan por separado con `./instalar.sh --boot-only`; `--boot-components grub,plymouth` limita las pantallas. El instalador visual permite elegirlas y recuperar sus respaldos. [Instalación, compatibilidad y recuperación](docs/boot.md).
+La instalación completa incluye el arranque inspirado en *Severance*: GRUB como la tarjeta azul de una cinta de formación (con efecto VHS), y Plymouth como un CRT de oficina en fósforo que hojea el índice de proyectos, abre Cold Harbor y llena el indicador con el progreso real. Forma parte de la instalación completa y `wysun update` lo reaplica cuando cambian sus archivos; los respaldos del sistema se recuperan desde la terminal. [Instalación, compatibilidad y recuperación](docs/boot.md).

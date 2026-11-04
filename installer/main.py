@@ -3,10 +3,10 @@
 import argparse,datetime,fcntl,hashlib,json,os,platform,shutil,stat,subprocess,sys,tarfile,tempfile,uuid
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parent))
-from install_model import ARTIFACTS, COMPONENTS, InstallOptions, installed_components, normalize_components, package_names
+from install_model import ARTIFACTS, COMPONENTS, installed_components, normalize_components, package_names
 from install_events import InstallationCancelled, checkpoint, emit
 
-VERSION='1.1.0'
+VERSION='2.0.0'
 REPOSITORY='https://github.com/Niklauswy/dotifails.git'
 WYSUN_DESKTOP='[Desktop Entry]\nType=Application\nName=Wysun\nComment=Aplicaciones y herramientas del escritorio\nExec=wysun\nIcon=system-search\nCategories=Utility;\nKeywords=Wysun;lanzador;launcher;aplicaciones;\nStartupWMClass=wysun\n'
 PLAYER_DESKTOP='wysun-player.desktop'
@@ -28,7 +28,10 @@ DESKTOP_RETIRED=tuple('.local/bin/'+name for name in (
 TOOLS_RETIRED=tuple('.local/bin/'+name for name in (
     'wysun-tools','web-dev','sec-audit','file-share','gvm','gvm.sh','tailscale-killswitch','tailscale-killswitch.sh',
     'scrip.sh','rezets','zzzz.py'))+('scripts/wysun-tools','scripts/README.md','.local/share/wysun/tools')
-RETIRED_COMMANDS=DESKTOP_RETIRED+TOOLS_RETIRED
+# The graphical installer was withdrawn: `./instalar.sh` and `wysun update` replace it.
+INSTALLER_RETIRED=('.local/bin/wysun-installer','.local/share/applications/wysun-installer.desktop',
+                   '.local/share/applications/wysun-installer-preview.desktop')
+RETIRED_COMMANDS=DESKTOP_RETIRED+TOOLS_RETIRED+INSTALLER_RETIRED
 EXTRAS={'brave':'com.brave.Browser','discord':'com.discordapp.Discord','obsidian':'md.obsidian.Obsidian'}
 
 
@@ -110,6 +113,8 @@ def default_wallpaper(source):
 class Deployment:
     def __init__(self,home,source):
         self.home=Path(home).absolute();self.source=Path(source).resolve();self.state=self.home/'.local/state/wysun/install';self.data=self.home/'.local/share/wysun';self.receipt=read(self.state/'installed.json',{'files':{}});self.journal=None;self.conflicts=[]
+        # An update keeps files the installer never managed (the user's own); a fresh install adopts them, with backup.
+        self.adopt=True;self.kept=[]
     def begin(self):
         checkpoint()
         for relative in ('.config/probe','.local/share/probe','.local/state/probe','.cache/probe'):
@@ -140,6 +145,8 @@ class Deployment:
             self.receipt['files'][key]=wanted;return
         if previous is not None and current!=previous:
             incoming=self.backup/'incoming'/relative;copy(source,incoming);self.conflicts.append(key);emit('conflict',path=key);return
+        if previous is None and current is not None and not self.adopt:
+            self.kept.append(key);return
         before=self.backup/'before'/relative
         if exists(dest):copy(dest,before)
         op={'path':key,'before':current,'after':wanted};self.journal['operations'].append(op);self.flush()
@@ -239,20 +246,6 @@ class Deployment:
             if mime.has_option('Removed Associations',mimetype):
                 removed=[name for name in mime.get('Removed Associations',mimetype).split(';') if name and name!=PLAYER_DESKTOP]
                 mime.set('Removed Associations',mimetype,';'.join(removed)+(';' if removed else ''))
-    def configure_app(self):
-        self.stage('Actualizar solo Wysun (código y lanzador)')
-        self.deploy(self.source/'apps/python',Path('.local/share/wysun/app'))
-        if self.conflicts:return
-        wallpaper=self.source/'assets/backgrounds'/default_wallpaper(self.source)
-        if wallpaper.is_file():self.deploy(wallpaper,Path('.local/share/backgrounds')/wallpaper.name)
-        # The wayland component owns portal selection; the file manager's own services ship either way.
-        if 'wayland' in self.receipt.get('components',[]):self.files_services()
-        else:self.configure_files()
-        if (self.source/'config/.local/share/icons/hicolor/scalable/apps/musika.svg').is_file():self.deploy(self.source/'config/.local/share/icons/hicolor/scalable/apps/musika.svg',Path('.local/share/icons/hicolor/scalable/apps/musika.svg'))
-        if (self.source/'config/.local/share/applications/wysun-music.desktop').is_file():self.deploy(self.source/'config/.local/share/applications/wysun-music.desktop',Path('.local/share/applications/wysun-music.desktop'))
-        self.configure_wysun()
-        from wayland import update_runtime
-        update_runtime(self)
     def publish_dispatcher(self):
         """~/.local/bin/wysun, the single entry point; False when an unowned file is in the way."""
         from capture_distribution import _publish
@@ -284,22 +277,15 @@ class Deployment:
             if source.is_file():self.deploy(source,Path('.local/share/applications')/name)
         configure(self)
     def configure_manager(self):
-        from ui_support import package_runtime
         manager=self.backup/'generated/manager'
-        shutil.copytree(self.source/'installer',manager,ignore=shutil.ignore_patterns('__pycache__','*.pyc','ui_runtime'))
-        package_runtime(self.source,manager/'ui_runtime')
+        shutil.copytree(self.source/'installer',manager,ignore=shutil.ignore_patterns('__pycache__','*.pyc'))
         self.deploy(manager,Path('.local/share/wysun/installer'))
         self.deploy(self.source/'manifests',Path('.local/share/wysun/manifests'))
         self.generated('#!/bin/sh\nexec python3 "$HOME/.local/share/wysun/installer/main.py" "$@"\n',Path('.local/bin/wysun-install'),True)
-        self.generated('#!/bin/sh\nexec /usr/bin/python3 "$HOME/.local/share/wysun/installer/main.py" gui "$@"\n',Path('.local/bin/wysun-installer'),True)
-        for preview in (False,True):
-            name='Vista previa del instalador de Wysun' if preview else 'Instalador de Wysun'
-            suffix=' --preview' if preview else ''
-            filename='wysun-installer-preview.desktop' if preview else 'wysun-installer.desktop'
-            self.generated('[Desktop Entry]\nType=Application\nName='+name+'\nComment=Instalar, actualizar y recuperar tu entorno Wysun\nExec=wysun-installer'+suffix+'\nIcon=system-software-install\nCategories=System;Settings;\nKeywords=Wysun;instalador;installer;dotfiles;\nTerminal=false\nStartupWMClass=wysun-installer\n',Path('.local/share/applications')/filename)
-
+        self.retire_commands(INSTALLER_RETIRED)
     def configure(self,profile=None,components=None):
-        selected=set(normalize_components(components))
+        # Exactly the components asked for: an update must not add terminal/editor configuration to a machine without them.
+        selected=set(normalize_components(None) if components is None else components)
         if 'wayland' in selected:
             from wayland import configure
             configure(self)
@@ -331,7 +317,6 @@ class Deployment:
                 self.configure_wysun()
             for item in sorted((self.source/'assets/icons').iterdir()):self.deploy(item,Path('.local/share/icons')/item.name)
             for item in sorted((self.source/'assets/backgrounds').iterdir()):self.deploy(item,Path('.local/share/backgrounds')/item.name)
-            # Ship the same music entry points as a --wysun-only update.
             for rel in ('.local/share/applications/wysun-music.desktop','.local/share/icons/hicolor/scalable/apps/musika.svg'):
                 if (self.source/'config'/rel).is_file():self.deploy(self.source/'config'/rel,Path(rel))
         if selected & {'desktop','terminal'}:self.configure_fonts()
@@ -357,6 +342,7 @@ class Deployment:
         self.receipt.update(version=VERSION,source=str(self.source),last_backup=self.journal['id'])
         write(self.state/'installed.json',self.receipt);self.journal['status']='conflicts' if self.conflicts else 'complete';self.journal['conflicts']=self.conflicts;self.flush()
         print(f'\nRespaldo: {self.backup}')
+        if self.kept:print('Se conservan tal cual (no los administra Wysun en este equipo): '+', '.join(self.kept))
         if self.conflicts:
             print('Se conservaron tus cambios. Revisa las versiones nuevas en incoming/:\n'+'\n'.join(self.conflicts))
         else:print('Archivos instalados correctamente.')
@@ -438,13 +424,6 @@ def refresh_package_plan(source,extras,components,boot_components):
         print(simulate_packages(source,fields,wanted))
     else:
         run(['apt-get','--simulate','--no-remove','install','--no-install-recommends',*wanted])
-
-
-def upgrade_system(refresh=True):
-    prefix=[] if os.geteuid()==0 else ['sudo']
-    base=prefix+['env','DEBIAN_FRONTEND=noninteractive','apt-get','-o','Dpkg::Options::=--force-confold']
-    if refresh:run(base+['-o','APT::Update::Error-Mode=any','update'])
-    run(base+['upgrade','--with-new-pkgs','--yes','--no-remove'])
 
 
 def prepare_repositories(source):
@@ -583,139 +562,172 @@ def restore(home,ident):
     print(f'Restaurado {ident}. Cambios posteriores conservados en {emergency}. Los paquetes del sistema permanecen instalados.');return 0
 
 
-def main(argv=None):
-    parser=argparse.ArgumentParser(description='Wysun Desktop · instalar, verificar, actualizar y recuperar')
-    sub=parser.add_subparsers(dest='command',required=True)
-    for command in ('install','update'):
-        p=sub.add_parser(command);p.add_argument('--source',type=Path);p.add_argument('--target-home',type=Path,default=Path.home());p.add_argument('--config-only',action='store_true');p.add_argument('--dry-run',action='store_true');p.add_argument('--extras',nargs='?',const='brave,discord,obsidian',default='');p.add_argument('--profile',choices=['samsung-touchscreen']);p.add_argument('--skip-nvim-tools',action='store_true');p.add_argument('--ref',default='master')
-        p.add_argument('--wysun-only',dest='wysun_only',action='store_true',help='Solo código y lanzador de Wysun; conserva el resto del escritorio y los datos privados')
-        p.add_argument('--boot-only',action='store_true',help='Solo GRUB, Plymouth e inicio de sesión; conserva la sesión abierta y respalda /etc y /boot')
-        p.add_argument('--installer-only',action='store_true',help='Actualizar solo el instalador visual, la CLI y sus manifiestos')
-        p.add_argument('--components',help='Componentes separados por comas: desktop,wayland,terminal,editor,boot')
-        p.add_argument('--boot-components',default='grub,plymouth',help='Pantallas de arranque: grub,plymouth,greeter')
-        p.add_argument('--plan',action='store_true',help='Mostrar el plan exacto en JSON, sin aplicar cambios')
-        p.add_argument('--upgrade-system',action='store_true',help='Actualizar los paquetes existentes sin retirar paquetes ni cambiar de distribución')
-        p.add_argument('--prepare-repositories',action='store_true',help='Habilitar solo los backports oficiales de esta distribución, si faltan')
-    p=sub.add_parser('doctor');p.add_argument('--target-home',type=Path,default=Path.home())
-    p=sub.add_parser('restore');p.add_argument('id',nargs='?');p.add_argument('--target-home',type=Path,default=Path.home())
-    p=sub.add_parser('gui');p.add_argument('--source',type=Path);p.add_argument('--target-home',type=Path,default=Path.home());p.add_argument('--preview',action='store_true',help='Recorrido completo con operaciones simuladas, sin escrituras ni privilegios')
-    args=parser.parse_args(argv)
-    if args.command=='gui':
-        from gui import launch
-        return launch(args.source,args.target_home,preview=args.preview)
-    if args.command=='doctor':return doctor(args.target_home)
-    if args.command=='restore':return restore(args.target_home,args.id)
-    if args.components and (args.boot_only or args.wysun_only or args.installer_only):raise ValueError('--components no se combina con los modos --only.')
-    if args.plan and (args.boot_only or args.wysun_only or args.installer_only):raise ValueError('Los modos --only admiten --dry-run; usa --components para un plan detallado.')
-    if sum((args.boot_only,args.wysun_only,args.installer_only))>1:raise ValueError('Elige un solo modo --only.')
-    if args.installer_only:
-        if args.extras or args.profile:raise ValueError('--installer-only se usa sin extras ni perfiles.')
-        args.config_only=True
-    if (args.upgrade_system or args.prepare_repositories) and (args.config_only or args.wysun_only or args.installer_only or args.boot_only):
-        raise ValueError('La preparación del sistema requiere una instalación completa; no se combina con modos --only o --config-only.')
-    if args.boot_only:
-        if args.wysun_only or args.config_only or args.extras or args.profile:
-            raise ValueError('--boot-only se usa por separado.')
-        if args.target_home!=Path.home():raise ValueError('--boot-only modifica el sistema, no otro hogar.')
-        previous=read(args.target_home/'.local/state/wysun/install/installed.json',{}).get('source')
-        source=(args.source or (Path(previous) if previous else Path(__file__).resolve().parent.parent)).resolve()
-        if not (source/'system/boot/grub/theme.txt').is_file():raise RuntimeError('Indica el repositorio completo con --source.')
-        if not args.dry_run:host_supported()
-        boot_appearance(source,args.dry_run,args.boot_components.split(','));return 0
-    if args.wysun_only:
-        if args.extras or args.profile:raise ValueError('--wysun-only no admite extras ni perfiles del sistema.')
-        args.config_only=True
-    selected=normalize_components(args.components.split(',') if args.components else None)
-    if args.config_only and not args.components:selected=tuple(key for key in selected if key!='boot')
-    if args.wysun_only:selected=('desktop',)
-    if args.installer_only:selected=()
-    if args.plan:
-        if args.command=='update' and not args.source:raise ValueError('Para revisar un plan exacto de actualización, indica la copia local con --source.')
-        previous=read(args.target_home/'.local/state/wysun/install/installed.json',{}).get('source')
-        source=(args.source or (Path(previous) if previous else Path(__file__).resolve().parent.parent))
-        options=InstallOptions(source,args.target_home,selected,tuple(filter(None,args.extras.split(','))),tuple(args.boot_components.split(',')),args.config_only,args.skip_nvim_tools,args.profile,args.upgrade_system,args.prepare_repositories)
-        print(json.dumps(options.summary(),ensure_ascii=False,indent=2));return 0
-    if args.dry_run:
-        if args.installer_only:print('Plan: respaldar y actualizar solo el instalador, sus manifiestos y el acceso en el menú de aplicaciones.');return 0
-        if args.wysun_only:print('Plan: respaldar y actualizar la familia Wysun, incluido el Recorder, y el gestor wysun-install. No cambia atajos, notas, historial ni colores.');return 0
-        if 'wayland' in selected and not args.config_only:
-            from wayland import simulate_packages
-            fields=host_supported()
-            selected_source=args.source or Path(__file__).resolve().parent.parent
-            wanted=package_names(selected_source,selected,tuple(filter(None,args.extras.split(','))),tuple(args.boot_components.split(',')))
-            print(simulate_packages(source=selected_source,fields=fields,wanted=wanted))
-        print('Componentes: '+', '.join(COMPONENTS[key][0] for key in selected))
-        print('Plan: validar compatibilidad; instalar las dependencias seleccionadas; verificar SHA-256; respaldar y copiar configuraciones; comprobar el resultado.\nConflictos: se conservan los archivos editados y se guardan nuevas versiones en incoming/.\nNo se ejecutarán cambios.');return 0
-    home=args.target_home.expanduser().absolute()
-    if not args.config_only:
+BRANCH='main'
+SOURCE_DIR='.local/share/wysun/source'
+EVERYTHING=tuple(COMPONENTS)
+BOOT_SCREENS=('grub','plymouth','greeter')
+EXTRA_APPS=tuple(EXTRAS)
+UPDATE_STATE='.local/state/wysun/update.json'
+
+
+def digest(source,*relatives):
+    """One hash over files/directories of the source (missing ones count as absent)."""
+    h=hashlib.sha256()
+    for relative in relatives:
+        h.update(relative.encode()+b'\0'+(fingerprint(Path(source)/relative) or 'absent').encode()+b'\0')
+    return h.hexdigest()
+
+
+def system_inputs(source,components):
+    """What each privileged/slow step depends on; `wysun update` reruns a step only when its value changes."""
+    source=Path(source);wanted=package_names(source,components,EXTRA_APPS,BOOT_SCREENS,inspect_installed=False)
+    inputs={'packages':hashlib.sha256('\n'.join(sorted(wanted)).encode()).hexdigest()}
+    if 'wayland' in components:inputs['session']=digest(source,'installer/session_registration.py','installer/wysun-session-system','installer/wysun-hyprland.desktop')
+    if 'boot' in components:inputs['boot']=digest(source,'system/boot','installer/boot.py','apps/shell/greeter.qml')
+    if 'editor' in components:inputs['editor']=digest(source,'manifests/plugins.json','manifests/mason.json','installer/bootstrap-nvim.lua','config/.config/nvim/scripts')
+    inputs['extras']=hashlib.sha256(','.join(EXTRAS[name] for name in EXTRA_APPS).encode()).hexdigest()
+    return inputs
+
+
+def git(source,*args,check=True):
+    return subprocess.run(['git','-C',str(source),*args],check=check,text=True,capture_output=True)
+
+
+def is_checkout(source):
+    return (Path(source)/'.git').exists() and git(source,'rev-parse','--is-inside-work-tree',check=False).returncode==0
+
+
+def receipt_of(home):return read(Path(home)/'.local/state/wysun/install/installed.json',{})
+
+
+def check_updates(home,fetch=True):
+    """Compare the source checkout with its upstream; write and return the bar's update state."""
+    home=Path(home);source=receipt_of(home).get('source')
+    state={'checked':datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),'source':source,'branch':None,
+           'local':None,'remote':None,'behind':0,'available':False,'error':None}
+    try:
+        if not source or not is_checkout(source):raise RuntimeError('la fuente instalada no es un repositorio git')
+        state['branch']=git(source,'rev-parse','--abbrev-ref','HEAD').stdout.strip()
+        if fetch:
+            fetched=git(source,'fetch','--quiet','origin',check=False)
+            if fetched.returncode:raise RuntimeError('no se pudo consultar origin')
+        state['local']=git(source,'rev-parse','HEAD').stdout.strip()
+        upstream=git(source,'rev-parse','@{u}',check=False)
+        if upstream.returncode:raise RuntimeError('la rama '+state['branch']+' no sigue a una rama remota')
+        state['remote']=upstream.stdout.strip()
+        state['behind']=int(git(source,'rev-list','--count','HEAD..@{u}').stdout.strip() or 0)
+        state['available']=state['behind']>0
+    except (RuntimeError,OSError,ValueError,subprocess.CalledProcessError) as error:
+        state['error']=str(error)
+    write(home/UPDATE_STATE,state);return state
+
+
+def pull(source):
+    """Fast-forward the checkout to its upstream. Offline, it keeps the local copy; a diverged branch stops the update."""
+    if git(source,'fetch','--quiet','origin',check=False).returncode:
+        print('Wysun: sin conexión con origin; se aplica la copia local.');return
+    if git(source,'rev-parse','@{u}',check=False).returncode:
+        print('Wysun: la rama local no sigue a una rama remota; se aplica la copia local.');return
+    merged=git(source,'merge','--ff-only','@{u}',check=False)
+    if merged.returncode:
+        raise RuntimeError('No se pudo avanzar '+str(source)+' hasta origin (rama divergente o cambios locales en conflicto). '
+                           'Resuélvelo con git en esa carpeta y repite wysun update.\n'+(merged.stderr or merged.stdout).strip())
+    print('Wysun: '+(merged.stdout.strip().splitlines() or ['al día'])[0])
+
+
+def restart_shell(home,before):
+    """Reload the resident and, when the installed shell changed, restart only the shell (never Hyprland)."""
+    if not (os.environ.get('WAYLAND_DISPLAY') and os.environ.get('HYPRLAND_INSTANCE_SIGNATURE')):return
+    env=dict(os.environ,PATH=str(Path(home)/'.local/bin')+':'+os.environ.get('PATH',''))
+    subprocess.run(['wysun','reload'],env=env,check=False)
+    if fingerprint(Path(home)/'.local/share/wysun/quickshell')!=before:
+        subprocess.run(['pkill','-x','quickshell'],check=False)
+        subprocess.Popen(['setsid','wysun-shell'],env=env,stdin=subprocess.DEVNULL,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,start_new_session=True)
+        print('Wysun: shell reiniciado con el código nuevo.')
+
+
+def update(home):
+    home=Path(home);receipt=receipt_of(home);source=receipt.get('source')
+    if not receipt:raise RuntimeError('Wysun no está instalado en este equipo; ejecuta ./instalar.sh desde el repositorio.')
+    if not source or not is_checkout(source):
+        # Earlier versions updated from throwaway clones: keep one checkout from now on.
+        source=home/SOURCE_DIR
+        if not is_checkout(source):
+            if exists(source):raise RuntimeError(f'{source} existe pero no es un repositorio git.')
+            run(['git','clone','--branch',BRANCH,REPOSITORY,source])
+    else:pull(source)
+    before=fingerprint(home/'.local/share/wysun/quickshell')
+    # The pulled installer applies its own code, so an update also receives installer fixes.
+    result=subprocess.run([sys.executable,str(Path(source)/'installer/main.py'),'apply','--source',str(source),'--target-home',str(home)])
+    if result.returncode not in (0,2):return result.returncode
+    check_updates(home,fetch=False);restart_shell(home,before);return result.returncode
+
+
+def plan(source,components,config_only,inputs=None,recorded=None):
+    steps=[]
+    if not config_only:
+        due=lambda key:inputs is None or recorded is None or (key in inputs and recorded.get(key)!=inputs[key])
+        if due('packages'):steps+=['Repositorios oficiales (backports) si faltan','Paquetes del sistema']
+        steps.append('Herramientas verificadas (SHA-256)')
+    steps.append('Configuraciones, apps y atajos (con respaldo)')
+    if not config_only:
+        if 'wayland' in components and due('session'):steps.append('Registrar la sesión Wysun / Hyprland')
+        if 'boot' in components and due('boot'):steps.append('Arranque: GRUB, Plymouth y pantalla de acceso')
+        if 'editor' in components and due('editor'):steps.append('Plugins y herramientas de Neovim')
+        if due('extras'):steps.append('Brave, Discord y Obsidian (Flatpak)')
+        steps.append('Verificación final')
+    return steps
+
+
+def deploy(source,home,components,config_only,fresh):
+    """Install (fresh) or apply an update: configuration always; system steps when new or when their inputs changed."""
+    source=Path(source).resolve();home=Path(home).expanduser().absolute()
+    # A fresh install takes everything; an update keeps exactly the components this machine has.
+    components=normalize_components(components) if fresh else tuple(key for key in COMPONENTS if key in components)
+    if not (source/'config/.config/wysun/hyprland.lua').is_file():raise RuntimeError('Fuente incompleta: '+str(source))
+    if not config_only:
         host_supported()
-        if os.geteuid()==0:raise RuntimeError('Ejecuta como usuario normal con sudo disponible; no uses sudo ./instalar.sh.')
-        if home!=Path.home():raise RuntimeError('--target-home requiere --config-only para no modificar otro usuario.')
-    names=[n.strip() for n in args.extras.split(',') if n.strip()]
-    if any(n not in EXTRAS for n in names):raise ValueError('Extras válidos: brave,discord,obsidian')
-    if args.command=='update' and not args.source:
-        cache=home/'.cache/wysun/install';cache.mkdir(parents=True,exist_ok=True);checkout=Path(tempfile.mkdtemp(prefix='update-',dir=cache))
-        run(['git','clone','--depth','1','--branch',args.ref,REPOSITORY,checkout]);args.source=checkout
-        # Execute the new installer, so update also receives installer fixes.
-        if not (checkout/'installer/main.py').is_file():raise RuntimeError('La referencia remota aún no contiene el nuevo instalador; usa --source con el repositorio preparado.')
-        command=[sys.executable,str(checkout/'installer/main.py'),'install','--source',str(checkout),'--target-home',str(home)]
-        if args.config_only:command+=['--config-only']
-        if args.wysun_only:command+=['--wysun-only']
-        if args.installer_only:command+=['--installer-only']
-        if args.upgrade_system:command+=['--upgrade-system']
-        if args.prepare_repositories:command+=['--prepare-repositories']
-        if args.extras:command+=['--extras',args.extras]
-        if args.skip_nvim_tools:command+=['--skip-nvim-tools']
-        if args.profile:command+=['--profile',args.profile]
-        if args.components:command+=['--components',args.components]
-        if args.boot_components!='grub,plymouth,greeter':command+=['--boot-components',args.boot_components]
-        run(command);return 0
-    previous_source=read(home/'.local/state/wysun/install/installed.json',{}).get('source')
-    source=(args.source or (Path(previous_source) if previous_source else Path(__file__).resolve().parent.parent)).resolve()
-    if not (source/'config/.config/wysun/hyprland.lua').is_file():raise RuntimeError('Indica un repositorio completo: wysun-install install --source /ruta/wysun-shell')
-    if not (args.wysun_only or args.installer_only):
-        InstallOptions(source,home,selected,tuple(names),tuple(args.boot_components.split(',')),args.config_only,args.skip_nvim_tools,args.profile,args.upgrade_system,args.prepare_repositories).validate()
-    if not args.config_only and 'wayland' in selected and not args.prepare_repositories:
-        from wayland import simulate_packages
-        # Fail before creating a journal or touching user/system files.
-        print(simulate_packages(source,host_supported(),package_names(source,selected,names,args.boot_components.split(','))))
-    home.mkdir(parents=True,exist_ok=True);d=Deployment(home,source);d.begin()
+        if os.geteuid()==0:raise RuntimeError('Ejecuta como usuario normal con sudo disponible; no uses sudo.')
+        if home!=Path.home():raise RuntimeError('Solo se instala en tu propio hogar.')
+    recorded=receipt_of(home).get('inputs')
+    inputs=system_inputs(source,components)
+    # A receipt from before input tracking: the system was prepared by that installer; record it as the baseline.
+    if not fresh and recorded is None:recorded=dict(inputs)
+    due=lambda key:fresh or (key in inputs and recorded.get(key)!=inputs[key])
+    home.mkdir(parents=True,exist_ok=True);d=Deployment(home,source);d.adopt=fresh;d.begin()
     env=dict(os.environ,HOME=str(home),PATH=str(home/'.local/bin')+':'+os.environ.get('PATH',''),XDG_CONFIG_HOME=str(home/'.config'),XDG_DATA_HOME=str(home/'.local/share'),XDG_STATE_HOME=str(home/'.local/state'),XDG_CACHE_HOME=str(home/'.cache'))
     try:
         steps=[]
-        if not args.config_only:
-            if args.prepare_repositories:steps.append(('Repositorios oficiales de la distribución',lambda:prepare_repositories(source)))
-            prepared=args.prepare_repositories or args.upgrade_system
-            if prepared:steps.append(('Índices APT y compatibilidad de dependencias',lambda:refresh_package_plan(source,names,selected,args.boot_components.split(','))))
-            if args.upgrade_system:steps.append(('Actualización del sistema',lambda:upgrade_system(refresh=False)))
-            steps += [('Paquetes del sistema',lambda:packages(source,names,selected,args.boot_components.split(','),refresh=not prepared)),
-                      ('Herramientas verificadas',lambda:install_tools(d,selected))]
-        if args.installer_only:steps.append(('Instalador y recuperación',d.configure_manager))
-        elif args.wysun_only:steps.append(('Aplicación Wysun',d.configure_app))
-        else:steps.append(('Configuraciones y respaldos',lambda:d.configure(args.profile,selected)))
-        if args.wysun_only:steps.append(('Instalador y recuperación',d.configure_manager))
-        if not args.config_only:
-            if 'wayland' in selected:steps.append(('Registrar sesión Wysun / Hyprland',lambda:wayland_session(source) if not d.conflicts else None))
-            if 'boot' in selected:steps.append(('Arranque y acceso',lambda:boot_appearance(source,components=args.boot_components.split(','))))
-            if 'editor' in selected and not args.skip_nvim_tools:steps.append(('Lenguajes y plugins de Neovim',lambda:nvim_setup(d,env)))
-            if names:steps.append(('Aplicaciones opcionales',lambda:install_extras(names,d,env)))
-        if 'terminal' in selected and '.config/bat' not in d.conflicts and shutil.which('batcat'):
-            # Evaluate conflicts after the configuration stage has actually run.
+        if not config_only:
+            if due('packages'):
+                steps+=[('Repositorios oficiales de la distribución',lambda:prepare_repositories(source)),
+                        ('Índices APT y compatibilidad de dependencias',lambda:refresh_package_plan(source,EXTRA_APPS,components,BOOT_SCREENS)),
+                        ('Paquetes del sistema',lambda:packages(source,EXTRA_APPS,components,BOOT_SCREENS,refresh=False))]
+            steps.append(('Herramientas verificadas',lambda:install_tools(d,components)))
+        steps.append(('Configuraciones y respaldos',lambda:d.configure(None,components)))
+        if not config_only:
+            if 'wayland' in components and due('session'):steps.append(('Registrar sesión Wysun / Hyprland',lambda:wayland_session(source) if not d.conflicts else None))
+            if 'boot' in components and due('boot'):steps.append(('Arranque y acceso',lambda:boot_appearance(source,components=BOOT_SCREENS)))
+            if 'editor' in components and due('editor'):steps.append(('Lenguajes y plugins de Neovim',lambda:nvim_setup(d,env)))
+            if due('extras'):steps.append(('Aplicaciones Flatpak',lambda:install_extras(EXTRA_APPS,d,env)))
+        if 'terminal' in components and shutil.which('batcat'):
             steps.append(('Caché de terminal',lambda:run(['batcat','cache','--build'],env) if '.config/bat' not in d.conflicts else None))
-        if not args.config_only and set(selected)&{'desktop','terminal'}:steps.append(('Fuentes del escritorio',lambda:run(['fc-cache','-f'],env)))
+        if not config_only and set(components)&{'desktop','terminal'}:steps.append(('Fuentes del escritorio',lambda:run(['fc-cache','-f'],env)))
         def verify():
-            if doctor(home,selected):raise RuntimeError('Doctor detectó dependencias incompletas; consulta el registro y vuelve a ejecutar el instalador.')
-        if not args.config_only:steps.append(('Verificación final',verify))
+            if not doctor(home,components):return
+            if fresh:raise RuntimeError('Doctor detectó dependencias incompletas; consulta el registro y repite la instalación.')
+            print('AVISO: doctor detectó dependencias incompletas (arriba). La actualización se aplicó; ./instalar.sh las instala.')
+        if not config_only:steps.append(('Verificación final',verify))
         for index,(name,action) in enumerate(steps):
             checkpoint();emit('phase',name=name,index=index,total=len(steps));d.stage(name);action()
             emit('phase_done',name=name,index=index+1,total=len(steps))
-        if not args.installer_only:
-            d.receipt['components']=list(dict.fromkeys([*installed_components(d.receipt),*selected]))
-            d.receipt['last_selection']=list(selected)
+        d.receipt['components']=list(dict.fromkeys([*installed_components(d.receipt),*components]))
+        d.receipt.pop('last_selection',None)
+        if not config_only:d.receipt['inputs']=inputs
+        if is_checkout(source):d.receipt['commit']=git(source,'rev-parse','HEAD').stdout.strip()
         d.finish()
-        emit('result',status='conflicts' if d.conflicts else 'complete',backup=d.journal['id'],conflicts=d.conflicts,components=list(selected),config_only=args.config_only)
-        if not args.config_only:print('Sesión Wysun / Hyprland preparada. Puedes seleccionarla cuando cierres sesión voluntariamente.')
-        else:print('Modo config-only: no instala paquetes, herramientas ni registra la sesión gráfica.')
+        emit('result',status='conflicts' if d.conflicts else 'complete',backup=d.journal['id'],conflicts=d.conflicts,components=list(components),config_only=config_only)
+        if fresh and not config_only:print('Wysun instalado. Elige la sesión «Wysun / Hyprland» al iniciar sesión. Para recibir cambios: wysun update')
         return 2 if d.conflicts else 0
     except BaseException as error:
         d.journal['status']='cancelled' if isinstance(error,InstallationCancelled) else 'failed';d.journal['error']=type(error).__name__+': '+str(error);d.flush()
@@ -723,6 +735,45 @@ def main(argv=None):
         print(f'Instalación interrumpida. Respaldo recuperable: {d.journal["id"]}',file=sys.stderr);raise
     finally:
         d.lock.close()
+
+
+def main(argv=None):
+    parser=argparse.ArgumentParser(prog='wysun-install',description='Wysun · instalar todo el escritorio, actualizarlo desde git y recuperarlo')
+    sub=parser.add_subparsers(dest='command',required=True,metavar='{install,update,doctor,restore}')
+    hidden=argparse.SUPPRESS
+    for command,text in (('install','Instalar el escritorio completo (paquetes, sesión, apps, terminal, Neovim, arranque y Flatpaks)'),
+                         ('apply',hidden)):
+        p=sub.add_parser(command,help=text) if text!=hidden else sub.add_parser(command)
+        p.add_argument('--dry-run',action='store_true',help='Mostrar el plan sin cambiar nada')
+        # For tests and the update hand-off; not part of the everyday interface.
+        p.add_argument('--source',type=Path,help=hidden);p.add_argument('--target-home',type=Path,default=Path.home(),help=hidden)
+        p.add_argument('--config-only',action='store_true',help=hidden)
+    p=sub.add_parser('update',help='git pull del repositorio de este equipo y aplicar lo que cambió')
+    p.add_argument('--check',action='store_true',help='Solo comprobar si hay cambios nuevos (escribe ~/.local/state/wysun/update.json)')
+    p.add_argument('--target-home',type=Path,default=Path.home(),help=hidden)
+    p=sub.add_parser('doctor',help='Comprobar la instalación');p.add_argument('--target-home',type=Path,default=Path.home(),help=hidden)
+    p=sub.add_parser('restore',help='Restaurar archivos desde un respaldo');p.add_argument('id',nargs='?');p.add_argument('--target-home',type=Path,default=Path.home(),help=hidden)
+    args=parser.parse_args(argv)
+    if args.command=='doctor':return doctor(args.target_home)
+    if args.command=='restore':return restore(args.target_home,args.id)
+    if args.command=='update':
+        if args.check:
+            state=check_updates(args.target_home);print(json.dumps(state,ensure_ascii=False));return 0
+        return update(args.target_home)
+    home=args.target_home.expanduser().absolute()
+    recorded_source=receipt_of(home).get('source')
+    source=(args.source or (Path(recorded_source) if recorded_source and (Path(recorded_source)/'installer/main.py').is_file() else Path(__file__).resolve().parent.parent)).resolve()
+    fresh=args.command=='install'
+    components=EVERYTHING if fresh else (installed_components(receipt_of(home)) or EVERYTHING)
+    if args.config_only:components=tuple(key for key in components if key!='boot')
+    if args.dry_run:
+        selected=normalize_components(components) if fresh else tuple(key for key in COMPONENTS if key in components)
+        inputs=None if fresh else system_inputs(source,selected)
+        recorded=None if fresh else receipt_of(home).get('inputs',inputs)
+        print('Componentes: '+', '.join(COMPONENTS[key][0] for key in selected))
+        print('Plan:\n'+'\n'.join('  · '+step for step in plan(source,selected,args.config_only,inputs,recorded)))
+        print('Conflictos: se conservan los archivos que editaste y la versión nueva queda en incoming/ del respaldo.\nNo se ejecutarán cambios.');return 0
+    return deploy(source,home,components,args.config_only,fresh)
 
 
 if __name__=='__main__':

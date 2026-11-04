@@ -41,7 +41,7 @@ Código instalado: `~/.local/share/wysun/app/`. Dependencias: Python 3, PySide6 
 La barra muestra espacios de trabajo, red, volumen, batería, fecha y notificaciones.
 **Super + F** alterna pantalla completa y el estado anterior de la ventana.
 Los cambios del instalador tienen respaldo en `~/.local/state/wysun/install/backups/`.
-Usa `wysun-install restore` para listar respaldos y `wysun-install restore ID` para recuperar uno.
+Usa `wysun restore` para listar respaldos y `wysun restore ID` para recuperar uno.
 
 ## Validación
 
@@ -59,7 +59,7 @@ Usa `wysun-install restore` para listar respaldos y `wysun-install restore ID` p
 - **Super + N**: panel nativo de Wi-Fi, interfaces y conexiones VPN. La contraseña, cuando se necesita, se solicita en un campo oculto y no se guarda en el historial de Wysun.
 - **Super + X**: panel compacto de sesión y energía, con hora local, fecha en español y tiempo encendido del equipo (días, horas y minutos). Se actualiza mientras está abierto. Flechas o Tab seleccionan; Enter (también numérico) o Espacio activan la opción enfocada. Reiniciar, apagar, suspender y cerrar sesión requieren confirmación en la interfaz. Esc cancela o cierra.
 
-El botón **Bloquear** usa `i3lock`, incluido en las dependencias del instalador. El fondo de Wysun se genera para los monitores conectados, sin capturar contenido del escritorio. El instalador compila una variante nativa de i3lock 2.15 para Wysun: fondo sin rótulos, entrada suave, pulso por tecla, señal ámbar al borrar, reacción al error y salida con un visto bueno y fundido de 280 ms. La salida se activa después de autenticar y mantiene el teclado y ratón bloqueados hasta el último fotograma. Respeta la preferencia de reducir movimiento. Escribe la contraseña de tu cuenta y pulsa Enter para desbloquear; la autenticación y el bloqueo de teclado y ratón los realiza i3lock. El panel solo se cierra cuando el bloqueador confirma que adquirió la sesión. Si falta el ejecutable o falla el inicio, muestra el error y permanece abierto. Las dependencias de compilación están en el manifiesto del instalador. La actualización `--wysun-only` compila con las dependencias ya instaladas, pero no instala paquetes: en un escritorio existente que aún no tenga el bloqueador, instala `sudo apt install i3lock` antes de usarlo.
+El botón **Bloquear** usa `i3lock`, incluido en las dependencias del instalador. El fondo de Wysun se genera para los monitores conectados, sin capturar contenido del escritorio. El instalador compila una variante nativa de i3lock 2.15 para Wysun: fondo sin rótulos, entrada suave, pulso por tecla, señal ámbar al borrar, reacción al error y salida con un visto bueno y fundido de 280 ms. La salida se activa después de autenticar y mantiene el teclado y ratón bloqueados hasta el último fotograma. Respeta la preferencia de reducir movimiento. Escribe la contraseña de tu cuenta y pulsa Enter para desbloquear; la autenticación y el bloqueo de teclado y ratón los realiza i3lock. El panel solo se cierra cuando el bloqueador confirma que adquirió la sesión. Si falta el ejecutable o falla el inicio, muestra el error y permanece abierto. Las dependencias de compilación están en el manifiesto del instalador. La actualización `wysun update` compila con las dependencias ya instaladas y, cuando han cambiado los paquetes del sistema, instala lo que falte.
 - Alt + Tab abre el overview de escritorios (igual que Super + Tab).
 - Barra flotante en tres secciones. Recursos abre información de sistema; red abre conexiones; clic derecho en volumen abre las salidas de audio; fecha abre calendario; campana abre notificaciones y clic derecho pausa los avisos.
 
@@ -239,7 +239,7 @@ Descargas permite continuar, pausar la cola y reintentar errores, con detalles o
 
 Audio en `~/Music/Wysun`; biblioteca y cola en `~/.local/share/wysun/music/library.json`; favoritos, sesión, referencias y variantes en `player.sqlite3`; portadas, fotos y letras en `metadata/`. Estos datos privados están separados del código instalado. `reference-manifest.json` conserva las duraciones originales de Spotify para distinguirlas de las de un videoclip.
 
-La instalación completa incluye mpv/ffmpeg/PySide6 y yt-dlp con versión y SHA-256 fijadas. `--wysun-only` actualiza la app, los ejecutables de acceso y su icono sin reinstalar el sistema. El atajo de la configuración distribuida abre el mini reproductor.
+La instalación completa incluye mpv/ffmpeg/PySide6 y yt-dlp con versión y SHA-256 fijadas. `wysun update` actualiza la app, los ejecutables de acceso y su icono sin reinstalar el sistema. El atajo de la configuración distribuida abre el mini reproductor.
 
 Pruebas: `tests/qml/check_music_*.py` (con el Python del venv; `python3 -m unittest tests.test_qml_runtime` las lanza) recorren la ventana offscreen con una biblioteca sintética, mpv real (`--ao=null`), letras inyectadas, descargas y selector simulados, y MPRIS con `playerctl` en un bus privado. `tests/perf/music_compare.py` mide arranque y memoria en la sesión real con datos propios. Medidas y paridad: `docs/superpowers/specs/2026-10-26-qml-music-medidas-y-paridad.md`.
 

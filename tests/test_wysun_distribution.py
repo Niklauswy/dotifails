@@ -61,7 +61,7 @@ class WysunDistributionTests(unittest.TestCase):
         deployment = self.deploy()
         deployment.receipt['components'] = ['desktop', 'wayland']
         with patch.dict(os.environ, WYSUN_SKIP_RUNTIME='1'):
-            deployment.configure_app()
+            deployment.configure(None, ('desktop', 'wayland'))
         self.assertFalse(deployment.conflicts)
         for relative in ('.local/bin/wysun', '.local/share/wysun/app/wysun_lanshare/__main__.py', '.local/share/applications/wysun-files.desktop',
                          '.config/systemd/user/wysun-files-integration.service',

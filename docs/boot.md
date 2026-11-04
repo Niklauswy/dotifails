@@ -28,9 +28,8 @@ del tema del escritorio; el azul de la tarjeta es una excepción declarada en `s
   la sigue con retraso; al reiniciar dice «BE RIGHT BACK!» y «JUST A MOMENT...».
   **Nunca queda la pantalla en negro**. Los mensajes son «GOOD WORK. HAVE A GREAT DAY.» y
   «GOOD WORK. SEE YOU IN A MOMENT.».
-- **Pantalla de acceso (greetd, experimental)**: la misma terminal del bloqueo como login. **No se instala por
-  defecto**: en la primera prueba real las sesiones no llegaban a abrirse y hubo que volver a LightDM. Solo con
-  `--boot-components grub,plymouth,greeter` y tras validarla en una consola aparte; ver más abajo.
+- **Pantalla de acceso (greetd)**: la misma terminal del bloqueo como login. Forma parte de la instalación
+  completa; la recuperación si no aparece está más abajo.
 
 ### Transiciones
 
@@ -49,22 +48,21 @@ del tema del escritorio; el azul de la tarjeta es una excepción declarada en `s
 ## Instalar o actualizar
 
 ```sh
-sudo apt install greetd qt6-shader-baker        # solo para la pantalla de acceso, si aún no están
-./instalar.sh --boot-only --dry-run
-./instalar.sh --boot-only
-./instalar.sh --boot-only --boot-components grub,plymouth,greeter   # experimental, ver abajo
+./instalar.sh --dry-run   # muestra el plan; no cambia nada
+./instalar.sh             # instala también el arranque
+wysun update              # reaplica el arranque cuando cambian sus archivos
 ```
 
-`--boot-only` no instala paquetes. Si falta greetd, la pantalla de acceso se omite y se indica cómo instalarlo. Pide
-autenticación con sudo, no reinicia ni detiene el gestor de acceso y no cierra la sesión: todo se ve en el próximo
+El arranque forma parte de la instalación completa. Pide autenticación con sudo cuando la necesita, no reinicia ni detiene el gestor de acceso y no cierra la sesión: todo se ve en el próximo
 arranque. No se ejecuta `grub-install`, no se toca el cargador EFI ni las particiones. GRUB se genera en un archivo
 temporal y se verifica con `grub-script-check` antes de sustituir el menú; después se regeneran las imágenes de
 inicio. Si el sistema aún no usa splash, se añade `quiet splash`; las consolas seriales se conservan.
 
-### Pantalla de acceso con greetd (experimental)
+### Pantalla de acceso con greetd
 
-No forma parte de la instalación por defecto. Antes de usarla de nuevo debe validarse lanzando greetd en otra VT sin
-desactivar LightDM (por ejemplo `sudo greetd --vt 8 --config <prueba>.toml`), comprobando que la sesión se abre.
+La pantalla de acceso se instala con el arranque. Antes de confiar en ella en un equipo concreto puede validarse
+lanzando greetd en otra VT sin desactivar el gestor de acceso (por ejemplo `sudo greetd --vt 8 --config <prueba>.toml`),
+comprobando que la sesión se abre.
 La VT de prueba debe estar libre: comprobar la sesión activa con `loginctl` antes de elegirla; no asumir que es la 8.
 
 La entrega del comando a greetd se hace como una línea completa (`Greetd.launch([session.exec], ...)`).
@@ -87,8 +85,8 @@ Los registros del greeter se conservan, con permisos privados, en
 
 ## Respaldos y recuperación
 
-Los respaldos del sistema viven en `/var/lib/wysun/boot/backups/ID` (distintos de los del hogar). En el
-instalador: **Recuperación → Arranque…**. Desde la terminal:
+Los respaldos del sistema viven en `/var/lib/wysun/boot/backups/ID` (distintos de los del hogar). La
+recuperación se hace desde la terminal:
 
 ```sh
 sudo python3 installer/boot.py --list

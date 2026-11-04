@@ -1,86 +1,70 @@
 # Instalador de Wysun
 
-El instalador gráfico recorre tres momentos, cada uno con una pieza animada propia: **Tu equipo** (la distribución se lee y sus
-comprobaciones aparecen como píldoras; única opción: actualizar también el sistema), **Contenido** (Wysun siempre incluido, más Neovim
-y el arranque Macrodata, y Brave/Discord/Obsidian por Flatpak) e **Instalación** (una forma que cambia en cada etapa real de
-`main.py`). Las comprobaciones de la selección corren en segundo plano y «Instalar» sale de Contenido; «Detalles» muestra
-etapas, orden y paquetes. Arriba, un indicador de formas marca el paso; abajo, la barra lleva la acción y el progreso.
+`./instalar.sh` instala el escritorio completo: paquetes del sistema, runtime privado del shell, sesión Wysun /
+Hyprland, todas las aplicaciones, terminal, Neovim con sus plugins y Mason, arranque (GRUB, Plymouth y la pantalla
+de acceso con greetd) y Brave, Discord y Obsidian por Flatpak. No tiene opciones de usuario; solo acepta
+`--dry-run`, que imprime el plan y no cambia nada. Se ejecuta como usuario normal con `sudo` disponible.
 
-Código: `installer/gui.py` (controlador y páginas), `installer/scenes.py` (piezas expresivas), `installer/material_widgets.py`
-(controles sobre el kit Material de Music/Files) y `installer/journey.py` (textos, etapas y comprobaciones, sin Qt).
-Las opciones avanzadas (`--config-only`, `--skip-nvim-tools`, perfiles, pantalla de acceso) quedan solo en la CLI.
-
-## Abrir
-
-Desde la raíz del proyecto:
+## Otro equipo
 
 ```sh
-./wysun-installer
-./wysun-installer --preview
-# También: ./instalar.sh --gui o ./instalar.sh --preview
+git clone https://github.com/Niklauswy/dotifails.git ~/.local/share/wysun/source
+~/.local/share/wysun/source/instalar.sh
 ```
 
-El modo normal reconoce una instalación por su recibo y por los archivos de Wysun. Ofrece mantenimiento, diagnóstico, recuperación y modificación de componentes. La vista previa ignora esa detección y permite completar el recorrido: sus operaciones se simulan en memoria, no solicita privilegios ni ejecuta instalación, restauración o reinicio.
+O bien `sh bootstrap.sh`, que clona la rama `main` y ejecuta exactamente eso. La copia se queda en
+`~/.local/share/wysun/source`: es la fuente de las actualizaciones de ese equipo. Si ya tienes el repositorio,
+ejecuta `./instalar.sh` desde su raíz. La base admitida es Debian 13 o Parrot 7, x86_64, con Internet y varios GB
+libres.
 
-El ejecutable del repositorio necesita el resto del proyecto junto a él; no es un AppImage. La instalación administrada publica `wysun-installer`, **Instalador de Wysun** y **Vista previa del instalador de Wysun** en el menú. El gestor instalado lleva una copia pequeña de los controles Material, fuentes, tokens y fondos, por lo que abre aunque la copia original del proyecto desaparezca. Para aplicar una instalación real necesita una fuente completa y válida.
+La instalación pide autorización cuando la necesita y conserva los cambios personales con respaldos y conflictos.
+Una instalación nueva usa el fondo `purple-abstract` y Material You; al terminar, elige **Wysun / Hyprland** en el
+gestor de acceso.
 
-Si falta PySide6, el lanzador normal ofrece preparar su dependencia desde una terminal. La vista previa nunca prepara dependencias automáticamente.
-
-## Instalación completa
-
-La base admitida es Debian 13 o Parrot 7, x86_64. La revisión comprueba distribución, arquitectura, archivos, destino, permisos, espacio, estado de dpkg y requisitos del arranque. La resolución APT se realiza antes de actualizar o instalar paquetes.
-
-La selección permite preparar:
-
-- Aplicaciones Wysun: Music, Files, Recorder y utilidades.
-- Escritorio: Hyprland, shell Quickshell, lanzador, Settings, capturas, bloqueo y runtime privado.
-- Terminal y shell, Neovim y herramientas del proyecto.
-- Arranque Macrodata: GRUB, Plymouth y la pantalla de acceso con greetd (la misma terminal del bloqueo). Cambia el gestor de acceso a greetd para el próximo arranque, con el anterior registrado para restaurarlo; ver [docs/boot.md](boot.md).
-- Brave, Discord y Obsidian mediante Flatpak, de forma opcional.
-
-El escritorio requiere sus aplicaciones y la terminal en la selección gráfica. Los perfiles de hardware son opcionales; no se trasladan datos personales o ajustes particulares de otra máquina.
-
-Las opciones nuevas de preparación son explícitas:
+## Actualizar
 
 ```sh
-./instalar.sh --cli --components desktop,wayland,terminal,editor,boot \
-  --boot-components grub,plymouth --upgrade-system --prepare-repositories
-
-# Plan sin modificaciones:
-./instalar.sh --cli --components desktop,wayland,terminal,editor,boot \
-  --boot-components grub,plymouth --upgrade-system --prepare-repositories --plan
+wysun update
+wysun update --check
 ```
 
-`--prepare-repositories` añade solo los backports oficiales de la distribución detectada si faltan. No reemplaza fuentes existentes, cambia de distribución, descarga claves nuevas ni desactiva firmas. Usa [Debian Backports](https://backports.debian.org/Instructions/) en Debian y [los repositorios de Parrot](https://www.parrotsec.org/docs/mirrors/mirrors-list/) en Parrot. Se guarda un diario previo en `/var/lib/wysun/repositories/backups/`.
+`wysun update` hace `git pull --ff-only` en la copia fuente registrada al instalar y vuelve a aplicar. Siempre:
+código, aplicaciones, configuración, atajos (`hyprland.lua`) y lanzador. Solo cuando sus entradas cambiaron desde
+la última instalación o actualización: paquetes del sistema, reconstrucción del runtime privado, herramientas de
+Neovim, pantallas de arranque y registro de la sesión; el `sudo` se pide solo entonces. Después ejecuta
+`wysun reload` y, si cambió `apps/shell`, reinicia solo el shell. Aplica únicamente los componentes que ese equipo
+ya tiene.
 
-Después se actualizan los índices APT y se simula la resolución de dependencias. Las versiones y la compatibilidad ABI de Hyprland siguen comprobándose mediante `wayland.py` y los manifiestos fijados. Un fallo de resolución detiene el proceso antes de actualizar paquetes o copiar configuraciones.
+Un icono en la barra avisa cuando hay cambios en `main`; al pulsarlo abre una terminal con `wysun update`.
+`wysun update --check` consulta esos cambios, escribe `~/.local/state/wysun/update.json` e imprime el mismo JSON,
+sin aplicar nada.
 
-`--upgrade-system` actualiza los paquetes de la distribución actual con `--no-remove` y conserva los archivos de configuración existentes. No realiza un salto de distribución. Estas opciones se rechazan junto a `--config-only` y los modos `--only`.
+Para desarrollar: edita el repositorio, haz commit y `git push`; despliega en el equipo principal con
+`wysun update` (con la copia al día o por delante, el `pull` no hace nada). Los demás equipos usan
+`wysun update` o el aviso de la barra.
 
-El proceso conserva el motor de instalación con diario, respaldos, conflictos, registros privados y cancelación entre operaciones. APT, compilación e initramfs no se interrumpen por la fuerza. La recuperación de archivos no desinstala paquetes ni revierte una actualización del sistema.
+## Conflictos y respaldos
 
-Al completar la instalación real se ofrece un reinicio voluntario. La sesión registrada es **Wysun / Hyprland**; el usuario la elige en su gestor de acceso existente. No se cambia su sesión predeterminada ni se sustituye el gestor de acceso.
+Las configuraciones se instalan como copias editables. Antes de reemplazarlas se guardan en
+`~/.local/state/wysun/install/backups/ID/before/`, con un diario de operaciones. Si editaste un archivo
+administrado, la actualización lo conserva y deja la versión nueva en `incoming/`. Los archivos borrados
+deliberadamente también cuentan como cambios locales. Una actualización no toma archivos que Wysun nunca
+administró en ese equipo (por ejemplo, un `~/.config/gtk-3.0` propio): los deja tal cual y los nombra al final.
 
-## Wysun Player
+`wysun doctor` diagnostica la instalación y `wysun restore` lista los respaldos; `wysun restore ID` recupera uno y
+conserva las ediciones posteriores en `changes-before-restore/`. Restaura de más reciente a más antiguo. No
+desinstala paquetes ni borra datos personales.
 
-`--wysun-only` instala `wysun-player.desktop` (`wysun player`), pero no cambia aplicaciones predeterminadas ni instala
-dependencias. La instalación completa añade `python3-pyside6.qtopengl` y `python3-pyside6.qtopenglwidgets` (render por GPU) y fija
-Wysun Player como predeterminado de sus tipos de imagen, video y audio en `~/.config/mimeapps.list`, conservando lo anterior como
-alternativa; `wysun-install restore ID` lo deshace. `wysun doctor` avisa si falta OpenGL (el reproductor usa entonces el render por
-software). Ver `docs/player.md`.
+## Perfiles de equipo
 
-## Mantenimiento y validación
+No hay perfiles en el instalador. Si un equipo necesita ajustes propios (por ejemplo, la pantalla táctil), copia
+el perfil a mano:
 
 ```sh
-./instalar.sh --installer-only
-QT_QPA_PLATFORM=offscreen python3 tests/installer_ui.py
-python3 -m unittest discover -s tests -p 'test_*installer*.py' -v
-python3 -m unittest discover -s tests -p test_boot.py -v
-python3 -m unittest discover -s tests -p test_wayland_install.py -v
-python3 tests/check_manifest.py
-python3 tests/wysun_installed_smoke.py
+cp machines/samsung-touchscreen.sh ~/.config/wysun/machine.sh
 ```
 
-`--installer-only` despliega el gestor y sus entradas de menú con respaldo, sin instalar paquetes ni modificar el escritorio. No se ha desplegado este prototipo en la instalación activa.
+## Desarrollo del plugin
 
-Las pruebas gráficas incluyen claro y oscuro, el recorrido simulado, mantenimiento, teclado, instalación/restauración reales en HOME temporal, errores y cancelación. La copia instalada se prueba fuera del checkout, sin depender del repositorio original. Estas pruebas no equivalen a una instalación integral ni a un arranque físico en una máquina Debian nueva.
+`python3 installer/runtime_build.py` construye el runtime privado y el plugin `Wysun.*`; `wysun update` también lo
+reconstruye cuando cambia `plugin/`. Para el resto de comprobaciones, ver [mantenimiento](maintenance.md).

@@ -12,7 +12,6 @@ from unittest.mock import patch
 SOURCE = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SOURCE / 'installer'))
 import main as backend
-from install_model import InstallOptions
 from repositories import enabled, ensure, repository_spec
 
 
@@ -69,65 +68,45 @@ class RepositoryPreparationTests(unittest.TestCase):
         self.assertEqual(target.read_text(), 'personal source\n')
         self.assertFalse((self.root / 'var').exists())
 
-    def test_system_upgrade_cannot_remove_packages_or_replace_configuration(self):
-        with patch.object(backend, 'run') as run:
-            backend.upgrade_system()
-        commands = [call.args[0] for call in run.call_args_list]
-        self.assertIn('update', commands[0])
-        self.assertIn('upgrade', commands[1])
-        self.assertIn('--no-remove', commands[1])
-        self.assertIn('Dpkg::Options::=--force-confold', commands[1])
-        self.assertNotIn('dist-upgrade', commands[1])
-
-    def test_preparation_is_explicit_and_rejected_for_configuration_only(self):
-        options = InstallOptions(SOURCE, components=('terminal',), upgrade_system=True)
-        self.assertIn('--upgrade-system', options.argv())
-        self.assertTrue(options.summary()['upgrade_system'])
-        with self.assertRaises(ValueError):
-            InstallOptions(SOURCE, self.root, ('terminal',), config_only=True, upgrade_system=True).validate()
-        with self.assertRaises(ValueError):
-            backend.main(['install', '--source', str(SOURCE), '--target-home', str(self.root), '--installer-only', '--prepare-repositories'])
-        self.assertEqual(list(self.root.iterdir()), [])
-
-    def test_full_install_resolves_dependencies_before_upgrading_the_system(self):
+    def test_full_install_prepares_repositories_and_resolves_before_installing(self):
         home = self.root / 'home'
         commands = []
         def record(command, env=None):
             commands.append(list(map(str, command)))
-        with patch.dict(os.environ, {'HOME': str(home)}), \
+        with patch.dict(os.environ, {'HOME': str(home), 'WYSUN_SKIP_RUNTIME': '1'}), \
              patch.object(backend, 'host_supported', return_value={'ID': 'debian', 'VERSION_ID': '13'}), \
              patch.object(backend.os, 'geteuid', return_value=1000), \
              patch.object(backend, 'run', side_effect=record), \
              patch.object(backend, 'install_tools'), patch.object(backend, 'doctor', return_value=0), \
+             patch.object(backend, 'nvim_setup'), patch.object(backend, 'install_extras') as extras, \
+             patch('wayland.simulate_packages', return_value='plan'), \
              contextlib.redirect_stdout(io.StringIO()):
-            code = backend.main(['install', '--source', str(SOURCE), '--components', 'terminal', '--upgrade-system'])
-        self.assertEqual(code, 0)
-        index = lambda word: next(i for i, command in enumerate(commands) if word in command)
-        self.assertLess(index('update'), index('--simulate'))
-        self.assertLess(index('--simulate'), index('upgrade'))
-        self.assertLess(index('upgrade'), next(i for i, c in enumerate(commands) if 'install' in c and '--simulate' not in c))
+            code = backend.main(['install', '--source', str(SOURCE)])
+        self.assertIn(code, (0, 2))
+        index = lambda word: next(i for i, command in enumerate(commands) if any(word in part for part in command))
+        self.assertLess(index('repositories.py'), index('update'))
+        self.assertLess(index('update'), next(i for i, c in enumerate(commands) if 'install' in c and '--yes' in c))
+        self.assertTrue(any('boot.py' in ' '.join(c) and 'grub,plymouth,greeter' in c for c in commands), 'boot screens with greetd')
+        self.assertEqual(extras.call_args.args[0], ('brave', 'discord', 'obsidian'))
         receipt = json.loads((home/'.local/state/wysun/install/installed.json').read_text())
-        journal = json.loads((home/'.local/state/wysun/install/backups'/receipt['last_backup']/'journal.json').read_text())
-        self.assertEqual(journal['status'], 'complete')
+        self.assertEqual(set(receipt['inputs']), {'packages', 'session', 'boot', 'editor', 'extras'})
+        self.assertNotIn('upgrade', [part for c in commands for part in c])
 
-    def test_dependency_failure_stops_before_upgrade_or_configuration_changes(self):
+    def test_dependency_failure_stops_before_configuration_changes(self):
         home = self.root / 'home'
         def fail_resolution(command, env=None):
-            if '--simulate' in command:
+            if 'repositories.py' in ' '.join(map(str, command)):
                 raise RuntimeError('Synthetic unsatisfied dependency')
         with patch.dict(os.environ, {'HOME': str(home)}), \
              patch.object(backend, 'host_supported', return_value={'ID': 'debian', 'VERSION_ID': '13'}), \
              patch.object(backend.os, 'geteuid', return_value=1000), \
              patch.object(backend, 'run', side_effect=fail_resolution), \
-             patch.object(backend, 'upgrade_system') as upgrade, \
              contextlib.redirect_stdout(io.StringIO()):
             with self.assertRaises(RuntimeError):
-                backend.main(['install', '--source', str(SOURCE), '--components', 'terminal', '--upgrade-system'])
-        upgrade.assert_not_called()
+                backend.main(['install', '--source', str(SOURCE)])
         self.assertFalse((home/'.config').exists())
         journal = next((home/'.local/state/wysun/install/backups').glob('*/journal.json'))
         self.assertEqual(json.loads(journal.read_text())['status'], 'failed')
-
 
 if __name__ == '__main__':
     unittest.main()

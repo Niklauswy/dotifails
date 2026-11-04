@@ -36,8 +36,11 @@ def main():
         env['PATH'] = ':'.join([str(home / '.local/bin'), *[str(p / 'usr/bin') for p in args.runtime_root], '/usr/bin', '/bin'])
         env['LD_LIBRARY_PATH'] = ':'.join(str(p / 'usr/lib/x86_64-linux-gnu') for p in args.runtime_root)
         started = time.monotonic()
-        install = subprocess.run(['/usr/bin/python3', str(ROOT / 'installer/main.py'), 'install',
-            '--source', str(ROOT), '--target-home', str(home), '--components', 'wayland', '--config-only'],
+        receipt = home / '.local/state/wysun/install/installed.json'
+        receipt.parent.mkdir(parents=True, exist_ok=True)
+        receipt.write_text(json.dumps({'files': {}, 'components': ['wayland']}))
+        install = subprocess.run(['/usr/bin/python3', str(ROOT / 'installer/main.py'), 'apply',
+            '--source', str(ROOT), '--target-home', str(home), '--config-only'],
             env=env, cwd='/', text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=60)
         if install.returncode:raise RuntimeError(install.stdout)
         timings = {}
@@ -54,13 +57,13 @@ def main():
             if result.returncode or expected not in result.stdout:
                 raise AssertionError((argv, result.returncode, result.stdout))
             timings[' '.join(argv)] = round((time.monotonic() - before) * 1000, 1)
-        # Repeated application-only updates must leave the session config intact.
+        # An update keeps shortcuts the user edited (a conflict, with the new version in incoming/).
         config = home / '.config/wysun/hyprland.lua'
         config.write_text('-- synthetic personal binding fixture\n')
-        update = subprocess.run(['/usr/bin/python3', str(ROOT / 'installer/main.py'), 'install',
-            '--source', str(ROOT), '--target-home', str(home), '--wysun-only'], env=env, cwd='/',
+        update = subprocess.run(['/usr/bin/python3', str(ROOT / 'installer/main.py'), 'apply',
+            '--source', str(ROOT), '--target-home', str(home), '--config-only'], env=env, cwd='/',
             text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=90)
-        if update.returncode:raise RuntimeError(update.stdout)
+        if update.returncode != 2:raise RuntimeError(update.stdout)
         assert config.read_text() == '-- synthetic personal binding fixture\n'
         # The viewer and the utilities run from the installed copy; `wysun` is the only launcher.
         for argv, expected in ((['wysun', 'player', '--help'], 'wysun player'), (['wysun', 'lanshare', '--help'], 'wysun lanshare')):

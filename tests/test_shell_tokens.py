@@ -128,9 +128,7 @@ class InstallerTests(unittest.TestCase):
 
         wayland.deploy_tokens(Deployment())
         self.assertEqual(calls, [(TOKENS, Path('.local/share/wysun/theme/tokens.json'))])
-        for step in (wayland.configure, wayland.update_runtime):
-            with self.subTest(step=step.__name__):
-                self.assertIn('deploy_tokens(d)', inspect.getsource(step))
+        self.assertIn('deploy_tokens(d)', inspect.getsource(wayland.configure))
 
 
 @unittest.skipUnless(os.environ.get('WYSUN_TEST_RUNTIME'), 'WYSUN_TEST_RUNTIME (runtime built from this tree) not set')
