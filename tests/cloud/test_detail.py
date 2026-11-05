@@ -312,6 +312,53 @@ class DetailTests(unittest.TestCase):
         self.assertIn('sin datos de Monitoring', self.text_of(self.render(6, data)))
         self.assertIn('sin operaciones', self.text_of(self.render(6, data)))
 
+    def tall_text(self, tab, data):
+        canvas = self.render(tab, data, height=60)
+        return '\n'.join(canvas.row_text(y) for y in range(60))
+
+    def test_command_errors_in_tab_data_are_shown_not_read_as_empty(self):
+        data = full_data()
+        data.tabs['failed'] = TabData('failed', [], error='no se pudo leer')
+        data.tabs['docker'] = TabData('docker', [], error='docker no está instalado')
+        text = self.tall_text(TABS.index('Servicios'), data)
+        self.assertIn('no se pudo leer', text)
+        self.assertIn('docker no está instalado', text)
+        self.assertNotIn('sin servicios con fallo', text)
+        self.assertNotIn('sin contenedores', text)
+
+    def test_ipv6_listeners_are_parsed(self):
+        data = full_data()
+        data.tabs['ports'] = TabData('ports', [
+            'State  Recv-Q Send-Q Local Address:Port Peer Address:Port Process',
+            'LISTEN 0      128             :::22             :::*     users:(("sshd",pid=1,fd=4))',
+            'LISTEN 0      128     [fe80::1]:8080         [::]:*     users:(("app",pid=2,fd=4))',
+        ])
+        text = self.tall_text(TABS.index('Red'), data)
+        self.assertIn('sshd', text)
+        self.assertIn('8080', text)
+        self.assertNotIn('sin puertos a la escucha', text)
+
+    def test_deny_and_disabled_rules_are_not_exposure(self):
+        data = full_data()
+        data.firewall = [
+            {'name': 'deny-all', 'direction': 'INGRESS', 'sourceRanges': ['0.0.0.0/0'],
+             'denied': [{'IPProtocol': 'all'}]},
+            {'name': 'old-3000', 'direction': 'INGRESS', 'disabled': True,
+             'sourceRanges': ['0.0.0.0/0'], 'allowed': [{'IPProtocol': 'tcp', 'ports': ['3000']}]},
+        ]
+        text = self.tall_text(TABS.index('Red'), data)
+        self.assertNotIn('expuesta', text)
+        self.assertIn('deniega', text)
+        self.assertIn('desactivada', text)
+
+    def test_registro_keeps_the_newest_entries(self):
+        data = full_data()
+        data.tabs['journal'] = TabData('journal', [
+            f'2026-11-04T10:{index:02d}:00+0000 host app[1]: entrada {index}' for index in range(25)])
+        lines = body_lines(TABS.index('Registro'), self.view, data, self.palette, 120)
+        text = '\n'.join(''.join(piece for piece, _style in line) for line in lines)
+        self.assertIn('entrada 24', text)
+
     # -- body_lines / draw_tab contract -----------------------------------
     def test_body_lines_returns_styled_segments_and_draw_tab_reports_height(self):
         lines = body_lines(0, self.view, full_data(), self.palette, 120)

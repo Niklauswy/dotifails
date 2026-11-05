@@ -202,6 +202,33 @@ class SshTests(unittest.TestCase):
         for _state, reason in states:
             self.assertNotIn('Permission', reason)
 
+    def test_stop_from_the_state_callback_delivers_no_sample(self):
+        app = self.make_app()
+        samples = []
+        holder = {}
+
+        def on_state(state, reason):
+            if state == 'activo':
+                holder['session'].stop()
+        holder['session'] = ssh.ProbeSession(app, self.inst, samples.append, on_state)
+        self.addCleanup(holder['session'].stop)
+        holder['session'].start()
+        app.run_for(0.8)
+        self.assertEqual(samples, [])
+
+    def test_unknown_stderr_noise_is_not_a_permanent_failure(self):
+        os.environ['FAKE_SSH_STDERR'] = 'WARNING: To increase the performance of the tunnel, consider installing NumPy.'
+        app = self.make_app()
+        states = []
+        session = ssh.ProbeSession(app, self.inst, lambda sample: None,
+                                   lambda state, reason: states.append((state, reason)))
+        self.addCleanup(session.stop)
+        with mock.patch.object(ssh, 'BACKOFF', (5,)):
+            session.start()
+            app.run_for(0.5)
+        self.assertNotIn('sin-ssh', [state for state, _reason in states])
+        self.assertIn('reconectando', [state for state, _reason in states])
+
     # -- tab commands -----------------------------------------------------
     def test_tab_command_falls_back_without_sudo(self):
         os.environ['FAKE_SSH_OUTPUT'] = 'LISTEN 0 128 0.0.0.0:22 0.0.0.0:*'

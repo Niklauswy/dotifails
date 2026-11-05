@@ -98,5 +98,15 @@ class ScreenTests(unittest.TestCase):
         self.assertEqual(canvas.cell(1, 0)[1].bg, (150, 100, 100))
 
 
+    def test_control_characters_never_reach_the_terminal(self):
+        canvas = Canvas(12, 1, (0, 0, 0))
+        canvas.text(0, 0, '1024\t/\x1b[2J\x9b\x07', Style(fg=(255, 255, 255)))
+        rendered = Screen().render(None, canvas)
+        self.assertNotIn(b'\x1b[2J', rendered)
+        self.assertNotIn('\x9b'.encode(), rendered)
+        self.assertNotIn(b'\x07', rendered)
+        self.assertTrue(canvas.row_text(0).startswith('1024 /'))
+
+
 if __name__ == '__main__':
     unittest.main()

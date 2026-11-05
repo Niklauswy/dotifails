@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import re
 import shlex
+from collections import deque
 from pathlib import Path
 
 from wysun_cloud.model import Sample, TabData
@@ -268,6 +269,7 @@ class ProbeSession:
         self._attempt = 0
         self._reason = ''
         self._used_iap = False
+        self._got_sample = False
         self._last_state = None
 
     # -- lifecycle --------------------------------------------------------
@@ -302,6 +304,8 @@ class ProbeSession:
             return
         self._timer = None
         self._parser = ProbeParser()
+        self._reason = ''                    # each attempt diagnoses itself
+        self._got_sample = False
         self._used_iap = route(self.inst, self.ssh_config) == 'iap'
         argv = ssh_command(self.inst, ['sh', '-s'], self.ssh_config)
         try:
@@ -326,7 +330,10 @@ class ProbeSession:
             return
         self._attempt = 0
         self._reason = ''
+        self._got_sample = True
         self._emit('activo', '')
+        if self._stopped:                    # the state callback may have stopped us
+            return
         self.on_sample(sample)
 
     def _on_err(self, line):
@@ -338,17 +345,24 @@ class ProbeSession:
             self._emit('sin-ssh', reason)
 
     def _reason_for(self, line):
-        """A short Spanish reason for a permanent failure, or ``''`` for noise."""
-        text = (line or '').strip()
-        if not text:
+        """A short Spanish reason for a permanent failure named in ``line``, or ``''``.
+
+        Only known messages count while connecting; anything else (tunnel performance
+        warnings, banners) is noise. The missing-alias diagnosis is decided at exit.
+        """
+        lowered = (line or '').strip().lower()
+        if not lowered:
             return ''
-        lowered = text.lower()
         for needle, reason in _REASONS:
             if needle in lowered:
                 return reason
-        # No specific message, but the alias route was unavailable (external IP
-        # without a Host line) and IAP failed too: the fix is config-ssh.
-        if (self._used_iap and self.inst.external_ip
+        return ''
+
+    def _exit_reason(self, returncode):
+        """After a failed attempt with no specific message: the alias route was unavailable
+        (external IP without a Host line) and IAP failed too, so config-ssh is the fix."""
+        if (returncode != 0 and not self._got_sample and self._used_iap
+                and self.inst.external_ip
                 and not _alias_configured(self.inst, self.ssh_config)):
             return MISSING_ALIAS
         return ''
@@ -357,6 +371,10 @@ class ProbeSession:
         if self._stopped:
             return
         self._child = None
+        if not self._reason:
+            self._reason = self._exit_reason(returncode)
+            if self._reason:
+                self._emit('sin-ssh', self._reason)
         if not self._reason:
             self._emit('reconectando', '')
         self._schedule_retry()
@@ -382,6 +400,7 @@ COMMANDS = {
 }
 
 DOCKER_MISSING = 'docker no está instalado'
+TAB_LINES_MAX = 2000
 
 
 def _remote(sudo, command):
@@ -414,7 +433,7 @@ def run_tab_command(app, inst, kind, on_done):
         on_done(TabData(kind=kind, lines=[], limited=False, error='orden desconocida'))
         return
 
-    lines: list[str] = []
+    lines: deque[str] = deque(maxlen=TAB_LINES_MAX)   # noisy VMs: keep the newest only
     child = None
 
     def finish(returncode, limited):

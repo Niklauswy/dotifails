@@ -21,7 +21,8 @@ set -u
 
 INTERVAL=${INTERVAL:-1}
 
-# /proc/stat: the aggregate line and every per-core line (total,idle).
+# /proc/stat: the aggregate line and every per-core line (total,idle+iowait), the
+# same idle definition the client uses for the aggregate.
 cpu_line() {
     awk '/^cpu / {
              printf "%d %d %d %d %d %d %d %d\n", $2+0, $3+0, $4+0, $5+0, $6+0, $7+0, $8+0, $9+0
@@ -35,7 +36,7 @@ cores_line() {
              for (i = 2; i <= 9; i++) total += $i + 0
              n++
              if (n > 1) printf ";"
-             printf "%d,%d", total, $5 + 0
+             printf "%d,%d", total, $5 + $6
          }
          END { if (n) printf "\n" }' /proc/stat
 }
@@ -51,8 +52,17 @@ mem_line() {
 
 # rx_bytes and tx_bytes summed over every interface except loopback.
 net_line() {
-    awk -F'[: ]+' 'NR > 2 && $2 != "lo" {rx += $3; tx += $11}
-                   END {printf "%d %d\n", rx + 0, tx + 0}' /proc/net/dev
+    # Split at the colon: long names (docker0, enp0s31f6) have no leading padding.
+    awk 'NR > 2 {
+             i = index($0, ":")
+             if (i == 0) next
+             name = substr($0, 1, i - 1)
+             gsub(/[ \t]/, "", name)
+             if (name == "lo") next
+             n = split(substr($0, i + 1), f, " ")
+             if (n >= 9) { rx += f[1]; tx += f[9] }
+         }
+         END {printf "%d %d\n", rx + 0, tx + 0}' /proc/net/dev
 }
 
 # Sectors read/written over whole block devices (partitions excluded).

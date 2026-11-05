@@ -59,7 +59,8 @@ STATUS_TEXT = {
     'STAGING': 'preparando…',
 }
 
-PORT_RE = re.compile(r'^(?:\[[^\]]+\]|[^\s:]+):(\d+)$')
+PORT_RE = re.compile(r'^(\S+):(\d+)$')        # 0.0.0.0:22, [::]:22, :::22, *:22
+JOURNAL_SHOWN = 200                             # newest entries kept on screen (scrollable)
 PROCESS_RE = re.compile(r'users:\(\("([^"]+)"')
 
 
@@ -104,6 +105,16 @@ def _ok(palette):
 
 def _warn(palette):
     return Style(fg=palette['tertiary'])
+
+
+def _block_error(data, kind):
+    """A tab block's failure: ``DetailData.errors`` first, then the ``TabData.error`` of
+    the command result, so a failed or missing command never reads as "nothing found"."""
+    error = data.errors.get(kind)
+    if error:
+        return error
+    tab = data.tabs.get(kind)
+    return getattr(tab, 'error', None) or None
 
 
 def _error(palette):
@@ -339,7 +350,7 @@ def _docker_items(lines):
 def _health_lines(view, data, palette):
     """The Salud block: systemd, docker and the journal, with loading/empty/error states."""
     out = []
-    error = data.errors.get('failed')
+    error = _block_error(data, 'failed')
     tab = data.tabs.get('failed')
     if error:
         out.append(_line(('✗ ', _error(palette)), (truncate(error, 44), _error(palette))))
@@ -351,7 +362,7 @@ def _health_lines(view, data, palette):
     else:
         out.append(_line(('✓ ', _ok(palette)), ('systemd: sin fallos', _text(palette))))
 
-    error = data.errors.get('docker')
+    error = _block_error(data, 'docker')
     tab = data.tabs.get('docker')
     if error:
         out.append(_line(('✗ ', _error(palette)), (truncate(error, 44), _error(palette))))
@@ -370,7 +381,7 @@ def _health_lines(view, data, palette):
         if tab.limited:
             out.append(_line(('⚠ necesita permisos', _warn(palette))))
 
-    error = data.errors.get('journal')
+    error = _block_error(data, 'journal')
     tab = data.tabs.get('journal')
     if error:
         out.append(_line(('✗ ', _error(palette)), (truncate(error, 44), _error(palette))))
@@ -500,7 +511,7 @@ def _procesos(view, data, palette, width, range_hours, sort):
 
 # -- Disco ----------------------------------------------------------------
 def _du_lines(data, palette, width):
-    error = data.errors.get('du')
+    error = _block_error(data, 'du')
     tab = data.tabs.get('du')
     if error:
         return [_line((truncate(error, width), _error(palette)))]
@@ -602,7 +613,7 @@ def _parse_ports(lines):
 
 def _ports_block(data, palette):
     out = [_line(('PUERTOS ABIERTOS', _bold(palette)), ('  (ss -tlnp)', _dim(palette)))]
-    error = data.errors.get('ports')
+    error = _block_error(data, 'ports')
     tab = data.tabs.get('ports')
     if error:
         out.append(_line((truncate(error, 60), _error(palette))))
@@ -634,15 +645,25 @@ def _rule_ports(rule):
 
 
 def _rule_text(rule):
-    """``(flagged, name, detail)``: ``0.0.0.0/0`` outside 22/80/443 is flagged."""
+    """``(flagged, name, detail)``: an enabled ingress allow from ``0.0.0.0/0`` outside
+    22/80/443 is flagged; deny and disabled rules are shown as such, never as exposure."""
     sources = [str(item) for item in rule.get('sourceRanges') or []]
+    name = str(rule.get('name') or '?')
+    if rule.get('denied') and not rule.get('allowed'):
+        ports = ','.join(dict.fromkeys(str(port) for denied in rule.get('denied') or []
+                                       for port in (denied.get('ports') or ['todos'])))
+        return False, name, f'deniega {ports or "todos"} desde {", ".join(sources) or "todas"}'
     ports = _rule_ports(rule)
+    detail = f'{ports} desde {", ".join(sources) or "todas"}'
+    if rule.get('disabled'):
+        return False, name, detail + '  (desactivada)'
+    if str(rule.get('direction') or 'INGRESS').upper() != 'INGRESS':
+        return False, name, detail + '  (salida)'
     exposed = [port for port in ports.split(',') if port not in SAFE_FIREWALL_PORTS]
     flagged = '0.0.0.0/0' in sources and bool(exposed)
-    detail = f'{ports} desde {", ".join(sources) or "todas"}'
     if flagged:
         detail += '  ⚠ expuesta'
-    return flagged, str(rule.get('name') or '?'), detail
+    return flagged, name, detail
 
 
 def _firewall_block(view, data, palette):
@@ -713,7 +734,7 @@ def _failed_fields(raw):
 
 def _servicios(view, data, palette, width, range_hours, sort):
     out = [_line(('SYSTEMD', _bold(palette)), ('  (servicios con fallo primero)', _dim(palette)))]
-    error = data.errors.get('failed')
+    error = _block_error(data, 'failed')
     tab = data.tabs.get('failed')
     if error:
         out.append(_line((truncate(error, width), _error(palette))))
@@ -733,7 +754,7 @@ def _servicios(view, data, palette, width, range_hours, sort):
 
     out.append([])
     out.append(_line(('CONTENEDORES', _bold(palette)), ('  (docker ps -a)', _dim(palette))))
-    error = data.errors.get('docker')
+    error = _block_error(data, 'docker')
     tab = data.tabs.get('docker')
     if error:
         out.append(_line((truncate(error, width), _error(palette))))
@@ -788,7 +809,7 @@ def _journal_style(message, palette):
 def _registro(view, data, palette, width, range_hours, sort):
     out = [_line(('JOURNAL', _bold(palette)),
                  ('  prioridad ≤ advertencia · última hora · l en vivo', _dim(palette)))]
-    error = data.errors.get('journal')
+    error = _block_error(data, 'journal')
     tab = data.tabs.get('journal')
     if error:
         out.append(_line((truncate(error, width), _error(palette))))
@@ -796,7 +817,11 @@ def _registro(view, data, palette, width, range_hours, sort):
     if tab is None:
         out.append(_line(('cargando…', _muted(palette))))
         return out
-    for raw in tab.lines[:20]:
+    entries = [raw for raw in tab.lines if str(raw).strip() and not str(raw).startswith('-- ')]
+    if len(entries) > JOURNAL_SHOWN:
+        out.append(_line((f'… {len(entries) - JOURNAL_SHOWN} entradas anteriores ocultas', _dim(palette))))
+        entries = entries[-JOURNAL_SHOWN:]
+    for raw in entries:
         when, unit, message = _journal_fields(raw)
         out.append(_line(('  ', _muted(palette)), (when.ljust(9), _dim(palette)),
                          (truncate(unit, 10).ljust(10), _text(palette)),

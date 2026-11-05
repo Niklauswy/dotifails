@@ -83,13 +83,18 @@ class Canvas:
     def put(self, x: int, y: int, char: str, style: Style | None = None) -> None:
         if not char or not self._inside(x, y):
             return
+        char = char[0]
+        code = ord(char)
+        if code < 0x20 or 0x7f <= code < 0xa0:
+            # C0/C1 controls (ESC, CSI, BEL…) from remote text must never reach the terminal.
+            char = ' ' if char == '\t' else '�'
         index = y * self.width + x
         if style is None:
             style = Style(bg=self.bg)
         elif style.bg is None:
             # No background means "keep what is under it": never the terminal's default colour.
             style = replace(style, bg=self._cells[index][1].bg or self.bg)
-        self._cells[index] = (char[0], style)
+        self._cells[index] = (char, style)
 
     def text(self, x: int, y: int, s: str, style: Style, max_width: int | None = None) -> int:
         written = 0
