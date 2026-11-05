@@ -9,7 +9,7 @@ import time
 from urllib.parse import urlencode, urlsplit
 
 from wysun_drive.account import Account
-from wysun_drive.client import Cancelled, DriveError, request, split_server
+from wysun_drive.client import AuthError, Cancelled, Client, DriveError, request, split_server
 
 TIMEOUT = 20 * 60
 INTERVAL = 2
@@ -59,3 +59,18 @@ def wait(poll, server=None, timeout=TIMEOUT, interval=INTERVAL, sleep=time.sleep
             raise DriveError(f'El inicio de sesión falló ({status})')
         sleep(interval)
     raise DriveError('Se acabó el tiempo para iniciar sesión; vuelve a intentarlo')
+
+
+def manual(server, user, password):
+    """An :class:`Account` from an app password made by hand in Nextcloud (Ajustes personales ›
+    Seguridad › Crear contraseña de aplicación); checked against the server before it is kept."""
+    user, password = str(user).strip(), str(password).strip()
+    if not user or not password:
+        raise DriveError('Faltan el usuario o la contraseña de aplicación', code=2)
+    split_server(server)
+    acc = Account(server.rstrip('/'), user, password)
+    try:
+        Client(acc).exists('')
+    except AuthError:
+        raise DriveError('Nextcloud rechazó el usuario o la contraseña de aplicación', code=3) from None
+    return acc

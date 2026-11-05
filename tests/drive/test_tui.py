@@ -148,6 +148,22 @@ class DriveAppTests(unittest.TestCase):
         settings = json.loads((self.base / 'config/wysun/drive.json').read_text())
         self.assertEqual(settings['server'], self.cloud.url)
 
+    def test_manual_app_password_from_the_login_panel(self):
+        config = self.base / 'config/wysun/drive.json'
+        config.parent.mkdir(parents=True, exist_ok=True)
+        config.write_text(json.dumps({'server': self.cloud.url}))
+        app, term = self.make()
+        self.press(app, b'p')
+        for chunk in (USER.encode(), b'\r', PASSWORD.encode()):
+            self.press(app, chunk)
+        screen = self.text(term)
+        self.assertIn('•' * len(PASSWORD), screen)
+        self.assertNotIn(PASSWORD, screen)
+        self.press(app, b'\r')
+        self.assertTrue(self.wait_for(app, lambda: app.account is not None, seconds=10))
+        self.assertEqual(app.tab, 'browse')
+        self.assertNotIn(PASSWORD, self.text(term))
+
     def test_without_session_shows_login_and_logs_in(self):
         app, term = self.make()
         self.assertIn('aún no tiene sesión', self.text(term))

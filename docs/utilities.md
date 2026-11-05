@@ -87,6 +87,7 @@ wysun drive up informe.pdf --link            # además crea el link público, lo
 wysun drive up video.mp4 --clave --caduca 7d # link con contraseña generada que caduca en 7 días
 wysun drive up captura.png --a Trabajo --nombre portada.png
 wysun drive login [SERVIDOR]                 # inicia sesión desde el navegador
+wysun drive login --manual                   # con una contraseña de aplicación creada en Nextcloud
 wysun drive logout                           # cierra la sesión y revoca la contraseña de aplicación
 wysun drive ajustes --servidor nube.ejemplo.com --carpeta Compartido
 wysun drive estado [--json] | recientes [--json]
@@ -94,7 +95,7 @@ wysun drive estado [--json] | recientes [--json]
 
 Sube archivos y carpetas a un Nextcloud (por defecto `https://cloud.wysun.store`, cualquier otro desde **Ajustes › Wysun Drive**, `wysun drive ajustes --servidor` o la tecla `s` del panel de inicio de sesión). Una sesión solo vale para su servidor: al cambiarlo hay que volver a iniciar sesión.
 
-- **Inicio de sesión** con el Login Flow v2 de Nextcloud: se abre el navegador, autorizas y Wysun recibe una *contraseña de aplicación* (revocable desde la seguridad de tu cuenta de Nextcloud o con `logout`). Se guarda en `~/.local/share/wysun/drive/account.json` (carpeta `0700`, archivo `0600`), nunca en el repositorio.
+- **Inicio de sesión** con el Login Flow v2 de Nextcloud: se abre el navegador, autorizas y Wysun recibe una *contraseña de aplicación* (revocable desde la seguridad de tu cuenta de Nextcloud o con `logout`). Si el navegador falla (por ejemplo «State token does not match») o tu cuenta usa 2FA o SSO, crea una contraseña de aplicación en Nextcloud (Ajustes personales › Seguridad) y úsala con `wysun drive login --manual` o la tecla `p` del panel de sesión; se comprueba contra el servidor antes de guardarla y nunca se muestra. Se guarda en `~/.local/share/wysun/drive/account.json` (carpeta `0700`, archivo `0600`), nunca en el repositorio.
 - **Subidas** por WebDAV; los archivos de 64 MB o más van en trozos de 16 MB (subida por trozos v2) y cada trozo se reintenta 3 veces. Un nombre que ya existe en la nube se sube como `nombre (2).ext`: nunca se reemplaza nada. Dentro de una carpeta se omiten enlaces simbólicos y archivos especiales (se avisa).
 - **Links**: públicos y de solo lectura (OCS `shareType=3`), opcionalmente con contraseña y caducidad. Se copian con `wl-copy` salvo `--sin-copiar`. Si el servidor exige contraseña, el error lo dice y la subida queda hecha.
 - **Selector** (`wysun_core.tui`, colores del fondo de pantalla, `WYSUN_REDUCED_MOTION=1` quita animaciones): `↑↓` mover, `→`/`↵` entrar, `←` subir de carpeta, `espacio` marcar, `l` con link, `u` subir, `.` ocultos, `Tab`/`1`/`2` pestañas; en Recientes `c` copia el link (o lo crea) y `o` lo abre. Pegar rutas o arrastrar archivos a la terminal los marca.

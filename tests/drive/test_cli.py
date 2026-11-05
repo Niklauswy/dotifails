@@ -114,6 +114,20 @@ class CliTests(unittest.TestCase):
     def test_ajustes_rejects_plain_http(self):
         self.assertEqual(self.run_cli('ajustes', '--servidor', 'http://cloud.example').returncode, 2)
 
+    def test_manual_login_with_app_password(self):
+        bad = subprocess.run([sys.executable, '-P', '-m', 'wysun_drive', 'login', '--manual', self.cloud.url],
+                             input=f'{USER}\nSYNTHETIC-wrong\n', env=self.env, capture_output=True, text=True, timeout=60)
+        self.assertEqual(bad.returncode, 3)
+        self.assertIn('rechazó', bad.stderr)
+        self.assertNotIn('SYNTHETIC-wrong', bad.stdout + bad.stderr)
+        done = subprocess.run([sys.executable, '-P', '-m', 'wysun_drive', 'login', '--manual', self.cloud.url],
+                              input=f'{USER}\n{PASSWORD}\n', env=self.env, capture_output=True, text=True, timeout=60)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertNotIn(PASSWORD, done.stdout + done.stderr)
+        state = json.loads(self.run_cli('estado', '--json').stdout)
+        self.assertEqual((state['server'], state['user']), (self.cloud.url, USER))
+        self.assertEqual(self.run_cli('up', 'informe.pdf').returncode, 0)
+
     def test_human_size(self):
         self.assertEqual(cli.human_size(512), '512 B')
         self.assertEqual(cli.human_size(1536), '1,5 KB')

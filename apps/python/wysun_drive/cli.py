@@ -27,6 +27,7 @@ Uso: wysun drive [ORDEN] [opciones]
       --notificar          el resultado como notificación
       --sin-copiar         no copiar el link al portapapeles
   login [SERVIDOR]         inicia sesión desde el navegador (con SERVIDOR, también lo guarda)
+      --manual             con una contraseña de aplicación creada en Nextcloud (sin navegador)
   logout                   cierra la sesión y revoca la contraseña de aplicación
   recientes [--json]       lo subido y sus links
   ajustes [--servidor URL] [--carpeta NOMBRE]
@@ -232,13 +233,43 @@ def up(argv, out=sys.stdout, err=sys.stderr):
     return 1 if failed else 0
 
 
+def _ask_manual(server, out, stdin=sys.stdin):
+    """User and app password: from the terminal without echo, or two lines on stdin (scripts, tests)."""
+    host = server.split('://', 1)[-1]
+    if stdin.isatty():
+        import getpass
+        print(f'En {host}: Ajustes personales › Seguridad › «Crear nueva contraseña de aplicación».', file=out)
+        user = input('Usuario: ')
+        password = getpass.getpass('Contraseña de aplicación: ')
+    else:
+        user, password = (stdin.readline().rstrip('\n'), stdin.readline().rstrip('\n'))
+    return user, password
+
+
 def do_login(argv, out=sys.stdout, err=sys.stderr):
+    manual = '--manual' in argv
+    argv = [a for a in argv if a != '--manual']
     server = account.normalize_server(argv[0] if argv else account.settings()['server'])
+    if manual:
+        try:
+            acc = login.manual(server, *_ask_manual(server, out))
+        except (KeyboardInterrupt, EOFError):
+            print('\nCancelado', file=err)
+            return 1
+        except DriveError as error:
+            print(str(error), file=err)
+            return error.code
+        account.save(acc)
+        if argv:
+            account.save_settings(server=server)
+        print(f'Sesión iniciada como {acc.user} en {acc.server}', file=out)
+        return 0
     try:
         url, poll = login.start(server)
         print(f'Abre esta dirección y autoriza a Wysun Drive:\n  {url}', file=out, flush=True)
         open_url(url)
-        print('Esperando al navegador… (Ctrl+C cancela)', file=out, flush=True)
+        print('Esperando al navegador… (Ctrl+C cancela; si Nextcloud falla, usa wysun drive login --manual)',
+              file=out, flush=True)
         acc = login.wait(poll, server=server)
         Client(acc).exists('')
     except KeyboardInterrupt:

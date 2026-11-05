@@ -130,7 +130,7 @@ PageBase {
         StyledText {
             Layout.fillWidth: true
             Layout.bottomMargin: Tokens.spacing.small
-            text: Tr.tr("Wysun Drive works with any Nextcloud. After changing the server, sign in again.")
+            text: Tr.tr("Wysun Drive works with any Nextcloud. After changing the server, sign in again. If the browser sign-in fails, create an app password in Nextcloud (Personal settings › Security) and use it instead.")
             wrapMode: Text.Wrap
             font: Tokens.font.body.small
             color: Colours.palette.m3onSurfaceVariant
@@ -210,6 +210,14 @@ PageBase {
                 enabled: !root.signingIn
                 text: Tr.tr("Sign out")
                 onClicked: logoutProc.running = true
+            }
+
+            ActionButton {
+                visible: !root.user
+                enabled: !root.signingIn
+                text: Tr.tr("Use an app password…")
+                // The terminal selector asks for it (key p): the password never passes through the shell.
+                onClicked: Quickshell.execDetached(["wysun", "drive", "--terminal"])
             }
 
             ActionButton {

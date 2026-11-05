@@ -28,7 +28,8 @@ BROWSE_HINTS = [('espacio', 'marcar'), ('u', 'subir'), ('l', 'con link'), ('←�
 RECENT_HINTS = [('c', 'copiar link'), ('o', 'abrir'), ('Tab', 'Subir'), ('q', 'salir')]
 UPLOAD_HINTS = [('Esc', 'cancelar')]
 DONE_HINTS = [('c', 'copiar links'), ('↵', 'cerrar')]
-LOGIN_HINTS = [('↵', 'iniciar sesión'), ('s', 'cambiar servidor'), ('q', 'salir')]
+LOGIN_HINTS = [('↵', 'iniciar sesión'), ('p', 'contraseña de aplicación'), ('s', 'cambiar servidor'), ('q', 'salir')]
+MANUAL_HINTS = [('↵', 'siguiente'), ('Esc', 'cancelar')]
 EDIT_HINTS = [('↵', 'guardar e iniciar sesión'), ('Esc', 'cancelar')]
 
 
@@ -91,6 +92,9 @@ class DriveApp(App):
         self.login_busy = False
         self.editing_server = False
         self.server_text = ''
+        self.manual_step = None          # None | 'user' | 'password'
+        self.manual_user = ''
+        self.manual_password = ''
 
     # -- lifecycle ---------------------------------------------------------
     def on_start(self):
@@ -145,6 +149,11 @@ class DriveApp(App):
 
     # -- input -------------------------------------------------------------
     def on_paste(self, event):
+        if self.manual_step:
+            field = 'manual_user' if self.manual_step == 'user' else 'manual_password'
+            setattr(self, field, getattr(self, field) + event.text.strip())
+            self.invalidate()
+            return
         if self.editing_server:
             self.server_text += event.text.strip()
             self.invalidate()
@@ -178,12 +187,19 @@ class DriveApp(App):
         if self.editing_server:
             self._edit_key(name, char)
             return
+        if self.manual_step:
+            self._manual_key(name, char)
+            return
         if name == 'char' and char == 'q' or name == 'escape':
             self.quit()
             return
         if self.tab == 'login':
             if name == 'enter' and not self.login_busy:
                 self._start_login()
+            elif name == 'char' and char == 'p' and not self.login_busy:
+                self.manual_step, self.manual_user, self.manual_password = 'user', '', ''
+                self.login_state = ''
+                self.invalidate()
             elif name == 'char' and char == 's' and not self.login_busy:
                 self.editing_server, self.server_text = True, account.settings()['server']
                 self.invalidate()
@@ -218,6 +234,46 @@ class DriveApp(App):
             self.editing_server = False
             self._start_login()
         self.invalidate()
+
+    def _manual_key(self, name, char):
+        field = 'manual_user' if self.manual_step == 'user' else 'manual_password'
+        if name == 'escape':
+            self.manual_step, self.manual_password = None, ''
+        elif name == 'backspace':
+            setattr(self, field, getattr(self, field)[:-1])
+        elif name == 'char' and char and char.isprintable():
+            setattr(self, field, getattr(self, field) + char)
+        elif name == 'enter' and self.manual_step == 'user' and self.manual_user.strip():
+            self.manual_step = 'password'
+        elif name == 'enter' and self.manual_step == 'password' and self.manual_password:
+            self._start_manual_login()
+        self.invalidate()
+
+    def _start_manual_login(self):
+        server = account.settings()['server']
+        user, password = self.manual_user, self.manual_password
+        self.manual_step, self.manual_password = None, ''
+        self.login_busy, self.login_state = True, 'Comprobando…'
+
+        def work():
+            try:
+                acc = login.manual(server, user, password)
+                account.save(acc)
+            except DriveError as error:
+                message = str(error)
+
+                def failed():
+                    self.login_busy, self.login_state = False, message
+                    self.invalidate()
+                self.after(0, failed)
+                return
+
+            def done():
+                self.account, self.login_busy, self.tab = acc, False, 'browse'
+                self.toast(f'Sesión iniciada como {acc.user}')
+            self.after(0, done)
+
+        threading.Thread(target=work, daemon=True).start()
 
     def on_mouse(self, event):
         if event.kind in ('wheelup', 'wheeldown') and not self.uploading:
@@ -448,6 +504,8 @@ class DriveApp(App):
             hints = RECENT_HINTS
         if self.editing_server:
             hints = EDIT_HINTS
+        if self.manual_step:
+            hints = MANUAL_HINTS
         if self.uploading:
             hints = UPLOAD_HINTS
         elif self.finished:
@@ -552,6 +610,10 @@ class DriveApp(App):
                  (f'Servidor: {self.server_text}▏' if self.editing_server else f'Servidor: {account.settings()["server"]}',
                   'primary' if self.editing_server else 'onSurfaceVariant', self.editing_server),
                  ('', 'onSurface', False),
+                 *((('Nextcloud › Ajustes personales › Seguridad › «Crear nueva contraseña de aplicación»', 'onSurfaceVariant', False),
+                    (f'Usuario: {self.manual_user}' + ('▏' if self.manual_step == 'user' else ''), 'primary', self.manual_step == 'user'),
+                    ('Contraseña de aplicación: ' + '•' * len(self.manual_password) + ('▏' if self.manual_step == 'password' else ''),
+                     'primary', self.manual_step == 'password')) if self.manual_step else ()),
                  (self.login_state, 'primary', False),
                  (self.login_url, 'onSurfaceVariant', False)]
         for offset, (text, role, bold) in enumerate(lines):
