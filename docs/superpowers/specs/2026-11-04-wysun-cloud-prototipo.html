@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Wysun Cloud · prototipo</title>
+<style>
+  :root { --p:#b2c8ec; --onp:#2c415f; --s:#0c0e12; --on:#e2e5ef; --sch:#1c2026; --ol:#72757e; --olv:#444850;
+          --ter:#e6daff; --err:#fa746f; --onv:#a7abb4; --pc:#3e5373; --ok:#8fd6a4; --warn:#e8c46a; }
+  html, body { margin:0; background:#08090c; color:var(--on); font-family:system-ui, sans-serif; }
+  .wrap { padding:16px; display:flex; flex-direction:column; align-items:center; gap:10px; }
+  .hint { color:#9aa3b2; font-size:13px; max-width:960px; text-align:center; line-height:1.5 }
+  .hint kbd { background:#1c2026; border:1px solid #444850; border-radius:4px; padding:0 5px; font-size:12px; color:#e2e5ef }
+  #term { position:relative; background:var(--s); border-radius:12px; overflow:hidden; outline:none;
+          font:13px/1.35 "CaskaydiaCove Nerd Font","CaskaydiaCove NF","JetBrains Mono","DejaVu Sans Mono",monospace;
+          box-shadow:0 12px 40px #000a; }
+  #term:focus { box-shadow:0 12px 40px #000a, 0 0 0 2px #3e5373; }
+  .abs { position:absolute; white-space:pre; box-sizing:border-box; }
+  .card { border:1px solid var(--olv); border-radius:7px; }
+  .card.sel { border-color:var(--p); box-shadow:0 0 0 1px var(--p); }
+  .front { z-index:5; background:var(--s); }
+  .tt { position:absolute; top:-0.72em; left:1.2ch; background:var(--s); padding:0 .6ch; white-space:pre; }
+  .offl .tt { display:none; }
+  .in { position:absolute; white-space:pre; }
+  .offl.sel { background:var(--pc); border-radius:3px; }
+  .ln { white-space:pre; }
+  .modal { background:var(--sch); border:1px solid var(--p); border-radius:7px; z-index:20; overflow:hidden; }
+  .backdrop { background:#000; z-index:15; }
+  .toast { z-index:25; background:var(--sch); border:1px solid var(--olv); border-radius:6px; }
+  .p{color:var(--p)} .v{color:var(--onv)} .o{color:var(--olv)} .ok{color:var(--ok)} .w{color:var(--warn)} .e{color:var(--err)}
+  .ter{color:var(--ter)} .b{font-weight:bold} .dim{color:var(--ol)} .tab{background:var(--p);color:var(--onp);font-weight:bold}
+  .key{color:var(--p);font-weight:bold}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hint">
+    Prototipo desechable con datos simulados que imita la terminal celda por celda. Haz clic en él y usa el teclado:
+    <kbd>←↑↓→</kbd> elegir · <kbd>Enter</kbd> detalle · <kbd>Esc</kbd> volver · <kbd>1</kbd>–<kbd>7</kbd> pestañas ·
+    <kbd>x</kbd> apagar · <kbd>r</kbd> reiniciar · <kbd>s</kbd> encender (en una apagada) · <kbd>c</kbd> ssh · <kbd>h</kbd> 24 h / 7 d.
+    Con el ratón: clic elige, doble clic abre.
+  </div>
+  <div id="term" tabindex="0"></div>
+</div>
+
+<script>
+"use strict";
+const COLS = 120, ROWS = 37;
+const term = document.getElementById("term");
+let cw = 8, chh = 17;
+
+/* ------------------------------------------------------------ helpers */
+const esc = s => String(s).replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+const H = segs => segs.map(s => typeof s === "string" ? esc(s) : `<span class="${s[0]}">${esc(s[1])}</span>`).join("");
+const W = segs => segs.reduce((n, s) => n + (typeof s === "string" ? s : s[1]).length, 0);
+const padS = (segs, n) => { const w = W(segs); return w < n ? [...segs, " ".repeat(n - w)] : segs; };
+const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
+const fmt1 = x => x.toFixed(1).replace(".", ",");
+const lvl = f => f > .85 ? "e" : f > .6 ? "w" : "p";
+const q = o => Math.round(clamp(o) * 8) / 8;               // a terminal blends colours in steps
+const LV = ["⠀", "⣀", "⣤", "⣶", "⣿"];
+const SPIN = "◐◓◑◒";
+let spinI = 0;
+
+function graph(vals, width, rows) {
+  const v = vals.slice(-width);
+  while (v.length < width) v.unshift(0);
+  const out = Array.from({ length: rows }, () => "");
+  for (const x of v) {
+    let t = Math.max(1, Math.round(clamp(x) * rows * 4));
+    for (let r = rows - 1; r >= 0; r--) { out[r] += LV[clamp(t, 0, 4)]; t -= 4; }
+  }
+  return out;
+}
+function bar(f, w) {
+  const n = clamp(f) * w, full = Math.floor(n), parts = "▏▎▍▌▋▊▉";
+  let s = "█".repeat(full), used = full;
+  if (full < w && n - full > .12) { s += parts[Math.min(6, Math.floor((n - full) * 7))]; used++; }
+  return [s, "░".repeat(w - used)];
+}
+const ease = p => 1 - Math.pow(1 - p, 3);
+function tween(ms, fn) {
+  return new Promise(res => {
+    const t0 = performance.now();
+    const f = now => { const p = Math.min(1, (now - t0) / ms); fn(ease(p)); p < 1 ? requestAnimationFrame(f) : res(); };
+    requestAnimationFrame(f);
+  });
+}
+const lerp = (a, b, p) => ({ x: Math.round(a.x + (b.x - a.x) * p), y: Math.round(a.y + (b.y - a.y) * p),
+                              w: Math.round(a.w + (b.w - a.w) * p), h: Math.round(a.h + (b.h - a.h) * p) });
+function place(el, r) {
+  el.style.left = r.x * cw + "px"; el.style.top = r.y * chh + "px";
+  el.style.width = r.w * cw + "px"; el.style.height = r.h * chh + "px";
+  el._r = { ...r };
+}
+function mk(cls) { const d = document.createElement("div"); d.className = "abs " + cls; term.appendChild(d); return d; }
+
+/* ------------------------------------------------------------ data (simulated) */
+const projects = ["mi-proyecto-prod", "personal-lab", "cliente-x"];
+const vms = [
+  { name: "api-backend", proj: 0, type: "e2-standard-4", zone: "us-central1-a", status: "on", base: .55, cores: 4, ramMax: 16, ram: 11.2, disk: 88, disk2: 42, up: "12 d", top: "node server.js 41%", alert: "certbot ✗", ip: "34.122.10.7", os: "debian-12", usd: .134 },
+  { name: "worker-01", proj: 0, type: "e2-medium", zone: "us-central1-a", status: "on", base: .12, cores: 2, ramMax: 4, ram: 1.6, disk: 31, up: "3 d", top: "python worker.py 9%", ip: "34.70.2.19", os: "ubuntu-24.04", usd: .034 },
+  { name: "staging-db", proj: 0, type: "e2-standard-2", zone: "us-east1-c", status: "off", base: .2, cores: 2, ramMax: 8, ram: 2.1, disk: 54, up: "—", top: "postgres 4%", ip: "—", os: "debian-12", usd: .067 },
+  { name: "minecraft", proj: 1, type: "n2-standard-2", zone: "us-central1-f", status: "on", base: .3, cores: 2, ramMax: 8, ram: 6.9, disk: 22, up: "6 h", top: "java -jar server.jar 29%", ip: "35.188.4.77", os: "debian-12", usd: .097 },
+  { name: "sandbox", proj: 1, type: "e2-micro", zone: "us-east1-c", status: "off", base: .05, cores: 2, ramMax: 1, ram: .3, disk: 18, up: "—", top: "bash 0%", ip: "—", os: "debian-12", usd: .008 },
+  { name: "gpu-test", proj: 1, type: "g2-standard-4", zone: "us-central1-f", status: "off", base: .7, cores: 4, ramMax: 16, ram: 9, disk: 63, up: "—", top: "python train.py 88%", ip: "—", os: "ubuntu-24.04", usd: .71 },
+  { name: "web-01", proj: 2, type: "e2-small", zone: "us-west1-a", status: "on", base: .06, cores: 2, ramMax: 2, ram: .7, disk: 47, up: "21 d", top: "nginx 3%", ip: "34.83.9.120", os: "debian-12", usd: .017 },
+  { name: "web-02", proj: 2, type: "e2-small", zone: "us-west1-a", status: "off", base: .06, cores: 2, ramMax: 2, ram: .6, disk: 40, up: "—", top: "nginx 2%", ip: "—", os: "debian-12", usd: .017 },
+];
+for (const v of vms) {
+  v.cpu = Array.from({ length: 240 }, (_, i) => v.status === "on" ? clamp(v.base + Math.sin(i / 9) * .12 + (Math.random() - .5) * .15, .01) : 0);
+  v.rxh = Array.from({ length: 60 }, () => Math.random() * .5); v.txh = Array.from({ length: 60 }, () => Math.random() * .3);
+  v.rx = 0; v.tx = 0; v.coreVals = Array(v.cores).fill(v.base);
+  v.h24 = Array.from({ length: 96 }, (_, i) => clamp(v.base * .4 + (i > 60 && i < 66 ? .55 : 0) + (i > 80 ? v.base * .7 : 0) + Math.random() * .08, .01));
+  v.h7 = Array.from({ length: 168 }, (_, i) => clamp(v.base * .35 + Math.sin(i / 3.8) * .12 + (i > 150 ? v.base * .5 : 0) + Math.random() * .06, .01));
+}
+const isCard = v => ["on", "stopping", "restarting"].includes(v.status);
+function tick() {
+  for (const v of vms) {
+    if (v.status === "on") {
+      const spike = Math.random() < .04 ? .35 : 0;
+      v.cpu.push(clamp(v.base + (Math.random() - .5) * .18 + spike, .01));
+      v.ram = clamp(v.ram + (Math.random() - .48) * .05, .1, v.ramMax * .97);
+      v.rx = Math.max(0, v.base * 20 + (Math.random() - .5) * 6); v.tx = Math.max(0, v.base * 5 + (Math.random() - .5) * 2);
+      v.coreVals = v.coreVals.map(() => clamp(v.cpu.at(-1) + (Math.random() - .5) * .45, .01));
+    } else if (v.status === "restarting") { v.cpu.push(0); v.rx = v.tx = 0; }
+    if (v.cpu.length > 240) v.cpu.shift();
+    v.rxh.push(v.rx / 25); v.txh.push(v.tx / 8); v.rxh.shift(); v.txh.shift();
+  }
+}
+
+/* ------------------------------------------------------------ state */
+let mode = "mosaic", anim = false, detailVm = null, tab = 0, range24 = true, modal = null;
+let selVm = vms[0];
+const TABS = ["Resumen", "Procesos", "Disco", "Red", "Servicios", "Registro", "Historial"];
+
+/* ------------------------------------------------------------ elements */
+let header, footer, toastEl, projEls = [];
+function build() {
+  term.innerHTML = "";
+  const s = document.createElement("span");
+  s.style.cssText = "position:absolute;visibility:hidden;white-space:pre"; s.textContent = "M".repeat(100);
+  term.appendChild(s); const r = s.getBoundingClientRect(); cw = r.width / 100; chh = r.height; s.remove();
+  term.style.width = COLS * cw + "px"; term.style.height = ROWS * chh + "px";
+  header = mk(""); place(header, { x: 1, y: 0, w: COLS - 2, h: 1 });
+  footer = mk(""); place(footer, { x: 1, y: ROWS - 1, w: COLS - 2, h: 1 });
+  projEls = projects.map((p, i) => { const e = mk(""); place(e, { x: 2 + i * 40, y: 1, w: 38, h: 1 }); e.innerHTML = H([["p b", p]]); return e; });
+  for (const v of vms) {
+    v.el = mk(isCard(v) ? "card" : "offl");
+    v.el.innerHTML = '<span class="tt"></span><div class="in"></div>';
+    v.el.addEventListener("click", () => { if (!anim && mode === "mosaic") { selVm = v; render(); } });
+    v.el.addEventListener("dblclick", () => { if (!anim && mode === "mosaic" && isCard(v)) openDetail(v); });
+  }
+  const rects = layout();
+  for (const v of vms) place(v.el, rects.get(v));
+}
+function layout() {
+  const rects = new Map();
+  projects.forEach((_, i) => {
+    const x = 1 + i * 40; let y = 4;
+    for (const v of colList(i).filter(isCard)) { rects.set(v, { x, y, w: 38, h: 8 }); y += 8; }
+    for (const v of colList(i).filter(v => !isCard(v))) { rects.set(v, { x: x + 1, y, w: 37, h: 1 }); y += 1; }
+  });
+  return rects;
+}
+const colList = i => vms.filter(v => v.proj === i).sort((a, b) => isCard(b) - isCard(a));
+
+/* ------------------------------------------------------------ rendering */
+function titleOf(v) {
+  const dot = v.status === "on" ? (v.alert ? ["w", "▲"] : ["ok", "●"]) : ["w", SPIN[spinI % 4]];
+  const extra = v.status === "stopping" ? [" ", ["w", "apagando…"]] : v.status === "restarting" ? [" ", ["w", "reiniciando…"]] : [" ", ["v", v.type]];
+  return H([dot, " ", ["b", v.name], ...extra]);
+}
+function cardInner(v) {
+  const busy = v.status !== "on", p = v.cpu.at(-1), g = graph(v.cpu, 28, 2), cl = busy ? "dim" : lvl(p);
+  const rf = v.ram / v.ramMax, [rb, re] = bar(rf, 21), [db, de] = bar(v.disk / 100, 21);
+  const pct = busy ? "  —" : String(Math.round(p * 100)).padStart(3) + "%";
+  return [
+    [[cl, g[0]], " ", [cl, pct]],
+    [[cl, g[1]], " ", ["v", "CPU"]],
+    [["v", "RAM "], [busy ? "dim" : lvl(rf), rb], ["o", re], " ", ["v", `${fmt1(v.ram)}/${v.ramMax}G`]],
+    [["v", "/   "], [busy ? "dim" : lvl(v.disk / 100), db], ["o", de], " ", [v.disk > 85 ? "e" : "v", v.disk + "%" + (v.disk > 85 ? " ▲" : "")]],
+    [["v", `↓${fmt1(v.rx)} ↑${fmt1(v.tx)} MB/s · ${v.up}`]],
+    [["dim", "top "], v.top, ...(v.alert ? [" · ", ["e", v.alert]] : [])],
+  ].map(H).join("\n");
+}
+function renderVm(v) {
+  const el = v.el, tt = el.firstChild, inn = el.lastChild;
+  el.classList.toggle("sel", v === selVm && mode === "mosaic");
+  if (el.classList.contains("detail")) return;
+  if (el.classList.contains("card")) {
+    tt.innerHTML = titleOf(v);
+    inn.style.left = 1.5 * cw + "px"; inn.style.top = chh + "px";
+    inn.innerHTML = v.hideInner ? "" : cardInner(v);
+  } else {
+    inn.style.left = "0px"; inn.style.top = "0px";
+    const st = v.status === "starting" ? [["w", SPIN[spinI % 4] + " "], ["b", v.name.padEnd(13)], ["w", "encendiendo…"]]
+                                       : [["dim", "○ "], ["dim", v.name.padEnd(13)], ["dim", v.zone.padEnd(15)], ["dim", "apagada"]];
+    inn.innerHTML = H(padS([" ", ...st], 37));
+  }
+}
+function renderHeader() {
+  const on = vms.filter(v => v.status === "on"), usd = on.reduce((n, v) => n + v.usd, 0);
+  const left = mode === "detail"
+    ? [["tab", " ☁ Wysun Cloud "], " ", ["dim", "mosaico › "], ["p", projects[detailVm.proj]], ["dim", " › "], ["b", detailVm.name]]
+    : [["tab", " ☁ Wysun Cloud "], "  ", ["v", `${on.length} encendidas · ${vms.length - on.length} apagadas · ≈ ${usd.toFixed(2).replace(".", ",")} USD/h`]];
+  header.innerHTML = H(padS(left, COLS - 10)) + H([["dim", "⟳ 1 s"]]);
+}
+function renderFooter() {
+  const k = (key, label) => [["key", key], " ", ["v", label], "  "];
+  let segs;
+  if (modal) segs = [...k("⏎", "confirmar"), ...k("Esc", "cancelar")];
+  else if (mode === "detail") segs = [...k("Esc", "volver"), ...k("1-7", "pestaña"), ...k("←→", "pestaña"), ...k("x", "apagar"), ...k("r", "reiniciar"), ...k("c", "ssh"), ...(tab === 6 ? k("h", "24 h / 7 d") : [])];
+  else segs = [...k("←↑↓→", "elegir"), ...k("⏎", "detalle"), ...k("s", "encender"), ...k("x", "apagar"), ...k("r", "reiniciar"), ...k("c", "ssh"), ...k("q", "salir")];
+  footer.innerHTML = H(segs);
+}
+function render() {
+  spinI++;
+  renderHeader(); renderFooter();
+  for (const v of vms) renderVm(v);
+}
+
+/* ------------------------------------------------------------ detail */
+const DW = COLS - 5;
+function detailHead(v) {
+  const info = [["v", `${v.type} · ${v.zone} · ${v.ip} / 10.128.0.${4 + vms.indexOf(v)} · ${v.os} · arriba ${v.up} · ≈ ${fmt1(v.usd * 100) } ¢/h`]];
+  const tabs = [];
+  TABS.forEach((t, i) => {
+    tabs.push(i === tab ? ["tab", ` ${i + 1} ${t} `] : ["v", ` ${i + 1} ${t} `]);
+    if (i === 4 && v.alert) tabs.push(["e", "●"]);
+    if (i === 5) tabs.push(["e", "3"]);
+    tabs.push(" ");
+  });
+  return [H(info), "", H(tabs), H([["o", "─".repeat(DW)]])];
+}
+function procRows(v, n) {
+  const names = [v.top.replace(/ \d+%$/, ""), "postgres: writer", "dockerd", "containerd", "systemd-journald", "sshd: nicolas", "redis-server *:6379", "node worker.js", "cron", "google_guest_agent", "chronyd", "systemd", "bash", "top"];
+  const base = [41, 9, 4, 2.1, 1.2, .8, .7, .5, .2, .2, .1, .1, 0, 0].map(x => x * (v.base / .55));
+  return names.slice(0, n).map((nm, i) => ({ pid: 1200 + i * 137, user: i === 5 ? "nicolas" : i < 3 ? "app" : "root",
+    cpu: Math.max(0, base[i] + (Math.random() - .5) * base[i] * .3), ram: [2.1, 1.4, .3, .2, .1, .0, .2, .4, 0, .1, 0, 0, 0, 0][i] * (v.ramMax / 16), cmd: nm }));
+}
+function detailBody(v) {
+  const p = v.cpu.at(-1), rf = v.ram / v.ramMax, L = [];
+  const two = (a, b) => H(padS(a, 74)) + H(b || []);
+  if (tab === 0) {
+    const g = graph(v.cpu, 70, 6);
+    L.push(two([["b", "CPU "], [lvl(p), Math.round(p * 100) + " %"], ["v", "  · carga 2.4 1.9 1.1 · últimos 2 min"]], [["b", "NÚCLEOS"]]));
+    for (let r = 0; r < 6; r++) {
+      const c = v.coreVals[r];
+      const right = c !== undefined ? (() => { const [a, b] = bar(c, 20); return [["v", `cpu${r} `], [lvl(c), a], ["o", b], " " + String(Math.round(c * 100)).padStart(3) + "%"]; })() : [];
+      L.push(two([[lvl(p), g[r]]], right));
+    }
+    L.push(H([["dim", "−2 min" + " ".repeat(59) + "ahora"]]));
+    L.push("");
+    const [rb, re] = bar(rf, 50);
+    L.push(H([["b", "RAM   "], [lvl(rf), rb], ["o", re], ` ${fmt1(v.ram)} / ${v.ramMax} GB`, ["v", `   · caché ${fmt1(v.ramMax * .19)} GB · swap 0 / 2 GB`]]));
+    L.push("");
+    L.push(H([["b", "DISCO"]]));
+    const [d1, d1e] = bar(v.disk / 100, 40);
+    L.push(H([["v", "/      "], [lvl(v.disk / 100), d1], ["o", d1e], ` ${v.disk} / 100 GB`, ...(v.disk > 85 ? [["e", " ▲ se llena ~3 GB/día"]] : []), ["v", "   lee 2,1 MB/s · escribe 34 MB/s"]]));
+    if (v.disk2) { const [d2, d2e] = bar(v.disk2 / 100, 40); L.push(H([["v", "/data  "], ["p", d2], ["o", d2e], ` 210 / 500 GB`, ["v", "   lee 0,4 MB/s · escribe 1,2 MB/s"]])); }
+    L.push("");
+    L.push(H([["b", "RED   "], ["ok", "↓ "], ["ok", graph(v.rxh, 34, 1)[0]], ` ${fmt1(v.rx)} MB/s    `, ["ter", "↑ "], ["ter", graph(v.txh, 34, 1)[0]], ` ${fmt1(v.tx)} MB/s`]));
+    L.push("");
+    L.push(two([["b", "PROCESOS"], ["v", "                       CPU      RAM"]], [["b", "SALUD"]]));
+    const health = [
+      v.alert ? [["e", "✗ "], "certbot.service ", ["v", "falló hace 2 h"]] : [["ok", "✓ "], "systemd: sin fallos"],
+      [["ok", "● "], "docker: api · redis"],
+      [["e", "○ "], "docker: worker ", ["v", "exit 1, hace 2 h"]],
+      [["w", "3 "], "errores en el journal (1 h)"],
+      [["ok", "✓ "], "reloj sincronizado"],
+    ];
+    procRows(v, 5).forEach((r, i) => L.push(two([r.cmd.padEnd(28), [lvl(r.cpu / 100), (fmt1(r.cpu) + "%").padStart(7)], ("  " + fmt1(r.ram) + " G").padStart(9)], health[i])));
+  } else if (tab === 1) {
+    L.push(H([["v", "   PID  USUARIO     CPU%     RAM   TIEMPO  COMANDO"]]));
+    procRows(v, 14).sort((a, b) => b.cpu - a.cpu).forEach((r, i) =>
+      L.push(H([String(r.pid).padStart(6), "  ", r.user.padEnd(9), [lvl(r.cpu / 100), (fmt1(r.cpu)).padStart(7)], (fmt1(r.ram) + " G").padStart(9), "  " + ["12d", "12d", "12d", "12d", "12d", "1h", "12d", "3h", "12d", "12d", "12d", "12d", "1h", "1m"][i].padStart(5) + "  ", r.cmd])));
+    L.push(""); L.push(H([["dim", "ordenar: "], ["key", "c"], ["dim", " CPU · "], ["key", "m"], ["dim", " RAM · "], ["key", "k"], ["dim", " terminar proceso (pide confirmación)"]]));
+  } else if (tab === 2) {
+    L.push(H([["b", "PARTICIONES"], ["v", "                                   usado          inodos    lee       escribe"]]));
+    const rows = [["/", v.disk, "88 / 100 GB", "12 %", "2,1 MB/s", "34 MB/s"], ["/data", v.disk2 || 0, "210 / 500 GB", "3 %", "0,4 MB/s", "1,2 MB/s"], ["/boot/efi", 6, "0,01 / 0,1 GB", "1 %", "0", "0"]];
+    for (const [m, f, u, ino, rd, wr] of rows) { const [a, b] = bar(f / 100, 30); L.push(H([["v", m.padEnd(11)], [lvl(f / 100), a], ["o", b], "  " + u.padEnd(15), ino.padStart(6), rd.padStart(10), wr.padStart(12)])); }
+    L.push(""); L.push(H([["b", "LO QUE MÁS OCUPA EN /"], ["dim", "  (du bajo demanda · d para recalcular)"]]));
+    [["/var/lib/docker", "41,2 GB"], ["/var/log", "18,7 GB"], ["/home/app/uploads", "14,1 GB"], ["/usr", "6,3 GB"], ["/opt/node", "3,9 GB"]].forEach(([d, s]) => L.push(H(["  ", d.padEnd(28), ["w", s.padStart(9)]])));
+    L.push(""); L.push(H([["b", "DISCOS DE GCP"], ["v", "  (gcloud)"]]));
+    L.push(H(["  api-backend          pd-balanced   100 GB   arranque   ", ["dim", "snapshot: hace 1 d"]]));
+    L.push(H(["  api-backend-data     pd-standard   500 GB   /data      ", ["dim", "snapshot: nunca"]]));
+  } else if (tab === 3) {
+    L.push(H([["b", "INTERFAZ ens4"], ["v", `   interna 10.128.0.${4 + vms.indexOf(v)} · externa ${v.ip} (efímera) · red default`]]));
+    L.push(H([["ok", "↓ "], ["ok", graph(v.rxh, 90, 2)[0]], ` ${fmt1(v.rx)} MB/s`]));
+    L.push(H(["  ", ["ok", graph(v.rxh, 90, 2)[1]]]));
+    L.push(H([["ter", "↑ "], ["ter", graph(v.txh, 90, 2)[0]], ` ${fmt1(v.tx)} MB/s`]));
+    L.push(H(["  ", ["ter", graph(v.txh, 90, 2)[1]]]));
+    L.push(""); L.push(H([["b", "PUERTOS ABIERTOS"], ["dim", "  (ss -tlnp)"], "                 ", ["b", "FIREWALL DE GCP"], ["dim", "  (etiquetas: http-server, https-server)"]]));
+    const ports = [["22", "0.0.0.0", "sshd"], ["80", "0.0.0.0", "nginx"], ["443", "0.0.0.0", "nginx"], ["3000", "127.0.0.1", "node"], ["5432", "127.0.0.1", "postgres"], ["6379", "127.0.0.1", "redis-server"]];
+    const fw = [[["ok", "✓ "], "default-allow-ssh      22 desde 0.0.0.0/0"], [["ok", "✓ "], "default-allow-http     80"], [["ok", "✓ "], "default-allow-https    443"], [["w", "! "], "allow-3000-dev         3000 desde 0.0.0.0/0"], "", ""];
+    ports.forEach(([pt, a, pr], i) => L.push(H(padS(["  ", pt.padStart(5), "  ", [a === "0.0.0.0" ? "w" : "v", a.padEnd(11)], pr], 49)) + H(Array.isArray(fw[i]) ? fw[i] : [fw[i]])));
+    L.push(""); L.push(H([["b", "CONEXIONES"], ["v", "  establecidas 214 · en espera 37 · sesiones SSH 1 (nicolas desde 187.190.x.x)"]]));
+  } else if (tab === 4) {
+    L.push(H([["b", "SYSTEMD"], ["v", "  (servicios con fallo primero)"]]));
+    [[["e", "✗ "], "certbot.service           ", ["e", "failed"], ["v", "    hace 2 h · «Challenge failed for domain api.ejemplo.com»"]],
+     [["ok", "● "], "nginx.service             ", ["ok", "running"], ["v", "   12 d"]],
+     [["ok", "● "], "docker.service            ", ["ok", "running"], ["v", "   12 d"]],
+     [["ok", "● "], "postgresql@15-main        ", ["ok", "running"], ["v", "   12 d"]],
+     [["ok", "● "], "google-guest-agent        ", ["ok", "running"], ["v", "   12 d"]]].forEach(r => L.push(H(["  ", ...r])));
+    L.push(""); L.push(H([["b", "CONTENEDORES"], ["v", "  (docker ps -a)"]]));
+    L.push(H([["v", "  NOMBRE      IMAGEN                 ESTADO              CPU     RAM    PUERTOS"]]));
+    [[["ok", "● "], "api         ghcr.io/app/api:1.8.2  ", ["ok", "up 12 d            "], " 38 %  1,9 G   3000"],
+     [["ok", "● "], "redis       redis:7-alpine         ", ["ok", "up 12 d            "], "  1 %  0,2 G   6379"],
+     [["e", "○ "], "worker      ghcr.io/app/worker:1.8 ", ["e", "exited (1) hace 2 h"], "   —      —"]].forEach(r => L.push(H(["  ", ...r])));
+    L.push(""); L.push(H([["dim", "⏎ ver registro del servicio o contenedor seleccionado · R reiniciarlo (pide confirmación)"]]));
+  } else if (tab === 5) {
+    L.push(H([["b", "JOURNAL"], ["v", "  prioridad ≤ advertencia · última hora · "], ["key", "l"], ["v", " en vivo"]]));
+    [["18:05:12", "e", "worker", "Error: ECONNREFUSED 127.0.0.1:6379 (redis reiniciando)"],
+     ["18:05:12", "e", "dockerd", "container worker exited with code 1"],
+     ["17:58:40", "w", "kernel", "TCP: request_sock_TCP: Possible SYN flooding on port 443. Sending cookies."],
+     ["16:00:03", "e", "certbot", "Challenge failed for domain api.ejemplo.com"],
+     ["15:12:55", "w", "postgres", "checkpoints are occurring too frequently (24 seconds apart)"],
+     ["13:42:10", "v", "systemd", "System is rebooting (reset por GCP)"]].forEach(([t, c, u, m]) => L.push(H(["  ", ["dim", t + "  "], [c, u.padEnd(10)], m])));
+  } else {
+    const data = range24 ? v.h24 : v.h7, g = graph(data, 96, 9), mx = Math.max(...data), avg = data.reduce((a, b) => a + b, 0) / data.length;
+    L.push(H([["b", `CPU · ${range24 ? "últimas 24 h" : "últimos 7 días"}`], ["v", `  (Cloud Monitoring, sin agente) · promedio ${Math.round(avg * 100)} % · pico ${Math.round(mx * 100)} %`]]));
+    g.forEach((row, i) => L.push(H([["dim", i === 0 ? "100%" : i === 4 ? " 50%" : "    "], " ", ["p", row]])));
+    L.push(H([["dim", range24 ? "     ayer 18:00      22:00      02:00      06:00      10:00      14:00                  ahora" : "     lun          mar          mié          jue          vie          sáb          dom   hoy"]]));
+    if (range24) L.push(H([" ".repeat(70), ["ter", "▲ reset 13:42"], "      ", ["ter", "▲ 18:05"]]));
+    L.push("");
+    L.push(H([["b", "OPERACIONES DE GCP"], ["v", "  (gcloud: quién encendió, apagó o reinició)"]]));
+    [["hoy 13:42", "reset", "nicolas@…"], ["ayer 09:10", "start", "nicolas@…"], ["ayer 01:00", "stop", "programación «noche»"]].forEach(([t, o, by]) => L.push(H(["  ", ["dim", t.padEnd(12)], ["p", o.padEnd(8)], by])));
+    L.push(""); L.push(H([["dim", "RAM y disco históricos aparecen aquí si la VM tiene Ops Agent."]]));
+  }
+  return L;
+}
+function renderDetail(reveal, part = "all") {
+  const v = detailVm, inn = v.el.lastChild;
+  inn.style.left = 2 * cw + "px"; inn.style.top = chh + "px";
+  const body = detailBody(v).map(l => `<div class="ln">${l || " "}</div>`).join("");
+  if (part === "body" && inn.querySelector(".dbody")) { inn.querySelector(".dbody").innerHTML = body; inn.querySelector(".dhead").innerHTML = detailHead(v).map(l => `<div class="ln">${l || " "}</div>`).join(""); return; }
+  inn.innerHTML = `<div class="dhead">${detailHead(v).map(l => `<div class="ln">${l || " "}</div>`).join("")}</div><div class="dbody">${body}</div>`;
+  if (reveal) {
+    const lns = [...inn.querySelectorAll(".ln")];
+    lns.forEach(l => l.style.opacity = 0);
+    lns.forEach((l, i) => { setTimeout(() => l.style.opacity = .5, i * 14); setTimeout(() => l.style.opacity = 1, i * 14 + 50); });
+  }
+  v.el.firstChild.innerHTML = titleOf(v);
+}
+
+/* ------------------------------------------------------------ transitions */
+const others = v => [...vms.filter(x => x !== v).map(x => x.el), ...projEls];
+async function openDetail(v) {
+  anim = true; mode = "detail"; detailVm = v; tab = 0;
+  const el = v.el; el.classList.add("front"); el.classList.remove("sel");
+  v.hideInner = true; el.lastChild.innerHTML = "";
+  const rest = others(v), from = { ...el._r }, to = { x: 0, y: 2, w: COLS, h: ROWS - 3 };
+  renderHeader(); renderFooter();
+  await tween(300, p => { place(el, lerp(from, to, p)); rest.forEach(e => e.style.opacity = q(1 - p * 1.6)); });
+  rest.forEach(e => e.style.visibility = "hidden");
+  el.classList.add("detail"); v.hideInner = false;
+  renderDetail(true); anim = false;
+}
+async function closeDetail() {
+  anim = true; const v = detailVm, el = v.el;
+  const lns = [...el.querySelectorAll(".ln")], n = lns.length;
+  await tween(140, p => lns.forEach((l, i) => l.style.opacity = q(1 - p * 2 + (n - i) / n)));
+  el.classList.remove("detail"); el.lastChild.innerHTML = ""; v.hideInner = true;
+  const rest = others(v); rest.forEach(e => { e.style.visibility = ""; e.style.opacity = 0; });
+  mode = "mosaic"; renderHeader(); renderFooter();
+  const from = { ...el._r }, to = layout().get(v);
+  await tween(280, p => { place(el, lerp(from, to, p)); rest.forEach(e => e.style.opacity = q(p * 1.3 - .2)); });
+  rest.forEach(e => e.style.opacity = "");
+  el.classList.remove("front"); v.hideInner = false; detailVm = null; anim = false; render();
+}
+async function setTab(t) {
+  if (t === tab || t < 0 || t >= TABS.length) return;
+  anim = true; const dir = t > tab ? 1 : -1, body = detailVm.el.querySelector(".dbody");
+  await tween(110, p => { body.style.transform = `translateX(${-dir * Math.round(p * 8) * cw}px)`; body.style.opacity = q(1 - p); });
+  tab = t; renderDetail(false, "body"); renderFooter();
+  await tween(160, p => { body.style.transform = `translateX(${dir * Math.round((1 - p) * 8) * cw}px)`; body.style.opacity = q(p); });
+  body.style.transform = ""; body.style.opacity = ""; anim = false;
+}
+async function relayout() {
+  anim = true; const rects = layout();
+  const moves = vms.map(v => ({ v, from: { ...v.el._r }, to: rects.get(v) }));
+  for (const m of moves) {
+    const card = isCard(m.v), el = m.v.el;
+    if (card && !el.classList.contains("card")) { el.classList.remove("offl"); el.classList.add("card"); m.v.hideInner = true; renderVm(m.v); }
+    if (!card && el.classList.contains("card")) { m.v.hideInner = true; el.lastChild.innerHTML = ""; }
+  }
+  await tween(340, p => moves.forEach(m => place(m.v.el, lerp(m.from, m.to, p))));
+  for (const m of moves) { m.v.hideInner = false; if (!isCard(m.v)) { m.v.el.classList.remove("card"); m.v.el.classList.add("offl"); } }
+  anim = false; render();
+}
+let backdrop;
+async function confirmAction(kind, v) {
+  anim = true;
+  backdrop = mk("backdrop"); place(backdrop, { x: 0, y: 0, w: COLS, h: ROWS }); backdrop.style.opacity = 0;
+  const m = mk("modal"), Wd = 56, Hh = 8, cx = Math.floor((COLS - Wd) / 2), cy = Math.floor((ROWS - Hh) / 2);
+  const to = { x: cx, y: cy, w: Wd, h: Hh }, from = { x: cx + Wd / 2 - 1, y: cy + 3, w: 2, h: 1 };
+  modal = { kind, v, el: m }; renderFooter();
+  await tween(180, p => { place(m, lerp(from, to, p)); backdrop.style.opacity = q(p) * .45; });
+  const verb = kind === "stop" ? "Apagar" : "Reiniciar";
+  const lines = kind === "stop"
+    ? [H([["b", `¿Apagar ${v.name}?`]]), "", H([["v", "El disco se conserva; la IP externa efímera cambiará."]]), H([["dim", "132 procesos · 1 sesión SSH abierta"]]), "", H([" ".repeat(22), ["dim", "Esc cancelar"], "   ", ["tab", ` ⏎ ${verb} `]])]
+    : [H([["b", `¿Reiniciar ${v.name}?`]]), "", H([["v", "Es un reinicio forzado (reset): no espera a los procesos."]]), H([["dim", "Unos 30 s sin servicio"]]), "", H([" ".repeat(20), ["dim", "Esc cancelar"], "   ", ["tab", ` ⏎ ${verb} `]])];
+  m.innerHTML = `<div class="in" style="left:${2 * cw}px;top:${chh}px">${lines.map(l => `<div class="ln">${l || " "}</div>`).join("")}</div>`;
+  anim = false;
+}
+async function closeModal(ok) {
+  anim = true; const { el, kind, v } = modal; el.innerHTML = "";
+  const from = { ...el._r }, to = { x: from.x + from.w / 2 - 1, y: from.y + 3, w: 2, h: 1 };
+  await tween(140, p => { place(el, lerp(from, to, p)); backdrop.style.opacity = q(1 - p) * .45; });
+  el.remove(); backdrop.remove(); modal = null; anim = false; renderFooter();
+  if (ok) doAction(kind, v);
+}
+function doAction(kind, v) {
+  if (kind === "stop") {
+    v.status = "stopping"; render();
+    setTimeout(async () => {
+      while (anim) await new Promise(r => setTimeout(r, 50));
+      if (mode === "detail" && detailVm === v) await closeDetail();
+      v.status = "off"; v.up = "—"; v.rx = v.tx = 0;
+      if (selVm === v) selVm = v;
+      await relayout(); toast(`${v.name} apagada`);
+    }, 2400);
+  } else if (kind === "restart") {
+    v.status = "restarting"; render();
+    setTimeout(() => { v.status = "on"; v.up = "0 min"; render(); toast(`${v.name} reiniciada`); }, 2800);
+  } else if (kind === "start") {
+    v.status = "starting"; render();
+    setTimeout(async () => {
+      while (anim) await new Promise(r => setTimeout(r, 50));
+      v.status = "on"; v.up = "0 min";
+      for (let i = 0; i < 40; i++) v.cpu.push(i < 30 ? 0 : clamp(v.base + Math.random() * .1));
+      await relayout(); toast(`${v.name} encendida`);
+    }, 2400);
+  }
+}
+let toastTimer;
+async function toast(text) {
+  if (!toastEl) toastEl = mk("toast");
+  const w = text.length + 4, r = { x: COLS - w - 2, y: ROWS - 3, w, h: 1 };
+  toastEl.innerHTML = H([" ", ["v", "● "], text]); place(toastEl, r); toastEl.style.opacity = 0;
+  await tween(150, p => toastEl.style.opacity = q(p));
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => tween(200, p => toastEl.style.opacity = q(1 - p)), 2600);
+}
+
+/* ------------------------------------------------------------ keyboard */
+function move(dx, dy) {
+  const p = selVm.proj, list = colList(p), i = list.indexOf(selVm);
+  if (dy) { selVm = list[clamp(i + dy, 0, list.length - 1)]; }
+  if (dx) { const np = clamp(p + dx, 0, projects.length - 1), nl = colList(np); selVm = nl[clamp(i, 0, nl.length - 1)]; }
+  render();
+}
+term.addEventListener("keydown", ev => {
+  if (anim) { ev.preventDefault(); return; }
+  const k = ev.key;
+  if (modal) { if (k === "Enter") closeModal(true); else if (k === "Escape") closeModal(false); ev.preventDefault(); return; }
+  if (mode === "detail") {
+    const v = detailVm;
+    if (k === "Escape" || k === "q" || k === "Backspace") closeDetail();
+    else if (/^[1-7]$/.test(k)) setTab(+k - 1);
+    else if (k === "ArrowRight") setTab(tab + 1);
+    else if (k === "ArrowLeft") setTab(tab - 1);
+    else if (k === "x" && v.status === "on") confirmAction("stop", v);
+    else if (k === "r" && v.status === "on") confirmAction("restart", v);
+    else if (k === "h" && tab === 6) { range24 = !range24; renderDetail(false, "body"); }
+    else if (k === "c") toast(`ssh ${v.name}.${v.zone}.${projects[v.proj]} → terminal nueva (simulado)`);
+    else return;
+    ev.preventDefault(); return;
+  }
+  const v = selVm;
+  if (k === "ArrowUp") move(0, -1); else if (k === "ArrowDown") move(0, 1);
+  else if (k === "ArrowLeft") move(-1, 0); else if (k === "ArrowRight") move(1, 0);
+  else if (k === "Enter" && isCard(v)) openDetail(v);
+  else if (k === "s" && v.status === "off") doAction("start", v);
+  else if (k === "x" && v.status === "on") confirmAction("stop", v);
+  else if (k === "r" && v.status === "on") confirmAction("restart", v);
+  else if (k === "c" && v.status === "on") toast(`ssh ${v.name}.${v.zone}.${projects[v.proj]} → terminal nueva (simulado)`);
+  else if (k === "q") toast("q sale de la TUI");
+  else return;
+  ev.preventDefault();
+});
+term.addEventListener("mousedown", () => term.focus());
+
+/* ------------------------------------------------------------ start: the mosaic draws itself in */
+async function intro() {
+  anim = true;
+  const all = [...projEls, ...vms.map(v => v.el)];
+  all.forEach(e => e.style.opacity = 0);
+  render();
+  const order = [...projEls, ...vms.slice().sort((a, b) => a.el._r.y - b.el._r.y || a.proj - b.proj).map(v => v.el)];
+  await Promise.all(order.map((e, i) => new Promise(r => setTimeout(() => {
+    const r0 = e._r; const from = { ...r0, y: r0.y + 2 };
+    tween(260, p => { place(e, lerp(from, r0, p)); e.style.opacity = q(p); }).then(r);
+  }, i * 45))));
+  all.forEach(e => e.style.opacity = "");
+  anim = false;
+}
+document.fonts.ready.then(() => {
+  build(); intro(); term.focus();
+  setInterval(() => { tick(); if (!anim) { if (mode === "detail" && detailVm) renderDetail(false, "body"); } }, 1000);
+  setInterval(() => { if (!anim) { if (mode === "mosaic") render(); else { spinI++; renderHeader(); detailVm && (detailVm.el.firstChild.innerHTML = titleOf(detailVm)); } } }, 200);
+});
+</script>
+</body>
+</html>
