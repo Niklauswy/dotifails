@@ -65,6 +65,14 @@ class PaletteTests(unittest.TestCase):
 
 
 class AnimTests(unittest.TestCase):
+    def setUp(self):
+        # tests/media_support.py turns reduced motion on for the whole process when a
+        # media test is imported first; these tests need real motion.
+        env = patch.dict(os.environ)
+        env.start()
+        self.addCleanup(env.stop)
+        os.environ.pop('WYSUN_REDUCED_MOTION', None)
+
     def test_bezier_endpoints_and_monotonic(self):
         ease = anim.bezier([0.2, 0.0, 0.0, 1.0])
         self.assertAlmostEqual(ease(0.0), 0.0)
