@@ -105,3 +105,32 @@ class Instance:
             tags=[str(tag) for tag in (data.get('tags') or {}).get('items') or []],
             started=_epoch(data.get('lastStartTimestamp')),
         )
+
+
+@dataclass
+class Sample:
+    """One second of a VM's live metrics, computed from two consecutive probe lines."""
+    cpu: float                                   # 0..1, all cores
+    cores: list[float]                           # 0..1 per core
+    load: tuple[float, float, float]
+    ram_used_gb: float
+    ram_total_gb: float
+    cache_gb: float
+    swap_used_gb: float
+    swap_total_gb: float
+    rx_mbs: float
+    tx_mbs: float
+    read_mbs: float
+    write_mbs: float
+    mounts: list[tuple[str, float, float]]       # (mount, used_gb, size_gb)
+    uptime_s: int
+    top: list[tuple[int, float, float, str]]     # (pid, cpu %, ram_gb, command)
+
+
+@dataclass
+class TabData:
+    """The answer of one on-demand tab command run over SSH."""
+    kind: str                                    # 'ports' | 'journal' | 'docker' | 'failed' | 'du'
+    lines: list[str]
+    limited: bool = False                        # ran without sudo: some data needs permissions
+    error: str | None = None
