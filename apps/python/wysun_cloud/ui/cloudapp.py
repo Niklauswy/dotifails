@@ -167,6 +167,12 @@ class CloudApp(App):
 
         self.probes: dict[str, ssh.ProbeSession] = {}
         self._running: set[tuple[str, str]] = set()
+        # In-flight start/stop/reset per VM alias (independent of the VmView objects,
+        # which a refresh may replace): a VM never gets a second action until it ends.
+        self.actions: dict[str, str] = {}
+        self._refresh_again = False          # an action finished while a refresh ran
+        self._action_gen = 0                 # bumped when an action ends
+
         self._vm_layers: dict[str, _VmLayer] = {}
         self.title_layers: dict[str, _Panel] = {}
         self.header: _Panel | None = None
@@ -267,10 +273,13 @@ class CloudApp(App):
         canvas.text(3, 0, text, Style(fg=palette['onSurface']))
 
     # -- inventory and refresh -------------------------------------------
-    def _refresh(self, discover: bool = False) -> None:
+    def _refresh(self, discover: bool = False, after_action: bool = False) -> None:
         if self.refreshing:
+            if after_action:
+                self._refresh_again = True   # run again once this one lands
             return
         self.refreshing = True
+        self._refresh_gen = self._action_gen
         self.invalidate()
 
         def work():
@@ -287,14 +296,25 @@ class CloudApp(App):
 
         threading.Thread(target=work, daemon=True).start()
 
+    def _refresh_follow_up(self) -> bool:
+        if self._refresh_again:
+            self._refresh_again = False
+            self.after(0, self._refresh)
+            return True
+        return False
+
     def _refresh_failed(self, message: str) -> None:
         self.refreshing = False
+        self._refresh_follow_up()
         self.error_message = message
         self.stale = bool(self.views)
         self.invalidate()
 
     def _refresh_done(self, projects, instances, messages) -> None:
         self.refreshing = False
+        stale_answer = getattr(self, '_refresh_gen', self._action_gen) != self._action_gen
+        if self._refresh_follow_up() and stale_answer:
+            return                            # read before the action ended: the next one counts
         self.loaded_at = time.time()
         if messages and not instances and self.views:
             # Nothing answered: keep what the last good refresh painted.
@@ -345,6 +365,8 @@ class CloudApp(App):
                 view = self._new_view(inst)
                 self._add_vm_layer(inst.alias)
             view.inst = inst
+            verb = self.actions.get(inst.alias)
+            view.busy = BUSY_TEXT[verb] if verb else None
             views.append(view)
         self.views = views
         known = {view.inst.alias for view in views}
@@ -402,7 +424,12 @@ class CloudApp(App):
         for view in self.views:
             alias = view.inst.alias
             if view.inst.running:
-                if alias not in self.probes:
+                session = self.probes.get(alias)
+                if session is not None and (session.inst.external_ip, session.inst.internal_ip) \
+                        != (view.inst.external_ip, view.inst.internal_ip):
+                    self._stop_probe(alias)          # new IP after a stop/start: reconnect there
+                    session = None
+                if session is None:
                     self._start_probe(view)
             else:
                 self._stop_probe(alias)
@@ -571,7 +598,6 @@ class CloudApp(App):
         self.tab_slide = 0
         self.detail_scroll = 0
         self.reveal = 0
-        self._running = {key for key in self._running if key[0] != alias}
         # On-demand data is read again on every open (the plan's "once per open").
         self.detail_data.pop(alias, None)
         self._detail(alias)
@@ -726,6 +752,7 @@ class CloudApp(App):
 
         def done(result):
             self._running.discard(key)
+            data = self._detail(alias)               # the current open, not the one that asked
             data.tabs[kind] = result
             if result.error:
                 data.errors[kind] = result.error
@@ -752,8 +779,9 @@ class CloudApp(App):
                 'operations': lambda: self.gcloud.operations(view.inst)}[kind]
 
         def apply(value):
-            setattr(data, kind, value)
-            data.errors.pop(kind, None)
+            current = self._detail(alias)
+            setattr(current, kind, value)
+            current.errors.pop(kind, None)
 
         self._gcloud_async(alias, key, call, apply)
 
@@ -771,9 +799,10 @@ class CloudApp(App):
             return
 
         def apply(points):
-            data.history = data.history or {}
-            data.history[hours] = points
-            data.errors.pop('history', None)
+            current = self._detail(alias)
+            current.history = current.history or {}
+            current.history[hours] = points
+            current.errors.pop('history', None)
 
         self._gcloud_async(alias, key,
                            lambda: monitoring.cpu_history(self.gcloud, view.inst, hours),
@@ -797,7 +826,8 @@ class CloudApp(App):
             if outcome[0] == 'ok':
                 apply(outcome[1])
             else:
-                data.errors[key[1]] = outcome[1]
+                name = 'history' if str(key[1]).startswith('history') else key[1]
+                data.errors[name] = outcome[1]
             self.invalidate()
 
         threading.Thread(target=work, daemon=True).start()
@@ -834,9 +864,10 @@ class CloudApp(App):
 
     # -- actions ----------------------------------------------------------
     def _start_action(self, view: VmView, verb: str) -> None:
-        if view.busy is not None:
-            return
         alias = view.inst.alias
+        if view.busy is not None or alias in self.actions:
+            return
+        self.actions[alias] = verb
         view.busy = BUSY_TEXT[verb]
         self.invalidate()
         argv = [self.gcloud.executable, *self.gcloud.action_argv(verb, view.inst), '--quiet']
@@ -848,11 +879,14 @@ class CloudApp(App):
         try:
             holder['child'] = self.spawn(argv, lambda line: None, done)
         except OSError:
+            self.actions.pop(alias, None)
             view.busy = None
             self._toast('No encontré gcloud')
             self.invalidate()
 
     def _action_done(self, alias: str, verb: str, code: int, child) -> None:
+        self.actions.pop(alias, None)
+        self._action_gen += 1                 # any refresh read before now is stale
         view = self._view(alias)
         if view is not None:
             view.busy = None
@@ -860,12 +894,13 @@ class CloudApp(App):
         if code == 0:
             self._toast(f'{name} {PAST_TEXT[verb]}')
             self.pending_relayout = True
-            self._refresh()
+            self._refresh(after_action=True)
             return
         last = ''
         if child is not None and child.stderr_tail:
             last = child.stderr_tail[-1].strip()
         self._toast(truncate(last or 'gcloud falló', TOAST_WIDTH))
+        self._refresh(after_action=True)      # show the real state again
         self.invalidate()
 
     def _launch_ssh(self, view: VmView) -> None:
@@ -1316,6 +1351,8 @@ class CloudApp(App):
     # -- resize and theme -------------------------------------------------
     def on_resize(self, width: int, height: int) -> None:
         self.animator.finish_all()
+        if self.intro_running:
+            self._intro_finish()                     # pending staggered steps become no-ops
         if self.header is not None:
             self.header.rect = Rect(0, 0, width, 1)
         if self.footer is not None:

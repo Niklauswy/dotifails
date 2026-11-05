@@ -155,6 +155,86 @@ class CloudAppTests(unittest.TestCase):
         app.run_for(1.5)
         self.assertGreater(sum('du -x' in line for line in self.ssh_log_lines()), before)
 
+    # -- review regressions ------------------------------------------------
+    def test_a_vm_never_gets_a_second_action_while_one_runs(self):
+        os.environ['FAKE_GCLOUD_SLEEP'] = '3'
+        self.seed_cache()
+        app, term = self.make_app()
+        app.step()
+        app._start_action(app._view(API), 'stop')
+        others = [inst for inst in all_instances() if inst.alias != API]
+        app._set_inventory(PROJECTS, others)              # the VM vanishes from a refresh...
+        app._set_inventory(PROJECTS, all_instances())     # ...and comes back as a new view
+        self.assertIsNotNone(app._view(API).busy)
+        app._start_action(app._view(API), 'reset')
+        app.run_for(0.3)
+        actions = [line for line in self.gcloud_calls() if 'compute instances' in line
+                   and (' stop ' in line or ' reset ' in line)]
+        self.assertEqual(len(actions), 1)
+
+    def test_a_refresh_read_before_an_action_ended_is_not_applied(self):
+        self.seed_cache()
+        app, term = self.make_app()
+        app.step()
+        app.refreshing = True
+        app._refresh_gen = app._action_gen
+        app._action_done(API, 'stop', 0, None)            # the action ends mid-refresh
+        self.assertTrue(app._refresh_again)
+        before = app.loaded_at
+        stopped = [inst for inst in all_instances() if inst.alias != API]
+        app._refresh_done(PROJECTS, stopped, {})           # the stale answer lands
+        self.assertEqual(app.loaded_at, before)
+        self.assertIsNotNone(app._view(API))
+
+    def test_probe_follows_a_new_external_ip(self):
+        self.seed_cache()
+        app, term = self.make_app()
+        self.settle(app, term)
+        moved = []
+        for inst in all_instances():
+            if inst.alias == API:
+                inst = Instance(**{**inst.__dict__, 'external_ip': '203.0.113.99'})
+            moved.append(inst)
+        app._set_inventory(PROJECTS, moved)
+        self.assertEqual(app.probes[API].inst.external_ip, '203.0.113.99')
+
+    def test_reopening_the_detail_does_not_pile_up_tab_commands(self):
+        os.environ['FAKE_SSH_LINE_DELAY'] = '5'        # every ssh call stays in flight
+        self.seed_cache()
+        app, term = self.make_app()
+        self.settle(app, term)
+        for _ in range(5):
+            self.press(app, term, b'\r')
+            self.press(app, term, b'\x1b')
+        journal = [line for line in self.ssh_log_lines() if 'journalctl' in line]
+        # One request: the sudo -n try (the fake refuses it at once) and its plain retry.
+        self.assertEqual(sum('sudo -n' in line for line in journal), 1)
+        self.assertEqual(sum('sudo -n' not in line for line in journal), 1)
+
+    def test_resize_during_the_intro_snaps_to_the_new_layout(self):
+        os.environ['WYSUN_REDUCED_MOTION'] = '0'
+        os.environ['FAKE_GCLOUD_SLEEP'] = '3'          # no refresh re-snaps the layout meanwhile
+        self.seed_cache()
+        app, term = self.make_app()
+        app.step()
+        term.resize(140, 40)
+        app.run_for(1.0)
+        rects = app._layout_rects()
+        for alias, layer in app._vm_layers.items():
+            if alias in rects:
+                self.assertEqual(tuple(layer.rect), tuple(rects[alias]))
+
+    def test_monitoring_failure_is_shown_in_historial(self):
+        self.seed_cache()
+        app, term = self.make_app()
+        self.settle(app, term)
+        error = cloudapp.GcloudError('Monitoring respondió 403')
+        with mock.patch.object(cloudapp.monitoring, 'cpu_history', side_effect=error):
+            self.press(app, term, b'\r')
+            self.press(app, term, b'7')
+            app.run_for(0.5)
+        self.assertIn('Monitoring respondió 403', frame_text(term))
+
     def test_open_animation_grows_the_card(self):
         os.environ.pop('WYSUN_REDUCED_MOTION', None)
         self.seed_cache()
