@@ -31,6 +31,7 @@ from wysun_core.tui.app import App, Dim, Layer
 from wysun_core.tui.canvas import Style
 from wysun_core.tui.draw import box, truncate
 from wysun_core.tui.keys import Key, Mouse
+from wysun_core.tui import kit
 
 from wysun_cloud import cache, inventory, monitoring, ssh
 from wysun_cloud.gcloud import Gcloud, GcloudError
@@ -127,7 +128,9 @@ class _VmLayer(Layer):
 
 
 class CloudApp(App):
-    """The full-screen Wysun Cloud terminal app."""
+    """The full-screen Wysun Cloud terminal app (transparent, on the shared ``kit`` look)."""
+
+    transparent = True
 
     def __init__(self, term=None, home=None, gcloud=None):
         super().__init__(term=term, home=home)
@@ -162,8 +165,7 @@ class CloudApp(App):
         self.filter_active = False
         self.help_open = False
         self.modal: dict | None = None
-        self.toast_text = ''
-        self.help_layer: _Panel | None = None
+        self.help_layer: kit.HelpLayer | None = None
 
         self.probes: dict[str, ssh.ProbeSession] = {}
         self._running: set[tuple[str, str]] = set()
@@ -177,12 +179,11 @@ class CloudApp(App):
         self.title_layers: dict[str, _Panel] = {}
         self.header: _Panel | None = None
         self.footer: _Panel | None = None
-        self.toast_layer: _Panel | None = None
+        self.toast_layer: kit.Toast | None = None
 
         self.intro_done = False
         self.intro_running = False
         self._last_click: tuple[str, float] | None = None
-        self._toast_timer = None
 
     # -- lifecycle --------------------------------------------------------
     def on_start(self) -> None:
@@ -220,33 +221,32 @@ class CloudApp(App):
         self.header = _Panel(Rect(0, 0, width, 1), self._draw_header, z=70)
         self.footer = _Panel(Rect(0, height - 1, width, 1), self._draw_footer, z=70)
         self.layers.extend([self.header, self.footer])
-        self.toast_layer = _Panel(Rect(0, 0, 1, 1), self._draw_toast, z=130,
-                                  visible=False)
-        self.layers.append(self.toast_layer)
+        self.toast_layer = kit.Toast()
+        self.help_layer = kit.HelpLayer(lambda: HELP_LINES)
+        self.layers.extend([self.toast_layer, self.help_layer])
+
+    @property
+    def toast_text(self) -> str:
+        layer = self.toast_layer
+        return layer.text if layer is not None and layer.visible else ''
 
     def _draw_header(self, canvas, palette) -> None:
-        width = canvas.width
+        s = kit.Painter(palette)
         age = int(max(0.0, time.time() - self.loaded_at)) if self.loaded_at else 0
-        right = '⟳ actualizando…' if self.refreshing else f'⟳ {age} s'
+        status = f'{kit.GLYPH["refresh"]} actualizando…' if self.refreshing else f'{kit.GLYPH["refresh"]} {age} s'
+        role = 'primary' if self.refreshing else ('success' if self.loaded_at else 'outline')
         view = self._view(self.detail_alias) if self.mode == 'detail' else None
         if view is not None:
-            chip = ' ☁ Wysun Cloud '
-            canvas.text(1, 0, chip, Style(fg=palette['onPrimary'], bg=palette['primary'],
-                                         bold=True))
-            path = f'  mosaico › {view.inst.project} › {view.inst.name}'
-            room = max(0, width - 1 - len(chip) - len(right) - 2)
-            canvas.text(1 + len(chip), 0, truncate(path, room),
-                        Style(fg=palette['onSurfaceVariant']))
-            if len(right) <= width - 2:
-                canvas.text(width - 1 - len(right), 0, right,
-                            Style(fg=palette['onSurfaceVariant']))
+            kit.header(canvas, s, 'Wysun Cloud', kit.GLYPH['cloud'], trail=['mosaico', view.inst.project, view.inst.name],
+                       status=status, status_role=role)
             return
-        mosaic_ui.draw_header(canvas, width, self.views, palette, age, self.refreshing)
+        kit.header(canvas, s, 'Wysun Cloud', kit.GLYPH['cloud'], note=mosaic_ui.summary(self.views),
+                   status=status, status_role=role)
 
     def _draw_footer(self, canvas, palette) -> None:
         if self.filter_active:
-            text = f'Filtro: {self.filter}▏'
-            canvas.text(1, 0, truncate(text, max(0, canvas.width - 2)),
+            text = f'{kit.GLYPH["search"]} {self.filter}▏'
+            canvas.text(2, 0, truncate(text, max(0, canvas.width - 3)),
                         Style(fg=palette['primary'], bold=True))
             hint = 'Esc borrar · ⏎ aplicar'
             if len(hint) + 2 < canvas.width:
@@ -261,16 +261,7 @@ class CloudApp(App):
                 hints.append(('h', '24 h / 7 d'))
         else:
             hints = MOSAIC_HINTS
-        mosaic_ui.draw_footer(canvas, canvas.width, 1, hints, palette)
-
-    def _draw_toast(self, canvas, palette) -> None:
-        canvas.fill(Rect(0, 0, canvas.width, canvas.height), ' ',
-                    Style(bg=palette['surfaceContainerHigh']))
-        box(canvas, Rect(0, 0, canvas.width, canvas.height),
-            Style(fg=palette['outlineVariant']))
-        text = truncate(self.toast_text, max(0, canvas.width - 4))
-        canvas.text(1, 0, '●', Style(fg=palette['primary']))
-        canvas.text(3, 0, text, Style(fg=palette['onSurface']))
+        kit.footer(canvas, kit.Painter(palette), hints)
 
     # -- inventory and refresh -------------------------------------------
     def _refresh(self, discover: bool = False, after_action: bool = False) -> None:
@@ -1020,86 +1011,19 @@ class CloudApp(App):
 
     # -- help -------------------------------------------------------------
     def _toggle_help(self, open: bool) -> None:
-        if open and self.help_layer is None:
-            width, height = self.size
-            w = min(52, max(20, width - 4))
-            h = min(len(HELP_LINES) + 3, max(6, height - 2))
-            rect = Rect(max(0, (width - w) // 2), max(0, (height - h) // 2), w, h)
-            self.help_layer = _Panel(rect, self._draw_help, z=120)
-            self.layers.append(self.help_layer)
-            self.help_open = True
-        elif not open and self.help_layer is not None:
-            if self.help_layer in self.layers:
-                self.layers.remove(self.help_layer)
-            self.help_layer = None
-            self.help_open = False
-        self.invalidate()
-
-    def _draw_help(self, canvas, palette) -> None:
-        canvas.fill(Rect(0, 0, canvas.width, canvas.height), ' ',
-                    Style(bg=palette['surfaceContainerHigh']))
-        box(canvas, Rect(0, 0, canvas.width, canvas.height),
-            Style(fg=palette['outlineVariant']), title_segments=[
-                (' Ayuda ', Style(fg=palette['onSurface'], bold=True))])
-        key_style = Style(fg=palette['primary'], bold=True)
-        label_style = Style(fg=palette['onSurfaceVariant'])
-        for index, (key, label) in enumerate(HELP_LINES):
-            row = 1 + index
-            if row >= canvas.height - 1:
-                break
-            canvas.text(2, row, truncate(key, 9), key_style)
-            canvas.text(12, row, truncate(label, max(0, canvas.width - 14)),
-                        label_style)
+        if self.help_layer is None:
+            return
+        self.help_open = open
+        if open:
+            self.help_layer.open(self)
+        else:
+            self.help_layer.close(self)
 
     # -- toast ------------------------------------------------------------
     def _toast(self, text: str) -> None:
-        self.toast_text = text
-        if self.toast_layer is None:
-            return
-        self._place_toast()
-        self.toast_layer.visible = True
-        self.toast_layer.opacity = 1.0
-        if self._toast_timer is not None:
-            self.cancel(self._toast_timer)
-            self._toast_timer = None
-        if not reduced_motion():
-            self.toast_layer.opacity = 0.0
-            self.animator.add(Tween(duration('expressiveFastEffects'),
-                                    curve('standardDecel'),
-                                    lambda t: setattr(self.toast_layer, 'opacity',
-                                                      fade_steps(t))))
-        self._toast_timer = self.after(TOAST_SECONDS, self._hide_toast)
-        self.invalidate()
+        if self.toast_layer is not None:
+            self.toast_layer.show(self, text, TOAST_SECONDS)
 
-    def _hide_toast(self) -> None:
-        self._toast_timer = None
-        if self.toast_layer is None:
-            return
-        if reduced_motion():
-            self.toast_layer.visible = False
-            self.invalidate()
-            return
-
-        def done():
-            if self.toast_layer is not None:
-                self.toast_layer.visible = False
-            self.invalidate()
-
-        self.animator.add(Tween(duration('expressiveFastEffects'),
-                                curve('standardAccel'),
-                                lambda t: setattr(self.toast_layer, 'opacity',
-                                                  fade_steps(1.0 - t)), done))
-
-    def _place_toast(self, snap: bool = True) -> None:
-        if self.toast_layer is None:
-            return
-        width, height = self.size
-        box_width = min(max(10, len(self.toast_text) + 6), max(10, width - 4))
-        x = max(0, width - box_width - 2)
-        y = max(0, height - 3)
-        self.toast_layer.rect = Rect(x, y, box_width, 1)
-
-    # -- input ------------------------------------------------------------
     def on_key(self, event: Key) -> None:
         if event.ctrl and event.name == 'c':
             self.quit()
@@ -1112,9 +1036,8 @@ class CloudApp(App):
             elif event.name == 'escape':
                 self._close_modal(False)
             return
-        if self.help_open:
-            if event.name in ('escape', 'q') or (event.name == 'char' and event.char == '?'):
-                self._toggle_help(False)
+        if self.help_open:          # any key closes it, as in every Wysun utility
+            self._toggle_help(False)
             return
         if self.filter_active:
             self._filter_key(event)
@@ -1377,11 +1300,8 @@ class CloudApp(App):
             self.modal['backdrop'].rect = Rect(0, 0, width, height)
             self.modal['layer'].rect = target
             self.modal['backdrop'].opacity = 0.45
-        if self.help_layer is not None:
-            w = min(52, max(20, width - 4))
-            h = min(len(HELP_LINES) + 3, max(6, height - 2))
-            self.help_layer.rect = Rect(max(0, (width - w) // 2),
-                                        max(0, (height - h) // 2), w, h)
+        if self.help_layer is not None and self.help_open:
+            self.help_layer.place(self)
         if self.toast_layer is not None:
-            self._place_toast()
+            self.toast_layer.place(self)
         self.invalidate()

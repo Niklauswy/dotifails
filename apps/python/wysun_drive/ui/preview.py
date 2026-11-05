@@ -19,8 +19,6 @@ from collections import OrderedDict
 ICON = {'dir': '', 'pdf': '', 'img': '', 'vid': '', 'audio': '', 'ppt': '',
         'doc': '', 'xls': '', 'zip': '', 'code': '', 'md': '', 'text': '',
         'file': ''}
-GLYPH = {'link': '', 'cloud': '', 'up': '', 'ok': '', 'lock': '', 'clock': '',
-         'copy': '', 'warn': '', 'eye': '', 'search': '', 'help': ''}
 # Palette role of each kind's icon.
 ROLE = {'dir': 'primary', 'pdf': 'error', 'img': 'tertiary', 'vid': 'tertiary', 'audio': 'tertiary',
         'ppt': 'secondary', 'doc': 'primary', 'xls': 'success', 'zip': 'secondary', 'code': 'secondary',

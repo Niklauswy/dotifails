@@ -21,8 +21,7 @@ from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
 from wysun_core import launch
-from wysun_core.tui import App, Layer, Rect
-from wysun_core.tui.anim import Tween, curve, duration, reduced_motion
+from wysun_core.tui import App, kit
 from wysun_core.tui.draw import truncate
 from wysun_drive import account, api, history, login, status
 from wysun_drive.cli import copy, generate_password, human_size, open_url
@@ -62,15 +61,6 @@ def _paths_from_paste(text):
     return found
 
 
-class _HelpLayer(Layer):
-    def __init__(self, app):
-        super().__init__(Rect(0, 0, 1, 1), z=60, visible=False)
-        self.app = app
-
-    def draw(self, canvas, palette):
-        view.help_box(self.app, canvas, view.Painter(palette))
-
-
 class DriveApp(App):
     transparent = True
 
@@ -94,8 +84,6 @@ class DriveApp(App):
         self.help = False
         self.recent: list[dict] = []
         self.recent_cursor = 0
-        self.toast_text = ''
-        self._toast_timer = None
         self.spin = 0
         self.quota_text = ''
         self.previews = Previews(self.invalidate)
@@ -129,8 +117,9 @@ class DriveApp(App):
 
     # -- lifecycle ---------------------------------------------------------
     def on_start(self):
-        self.help_layer = _HelpLayer(self)
-        self.layers.append(self.help_layer)
+        self.help_layer = kit.HelpLayer(lambda: view.help_lines(self))
+        self.toast_layer = kit.Toast()
+        self.layers.extend([self.help_layer, self.toast_layer])
         self._list()
         self.recent = history.load()
         self.every(0.12, self._tick)
@@ -145,6 +134,9 @@ class DriveApp(App):
         self.invalidate()
 
     def on_resize(self, width, height):
+        self.toast_layer.place(self)
+        if self.help:
+            self.help_layer.place(self)
         self.invalidate()
 
     # -- data --------------------------------------------------------------
@@ -189,15 +181,12 @@ class DriveApp(App):
         return str(self.cwd / name), is_dir, size
 
     def toast(self, text, seconds=3.0):
-        self.toast_text = text
-        if self._toast_timer is not None:
-            self.cancel(self._toast_timer)
-        self._toast_timer = self.after(seconds, self._clear_toast)
-        self.invalidate()
+        self.toast_layer.show(self, text, seconds)
 
-    def _clear_toast(self):
-        self.toast_text = ''
-        self.invalidate()
+    @property
+    def toast_text(self):
+        layer = getattr(self, 'toast_layer', None)
+        return layer.text if layer is not None and layer.visible else ''
 
     def _in_background(self, work, done=None, failed=None):
         """Run ``work()`` off the loop; ``done(result)`` / ``failed(message)`` back on it."""
@@ -226,9 +215,9 @@ class DriveApp(App):
         def done(value):
             used, available = value
             if available is None:
-                self.quota_text = f'{view.GLYPH["cloud"]} {human_size(used)} usados'
+                self.quota_text = f'{kit.GLYPH["cloud"]} {human_size(used)} usados'
             else:
-                self.quota_text = f'{view.GLYPH["cloud"]} {human_size(available)} libres de {human_size(used + available)}'
+                self.quota_text = f'{kit.GLYPH["cloud"]} {human_size(available)} libres de {human_size(used + available)}'
             self.invalidate()
         self._in_background(lambda: Client(acc).quota(), done, lambda message: None)
 
@@ -291,8 +280,7 @@ class DriveApp(App):
             return
         if self.help:
             self.help = False
-            self.help_layer.visible = False
-            self.invalidate()
+            self.help_layer.close(self)
             return
         if self.mode == 'uploading':
             if name == 'escape' and self.child is not None:
@@ -337,7 +325,7 @@ class DriveApp(App):
             return
         if name == 'char' and char == '?':
             self.help = True
-            self._show_help()
+            self.help_layer.open(self)
             return
         if name == 'char' and char == '/':
             self.filtering = True
@@ -355,23 +343,6 @@ class DriveApp(App):
             self._browse_key(name, char)
         else:
             self._recent_key(name, char)
-
-    def _show_help(self):
-        width, height = self.size
-        lines = len(view.help_lines(self))
-        w, h = min(64, width - 4), min(height - 4, lines + 4)
-        target = Rect((width - w) // 2, max(1, (height - h) // 2), w, h)
-        self.help_layer.visible = True
-        if reduced_motion():
-            self.help_layer.rect, self.help_layer.opacity = target, 1.0
-            self.invalidate()
-            return
-
-        def step(t):
-            self.help_layer.rect = Rect(target.x, target.y + round((1 - t) * 2), target.w, target.h)
-            self.help_layer.opacity = t
-        self.animator.add(Tween(duration('expressiveFastEffects'), curve('emphasizedDecel'), step))
-        self.invalidate()
 
     def _filter_key(self, name, char):
         if name == 'escape':
@@ -708,7 +679,7 @@ class DriveApp(App):
 
     # -- drawing -------------------------------------------------------------------
     def draw(self, canvas):
-        s = view.Painter(self.palette)
+        s = kit.Painter(self.palette)
         width, height = canvas.width, canvas.height
         view.header(self, canvas, s, width)
         if self.tab == 'login':
@@ -734,8 +705,7 @@ class DriveApp(App):
                 hints = RECENT_HINTS
             if self.filtering:
                 hints = FILTER_HINTS
-        if not view.toast(self, canvas, s, width, height):
-            view.hints(canvas, s, width, height, hints)
+        view.footer(self, canvas, s, hints)
 
     def _draw_login(self, canvas, s, width, height):
         server = urlsplit(account.settings()['server']).hostname or ''

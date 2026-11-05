@@ -19,6 +19,15 @@ apps/python/wysun_NOMBRE/
 - Datos y caché fuera del repositorio: `~/.cache/wysun/NOMBRE`, `~/.local/share/wysun/NOMBRE`, `~/.config/wysun/NOMBRE*`.
 - Añade el paquete a `PACKAGES` de `tests/test_python_layout.py` y una prueba en `tests/shell_bridge/test_dispatcher.py`.
 
+### Utilidades de terminal: la misma base
+
+Las utilidades con interfaz de terminal (Wysun Cloud, Wysun Drive y las que vengan) se hacen sobre `wysun_core.tui` y se ven y se manejan igual:
+
+- La app es **transparente** (`transparent = True` en la subclase de `App`): las celdas sin color propio no pintan fondo y se ve el Ghostty desenfocado. El Ghostty de Wysun usa `background-opacity-cells = true`, así que los chips, la fila elegida y los paneles con color también dejan ver el fondo.
+- Las piezas comunes salen de `wysun_core.tui.kit`: `header` (chip con icono Nerd Font, pestañas o ruta, y estado con punto de color a la derecha), `crumbs`, `footer` (teclas), `chip`, `Toast` (avisos en la fila del pie con fundido), `HelpLayer` (la ayuda de `?`, se cierra con cualquier tecla), `pixels` (imágenes en medios bloques `▀`) y `GLYPH`. Colores solo de la paleta (`kit.Painter`); movimiento con los tokens y sin animaciones con `WYSUN_REDUCED_MOTION=1`.
+- Convenciones de teclas: `?` ayuda, `/` filtrar, `Tab`/números para pestañas, `Esc` volver o cancelar, `q` salir.
+- `tests/tui/test_kit.py` comprueba que cada utilidad es transparente y usa `kit.Toast` y `kit.HelpLayer`; añade ahí la nueva.
+
 ## LANShare
 
 ```sh
@@ -58,7 +67,7 @@ wysun cloud --estado       # una lectura para la barra (silenciosa, siempre sale
 wysun cloud --terminal     # abre `wysun cloud` en una terminal nueva (lo usa la barra)
 ```
 
-Vigila las VMs de Compute Engine de todos tus proyectos y las enciende, apaga o reinicia. Un **mosaico** con una columna por proyecto: cada VM encendida es una tarjeta en vivo (CPU de los últimos 2 min, RAM, disco `/`, red, tiempo encendida, proceso que más consume) y cada VM apagada, una línea. `↵` abre el **detalle** con 7 pestañas: Resumen, Procesos, Disco, Red, Servicios, Registro e Historial. Colores del fondo de pantalla (claro u oscuro en vivo), animaciones con los tokens de Wysun (`WYSUN_REDUCED_MOTION=1` las quita).
+Vigila las VMs de Compute Engine de todos tus proyectos y las enciende, apaga o reinicia. Transparente sobre el Ghostty y con la base común de las utilidades de terminal (cabecera, avisos y ayuda de `wysun_core.tui.kit`). Un **mosaico** con una columna por proyecto: cada VM encendida es una tarjeta en vivo (CPU de los últimos 2 min, RAM, disco `/`, red, tiempo encendida, proceso que más consume) y cada VM apagada, una línea. `↵` abre el **detalle** con 7 pestañas: Resumen, Procesos, Disco, Red, Servicios, Registro e Historial. Colores del fondo de pantalla (claro u oscuro en vivo), animaciones con los tokens de Wysun (`WYSUN_REDUCED_MOTION=1` las quita).
 
 Teclas: `←↑↓→` elegir · `↵` detalle · `Esc`/`q` volver · `1`–`7` o `←→` pestaña · `x` apagar · `r` reiniciar · `s` encender · `c` SSH en una terminal · `h` 24 h / 7 días en Historial · `m` ordenar Procesos por RAM · `d` calcular `du` en Disco · `/` filtrar · `p` buscar proyectos ahora · `?` ayuda · `q` salir. Apagar y reiniciar piden confirmación; el ratón elige con un clic y abre con doble clic.
 

@@ -34,7 +34,7 @@ from .. import pricing
 from ..model import Instance, Sample
 
 __all__ = ['VmView', 'layout', 'project_titles', 'draw_mosaic', 'draw_card', 'draw_off',
-           'draw_header', 'draw_footer', 'navigate', 'format_uptime', 'fmt1']
+           'summary', 'navigate', 'format_uptime', 'fmt1']
 
 GAP = 2
 MIN_COLUMN_WIDTH = 34
@@ -471,40 +471,13 @@ def draw_off(canvas: Canvas, rect: Rect, view: VmView, palette, selected: bool,
 
 
 # -- header and footer ----------------------------------------------------
-def draw_header(canvas: Canvas, width: int, views: list[VmView], palette,
-                age_s: int, refreshing: bool) -> None:
-    """Row 0: the Wysun Cloud tab, the running/off counts, cost and data age."""
-    if width <= 0 or canvas.height <= 0:
-        return
-    canvas.fill(Rect(0, 0, width, 1), ' ', Style(bg=palette['surface']))
+def summary(views: list[VmView]) -> str:
+    """``4 encendidas · 3 apagadas · ≈ 0,29 USD/h`` for the header."""
     running = [view for view in views if view.inst.running]
     stopped = len(views) - len(running)
     cost = sum(pricing.hourly(view.inst.machine_type, view.inst.zone) or 0.0
                for view in running if not view.inst.spot)
-    summary = (f'{len(running)} encendidas · {stopped} apagadas · '
-               f'≈ {fmt2(cost)} USD/h')
-    _segments(canvas, 1, 0, max(0, width - 2),
-              [(' ☁ Wysun Cloud ', Style(fg=palette['onPrimary'], bg=palette['primary'], bold=True)),
-               ('  ', Style(fg=palette['onSurfaceVariant'])),
-               (summary, Style(fg=palette['onSurfaceVariant']))])
-    right = '⟳ actualizando…' if refreshing else f'⟳ {int(age_s)} s'
-    if len(right) <= width - 2:
-        canvas.text(width - 1 - len(right), 0, right, Style(fg=palette['onSurfaceVariant']))
-
-
-def draw_footer(canvas: Canvas, width: int, height: int, hints: list[tuple[str, str]],
-                palette) -> None:
-    """Last row: ``key label`` pairs from the prototype's shortcut bar."""
-    if width <= 0 or height <= 0:
-        return
-    y = height - 1
-    canvas.fill(Rect(0, y, width, 1), ' ', Style(bg=palette['surface']))
-    key_style = Style(fg=palette['primary'], bold=True)
-    label_style = Style(fg=palette['onSurfaceVariant'])
-    segments = []
-    for key, label in hints:
-        segments.extend([(key, key_style), (' ', label_style), (label, label_style), ('  ', label_style)])
-    _segments(canvas, 1, y, max(0, width - 2), segments)
+    return f'{len(running)} encendidas · {stopped} apagadas · ≈ {fmt2(cost)} USD/h'
 
 
 # -- the whole static mosaic ----------------------------------------------

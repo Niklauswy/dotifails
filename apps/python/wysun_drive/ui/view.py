@@ -11,23 +11,16 @@ import time
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from wysun_core.tui import Rect, Style
+from wysun_core.tui import Rect, kit
 from wysun_core.tui.draw import bar, box, braille_graph, spinner_frame, truncate
+from wysun_core.tui.kit import GLYPH, Painter  # noqa: F401  (Painter is part of this module's API)
 from wysun_drive import account, history
 from wysun_drive.cli import human_size
 from wysun_drive.ui import preview
-from wysun_drive.ui.preview import GLYPH, ICON, ROLE
+from wysun_drive.ui.preview import ICON, ROLE
 
 NARROW = 100
 DAYS = (None, 1, 7, 30)
-
-
-class Painter:
-    def __init__(self, palette):
-        self.p = palette
-
-    def __call__(self, fg=None, bg=None, **kw):
-        return Style(fg=self.p[fg] if fg else None, bg=self.p[bg] if bg else None, **kw)
 
 
 # -- geometry -----------------------------------------------------------------
@@ -43,23 +36,14 @@ def panes(width, height, mode):
 
 # -- chrome -------------------------------------------------------------------
 def header(app, c, s, width):
-    chip = f' {GLYPH["cloud"]} Wysun Drive '
-    c.text(1, 0, chip, s('onPrimary', 'primary', bold=True))
-    x = 2 + len(chip)
-    if app.tab != 'login':
-        for key, label, tab in (('1', 'Subir', 'browse'), ('2', 'Recientes', 'recent')):
-            text = f' {key} {label} '
-            c.text(x, 0, text, s('onSecondaryContainer', 'secondaryContainer', bold=True) if app.tab == tab
-                   else s('onSurfaceVariant'))
-            x += len(text) + 1
     if app.account:
-        who = f'{app.account.user} · {urlsplit(app.account.server).hostname} '
-        dot_role = 'primary' if app.mode == 'uploading' else 'success'
+        status = f'{app.account.user} · {urlsplit(app.account.server).hostname}'
+        role = 'primary' if app.mode == 'uploading' else 'success'
     else:
-        who, dot_role = 'sin sesión ', 'outline'
-    if x + len(who) + 4 < width:
-        c.text(width - 1 - len(who), 0, who, s('onSurfaceVariant'))
-        c.text(width - 3 - len(who), 0, '●', s(dot_role))
+        status, role = 'sin sesión', 'outline'
+    tabs = None if app.tab == 'login' else ['Subir', 'Recientes']
+    kit.header(c, s, 'Wysun Drive', GLYPH['cloud'], tabs=tabs, active=0 if app.tab == 'browse' else 1,
+               status=status, status_role=role)
 
 
 def crumbs(app, c, s, width):
@@ -79,42 +63,11 @@ def crumbs(app, c, s, width):
             right = app.quota_text
     if app.filtering or app.filter_text:
         right = f'{GLYPH["search"]} {app.filter_text}' + ('▏' if app.filtering else '')
-    room = max(10, width - len(right) - 6)
-    text_parts = list(parts)
-    while sum(len(p) + 3 for p in text_parts) > room and len(text_parts) > 2:
-        text_parts.pop(1 if text_parts[1] != '…' else 2)
-        if text_parts[1] != '…':
-            text_parts.insert(1, '…')
-    x = 2
-    for i, part in enumerate(text_parts):
-        last = i == len(text_parts) - 1
-        c.text(x, 1, truncate(part, room), s('onSurface', bold=True) if last else s('onSurfaceVariant'))
-        x += min(len(part), room)
-        if not last:
-            c.text(x, 1, ' › ', s('outline'))
-            x += 3
-    if right:
-        right = truncate(right, max(0, width - x - 4))
-        c.text(width - 2 - len(right), 1, right, s('primary' if app.filtering else 'onSurfaceVariant'))
+    kit.crumbs(c, s, 1, parts, right, 'primary' if app.filtering else 'onSurfaceVariant')
 
 
-def hints(c, s, width, height, items):
-    x = 2
-    for key, label in items:
-        chunk = len(key) + len(label) + 3
-        if x + chunk > width - 1:
-            break
-        c.text(x, height - 1, key, s('primary', bold=True))
-        c.text(x + len(key) + 1, height - 1, label, s('onSurfaceVariant'))
-        x += chunk
-
-
-def toast(app, c, s, width, height):
-    if not app.toast_text:
-        return False
-    c.text(2, height - 1, '●', s('primary'))
-    c.text(4, height - 1, truncate(app.toast_text, width - 6), s('onSurface'))
-    return True
+def footer(app, c, s, items):
+    kit.footer(c, s, items)      # a toast (kit.Toast layer) covers this row while it shows
 
 
 def tray(app, c, s, width, height):
@@ -214,9 +167,7 @@ def draw_preview(app, c, s, x, y, cols, rows, path):
         return 1
     kind = item['kind']
     if kind == 'image':
-        for r, line in enumerate(item['pixels']):
-            for col, (top, bottom) in enumerate(line):
-                c.put(x + col, y + r, '▀', Style(fg=top, bg=bottom))   # theme-exception: preview pixels
+        kit.pixels(c, x, y, item['pixels'])
         return len(item['pixels'])
     if kind == 'text':
         for r, line in enumerate(item['lines'][:rows]):
@@ -467,16 +418,3 @@ def help_lines(app):
             ('l', 'con o sin link'), ('p', 'contraseña del link'), ('d', 'caducidad: no · 1 · 7 · 30 días'),
             ('/', 'filtrar'), ('.', 'archivos ocultos'), ('pegar rutas', 'las marca'), ('Tab · 1 · 2', 'pestañas'),
             ('Esc', 'cancelar la subida'), ('b', 'subida en segundo plano'), ('q', 'salir')]
-
-
-def help_box(app, c, s):
-    lines = help_lines(app)
-    c.fill(Rect(0, 0, c.width, c.height), ' ', s(bg='surfaceContainerHigh'))
-    box(c, Rect(0, 0, c.width, c.height), s('outlineVariant', 'surfaceContainerHigh'),
-        [(f' {GLYPH["help"]} Teclas ', s('onSurface', 'surfaceContainerHigh', bold=True))])
-    for i, (key, label) in enumerate(lines):
-        y = 2 + i
-        if y >= c.height - 1:
-            break
-        c.text(3, y, key, s('primary', 'surfaceContainerHigh', bold=True))
-        c.text(20, y, truncate(label, c.width - 23), s('onSurface', 'surfaceContainerHigh'))

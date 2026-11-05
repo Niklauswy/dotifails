@@ -300,7 +300,7 @@ def draw_detail_header(canvas: Canvas, rect, view: VmView, palette, tab: int,
     boxes = []
     if height >= 3:
         index = max(0, min(len(TABS) - 1, int(tab)))
-        styles = {'active': Style(fg=palette['onPrimary'], bg=palette['primary'], bold=True),
+        styles = {'active': Style(fg=palette['onSecondaryContainer'], bg=palette['secondaryContainer'], bold=True),
                   'normal': _muted(palette)}
         boxes = tabs(canvas, x, y + 2, TABS, index, styles, badges)
     if height >= 4:
