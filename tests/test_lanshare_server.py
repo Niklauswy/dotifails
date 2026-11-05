@@ -85,6 +85,31 @@ class ServerTests(unittest.TestCase):
         self.assertEqual(s.request('POST', '/api/mkdir?dir=&name=Nueva')[0].status, 403)
         self.assertFalse((self.folder / 'n.txt').exists())
 
+    def test_a_refused_upload_body_is_never_read_as_the_next_request(self):
+        s = Running(self, [self.folder])
+        body = b'GET /raw/x.txt HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n'
+        with socket.create_connection(('127.0.0.1', s.port), timeout=5) as conn:
+            conn.sendall(f'PUT /api/upload?dir=&name=n.txt HTTP/1.1\r\nHost: 127.0.0.1:{s.port}\r\nX-Wysun: 1\r\n'
+                         f'Content-Length: {len(body)}\r\n\r\n'.encode() + body)
+            received = b''
+            while chunk := conn.recv(65536):      # the server closes the connection after its answer
+                received += chunk
+        self.assertTrue(received.startswith(b'HTTP/1.1 403'))
+        self.assertNotIn(b'hola mundo', received)
+
+    def test_listing_does_not_wait_for_slow_media_details(self):
+        from concurrent.futures import Future
+        (self.folder / 'clip.mp4').write_bytes(b'v')
+        s = Running(self, [self.folder])
+        slow = Future()
+        with mock.patch.object(server, 'PROBE_WAIT', 0.05), mock.patch.object(server.media, 'probe_soon', return_value=slow):
+            listing = json.loads(s.request('GET', '/api/ls?path=')[1])
+            self.assertTrue(listing['pending'])
+            slow.set_result({'duration': 12.0})
+            listing = json.loads(s.request('GET', '/api/ls?path=')[1])
+        self.assertFalse(listing['pending'])
+        self.assertEqual(next(e for e in listing['entries'] if e['name'] == 'clip.mp4')['duration'], 12.0)
+
     def test_upload_with_option(self):
         s = Running(self, [self.folder], uploads=True)
         notify = mock.patch.object(server, 'notify').start()

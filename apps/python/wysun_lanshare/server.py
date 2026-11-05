@@ -26,7 +26,7 @@ import time
 import urllib.parse
 import uuid
 import zipfile
-from concurrent.futures import ThreadPoolExecutor
+from concurrent import futures
 
 from wysun_core.jsonio import atomic_path
 from wysun_lanshare import media, net, options as opts, status, webtheme
@@ -36,6 +36,7 @@ STATIC = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
 CHUNK = 1024 * 1024
 PORT_TRIES = 20
 MAX_FAILS = 5
+PROBE_WAIT = 2.0                         # seconds a listing waits for ffprobe
 BLOCK_SECONDS = 60
 COOKIE = 'wysun_lanshare'
 LAN_SUFFIXES = ('.local', '.lan', '.home', '.internal', '.localdomain', '.home.arpa')
@@ -190,6 +191,9 @@ class Handler(BaseHTTPRequestHandler):
 
     # -- helpers
     def send_bytes(self, data, ctype, status_code=200, extra=None):
+        if status_code >= 400 and self.command in ('PUT', 'POST'):
+            # A refused write leaves its body unread: on this connection it would be read as the next request.
+            self.close_connection = True
         self.send_response(status_code)
         self.send_header('Content-Type', ctype)
         self.send_header('Content-Length', str(len(data)))
@@ -320,8 +324,10 @@ class Handler(BaseHTTPRequestHandler):
         if self.app.gate.password is None:
             return self.send_json({'ok': True})
         try:
-            length = min(int(self.headers.get('Content-Length', '0')), 4096)
-            attempt = json.loads(self.rfile.read(length) or b'{}').get('clave', '')
+            declared = int(self.headers.get('Content-Length', '0'))
+            if declared > 4096:
+                self.close_connection = True       # the rest of the body is never read
+            attempt = json.loads(self.rfile.read(max(0, min(declared, 4096))) or b'{}').get('clave', '')
         except (ValueError, AttributeError):
             attempt = ''
         result = self.app.gate.check(self.ip(), str(attempt))
@@ -341,16 +347,24 @@ class Handler(BaseHTTPRequestHandler):
             return self.fail(404, 'Carpeta no encontrada')
         except PermissionError:
             return self.fail(403, 'Sin permiso')
-        media_items = [e for e in entries if e['kind'] in ('video', 'audio')]
-        if media_items and len(media_items) <= 500:
-            base = rel.strip('/')
-            with ThreadPoolExecutor(8) as pool:
-                found = pool.map(lambda e: self.app.share.resolve(f'{base}/{e["name"]}' if base else e['name']), media_items)
-                metas = pool.map(lambda p: media.probe(p) if p else {}, list(found))
-                for entry, meta in zip(media_items, metas):
-                    entry.update(meta)
-        self.send_json({'path': rel.strip('/'), 'title': self.app.share.title, 'mode': self.app.share.mode,
-                        'entries': entries, 'uploads': self.app.uploads})
+        # Durations and quality: what ffprobe answers within PROBE_WAIT; the rest keeps going in the background
+        # and 'pending' tells the page to ask again.
+        base = rel.strip('/')
+        probing = []
+        for entry in entries:
+            if entry['kind'] in ('video', 'audio'):
+                real = self.app.share.resolve(f'{base}/{entry["name"]}' if base else entry['name'])
+                if real:
+                    probing.append((entry, media.probe_soon(real)))
+        futures.wait([f for _, f in probing], timeout=PROBE_WAIT)
+        pending = False
+        for entry, future in probing:
+            if future.done() and not future.exception():
+                entry.update(future.result())
+            else:
+                pending = pending or not future.done()
+        self.send_json({'path': base, 'title': self.app.share.title, 'mode': self.app.share.mode,
+                        'entries': entries, 'uploads': self.app.uploads, 'pending': pending})
 
     def api_image(self, kind):
         p = self.app.share.resolve(self.query().get('path', ''))

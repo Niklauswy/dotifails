@@ -54,6 +54,15 @@ class ShareTests(unittest.TestCase):
         with self.assertRaises(LookupError):
             share.listing('../')
 
+    def test_a_hidden_file_shared_on_purpose_can_be_opened(self):
+        share = Share([str(self.folder / '.oculto'), str(self.folder / 'nota.txt')])
+        self.assertEqual(share.resolve('.oculto'), str(self.folder / '.oculto'))
+        self.assertIn('.oculto', self.names(share))
+        alone = Share([str(self.folder / '.oculto')])
+        self.assertEqual(alone.resolve('.oculto'), str(self.folder / '.oculto'))
+        whole = Share([str(self.folder), str(self.base / 'a')])
+        self.assertIsNone(whole.resolve('Videos/.oculto'), 'what is inside a shared folder stays hidden')
+
     def test_list_mode_with_same_names(self):
         share = Share([str(self.base / 'a' / 'foto.jpg'), str(self.base / 'b' / 'foto.jpg'), str(self.folder)])
         self.assertEqual(share.mode, 'list')

@@ -1,10 +1,13 @@
 """Media details for the page: ffprobe metadata, thumbnails and hover sprites (ffmpeg), cached
 under ~/.cache/wysun/lanshare."""
+from concurrent.futures import Future
 import hashlib
 import json
 import os
+import queue
 import subprocess
 import threading
+import time
 
 from wysun_core import paths
 from wysun_core.jsonio import atomic_path
@@ -13,12 +16,29 @@ from wysun_lanshare.share import kind_of
 
 def cache_dir():
     return str(paths.cache('wysun', 'lanshare'))
+FAIL_TTL = 24 * 3600      # a failed thumbnail or copy is tried again after a day
 SPRITE_FRAMES = 10
 SPRITE_W, SPRITE_H = 320, 180
 
 
 class Incomplete(Exception):
     """A thumbnail that did not finish; its temporary file is discarded."""
+
+
+def failed_recently(mark):
+    """True while a failure mark is younger than FAIL_TTL (an older one is forgotten)."""
+    try:
+        return time.time() - os.stat(mark).st_mtime < FAIL_TTL
+    except OSError:
+        return False
+
+
+def _mark_failed(mark):
+    try:
+        with atomic_path(mark) as tmp:
+            tmp.write_bytes(b"")
+    except OSError:
+        pass
 
 
 def file_key(path, kind):
@@ -33,25 +53,37 @@ _meta_mem = {}
 _meta_lock = threading.Lock()
 
 
-def probe(path):
+def cached_probe(path):
+    """The metadata already known for path (memory or disk), or None without running ffprobe."""
     try:
-        key = file_key(path, "meta2")   # meta2: with the H.264 level and frame rate
+        key = file_key(path, "meta2")
     except OSError:
         return {}
     with _meta_lock:
         if key in _meta_mem:
             return _meta_mem[key]
     disk = os.path.join(cache_dir(), "meta", key[:2], key + ".json")
-    if os.path.exists(disk):
-        try:
-            with open(disk) as f:
-                meta = json.load(f)
-            with _meta_lock:
-                _meta_mem[key] = meta
-            return meta
-        except (OSError, ValueError):
-            pass
+    try:
+        with open(disk) as f:
+            meta = json.load(f)
+    except (OSError, ValueError):
+        return None
+    with _meta_lock:
+        _meta_mem[key] = meta
+    return meta
+
+
+def probe(path):
+    known = cached_probe(path)
+    if known is not None:
+        return known
+    try:
+        key = file_key(path, "meta2")   # meta2: with the H.264 level and frame rate
+    except OSError:
+        return {}
+    disk = os.path.join(cache_dir(), "meta", key[:2], key + ".json")
     meta = {}
+    durable = True          # an answer from ffprobe; a missing or stuck ffprobe is asked again later
     try:
         out = subprocess.run(
             ["ffprobe", "-v", "error", "-print_format", "json", "-show_format", "-show_streams", path],
@@ -74,16 +106,67 @@ def probe(path):
                 meta["height"] = s.get("height")
             elif s.get("codec_type") == "audio" and "acodec" not in meta:
                 meta["acodec"] = s.get("codec_name")
-    except (OSError, ValueError, subprocess.SubprocessError):
+    except ValueError:
         pass
-    try:
-        with atomic_path(disk) as tmp:
-            tmp.write_text(json.dumps(meta))
-    except OSError:
-        pass
-    with _meta_lock:
-        _meta_mem[key] = meta
+    except (OSError, subprocess.SubprocessError):
+        durable = False
+    if durable:
+        try:
+            with atomic_path(disk) as tmp:
+                tmp.write_text(json.dumps(meta))
+        except OSError:
+            pass
+        with _meta_lock:
+            _meta_mem[key] = meta
     return meta
+
+
+class _Probes:
+    """ffprobe on daemon threads (a stop never waits for them), one run per file however often it is asked."""
+
+    def __init__(self, workers):
+        self._queue = queue.Queue()
+        self._pending = {}
+        self._lock = threading.Lock()
+        for _ in range(workers):
+            threading.Thread(target=self._work, daemon=True).start()
+
+    def submit(self, path):
+        with self._lock:
+            future = self._pending.get(path)
+            if future is None:
+                future = self._pending[path] = Future()
+                self._queue.put((path, future))
+            return future
+
+    def _work(self):
+        while True:
+            path, future = self._queue.get()
+            try:
+                future.set_result(probe(path))
+            except Exception as error:     # never lose a worker
+                future.set_exception(error)
+            finally:
+                with self._lock:
+                    self._pending.pop(path, None)
+
+
+_probes = None
+_probes_lock = threading.Lock()
+
+
+def probe_soon(path):
+    """A Future with path's metadata; ffprobe runs in the background when it is not known yet."""
+    global _probes
+    future = Future()
+    known = cached_probe(path)
+    if known is not None:
+        future.set_result(known)
+        return future
+    with _probes_lock:
+        if _probes is None:
+            _probes = _Probes(8)
+    return _probes.submit(path)
 
 
 # -------------------------------------------------------- thumbnails/sprite --
@@ -134,7 +217,7 @@ def cached_image(path, kind):
     fail = out + ".fail"
     if os.path.exists(out):
         return out
-    if os.path.exists(fail):
+    if failed_recently(fail):
         return None
     with _key_guard:
         lock = _key_locks.setdefault(out, threading.Lock())
@@ -148,13 +231,11 @@ def cached_image(path, kind):
                     if not builder(path, str(tmp)) or not tmp.exists() or tmp.stat().st_size == 0:
                         raise Incomplete
                 return out
+            except FileNotFoundError:
+                return None             # no ffmpeg (yet): nothing to remember
             except (OSError, subprocess.SubprocessError, Incomplete):
                 pass
-        try:
-            with atomic_path(fail) as tmp:
-                tmp.write_bytes(b"")
-        except OSError:
-            pass
+        _mark_failed(fail)
         return None
 
 
@@ -213,7 +294,7 @@ def playable(path):
     out = os.path.join(cache_dir(), "compat", key[:2], key + ".mp4")
     if os.path.exists(out):
         return _used(out)
-    if os.path.exists(out + ".fail"):
+    if failed_recently(out + ".fail"):
         return path
     with _key_guard:
         lock = _key_locks.setdefault(out, threading.Lock())
@@ -227,10 +308,8 @@ def playable(path):
                 if subprocess.run(cmd, capture_output=True, timeout=1800).returncode != 0 or not tmp.exists():
                     raise Incomplete
             return _used(out)
+        except FileNotFoundError:
+            return path
         except (OSError, subprocess.SubprocessError, Incomplete):
-            try:
-                with atomic_path(out + ".fail") as tmp:
-                    tmp.write_bytes(b"")
-            except OSError:
-                pass
+            _mark_failed(out + ".fail")
             return path

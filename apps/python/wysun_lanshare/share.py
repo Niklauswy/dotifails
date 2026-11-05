@@ -47,10 +47,12 @@ def _inside(real, root):
 
 
 def _parts(rel):
+    """The parts of a page path, or None when one is hidden. In a list the first part is an item's own name,
+    which may start with a dot when that file was shared on purpose."""
     if '\x00' in (rel or ''):
         return None
     parts = [p for p in (rel or '').replace('\\', '/').split('/') if p]
-    if any(p.startswith('.') for p in parts):
+    if any(p.startswith('.') for p in parts[1:]) or parts[:1] == ['..']:
         return None
     return parts
 
@@ -88,6 +90,8 @@ class Share:
         if parts is None:
             return None
         if self.mode == 'folder':
+            if parts and parts[0].startswith('.'):
+                return None
             root = self.root
         else:
             if not parts or parts[0] not in self.roots:

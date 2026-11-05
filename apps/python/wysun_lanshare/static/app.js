@@ -157,6 +157,13 @@ async function route() {
   $("#zip-label").textContent = all ? "Descargar todo" : "Descargar carpeta";
   $("#zip").title = all ? "Descargar todo (.zip)" : "Descargar carpeta (.zip)";
   render();
+  // Durations still being read on the server: ask again while this folder stays open.
+  clearTimeout(state.refresh);
+  const again = () => {
+    if (dirFromUrl() !== dir) return;
+    if ($("#viewer").hidden) route(); else state.refresh = setTimeout(again, 1500);   // not under the viewer
+  };
+  if (listing.pending) state.refresh = setTimeout(again, 1500);
 }
 
 function crumbs() {

@@ -2,7 +2,9 @@
 import os
 import sys
 import tempfile
+import time
 import unittest
+from unittest import mock
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'apps/python'))
@@ -77,6 +79,53 @@ class PlayableTests(unittest.TestCase):
                 self.assertFalse(os.path.exists(stale))
             finally:
                 media.cache_dir, media.probe = originals
+
+
+class FailureTests(unittest.TestCase):
+    def setUp(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.home = tmp.name
+        self.source = os.path.join(self.home, 'clip.mp4')
+        Path(self.source).write_bytes(b'x')
+        original = media.cache_dir
+        media.cache_dir = lambda: self.home
+        self.addCleanup(setattr, media, 'cache_dir', original)
+        media._meta_mem.clear()
+
+    def test_without_ffprobe_nothing_is_remembered(self):
+        with mock.patch.object(media.subprocess, 'run', side_effect=FileNotFoundError('ffprobe')):
+            self.assertEqual(media.probe(self.source), {})
+        self.assertIsNone(media.cached_probe(self.source), 'asked again once ffprobe exists')
+        answer = mock.Mock(stdout=b'{"format": {"duration": "3.5"}}')
+        with mock.patch.object(media.subprocess, 'run', return_value=answer):
+            self.assertEqual(media.probe(self.source), {'duration': 3.5})
+        self.assertEqual(media.cached_probe(self.source), {'duration': 3.5})
+
+    def test_without_ffmpeg_no_failure_is_marked(self):
+        with mock.patch.object(media, '_build_thumb', side_effect=FileNotFoundError('ffmpeg')):
+            self.assertIsNone(media.cached_image(self.source, 'thumb'))
+        key = media.file_key(self.source, 'thumb')
+        self.assertFalse(os.path.exists(os.path.join(self.home, 'thumb', key[:2], key + '.jpg.fail')))
+
+    def test_failure_marks_expire(self):
+        with mock.patch.object(media, '_build_thumb', return_value=False) as build:
+            self.assertIsNone(media.cached_image(self.source, 'thumb'))
+            self.assertIsNone(media.cached_image(self.source, 'thumb'))
+            self.assertEqual(build.call_count, 1, 'a fresh failure is not retried at once')
+            key = media.file_key(self.source, 'thumb')
+            mark = os.path.join(self.home, 'thumb', key[:2], key + '.jpg.fail')
+            old = time.time() - media.FAIL_TTL - 1
+            os.utime(mark, (old, old))
+            media.cached_image(self.source, 'thumb')
+            self.assertEqual(build.call_count, 2)
+
+    def test_probes_in_the_background_run_once_per_file(self):
+        with mock.patch.object(media, 'probe', side_effect=lambda p: (time.sleep(0.1), {'duration': 1.0})[1]) as run:
+            first, second = media.probe_soon(self.source), media.probe_soon(self.source)
+            self.assertEqual(first.result(5), {'duration': 1.0})
+            self.assertEqual(second.result(5), {'duration': 1.0})
+        self.assertEqual(run.call_count, 1)
 
 
 if __name__ == '__main__':

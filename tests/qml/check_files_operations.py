@@ -325,6 +325,14 @@ class OperationsTests(unittest.TestCase):
                          'uploads only for one folder')
         self.assertFalse(self.ops.shareOnNetwork([], False, False))
 
+    def test_sharing_a_risky_folder_with_uploads_says_why_instead_of_failing_silently(self):
+        from wysun_files.quick import operations as module
+        with patch.object(module.subprocess, 'Popen') as popen, patch.dict(os.environ, {'HOME': str(self.src)}):
+            self.assertFalse(self.ops.shareOnNetwork([str(self.src)], True, False))
+            popen.assert_not_called()
+            self.assertIn('carpeta personal', self.failures[-1])
+            self.assertTrue(self.ops.shareOnNetwork([str(self.src)], False, False), 'read-only is fine')
+
     def test_uris_for_dragging(self):
         self.assertEqual(self.ops.uris(self.paths('a.txt')), ['file://' + str(self.src / 'a.txt')])
 

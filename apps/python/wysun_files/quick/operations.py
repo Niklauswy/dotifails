@@ -20,6 +20,7 @@ from wysun_core.launch import argv as module_argv
 from wysun_files import ops
 from wysun_files.browser import open_pdf
 from wysun_files.core import listing
+from wysun_lanshare.options import risky_upload_folder
 from wysun_media.source import kind_of as media_kind
 from wysun_player.client import child_environment, launch
 
@@ -348,6 +349,11 @@ class Operations(QObject):
             return False
         args = []
         if uploads and len(paths) == 1 and os.path.isdir(paths[0]):
+            # LANShare refuses these and, detached, its message would reach nobody.
+            if risky_upload_folder(paths[0]):
+                self.failed.emit('No se pudo compartir', 'Con subidas no se puede compartir tu carpeta personal, / ni '
+                                 'carpetas de programas. Comparte una subcarpeta, por ejemplo Descargas.')
+                return False
             args.append('--subidas')
         if password:
             args.append('--clave')
