@@ -133,6 +133,26 @@ class Progress:
             self.stream.flush()
 
 
+class NotifyLater:
+    """Whether to notify at the end: ``--notificar``, or the selector left this upload in the background
+    (it creates ``RESULTADO.notificar``; a file, unlike a signal, cannot arrive before we are ready)."""
+
+    def __init__(self, always, result_path):
+        self.always = always
+        self.result_path = result_path
+        self.marker = f'{result_path}.notificar' if result_path else None
+
+    def __call__(self):
+        if self.marker and os.path.exists(self.marker):
+            for path in (self.marker, self.result_path):      # nobody is left to read the result
+                try:
+                    os.unlink(path)
+                except OSError:
+                    pass
+            return True
+        return self.always
+
+
 def write_result(path, results, error='', copied=False):
     """``--resultado``: what the terminal selector reads when this upload ends (private, atomic)."""
     if not path:
@@ -182,9 +202,7 @@ def up(argv, out=sys.stdout, err=sys.stderr):
 
     cancelled = {'flag': False}
     signal.signal(signal.SIGTERM, lambda *_: cancelled.update(flag=True))
-    # The terminal selector sends SIGUSR1 when it closes and leaves this upload in the background.
-    notify_later = {'flag': args.notificar}
-    signal.signal(signal.SIGUSR1, lambda *_: notify_later.update(flag=True))
+    notify_later = NotifyLater(args.notificar, args.resultado)
     names = [Path(p).name or p for p in args.paths]
     title = names[0] if len(names) == 1 else f'{len(names)} elementos'
     tracker = status.StatusFile(os.getpid(), title)
@@ -205,7 +223,7 @@ def up(argv, out=sys.stdout, err=sys.stderr):
             progress.clear()
         print(str(error), file=err)
         write_result(args.resultado, [], str(error))
-        if notify_later['flag']:
+        if notify_later():
             notify('Subida cancelada', title)
         return 1
     except DriveError as error:
@@ -213,7 +231,7 @@ def up(argv, out=sys.stdout, err=sys.stderr):
             progress.clear()
         print(str(error), file=err)
         write_result(args.resultado, [], str(error))
-        if notify_later['flag']:
+        if notify_later():
             notify('No se pudo subir', str(error), critical=True)
         return error.code
     finally:
@@ -238,7 +256,7 @@ def up(argv, out=sys.stdout, err=sys.stderr):
     if copied and not args.json:
         print('Link copiado al portapapeles' if len(links) == 1 else 'Links copiados al portapapeles', file=err)
     failed = [r for r in results if not r.ok or (link and r.link_error)]
-    if notify_later['flag']:
+    if notify_later():
         if links:
             body = links[0] if len(links) == 1 else '\n'.join(links)
             if password:
@@ -368,8 +386,8 @@ def main(argv=None):
     args = list(sys.argv[1:] if argv is None else argv)
     try:
         if not args:
-            from wysun_drive.ui.app import DriveApp
-            return DriveApp().run()
+            from wysun_drive.ui.app import main as selector
+            return selector()
         command, rest = args[0], args[1:]
         if command in ('-h', '--help', 'ayuda'):
             print(HELP, end='')

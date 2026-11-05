@@ -41,8 +41,9 @@ QR, imágenes con protocolo kitty/sixel, navegar la nube, reanudar entre ejecuci
 
 - **Subidas como proceso hijo**: la TUI lanza `python -m wysun_drive up … --resultado ARCHIVO` en su
   propia sesión, lee el progreso del archivo de estado de la barra (`wysun-drive/<pid>.json`) y el
-  resultado del archivo JSON al terminar. Así `b` solo cierra la TUI y el hijo sigue; antes le manda
-  `SIGUSR1` para que notifique al terminar (`--notificar` diferido). `Esc` → `SIGTERM` (cancelar).
+  resultado del archivo JSON al terminar. Así `b` solo cierra la TUI y el hijo sigue; antes crea
+  `RESULTADO.notificar` para que notifique al terminar (un archivo y no una señal: una señal podría llegar
+  antes de que el hijo instale su manejador y matarlo). `Esc` → `SIGTERM` (cancelar).
 - `up --origen terminal|files|captura` se guarda en el historial (Files y la captura lo pasan).
 - `client.quota()` (PROPFIND Depth 0 en la raíz) y `api.remove_link(remote)`.
 - Vista previa: `ffmpeg -frames:v 1 -vf scale,crop -f rawvideo rgb24`, en un hilo, con caché por
