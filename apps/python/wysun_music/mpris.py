@@ -16,6 +16,11 @@ OBJECT_PATH = '/org/mpris/MediaPlayer2'
 NO_TRACK = '/org/mpris/MediaPlayer2/TrackList/NoTrack'
 LOOP = {'off': 'None', 'all': 'Playlist', 'one': 'Track'}
 
+
+def _url(track):
+    """The file, or for a streamed song its YouTube page."""
+    return 'file://' + track['path'] if track.get('path') else track.get('youtube_url', '')
+
 INTROSPECTION = '''<!DOCTYPE node PUBLIC "-//freedesktop//DTD D-BUS Object Introspection 1.0//EN"
  "http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd">
 <node>
@@ -117,7 +122,7 @@ def _service_class(dbus):
                 'xesam:title': dbus.String(track.get('title', '')),
                 'xesam:artist': dbus.Array([track.get('artist', '')], signature='s'),
                 'xesam:album': dbus.String(library.album(key)),
-                'xesam:url': dbus.String('file://' + library.playable(key).get('path', '')),
+                'xesam:url': dbus.String(_url(library.playable(key))),
             }
             cover = self.covers.path(key)
             if cover:

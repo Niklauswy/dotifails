@@ -39,7 +39,11 @@ def build(test=False, *, persist=None, network=None, publish=None):
     publish = not test if publish is None else publish
     library = Library(watch=persist)
     covers = CoverStore(library, network=network)
-    player = Player(library, persist=persist)
+    resolver = None
+    if network:
+        from .stream import StreamResolver
+        resolver = StreamResolver()
+    player = Player(library, persist=persist, resolver=resolver)
     window = MusicWindow(library, covers, player, test=test)
     app = MusicApp(library, covers, player, window)
     if publish:

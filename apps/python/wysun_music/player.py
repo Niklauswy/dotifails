@@ -8,6 +8,7 @@ from .queue import PlayQueue
 
 RESTART_THRESHOLD = 3.0  # seconds: "previous" restarts the song after this point.
 HISTORY_AFTER = 10.0     # seconds listened before a song counts as played.
+MAX_SKIPS = 5            # streamed songs that failed in a row before the player stops trying.
 
 
 class Player(QObject):
@@ -19,10 +20,19 @@ class Player(QObject):
     seeked = Signal(float)
     message = Signal(str)
 
-    def __init__(self, library, persist=True, parent=None):
+    def __init__(self, library, persist=True, parent=None, resolver=None):
         super().__init__(parent)
         self.library = library
         self.persist = persist
+        # Songs that are not on disk stream through the resolver (None: local files only, as in tests).
+        self.resolver = resolver
+        self.buffering = False
+        self._wanted = None             # (key, start, paused) of the stream being resolved
+        self._skips = 0
+        if resolver is not None:
+            resolver.resolved.connect(self._resolved)
+            resolver.failed.connect(self._failed)
+            resolver.video_found.connect(library.remember_video)
         self.queue = PlayQueue()
         self.current = None
         self.position = 0.0
@@ -75,12 +85,12 @@ class Player(QObject):
     # -------------------------------------------------------------- playback
     def play_collection(self, keys, start=None, context=None, shuffle=None):
         """Start ``keys`` as the playing context, from ``start`` or the beginning."""
-        keys = [k for k in keys if self.library.available(k)]
+        keys = [k for k in keys if self._listenable(k)]
         if not keys:
             return
         if shuffle is not None:
             self.queue.order.shuffle = shuffle
-        if start is None:
+        if start not in keys:
             start = random.choice(keys) if self.queue.shuffle else keys[0]
         self.queue.start(keys, start, self.queue.shuffle, context)
         self._load(start)
@@ -95,7 +105,11 @@ class Player(QObject):
             if keys:
                 self.play_collection(keys, context='all')
             return
-        if self.ended or not self.engine.running:
+        if self.buffering and self._wanted:
+            key, start, paused = self._wanted
+            self._wanted = (key, start, not paused)
+            self.state_changed.emit()
+        elif self.ended or not self.engine.running:
             self._load(self.current, 0.0 if self.ended else self.position)
         else:
             self.engine.set_paused(not self.engine.paused)
@@ -111,7 +125,7 @@ class Player(QObject):
         if automatic and self.queue.repeat == 'one' and self.current:
             self._load(self.current)
             return
-        key = self.queue.next(self.library.available)
+        key = self.queue.next(self._listenable)
         if key:
             self._load(key)
             self.queue_changed.emit()
@@ -125,7 +139,7 @@ class Player(QObject):
         if self.position > RESTART_THRESHOLD or not self.queue.has_previous():
             self.seek(0)
             return
-        key = self.queue.previous(self.library.available)
+        key = self.queue.previous(self._listenable)
         if key:
             self._load(key)
             self.queue_changed.emit()
@@ -168,12 +182,12 @@ class Player(QObject):
 
     # ------------------------------------------------------------------ queue
     def add_to_queue(self, keys):
-        self.queue.add([k for k in keys if self.library.available(k)])
+        self.queue.add([k for k in keys if self._listenable(k)])
         self.queue_changed.emit()
         self.message.emit('Añadido a la cola')
 
     def play_next(self, keys):
-        self.queue.add_next([k for k in keys if self.library.available(k)])
+        self.queue.add_next([k for k in keys if self._listenable(k)])
         self.queue_changed.emit()
         self.message.emit('Sonará a continuación')
 
@@ -184,14 +198,19 @@ class Player(QObject):
     def jump_to_upcoming(self, index):
         """Play the n-th upcoming song, skipping everything before it."""
         for _ in range(index):
-            self.queue.next(self.library.available)
+            self.queue.next(self._listenable)
         self.next()
 
     # -------------------------------------------------------------- internals
+    def _listenable(self, key):
+        return self.library.available(key) if self.resolver is None else self.library.listenable(key)
+
     def _load(self, key, start=0.0, paused=False):
         track = self.library.playable(key)
-        if not track.get('path'):
-            self.message.emit('Esta canción todavía no está descargada.')
+        stream = not track.get('path')
+        if stream and not (self.resolver is not None and self.library.listenable(key)):
+            self.message.emit('Sin conexión: esta canción no está descargada.' if self.resolver is not None
+                              else 'Esta canción todavía no está descargada.')
             return
         changed = key != self.current
         self.current = key
@@ -199,12 +218,56 @@ class Player(QObject):
         self.position = start
         self.duration = track.get('duration', 0) or self.library.duration(key)
         self._counted = start > 0 and not changed
-        self.engine.load(track['path'], start, paused)
+        if stream:
+            self._wanted = (key, start, paused)
+            self.buffering = True
+            self.resolver.request(key, track)
+        else:
+            self._wanted = None
+            self.buffering = False
+            self._skips = 0
+            self.engine.load(track['path'], start, paused)
+            self._prefetch()
         if changed:
             self.track_changed.emit(key)
         self.duration_changed.emit(self.duration)
         self.position_changed.emit(start)
         self.state_changed.emit()
+
+    def _resolved(self, key, url):
+        if not self._wanted or self._wanted[0] != key:
+            return                      # an older request, or the song prepared ahead
+        _, start, paused = self._wanted
+        self._wanted = None
+        self.buffering = False
+        self._skips = 0
+        self.engine.load(url, start, paused)
+        self.state_changed.emit()
+        self._prefetch()
+
+    def _failed(self, key, _message):
+        if not self._wanted or self._wanted[0] != key:
+            return
+        self._wanted = None
+        self.buffering = False
+        self._skips += 1
+        title = self.library.track(key).get('title', '')
+        if self._skips < MAX_SKIPS and self.queue.has_next():
+            self.message.emit(f'No se pudo reproducir «{title}» · saltando')
+            self.next()
+            return
+        self._skips = 0
+        self.engine.set_paused(True)
+        self.message.emit(f'No se pudo reproducir «{title}». Revisa tu conexión.')
+        self.state_changed.emit()
+
+    def _prefetch(self):
+        """Resolve the next streamed song while this one plays, so there is no silence between them."""
+        if self.resolver is None:
+            return
+        for key in self.queue.upcoming(1):
+            if not self.library.available(key) and self.library.listenable(key):
+                self.resolver.request(key, self.library.playable(key))
 
     def _position(self, value):
         self.position = value
@@ -229,7 +292,7 @@ class Player(QObject):
     def _restore(self, session):
         self.queue.restore(session.get('queue') or session.get('order'))
         key = session.get('track')
-        if key and self.library.available(key):
+        if key and (self.library.available(key) or (self.resolver is not None and self.library.known(key))):
             self.current = key
             self.ended = session.get('ended', False)
             self.position = 0.0 if self.ended else session.get('position', 0.0)
