@@ -71,6 +71,17 @@ class UploadTests(TempHome):
         self.assertIn('Passwords are enforced', result.link_error)
         self.assertEqual(history.load()[0]['remote'], 'Wysun/informe.pdf')
 
+    def test_quota_source_and_remove_link(self):
+        self.assertEqual(self.client.quota(), (8800000000, 44200000000))
+        [result] = api.upload([self.local / 'informe.pdf'], link=True, acc=self.acc, source='captura')
+        entry = history.find('Wysun/informe.pdf')
+        self.assertEqual((entry['source'], entry['url']), ('captura', result.url))
+        api.remove_link('Wysun/informe.pdf', acc=self.acc)
+        self.assertEqual(self.cloud.state.shares, {})
+        self.assertIsNone(history.find('Wysun/informe.pdf')['url'])
+        with self.assertRaises(api.DriveError):
+            api.remove_link('Wysun/informe.pdf', acc=self.acc)
+
     def test_no_account_is_auth_error(self):
         with self.assertRaises(AuthError):
             api.upload([self.local / 'informe.pdf'])

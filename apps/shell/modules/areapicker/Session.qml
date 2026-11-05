@@ -139,7 +139,7 @@ QtObject {
     // notification when it is up (progress in the bar). Without a session Wysun Drive says so and opens the login.
     function upload(item: Item): void {
         render(item, path => {
-            Quickshell.execDetached(["wysun", "drive", "up", "--link", "--notificar", "--nombre", `Captura_${stamp()}.png`, "--", path]);
+            Quickshell.execDetached(["wysun", "drive", "up", "--link", "--notificar", "--origen", "captura", "--nombre", `Captura_${stamp()}.png`, "--", path]);
             finished();
         });
     }

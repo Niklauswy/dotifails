@@ -372,7 +372,7 @@ class Operations(QObject):
         paths = [p for p in paths if p]
         if not paths:
             return False
-        args = ['up', '--notificar', *(['--link'] if link else []), '--']
+        args = ['up', '--notificar', '--origen', 'files', *(['--link'] if link else []), '--']
         # Wysun Drive is stdlib + wysun_core: the system Python, outside the QML venv's Qt setup.
         argv = module_argv('wysun_drive', *args, *paths, python=str(Path(sys.base_prefix) / 'bin/python3'))
         try:

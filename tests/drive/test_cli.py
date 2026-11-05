@@ -128,6 +128,19 @@ class CliTests(unittest.TestCase):
         self.assertEqual((state['server'], state['user']), (self.cloud.url, USER))
         self.assertEqual(self.run_cli('up', 'informe.pdf').returncode, 0)
 
+    def test_result_file_and_deferred_notification(self):
+        self.login()
+        result = self.base / 'run/res.json'
+        done = self.run_cli('up', '--link', '--origen', 'files', '--resultado', str(result), 'informe.pdf')
+        self.assertEqual(done.returncode, 0, done.stderr)
+        data = json.loads(result.read_text())
+        self.assertTrue(data['copied'])
+        self.assertEqual(data['results'][0]['remote'], 'Wysun/informe.pdf')
+        self.assertNotIn(PASSWORD, result.read_text())
+        self.assertEqual(oct(result.stat().st_mode & 0o777), '0o600')
+        self.assertEqual(self.log('notify-send'), '', 'no notification unless asked')
+        self.assertEqual(json.loads(self.run_cli('recientes', '--json').stdout.splitlines()[0])['source'], 'files')
+
     def test_human_size(self):
         self.assertEqual(cli.human_size(512), '512 B')
         self.assertEqual(cli.human_size(1536), '1,5 KB')

@@ -87,8 +87,14 @@ class Handler(BaseHTTPRequestHandler):
 
     # -- WebDAV ---------------------------------------------------------
     def do_PROPFIND_(self, parts):
-        self._body()
+        body = self._body()
         remote = self._dav(parts.path)
+        if b'quota' in body:
+            xml = (b'<?xml version="1.0"?><d:multistatus xmlns:d="DAV:"><d:response><d:propstat><d:prop>'
+                   b'<d:quota-used-bytes>8800000000</d:quota-used-bytes>'
+                   b'<d:quota-available-bytes>44200000000</d:quota-available-bytes>'
+                   b'</d:prop></d:propstat></d:response></d:multistatus>')
+            return self._send(207, xml)
         found = remote in self.state.dirs or remote in self.state.files
         return self._send(207 if found else 404, b'<d:multistatus xmlns:d="DAV:"/>' if found else b'')
 

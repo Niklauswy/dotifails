@@ -133,6 +133,17 @@ class Progress:
             self.stream.flush()
 
 
+def write_result(path, results, error='', copied=False):
+    """``--resultado``: what the terminal selector reads when this upload ends (private, atomic)."""
+    if not path:
+        return
+    from wysun_core.jsonio import atomic_write_json
+    try:
+        atomic_write_json(path, {'error': error, 'copied': copied, 'results': [r.to_json() for r in results]}, mode=0o600)
+    except OSError:
+        pass
+
+
 def up(argv, out=sys.stdout, err=sys.stderr):
     parser = Parser(prog='wysun drive up', add_help=False)
     parser.add_argument('paths', nargs='*')
@@ -144,6 +155,8 @@ def up(argv, out=sys.stdout, err=sys.stderr):
     parser.add_argument('--json', action='store_true')
     parser.add_argument('--notificar', action='store_true')
     parser.add_argument('--sin-copiar', dest='no_copy', action='store_true')
+    parser.add_argument('--resultado')
+    parser.add_argument('--origen', default='terminal', choices=sorted(history.SOURCES))
     args = parser.parse_args(argv)
     if not args.paths:
         raise Usage('falta qué subir: wysun drive up RUTA…')
@@ -169,6 +182,9 @@ def up(argv, out=sys.stdout, err=sys.stderr):
 
     cancelled = {'flag': False}
     signal.signal(signal.SIGTERM, lambda *_: cancelled.update(flag=True))
+    # The terminal selector sends SIGUSR1 when it closes and leaves this upload in the background.
+    notify_later = {'flag': args.notificar}
+    signal.signal(signal.SIGUSR1, lambda *_: notify_later.update(flag=True))
     names = [Path(p).name or p for p in args.paths]
     title = names[0] if len(names) == 1 else f'{len(names)} elementos'
     tracker = status.StatusFile(os.getpid(), title)
@@ -182,19 +198,22 @@ def up(argv, out=sys.stdout, err=sys.stderr):
     tracker.start()
     try:
         results = api.upload(args.paths, link=link, folder=args.folder, name=args.nombre, password=password,
-                             expire_days=days, on_progress=on_progress, cancelled=lambda: cancelled['flag'])
+                             expire_days=days, on_progress=on_progress, cancelled=lambda: cancelled['flag'],
+                             source=args.origen)
     except Cancelled as error:
         if progress:
             progress.clear()
         print(str(error), file=err)
-        if args.notificar:
+        write_result(args.resultado, [], str(error))
+        if notify_later['flag']:
             notify('Subida cancelada', title)
         return 1
     except DriveError as error:
         if progress:
             progress.clear()
         print(str(error), file=err)
-        if args.notificar:
+        write_result(args.resultado, [], str(error))
+        if notify_later['flag']:
             notify('No se pudo subir', str(error), critical=True)
         return error.code
     finally:
@@ -204,6 +223,7 @@ def up(argv, out=sys.stdout, err=sys.stderr):
 
     links = [r.url for r in results if r.url]
     copied = bool(links) and not args.no_copy and copy('\n'.join(links))
+    write_result(args.resultado, results, '', copied)
     for result in results:
         if args.json:
             print(json.dumps(result.to_json(), ensure_ascii=False), file=out)
@@ -218,7 +238,7 @@ def up(argv, out=sys.stdout, err=sys.stderr):
     if copied and not args.json:
         print('Link copiado al portapapeles' if len(links) == 1 else 'Links copiados al portapapeles', file=err)
     failed = [r for r in results if not r.ok or (link and r.link_error)]
-    if args.notificar:
+    if notify_later['flag']:
         if links:
             body = links[0] if len(links) == 1 else '\n'.join(links)
             if password:

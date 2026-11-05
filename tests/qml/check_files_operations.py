@@ -339,7 +339,7 @@ class OperationsTests(unittest.TestCase):
             self.assertTrue(self.ops.uploadToDrive(self.paths('a.txt', 'b.txt'), True))
         argv, kwargs = popen.call_args.args[0], popen.call_args.kwargs
         self.assertEqual(argv[0], str(Path(sys.base_prefix) / 'bin/python3'))
-        self.assertEqual(argv[1:], ['-P', '-m', 'wysun_drive', 'up', '--notificar', '--link', '--', *self.paths('a.txt', 'b.txt')])
+        self.assertEqual(argv[1:], ['-P', '-m', 'wysun_drive', 'up', '--notificar', '--origen', 'files', '--link', '--', *self.paths('a.txt', 'b.txt')])
         self.assertTrue(kwargs['start_new_session'])
         self.assertIn('PYTHONPATH', kwargs['env'])
         with patch.object(module.subprocess, 'Popen') as popen:

@@ -146,6 +146,26 @@ class Client:
             return True
         raise _status_error(status, f'buscar «{remote}»')
 
+    def quota(self):
+        """``(used, available)`` in bytes for the user's root; ``available`` is None when unlimited."""
+        body = (b'<?xml version="1.0"?><d:propfind xmlns:d="DAV:"><d:prop>'
+                b'<d:quota-used-bytes/><d:quota-available-bytes/></d:prop></d:propfind>')
+        _status, _h, data = self._call(self.dav_url(''), 'PROPFIND', 'leer el espacio libre', (207,), body=body,
+                                       headers={'Depth': '0', 'Content-Type': 'application/xml'})
+        import xml.etree.ElementTree as ElementTree
+        try:
+            root = ElementTree.fromstring(data)
+        except ElementTree.ParseError:
+            raise DriveError('Respuesta inesperada al leer el espacio libre') from None
+        def number(tag):
+            node = root.find(f'.//{{DAV:}}{tag}')
+            try:
+                return int(float(node.text))
+            except (AttributeError, TypeError, ValueError):
+                return None
+        used, available = number('quota-used-bytes'), number('quota-available-bytes')
+        return (used or 0), (available if available is not None and available >= 0 else None)
+
     def mkdirs(self, remote):
         """Create ``remote`` and its parents; existing ones are fine."""
         built = ''

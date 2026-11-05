@@ -18,7 +18,7 @@ import os
 from wysun_drive import account, history, upload as uploader
 from wysun_drive.client import AuthError, Client, DriveError
 
-__all__ = ['AuthError', 'DriveError', 'upload', 'make_link']
+__all__ = ['AuthError', 'DriveError', 'upload', 'make_link', 'remove_link']
 
 
 def client(acc=None):
@@ -33,7 +33,7 @@ def client(acc=None):
 
 
 def upload(paths, link=False, folder=None, name=None, password=None, expire_days=None,
-           on_progress=None, cancelled=lambda: False, acc=None, on_plan=None):
+           on_progress=None, cancelled=lambda: False, acc=None, on_plan=None, source='terminal'):
     """Upload ``paths`` (files or folders) and return one ``upload.Result`` per path.
 
     ``folder`` is the remote folder (default: the configured one, ``Wysun``). With ``link`` each
@@ -57,7 +57,7 @@ def upload(paths, link=False, folder=None, name=None, password=None, expire_days
                     result.link_error = str(error)
                     continue
                 result.url, result.share_id, result.password = share['url'], share['id'], password
-    history.add(results, server=drive.server)
+    history.add(results, server=drive.server, source=source)
     rejected = [uploader.Result(raw, '', os.path.basename(raw.rstrip('/')) or raw, 0, False, error=message)
                 for raw, message in plan.rejected]
     return results + rejected
@@ -68,3 +68,12 @@ def make_link(remote, password=None, expire_days=None, acc=None):
     share = client(acc).share(remote, password=password, expire_days=expire_days)
     history.set_link(remote, share['url'], share['id'], password)
     return share
+
+
+def remove_link(remote, acc=None):
+    """Delete the public link of an uploaded item (the file stays in the cloud)."""
+    entry = history.find(remote)
+    if entry is None or not entry.get('share_id'):
+        raise DriveError('Ese elemento no tiene link')
+    client(acc).unshare(entry['share_id'])
+    history.set_link(remote, None, None, None)
