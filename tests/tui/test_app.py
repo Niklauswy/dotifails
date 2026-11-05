@@ -17,7 +17,8 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'apps/python'))
 from wysun_core import theme  # noqa: E402
 from wysun_core.tui import anim, keys  # noqa: E402
-from wysun_core.tui.app import App, Layer  # noqa: E402
+from wysun_core.tui.anim import Rect  # noqa: E402
+from wysun_core.tui.app import App, Dim, Layer  # noqa: E402
 from wysun_core.tui.canvas import Style  # noqa: E402
 from wysun_core.tui.terminal import Terminal  # noqa: E402
 from wysun_core.tui.testing import VirtualTerminal  # noqa: E402
@@ -284,6 +285,15 @@ class FrameTests(AppTestCase):
         app.every(0.001, app.invalidate)
         app.run_for(0.5)
         self.assertLessEqual(len(frames), 0.5 * 60 + 3)
+
+    def test_dim_layer_keeps_the_text_underneath(self):
+        class Text(App):
+            def draw(self, canvas):
+                canvas.text(0, 0, 'visible', Style(fg=self.palette['onSurface']))
+        app, term = self.make(cls=Text)
+        app.layers.append(Dim(Rect(0, 0, 80, 24), 'scrim', z=5, opacity=0.45))
+        app.step()
+        self.assertTrue(term.canvas_text()[0].startswith('visible'))
 
     def test_tiny_terminal_message(self):
         app, term = self.make(40, 10, cls=Recording)

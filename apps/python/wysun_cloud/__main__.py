@@ -38,8 +38,8 @@ def main(argv=None):
         return terminal()
     if '--estado' in args:
         return estado()
-    print('Wysun Cloud: interfaz pendiente')
-    return 0
+    from wysun_cloud.ui.cloudapp import CloudApp
+    return CloudApp().run()
 
 
 if __name__ == '__main__':

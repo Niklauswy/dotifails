@@ -65,6 +65,31 @@ class Layer:
     def draw(self, canvas: Canvas, palette: Palette) -> None:
         """Paint the layer's content; subclasses override this."""
 
+    def compose(self, frame: Canvas, palette: Palette) -> None:
+        """Put the layer on the frame: draw into its own canvas, paste with ``opacity``."""
+        rect = self.rect
+        if rect.w <= 0 or rect.h <= 0:
+            return
+        sub = Canvas(rect.w, rect.h, frame.bg)
+        self.draw(sub, palette)
+        frame.paste(sub, rect.x, rect.y, self.opacity)
+
+
+class Dim(Layer):
+    """Darkens what is underneath toward a palette role (a modal's scrim) by ``opacity``.
+
+    Unlike a pasted layer it keeps every character below visible, only blended.
+    """
+
+    def __init__(self, rect: Rect, role: str = 'scrim', z: int = 0, opacity: float = 1.0,
+                 visible: bool = True) -> None:
+        super().__init__(rect, z=z, opacity=opacity, visible=visible)
+        self.role = role
+
+    def compose(self, frame: Canvas, palette: Palette) -> None:
+        if self.opacity > 0.0:
+            frame.blend(self.rect, palette[self.role], self.opacity)
+
 
 class _Timer:
     """Opaque handle returned by ``App.after`` and ``App.every``."""
@@ -715,12 +740,7 @@ class App:
             self.draw(canvas)
             for layer in sorted((item for item in self.layers if item.visible),
                                 key=lambda item: item.z):
-                rect = layer.rect
-                if rect.w <= 0 or rect.h <= 0:
-                    continue
-                sub = Canvas(rect.w, rect.h, background)
-                layer.draw(sub, self.palette)
-                canvas.paste(sub, rect.x, rect.y, layer.opacity)
+                layer.compose(canvas, self.palette)
         previous = None if self._full_repaint else self._prev
         self.term.write(self.screen.render(previous, canvas))
         self._prev = canvas
