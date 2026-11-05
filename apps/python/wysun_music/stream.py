@@ -37,6 +37,7 @@ def entry_track(entry):
         artist, title = (part.strip() for part in title.split(' - ', 1))
     title = re.sub(r'\s*[\(\[](?:official|video|audio|lyric|letra|visuali[sz]er)[^\)\]]*[\)\]]', '', title,
                    flags=re.I).strip() or title
+    title = title.split(' | ')[0].strip() or title          # «Song | Album» on artist channels
     return {'id': 'yt-' + entry['id'], 'title': title, 'artist': artist, 'duration': entry.get('duration') or 0,
             'youtube_url': 'https://www.youtube.com/watch?v=' + entry['id']}
 

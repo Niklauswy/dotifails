@@ -341,8 +341,17 @@ Item {
         restRadius: player.playing ? Theme.rounding.medium ?? 0 : Theme.fullRadius(height)
         onClicked: player.toggle()
 
+        // A streamed song is being found on YouTube: a ring around the button until it starts.
+        CircularProgress {
+            objectName: "buffering"
+            anchors.centerIn: parent
+            visible: player.buffering
+            size: parent.height
+            indeterminate: true
+        }
+
         Tooltip {
-            text: player.playing ? "Pausar · Espacio" : "Reproducir · Espacio"
+            text: player.buffering ? "Preparando la canción…" : player.playing ? "Pausar · Espacio" : "Reproducir · Espacio"
         }
     }
 

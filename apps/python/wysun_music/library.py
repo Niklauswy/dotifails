@@ -226,7 +226,7 @@ class Library(QObject):
         reference = self._references.get(key, {})
         if variant.get('status') == 'ready' and abs(variant.get('duration', 0) - (reference.get('duration') or 0)) <= 2:
             preferred = 'album-audio-' + key
-        return tracks[preferred] if self.available(preferred) else tracks.get(key, {})
+        return tracks[preferred] if self.available(preferred) else self.track(key)
 
     def all_keys(self):
         return list(self._keys)

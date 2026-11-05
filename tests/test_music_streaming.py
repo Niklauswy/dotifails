@@ -49,6 +49,7 @@ class FakeResolver(QObject):
         self.requests = []
 
     def request(self, key, track):
+        assert track.get('title') and track.get('artist'), track
         self.requests.append(key)
 
 
