@@ -79,6 +79,8 @@ HELP_LINES = [
     ('s', 'encender una VM apagada'),
     ('c', 'abrir SSH en una terminal'),
     ('h', '24 h / 7 días en Historial'),
+    ('m', 'ordenar Procesos por CPU / RAM'),
+    ('d', 'volver a calcular du en Disco'),
     ('/', 'filtrar por nombre'),
     ('p', 'buscar proyectos ahora'),
     ('?', 'esta ayuda'),
@@ -1190,6 +1192,13 @@ class CloudApp(App):
             self.range_hours = 168 if self.range_hours == 24 else 24
             self._ensure_history(self.detail_alias, self.range_hours)
             self.detail_scroll = 0
+            self.invalidate()
+        elif key == 'm' and self.tab == 1:
+            self.sort = 'ram' if self.sort == 'cpu' else 'cpu'
+            self.invalidate()
+        elif key == 'd' and self.tab == 2 and (self.detail_alias, 'du') not in self._running:
+            self._detail(self.detail_alias).tabs.pop('du', None)   # recalculate on demand
+            self._ensure_tab(self.detail_alias, 'du')
             self.invalidate()
 
     def on_mouse(self, event: Mouse) -> None:

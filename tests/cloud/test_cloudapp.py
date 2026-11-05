@@ -70,6 +70,7 @@ class CloudAppTests(unittest.TestCase):
             'WYSUN_THEME': '',
             'WYSUN_REDUCED_MOTION': '1',
             'FAKE_GCLOUD_LOG': str(self.log),
+            'FAKE_SSH_LOG': str(self.home / 'ssh.log'),
         }
         self.patcher = mock.patch.dict(os.environ, env)
         self.patcher.start()
@@ -93,6 +94,10 @@ class CloudAppTests(unittest.TestCase):
     def settle(self, app, term, seconds=0.4):
         app.run_for(seconds)
         return term.canvas_text()
+
+    def ssh_log_lines(self):
+        path = self.home / 'ssh.log'
+        return path.read_text(encoding='utf-8').splitlines() if path.exists() else []
 
     def gcloud_calls(self):
         if not self.log.exists():
@@ -131,6 +136,24 @@ class CloudAppTests(unittest.TestCase):
         text = frame_text(term)
         self.assertNotIn('Resumen', text)
         self.assertIn('api-backend', text)
+
+    def test_m_sorts_processes_and_d_recalculates_du(self):
+        os.environ['FAKE_SSH_OUTPUT'] = '4\t/usr'
+        self.seed_cache()
+        app, term = self.make_app()
+        self.settle(app, term)
+        self.press(app, term, b'\r')
+        self.press(app, term, b'2')
+        self.press(app, term, b'm')
+        self.assertEqual(app.sort, 'ram')
+        self.press(app, term, b'm')
+        self.assertEqual(app.sort, 'cpu')
+        self.press(app, term, b'3')
+        app.run_for(1.5)
+        before = sum('du -x' in line for line in self.ssh_log_lines())
+        self.press(app, term, b'd')
+        app.run_for(1.5)
+        self.assertGreater(sum('du -x' in line for line in self.ssh_log_lines()), before)
 
     def test_open_animation_grows_the_card(self):
         os.environ.pop('WYSUN_REDUCED_MOTION', None)
