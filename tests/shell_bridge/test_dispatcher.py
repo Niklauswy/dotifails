@@ -96,6 +96,10 @@ class DispatcherTests(unittest.TestCase):
         self.invoke(('lanshare', '~/Videos', '--port', '8080'))
         self.assert_module('wysun_lanshare', ['~/Videos', '--port', '8080'])
 
+    def test_dispatcher_runs_wysun_cloud(self):
+        self.invoke(('cloud', '--estado'))
+        self.assert_module('wysun_cloud', ['--estado'])
+
     def test_wysun_tools_is_gone(self):
         self.assertNotIn('tools', wysun.MODULES)
 

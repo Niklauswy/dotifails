@@ -1,0 +1,34 @@
+[
+  {
+    "name": "allow-3000-dev",
+    "network": "https://www.googleapis.com/compute/v1/projects/mi-proyecto-prod/global/networks/default",
+    "direction": "INGRESS",
+    "sourceRanges": ["0.0.0.0/0"],
+    "allowed": [{"IPProtocol": "tcp", "ports": ["3000"]}],
+    "targetTags": ["web"]
+  },
+  {
+    "name": "allow-iap-ssh",
+    "network": "https://www.googleapis.com/compute/v1/projects/mi-proyecto-prod/global/networks/default",
+    "direction": "INGRESS",
+    "sourceRanges": ["35.235.240.0/20"],
+    "allowed": [{"IPProtocol": "tcp", "ports": ["22"]}],
+    "targetTags": []
+  },
+  {
+    "name": "allow-office-only",
+    "network": "https://www.googleapis.com/compute/v1/projects/mi-proyecto-prod/global/networks/default",
+    "direction": "INGRESS",
+    "sourceRanges": ["203.0.113.4/32"],
+    "allowed": [{"IPProtocol": "tcp", "ports": ["22"]}],
+    "targetTags": ["office"]
+  },
+  {
+    "name": "allow-other-network",
+    "network": "https://www.googleapis.com/compute/v1/projects/mi-proyecto-prod/global/networks/other",
+    "direction": "INGRESS",
+    "sourceRanges": ["0.0.0.0/0"],
+    "allowed": [{"IPProtocol": "tcp", "ports": ["80"]}],
+    "targetTags": []
+  }
+]

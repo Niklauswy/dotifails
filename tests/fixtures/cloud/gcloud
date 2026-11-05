@@ -1,0 +1,88 @@
+#!/usr/bin/env python3
+"""Fake `gcloud` for the Wysun Cloud tests: answers from the JSON files next to this script.
+
+Environment variables (all optional):
+  FAKE_GCLOUD_SLEEP=<seconds>       wait before answering, to test a slow gcloud
+  FAKE_GCLOUD_AUTH_ERROR=1          fail like an expired session: stderr mentions
+                                    `gcloud auth login`, exit 1 (for every order)
+  FAKE_GCLOUD_FAIL_PROJECT=<id>     fail `compute instances list --project <id>`, exit 1
+  FAKE_GCLOUD_FAIL_ACTION=1         fail `compute instances start|stop|reset`, exit 1 with a
+                                    readable error as the last stderr line
+  FAKE_GCLOUD_LOG=<path>            append the space-joined argv, one line per call
+
+The data files are `projects.json`, `instances-<project>.json`, `operations.json`,
+`firewall.json` and `disks.json`. A project without an instances file answers `[]`.
+`compute instances start|stop|reset` succeeds with `{}` unless FAKE_GCLOUD_FAIL_ACTION is set,
+and `auth print-access-token` prints the synthetic token `ya29.SYNTHETIC-TEST-TOKEN`.
+"""
+import json
+import os
+from pathlib import Path
+import sys
+import time
+
+HERE = Path(__file__).resolve().parent
+args = sys.argv[1:]
+
+
+def value_after(flag):
+    """The argument after ``flag``, also accepting ``--flag=value``."""
+    for index, item in enumerate(args):
+        if item == flag and index + 1 < len(args):
+            return args[index + 1]
+        if item.startswith(flag + '='):
+            return item.split('=', 1)[1]
+    return None
+
+
+def emit(data):
+    json.dump(data, sys.stdout)
+    sys.stdout.write('\n')
+
+
+def fail(message):
+    print(message, file=sys.stderr)
+    return 1
+
+
+def load(name):
+    path = HERE / name
+    return json.loads(path.read_text(encoding='utf-8')) if path.exists() else []
+
+
+log_path = os.environ.get('FAKE_GCLOUD_LOG')
+if log_path:
+    with open(log_path, 'a', encoding='utf-8') as log:
+        log.write(' '.join(args) + '\n')
+
+delay = os.environ.get('FAKE_GCLOUD_SLEEP')
+if delay:
+    time.sleep(float(delay))
+
+if os.environ.get('FAKE_GCLOUD_AUTH_ERROR') == '1':
+    print('ERROR: (gcloud) There was a problem refreshing your current auth tokens.', file=sys.stderr)
+    print('Please run: gcloud auth login', file=sys.stderr)
+    sys.exit(1)
+
+if args[:2] == ['projects', 'list']:
+    emit(load('projects.json'))
+elif args[:2] == ['compute', 'instances'] and args[2:3] == ['list']:
+    project = value_after('--project') or ''
+    if project and project == os.environ.get('FAKE_GCLOUD_FAIL_PROJECT'):
+        sys.exit(fail(f'ERROR: (gcloud.compute.instances.list) no se pudo consultar el proyecto {project}.'))
+    emit(load(f'instances-{project}.json'))
+elif args[:2] == ['compute', 'instances'] and args[2:3] and args[2] in ('start', 'stop', 'reset'):
+    if os.environ.get('FAKE_GCLOUD_FAIL_ACTION') == '1':
+        print('ERROR: (gcloud.compute.instances) la operación falló a mitad.', file=sys.stderr)
+        sys.exit(fail('ERROR: la VM no se pudo modificar (fallo simulado).'))
+    emit({})
+elif args[:2] == ['compute', 'operations']:
+    emit(load('operations.json'))
+elif args[:2] == ['compute', 'firewall-rules']:
+    emit(load('firewall.json'))
+elif args[:2] == ['compute', 'disks']:
+    emit(load('disks.json'))
+elif args[:2] == ['auth', 'print-access-token']:
+    print('ya29.SYNTHETIC-TEST-TOKEN')
+else:
+    sys.exit(fail('ERROR: (fake gcloud) orden no reconocida: ' + ' '.join(args)))

@@ -16,7 +16,7 @@ from PySide6.QtCore import Property, QMimeData, QObject, Qt, QUrl, Signal, Slot
 from PySide6.QtGui import QDesktopServices, QGuiApplication
 
 from wysun_core import paths as core_paths
-from wysun_core.launch import argv as module_argv
+from wysun_core.launch import TERMINALS, argv as module_argv
 from wysun_files import ops
 from wysun_files.browser import open_pdf
 from wysun_files.core import listing
@@ -27,7 +27,6 @@ from wysun_player.client import child_environment, launch
 GNOME = 'x-special/gnome-copied-files'
 OURS = 'application/x-wysun-files'         # marks what this process put on the clipboard
 OPEN_LIMIT = 10
-TERMINALS = ('ghostty', 'x-terminal-emulator', 'alacritty', 'kitty', 'xterm')
 VERBS = {'copy': 'Copiando', 'move': 'Moviendo', 'trash': 'Enviando a la papelera', 'mkdir': 'Creando carpeta',
          'rename': 'Cambiando nombre', 'touch': 'Creando archivo', 'restore': 'Restaurando'}
 DONE = {'copy': 'Copiado', 'move': 'Movido', 'mkdir': 'Carpeta creada', 'rename': 'Nombre cambiado',

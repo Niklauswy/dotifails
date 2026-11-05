@@ -1,0 +1,26 @@
+[
+  {
+    "projectId": "mi-proyecto-prod",
+    "name": "Mi Proyecto Prod",
+    "projectNumber": "100000000001",
+    "lifecycleState": "ACTIVE"
+  },
+  {
+    "projectId": "personal-lab",
+    "name": "Personal Lab",
+    "projectNumber": "100000000002",
+    "lifecycleState": "ACTIVE"
+  },
+  {
+    "projectId": "cliente-x",
+    "name": "Cliente X",
+    "projectNumber": "100000000003",
+    "lifecycleState": "ACTIVE"
+  },
+  {
+    "projectId": "proyecto-sin-vms",
+    "name": "Proyecto Sin VMs",
+    "projectNumber": "100000000004",
+    "lifecycleState": "ACTIVE"
+  }
+]

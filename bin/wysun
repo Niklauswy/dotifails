@@ -21,6 +21,7 @@ MODULES = {
     'wallpaper': ('app', 'wysun_services.wallpaper', []), 'workspaces': ('app', 'wysun_settings.runtime', ['workspaces']),
     'daemon': ('app', 'wysun_services.daemon', []), 'reload': ('app', 'wysun_services.daemon', ['reload']),
     'lanshare': ('app', 'wysun_lanshare', []), 'processes': ('app', 'wysun_processes', []),
+    'cloud': ('app', 'wysun_cloud', []),
 }
 # Programs of their own next to this one: command -> (executable, leading arguments).
 PROGRAMS = {
@@ -42,6 +43,7 @@ Uso: wysun [ORDEN] [opciones]
   recorder               ajustes del Recorder (--quick-record: barra de grabación)
   scheme | wallpaper     esquema de color y fondo
   lanshare [RUTA…]       comparte con la red local (--subidas, --clave, --inactivo 2h; --help)
+  cloud                  VMs de Google Cloud en la terminal (--estado: para la barra)
   daemon | reload        residente del portapapeles; reload lo reinicia con el código nuevo
   shell ORDEN            wysun-shell (record, screenshot, dnd, status…)
   lock | recover | session-check | workspaces | activate CLASE

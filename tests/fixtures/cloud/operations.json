@@ -1,0 +1,26 @@
+[
+  {
+    "name": "operation-insert-api-backend",
+    "operationType": "insert",
+    "status": "DONE",
+    "targetLink": "https://www.googleapis.com/compute/v1/projects/mi-proyecto-prod/zones/us-central1-a/instances/api-backend",
+    "user": "ana@example.com",
+    "insertTime": "2026-10-20T10:00:00.000-07:00"
+  },
+  {
+    "name": "operation-start-api-backend",
+    "operationType": "start",
+    "status": "DONE",
+    "targetLink": "https://www.googleapis.com/compute/v1/projects/mi-proyecto-prod/zones/us-central1-a/instances/api-backend",
+    "user": "ana@example.com",
+    "insertTime": "2026-11-03T08:12:31.000-07:00"
+  },
+  {
+    "name": "operation-stop-web-cliente",
+    "operationType": "stop",
+    "status": "DONE",
+    "targetLink": "https://www.googleapis.com/compute/v1/projects/cliente-x/zones/southamerica-east1-a/instances/web-cliente",
+    "user": "luis@example.com",
+    "insertTime": "2026-11-02T19:05:00.000-03:00"
+  }
+]

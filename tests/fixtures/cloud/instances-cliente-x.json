@@ -1,0 +1,55 @@
+[
+  {
+    "name": "web-cliente",
+    "zone": "https://www.googleapis.com/compute/v1/projects/cliente-x/zones/southamerica-east1-a",
+    "status": "RUNNING",
+    "machineType": "https://www.googleapis.com/compute/v1/projects/cliente-x/zones/southamerica-east1-a/machineTypes/n1-standard-2",
+    "lastStartTimestamp": "2026-10-30T12:45:00.000-03:00",
+    "tags": {"items": ["web"]},
+    "networkInterfaces": [
+      {
+        "network": "https://www.googleapis.com/compute/v1/projects/cliente-x/global/networks/default",
+        "networkIP": "10.158.0.2",
+        "accessConfigs": [
+          {
+            "name": "External NAT",
+            "type": "ONE_TO_ONE_NAT",
+            "natIP": "34.95.1.2"
+          }
+        ]
+      }
+    ],
+    "scheduling": {"provisioningModel": "STANDARD"},
+    "disks": [
+      {
+        "boot": true,
+        "source": "https://www.googleapis.com/compute/v1/projects/cliente-x/zones/southamerica-east1-a/disks/web-cliente",
+        "deviceName": "web-cliente",
+        "licenses": [
+          "https://www.googleapis.com/compute/v1/projects/debian-cloud/global/licenses/debian-12-bookworm"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "staging",
+    "zone": "https://www.googleapis.com/compute/v1/projects/cliente-x/zones/us-central1-f",
+    "status": "TERMINATED",
+    "machineType": "https://www.googleapis.com/compute/v1/projects/cliente-x/zones/us-central1-f/machineTypes/e2-micro",
+    "tags": {"items": []},
+    "networkInterfaces": [
+      {
+        "network": "https://www.googleapis.com/compute/v1/projects/cliente-x/global/networks/default",
+        "networkIP": "10.158.0.3"
+      }
+    ],
+    "scheduling": {"provisioningModel": "STANDARD"},
+    "disks": [
+      {
+        "boot": true,
+        "source": "https://www.googleapis.com/compute/v1/projects/cliente-x/zones/us-central1-f/disks/staging",
+        "deviceName": "staging"
+      }
+    ]
+  }
+]

@@ -1,0 +1,58 @@
+[
+  {
+    "name": "dev-box",
+    "zone": "https://www.googleapis.com/compute/v1/projects/personal-lab/zones/us-west1-b",
+    "status": "RUNNING",
+    "machineType": "https://www.googleapis.com/compute/v1/projects/personal-lab/zones/us-west1-b/machineTypes/n2-standard-2",
+    "lastStartTimestamp": "2026-11-01T09:30:00.000-07:00",
+    "tags": {"items": ["dev"]},
+    "networkInterfaces": [
+      {
+        "network": "https://www.googleapis.com/compute/v1/projects/personal-lab/global/networks/default",
+        "networkIP": "10.138.0.2",
+        "accessConfigs": [
+          {
+            "name": "External NAT",
+            "type": "ONE_TO_ONE_NAT",
+            "natIP": "35.200.1.2"
+          }
+        ]
+      }
+    ],
+    "scheduling": {"provisioningModel": "STANDARD"},
+    "disks": [
+      {
+        "boot": true,
+        "source": "https://www.googleapis.com/compute/v1/projects/personal-lab/zones/us-west1-b/disks/dev-box",
+        "deviceName": "dev-box",
+        "licenses": [
+          "https://www.googleapis.com/compute/v1/projects/ubuntu-os-cloud/global/licenses/ubuntu-2404-lts"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "batch-spot",
+    "zone": "https://www.googleapis.com/compute/v1/projects/personal-lab/zones/us-west1-b",
+    "status": "TERMINATED",
+    "machineType": "https://www.googleapis.com/compute/v1/projects/personal-lab/zones/us-west1-b/machineTypes/e2-standard-4",
+    "tags": {"items": ["batch"]},
+    "networkInterfaces": [
+      {
+        "network": "https://www.googleapis.com/compute/v1/projects/personal-lab/global/networks/default",
+        "networkIP": "10.138.0.3"
+      }
+    ],
+    "scheduling": {"provisioningModel": "SPOT"},
+    "disks": [
+      {
+        "boot": true,
+        "source": "https://www.googleapis.com/compute/v1/projects/personal-lab/zones/us-west1-b/disks/batch-spot",
+        "deviceName": "batch-spot",
+        "licenses": [
+          "https://www.googleapis.com/compute/v1/projects/debian-cloud/global/licenses/debian-12-bookworm"
+        ]
+      }
+    ]
+  }
+]

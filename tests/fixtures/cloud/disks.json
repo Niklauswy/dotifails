@@ -1,0 +1,33 @@
+[
+  {
+    "name": "api-backend",
+    "zone": "https://www.googleapis.com/compute/v1/projects/mi-proyecto-prod/zones/us-central1-a",
+    "sizeGb": "20",
+    "type": "https://www.googleapis.com/compute/v1/projects/mi-proyecto-prod/zones/us-central1-a/diskTypes/pd-balanced",
+    "users": [
+      "https://www.googleapis.com/compute/v1/projects/mi-proyecto-prod/zones/us-central1-a/instances/api-backend"
+    ],
+    "lastSnapshot": {
+      "name": "api-backend-snap-20261101",
+      "timestamp": "2026-11-01T03:00:00.000-07:00"
+    }
+  },
+  {
+    "name": "worker-1",
+    "zone": "https://www.googleapis.com/compute/v1/projects/mi-proyecto-prod/zones/us-central1-b",
+    "sizeGb": "20",
+    "type": "https://www.googleapis.com/compute/v1/projects/mi-proyecto-prod/zones/us-central1-b/diskTypes/pd-balanced",
+    "users": [
+      "https://www.googleapis.com/compute/v1/projects/mi-proyecto-prod/zones/us-central1-b/instances/worker-1"
+    ]
+  },
+  {
+    "name": "dev-box",
+    "zone": "https://www.googleapis.com/compute/v1/projects/personal-lab/zones/us-west1-b",
+    "sizeGb": "50",
+    "type": "https://www.googleapis.com/compute/v1/projects/personal-lab/zones/us-west1-b/diskTypes/pd-ssd",
+    "users": [
+      "https://www.googleapis.com/compute/v1/projects/personal-lab/zones/us-west1-b/instances/dev-box"
+    ]
+  }
+]
