@@ -77,3 +77,42 @@ Barra: mientras haya VMs encendidas aparece una nube con su número; al pasar el
 Credenciales: el token de Monitoring sale de `gcloud auth print-access-token` justo antes de cada consulta, viaja solo en la cabecera `Authorization` por HTTPS a `monitoring.googleapis.com` (sin seguir redirecciones) y nunca se escribe, se guarda en caché, se registra ni aparece en un error (probado en `tests/cloud/test_monitoring.py` con un token sintético). Lo que llega de las VMs se muestra sin caracteres de control.
 
 Motor: la interfaz está hecha sobre `wysun_core.tui` (biblioteca estándar: modo crudo con restauración garantizada, lienzo de celdas con diferencias ANSI, capas con opacidad, animaciones con los tokens), reutilizable por otras utilidades de terminal.
+
+## Wysun Drive
+
+```sh
+wysun drive                                  # selector en la terminal: marca, sube, Recientes con sus links
+wysun drive up informe.pdf fotos/            # sube a Wysun/ en tu Nextcloud
+wysun drive up informe.pdf --link            # además crea el link público, lo copia y lo imprime
+wysun drive up video.mp4 --clave --caduca 7d # link con contraseña generada que caduca en 7 días
+wysun drive up captura.png --a Trabajo --nombre portada.png
+wysun drive login [SERVIDOR]                 # inicia sesión desde el navegador
+wysun drive logout                           # cierra la sesión y revoca la contraseña de aplicación
+wysun drive ajustes --servidor nube.ejemplo.com --carpeta Compartido
+wysun drive estado [--json] | recientes [--json]
+```
+
+Sube archivos y carpetas a un Nextcloud (por defecto `https://cloud.wysun.store`, cualquier otro desde **Ajustes › Wysun Drive**, `wysun drive ajustes --servidor` o la tecla `s` del panel de inicio de sesión). Una sesión solo vale para su servidor: al cambiarlo hay que volver a iniciar sesión.
+
+- **Inicio de sesión** con el Login Flow v2 de Nextcloud: se abre el navegador, autorizas y Wysun recibe una *contraseña de aplicación* (revocable desde la seguridad de tu cuenta de Nextcloud o con `logout`). Se guarda en `~/.local/share/wysun/drive/account.json` (carpeta `0700`, archivo `0600`), nunca en el repositorio.
+- **Subidas** por WebDAV; los archivos de 64 MB o más van en trozos de 16 MB (subida por trozos v2) y cada trozo se reintenta 3 veces. Un nombre que ya existe en la nube se sube como `nombre (2).ext`: nunca se reemplaza nada. Dentro de una carpeta se omiten enlaces simbólicos y archivos especiales (se avisa).
+- **Links**: públicos y de solo lectura (OCS `shareType=3`), opcionalmente con contraseña y caducidad. Se copian con `wl-copy` salvo `--sin-copiar`. Si el servidor exige contraseña, el error lo dice y la subida queda hecha.
+- **Selector** (`wysun_core.tui`, colores del fondo de pantalla, `WYSUN_REDUCED_MOTION=1` quita animaciones): `↑↓` mover, `→`/`↵` entrar, `←` subir de carpeta, `espacio` marcar, `l` con link, `u` subir, `.` ocultos, `Tab`/`1`/`2` pestañas; en Recientes `c` copia el link (o lo crea) y `o` lo abre. Pegar rutas o arrastrar archivos a la terminal los marca.
+- **Escritorio**: Files → clic derecho → «Subir a Wysun Drive» o «Subir y copiar link»; la captura de pantalla → «Upload & copy link» (`U`); el lanzador y Ajustes › Wysun Drive. Mientras sube aparece un icono en la barra con el progreso y «Cancelar»; el resultado llega como notificación («Link copiado»). Sin sesión, la notificación lo dice y se abre `wysun drive` en una terminal para iniciarla.
+- Ajustes en `~/.config/wysun/drive.json` (`{"server": "https://…", "folder": "Wysun"}`); historial (200 entradas) en `~/.local/share/wysun/drive/history.json`.
+- Contrato con la barra: `$XDG_RUNTIME_DIR/wysun-drive/<pid>.json` (`{pid, started, updated, title, items: [{name, done, total}], done, total}`), privado, atómico, latido cada 10 s; vivo si tiene menos de 30 s. `wysun drive --detener PID` solo detiene un `-m wysun_drive` del usuario.
+
+Credenciales: la contraseña de aplicación viaja solo en la cabecera `Authorization` por HTTPS al servidor de la cuenta (HTTP solo a `127.0.0.1`/`localhost`, para pruebas), sin seguir redirecciones, y nunca aparece en salidas, errores, notificaciones, el estado de la barra ni el historial (probado en `tests/drive/` con una contraseña sintética y un Nextcloud falso).
+
+### Para otras herramientas
+
+Cualquier cosa de Wysun que necesite subir a la nube y obtener un link usa Wysun Drive en vez de hablar con Nextcloud por su cuenta:
+
+```sh
+wysun drive up --link --json -- RUTA…
+# una línea JSON por ruta: {"ok": true, "name": "…", "remote": "Wysun/…", "url": "https://…/s/…",
+#                           "password": null, "size": 123, "is_dir": false, "error": null, "link_error": null}
+# salida: 0 todo bien · 1 algo falló · 2 uso incorrecto · 3 sin sesión (wysun drive login)
+```
+
+Añade `--notificar` para que el usuario vea el resultado y `--sin-copiar` si no quieres tocar el portapapeles. Así la subida aparece en la barra y se puede cancelar. Desde Python dentro de Wysun también vale `wysun_drive.api.upload(paths, link=True)` (devuelve `Result` con `url`; lanza `AuthError` con `code == 3` sin sesión).

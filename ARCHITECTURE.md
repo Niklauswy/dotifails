@@ -410,7 +410,7 @@ Nunca reiniciar Hyprland ni el login para actualizar un panel.
 | Estado (`scheme.json`, registros, respaldos de tema) / caché | `~/.local/state/wysun/` / `~/.cache/wysun/` |
 | Recorder | datos `~/.local/share/wysun/recorder`, preferencias `~/.config/wysun/recorder`, estado `~/.local/state/wysun/recorder`, releases `~/.local/share/wysun/capture/releases` |
 | Instalador | CLI `wysun-install` (`wysun install`), código `~/.local/share/wysun/installer`, estado y respaldos `~/.local/state/wysun/install`, artefactos fijados `~/.local/share/wysun/artifacts`, estado del sistema `/var/lib/wysun` |
-| Utilidades | `wysun lanshare` (`python3 -m wysun_lanshare`) y `wysun cloud` (`python3 -m wysun_cloud`, sobre el motor de terminal `wysun_core.tui`), en `~/.local/share/wysun/app`; caché `~/.cache/wysun/lanshare` y `~/.cache/wysun/cloud`; estado de la barra en `$XDG_RUNTIME_DIR/wysun-cloud/state.json` |
+| Utilidades | `wysun lanshare` (`python3 -m wysun_lanshare`), `wysun cloud` (`python3 -m wysun_cloud`) y `wysun drive` (`python3 -m wysun_drive`, subidas y links de Nextcloud), las dos últimas sobre el motor de terminal `wysun_core.tui`, en `~/.local/share/wysun/app`; caché `~/.cache/wysun/lanshare` y `~/.cache/wysun/cloud`; cuenta e historial de Drive en `~/.local/share/wysun/drive`; estado de la barra en `$XDG_RUNTIME_DIR/wysun-cloud/state.json` y `$XDG_RUNTIME_DIR/wysun-drive/<pid>.json` |
 | Sockets / variables / desktop ids | `wysun-*` en `$XDG_RUNTIME_DIR`; `WYSUN_*`; `wysun`, `wysun-files`, `wysun-music`, `wysun-processes`, `wysun-settings`, `wysun-recorder`, portal `org.freedesktop.impl.portal.desktop.wysun` |
 
 `tests/test_legacy_names.py` impide que vuelvan los nombres anteriores. La URL del repositorio en GitHub conserva su nombre.
