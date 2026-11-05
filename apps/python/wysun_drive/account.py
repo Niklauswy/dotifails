@@ -58,7 +58,38 @@ def settings():
     data = data if isinstance(data, dict) else {}
     server = data.get('server') if isinstance(data.get('server'), str) and data.get('server') else DEFAULT_SERVER
     folder = data.get('folder') if isinstance(data.get('folder'), str) else DEFAULT_FOLDER
-    return {'server': server.rstrip('/'), 'folder': clean_folder(folder)}
+    return {'server': normalize_server(server), 'folder': clean_folder(folder)}
+
+
+def normalize_server(url):
+    """``cloud.example`` or ``https://cloud.example/nc/`` → ``https://cloud.example/nc``."""
+    url = str(url).strip().rstrip('/')
+    if url and '://' not in url:
+        url = 'https://' + url
+    return url
+
+
+def same_server(first, second):
+    return normalize_server(first).lower() == normalize_server(second).lower()
+
+
+def current():
+    """The saved account when it belongs to the configured server, else None."""
+    acc = load()
+    return acc if acc is not None and same_server(acc.server, settings()['server']) else None
+
+
+def save_settings(server=None, folder=None):
+    """Write the chosen server and/or folder to ``~/.config/wysun/drive.json`` (keeps other keys)."""
+    path = paths.config('wysun', 'drive.json')
+    data = read_json(path, {})
+    data = data if isinstance(data, dict) else {}
+    if server is not None:
+        data['server'] = normalize_server(server)
+    if folder is not None:
+        data['folder'] = clean_folder(folder)
+    atomic_write_json(path, data)
+    return settings()
 
 
 def clean_folder(folder):

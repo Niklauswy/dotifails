@@ -33,8 +33,12 @@ def start(server):
     return login_url, poll
 
 
-def wait(poll, timeout=TIMEOUT, interval=INTERVAL, sleep=time.sleep, cancelled=lambda: False):
-    """Poll until the browser grants access; the new :class:`Account`."""
+def wait(poll, server=None, timeout=TIMEOUT, interval=INTERVAL, sleep=time.sleep, cancelled=lambda: False):
+    """Poll until the browser grants access; the new :class:`Account`.
+
+    With ``server`` the account keeps the address the user asked for (Nextcloud may answer with
+    another spelling of itself), so it matches the configured server.
+    """
     deadline = time.monotonic() + timeout
     body = urlencode({'token': poll['token']}).encode()
     headers = {'Content-Type': 'application/x-www-form-urlencoded'}
@@ -45,7 +49,7 @@ def wait(poll, timeout=TIMEOUT, interval=INTERVAL, sleep=time.sleep, cancelled=l
         if status == 200:
             try:
                 answer = json.loads(data)
-                account = Account(str(answer['server']).rstrip('/'), str(answer['loginName']),
+                account = Account((server or str(answer['server'])).rstrip('/'), str(answer['loginName']),
                                   str(answer['appPassword']))
             except (ValueError, KeyError, TypeError):
                 raise DriveError('Respuesta inesperada del inicio de sesión de Nextcloud') from None

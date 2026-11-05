@@ -22,8 +22,12 @@ __all__ = ['AuthError', 'DriveError', 'upload', 'make_link']
 
 
 def client(acc=None):
-    acc = acc or account.load()
+    acc = acc or account.current()
     if acc is None:
+        stale = account.load()
+        if stale is not None:
+            raise AuthError(f'La sesión es de {stale.server}; inicia sesión en {account.settings()["server"]}: '
+                            'wysun drive login')
         raise AuthError('Inicia sesión primero: wysun drive login')
     return Client(acc)
 

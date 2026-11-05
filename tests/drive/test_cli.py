@@ -40,6 +40,9 @@ class CliTests(unittest.TestCase):
         account = self.base / 'data/wysun/drive/account.json'
         account.parent.mkdir(parents=True, mode=0o700)
         account.write_text(json.dumps({'server': self.cloud.url, 'user': USER, 'password': PASSWORD}))
+        config = self.base / 'config/wysun/drive.json'
+        config.parent.mkdir(parents=True, exist_ok=True)
+        config.write_text(json.dumps({'server': self.cloud.url}))
         account.chmod(0o600)
 
     def run_cli(self, *args):
@@ -90,6 +93,26 @@ class CliTests(unittest.TestCase):
         done = self.run_cli('recientes', '--json')
         self.assertEqual(json.loads(done.stdout.splitlines()[0])['remote'], 'Wysun/informe.pdf')
         self.assertIn('/s/tok1', self.run_cli('recientes').stdout)
+
+    def test_ajustes_changes_server_and_session_follows_it(self):
+        self.login()
+        done = self.run_cli('ajustes', '--servidor', 'otro.example/', '--carpeta', '/Trabajo/Compartido/')
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertIn('otro servidor', done.stdout)
+        state = json.loads(self.run_cli('estado', '--json').stdout)
+        self.assertEqual((state['server'], state['folder'], state['user']),
+                         ('https://otro.example', 'Trabajo/Compartido', None))
+        self.assertEqual(state['other_server'], self.cloud.url)
+        up = self.run_cli('up', 'informe.pdf')
+        self.assertEqual(up.returncode, 3)
+        self.assertIn('https://otro.example', up.stderr)
+        # Back to the fake server: the session works again, into the chosen folder.
+        self.run_cli('ajustes', '--servidor', self.cloud.url)
+        self.assertEqual(self.run_cli('up', 'informe.pdf').returncode, 0)
+        self.assertIn('Trabajo/Compartido/informe.pdf', self.cloud.state.files)
+
+    def test_ajustes_rejects_plain_http(self):
+        self.assertEqual(self.run_cli('ajustes', '--servidor', 'http://cloud.example').returncode, 2)
 
     def test_human_size(self):
         self.assertEqual(cli.human_size(512), '512 B')

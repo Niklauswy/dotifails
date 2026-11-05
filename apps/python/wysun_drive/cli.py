@@ -11,7 +11,7 @@ from pathlib import Path
 
 from wysun_core import launch
 from wysun_drive import account, api, history, login, status
-from wysun_drive.client import AuthError, Cancelled, Client, DriveError
+from wysun_drive.client import AuthError, Cancelled, Client, DriveError, split_server
 
 HELP = '''Wysun Drive · tu Nextcloud
 Uso: wysun drive [ORDEN] [opciones]
@@ -26,9 +26,14 @@ Uso: wysun drive [ORDEN] [opciones]
       --json               una línea JSON por elemento (para otras herramientas)
       --notificar          el resultado como notificación
       --sin-copiar         no copiar el link al portapapeles
-  login [SERVIDOR]         inicia sesión desde el navegador (por defecto https://cloud.wysun.store)
+  login [SERVIDOR]         inicia sesión desde el navegador (con SERVIDOR, también lo guarda)
   logout                   cierra la sesión y revoca la contraseña de aplicación
   recientes [--json]       lo subido y sus links
+  ajustes [--servidor URL] [--carpeta NOMBRE]
+                           cambia tu Nextcloud o la carpeta de destino (también en Ajustes › Wysun Drive)
+  estado [--json]          servidor, carpeta y sesión
+
+Servidor por defecto: https://cloud.wysun.store. Al cambiarlo hay que iniciar sesión otra vez.
 '''
 PASSWORD_ALPHABET = 'abcdefghjkmnpqrstuvwxyz23456789'
 
@@ -149,8 +154,12 @@ def up(argv, out=sys.stdout, err=sys.stderr):
     password = (args.clave or generate_password()) if args.clave is not None else None
     days = parse_days(args.caduca) if args.caduca is not None else None
 
-    if account.load() is None:
+    if account.current() is None:
         message = 'Inicia sesión primero: wysun drive login'
+        try:
+            api.client()
+        except AuthError as error:
+            message = str(error)
         print(message, file=err)
         if args.notificar:
             notify('Wysun Drive no tiene sesión', 'Inicia sesión en la terminal que se abrió.', critical=True)
@@ -224,15 +233,13 @@ def up(argv, out=sys.stdout, err=sys.stderr):
 
 
 def do_login(argv, out=sys.stdout, err=sys.stderr):
-    server = (argv[0] if argv else account.settings()['server']).rstrip('/')
-    if '://' not in server:
-        server = 'https://' + server
+    server = account.normalize_server(argv[0] if argv else account.settings()['server'])
     try:
         url, poll = login.start(server)
-        print(f'Abre esta dirección y autoriza a Wysun Drive:\n  {url}', file=out)
+        print(f'Abre esta dirección y autoriza a Wysun Drive:\n  {url}', file=out, flush=True)
         open_url(url)
-        print('Esperando al navegador… (Ctrl+C cancela)', file=out)
-        acc = login.wait(poll)
+        print('Esperando al navegador… (Ctrl+C cancela)', file=out, flush=True)
+        acc = login.wait(poll, server=server)
         Client(acc).exists('')
     except KeyboardInterrupt:
         print('\nCancelado', file=err)
@@ -241,12 +248,46 @@ def do_login(argv, out=sys.stdout, err=sys.stderr):
         print(str(error), file=err)
         return error.code
     account.save(acc)
+    if argv:
+        account.save_settings(server=server)
     print(f'Sesión iniciada como {acc.user} en {acc.server}', file=out)
     return 0
 
 
+def ajustes(argv, out=sys.stdout):
+    parser = Parser(prog='wysun drive ajustes', add_help=False)
+    parser.add_argument('--servidor')
+    parser.add_argument('--carpeta')
+    args = parser.parse_args(argv)
+    if args.servidor is not None:
+        try:
+            split_server(account.normalize_server(args.servidor))
+        except DriveError as error:
+            raise Usage(str(error)) from None
+    if args.carpeta is not None and not account.clean_folder(args.carpeta) and args.carpeta.strip('/ '):
+        raise Usage('carpeta no válida')
+    current = account.save_settings(server=args.servidor, folder=args.carpeta)
+    print(f'Servidor: {current["server"]}\nCarpeta: {current["folder"] or "(raíz)"}', file=out)
+    if account.load() is not None and account.current() is None:
+        print('La sesión guardada es de otro servidor: ejecuta wysun drive login', file=out)
+    return 0
+
+
+def estado(argv, out=sys.stdout):
+    current = account.settings()
+    acc, saved = account.current(), account.load()
+    data = {'server': current['server'], 'folder': current['folder'], 'user': acc.user if acc else None,
+            'other_server': saved.server if saved is not None and acc is None else None}
+    if '--json' in argv:
+        print(json.dumps(data, ensure_ascii=False), file=out)
+        return 0
+    print(f'Servidor: {data["server"]}\nCarpeta: {data["folder"] or "(raíz)"}', file=out)
+    print(f'Sesión: {acc.user}' if acc else 'Sin sesión (wysun drive login)', file=out)
+    return 0
+
+
 def do_logout(out=sys.stdout):
-    acc = account.load()
+    acc = account.load()   # whatever server it belongs to
     if acc is None:
         print('No había sesión', file=out)
         return 0
@@ -290,6 +331,10 @@ def main(argv=None):
             return do_logout()
         if command == 'recientes':
             return recientes(rest)
+        if command == 'ajustes':
+            return ajustes(rest)
+        if command == 'estado':
+            return estado(rest)
         if command == '--terminal':
             return 0 if open_terminal() else 1
         if command == '--detener' and len(rest) == 1 and rest[0].isdigit():

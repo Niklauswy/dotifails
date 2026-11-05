@@ -28,7 +28,8 @@ BROWSE_HINTS = [('espacio', 'marcar'), ('u', 'subir'), ('l', 'con link'), ('←�
 RECENT_HINTS = [('c', 'copiar link'), ('o', 'abrir'), ('Tab', 'Subir'), ('q', 'salir')]
 UPLOAD_HINTS = [('Esc', 'cancelar')]
 DONE_HINTS = [('c', 'copiar links'), ('↵', 'cerrar')]
-LOGIN_HINTS = [('↵', 'iniciar sesión'), ('q', 'salir')]
+LOGIN_HINTS = [('↵', 'iniciar sesión'), ('s', 'cambiar servidor'), ('q', 'salir')]
+EDIT_HINTS = [('↵', 'guardar e iniciar sesión'), ('Esc', 'cancelar')]
 
 
 def _paths_from_paste(text):
@@ -62,7 +63,7 @@ class DriveApp(App):
     def __init__(self, term=None, home=None, start=None):
         super().__init__(term=term, home=home)
         self.cwd = Path(start or os.getcwd()).absolute()
-        self.account = account.load()
+        self.account = account.current()
         self.tab = 'browse' if self.account else 'login'
         self.show_hidden = False
         self.entries: list[tuple[str, bool, int]] = []
@@ -88,6 +89,8 @@ class DriveApp(App):
         self.login_url = ''
         self.login_state = ''
         self.login_busy = False
+        self.editing_server = False
+        self.server_text = ''
 
     # -- lifecycle ---------------------------------------------------------
     def on_start(self):
@@ -142,6 +145,10 @@ class DriveApp(App):
 
     # -- input -------------------------------------------------------------
     def on_paste(self, event):
+        if self.editing_server:
+            self.server_text += event.text.strip()
+            self.invalidate()
+            return
         paths = _paths_from_paste(event.text)
         if not paths or self.tab == 'login':
             return
@@ -168,12 +175,18 @@ class DriveApp(App):
             elif name in ('enter', 'escape') or (name == 'char' and char == 'q'):
                 self._close_overlay()
             return
+        if self.editing_server:
+            self._edit_key(name, char)
+            return
         if name == 'char' and char == 'q' or name == 'escape':
             self.quit()
             return
         if self.tab == 'login':
             if name == 'enter' and not self.login_busy:
                 self._start_login()
+            elif name == 'char' and char == 's' and not self.login_busy:
+                self.editing_server, self.server_text = True, account.settings()['server']
+                self.invalidate()
             return
         if name == 'tab' or name == 'backtab' or (name == 'char' and char in '12'):
             target = {'1': 'browse', '2': 'recent'}.get(char) if name == 'char' else None
@@ -186,6 +199,25 @@ class DriveApp(App):
             self._browse_key(name, char)
         else:
             self._recent_key(name, char)
+
+    def _edit_key(self, name, char):
+        if name == 'escape':
+            self.editing_server = False
+        elif name == 'backspace':
+            self.server_text = self.server_text[:-1]
+        elif name == 'char' and char and char.isprintable():
+            self.server_text += char
+        elif name == 'enter':
+            try:
+                from wysun_drive.client import split_server
+                split_server(account.normalize_server(self.server_text))
+            except DriveError as error:
+                self.toast(str(error), 5)
+                return
+            account.save_settings(server=self.server_text)
+            self.editing_server = False
+            self._start_login()
+        self.invalidate()
 
     def on_mouse(self, event):
         if event.kind in ('wheelup', 'wheeldown') and not self.uploading:
@@ -289,7 +321,7 @@ class DriveApp(App):
                 self.login_state = 'Autoriza a Wysun Drive en el navegador que se abrió'
                 open_url(url)
                 self.invalidate()
-                acc = login.wait(poll, cancelled=lambda: self._quitting)
+                acc = login.wait(poll, server=server, cancelled=lambda: self._quitting)
                 Client(acc).exists('')
                 account.save(acc)
             except DriveError as error:
@@ -414,6 +446,8 @@ class DriveApp(App):
         else:
             self._draw_recent(canvas, palette, width, height)
             hints = RECENT_HINTS
+        if self.editing_server:
+            hints = EDIT_HINTS
         if self.uploading:
             hints = UPLOAD_HINTS
         elif self.finished:
@@ -514,6 +548,9 @@ class DriveApp(App):
         lines = [('Wysun Drive aún no tiene sesión', 'onSurface', True),
                  (f'↵ abre {server} en el navegador para autorizarlo;', 'onSurfaceVariant', False),
                  ('Nextcloud le da una contraseña de aplicación que puedes revocar.', 'onSurfaceVariant', False),
+                 ('', 'onSurface', False),
+                 (f'Servidor: {self.server_text}▏' if self.editing_server else f'Servidor: {account.settings()["server"]}',
+                  'primary' if self.editing_server else 'onSurfaceVariant', self.editing_server),
                  ('', 'onSurface', False),
                  (self.login_state, 'primary', False),
                  (self.login_url, 'onSurfaceVariant', False)]

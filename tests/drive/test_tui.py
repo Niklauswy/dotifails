@@ -50,6 +50,9 @@ class DriveAppTests(unittest.TestCase):
         account = self.base / 'data/wysun/drive/account.json'
         account.parent.mkdir(parents=True, mode=0o700)
         account.write_text(json.dumps({'server': self.cloud.url, 'user': USER, 'password': PASSWORD}))
+        config = self.base / 'config/wysun/drive.json'
+        config.parent.mkdir(parents=True, exist_ok=True)
+        config.write_text(json.dumps({'server': self.cloud.url}))
 
     def make(self):
         term = VirtualTerminal(100, 30)
@@ -131,6 +134,19 @@ class DriveAppTests(unittest.TestCase):
         app.on_paste(ui.Paste(pasted) if hasattr(ui, 'Paste') else type('P', (), {'text': pasted})())
         app.run_for(0.05)
         self.assertEqual(sorted(app.marked), sorted([str(self.work / 'informe.pdf'), str(self.work / 'fotos')]))
+
+    def test_login_panel_edits_the_server(self):
+        app, term = self.make()
+        self.assertIn('Servidor: https://cloud.wysun.store', self.text(term))
+        self.press(app, b's')
+        for _ in range(len('https://cloud.wysun.store')):
+            self.press(app, b'\x7f', wait=0)
+        with mock.patch('wysun_drive.login.INTERVAL', 0):
+            app.on_paste(type('P', (), {'text': self.cloud.url})())
+            self.press(app, b'\r')
+            self.assertTrue(self.wait_for(app, lambda: app.account is not None, seconds=10))
+        settings = json.loads((self.base / 'config/wysun/drive.json').read_text())
+        self.assertEqual(settings['server'], self.cloud.url)
 
     def test_without_session_shows_login_and_logs_in(self):
         app, term = self.make()
