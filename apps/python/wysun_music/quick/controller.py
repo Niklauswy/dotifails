@@ -1,6 +1,8 @@
 """What the QML UI asks of the library: navigation destinations, routes, and the data of every page as models
 and plain maps. Wording and rules follow the Widgets UI it replaces (greeting, bento, shelves, bylines)."""
-from PySide6.QtCore import Property, QObject, QTimer, Signal, Slot
+import json
+
+from PySide6.QtCore import Property, QObject, QProcess, QTimer, Signal, Slot
 
 from wysun_music.library import FAVORITES, RECENT, Collection
 from wysun_music.store import artists, normalize
@@ -11,6 +13,8 @@ from .text import greeting, long_duration, songs, today
 SORTS = ('custom', 'title', 'artist', 'album', 'duration')
 FILTER_FROM = 8           # the in-list filter shows for collections longer than this
 SEARCH_SONGS = 5
+ONLINE_SONGS = 8          # «En YouTube» under the library's results
+ONLINE_DEBOUNCE_MS = 650
 
 
 def lead_artist(library, keys):
@@ -39,9 +43,10 @@ class MusicController(QObject):
     collectionChanged = Signal()
     searchChanged = Signal()
 
-    def __init__(self, library, covers, player, cover_urls=None, test=False, parent=None):
+    def __init__(self, library, covers, player, cover_urls=None, test=False, parent=None, online=None):
         super().__init__(parent)
         self.library, self.covers, self.player = library, covers, player
+        self.online = online
         self.urls = cover_urls
         self.test = test
         self.route = routes.restore((library.store.get('ui', {}) if not test else {}).get('route'))
@@ -62,6 +67,15 @@ class MusicController(QObject):
         self.collectionTracks, self.artistAlbums = make_tracks(), make_cards()
         self.searchSongs, self.searchArtists, self.searchLists, self.explore = (make_tracks(), make_cards(),
                                                                               make_cards(), make_cards())
+        # What the connection adds: «Para ti», mixes and Spotify's lists on Inicio; «En YouTube» in search.
+        self.homeForYou, self.homeMixes, self.homeOnline = make_tracks(), make_cards(), make_cards()
+        self.searchOnline = make_tracks()
+        self._online_query = ''
+        self._online_busy = False
+        self._yt = QProcess(self)
+        self._yt.finished.connect(self._online_found)
+        self._yt_timer = QTimer(self, singleShot=True, interval=ONLINE_DEBOUNCE_MS)
+        self._yt_timer.timeout.connect(self._search_online)
         self._collection_id, self._filter, self._sort = None, '', 'custom'
         self._collection = {}
         self._query, self._search = '', {}
@@ -71,6 +85,9 @@ class MusicController(QObject):
         library.changed.connect(self._refresh.start)
         library.history_changed.connect(self._history)
         library.favorites_changed.connect(self._favorites)
+        library.online_changed.connect(self._refresh.start)
+        if online is not None:
+            online.changed.connect(self._build_home)
         player.track_changed.connect(lambda _: self._bento())
         self.refresh()
 
@@ -128,7 +145,8 @@ class MusicController(QObject):
     # -------------------------------------------------------------- models
     for _name in ('homeRecent', 'homeChart', 'homePlaylists', 'homeAlbums', 'homeArtists', 'libraryAlbums',
                   'libraryArtists', 'libraryLists', 'librarySongs', 'collectionTracks', 'artistAlbums',
-                  'searchSongs', 'searchArtists', 'searchLists', 'explore'):
+                  'searchSongs', 'searchArtists', 'searchLists', 'explore', 'homeForYou', 'homeMixes',
+                  'homeOnline', 'searchOnline'):
         locals()[_name + 'Model'] = Property(QObject, (lambda name: lambda self: getattr(self, name))(_name),
                                              constant=True)
     del _name
@@ -167,6 +185,11 @@ class MusicController(QObject):
         self.homeChart.setKeys([k for k in library.store.most_played(9) if library.available(k)])
         ranked = sorted(library.artists().items(), key=lambda item: -len(item[1]))[:12]
         self.homeArtists.set([library.collection('artist:' + name) for name, _ in ranked], lambda c: songs(len(c.keys)))
+        online = self.online is not None and library.online
+        self.homeForYou.setKeys(self.online.for_you if online else [])
+        self.homeMixes.set([library.collection(k) for k in self.online.mixes] if online else [],
+                           lambda c: 'Mix de YouTube · ' + songs(len(c.keys)))
+        self.homeOnline.set(self.online.collections() if online else [], lambda c: 'Spotify · ' + songs(len(c.keys)))
         self._bento()
 
     def _bento(self):
@@ -193,7 +216,8 @@ class MusicController(QObject):
                         subtitle=' · '.join(dict.fromkeys(library.track(k).get('title', '') for k in recent.keys[:3])),
                         symbol='history', collection=RECENT, action='open', enabled=bool(recent.keys))],
             summary=self._summary(),
-            empty=not library.all_keys())
+            online=self.online is not None and library.online,
+            empty=not library.all_keys() and not (self.online is not None and library.online))
         self.homeChanged.emit()
 
     def _summary(self):
@@ -243,7 +267,10 @@ class MusicController(QObject):
         if collection.date:
             meta.insert(0, 'Actualizado ' + collection.date)
         byline = {'album': lead_artist(library, collection.keys), 'user': 'Tu playlist',
-                  'favorites': 'Guardadas por ti', 'recent': 'Tus últimas canciones'}.get(collection.kind, '')
+                  'favorites': 'Guardadas por ti', 'recent': 'Tus últimas canciones',
+                  'online': 'Escúchala sin descargar · ' + (collection.source if collection.source == 'YouTube'
+                                                            else 'Spotify')}.get(collection.kind, '')
+        missing = sum(not library.available(k) for k in collection.keys)
         albums = []
         if collection.kind == 'artist':
             albums = library.artist_albums(collection.title)
@@ -252,6 +279,7 @@ class MusicController(QObject):
         self._collection = dict(exists=True, id=collection.id, title=collection.title, kind=collection.kind,
                                 label=collection.label, byline=byline, meta=' · '.join(meta),
                                 editable=collection.editable, source=collection.source, count=len(collection.keys),
+                                online=collection.kind == 'online', missing=missing,
                                 filterable=len(collection.keys) > FILTER_FROM, sort=self._sort, filter=self._filter,
                                 initials=''.join(w[0] for w in collection.title.split()[:2]).upper()
                                 if collection.kind == 'artist' else '')
@@ -289,6 +317,7 @@ class MusicController(QObject):
         self._query = query
         library = self.library
         words = normalize(query)
+        self._queue_online(query)
         if not words:
             collections = [c for c in library.collections() if c.keys]
             ranked = sorted(library.artists().items(), key=lambda item: -len(item[1]))[:8]
@@ -311,8 +340,11 @@ class MusicController(QObject):
                        subtitle='Canción · ' + track.get('artist', ''))
         else:
             top = {}
+        waiting = self._online_busy or self._yt_timer.isActive()
         self._search = dict(query=query, searching=True, top=top, songCount=len(keys),
-                            allSongs=f'Ver las {songs(len(keys))}', empty=not (keys or names or lists),
+                            allSongs=f'Ver las {songs(len(keys))}',
+                            onlineBusy=waiting, onlineCount=self.searchOnline.count,
+                            empty=not (keys or names or lists or waiting or self.searchOnline.count),
                             emptyText=f'No encontramos «{query}» en tu biblioteca. Prueba otras palabras o búscalo '
                                       'en «Añadir música».')
         self.searchChanged.emit()
@@ -320,6 +352,53 @@ class MusicController(QObject):
     @Property('QVariantMap', notify=searchChanged)
     def search(self):
         return self._search
+
+    # -------------------------------------------------------- online search
+    @Slot(result='QVariantList')
+    def onlineKeys(self):
+        return self.searchOnline.keys
+
+    def _queue_online(self, query):
+        if self.online is None or not self.library.online or not normalize(query):
+            self._yt_timer.stop()
+            self._online_query = ''
+            self.searchOnline.setKeys([])
+            return
+        if query != self._online_query:
+            self._online_query = query
+            self.searchOnline.setKeys([])
+            self._yt_timer.start()
+
+    def _search_online(self):
+        from wysun_music import data as music_data
+        if self._yt.state() != QProcess.NotRunning:
+            self._yt.kill()
+            self._yt.waitForFinished(1000)
+        try:
+            args = music_data.ytdlp() + ['--flat-playlist', '--dump-single-json', '--',
+                                         f'ytsearch{ONLINE_SONGS + 2}:{self._online_query}']
+        except RuntimeError:
+            return
+        self._online_busy = True
+        self._yt.setProperty('query', self._online_query)
+        self._yt.start(args[0], args[1:])
+
+    def _online_found(self, code, *_):
+        from wysun_music.stream import entry_track
+        self._online_busy = False
+        query = self._yt.property('query')
+        raw = bytes(self._yt.readAllStandardOutput())
+        if query == self._online_query and not code:
+            try:
+                entries = json.loads(raw).get('entries') or []
+            except ValueError:
+                entries = []
+            tracks = [entry_track(e) for e in entries if e and e.get('id') and (e.get('duration') or 0) < 15 * 60]
+            shown = set(self.searchSongs.keys)
+            keys = [k for k in dict.fromkeys(self.library.register(tracks)) if k not in shown]
+            self.searchOnline.setKeys(keys[:ONLINE_SONGS])
+        if query == self._online_query:
+            self.setQuery(self._query, True)
 
     # --------------------------------------------------------------- songs
     @Slot(str, str, result='QVariantList')

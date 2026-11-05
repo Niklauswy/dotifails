@@ -18,7 +18,7 @@ TITLES = {'nadie-sabe': 'Nadie sabe…', 'bad-bunny': 'Bad Bunny · éxitos',
           'top-global': 'Top 100 · Global', 'top-mexico': 'Top 100 · México'}
 KIND_LABELS = {'favorites': 'Playlist', 'all': 'Biblioteca', 'album': 'Álbum', 'ranking': 'Ranking',
                'playlist': 'Playlist', 'user': 'Tu playlist', 'artist': 'Artista', 'recent': 'Historial',
-               'search': 'Búsqueda'}
+               'search': 'Búsqueda', 'online': 'Playlist'}
 HIDDEN = {'audio-versions'}
 FAVORITES, ALL, RECENT = 'favorites', 'all', 'recent'
 

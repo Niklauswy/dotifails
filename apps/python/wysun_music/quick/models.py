@@ -62,7 +62,7 @@ class _KeyedModel(QAbstractListModel):
 class TrackListModel(_KeyedModel):
     """Songs by key. ``favorite``, ``current``/``playing`` and ``cover`` follow the library, player and covers."""
     NAMES = ('key', 'title', 'artist', 'artists', 'album', 'duration', 'durationText', 'favorite', 'cover',
-             'current', 'playing', 'number')
+             'current', 'playing', 'number', 'local')
 
     def __init__(self, library, player, urls, parent=None):
         super().__init__(parent)
@@ -129,6 +129,8 @@ class TrackListModel(_KeyedModel):
             return key == self.player.current and self.player.playing
         if name == 'number':
             return number + 1
+        if name == 'local':
+            return self.library.available(key)
         return None
 
 

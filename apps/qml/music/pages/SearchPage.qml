@@ -1,7 +1,7 @@
 // Búsqueda (route search[:text]): with an empty query, Explorar — your lists, albums and most played artists
 // as full-bleed tiles; while typing (rendered 140 ms after the last key), the top result (artist or song),
-// five songs with «Ver las N canciones», artists, and playlists and albums. ↓/Enter in the search bar land on
-// the songs; Enter plays among every match.
+// five songs with «Ver las N canciones», «En YouTube» (with a connection: songs that stream without downloading),
+// artists, and playlists and albums. ↓/Enter in the search bar land on the songs; Enter plays among every match.
 import QtQuick
 import QtQuick.Effects
 import WysunM3
@@ -219,6 +219,53 @@ FocusScope {
                                 currentIndex = 0;
                         }
                     }
+                }
+            }
+
+            Column {
+                objectName: "onlineResults"
+                visible: page.searching && (onlineSongs.count > 0 || page.result.onlineBusy === true)
+                width: parent.width
+                spacing: Theme.spacing.small ?? 0
+
+                Row {
+                    spacing: Theme.spacing.small ?? 0
+
+                    Label {
+                        anchors.verticalCenter: parent.verticalCenter
+                        role: "title.large"
+                        text: "En YouTube"
+                    }
+                    CircularProgress {
+                        anchors.verticalCenter: parent.verticalCenter
+                        visible: page.result.onlineBusy === true
+                        size: Metrics.iconSize
+                        indeterminate: true
+                    }
+                }
+                Label {
+                    role: "body.medium"
+                    text: "Suenan al momento, sin descargar. Dale me gusta para guardarlas."
+                    color: Theme.m3onSurfaceVariant
+                }
+                TrackList {
+                    id: onlineSongs
+
+                    objectName: "onlineSongs"
+                    width: parent.width
+                    height: count * MusicMetrics.trackRow
+                    interactive: false
+                    numbered: false
+                    albums: false
+                    striped: false
+                    model: music.searchOnlineModel
+                    contextKeys: {
+                        onlineSongs.count;
+                        return music.onlineKeys();
+                    }
+                    contextId: "youtube:" + page.query
+                    onArtistRequested: name => page.app.navigate("search:" + name, true)
+                    onContextRequested: (keys, x, y) => page.app.menus.trackMenu(keys, "", x, y)
                 }
             }
 

@@ -1,5 +1,6 @@
 // Inicio: the date and a greeting, a bento of hero tiles (now playing or keep listening, Tus me gusta, a mix,
-// recent), then shelves: recently played, your playlists, your most played, albums and your artists.
+// recent), then shelves: recently played, «Para ti» and mixes (online), your playlists, your most played,
+// Spotify's lists of the moment (online), albums and your artists. Online shelves stream without downloading.
 import QtQuick
 import WysunM3
 import "../parts"
@@ -142,6 +143,38 @@ FocusScope {
             }
 
             Shelf {
+                objectName: "forYouShelf"
+                visible: count > 0
+                width: parent.width
+                title: "Para ti"
+                note: "Lo nuevo y lo que suena, según lo que escuchas · sin descargar"
+                model: music.homeForYouModel
+                delegate: MusicCard {
+                    entranceIndex: index
+                    title: model.title
+                    subtitle: model.artist
+                    covers: model.cover ? [model.cover] : []
+                    placeholderIcon: "cloud"
+                    playing: model.playing
+                    onOpened: player.play(model.key, music.homeForYouModel.keys, "foryou")
+                    onPlayRequested: player.playOrToggle(model.key, music.homeForYouModel.keys, "foryou")
+                    onContextRequested: (x, y) => page.app.menus.trackMenu([model.key], "", x, y)
+                }
+            }
+
+            Shelf {
+                objectName: "mixesShelf"
+                visible: count > 0
+                width: parent.width
+                title: "Tus mixes"
+                note: "A partir de lo que más escuchas"
+                model: music.homeMixesModel
+                delegate: CollectionCard {
+                    app: page.app
+                }
+            }
+
+            Shelf {
                 width: parent.width
                 title: "Tus playlists"
                 note: "Listas que guardaste o creaste"
@@ -187,6 +220,18 @@ FocusScope {
                             onPlayRequested: player.playOrToggle(model.key, music.homeChartModel.keys, "top")
                         }
                     }
+                }
+            }
+
+            Shelf {
+                objectName: "onlineShelf"
+                visible: count > 0
+                width: parent.width
+                title: "Listas del momento"
+                note: "Novedades y tops de Spotify, para escuchar sin descargar"
+                model: music.homeOnlineModel
+                delegate: CollectionCard {
+                    app: page.app
                 }
             }
 

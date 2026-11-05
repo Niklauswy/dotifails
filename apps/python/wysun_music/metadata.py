@@ -82,7 +82,11 @@ class Metadata(QObject):
         path = self.filename(kind, key)
         try:
             cached = json.loads(path.read_text())
-            ttl = 300 if kind=='spotify-import' else 3600 if cached.get('error') else (86400 if cached.get('unavailable') else 30*86400)
+            if kind.startswith('online-'):
+                # Online lists change daily; a failure (offline) is never cached, so the next refresh retries.
+                ttl = 0 if cached.get('error') else 20*3600
+            else:
+                ttl = 300 if kind=='spotify-import' else 3600 if cached.get('error') else (86400 if cached.get('unavailable') else 30*86400)
             if time.time()-path.stat().st_mtime < ttl:
                 self.results[token] = cached
                 self.ready.emit(kind, key, cached)

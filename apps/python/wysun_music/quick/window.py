@@ -15,12 +15,13 @@ def qml_dir():
 class QmlMusicWindow:
     """What app.MusicApp needs of a window: ``present()``, ``save_ui()``; closing only hides it."""
 
-    def __init__(self, library, covers, player, test=False):
+    def __init__(self, library, covers, player, test=False, online=None):
         self.library, self.covers, self.player = library, covers, player
+        self.online = online
         self.app, self.engine = qml_engine.create_engine('wysun-music')
         self.bridge = theme_bridge.ThemeBridge(parent=self.engine)
         self.urls = CoverUrls(covers, self.engine)
-        self.music = MusicController(library, covers, player, self.urls, test=test, parent=self.engine)
+        self.music = MusicController(library, covers, player, self.urls, test=test, parent=self.engine, online=online)
         self.music.hideRequested.connect(self.hide)
         self.bridges = {'bridge': self.bridge, 'covers': self.urls, 'music': self.music}
         self._extend()
@@ -41,7 +42,7 @@ class QmlMusicWindow:
         self.lyrics = LyricsBridge(self.library, self.covers.metadata, self.player, self.engine)
         self.bridges['lyrics'] = self.lyrics
         from .addmusic import AddMusic
-        self.addmusic = AddMusic(self.library, self.covers.metadata, self.engine)
+        self.addmusic = AddMusic(self.library, self.covers.metadata, self.player, self.engine)
         self.bridges['addMusic'] = self.addmusic
 
     # ----------------------------------------------------------------- window

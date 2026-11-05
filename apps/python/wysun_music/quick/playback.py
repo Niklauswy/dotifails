@@ -111,6 +111,10 @@ class PlayerBridge(QObject):
         return self.player.paused or self.player.ended or not self.player.current
 
     @Property(bool, notify=stateChanged)
+    def buffering(self):
+        return self.player.buffering
+
+    @Property(bool, notify=stateChanged)
     def playing(self):
         return self.player.playing and not self.player.ended
 

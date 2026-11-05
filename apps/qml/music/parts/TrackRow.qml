@@ -1,5 +1,6 @@
 // One song of a TrackList: number (or the playing bars, or a selection check), cover, title, artist (link),
 // album, favourite, duration and «más». The current song shows in primary; a selected row in secondaryContainer.
+// Songs that are not on disk carry a small cloud: they stream, so they need the connection.
 import QtQuick
 import WysunM3
 
@@ -18,6 +19,7 @@ Rectangle {
     required property bool current
     required property bool playing
     required property int number
+    required property bool local
 
     property var list
     readonly property bool selected: list.selection[key] === true
@@ -147,6 +149,18 @@ Rectangle {
         anchors.verticalCenter: parent.verticalCenter
         spacing: Theme.spacing.extraSmall ?? 0
 
+        Icon {
+            objectName: "cloud"
+            anchors.verticalCenter: parent.verticalCenter
+            visible: !root.local
+            name: "cloud"
+            size: Metrics.iconSize * 0.75
+            color: root.muted
+
+            Tooltip {
+                text: "Sin descargar · suena por internet"
+            }
+        }
         IconButton {
             objectName: "heart"
             anchors.verticalCenter: parent.verticalCenter

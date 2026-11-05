@@ -358,6 +358,22 @@ FocusScope {
                         disabled: (page.info.count ?? 0) === 0
                         onClicked: player.playCollection(page.collectionId, "", true)
                     }
+                    Button {
+                        objectName: "collectionDownload"
+                        anchors.verticalCenter: parent.verticalCenter
+                        visible: page.info.online === true
+                        type: "outlined"
+                        text: "Descargar…"
+                        icon: "download"
+                        onClicked: {
+                            addMusic.previewCollection(page.collectionId);
+                            page.app.navigate("downloads", true);
+                        }
+
+                        Tooltip {
+                            text: "Elige qué canciones guardar en tu equipo"
+                        }
+                    }
                     IconButton {
                         id: more
 

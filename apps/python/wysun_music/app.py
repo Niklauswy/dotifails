@@ -44,7 +44,14 @@ def build(test=False, *, persist=None, network=None, publish=None):
         from .stream import StreamResolver
         resolver = StreamResolver()
     player = Player(library, persist=persist, resolver=resolver)
-    window = MusicWindow(library, covers, player, test=test)
+    online = None
+    if network:
+        from .online import Online
+        online = Online(library, covers.metadata)
+    window = MusicWindow(library, covers, player, test=test, online=online)
+    if online is not None:
+        from PySide6.QtCore import QTimer
+        QTimer.singleShot(0, online.refresh)
     app = MusicApp(library, covers, player, window)
     if publish:
         from . import mpris
