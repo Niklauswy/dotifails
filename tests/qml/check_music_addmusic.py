@@ -1,5 +1,5 @@
-"""«Añadir música»: YouTube search (fake yt-dlp), selection and download, link validation, Spotify import, the
-Files selector for imports, and the download queue."""
+"""«Añadir música»: YouTube search (fake yt-dlp), playing and selecting results, link validation, choosing songs of
+a Spotify list before downloading, the Files selector for imports, download batches and failed songs."""
 import json
 from pathlib import Path
 import sys
@@ -53,7 +53,7 @@ class AddMusicTests(unittest.TestCase):
         manifest = enqueue.call_args.args[0]
         self.assertEqual([t['id'] for t in manifest['collections'][0]['tracks']], ['yt-bbb'])
         worker.assert_called_once()
-        self.assertEqual(self.add.status, '1 añadidas a la cola de descargas.')
+        self.assertEqual(self.add.status, '1 canción en camino a tu biblioteca.')
 
     def test_ctrl_enter_downloads_from_the_list(self):
         self.h.call(self.window, 'navigate', 'downloads', True)
@@ -72,20 +72,35 @@ class AddMusicTests(unittest.TestCase):
         self.add.search('https://example.com/song')
         self.assertEqual(self.add.status, 'Usa un enlace de YouTube o Spotify, o escribe el nombre de la canción.')
 
-    def test_spotify_import(self):
+    def test_spotify_list_is_chosen_before_downloading(self):
         link = 'https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M'
-        result = {'collections': [{'id': 'spotify-x', 'title': 'Lista', 'tracks': [{'id': 'a', 'title': 't', 'artist': 'x', 'duration': 1}]}]}
-        routes = []
-        self.add.navigateRequested.connect(routes.append)
-        with patch.object(self.music.covers.metadata, 'request') as request, \
-                patch('wysun_music.data.enqueue'), patch('wysun_music.data.start_worker'), \
-                patch.object(self.music.library.store, 'import_references'), \
-                patch.object(self.music.library, 'refresh_references'):
+        first = music_fixture.keys_by_title()['first']
+        result = {'collections': [{'id': 'spotify-x', 'title': 'Lista', 'source': link, 'cover_url': None, 'tracks': [
+            {'id': 'a' * 22, 'title': 'Nueva', 'artist': 'X', 'duration': 100},
+            {'id': 'b' * 22, 'title': 'Otra', 'artist': 'Y', 'duration': 100},
+            {'id': first, 'title': 'first', 'artist': 'Synth', 'duration': 12}]}]}
+        with patch.object(self.music.covers.metadata, 'request') as request:
             self.add.search(link)
             self.assertEqual(request.call_args.args[:2], ('spotify-import', link))
             self.music.covers.metadata.ready.emit('spotify-import', link, result)
-        self.assertEqual(self.add.status, '1 canciones de Spotify · 0 ya estaban · 1 en cola')
-        self.assertEqual(routes, ['collection:spotify-x'])
+        preview = self.add.preview
+        self.assertEqual((preview['title'], preview['total'], preview['owned'], preview['chosen']), ('Lista', 3, 1, 2))
+        self.assertEqual(self.rows(self.add.previewRows, 'owned'), [False, False, True])
+        self.add.togglePreview(2)                         # owned songs cannot be picked again
+        self.add.togglePreview(1)
+        self.assertEqual(self.add.preview['action'], 'Descargar 1')
+        self.add.selectPreview('none')
+        self.assertEqual(self.add.preview['chosen'], 0)
+        self.add.selectPreview('all')
+        self.add.togglePreview(0)
+        with patch('wysun_music.data.enqueue') as enqueue, patch('wysun_music.data.start_worker'), \
+                patch.object(self.music.library.store, 'import_references'), \
+                patch.object(self.music.library, 'refresh_references'):
+            self.add.downloadPreview()
+        collection = enqueue.call_args.args[0]['collections'][0]
+        self.assertEqual((collection['id'], collection['title']), ('spotify-x', 'Lista'))
+        self.assertEqual([t['id'] for t in collection['tracks']], ['b' * 22])
+        self.assertEqual(self.add.preview, {})
 
     def test_import_through_the_files_selector(self):
         target = music_fixture.setup()['files'][0]
@@ -111,8 +126,32 @@ class AddMusicTests(unittest.TestCase):
 
     def test_queue_summary(self):
         self.add.render_queue()
-        self.assertTrue(self.add.summary.startswith('3 guardadas · 0 en cola · 0 requieren atención'))
+        self.assertEqual(self.add.summary, 'No hay descargas en curso')
         self.assertFalse(self.add.counts['canRetry'])
+
+    def test_batches_and_failed_songs(self):
+        from wysun_music import data as music_data
+        music_data.enqueue({'collections': [{'id': 'lote', 'title': 'Mi lote', 'append': True, 'source': 'x', 'tracks': [
+            {'id': 'c' * 22, 'title': 'Uno', 'artist': 'A', 'duration': 10},
+            {'id': 'd' * 22, 'title': 'Dos', 'artist': 'B', 'duration': 10}]}]})
+        music_data.set_paused(True)
+        music_data.update_track('d' * 22, status='missing', error='nada')
+        try:
+            self.music.library.reload(force=True)
+            self.add.render_queue()
+            self.assertEqual(self.rows(self.add.batches, 'title'), ['Mi lote'])
+            self.assertEqual(self.rows(self.add.batches, 'detail'), ['0 de 2 · en pausa'])
+            self.assertEqual(self.rows(self.add.failures, 'detail'), ['No encontrada en YouTube'])
+            self.assertEqual(self.add.counts['failedText'], '1 canción no se pudo descargar')
+            self.assertTrue(self.add.counts['canResume'])
+            token = self.music.library.state['tracks']['c' * 22]['batch']
+            self.add.cancelBatch(token)
+            self.add.forget('d' * 22)
+            self.assertEqual(self.add.batches.rowCount(), 0)
+            self.assertEqual(self.add.failures.rowCount(), 0)
+        finally:
+            music_data.set_paused(False)
+            self.music.library.reload(force=True)
 
 
 if __name__ == '__main__':
