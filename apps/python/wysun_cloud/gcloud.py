@@ -65,6 +65,29 @@ class Gcloud:
         except ValueError:
             raise GcloudError('gcloud devolvió una respuesta ilegible') from None
 
+    def token(self):
+        """The access token for a REST call, from gcloud; it is returned, never stored."""
+        executable = shutil.which(self.executable)
+        if executable is None:
+            raise GcloudMissing()
+        argv = [executable, 'auth', 'print-access-token', '--quiet']
+        try:
+            result = subprocess.run(argv, capture_output=True, text=True, timeout=DEFAULT_TIMEOUT, check=False)
+        except FileNotFoundError:
+            raise GcloudMissing() from None
+        except subprocess.TimeoutExpired:
+            raise GcloudError('gcloud no respondió a tiempo') from None
+        if result.returncode != 0:
+            stderr = result.stderr or ''
+            lowered = stderr.lower()
+            if 'gcloud auth login' in lowered or 'reauthentication' in lowered or 'reauth' in lowered:
+                raise GcloudAuth()
+            raise GcloudError('gcloud no pudo dar un token de acceso')
+        token = (result.stdout or '').strip()
+        if not token:
+            raise GcloudError('gcloud no devolvió un token de acceso')
+        return token
+
     def projects(self):
         """Every project id the active account can see."""
         data = self.json(['projects', 'list'])
