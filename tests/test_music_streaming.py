@@ -48,9 +48,10 @@ class FakeResolver(QObject):
         super().__init__()
         self.requests = []
 
-    def request(self, key, track):
+    def request(self, key, track, urgent=True):
         assert track.get('title') and track.get('artist'), track
         self.requests.append(key)
+        self.urgent = getattr(self, 'urgent', []) + [urgent]
 
 
 class StreamingPlayerTests(unittest.TestCase):
@@ -96,6 +97,20 @@ class StreamingPlayerTests(unittest.TestCase):
         self.assertEqual(self.player.engine.loaded, ['https://audio/1'])
         self.assertFalse(self.player.buffering)
         self.assertIn('yt-bbbbbbbbbbb', self.resolver.requests, 'the next song is prepared ahead')
+
+    def test_the_previous_song_stops_while_the_stream_is_prepared(self):
+        self.player.play_collection(['local', 'yt-aaaaaaaaaaa'], 'local')
+        self.assertFalse(self.player.engine.paused)
+        self.player.next()
+        self.assertEqual(self.player.current, 'yt-aaaaaaaaaaa')
+        self.assertTrue(self.player.engine.paused, 'the old song must not keep playing under the new title')
+        self.resolver.resolved.emit('yt-aaaaaaaaaaa', 'https://audio/1')
+        self.assertFalse(self.player.engine.paused)
+
+    def test_prefetch_is_not_urgent(self):
+        self.player.play_collection(['yt-aaaaaaaaaaa', 'yt-bbbbbbbbbbb'], 'yt-aaaaaaaaaaa')
+        self.resolver.resolved.emit('yt-aaaaaaaaaaa', 'https://audio/1')
+        self.assertEqual(self.resolver.urgent, [True, False])
 
     def test_stale_resolution_is_ignored(self):
         self.player.play_collection(['yt-aaaaaaaaaaa', 'yt-bbbbbbbbbbb'], 'yt-aaaaaaaaaaa')

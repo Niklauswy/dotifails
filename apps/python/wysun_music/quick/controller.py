@@ -371,6 +371,13 @@ class MusicController(QObject):
 
     def _search_online(self):
         from wysun_music import data as music_data
+        resolver = getattr(self.player, 'resolver', None)
+        if resolver is not None:
+            query = self._online_query
+            self._online_busy = True
+            resolver.call({'op': 'search', 'query': query, 'limit': ONLINE_SONGS + 2, 'urgent': True},
+                          lambda answer: self._online_answer(query, answer))
+            return
         if self._yt.state() != QProcess.NotRunning:
             self._yt.kill()
             self._yt.waitForFinished(1000)
@@ -384,21 +391,24 @@ class MusicController(QObject):
         self._yt.start(args[0], args[1:])
 
     def _online_found(self, code, *_):
-        from wysun_music.stream import entry_track
-        self._online_busy = False
-        query = self._yt.property('query')
         raw = bytes(self._yt.readAllStandardOutput())
-        if query == self._online_query and not code:
-            try:
-                entries = json.loads(raw).get('entries') or []
-            except ValueError:
-                entries = []
-            tracks = [entry_track(e) for e in entries if e and e.get('id') and (e.get('duration') or 0) < 15 * 60]
-            shown = set(self.searchSongs.keys)
-            keys = [k for k in dict.fromkeys(self.library.register(tracks)) if k not in shown]
-            self.searchOnline.setKeys(keys[:ONLINE_SONGS])
-        if query == self._online_query:
-            self.setQuery(self._query, True)
+        try:
+            entries = json.loads(raw).get('entries') or [] if not code else []
+        except ValueError:
+            entries = []
+        self._online_answer(self._yt.property('query'), {'ok': not code, 'entries': entries})
+
+    def _online_answer(self, query, answer):
+        from wysun_music.stream import entry_track
+        if query != self._online_query:
+            return                          # the user kept typing: a newer search is on its way
+        self._online_busy = False
+        entries = answer.get('entries') or []
+        tracks = [entry_track(e) for e in entries if e and e.get('id') and (e.get('duration') or 0) < 15 * 60]
+        shown = set(self.searchSongs.keys)
+        keys = [k for k in dict.fromkeys(self.library.register(tracks)) if k not in shown]
+        self.searchOnline.setKeys(keys[:ONLINE_SONGS])
+        self.setQuery(self._query, True)
 
     # --------------------------------------------------------------- songs
     @Slot(str, str, result='QVariantList')

@@ -221,7 +221,9 @@ class Player(QObject):
         if stream:
             self._wanted = (key, start, paused)
             self.buffering = True
-            self.resolver.request(key, track)
+            if self.engine.running and not self.engine.paused:
+                self.engine.set_paused(True)        # the old song must not play under the new title
+            self.resolver.request(key, track, urgent=True)
         else:
             self._wanted = None
             self.buffering = False
@@ -267,7 +269,7 @@ class Player(QObject):
             return
         for key in self.queue.upcoming(1):
             if not self.library.available(key) and self.library.listenable(key):
-                self.resolver.request(key, self.library.playable(key))
+                self.resolver.request(key, self.library.playable(key), urgent=False)
 
     def _position(self, value):
         self.position = value
@@ -311,3 +313,5 @@ class Player(QObject):
         self.save()
         self._save_timer.stop()
         self.engine.quit()
+        if self.resolver is not None and hasattr(self.resolver, 'shutdown'):
+            self.resolver.shutdown()

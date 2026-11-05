@@ -72,9 +72,9 @@ class Online(QObject):
     """Keeps the library's online lists and «Para ti» fresh while there is a connection."""
     changed = Signal()
 
-    def __init__(self, library, metadata, parent=None):
+    def __init__(self, library, metadata, resolver=None, parent=None):
         super().__init__(parent)
-        self.library, self.metadata = library, metadata
+        self.library, self.metadata, self.resolver = library, metadata, resolver
         self.for_you = []
         self.mixes = []
         self._charts = {}
@@ -135,9 +135,22 @@ class Online(QObject):
         return seeds
 
     def _request_mixes(self):
+        """Mixes go to the warm yt-dlp helper (not the artwork threads, which they would hold for seconds)."""
         self._seeds = self._seed_videos()
         for key, url in self._seeds:
-            self.metadata.request('online-mix', stream.video_id(url), lambda url=url: mix(url))
+            vid = stream.video_id(url)
+            if vid in self._mixes:
+                continue
+            if self.resolver is None:
+                self.metadata.request('online-mix', vid, lambda url=url: mix(url))
+                continue
+            self.resolver.call({'op': 'mix', 'url': url, 'limit': MIX_LENGTH},
+                               lambda answer, vid=vid: self._mix_answer(vid, answer))
+
+    def _mix_answer(self, vid, answer):
+        if answer.get('ok') and answer.get('entries'):
+            self._ready('online-mix', vid, {'tracks': [stream.entry_track(e) for e in answer['entries']],
+                                            'cover_url': f'https://i.ytimg.com/vi/{vid}/hqdefault.jpg'})
 
     def _ready(self, kind, key, result):
         if kind == 'online-chart':
