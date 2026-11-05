@@ -1,0 +1,60 @@
+#!/usr/bin/env python3
+"""Fake `ssh` for the Wysun Cloud tests: replays recorded probe lines.
+
+Environment variables (all optional):
+  FAKE_SSH_LOG=<path>        append the space-joined argv, one line per call
+  FAKE_SSH_FAIL=1            fail like a dropped connection: a timeout on
+                             stderr, exit 255 (before replaying anything)
+  FAKE_SSH_STDERR=<text>     print <text> on stderr and exit 255
+  FAKE_SSH_LINES=<n>         replay only the first <n> recorded lines, then exit 0
+  FAKE_SSH_LINE_DELAY=<s>    seconds between replayed lines (default 0.05)
+  FAKE_SSH_OUTPUT=<text>     print this instead of the recorded probe lines,
+                             one \n-separated line at a time
+
+A command that carries ``sudo -n`` (the tab commands' first try) is refused
+with ``sudo: a password is required`` and exit 1, so the non-sudo retry can be
+tested. The recorded lines live in ``probe-lines.txt`` next to this script.
+"""
+import os
+from pathlib import Path
+import shlex
+import sys
+import time
+
+HERE = Path(__file__).resolve().parent
+args = sys.argv[1:]
+
+log_path = os.environ.get('FAKE_SSH_LOG')
+if log_path:
+    with open(log_path, 'a', encoding='utf-8') as log:
+        log.write(' '.join(shlex.quote(part) for part in args) + '\n')
+
+if os.environ.get('FAKE_SSH_FAIL') == '1':
+    print('ssh: connect to host 34.122.10.7 port 22: Connection timed out', file=sys.stderr, flush=True)
+    sys.exit(255)
+
+stderr = os.environ.get('FAKE_SSH_STDERR')
+if stderr:
+    print(stderr, file=sys.stderr, flush=True)
+    sys.exit(255)
+
+# The probe is the only command that ends with `sh -s`; tab commands use sudo
+# or `sh -c`, so they never reach this branch.
+is_probe = args[-2:] == ['sh', '-s']
+if not is_probe and 'sudo' in args and '-n' in args:
+    print('sudo: a password is required', file=sys.stderr, flush=True)
+    sys.exit(1)
+
+output = os.environ.get('FAKE_SSH_OUTPUT')
+if output is not None:
+    lines = output.splitlines()
+else:
+    lines = (HERE / 'probe-lines.txt').read_text(encoding='utf-8').splitlines()
+    limit = os.environ.get('FAKE_SSH_LINES')
+    if limit:
+        lines = lines[:max(0, int(limit))]
+
+delay = float(os.environ.get('FAKE_SSH_LINE_DELAY', '0.05'))
+for line in lines:
+    print(line, flush=True)
+    time.sleep(delay)
