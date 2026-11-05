@@ -1,8 +1,9 @@
 """`python3 -m wysun_cloud` (what `wysun cloud` runs)."""
+import subprocess
 import sys
 import time
 
-from wysun_core import paths
+from wysun_core import launch, paths
 from wysun_core.jsonio import read_json
 from wysun_cloud import cache, state
 from wysun_cloud.gcloud import Gcloud, GcloudError
@@ -51,8 +52,21 @@ def estado():
     return 0
 
 
+def terminal():
+    """Open the TUI in a new terminal window, detached from the shell that asked for it."""
+    argv = launch.terminal_argv(['wysun', 'cloud'])
+    if argv is None:
+        print('No encontré una terminal para abrir Wysun Cloud', file=sys.stderr)
+        return 1
+    subprocess.Popen(argv, start_new_session=True, stdin=subprocess.DEVNULL,
+                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    return 0
+
+
 def main(argv=None):
     args = list(sys.argv[1:] if argv is None else argv)
+    if '--terminal' in args:
+        return terminal()
     if '--estado' in args:
         return estado()
     print('Wysun Cloud: interfaz pendiente')

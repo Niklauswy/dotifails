@@ -1,6 +1,7 @@
 """wysun_cloud.gcloud parses gcloud's JSON and turns failures into short Spanish messages."""
 import os
 from pathlib import Path
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -12,6 +13,7 @@ FIXTURES = ROOT / 'tests/fixtures/cloud'
 sys.path.insert(0, str(APP))
 
 from wysun_core import launch  # noqa: E402
+from wysun_cloud import __main__ as cli  # noqa: E402
 from wysun_cloud.gcloud import Gcloud, GcloudAuth, GcloudError, GcloudMissing  # noqa: E402
 from wysun_cloud.model import Instance  # noqa: E402
 
@@ -123,6 +125,15 @@ class GcloudTests(unittest.TestCase):
             self.assertEqual(launch.terminal_argv(['ssh', 'vm']), ['/usr/bin/xterm', '-e', 'ssh', 'vm'])
         with mock.patch.object(launch.shutil, 'which', return_value=None):
             self.assertIsNone(launch.terminal_argv(['ssh', 'vm']))
+
+    def test_terminal_option_launches_detached(self):
+        argv = ['/usr/bin/ghostty', '--gtk-single-instance=false', '-e', 'wysun', 'cloud']
+        with mock.patch.object(launch, 'terminal_argv', return_value=argv) as terminal_argv, \
+                mock.patch('subprocess.Popen') as popen:
+            self.assertEqual(cli.main(['--terminal']), 0)
+        terminal_argv.assert_called_once_with(['wysun', 'cloud'])
+        popen.assert_called_once_with(argv, start_new_session=True, stdin=subprocess.DEVNULL,
+                                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
 if __name__ == '__main__':

@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import QtQuick.Controls
 import QtQuick.Layouts
 import Quickshell
 import Wysun.Config
@@ -8,6 +9,7 @@ import qs.components
 import qs.services
 import qs.utils
 import qs.modules.bar.components.status
+import "../../../services/CloudVmsLogic.js" as CloudLogic
 
 StyledRect {
     id: root
@@ -77,6 +79,62 @@ StyledRect {
                 text: LanShare.busy ? "upload_file" : "share"
                 color: LanShare.busy ? Colours.palette.m3primary : root.colour
                 fill: 1
+            }
+        }
+
+        // Wysun Cloud: only while some VM is running; click opens the TUI in a terminal.
+        Item {
+            readonly property string name: "cloudvms"
+
+            visible: CloudVms.active
+            Layout.alignment: Qt.AlignHCenter
+            Layout.bottomMargin: root.spacing
+            implicitWidth: cloudRow.implicitWidth
+            implicitHeight: cloudRow.implicitHeight
+
+            Row {
+                id: cloudRow
+
+                anchors.centerIn: parent
+                spacing: Tokens.spacing.extraSmall / 2
+
+                Item {
+                    implicitWidth: cloudIcon.implicitWidth
+                    implicitHeight: cloudIcon.implicitHeight
+
+                    MaterialIcon {
+                        id: cloudIcon
+
+                        animate: true
+                        text: "cloud"
+                        color: root.colour
+                        fill: 1
+                    }
+
+                    Rectangle {
+                        width: Tokens.spacing.extraSmall / 2
+                        height: Tokens.spacing.extraSmall / 2
+                        radius: Tokens.rounding.full
+                        color: Colours.palette.m3success
+                        anchors.right: parent.right
+                        anchors.top: parent.top
+                    }
+                }
+
+                StyledText {
+                    text: CloudLogic.label(CloudVms.vms)
+                    color: root.colour
+                    font: Tokens.font.label.small
+                }
+            }
+
+            MouseArea {
+                anchors.fill: parent
+                hoverEnabled: true
+                onClicked: CloudVms.open()
+
+                ToolTip.visible: containsMouse
+                ToolTip.text: CloudLogic.tooltip(CloudVms.vms)
             }
         }
 
