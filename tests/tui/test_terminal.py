@@ -83,6 +83,27 @@ class TerminalTests(PtyTestCase):
         self.assertIn(b'\x1b[?1006l', output)
         self.assertIn(b'\x1b[?2004l', output)
 
+    def test_failed_entry_rolls_back_raw_mode(self):
+        original = termios.tcgetattr(self.slave)
+        broken = os.open(os.devnull, os.O_RDONLY)       # writing the entry sequences fails
+        self.addCleanup(os.close, broken)
+        handler = signal.getsignal(signal.SIGTERM)
+        with self.assertRaises(OSError):
+            with Terminal(self.slave, broken):
+                self.fail('the block must not run')
+        self.assertEqual(termios.tcgetattr(self.slave), original)
+        self.assertIs(signal.getsignal(signal.SIGTERM), handler)
+
+    def test_nested_use_restores_only_at_the_outermost_exit(self):
+        original = termios.tcgetattr(self.slave)
+        term = Terminal(self.slave, self.slave)
+        with term:
+            with term:
+                pass
+            inside = termios.tcgetattr(self.slave)
+            self.assertFalse(inside[3] & termios.ICANON)
+        self.assertEqual(termios.tcgetattr(self.slave), original)
+
     def test_restores_on_keyboard_interrupt(self):
         original = termios.tcgetattr(self.slave)
         with self.assertRaises(KeyboardInterrupt):

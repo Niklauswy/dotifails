@@ -80,7 +80,19 @@ class GcloudTests(unittest.TestCase):
         instances, messages = self.gcloud.instances_all(['mi-proyecto-prod', 'personal-lab', 'cliente-x'])
         self.assertEqual({inst.name for inst in instances}, {'api-backend', 'worker-1', 'db-old', 'web-cliente', 'staging'})
         self.assertIn('personal-lab', messages)
-        self.assertTrue(messages['personal-lab'].message)
+        self.assertIsInstance(messages['personal-lab'], str)
+        self.assertTrue(messages['personal-lab'])
+
+    def test_disks_only_attached_to_exactly_this_vm(self):
+        inst = self.gcloud.instances('mi-proyecto-prod')[0]
+        base = f'https://www.googleapis.com/compute/v1/projects/{inst.project}/zones/{inst.zone}'
+        answer = [
+            {'name': 'mine', 'zone': base, 'users': [f'{base}/instances/{inst.name}']},
+            {'name': 'loose', 'zone': base, 'users': []},
+            {'name': 'cousin', 'zone': base, 'users': [f'{base}/instances/{inst.name}-worker']},
+        ]
+        with mock.patch.object(self.gcloud, 'json', return_value=answer):
+            self.assertEqual([disk['name'] for disk in self.gcloud.disks(inst)], ['mine'])
 
     def test_missing_gcloud_raises_gcloud_missing(self):
         with mock.patch.dict(os.environ, {'PATH': ''}):

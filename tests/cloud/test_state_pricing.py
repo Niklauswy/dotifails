@@ -121,6 +121,26 @@ class CacheStatePricingTests(unittest.TestCase):
         self.assertEqual(result.stderr, '')
         self.assertEqual(path.read_bytes(), before)
 
+    def test_failing_project_keeps_its_cached_vms_over_consecutive_polls(self):
+        self.assertEqual(self.run_estado().returncode, 0)
+        path = Path(self.env['XDG_RUNTIME_DIR']) / 'wysun-cloud' / 'state.json'
+        before = json.loads(path.read_text(encoding='utf-8'))
+        for _ in range(2):
+            result = self.run_estado(FAKE_GCLOUD_FAIL_PROJECT='mi-proyecto-prod')
+            self.assertEqual(result.returncode, 0, result.stderr)
+        after = json.loads(path.read_text(encoding='utf-8'))
+        self.assertEqual(sorted(map(json.dumps, after['running'])), sorted(map(json.dumps, before['running'])))
+        self.assertEqual(after['total'], before['total'])
+        self.assertIn('mi-proyecto-prod', cache.load_projects())
+
+    def test_discovery_where_nothing_answers_changes_no_cache(self):
+        path = state.write_state([an_instance()], 1_700_000_000.0)
+        before = path.read_bytes()
+        for _ in range(2):
+            self.assertEqual(self.run_estado(FAKE_GCLOUD_AUTH_ERROR='1').returncode, 0)
+        self.assertEqual(path.read_bytes(), before)
+        self.assertIsNone(cache.load_projects())
+
     def test_state_file_is_private_and_atomic(self):
         path = state.write_state([an_instance()], 1234.5)
         self.assertEqual(path.stat().st_mode & 0o777, 0o600)

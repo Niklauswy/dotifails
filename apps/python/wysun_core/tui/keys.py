@@ -128,6 +128,13 @@ class Parser:
         """True while an incomplete sequence waits for more bytes."""
         return bool(self._buffer)
 
+    def _waits_for_more(self) -> bool:
+        """A started paste or a split UTF-8 character: only more bytes can complete it."""
+        buffer = self._buffer
+        if buffer.startswith(b'\x1b[200~'):
+            return True
+        return buffer[0] >= 0x80 and len(buffer) < _utf8_length(buffer[0])
+
     def feed(self, data: bytes) -> list[Event]:
         """Consume ``data`` and return every event it completed."""
         self._buffer += bytes(data)
@@ -142,7 +149,13 @@ class Parser:
         return events
 
     def flush(self) -> list[Event]:
-        """Resolve what a 30 ms silence means: a lone ESC is the Escape key."""
+        """Resolve what a 30 ms silence means: a lone ESC is the Escape key.
+
+        An unfinished escape sequence is dropped, but a paste in progress and a split
+        UTF-8 character are kept: a slow paste must not turn into typed keys.
+        """
+        if not self._buffer or self._waits_for_more():
+            return []
         buffer, self._buffer = self._buffer, b''
         if buffer == b'\x1b':
             return [Key('escape')]

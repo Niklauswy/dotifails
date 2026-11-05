@@ -74,5 +74,29 @@ class ScreenTests(unittest.TestCase):
         self.assertNotIn(b'38;2;', output)
 
 
+    def test_foreground_only_text_keeps_the_background_under_it(self):
+        canvas = Canvas(4, 1, (10, 10, 10))
+        canvas.fill((0, 0, 4, 1), ' ', Style(bg=(50, 60, 70)))
+        canvas.text(0, 0, 'ab', Style(fg=(200, 200, 200)))
+        self.assertEqual(canvas.cell(0, 0)[1].bg, (50, 60, 70))
+        self.assertNotIn(b'[0;38;2;200;200;200m', Screen().render(None, canvas))
+
+    def test_zero_opacity_paste_leaves_the_destination(self):
+        canvas = Canvas(3, 1, (0, 0, 0))
+        canvas.text(0, 0, 'abc', Style(fg=(255, 255, 255)))
+        layer = Canvas(3, 1, (0, 0, 0))
+        layer.text(0, 0, 'xyz', Style(fg=(255, 0, 0)))
+        canvas.paste(layer, 0, 0, opacity=0.0)
+        self.assertEqual(canvas.row_text(0), 'abc')
+
+    def test_partial_paste_fades_toward_each_destination_cell(self):
+        canvas = Canvas(2, 1, (0, 0, 0))
+        canvas.fill((1, 0, 1, 1), ' ', Style(bg=(200, 200, 200)))
+        layer = Canvas(2, 1, (100, 0, 0))
+        canvas.paste(layer, 0, 0, opacity=0.5)
+        self.assertEqual(canvas.cell(0, 0)[1].bg, (50, 0, 0))
+        self.assertEqual(canvas.cell(1, 0)[1].bg, (150, 100, 100))
+
+
 if __name__ == '__main__':
     unittest.main()

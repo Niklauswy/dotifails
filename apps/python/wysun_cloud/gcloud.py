@@ -71,12 +71,17 @@ class Gcloud:
         if executable is None:
             raise GcloudMissing()
         argv = [executable, 'auth', 'print-access-token', '--quiet']
+        # Errors are raised outside the except blocks: a TimeoutExpired keeps the captured
+        # stdout (the token), and it must not survive as the new exception's __context__.
+        result = failure = None
         try:
             result = subprocess.run(argv, capture_output=True, text=True, timeout=DEFAULT_TIMEOUT, check=False)
         except FileNotFoundError:
-            raise GcloudMissing() from None
+            failure = GcloudMissing()
         except subprocess.TimeoutExpired:
-            raise GcloudError('gcloud no respondió a tiempo') from None
+            failure = GcloudError('gcloud no respondió a tiempo')
+        if failure is not None:
+            raise failure
         if result.returncode != 0:
             stderr = result.stderr or ''
             lowered = stderr.lower()
@@ -118,7 +123,7 @@ class Gcloud:
         try:
             return project, self.instances(project), None
         except GcloudError as error:
-            return project, [], error
+            return project, [], error.message
 
     def action_argv(self, verb, inst):
         """The argv for start/stop/reset, without the executable."""
@@ -154,8 +159,9 @@ class Gcloud:
             zone = str(disk.get('zone') or '').rstrip('/').rsplit('/', 1)[-1]
             if zone and zone != inst.zone:
                 continue
-            users = disk.get('users') or []
-            if users and not any(inst.name in str(user) for user in users):
+            # Only disks attached to exactly this VM (not 'api-worker' for 'api', not unattached).
+            suffix = f'/zones/{inst.zone}/instances/{inst.name}'
+            if not any(str(user).endswith(suffix) for user in disk.get('users') or []):
                 continue
             disks.append(disk)
         return disks

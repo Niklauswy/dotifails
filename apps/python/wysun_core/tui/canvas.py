@@ -6,7 +6,7 @@ braille, box drawing and block elements are all single-width).
 from __future__ import annotations
 
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Iterator
 
 RGB = tuple[int, int, int]
@@ -83,9 +83,13 @@ class Canvas:
     def put(self, x: int, y: int, char: str, style: Style | None = None) -> None:
         if not char or not self._inside(x, y):
             return
+        index = y * self.width + x
         if style is None:
             style = Style(bg=self.bg)
-        self._cells[y * self.width + x] = (char[0], style)
+        elif style.bg is None:
+            # No background means "keep what is under it": never the terminal's default colour.
+            style = replace(style, bg=self._cells[index][1].bg or self.bg)
+        self._cells[index] = (char[0], style)
 
     def text(self, x: int, y: int, s: str, style: Style, max_width: int | None = None) -> int:
         written = 0
@@ -117,7 +121,10 @@ class Canvas:
             )
 
     def paste(self, other: 'Canvas', x: int, y: int, opacity: float = 1.0) -> None:
+        """Copy ``other`` at ``(x, y)``; below 1.0 its colours mix toward what is underneath."""
         opacity = max(0.0, min(1.0, float(opacity)))
+        if opacity <= 0.0:
+            return
         fade = 1.0 - opacity
         for source_y in range(other.height):
             target_y = y + source_y
@@ -125,12 +132,17 @@ class Canvas:
                 target_x = x + source_x
                 if not self._inside(target_x, target_y):
                     continue
+                index = target_y * self.width + target_x
+                under = self._cells[index][1].bg or self.bg
                 char, style = other.cell(source_x, source_y)
+                bg = style.bg if style.bg is not None else under
+                fg = style.fg
                 if fade > 0.0:
-                    fg = _mix(style.fg, self.bg, fade) if style.fg is not None else None
-                    bg = _mix(style.bg, self.bg, fade) if style.bg is not None else self.bg
+                    fg = _mix(fg, under, fade) if fg is not None else None
+                    bg = _mix(bg, under, fade)
+                if bg != style.bg or fg != style.fg:
                     style = Style(fg=fg, bg=bg, bold=style.bold, dim=style.dim, underline=style.underline)
-                self._cells[target_y * self.width + target_x] = (char, style)
+                self._cells[index] = (char, style)
 
     # -- reading ----------------------------------------------------------
     def cell(self, x: int, y: int) -> tuple[str, Style]:

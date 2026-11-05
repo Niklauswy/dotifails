@@ -41,6 +41,7 @@ class Terminal:
         self.fd_out = fd_out.fileno() if hasattr(fd_out, 'fileno') else int(fd_out)
         self.resize_listener: Callable[[], None] | None = None
         self._active = False
+        self._depth = 0                          # nested `with` blocks of this instance
         self._original_attrs: list | None = None
         self._previous_handlers: dict[int, object] = {}
 
@@ -90,25 +91,36 @@ class Terminal:
 
     # -- lifecycle --------------------------------------------------------
     def __enter__(self) -> 'Terminal':
+        self._depth += 1
         if self._active:
-            return self
+            return self                          # nested: the outermost block owns the state
+        # Cleanup is armed before the terminal changes, and any failure while entering
+        # rolls back what was already changed: raw mode never outlives a failed entry.
         self._active = True
-        if os.isatty(self.fd_in):
-            self._original_attrs = termios.tcgetattr(self.fd_in)
-            tty.setraw(self.fd_in)
-        self.write(ENTER_SEQUENCES.encode())
-        self._install_signal_handlers()
-        atexit.register(self.restore)
+        try:
+            atexit.register(self.restore)
+            self._install_signal_handlers()
+            if os.isatty(self.fd_in):
+                self._original_attrs = termios.tcgetattr(self.fd_in)
+                tty.setraw(self.fd_in)
+            self.write(ENTER_SEQUENCES.encode())
+        except BaseException:
+            self._depth -= 1
+            self.restore()
+            raise
         return self
 
     def __exit__(self, exc_type, exc, traceback) -> None:
-        self.restore()
+        self._depth = max(0, self._depth - 1)
+        if self._depth == 0:
+            self.restore()
 
     def restore(self) -> None:
         """Undo everything, once. Safe to call at any time, from anywhere."""
         if not self._active:
             return
         self._active = False
+        self._depth = 0
         self._remove_signal_handlers()
         atexit.unregister(self.restore)
         try:

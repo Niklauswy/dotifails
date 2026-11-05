@@ -25,6 +25,17 @@ METRIC = 'compute.googleapis.com/instance/cpu/utilization'
 _cache = {}
 
 
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    """Refuse every redirect: urllib would copy the Authorization header to the new host."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        raise urllib.error.HTTPError(req.full_url, code, 'redirect refused', headers, fp)
+
+
+# The only door to the network: HTTPS, no redirects, no proxy-supplied hops.
+OPENER = urllib.request.build_opener(_NoRedirect)
+
+
 def clear_cache():
     """Forget every cached history (tests, or an explicit refresh)."""
     _cache.clear()
@@ -54,13 +65,20 @@ def _error_status(body):
 
 
 def _fetch(url, token):
-    """One GET with the token in the header; failures become short Spanish messages."""
+    """One GET with the token in the header; failures become short Spanish messages.
+
+    The sanitized error is raised outside the ``except`` blocks so it carries no
+    ``__context__``: the original exception (whose text or body may echo the token)
+    is dropped instead of riding along in the exception chain.
+    """
     request = urllib.request.Request(url, headers={
         'Authorization': f'Bearer {token}',
         'Accept': 'application/json',
     }, method='GET')
+    failure = None
+    body = None
     try:
-        with urllib.request.urlopen(request, timeout=TIMEOUT) as response:
+        with OPENER.open(request, timeout=TIMEOUT) as response:
             body = response.read()
     except urllib.error.HTTPError as error:
         try:
@@ -68,13 +86,17 @@ def _fetch(url, token):
         except OSError:
             detail = ''
         message = f'Monitoring respondió {error.code}'
-        raise GcloudError(f'{message}: {detail}' if detail else message) from None
-    except (urllib.error.URLError, OSError):
-        raise GcloudError('Monitoring no respondió') from None
+        failure = f'{message}: {detail}' if detail else message
+    except (urllib.error.URLError, OSError, ValueError):
+        failure = 'Monitoring no respondió'
+    del request
+    if failure is not None:
+        raise GcloudError(failure)
     try:
         return json.loads(body)
     except (TypeError, ValueError):
-        raise GcloudError('Monitoring devolvió una respuesta ilegible') from None
+        failure = 'Monitoring devolvió una respuesta ilegible'
+    raise GcloudError(failure)
 
 
 def _points(answer):

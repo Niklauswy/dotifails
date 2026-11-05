@@ -1,7 +1,7 @@
 """wysun_cloud.monitoring asks Cloud Monitoring for CPU history without leaking the token.
 
 The fake gcloud prints the synthetic token ``ya29.SYNTHETIC-TEST-TOKEN``; no test
-here talks to the network (``urllib.request.urlopen`` is always patched) and no
+here talks to the network (``monitoring.OPENER.open`` is always patched) and no
 test reads or writes a real credential.
 """
 from datetime import datetime
@@ -15,6 +15,7 @@ import tempfile
 import unittest
 import urllib.error
 import urllib.parse
+import urllib.request
 from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -123,7 +124,7 @@ class MonitoringTests(unittest.TestCase):
                 raise answer
             return FakeResponse(answer)
 
-        patcher = mock.patch.object(urllib.request, 'urlopen', side_effect=fake)
+        patcher = mock.patch.object(monitoring.OPENER, 'open', side_effect=fake)
         patcher.start()
         self.addCleanup(patcher.stop)
         return calls
@@ -251,6 +252,8 @@ class MonitoringTests(unittest.TestCase):
             monitoring.cpu_history(self.gcloud, self.inst, 24)
         self.assertEqual(network.exception.message, 'Monitoring no respondió')
         self.assertNotIn(TOKEN, str(network.exception))
+        self.assertIsNone(network.exception.__context__)
+        self.assertIsNone(network.exception.__cause__)
 
     def test_token_never_written_to_disk(self):
         self.patch_urlopen([payload([('2026-11-04T10:00:00Z', 0.5)])])
@@ -280,6 +283,16 @@ class MonitoringTests(unittest.TestCase):
         # A different range is a different cache key, so gcloud answers again.
         monitoring.cpu_history(self.gcloud, self.inst, 168)
         self.assertEqual(len(self.auth_calls()), 2)
+
+
+    def test_redirects_are_refused_so_the_header_never_moves(self):
+        handler = next(h for h in monitoring.OPENER.handlers
+                       if isinstance(h, urllib.request.HTTPRedirectHandler))
+        request = urllib.request.Request('https://monitoring.googleapis.com/v3/x',
+                                         headers={'Authorization': f'Bearer {TOKEN}'})
+        with self.assertRaises(urllib.error.HTTPError):
+            handler.redirect_request(request, io.BytesIO(b''), 302, 'Found', {},
+                                     'http://evil.example/steal')
 
 
 if __name__ == '__main__':

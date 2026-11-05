@@ -74,6 +74,15 @@ class ParserTests(unittest.TestCase):
         self.assertEqual(parser.flush(), [])
         self.assertFalse(parser.pending)
 
+    def test_flush_keeps_a_slow_paste_and_split_utf8(self):
+        parser = Parser()
+        self.assertEqual(parser.feed(b'\x1b[200~hello'), [])
+        self.assertEqual(parser.flush(), [])
+        self.assertEqual(parser.feed(b'x\x1b[201~'), [Paste('hellox')])
+        self.assertEqual(parser.feed('ñ'.encode()[:1]), [])
+        self.assertEqual(parser.flush(), [])
+        self.assertEqual(parser.feed('ñ'.encode()[1:]), [Key('char', char='ñ')])
+
     def test_control_keys_and_text_entry(self):
         self.assertEqual(Parser().feed(b'\x01\x09\x0d\x0a\x7f\x08'), [
             Key('a', ctrl=True),
