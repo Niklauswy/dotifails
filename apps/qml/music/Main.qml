@@ -291,7 +291,7 @@ Window {
                     x: lead.x + lead.width + (Theme.spacing.small ?? 0)
                     anchors.verticalCenter: parent.verticalCenter
                     width: Math.min(Metrics.textFieldMinWidth * 2.6, keys.x - x - (Theme.spacing.small ?? 0))
-                    placeholder: "Buscar en tu biblioteca"
+                    placeholder: "Busca canciones y artistas"
                     shortcut: ""
                     onTextChanged: {
                         if (window._refining)

@@ -42,14 +42,18 @@ FocusScope {
                 spacing: Theme.spacing.medium ?? 0
 
                 Column {
+                    width: parent.width
+
                     Label {
                         role: "headline.medium"
                         text: "Añadir música"
                     }
                     Label {
+                        width: parent.width
                         role: "body.medium"
                         text: "Busca una canción o pega un enlace de Spotify o YouTube. Escucha antes y guarda solo lo que quieras."
                         color: Theme.m3onSurfaceVariant
+                        wrapMode: Text.Wrap
                     }
                 }
 
@@ -62,7 +66,7 @@ FocusScope {
 
                         objectName: "addQuery"
                         width: parent.width - searchButton.width - parent.spacing
-                        label: "Canción y artista, o enlace de Spotify o YouTube"
+                        label: "Canción, artista o enlace"
                         leadingIcon: "travel_explore"
                         focus: true
                         onAccepted: addMusic.search(text)
@@ -79,6 +83,7 @@ FocusScope {
                 }
 
                 Row {
+                    visible: addMusic.busy || addMusic.status !== ""
                     spacing: Theme.spacing.small ?? 0
 
                     CircularProgress {
@@ -224,7 +229,6 @@ FocusScope {
                                 width: parent.width
                                 headline: model.title
                                 supporting: model.detail
-                                selected: model.selected
                                 disabled: model.owned
                                 leading: Component {
                                     Icon {

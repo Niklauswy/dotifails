@@ -142,7 +142,7 @@ class AddMusicTests(unittest.TestCase):
             self.assertEqual(self.rows(self.add.batches, 'title'), ['Mi lote'])
             self.assertEqual(self.rows(self.add.batches, 'detail'), ['0 de 2 · en pausa'])
             self.assertEqual(self.rows(self.add.failures, 'detail'), ['No encontrada en YouTube'])
-            self.assertEqual(self.add.counts['failedText'], '1 canción no se pudo descargar')
+            self.assertEqual(self.add.counts['failedText'], '1 no se pudo descargar')
             self.assertTrue(self.add.counts['canResume'])
             token = self.music.library.state['tracks']['c' * 22]['batch']
             self.add.cancelBatch(token)

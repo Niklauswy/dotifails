@@ -14,7 +14,7 @@ from wysun_music import data as music_data
 from .models import _KeyedModel
 from .text import clock, songs
 
-HINT = 'Busca una canción, o pega un enlace de Spotify o YouTube para elegir qué guardar.'
+HINT = ''                 # the page's subtitle already explains it; the line shows only news
 SEARCH_TIMEOUT_MS = 90000
 FAILED_TEXT = {'error': 'Falló la descarga', 'missing': 'No encontrada en YouTube'}
 
@@ -548,8 +548,7 @@ class AddMusic(QObject):
         self._counts = dict(queued=queued, failed=failed, paused=paused, ready=counts['ready'],
                             canResume=bool(queued) and paused, canPause=bool(queued) and not paused,
                             canRetry=bool(failed),
-                            failedText=(f'{songs(failed)} no se pudo descargar' if failed == 1
-                                        else f'{songs(failed)} no se pudieron descargar'))
+                            failedText=('1 no se pudo descargar' if failed == 1 else f'{failed} no se pudieron descargar'))
         self.changed.emit()
 
     @Slot()
