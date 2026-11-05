@@ -98,6 +98,16 @@ class ScreenTests(unittest.TestCase):
         self.assertEqual(canvas.cell(1, 0)[1].bg, (150, 100, 100))
 
 
+    def test_transparent_background_is_left_to_the_terminal(self):
+        surface, chip = (12, 14, 18), (178, 200, 236)
+        canvas = Canvas(4, 1, surface)
+        canvas.text(0, 0, 'ab', Style(fg=(255, 255, 255), bg=surface))
+        canvas.put(3, 0, 'c', Style(fg=(0, 0, 0), bg=chip))
+        rendered = Screen().render(None, canvas, transparent_bg=surface)
+        self.assertNotIn(b'48;2;12;14;18', rendered)
+        self.assertIn(b'48;2;178;200;236', rendered)
+        self.assertIn(b'48;2;12;14;18', Screen().render(None, canvas), 'opaque unless asked')
+
     def test_control_characters_never_reach_the_terminal(self):
         canvas = Canvas(12, 1, (0, 0, 0))
         canvas.text(0, 0, '1024\t/\x1b[2J\x9b\x07', Style(fg=(255, 255, 255)))

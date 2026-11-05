@@ -59,7 +59,7 @@ class Screen:
             return f'{48 if background else 38};2;{rgb[0]};{rgb[1]};{rgb[2]}'
         return f'{48 if background else 38};5;{_nearest_256(rgb)}'
 
-    def _sgr(self, style: Style) -> str:
+    def _sgr(self, style: Style, transparent_bg=None) -> str:
         parts = ['0']
         if style.bold:
             parts.append('1')
@@ -69,7 +69,8 @@ class Screen:
             parts.append('4')
         if style.fg is not None:
             parts.append(self._colour(style.fg, False))
-        if style.bg is not None:
+        # A transparent app leaves the canvas background to the terminal (its own opacity and blur).
+        if style.bg is not None and style.bg != transparent_bg:
             parts.append(self._colour(style.bg, True))
         return '\x1b[' + ';'.join(parts) + 'm'
 
@@ -77,7 +78,8 @@ class Screen:
     def _cell(canvas: Canvas, x: int, y: int) -> tuple[str, Style]:
         return canvas.cell(x, y)
 
-    def render(self, prev: Canvas | None, cur: Canvas) -> bytes:
+    def render(self, prev: Canvas | None, cur: Canvas, transparent_bg=None) -> bytes:
+        """ANSI bytes from ``prev`` to ``cur``; cells whose background is ``transparent_bg`` get none."""
         out: list[str] = []
         full = prev is None or prev.width != cur.width or prev.height != cur.height
         painted = False
@@ -89,7 +91,7 @@ class Screen:
                 for x in range(cur.width):
                     char, style = self._cell(cur, x, y)
                     if style != last_style:
-                        out.append(self._sgr(style))
+                        out.append(self._sgr(style, transparent_bg))
                         last_style = style
                     out.append(char)
                     painted = True
@@ -108,7 +110,7 @@ class Screen:
                     for column in range(start, x):
                         char, style = self._cell(cur, column, y)
                         if style != last_style:
-                            out.append(self._sgr(style))
+                            out.append(self._sgr(style, transparent_bg))
                             last_style = style
                         out.append(char)
                         painted = True

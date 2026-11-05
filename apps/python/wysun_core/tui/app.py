@@ -376,6 +376,10 @@ class App:
     pass a temporary one).
     """
 
+    # True leaves every cell painted with the palette's ``surface`` without a background, so a
+    # translucent terminal (Ghostty's background-opacity and blur) shows the desktop behind it.
+    transparent = False
+
     def __init__(self, term=None, home=None) -> None:
         self.term = term
         self.home = home
@@ -742,7 +746,7 @@ class App:
                                 key=lambda item: item.z):
                 layer.compose(canvas, self.palette)
         previous = None if self._full_repaint else self._prev
-        self.term.write(self.screen.render(previous, canvas))
+        self.term.write(self.screen.render(previous, canvas, background if self.transparent else None))
         self._prev = canvas
         self._full_repaint = False
         self._next_frame = now + FRAME_INTERVAL
