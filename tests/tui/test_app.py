@@ -228,6 +228,24 @@ class ChildTests(AppTestCase):
         self.assertFalse(child.running)
 
 
+    def test_kill_does_not_block_and_escalates_for_a_stubborn_child(self):
+        app, term = self.make()
+        codes = []
+        script = ('import signal, sys, time\n'
+                  'signal.signal(signal.SIGTERM, signal.SIG_IGN)\n'
+                  'sys.stdout.close(); sys.stderr.close()\n'
+                  'time.sleep(30)\n')
+        child = app.spawn([python_executable(), '-c', script], lambda line: None,
+                          lambda code: (codes.append(code), app.quit()))
+        app.run_for(0.3)                     # both pipes reach EOF, the process keeps sleeping
+        started = time.monotonic()
+        child.kill()
+        self.assertLess(time.monotonic() - started, 0.2)
+        app.run_for(3.0)
+        self.assertEqual(codes, [-9])
+        self.assertFalse(child.running)
+        self.assertNotIn(child, app._children)
+
 class FrameTests(AppTestCase):
     def test_layers_paint_in_z_order_with_opacity(self):
         app, term = self.make(cls=Recording)
@@ -243,6 +261,29 @@ class FrameTests(AppTestCase):
         on_surface = app.palette['onSurface']
         self.assertEqual(app._prev.cell(1, 1)[1].fg, on_surface)
         self.assertNotEqual(app._prev.cell(4, 1)[1].fg, on_surface)
+
+    def test_invalidate_during_a_render_gets_its_own_frame(self):
+        class Racy(App):
+            state = 'old'
+
+            def draw(self, canvas):
+                canvas.text(0, 0, self.state, Style(fg=self.palette['onSurface']))
+                if self.state == 'old':
+                    self.state = 'new'       # a worker changes state mid-frame...
+                    self.invalidate()        # ...and asks for another frame
+        app, term = self.make(cls=Racy)
+        app.run_for(0.1)
+        self.assertTrue(term.canvas_text()[0].startswith('new'))
+
+    def test_invalidations_never_exceed_sixty_frames_per_second(self):
+        app, term = self.make()
+        frames = []
+        original = app._render
+        app._render = lambda now: (frames.append(now), original(now))
+        app.animator.add(anim.Tween(5.0, lambda t: t, lambda value: None))
+        app.every(0.001, app.invalidate)
+        app.run_for(0.5)
+        self.assertLessEqual(len(frames), 0.5 * 60 + 3)
 
     def test_tiny_terminal_message(self):
         app, term = self.make(40, 10, cls=Recording)

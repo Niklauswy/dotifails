@@ -37,6 +37,7 @@ FRAME_INTERVAL = 1.0 / 60.0
 ESCAPE_FLUSH = 0.03
 THEME_CHECK_INTERVAL = 1.5
 STDERR_TAIL = 20
+KILL_GRACE = 1.0                         # seconds between SIGTERM and SIGKILL
 MIN_WIDTH = 60
 MIN_HEIGHT = 16
 TOO_SMALL = 'Agranda la terminal'
@@ -168,29 +169,51 @@ class Child:
         self.app._selector.register(fd, selectors.EVENT_READ, ('child-exit', self, None))
 
     def kill(self) -> None:
-        """Terminate the process, escalating to a hard kill after one second."""
+        """Terminate the process without blocking the loop; SIGKILL follows after one second.
+
+        The exit is reaped by the normal watcher (pidfd or poll), so ``on_exit`` still runs
+        once, after the remaining output, even when both pipes had already closed.
+        """
         process = self._process
-        if process is None:
+        if process is None or self._exited:
             return
-        if process.poll() is None:
+        if process.poll() is not None:
+            self._returncode = process.returncode
+            self._exited = True
+            self._drop_pidfd()
+            self._maybe_finish()
+            return
+        try:
+            process.terminate()
+        except OSError:
+            pass
+        self.app.after(KILL_GRACE, self._hard_kill)
+        self._maybe_finish()               # no pidfd: start polling for the exit
+
+    def _hard_kill(self) -> None:
+        process = self._process
+        if process is not None and not self._exited and process.poll() is None:
             try:
-                process.terminate()
+                process.kill()
             except OSError:
                 pass
+
+    def _stop_now(self) -> None:
+        """Shutdown path: terminate, wait briefly, kill, and reap (the loop is ending anyway)."""
+        process = self._process
+        if process is None or process.poll() is not None:
+            return
+        try:
+            process.terminate()
+            process.wait(timeout=KILL_GRACE)
+        except subprocess.TimeoutExpired:
             try:
-                process.wait(timeout=1.0)
-            except subprocess.TimeoutExpired:
-                try:
-                    process.kill()
-                except OSError:
-                    pass
-                try:
-                    process.wait(timeout=1.0)
-                except subprocess.TimeoutExpired:
-                    pass
-        self._returncode = process.returncode
-        self._exited = True
-        self._drop_pidfd()
+                process.kill()
+                process.wait(timeout=KILL_GRACE)
+            except (OSError, subprocess.TimeoutExpired):
+                pass
+        except OSError:
+            pass
 
     # -- reading ----------------------------------------------------------
     def _on_readable(self, name: str) -> None:
@@ -550,8 +573,15 @@ class App:
         if self._selector is None and not self._started:
             return
         self._started = False
-        for child in list(self._children):
-            child.kill()
+        children = list(self._children)
+        for child in children:              # SIGTERM to all first, so the waits overlap
+            if child._process is not None and child._process.poll() is None:
+                try:
+                    child._process.terminate()
+                except OSError:
+                    pass
+        for child in children:
+            child._stop_now()
             child._teardown()
         self._children.clear()
         selector, self._selector = self._selector, None
@@ -580,10 +610,10 @@ class App:
     def _compute_wait(self, timeout: float | None) -> float:
         now = time.monotonic()
         deadlines = [self._next_theme_check]
-        if self._dirty:
+        if self._dirty and self._full_repaint:
             deadlines.append(now)
-        if self.animator:
-            deadlines.append(self._next_frame)
+        elif self._dirty or self.animator:
+            deadlines.append(max(now, self._next_frame))   # never faster than 60 fps
         if self._escape_due is not None:
             deadlines.append(self._escape_due)
         with self._timer_lock:
@@ -665,10 +695,14 @@ class App:
     # -- painting ---------------------------------------------------------
     def _paint(self) -> None:
         now = time.monotonic()
-        if self._dirty or (self.animator and now >= self._next_frame):
+        # A resize or theme change repaints at once; everything else keeps the 60 fps cap.
+        if (self._dirty or self.animator) and (now >= self._next_frame or self._full_repaint):
             self._render(now)
 
     def _render(self, now: float) -> None:
+        # Consumed before drawing: an invalidate() from a worker thread during this
+        # frame keeps the flag set and gets its own frame.
+        self._dirty = False
         width, height = self.size
         background = self.palette['surface']
         canvas = Canvas(width, height, background)
@@ -691,5 +725,4 @@ class App:
         self.term.write(self.screen.render(previous, canvas))
         self._prev = canvas
         self._full_repaint = False
-        self._dirty = False
         self._next_frame = now + FRAME_INTERVAL

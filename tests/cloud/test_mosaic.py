@@ -129,22 +129,48 @@ class MosaicTests(unittest.TestCase):
         projects = ['mi-proyecto-prod', 'personal-lab', 'cliente-x']
 
         titles = project_titles(views, projects, 80, 36)
-        # 34 usable rows after the header: three 11-row bands, title then a 2-row gap.
-        self.assertEqual(titles, {'mi-proyecto-prod': (1, 2), 'personal-lab': (1, 13),
-                                  'cliente-x': (1, 24)})
+        # One list: each title, a blank row, running card then the off line, a gap row.
+        self.assertEqual(titles, {'mi-proyecto-prod': (1, 2), 'personal-lab': (1, 14),
+                                  'cliente-x': (1, 26)})
         rects = layout(views, projects, 80, 36)
-        cards = [rects[v.inst.alias] for v in views if v.inst.running]
-        self.assertEqual({rect.x for rect in cards}, {1})
-        self.assertEqual({rect.w for rect in cards}, {78})
-        self.assertEqual([rect.y for rect in cards], [4, 15, 26])
-        offs = [rects[v.inst.alias] for v in views if not v.inst.running]
-        self.assertEqual([rect.y for rect in offs], [12, 23, 34])
+        cards = [rects.get(v.inst.alias) for v in views if v.inst.running]
+        self.assertEqual([rect.y for rect in cards[:2]], [4, 16])
+        self.assertEqual({(rect.x, rect.w) for rect in cards[:2]}, {(1, 78)})
+        self.assertIsNone(cards[2])                      # rows 28..35 do not fit: omitted...
+        offs = [rects.get(v.inst.alias) for v in views if not v.inst.running]
+        self.assertEqual([rect.y for rect in offs[:2]], [12, 24])
+        last = next(v for v in views if v.inst.running and v.inst.project == 'cliente-x')
+        scrolled = layout(views, projects, 80, 36, selected=last.inst.alias)
+        self.assertLessEqual(scrolled[last.inst.alias].y + 8, 35)   # ...until selected
 
         coil = self.canvas(80, 36)
         draw_mosaic(coil, views, projects, self.palette, selected=None, spin=0)
         self.assertIn('mi-proyecto-prod', coil.row_text(2))
-        self.assertIn('personal-lab', coil.row_text(13))
-        self.assertIn('cliente-x', coil.row_text(24))
+        self.assertIn('personal-lab', coil.row_text(14))
+        self.assertIn('cliente-x', coil.row_text(26))
+
+    def test_stacked_small_terminal_scrolls_to_the_selection(self):
+        views = [self.running_view(make_instance(project, f'vm-{project}'))
+                 for project in ('mi-proyecto-prod', 'personal-lab', 'cliente-x')]
+        projects = ['mi-proyecto-prod', 'personal-lab', 'cliente-x']
+        for view in views:
+            rects = layout(views, projects, 80, 24, selected=view.inst.alias)
+            rect = rects[view.inst.alias]
+            self.assertGreaterEqual(rect.y, 2)
+            self.assertLessEqual(rect.y + rect.h, 23)
+            canvas = self.canvas(80, 24)
+            draw_mosaic(canvas, views, projects, self.palette, view.inst.alias, 0)
+            self.assertTrue(any(view.inst.name in canvas.row_text(y) for y in range(24)))
+
+    def test_navigate_follows_a_spread_single_project(self):
+        insts = [make_instance('mi-proyecto-prod', f'run-{index}') for index in range(3)]
+        views = [self.running_view(inst) for inst in insts]
+        rects = layout(views, ['mi-proyecto-prod'], 120, 36)
+        self.assertEqual(sorted({rect.x for rect in rects.values()}), [1, 41, 81])
+        right = navigate(views, ['mi-proyecto-prod'], insts[0].alias, 'right', 120, 36)
+        self.assertEqual(rects[right].x, 41)
+        down = navigate(views, ['mi-proyecto-prod'], insts[0].alias, 'down', 120, 36)
+        self.assertEqual(down, insts[0].alias)           # alone in its drawn column
 
     def test_long_name_truncated_in_title(self):
         inst = make_instance('mi-proyecto-prod', 'api-backend-with-a-very-long-name')

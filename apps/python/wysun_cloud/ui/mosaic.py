@@ -109,6 +109,9 @@ def _level(fraction: float) -> str:
     return 'primary'
 
 
+STACK_KEY = '__stack__'          # scroll key of the stacked (narrow) layout
+
+
 def _column_views(views: Iterable[VmView], project: str) -> list[VmView]:
     """Running cards first, then off lines, preserving the caller's order inside each group."""
     of_project = [view for view in views if view.inst.project == project]
@@ -190,24 +193,72 @@ def _geometry(views: list[VmView], projects: list[str], width: int, height: int)
             widths[project] = column_width
         return columns, titles, widths
 
-    # Narrow terminal: stack the projects, each with a title row and a content band.
-    band = max(1, (height - TITLE_ROW) // count)
-    for index, project in enumerate(projects):
-        y = TITLE_ROW + index * band
-        top = y + 2
-        bottom = min(height - 1, y + band)
-        if bottom < top:
-            bottom = top
-        columns.append(_Column(project, 1, max(1, width - 2), top, bottom,
-                               _column_views(views, project)))
-        titles[project] = (1, y)
-        widths[project] = max(1, width - 2)
+    # Narrow terminal: projects stacked in one scrollable list (see _stack).
     return columns, titles, widths
 
 
+def _stacked(projects: list[str], width: int) -> bool:
+    """Whether the projects no longer fit side by side and are stacked vertically."""
+    count = len(dict.fromkeys(projects))
+    if count <= 1:
+        return False
+    available = max(0, width - 2)
+    return available <= 0 or (available - GAP * (count - 1)) // count < MIN_COLUMN_WIDTH
+
+
+def _stack(views: list[VmView], projects: list[str], width: int, height: int,
+           scroll: dict[str, int] | None, selected: str | None):
+    """Stacked layout: every project's title and items in one list that scrolls as a whole.
+
+    The list scrolls (key ``STACK_KEY`` in ``scroll``) so the selected item is fully
+    visible; titles and items that do not fit the viewport are omitted.
+    Returns ``(rects, titles, widths)``.
+    """
+    projects = list(dict.fromkeys(projects))
+    inner = max(1, width - 2)
+    entries = []                        # (kind, project|view, virtual y, height)
+    cursor = 0
+    for project in projects:
+        entries.append(('title', project, cursor, 1))
+        cursor += 2                         # title row + one blank row, like the columns
+        for view in _column_views(views, project):
+            item = CARD_HEIGHT if view.inst.running else 1
+            entries.append(('view', view, cursor, item))
+            cursor += item
+        cursor += 1                         # gap before the next project
+    total = cursor
+    viewport = max(0, height - 1 - TITLE_ROW)
+    offset = max(0, int((scroll or {}).get(STACK_KEY, 0)))
+    offset = min(offset, max(0, total - viewport))
+    for kind, value, y, item in entries:
+        if kind == 'view' and value.inst.alias == selected:
+            if y < offset or y + item > offset + viewport:
+                offset = min(y, max(0, total - viewport))
+            break
+    rects: dict[str, Rect] = {}
+    titles: dict[str, tuple[int, int]] = {}
+    widths: dict[str, int] = {}
+    for kind, value, y, item in entries:
+        start = y - offset
+        if start < 0 or start + item > viewport:
+            continue
+        row = TITLE_ROW + start
+        if kind == 'title':
+            titles[value] = (1, row)
+            widths[value] = inner
+        elif value.inst.running:
+            rects[value.inst.alias] = Rect(1, row, inner, item)
+        else:
+            rects[value.inst.alias] = Rect(2, row, max(1, inner - 1), 1)
+    return rects, titles, widths
+
+
 def project_titles(views: list[VmView], projects: list[str], width: int,
-                   height: int) -> dict[str, tuple[int, int]]:
+                   height: int, scroll: dict[str, int] | None = None,
+                   selected: str | None = None) -> dict[str, tuple[int, int]]:
     """Where each project name goes: ``{project: (x, y)}``, row 2 in the normal layout."""
+    if _stacked(projects, width):
+        return _stack(views, projects, width, height, scroll, selected)[1]
     return _geometry(views, projects, width, height)[1]
 
 
@@ -251,6 +302,8 @@ def layout(views: list[VmView], projects: list[str], width: int, height: int,
     that a column containing ``selected`` scrolls until that item is fully visible.
     Items that do not fit are omitted.
     """
+    if _stacked(projects, width):
+        return _stack(views, projects, width, height, scroll, selected)[0]
     columns, _, _ = _geometry(views, projects, width, height)
     rects: dict[str, Rect] = {}
     for column in columns:
@@ -459,8 +512,12 @@ def draw_mosaic(canvas: Canvas, views: list[VmView], projects: list[str], palett
                 selected: str | None, spin: int,
                 scroll: dict[str, int] | None = None) -> None:
     """Draw the project titles and every visible card/off line at its layout rect."""
-    columns, titles, widths = _geometry(views, projects, canvas.width, canvas.height)
-    rects = layout(views, projects, canvas.width, canvas.height, scroll, selected)
+    if _stacked(projects, canvas.width):
+        rects, titles, widths = _stack(views, projects, canvas.width, canvas.height,
+                                       scroll, selected)
+    else:
+        _, titles, widths = _geometry(views, projects, canvas.width, canvas.height)
+        rects = layout(views, projects, canvas.width, canvas.height, scroll, selected)
 
     for project, (x, y) in titles.items():
         if y < 0 or y >= canvas.height:
@@ -480,15 +537,22 @@ def draw_mosaic(canvas: Canvas, views: list[VmView], projects: list[str], palett
 
 # -- keyboard navigation --------------------------------------------------
 def navigate(views: list[VmView], projects: list[str], selected_alias: str | None,
-             key_name: str) -> str:
-    """Move the selection within a column or to the matching index of a neighbour.
+             key_name: str, width: int = 200, height: int = 60) -> str:
+    """Move the selection the way the mosaic is drawn at ``width`` × ``height``.
 
-    Columns follow ``projects``; inside one, running cards come first, then off lines,
-    as they are drawn. Movement clamps at every edge (no wrap-around). ``home``/``end``
-    jump to the first/last item of the current column.
+    Columns are the drawn ones (a single project spread over several columns counts as
+    several); inside one, running cards come first, then off lines. Left/right go to the
+    same index of the neighbour column; up/down stay in the column. In the stacked
+    narrow layout everything is one list and left/right behave like up/down.
+    Movement clamps at every edge; ``home``/``end`` jump within the column.
     """
     projects = list(dict.fromkeys(projects))
-    columns = [_column_views(views, project) for project in projects]
+    if _stacked(projects, width):
+        flat = [view for project in projects for view in _column_views(views, project)]
+        columns = [flat] if flat else []
+        key_name = {'left': 'up', 'right': 'down'}.get(key_name, key_name)
+    else:
+        columns = [column.views for column in _geometry(views, projects, width, height)[0]]
     columns = [column for column in columns if column]
     if not columns:
         return selected_alias or ''
