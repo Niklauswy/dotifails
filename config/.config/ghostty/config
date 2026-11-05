@@ -7,6 +7,8 @@ font-size = 20
 background-opacity = 0.6
 # Desenfocar el fondo
 background-blur-radius = 20
+# También las celdas con color propio (paneles y chips de las TUI de Wysun) dejan ver el fondo
+background-opacity-cells = true
 
 # === VENTANA ===
 # Sin decoraciones de ventana (sin título)
