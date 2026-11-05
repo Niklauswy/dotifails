@@ -19,6 +19,8 @@ var pageRoutes = {
     panels: "panels",
     services: "services",
     language: "language",
+    drive: "drive",
+    nextcloud: "drive",
     about: "about"
 };
 var pageSubs = {};

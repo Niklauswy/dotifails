@@ -333,6 +333,20 @@ class OperationsTests(unittest.TestCase):
             self.assertIn('carpeta personal', self.failures[-1])
             self.assertTrue(self.ops.shareOnNetwork([str(self.src)], False, False), 'read-only is fine')
 
+    def test_upload_to_drive_starts_wysun_drive_detached(self):
+        from wysun_files.quick import operations as module
+        with patch.object(module.subprocess, 'Popen') as popen:
+            self.assertTrue(self.ops.uploadToDrive(self.paths('a.txt', 'b.txt'), True))
+        argv, kwargs = popen.call_args.args[0], popen.call_args.kwargs
+        self.assertEqual(argv[0], str(Path(sys.base_prefix) / 'bin/python3'))
+        self.assertEqual(argv[1:], ['-P', '-m', 'wysun_drive', 'up', '--notificar', '--link', '--', *self.paths('a.txt', 'b.txt')])
+        self.assertTrue(kwargs['start_new_session'])
+        self.assertIn('PYTHONPATH', kwargs['env'])
+        with patch.object(module.subprocess, 'Popen') as popen:
+            self.assertTrue(self.ops.uploadToDrive(self.paths('a.txt'), False))
+        self.assertNotIn('--link', popen.call_args.args[0])
+        self.assertFalse(self.ops.uploadToDrive([], True))
+
     def test_uris_for_dragging(self):
         self.assertEqual(self.ops.uris(self.paths('a.txt')), ['file://' + str(self.src / 'a.txt')])
 

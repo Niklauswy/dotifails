@@ -175,6 +175,12 @@ MouseArea {
         session.saveAs(frame);
     }
 
+    function upload(): void {
+        if (annotations.editingText)
+            annotations.commitText();
+        session.upload(frame);
+    }
+
     function view(): void {
         if (annotations.editingText)
             annotations.commitText();
@@ -276,6 +282,8 @@ MouseArea {
             root.saveAs();
         } else if (phase === "actions" && event.key === Qt.Key_V) {
             root.view();
+        } else if (phase === "actions" && event.key === Qt.Key_U) {
+            root.upload();
         } else if (phase === "actions" && event.key === Qt.Key_A) {
             session.phase = "edit";
         } else if (phase === "actions" && event.key === Qt.Key_T) {
@@ -415,6 +423,7 @@ MouseArea {
         onCopy: root.deliver(root.session.autoSave)
         onSaveAs: root.saveAs()
         onView: root.view()
+        onUpload: root.upload()
         onAnnotate: root.session.phase = "edit"
         onReadText: {
             root.session.recognise(frame);

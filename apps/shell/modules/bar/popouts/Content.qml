@@ -125,6 +125,11 @@ Item {
         }
 
         Popout {
+            name: "drive"
+            sourceComponent: DrivePopout {}
+        }
+
+        Popout {
             name: "wysunupdate"
             sourceComponent: WysunUpdatePopout {}
         }

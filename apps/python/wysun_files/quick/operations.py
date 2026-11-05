@@ -366,6 +366,23 @@ class Operations(QObject):
             return False
         return True
 
+    @Slot('QVariantList', bool, result=bool)
+    def uploadToDrive(self, paths, link):
+        """`wysun drive up --notificar [--link] -- PATH…` on its own: the bar shows progress, a notification the result."""
+        paths = [p for p in paths if p]
+        if not paths:
+            return False
+        args = ['up', '--notificar', *(['--link'] if link else []), '--']
+        # Wysun Drive is stdlib + wysun_core: the system Python, outside the QML venv's Qt setup.
+        argv = module_argv('wysun_drive', *args, *paths, python=str(Path(sys.base_prefix) / 'bin/python3'))
+        try:
+            subprocess.Popen(argv, env=child_environment(), cwd=os.path.dirname(paths[0]) or None, start_new_session=True,
+                             stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except OSError as error:
+            self.failed.emit('No se pudo subir', error.strerror or str(error))
+            return False
+        return True
+
     # ---------------------------------------------------------------- properties
     @Slot(str, result='QVariantMap')
     def properties(self, path):

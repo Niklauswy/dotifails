@@ -170,6 +170,15 @@ QtObject {
             }
         },
 
+        Component {
+            // Wysun Drive
+            StackPage {
+                Component {
+                    DrivePage {}
+                }
+            }
+        },
+
         // About
         Component {
             StackPage {

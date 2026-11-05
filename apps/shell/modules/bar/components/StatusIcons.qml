@@ -82,6 +82,26 @@ StyledRect {
             }
         }
 
+        // Wysun Drive: only while something uploads; hovering opens its popout with progress and «Cancelar».
+        Item {
+            readonly property string name: "drive"
+
+            visible: Drive.active
+            Layout.alignment: Qt.AlignHCenter
+            Layout.bottomMargin: root.spacing
+            implicitWidth: driveIcon.implicitWidth
+            implicitHeight: driveIcon.implicitHeight
+
+            MaterialIcon {
+                id: driveIcon
+
+                animate: true
+                text: "cloud_upload"
+                color: Colours.palette.m3primary
+                fill: 1
+            }
+        }
+
         // Wysun Cloud: only while some VM is running; click opens the TUI in a terminal.
         Item {
             readonly property string name: "cloudvms"

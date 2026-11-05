@@ -135,6 +135,15 @@ QtObject {
         });
     }
 
+    // Uploads the capture with Wysun Drive and closes the overlay; the link reaches the clipboard and a
+    // notification when it is up (progress in the bar). Without a session Wysun Drive says so and opens the login.
+    function upload(item: Item): void {
+        render(item, path => {
+            Quickshell.execDetached(["wysun", "drive", "up", "--link", "--notificar", "--nombre", `Captura_${stamp()}.png`, "--", path]);
+            finished();
+        });
+    }
+
     // Hands the selection to the recorder (countdown, then Wysun Recorder's detached
     // worker) and closes the overlay; the HUD and the utilities card follow it from there.
     function startRecording(output: ShellScreen, wholeOutput: bool): void {

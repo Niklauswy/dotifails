@@ -108,6 +108,14 @@ QtObject {
             category: "shell"
         },
 
+        {
+            key: "drive",
+            label: "Wysun Drive",
+            icon: "cloud_upload",
+            description: Tr.tr("Nextcloud server, upload folder and session"),
+            category: "shell"
+        },
+
         // About
         {
             key: "about",

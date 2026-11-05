@@ -8,13 +8,14 @@ import qs.components
 import qs.components.effects
 import qs.services
 
-// What to do with a selected region: copy, save as, annotate, read its text or cancel.
+// What to do with a selected region: copy, save as, upload (Wysun Drive), annotate, read its text or cancel.
 StyledRect {
     id: root
 
     signal copy
     signal saveAs
     signal view
+    signal upload
     signal annotate
     signal readText
     signal cancel
@@ -59,6 +60,13 @@ StyledRect {
             text: Tr.tr("Save and view")
             key: "V"
             onClicked: root.view()
+        }
+
+        Action {
+            icon: "add_link"
+            text: Tr.tr("Upload & copy link")
+            key: "U"
+            onClicked: root.upload()
         }
 
         Action {

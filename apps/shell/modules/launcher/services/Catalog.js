@@ -33,6 +33,7 @@ function settings() {
         s("apps", "Default Apps", "Browser, terminal, favourite and hidden apps", "apps", "aplicaciones predeterminadas navegador browser terminal favoritas ocultas"),
         s("services", "Services", "Update intervals and lyrics source", "build", "servicios letras lyrics intervalos"),
         s("language", "Language & Region", "Language, weather location and units", "globe", "idioma lenguaje región clima weather ubicación unidades"),
+        s("drive", "Wysun Drive", "Nextcloud server, upload folder and session", "cloud_upload", "nube nextcloud servidor subir archivos link enlace compartir cuenta sesión"),
         s("about", "About This System", "System information and credits", "info", "acerca de sistema información versión hardware")
     ];
 }
@@ -49,6 +50,7 @@ function tools(configured) {
         w("recorder", "Wysun Recorder", "Record your screen or open the library", "videocam", ["wysun", "recorder"], "screen record"),
         // Waits for the launcher to close so it is not in the frozen frame.
         w("screenshot", "Screenshot", "Copy, annotate or read the text of a region", "screenshot", ["sh", "-c", "sleep 0.25; exec wysun-shell screenshot"], "capture ocr annotate"),
+        w("drive", "Wysun Drive", "Upload files and folders to your Nextcloud and get the link", "cloud_upload", ["wysun", "drive", "--terminal"], "nube nextcloud subir upload link enlace compartir"),
         w("processes", "Processes", "Inspect running apps and resource usage", "memory", ["wysun", "processes"], "task manager cpu"),
         w("sound", "Sound", "Volume and audio devices", "volume_up", ["wysun", "quicksettings"], "audio"),
         w("notifications", "Notifications", "History and focus mode", "notifications", ["wysun", "notifications"], "do not disturb"),
