@@ -100,6 +100,10 @@ class DispatcherTests(unittest.TestCase):
         self.invoke(('cloud', '--estado'))
         self.assert_module('wysun_cloud', ['--estado'])
 
+    def test_dispatcher_runs_wysun_drive(self):
+        self.invoke(('drive', 'up', 'a b.pdf', '--link'))
+        self.assert_module('wysun_drive', ['up', 'a b.pdf', '--link'])
+
     def test_wysun_tools_is_gone(self):
         self.assertNotIn('tools', wysun.MODULES)
 
