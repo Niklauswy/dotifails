@@ -18,10 +18,11 @@ import shlex
 from collections import deque
 from pathlib import Path
 
+from wysun_cloud import autostop
 from wysun_cloud.model import Sample, TabData
 
 __all__ = ['BACKOFF', 'ProbeParser', 'ProbeSession', 'SSH_OPTIONS', 'route',
-           'run_tab_command', 'ssh_command']
+           'run_root_script', 'run_tab_command', 'ssh_command']
 
 PROBE_PATH = Path(__file__).resolve().with_name('probe.sh')
 
@@ -96,7 +97,7 @@ def ssh_command(inst, remote, ssh_config=None):
 
 
 # -- probe parsing --------------------------------------------------------
-_KEY_RE = re.compile(r'(?:^|\s)(cpu|cores|load|mem|net|disk|df|up|top)=')
+_KEY_RE = re.compile(r'(?:^|\s)(cpu|cores|load|mem|net|disk|df|up|auto|top)=')
 
 
 def _keyed(line):
@@ -162,6 +163,7 @@ def _counters(epoch, fields):
         'mounts': mounts,
         'up': int(float(fields['up'])),
         'top': top,
+        'auto': autostop.parse_live(fields.get('auto')),   # older probes send none
     }
 
 
@@ -207,6 +209,7 @@ def _sample(previous, current, dt):
         uptime_s=current['up'],
         top=[(pid, pcpu, rss / KB_PER_GB, command)
              for pid, pcpu, rss, command in current['top']],
+        autostop=current['auto'],
     )
 
 
@@ -397,6 +400,7 @@ COMMANDS = {
     'docker': "docker ps -a --format '{{json .}}'",
     'failed': 'systemctl --failed --no-legend --plain',
     'du': 'du -x -d2 -k / 2>/dev/null | sort -rn | head -12',
+    'autostop': autostop.STATUS_COMMAND,
 }
 
 DOCKER_MISSING = 'docker no está instalado'
@@ -463,3 +467,36 @@ def run_tab_command(app, inst, kind, on_done):
         finish(code, limited)
 
     run(True, False)
+
+
+SUDO_NEEDS_PASSWORD = 'sudo pide contraseña en la VM'
+
+
+def run_root_script(app, inst, script, on_done):
+    """Run ``script`` as root on ``inst`` (``sudo -n sh -s``, the script on stdin) and call
+    ``on_done(error)`` once: ``None`` on success, else a short Spanish reason.
+
+    Success means the script's last line was :data:`autostop.OK_MARK`, so a connection that
+    drops halfway never reads as done. ``sudo -n`` never prompts: a VM that wants a password
+    gets :data:`SUDO_NEEDS_PASSWORD`.
+    """
+    lines: deque[str] = deque(maxlen=50)
+    child = None
+
+    def on_exit(code):
+        stderr_lines = [line.strip() for line in (child.stderr_tail if child else []) if line.strip()]
+        if code == 0 and lines and lines[-1].strip() == autostop.OK_MARK:
+            on_done(None)
+            return
+        if any('sudo:' in line and ('password' in line or 'contraseña' in line) for line in stderr_lines):
+            on_done(SUDO_NEEDS_PASSWORD)
+            return
+        reason = None
+        for line in stderr_lines:
+            reason = next((text for needle, text in _REASONS if needle in line.lower()), None) or reason
+        last = stderr_lines[-1][:80] if stderr_lines else ''
+        on_done(reason or (f'falló: {last}' if last else 'no terminó'))
+
+    child = app.spawn(ssh_command(inst, ['sudo', '-n', 'sh', '-s']), lines.append, on_exit,
+                      stdin=script.encode('utf-8'))
+    return child

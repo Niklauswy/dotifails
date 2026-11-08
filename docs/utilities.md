@@ -67,15 +67,29 @@ wysun cloud --estado       # una lectura para la barra (silenciosa, siempre sale
 wysun cloud --terminal     # abre `wysun cloud` en una terminal nueva (lo usa la barra)
 ```
 
-Vigila las VMs de Compute Engine de todos tus proyectos y las enciende, apaga o reinicia. Transparente sobre el Ghostty y con la base común de las utilidades de terminal (cabecera, avisos y ayuda de `wysun_core.tui.kit`). Un **mosaico** con una columna por proyecto: cada VM encendida es una tarjeta en vivo (CPU de los últimos 2 min, RAM, disco `/`, red, tiempo encendida, proceso que más consume) y cada VM apagada, una línea. `↵` abre el **detalle** con 7 pestañas: Resumen, Procesos, Disco, Red, Servicios, Registro e Historial. Colores del fondo de pantalla (claro u oscuro en vivo), animaciones con los tokens de Wysun (`WYSUN_REDUCED_MOTION=1` las quita).
+Vigila las VMs de Compute Engine de todos tus proyectos y las enciende, apaga o reinicia. Transparente sobre el Ghostty y con la base común de las utilidades de terminal (cabecera, avisos y ayuda de `wysun_core.tui.kit`). Un **mosaico** con una columna por proyecto: cada VM encendida es una tarjeta en vivo (CPU de los últimos 2 min, RAM, disco `/`, red, tiempo encendida, proceso que más consume) y cada VM apagada, una línea. `↵` abre el **detalle** con 8 pestañas: Resumen, Procesos, Disco, Red, Servicios, Registro, Historial y Apagado. Colores del fondo de pantalla (claro u oscuro en vivo), animaciones con los tokens de Wysun (`WYSUN_REDUCED_MOTION=1` las quita).
 
-Teclas: `←↑↓→` elegir · `↵` detalle · `Esc`/`q` volver · `1`–`7` o `←→` pestaña · `x` apagar · `r` reiniciar · `s` encender · `c` SSH en una terminal · `h` 24 h / 7 días en Historial · `m` ordenar Procesos por RAM · `d` calcular `du` en Disco · `/` filtrar · `p` buscar proyectos ahora · `?` ayuda · `q` salir. Apagar y reiniciar piden confirmación; el ratón elige con un clic y abre con doble clic.
+Teclas: `←↑↓→` elegir · `↵` detalle · `Esc`/`q` volver · `1`–`8` o `←→` pestaña · `x` apagar · `r` reiniciar · `s` encender · `a` apagado automático · `p` posponer 1 h (pestaña Apagado) · `c` SSH en una terminal · `h` 24 h / 7 días en Historial · `m` ordenar Procesos por RAM · `d` calcular `du` en Disco · `/` filtrar · `p` buscar proyectos ahora · `?` ayuda · `q` salir. Apagar y reiniciar piden confirmación; el ratón elige con un clic y abre con doble clic.
 
 De dónde sale cada dato:
 - **gcloud** (`gcloud` instalado y con sesión): proyectos, VMs, acciones (`gcloud compute instances start|stop|reset … --quiet`), operaciones, reglas de firewall y discos. Sin `gcloud` o sin sesión, una línea en rojo lo dice («gcloud no tiene sesión: ejecuta gcloud auth login») y el mosaico muestra la última lectura marcada «sin actualizar». Un proyecto que falla no oculta a los demás y conserva sus VMs conocidas.
 - **SSH**, una sesión por VM encendida que manda `probe.sh` por la entrada estándar (no se instala nada en la VM) y recibe una línea por segundo. Ruta: si la VM tiene IP externa y `~/.ssh/config` tiene el alias `NOMBRE.ZONA.PROYECTO` (el que crea `gcloud compute config-ssh`), `ssh -o BatchMode=yes -o HostName=<IP actual> ALIAS`; si no, `gcloud compute ssh … --tunnel-through-iap`. Wysun nunca edita `~/.ssh/config` ni ejecuta `config-ssh`. Si la sesión cae, la tarjeta dice «reconectando…» y reintenta a los 2, 5, 15 y 30 s; si la causa es permanente, «sin SSH · motivo» (llave rechazada, IAP bloqueado, falta el alias…).
 - Las pestañas Red, Servicios, Registro y Disco ejecutan al abrirse `ss -tlnp`, `systemctl --failed`, `docker ps -a`, `journalctl -p warning --since -1h` y `du`, primero con `sudo -n` (nunca pide contraseña) y, si no se puede, sin sudo, marcando «necesita permisos». La sonda de cada segundo nunca usa sudo.
 - **Cloud Monitoring** (Historial): CPU de 24 h o 7 días por la API REST.
+
+### Apagado automático
+
+`a` (en el mosaico o en el detalle) abre **Apagado automático** para la VM elegida. Cada regla se activa con `espacio` y se ajusta con `←→`; se pueden combinar y gana la que llegue antes:
+
+- **Horario fijo**: a una hora (`←→` ±15 min, `RePág`/`AvPág` ±1 h) los días elegidos (`←→` todos / lunes a viernes / fines de semana; `1`–`7` cambia un día). La hora es la de este equipo (se guarda con su zona horaria). Cuenta desde que se guarda y desde que la VM arrancó: encenderla después de la hora no la apaga en el acto.
+- **Tiempo máximo**: N horas después de encenderse (o de guardar la regla, si es más tarde).
+- **Sin actividad**: N minutos seguidos sin uso. Es uso: CPU por encima del umbral, una sesión SSH interactiva (opcional; la sonda de Wysun Cloud no cuenta) o un proceso de la lista (`claude`, `codex`, `opencode`, editable en el archivo de la VM).
+- **Una vez**: `shutdown -h +N` (o el que ya hubiera). Quitarlo hace `shutdown -c`.
+- **Aplicar a**: esta VM, todas las encendidas o una lista para marcar. Solo se configuran VMs encendidas.
+
+El panel muestra cuándo será el próximo apagado con esos valores. Las tarjetas del mosaico lo enseñan en su borde inferior (en color cuando faltan 15 min o menos) y la pestaña **Apagado** detalla las reglas, si ahora está en uso y por qué, y desde cuándo está quieta; `p` pospone 1 h el próximo apagado. Cinco minutos antes, quien tenga sesión en la VM recibe un aviso (`wall`).
+
+Cómo funciona: todo corre en la VM, sin cambios de IAM. Al guardar, Wysun Cloud manda por SSH un script a `sudo -n sh -s` (nunca pide contraseña: si la VM la exige, el aviso lo dice) que instala `/usr/local/libexec/wysun-autostop`, `wysun-autostop.service` y `wysun-autostop.timer` (cada minuto) y escribe las reglas en `/etc/wysun-autostop.conf`, validadas antes porque las lee root. El estado queda en `/var/lib/wysun-autostop/state`, que la sonda lee cada segundo (campo `auto=`). Quitar todas las reglas desinstala todo eso. Pruebas: `tests/cloud/test_autostop.py` ejecuta el script real con reloj, CPU, sesiones y procesos falsos.
 
 Ritmo: búsqueda completa de proyectos una vez al día (o con `p`), lista de VMs cada 30 s con la interfaz abierta y tras cada acción, sondas cada segundo; la barra lee cada 2 min. El primer cuadro sale de la caché en menos de un segundo.
 

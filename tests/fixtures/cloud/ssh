@@ -10,6 +10,11 @@ Environment variables (all optional):
   FAKE_SSH_LINE_DELAY=<s>    seconds between replayed lines (default 0.05)
   FAKE_SSH_OUTPUT=<text>     print this instead of the recorded probe lines,
                              one \n-separated line at a time
+  FAKE_SSH_AUTOSTOP=<text>   output of the automatic power-off status command
+                             (the one that reads /etc/wysun-autostop.conf)
+  FAKE_SSH_ROOT_LOG=<path>   a root script (`sudo -n sh -s`) is accepted: its stdin is
+                             appended here and the script's success mark is printed
+  FAKE_SSH_ROOT_FAIL=<text>  a root script fails with <text> on stderr and exit 1
 
 A command that carries ``sudo -n`` (the tab commands' first try) is refused
 with ``sudo: a password is required`` and exit 1, so the non-sudo retry can be
@@ -38,8 +43,26 @@ if stderr:
     print(stderr, file=sys.stderr, flush=True)
     sys.exit(255)
 
-# The probe is the only command that ends with `sh -s`; tab commands use sudo
-# or `sh -c`, so they never reach this branch.
+# A root script (automatic power-off) is `sudo -n sh -s` with the script on stdin.
+if args[-4:] == ['sudo', '-n', 'sh', '-s']:
+    script = sys.stdin.read()
+    failure = os.environ.get('FAKE_SSH_ROOT_FAIL')
+    if failure:
+        print(failure, file=sys.stderr, flush=True)
+        sys.exit(1)
+    root_log = os.environ.get('FAKE_SSH_ROOT_LOG')
+    if root_log:
+        with open(root_log, 'a', encoding='utf-8') as log:
+            log.write(script + '\n@@end\n')
+    print('WYSUN_AUTOSTOP_OK', flush=True)
+    sys.exit(0)
+
+if any('wysun-autostop.conf' in part for part in args) and 'FAKE_SSH_AUTOSTOP' in os.environ:
+    print(os.environ['FAKE_SSH_AUTOSTOP'], flush=True)
+    sys.exit(0)
+
+# The probe is the only other command that ends with `sh -s`; tab commands use
+# sudo or `sh -c`, so they never reach this branch.
 is_probe = args[-2:] == ['sh', '-s']
 if not is_probe and 'sudo' in args and '-n' in args:
     print('sudo: a password is required', file=sys.stderr, flush=True)

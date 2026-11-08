@@ -22,6 +22,7 @@ items that do not fit are omitted from the returned dict rather than placed off-
 """
 from __future__ import annotations
 
+import time
 from collections import deque
 from dataclasses import dataclass, field
 from typing import Iterable
@@ -29,8 +30,9 @@ from typing import Iterable
 from wysun_core.tui.anim import Rect
 from wysun_core.tui.canvas import Canvas, Style
 from wysun_core.tui.draw import bar, box, braille_graph, spinner_frame, truncate
+from wysun_core.tui.kit import GLYPH
 
-from .. import pricing
+from .. import autostop, pricing
 from ..model import Instance, Sample
 
 __all__ = ['VmView', 'layout', 'project_titles', 'draw_mosaic', 'draw_card', 'draw_off',
@@ -364,6 +366,8 @@ def draw_card(canvas: Canvas, rect: Rect, view: VmView, palette, selected: bool,
     box(canvas, rect, border, title_segments=_title_segments(view, palette, spin),
         selected_style=Style(fg=palette['primary']) if selected else None)
 
+    _draw_stop_badge(canvas, rect, view, palette)
+
     inner_x = rect.x + 2
     inner_w = max(0, rect.w - 4)
     if inner_w <= 0 or rect.h < 2:
@@ -444,6 +448,29 @@ def draw_card(canvas: Canvas, rect: Rect, view: VmView, palette, selected: bool,
             pieces.extend([(' · ', Style(fg=muted, dim=busy)),
                            (f'{view.failed} ✗', Style(fg=palette['error'], dim=busy))])
         _segments(canvas, inner_x, row, inner_w, pieces)
+
+
+def stop_badge(view: VmView, now: float | None = None):
+    """``(text, soon)`` for the card's bottom edge when a power-off is coming, else None."""
+    sample = view.sample
+    stop = autostop.next_stop(sample.autostop if sample is not None else None, now)
+    if stop is None:
+        return None
+    now = time.time() if now is None else now
+    left = stop[0] - now
+    when = f'en {autostop.fmt_duration(left)}' if left < 3600 else autostop.fmt_when(stop[0], now)
+    return f' {GLYPH["power"]} {when} ', left <= 15 * 60
+
+
+def _draw_stop_badge(canvas: Canvas, rect: Rect, view: VmView, palette) -> None:
+    badge = stop_badge(view)
+    if badge is None or rect.h < 3:
+        return
+    text, soon = badge
+    if len(text) + 4 > rect.w:
+        return
+    canvas.text(rect.x + rect.w - len(text) - 2, rect.y + rect.h - 1, text,
+                Style(fg=palette['tertiary' if soon else 'onSurfaceVariant'], bold=soon))
 
 
 def draw_off(canvas: Canvas, rect: Rect, view: VmView, palette, selected: bool,

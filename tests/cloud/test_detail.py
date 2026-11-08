@@ -127,7 +127,7 @@ class DetailTests(unittest.TestCase):
         return '\n'.join(canvas.row_text(row) for row in range(canvas.height))
 
     # -- header -----------------------------------------------------------
-    def test_header_data_line_and_seven_tabs(self):
+    def test_header_data_line_and_eight_tabs(self):
         canvas = self.canvas()
         boxes = draw_detail_header(canvas, Rect(0, 0, 120, HEADER_ROWS),
                                    self.view, self.palette, 0)
@@ -139,9 +139,10 @@ class DetailTests(unittest.TestCase):
         self.assertIn('34.122.10.7 / 10.128.0.2', data)
         self.assertIn('US$/h', data)
         self.assertEqual(len(boxes), len(TABS))
-        self.assertEqual(len(TABS), 7)
+        self.assertEqual(len(TABS), 8)
         self.assertIn('1 Resumen', canvas.row_text(2))
         self.assertIn('7 Historial', canvas.row_text(2))
+        self.assertIn('8 Apagado', canvas.row_text(2))
         self.assertIn('─', canvas.row_text(3))
 
     def test_header_says_precio_desconocido_for_unknown_type(self):

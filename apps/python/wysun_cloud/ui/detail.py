@@ -26,8 +26,9 @@ from datetime import datetime
 
 from wysun_core.tui.canvas import Canvas, Style
 from wysun_core.tui.draw import bar, braille_graph, tabs, truncate
+from wysun_core.tui import kit
 
-from .. import pricing
+from .. import autostop, pricing
 from ..model import TabData
 # Reused from the mosaic instead of copied: the Spanish number/uptime formatting, the
 # prototype's colour ladder and the small segment writer (the last three are private
@@ -37,7 +38,7 @@ from .mosaic import (BUSY_TEXT, VmView, _clamp01, _level, _segments, _state_text
 
 __all__ = ['TABS', 'HEADER_ROWS', 'DetailData', 'draw_detail_header', 'draw_tab', 'body_lines']
 
-TABS = ['Resumen', 'Procesos', 'Disco', 'Red', 'Servicios', 'Registro', 'Historial']
+TABS = ['Resumen', 'Procesos', 'Disco', 'Red', 'Servicios', 'Registro', 'Historial', 'Apagado']
 HEADER_ROWS = 4                       # data line, blank, tabs, rule
 
 SAFE_FIREWALL_PORTS = frozenset({'22', '80', '443'})
@@ -929,8 +930,82 @@ def _historial(view, data, palette, width, range_hours, sort):
     return out
 
 
+# -- Apagado -------------------------------------------------------------
+def _rule_line(palette, on, label, text, extra=''):
+    pieces = [('  ●  ' if on else '  ○  ', _accent(palette) if on else _outline(palette)),
+              (label.ljust(18), _bold(palette) if on else _muted(palette)),
+              (text if on else 'desactivado', _text(palette) if on else _dim(palette))]
+    if on and extra:
+        pieces.append((f'  {extra}', _muted(palette)))
+    return _line(*pieces)
+
+
+def _apagado(view, data, palette, width, range_hours, sort):
+    now = time.time()
+    tab = data.tabs.get('autostop')
+    error = _block_error(data, 'autostop')
+    status = autostop.parse_status(tab.lines) if tab is not None and not tab.error else None
+    live = view.sample.autostop if view.sample is not None else None
+    if live is None and status is not None:
+        live = status.live
+    lines = [_line(('APAGADO AUTOMÁTICO', _bold(palette)))]
+    stop = autostop.next_stop(live, now)
+    if stop is not None:
+        soon = stop[0] - now <= 15 * 60
+        role = _warn(palette) if soon else Style(fg=palette['primary'], bold=True)
+        lines.append(_line((f'{kit.GLYPH['power']} Se apaga {autostop.fmt_when(stop[0], now)}', role),
+                           (f' · en {autostop.fmt_duration(stop[0] - now)}', _text(palette)),
+                           (f' · {autostop.REASON_TEXT.get(stop[1], stop[1])}', _muted(palette))))
+    elif live is not None and live.installed and status is not None and status.rules.idle_minutes:
+        lines.append(_line((f'{kit.GLYPH['power']} Se apagará tras {status.rules.idle_minutes} min sin uso',
+                            Style(fg=palette['primary'], bold=True))))
+    else:
+        lines.append(_line(('○ No hay ningún apagado programado', _muted(palette))))
+    lines.append([])
+
+    if status is None:
+        if error:
+            lines.append(_line((f'no se pudo leer la configuración: {error}', _error(palette))))
+        else:
+            lines.append(_line(('cargando…', _muted(palette))))
+    else:
+        rules = status.rules
+        lines.append(_rule_line(palette, bool(rules.schedule_at), 'Horario fijo',
+                                f'a las {rules.schedule_at}' if rules.schedule_at else '',
+                                autostop.describe_days(rules.days) + (f' · hora de {rules.tz}' if rules.tz != autostop.local_tz() else '')))
+        lines.append(_rule_line(palette, rules.max_hours > 0, 'Tiempo máximo',
+                                f'{rules.max_hours} h', 'después de encenderse'))
+        lines.append(_rule_line(palette, rules.idle_minutes > 0, 'Sin actividad',
+                                f'{rules.idle_minutes} min sin uso',
+                                f'CPU < {rules.idle_cpu} %' + (' · SSH cuenta' if rules.idle_ssh else '')))
+        if rules.idle_minutes and live is not None:
+            busy = autostop.busy_text(live.busy)
+            if busy:
+                lines.append(_line((' ' * 23 + f'ahora en uso: {busy}', _muted(palette))))
+            elif live.idle_since:
+                lines.append(_line((' ' * 23 + f'sin uso desde las {autostop.fmt_when(live.idle_since, now)}'
+                                    f' ({autostop.fmt_duration(now - live.idle_since)})', _warn(palette))))
+        once = live.once_at if live is not None else status.once_at
+        lines.append(_rule_line(palette, once > now, 'Una vez',
+                                autostop.fmt_when(once, now) if once > now else '',
+                                f'en {autostop.fmt_duration(once - now)}' if once > now else ''))
+        if status.postpone > now:
+            lines.append([])
+            lines.append(_line((f'Pospuesto hasta las {autostop.fmt_when(status.postpone, now)}', _warn(palette))))
+        if status.installed and not status.active:
+            lines.append([])
+            lines.append(_line(('El temporizador de la VM no está activo: guarda de nuevo con a', _error(palette))))
+    lines.append([])
+    hints = [('a', ' editar'), ('   p', ' posponer 1 h')]
+    pieces = []
+    for key, label in hints:
+        pieces += [(key, _key(palette)), (label, _muted(palette))]
+    lines.append(_line(*pieces))
+    return lines
+
+
 # -- the tab body ---------------------------------------------------------
-_BUILDERS = (_resumen, _procesos, _disco, _red, _servicios, _registro, _historial)
+_BUILDERS = (_resumen, _procesos, _disco, _red, _servicios, _registro, _historial, _apagado)
 
 
 def body_lines(tab: int, view: VmView, data: DetailData, palette, width: int,

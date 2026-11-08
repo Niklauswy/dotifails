@@ -77,7 +77,8 @@ class CloudAppTests(unittest.TestCase):
         self.addCleanup(self.patcher.stop)
         for name in ('FAKE_GCLOUD_SLEEP', 'FAKE_GCLOUD_AUTH_ERROR',
                      'FAKE_GCLOUD_FAIL_PROJECT', 'FAKE_GCLOUD_FAIL_ACTION',
-                     'FAKE_SSH_FAIL', 'FAKE_SSH_STDERR', 'FAKE_SSH_OUTPUT'):
+                     'FAKE_SSH_FAIL', 'FAKE_SSH_STDERR', 'FAKE_SSH_OUTPUT',
+                     'FAKE_SSH_AUTOSTOP', 'FAKE_SSH_ROOT_FAIL'):
             os.environ.pop(name, None)
 
     # -- helpers ----------------------------------------------------------
@@ -394,6 +395,123 @@ class CloudAppTests(unittest.TestCase):
         self.assertEqual(len(term.canvas_text()), 36)
         self.assertIn('Resumen', frame_text(term))
         self.assertEqual(app._vm_layers[API].rect.w, 120)
+
+    # -- automatic power-off ----------------------------------------------
+    AUTOSTOP_CONF = ['SCHEDULE_AT=02:00', 'SCHEDULE_DAYS=12345', 'SCHEDULE_TZ=UTC',
+                     'IDLE_MINUTES=30', '@@state', 'NEXT_AT=0', '@@postpone', '', '@@once',
+                     '@@timer', 'active']
+
+    def root_scripts(self):
+        path = self.home / 'root.log'
+        if not path.exists():
+            return []
+        return [part for part in path.read_text(encoding='utf-8').split('\n@@end\n') if part.strip()]
+
+    def autostop_app(self):
+        os.environ['FAKE_SSH_AUTOSTOP'] = '\n'.join(self.AUTOSTOP_CONF)
+        os.environ['FAKE_SSH_ROOT_LOG'] = str(self.home / 'root.log')
+        self.addCleanup(os.environ.pop, 'FAKE_SSH_ROOT_LOG', None)
+        self.seed_cache()
+        app, term = self.make_app()
+        self.settle(app, term)
+        return app, term
+
+    def test_editor_reads_the_vm_rules_and_saves_a_new_one(self):
+        app, term = self.autostop_app()
+        self.press(app, term, b'a', 0.6)
+        text = frame_text(term)
+        self.assertIn('Apagado automático', text)
+        self.assertIn('Horario fijo', text)
+        self.assertIn('de lunes a viernes', text)           # read from the VM
+        self.assertIn('30 min', text)
+        self.press(app, term, b'\x1b[B')                    # Días
+        self.press(app, term, b'\x1b[B')                    # Tiempo máximo
+        self.press(app, term, b' ')
+        self.assertIn('8 h', frame_text(term))
+        self.press(app, term, b'\r', 0.8)
+        scripts = self.root_scripts()
+        self.assertEqual(len(scripts), 1)
+        self.assertIn('SCHEDULE_AT=02:00', scripts[0])
+        self.assertIn('MAX_HOURS=8', scripts[0])
+        self.assertIn('IDLE_MINUTES=30', scripts[0])
+        self.assertNotIn('shutdown', scripts[0])            # the one-off was not touched
+        self.assertIsNone(app.editor)
+        self.assertIn('Apagado automático guardado en api-backend', frame_text(term))
+        self.assertIn('api-backend', ' '.join(self.ssh_log_lines()))
+
+    def test_escape_closes_without_writing(self):
+        app, term = self.autostop_app()
+        self.press(app, term, b'a', 0.6)
+        self.press(app, term, b' ')
+        self.press(app, term, b'\x1b', 0.3)
+        self.assertIsNone(app.editor)
+        self.assertEqual(self.root_scripts(), [])
+
+    def test_apply_to_every_running_vm(self):
+        app, term = self.autostop_app()
+        self.press(app, term, b'a', 0.6)
+        for _ in range(8):
+            self.press(app, term, b'\x1b[B')               # down to «Aplicar a»
+        self.press(app, term, b'\x1b[C')                    # todas las encendidas
+        running = sum(1 for view in app.views if view.inst.running)
+        self.assertIn(f'todas las encendidas ({running})', frame_text(term))
+        self.assertIn(f'Guardar en {running} VMs', frame_text(term))
+        self.press(app, term, b'\r', 1.5)
+        # Only api-backend has an SSH alias; the fake gcloud has no `compute ssh`, so the
+        # other VMs fail like unreachable ones and the toast reports the partial result.
+        self.assertEqual(len(self.root_scripts()), 1)
+        self.assertIn(f'Apagado automático guardado en 1 de {running}', frame_text(term))
+        self.assertFalse(app.saving)
+
+    def test_turning_everything_off_uninstalls(self):
+        app, term = self.autostop_app()
+        self.press(app, term, b'a', 0.6)
+        self.press(app, term, b' ')                          # horario off
+        for _ in range(2):
+            self.press(app, term, b'\x1b[B')               # Tiempo máximo, Sin actividad
+        self.press(app, term, b' ')                          # sin actividad off
+        self.press(app, term, b'\r', 0.8)
+        scripts = self.root_scripts()
+        self.assertEqual(len(scripts), 1)
+        self.assertIn('systemctl disable --now wysun-autostop.timer', scripts[0])
+        self.assertIn('Apagado automático quitado', frame_text(term))
+
+    def test_sudo_with_password_is_reported(self):
+        os.environ['FAKE_SSH_ROOT_FAIL'] = 'sudo: a password is required'
+        app, term = self.autostop_app()
+        self.press(app, term, b'a', 0.6)
+        self.press(app, term, b'\r', 0.8)
+        self.assertIn('sudo pide contraseña en la VM', frame_text(term))
+
+    def test_off_vm_cannot_be_configured(self):
+        app, term = self.autostop_app()
+        app.selected = DB
+        self.press(app, term, b'a')
+        self.assertIsNone(app.editor)
+        self.assertIn('Enciende db-old para configurar', frame_text(term))
+
+    def test_detail_tab_shows_rules_and_card_shows_the_countdown(self):
+        now = int(time.time())
+        lines = (FIXTURES / 'probe-lines.txt').read_text(encoding='utf-8').splitlines()
+        auto = f' auto=1 {now + 1800} max 0 - 0 top='
+        os.environ['FAKE_SSH_OUTPUT'] = '\n'.join(line.replace(' top=', auto, 1) for line in lines)
+        app, term = self.autostop_app()
+        app.run_for(0.6)
+        self.assertRegex(frame_text(term), r'en (29|30) min')     # on the card's bottom edge
+        self.press(app, term, b'\r', 0.6)
+        self.press(app, term, b'8', 0.8)
+        text = frame_text(term)
+        self.assertIn('8 Apagado', text)
+        self.assertIn('APAGADO AUTOMÁTICO', text)
+        self.assertIn('por tiempo máximo', text)
+        self.assertIn('a las 02:00', text)
+        self.assertIn('30 min sin uso', text)
+        self.assertIn('p posponer 1 h', text)
+        self.press(app, term, b'p', 0.8)
+        scripts = self.root_scripts()
+        self.assertEqual(len(scripts), 1)
+        self.assertIn(f'echo {now + 1800 + 3600} > /var/lib/wysun-autostop/postpone.tmp', scripts[0])
+        self.assertIn('Apagado de api-backend pospuesto', frame_text(term))
 
 
 if __name__ == '__main__':

@@ -33,10 +33,11 @@ from wysun_core.tui.draw import box, truncate
 from wysun_core.tui.keys import Key, Mouse
 from wysun_core.tui import kit
 
-from wysun_cloud import cache, inventory, monitoring, ssh
+from wysun_cloud import autostop, cache, inventory, monitoring, ssh
 from wysun_cloud.gcloud import Gcloud, GcloudError
 from wysun_cloud.model import Instance, TabData
 from wysun_cloud.ui import detail as detail_ui
+from wysun_cloud.ui import autostop_editor
 from wysun_cloud.ui import mosaic as mosaic_ui
 from wysun_cloud.ui.detail import HEADER_ROWS, TABS, DetailData
 from wysun_cloud.ui.mosaic import VmView
@@ -61,11 +62,12 @@ MODAL_HEIGHT = 8
 
 MOSAIC_HINTS = [
     ('←↑↓→', 'elegir'), ('⏎', 'detalle'), ('s', 'encender'), ('x', 'apagar'),
-    ('r', 'reiniciar'), ('c', 'ssh'), ('/', 'filtrar'), ('?', 'ayuda'), ('q', 'salir'),
+    ('r', 'reiniciar'), ('a', 'apagado automático'), ('c', 'ssh'), ('/', 'filtrar'),
+    ('?', 'ayuda'), ('q', 'salir'),
 ]
 DETAIL_HINTS = [
-    ('Esc', 'volver'), ('1-7', 'pestaña'), ('←→', 'pestaña'), ('x', 'apagar'),
-    ('r', 'reiniciar'), ('c', 'ssh'),
+    ('Esc', 'volver'), ('1-8', 'pestaña'), ('←→', 'pestaña'), ('x', 'apagar'),
+    ('r', 'reiniciar'), ('a', 'apagado automático'), ('c', 'ssh'),
 ]
 MODAL_HINTS = [('⏎', 'confirmar'), ('Esc', 'cancelar')]
 
@@ -73,11 +75,13 @@ HELP_LINES = [
     ('←↑↓→', 'elegir la VM'),
     ('⏎', 'abrir el detalle'),
     ('Esc / q', 'volver al mosaico'),
-    ('1-7', 'cambiar de pestaña'),
+    ('1-8', 'cambiar de pestaña'),
     ('← →', 'pestaña anterior / siguiente'),
     ('x', 'apagar (pide confirmación)'),
     ('r', 'reiniciar (pide confirmación)'),
     ('s', 'encender una VM apagada'),
+    ('a', 'apagado automático: horario, tiempo máximo, sin uso'),
+    ('p', 'posponer 1 h el próximo apagado (pestaña Apagado)'),
     ('c', 'abrir SSH en una terminal'),
     ('h', '24 h / 7 días en Historial'),
     ('m', 'ordenar Procesos por CPU / RAM'),
@@ -165,6 +169,8 @@ class CloudApp(App):
         self.filter_active = False
         self.help_open = False
         self.modal: dict | None = None
+        self.editor: dict | None = None      # the «Apagado automático» modal
+        self.saving: set[str] = set()        # VMs whose power-off rules are being written
         self.help_layer: kit.HelpLayer | None = None
 
         self.probes: dict[str, ssh.ProbeSession] = {}
@@ -253,12 +259,16 @@ class CloudApp(App):
                 canvas.text(canvas.width - 1 - len(hint), 0, hint,
                             Style(fg=palette['onSurfaceVariant']))
             return
-        if self.modal is not None:
+        if self.editor is not None:
+            hints = autostop_editor.HINTS
+        elif self.modal is not None:
             hints = MODAL_HINTS
         elif self.mode == 'detail':
             hints = list(DETAIL_HINTS)
             if self.tab == 6:
                 hints.append(('h', '24 h / 7 d'))
+            if self.tab == 7:
+                hints.append(('p', 'posponer 1 h'))
         else:
             hints = MOSAIC_HINTS
         kit.footer(canvas, kit.Painter(palette), hints)
@@ -730,6 +740,8 @@ class CloudApp(App):
         if tab == 6:
             self._ensure_history(alias, 24)
             self._ensure_gcloud(alias, 'operations')
+        if tab == 7:
+            self._ensure_tab(alias, 'autostop')
 
     def _ensure_tab(self, alias: str, kind: str) -> None:
         data = self._detail(alias)
@@ -749,6 +761,8 @@ class CloudApp(App):
                 data.errors[kind] = result.error
             else:
                 data.errors.pop(kind, None)
+            if kind == 'autostop':
+                self._autostop_read(alias, result)
             self.invalidate()
 
         try:
@@ -1009,6 +1023,192 @@ class CloudApp(App):
             canvas.text(2 + len(cancel) + 3, row, action,
                         Style(fg=palette['onPrimary'], bg=palette['primary'], bold=True))
 
+    # -- automatic power-off ---------------------------------------------
+    def _editor_rect(self) -> Rect:
+        width, height = self.size
+        editor = self.editor['editor'] if self.editor is not None else None
+        w = min(78, max(10, width - 4))
+        h = min(editor.height() if editor is not None else 20, max(6, height - 2))
+        return Rect(max(0, (width - w) // 2), max(0, (height - h) // 2), w, h)
+
+    def _place_editor(self) -> None:
+        if self.editor is not None:
+            self.editor['layer'].rect = self._editor_rect()
+
+    def _autostop_status(self, alias: str):
+        data = self.detail_data.get(alias)
+        tab = data.tabs.get('autostop') if data is not None else None
+        if tab is None or tab.error:
+            return None
+        return autostop.parse_status(tab.lines)
+
+    def _open_editor(self, view: VmView) -> None:
+        if self.editor is not None or self.modal is not None:
+            return
+        if not view.inst.running:
+            self._toast(f'Enciende {view.inst.name} para configurar su apagado automático')
+            return
+        if view.inst.alias in self.saving:
+            self._toast('Todavía se está guardando el apagado de esta VM')
+            return
+        self.animator.finish_all()
+        alias = view.inst.alias
+        self._detail(alias).tabs.pop('autostop', None)       # always read it fresh
+        editor = autostop_editor.Editor(self.views, alias, None)
+        width, height = self.size
+        backdrop = Dim(Rect(0, 0, width, height), 'scrim', z=100, opacity=0.0)
+        panel = _Panel(Rect(0, 0, 1, 1), lambda canvas, palette: editor.draw(canvas, palette), z=110)
+        self.editor = {'editor': editor, 'backdrop': backdrop, 'layer': panel}
+        target = self._editor_rect()
+        start = Rect(target.x + 2, target.y + 2, max(1, target.w - 4), max(1, target.h - 4))
+        self.layers.extend([backdrop, panel])
+        self._ensure_tab(alias, 'autostop')
+
+        def geometry(t):
+            if self.editor is None:
+                return
+            backdrop.opacity = 0.45 * fade_steps(max(0.0, min(1.0, t)))
+            panel.rect = lerp_rect(start, self._editor_rect(), t)
+            panel.opacity = fade_steps(max(0.0, min(1.0, t)))
+            self.invalidate()
+
+        if reduced_motion():
+            geometry(1.0)
+        else:
+            geometry(0.0)
+            self.animator.add(Tween(duration('expressiveFastSpatial'), curve('emphasizedDecel'), geometry))
+        self.invalidate()
+
+    def _autostop_read(self, alias: str, result: TabData) -> None:
+        """The VM's rules arrived: fill the editor if it is still waiting for them."""
+        if self.editor is None:
+            return
+        editor = self.editor['editor']
+        if editor.alias != alias or not editor.reading or editor.touched:
+            return
+        if result.error:
+            editor.load(autostop.Status())
+            self._toast(truncate(f'No pude leer la configuración: {result.error}', TOAST_WIDTH))
+        else:
+            editor.load(autostop.parse_status(result.lines))
+        self._place_editor()
+
+    def _close_editor(self, save: bool) -> None:
+        holder = self.editor
+        if holder is None:
+            return
+        self.animator.finish_all()
+        editor = holder['editor']
+
+        def finish():
+            for key in ('backdrop', 'layer'):
+                layer = holder.get(key)
+                if layer is not None and layer in self.layers:
+                    self.layers.remove(layer)
+            if self.editor is holder:
+                self.editor = None
+            self.invalidate()
+
+        if save:
+            self._save_autostop(editor)
+        if reduced_motion():
+            finish()
+            return
+
+        def step(t):
+            holder['backdrop'].opacity = 0.45 * fade_steps(1.0 - t)
+            holder['layer'].opacity = fade_steps(1.0 - t)
+            self.invalidate()
+
+        self.animator.add(Tween(duration('expressiveFastEffects'), curve('expressiveFastEffects'),
+                                step, finish))
+        self.invalidate()
+
+    def _save_autostop(self, editor) -> None:
+        targets = [alias for alias in editor.targets() if alias not in self.saving]
+        if not targets:
+            return
+        now = int(time.time())
+        rules = editor.rules()
+        once = editor.once()
+        results: dict[str, str | None] = {}
+        names = {alias: (self._view(alias).inst.name if self._view(alias) else alias.split('.')[0])
+                 for alias in targets}
+
+        def done(alias, error):
+            self.saving.discard(alias)
+            results[alias] = error
+            data = self.detail_data.get(alias)
+            if data is not None:
+                data.tabs.pop('autostop', None)
+                if self.mode == 'detail' and self.detail_alias == alias and self.tab == 7:
+                    self._ensure_tab(alias, 'autostop')
+            if len(results) < len(targets):
+                return
+            failed = {alias: error for alias, error in results.items() if error}
+            what = 'Apagado automático guardado' if rules.any else 'Apagado automático quitado'
+            if not failed:
+                where = names[targets[0]] if len(targets) == 1 else f'{len(targets)} VMs'
+                self._toast(f'{what} en {where}')
+            elif len(failed) == len(targets) == 1:
+                self._toast(truncate(f'{names[targets[0]]}: {next(iter(failed.values()))}', TOAST_WIDTH))
+            else:
+                first = next(iter(failed))
+                self._toast(truncate(f'{what} en {len(targets) - len(failed)} de {len(targets)} · '
+                                     f'{names[first]}: {failed[first]}', TOAST_WIDTH))
+            self.invalidate()
+
+        self._toast(f'Guardando el apagado en {names[targets[0]] if len(targets) == 1 else f"{len(targets)} VMs"}…')
+        for alias in targets:
+            view = self._view(alias)
+            if view is None:
+                results[alias] = 'ya no existe'
+                continue
+            previous = editor.loaded if alias == editor.alias else self._autostop_status(alias)
+            previous = previous.rules if isinstance(previous, autostop.Status) else previous
+            try:
+                script = autostop.apply_script(autostop.stamp(rules, previous, now), once)
+            except ValueError as error:
+                results[alias] = str(error)
+                continue
+            self.saving.add(alias)
+            try:
+                ssh.run_root_script(self, view.inst, script, lambda error, alias=alias: done(alias, error))
+            except OSError:
+                done(alias, 'no se pudo ejecutar ssh')
+        if results and len(results) == len(targets) and not self.saving:
+            done(*next(iter(results.items())))     # nothing ran: report now
+
+    def _postpone(self, view: VmView) -> None:
+        now = time.time()
+        live = view.sample.autostop if view.sample is not None else None
+        stop = autostop.next_stop(live, now)
+        if stop is None:
+            self._toast('No hay ningún apagado que posponer')
+            return
+        until = int(stop[0] + 3600)
+        once_minutes = None
+        if live is not None and live.once_at and live.once_at <= stop[0] + 1:
+            once_minutes = max(1, int((until - now) // 60))
+        script = autostop.postpone_script(until, once_minutes)
+        name = view.inst.name
+
+        def done(error):
+            if error:
+                self._toast(truncate(f'{name}: {error}', TOAST_WIDTH))
+            else:
+                self._toast(f'Apagado de {name} pospuesto hasta las {autostop.fmt_when(until)}')
+                data = self.detail_data.get(view.inst.alias)
+                if data is not None:
+                    data.tabs.pop('autostop', None)
+                    self._ensure_tab(view.inst.alias, 'autostop')
+            self.invalidate()
+
+        try:
+            ssh.run_root_script(self, view.inst, script, done)
+        except OSError:
+            self._toast('No se pudo ejecutar ssh')
+
     # -- help -------------------------------------------------------------
     def _toggle_help(self, open: bool) -> None:
         if self.help_layer is None:
@@ -1030,6 +1230,16 @@ class CloudApp(App):
             return
         if self.animator:
             self.animator.finish_all()
+        if self.editor is not None:
+            answer = self.editor['editor'].key(event)
+            if answer == 'save':
+                self._close_editor(save=True)
+            elif answer == 'cancel':
+                self._close_editor(save=False)
+            else:
+                self._place_editor()
+            self.invalidate()
+            return
         if self.modal is not None:
             if event.name == 'enter':
                 self._close_modal(True)
@@ -1105,6 +1315,9 @@ class CloudApp(App):
         elif key == 'c':
             if view is not None and view.inst.running:
                 self._launch_ssh(view)
+        elif key == 'a':
+            if view is not None:
+                self._open_editor(view)
         elif key == '/':
             self.filter_active = True
             self.filter = ''
@@ -1138,8 +1351,12 @@ class CloudApp(App):
         key = event.char
         if key == 'q':
             self._close_detail()
-        elif key in '1234567' and len(key) == 1:
+        elif key in '12345678' and len(key) == 1:
             self._set_tab(int(key) - 1)
+        elif key == 'a':
+            self._open_editor(view)
+        elif key == 'p' and self.tab == 7:
+            self._postpone(view)
         elif key == 'x' and view.inst.running:
             self._open_modal('stop', view)
         elif key == 'r' and view.inst.running:
@@ -1160,7 +1377,7 @@ class CloudApp(App):
             self.invalidate()
 
     def on_mouse(self, event: Mouse) -> None:
-        if self.modal is not None or self.help_open:
+        if self.modal is not None or self.editor is not None or self.help_open:
             return
         if event.kind in ('wheelup', 'wheeldown'):
             self._wheel(-1 if event.kind == 'wheelup' else 1, event.x, event.y)
@@ -1300,6 +1517,10 @@ class CloudApp(App):
             self.modal['backdrop'].rect = Rect(0, 0, width, height)
             self.modal['layer'].rect = target
             self.modal['backdrop'].opacity = 0.45
+        if self.editor is not None:
+            self.editor['backdrop'].rect = Rect(0, 0, width, height)
+            self.editor['backdrop'].opacity = 0.45
+            self._place_editor()
         if self.help_layer is not None and self.help_open:
             self.help_layer.place(self)
         if self.toast_layer is not None:

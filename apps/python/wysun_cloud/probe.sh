@@ -11,7 +11,12 @@
 #     mem=<MemTotal MemAvailable Cached SwapTotal SwapFree kB>
 #     net=<rx_bytes tx_bytes> disk=<read_sectors write_sectors>
 #     df=<mount:used_kB:size_kB,…> up=<seconds>
+#     auto=<installed next_at reason idle_since busy once_at>
 #     top=<pid:pcpu:rss_kB:comm|…>
+#
+# `auto` is the automatic power-off (wysun_cloud/autostop.py): whether the guard is
+# installed, what its last check decided (epochs, `-` for empty) and the one-off
+# `shutdown -h +N`, if any. It only reads small world-readable files.
 #
 # The stamp is /proc/uptime (monotonic, with hundredths): only deltas between two
 # lines are used, so it never needs to be wall-clock time. A failing write is
@@ -82,6 +87,23 @@ df_line() {
         }'
 }
 
+auto_line() {
+    installed=0
+    [ -r /etc/wysun-autostop.conf ] && installed=1
+    cat /var/lib/wysun-autostop/state /run/systemd/shutdown/scheduled 2>/dev/null | awk -F= -v installed="$installed" '
+        {v[$1] = substr($0, length($1) + 2)}
+        END {
+            once = 0
+            if (("USEC" in v) && (!("MODE" in v) || v["MODE"] == "poweroff" || v["MODE"] == "halt"))
+                once = sprintf("%d", v["USEC"] / 1000000)
+            n = ("NEXT_AT" in v && v["NEXT_AT"] != "") ? v["NEXT_AT"] : 0
+            r = ("NEXT_REASON" in v && v["NEXT_REASON"] != "") ? v["NEXT_REASON"] : "-"
+            i = ("IDLE_SINCE" in v && v["IDLE_SINCE"] != "") ? v["IDLE_SINCE"] : 0
+            b = ("BUSY" in v && v["BUSY"] != "") ? v["BUSY"] : "-"
+            printf "%s %s %s %s %s %s\n", installed, n, r, i, b, once
+        }'
+}
+
 up_line() {
     cut -d. -f1 /proc/uptime
 }
@@ -108,12 +130,13 @@ while :; do
     disk=$(disk_line)
     df=$(df_line)
     up=$(up_line)
+    auto=$(auto_line)
     top=$(top_line)
     read -r stamp _idle < /proc/uptime
 
     # A broken stdout pipe makes this write fail: the probe ends with its ssh.
-    printf 'S %s cpu=%s cores=%s load=%s mem=%s net=%s disk=%s df=%s up=%s top=%s\n' \
+    printf 'S %s cpu=%s cores=%s load=%s mem=%s net=%s disk=%s df=%s up=%s auto=%s top=%s\n' \
         "$stamp" "$cpu" "$cores" "$load1 $load5 $load15" "$mem" "$net" \
-        "$disk" "$df" "$up" "$top" || exit 0
+        "$disk" "$df" "$up" "$auto" "$top" || exit 0
     sleep "$INTERVAL" || exit 0
 done

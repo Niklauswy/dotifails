@@ -125,6 +125,7 @@ class Sample:
     mounts: list[tuple[str, float, float]]       # (mount, used_gb, size_gb)
     uptime_s: int
     top: list[tuple[int, float, float, str]]     # (pid, cpu %, ram_gb, command)
+    autostop: object = None                      # autostop.Live, when the probe sent one
 
 
 @dataclass
