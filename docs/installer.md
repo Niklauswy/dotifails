@@ -8,14 +8,14 @@ de acceso con greetd) y Brave, Discord y Obsidian por Flatpak. No tiene opciones
 ## Otro equipo
 
 ```sh
-git clone https://github.com/Niklauswy/dotifails.git ~/.local/share/wysun/source
-~/.local/share/wysun/source/instalar.sh
+git clone --depth 1 https://github.com/Niklauswy/dotifails.git wysun   # en la carpeta que quieras
+cd wysun
+./instalar.sh
 ```
 
-O bien `sh bootstrap.sh`, que clona la rama `main` y ejecuta exactamente eso. La copia se queda en
-`~/.local/share/wysun/source`: es la fuente de las actualizaciones de ese equipo. Si ya tienes el repositorio,
-ejecuta `./instalar.sh` desde su raíz. La base admitida es Debian 13 o Parrot 7, x86_64, con Internet y varios GB
-libres.
+La carpeta clonada queda registrada como la fuente de las actualizaciones de ese equipo: no la borres; si la
+mueves, vuelve a ejecutar `./instalar.sh` desde el nuevo sitio. La base admitida es Debian 13 o Parrot 7, x86_64,
+con Internet y varios GB libres.
 
 La instalación pide autorización cuando la necesita y conserva los cambios personales con respaldos y conflictos.
 Una instalación nueva usa el fondo `purple-abstract` y Material You; al terminar, elige **Wysun / Hyprland** en el

@@ -23,11 +23,12 @@ La instalación prepara la sesión **Wysun / Hyprland**, Quickshell y las aplica
 Desde una cuenta normal con acceso a `sudo`, conexión a Internet y varios GB libres:
 
 ```sh
-git clone https://github.com/Niklauswy/dotifails.git ~/.local/share/wysun/source
-~/.local/share/wysun/source/instalar.sh
+git clone --depth 1 https://github.com/Niklauswy/dotifails.git wysun   # en la carpeta que quieras
+cd wysun
+./instalar.sh
 ```
 
-`sh bootstrap.sh` hace exactamente eso: clona la rama `main` y ejecuta el instalador. La copia se queda en `~/.local/share/wysun/source` y es la fuente de las actualizaciones de ese equipo. Si ya tienes el repositorio, ejecuta `./instalar.sh` desde su raíz.
+Esa carpeta queda como la fuente del equipo: `wysun update` hace `git pull` ahí y aplica los cambios. No la borres; si la mueves, vuelve a ejecutar `./instalar.sh` desde el nuevo sitio.
 
 `./instalar.sh` instala todo: paquetes, runtime privado del shell, sesión Wysun / Hyprland, aplicaciones, terminal, Neovim, arranque (GRUB, Plymouth y la pantalla de acceso) y Brave/Discord/Obsidian por Flatpak. No tiene opciones y solo acepta `--dry-run`, que muestra el plan sin cambiar nada. No lo ejecutes con `sudo`: pide autorización cuando la necesita. Una instalación nueva usa el fondo `purple-abstract` y Material You: los colores salen del wallpaper y el modo (automático, claro u oscuro) se conserva al actualizar. Al terminar, cierra sesión cuando quieras y elige **Wysun / Hyprland** en el gestor de acceso. El instalador conserva los cambios personales, muestra conflictos, guarda el registro y permite recuperar respaldos.
 

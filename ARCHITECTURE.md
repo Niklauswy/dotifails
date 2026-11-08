@@ -255,7 +255,7 @@ Python estándar, solo terminal. Diario escrito antes de cada cambio, huellas po
 | `doctor`, `restore [ID]` | Diagnóstico y restauración de un respaldo |
 
 `--source`, `--target-home` y `--config-only` existen para pruebas (HOME temporal, sin paquetes ni sudo). La rama es `main`
-(`BRANCH`); `bootstrap.sh` clona en `~/.local/share/wysun/source`, que queda como fuente del equipo.
+(`BRANCH`). La carpeta desde la que se ejecuta `./instalar.sh` queda en el recibo (`source`) como fuente de `wysun update`.
 
 Piezas: `main.py` (despliegue, actualización, restauración, `doctor`), `install_model.py` (componentes, paquetes),
 `wayland.py` (sesión Hyprland, shell, runtime, portales), `runtime_build.py`, `qml_runtime.py`, `capture_distribution.py`
