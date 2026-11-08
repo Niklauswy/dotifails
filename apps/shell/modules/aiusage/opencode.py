@@ -1,7 +1,10 @@
 """OpenCode: local usage history from its database and OpenCode Go quota with the CLI's own sign-in.
 
 History comes from the assistant messages in opencode.db (legacy `message` and v2 `session_message`,
-a migrated message counted once), opened read-only. Each message carries OpenCode's own cost.
+a migrated message counted once), opened read-only. Each message carries OpenCode's own cost, which
+is 0 for subscriptions (OpenCode Go, Copilot) and free models; those are estimated at the model's API
+price from the catalog OpenCode caches (models.json, models.dev), so a truly free model stays at $0
+and a model missing from it is unpriced.
 The quota comes from https://opencode.ai/zen/go/v1/usage with the sign-in the OpenCode CLI keeps
 (active `credential` row for `opencode-go`, else `opencode`; legacy auth.json `opencode-go` key),
 read just before the request and sent only to opencode.ai. Formats follow CodexBar's OpenCode Go
@@ -52,8 +55,50 @@ def _rows(db, sql):
         return []
 
 
-def history(db, since):
-    """Assistant messages newer than `since` (epoch s): time, session, project, provider, model, tokens and cost."""
+def catalog(path):
+    """{provider: {model: cost}} from OpenCode's models.json cache; {} when missing or unreadable."""
+    try:
+        data = json.loads(Path(path).read_text())
+    except (OSError, ValueError):
+        return {}
+    prices = {}
+    for provider, entry in (data.items() if isinstance(data, dict) else ()):
+        models = entry.get('models') if isinstance(entry, dict) else None
+        for name, model in (models.items() if isinstance(models, dict) else ()):
+            cost = model.get('cost') if isinstance(model, dict) else None
+            if isinstance(cost, dict):
+                prices.setdefault(provider, {})[name] = cost
+    return prices
+
+
+def _rate(cost, key):
+    value = cost.get(key)
+    return float(value) if isinstance(value, (int, float)) and not isinstance(value, bool) else 0.0
+
+
+def estimate(prices, provider, name, tokens):
+    """API price in USD of one message (input, cacheRead, cacheWrite, output), or None when unknown.
+
+    Context tiers apply when the prompt (input plus cache) passes their size, as models.dev publishes them.
+    """
+    cost = (prices.get(provider) or {}).get(name)
+    if cost is None:
+        return None
+    prompt = tokens[0] + tokens[1] + tokens[2]
+    tiers = [t for t in cost.get('tiers') or [] if isinstance(t, dict)
+             and isinstance((t.get('tier') or {}).get('size'), (int, float)) and prompt > t['tier']['size']]
+    if tiers:
+        cost = dict(cost, **{k: v for k, v in max(tiers, key=lambda t: t['tier']['size']).items() if k != 'tier'})
+    rates = (_rate(cost, 'input'), _rate(cost, 'cache_read'), _rate(cost, 'cache_write'), _rate(cost, 'output'))
+    return sum(count * rate for count, rate in zip(tokens, rates)) / 1_000_000
+
+
+def history(db, since, prices=None):
+    """Assistant messages newer than `since` (epoch s): time, session, project, provider, model, tokens and cost.
+
+    A recorded cost of 0 with tokens is re-estimated from `prices` (see `catalog`).
+    """
+    prices = prices or {}
     found = {}
     for sql, v2 in ((HISTORY_SQL, False), (HISTORY_V2_SQL, True)):
         for ident, raw, directory, session_id in _rows(db, sql):
@@ -71,14 +116,19 @@ def history(db, since):
             name = (model or {}).get('id') if v2 else data.get('modelID')
             tokens = data.get('tokens') or {}
             cache = tokens.get('cache') or {}
+            counts = (int(tokens.get('input') or 0), int(cache.get('read') or 0), int(cache.get('write') or 0),
+                      int(tokens.get('output') or 0) + int(tokens.get('reasoning') or 0))
             cost = data.get('cost')
+            cost = float(cost) if isinstance(cost, (int, float)) and not isinstance(cost, bool) else None
+            if not any(counts):
+                cost = cost or 0.0  # an aborted message without tokens must not leave its hour unpriced
+            elif not cost:
+                cost = estimate(prices, provider, name, counts)
             found[ident] = {
                 'time': created / 1000, 'session': session_id or '', 'project': directory or (data.get('path') or {}).get('cwd') or '',
                 'provider': provider or 'unknown', 'model': f"{provider or 'unknown'}/{name or 'unknown'}",
-                'input': int(tokens.get('input') or 0), 'cacheRead': int(cache.get('read') or 0),
-                'cacheWrite': int(cache.get('write') or 0),
-                'output': int(tokens.get('output') or 0) + int(tokens.get('reasoning') or 0),
-                'cost': float(cost) if isinstance(cost, (int, float)) else None,
+                'input': counts[0], 'cacheRead': counts[1], 'cacheWrite': counts[2], 'output': counts[3],
+                'cost': cost,
             }
     return list(found.values())
 

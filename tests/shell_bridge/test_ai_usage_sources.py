@@ -301,6 +301,23 @@ class ClaudeApiTests(BackendHome):
         self.assertIsNone(claude['error'])
         self.assertTrue(claude['session']['renewable'])
 
+    def test_idle_profile_keeps_its_last_api_values_over_an_older_statusline(self):
+        # Claude Code renews the token only while it runs in that home (an Orca profile left closed).
+        (self.home / 'state/wysun/ai-usage').mkdir(parents=True, exist_ok=True)
+        (self.home / 'state/wysun/ai-usage/claude.json').write_text(json.dumps({'captured_at': self.now - 86400,
+            'rate_limits': {'five_hour': {'used_percentage': 1, 'resets_at': self.now - 80000}}}))
+        self.credentials()
+        self.backend.collect(now=self.now, live=True, opener=Opener({'https://api.anthropic.com/': (200, self.usage_body())}))
+        self.credentials(expires_in=-60)
+        later = self.claude(self.backend.collect(now=self.now + 2 * 3600, live=True, opener=Opener()))
+        self.assertEqual(later['source'], 'api')
+        self.assertEqual(later['updatedAt'], self.now)
+        self.assertEqual({l['id']: l['usedPercent'] for l in later['limits']}['session'], 12.0)
+        # A window that rolled over since the last answer starts empty, as with the status line.
+        rolled = self.claude(self.backend.collect(now=self.now + 4 * 3600, live=True, opener=Opener()))
+        session = {l['id']: l for l in rolled['limits']}['session']
+        self.assertEqual((session['usedPercent'], session['resetsAt']), (0.0, None))
+
     def test_expired_token_without_refresh_is_reported(self):
         (self.home / '.claude/.credentials.json').write_text(json.dumps({'claudeAiOauth': {
             'accessToken': SENTINEL, 'expiresAt': int((self.now - 60) * 1000), 'scopes': ['user:profile']}}))
@@ -425,6 +442,37 @@ class OpenCodeTests(BackendHome):
         self.assertAlmostEqual(models['deepseek/deepseek-v4']['cost'], 0.5)
         self.assertAlmostEqual(usage['totals']['cost'], 0.75)
         self.assertEqual({p['name'] for p in usage['projects']}, {'loom', 'tesis'})
+
+    def catalog(self, models):
+        path = self.backend.OPENCODE_CATALOG
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps({provider: {'models': {name: {'cost': cost} for name, cost in entries.items()}}
+                                    for provider, entries in models.items()}))
+
+    def test_subscription_messages_are_estimated_from_the_opencode_catalog(self):
+        # OpenCode records 0 for OpenCode Go, Copilot and free models.
+        self.catalog({'opencode-go': {'deepseek-v4.1-flash': {'input': 1.0, 'output': 2.0, 'cache_read': 0.1}},
+                      'opencode': {'big-pickle': {'input': 0, 'output': 0, 'cache_read': 0}}})
+        self.v2('m1', 'opencode-go', 'deepseek-v4.1-flash', output=1_000_000, cost=0)
+        self.v2('m2', 'opencode', 'big-pickle', cost=0)
+        self.v2('m3', 'claude-agent', 'sonnet', cost=0)
+        models = {m['model']: m for m in self.opencode(self.collect())['usage']['24h']['models']}
+        self.assertAlmostEqual(models['opencode-go/deepseek-v4.1-flash']['cost'], 2.0 + 20 / 1e6)
+        self.assertEqual(models['opencode/big-pickle']['cost'], 0)
+        self.assertIsNone(models['claude-agent/sonnet']['cost'])
+
+    def test_a_recorded_cost_is_kept_over_the_catalog(self):
+        self.catalog({'openai': {'gpt-5.4': {'input': 100, 'output': 100}}})
+        self.v2('m1', 'openai', 'gpt-5.4', cost=0.25)
+        usage = self.opencode(self.collect())['usage']['24h']
+        self.assertAlmostEqual(usage['totals']['cost'], 0.25)
+
+    def test_long_prompts_use_the_context_tier(self):
+        estimate = self.backend._sibling('opencode').estimate
+        prices = {'openai': {'gpt-5.4': {'input': 1, 'output': 0, 'tiers': [
+            {'input': 3, 'output': 0, 'tier': {'type': 'context', 'size': 1000}}]}}}
+        self.assertAlmostEqual(estimate(prices, 'openai', 'gpt-5.4', (1_000_000, 0, 0, 0)), 3)
+        self.assertAlmostEqual(estimate(prices, 'openai', 'gpt-5.4', (500, 0, 0, 0)), 500 / 1e6)
 
     def test_no_login_keeps_history(self):
         self.legacy('m1', 'deepseek', 'deepseek-v4')

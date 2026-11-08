@@ -39,6 +39,8 @@ from pathlib import Path
 HOME = Path.home()
 STATE = Path(os.environ.get('XDG_STATE_HOME') or HOME / '.local/state') / 'wysun/ai-usage'
 CACHE = Path(os.environ.get('XDG_CACHE_HOME') or HOME / '.cache') / 'wysun/ai-usage'
+# The price catalog OpenCode caches from models.dev, to estimate what its subscription messages cost.
+OPENCODE_CATALOG = Path(os.environ.get('XDG_CACHE_HOME') or HOME / '.cache') / 'opencode/models.json'
 CONFIG = Path(os.environ.get('XDG_CONFIG_HOME') or HOME / '.config') / 'wysun'
 SESSIONS = STATE / 'sessions'
 DEFAULT_HOMES = {
@@ -596,14 +598,27 @@ def claude_api_usage(account, now, opener=None):
         _api_cache({account['id']: entry})
     fresh = entry.get('details') if now - entry.get('at', 0) < API_KEEP else None
     error = entry.get('error')
-    return fresh, entry.get('at'), (None if fresh and error and error.get('kind') == 'network' else error)
+    return fresh, entry.get('at'), (None if fresh and error and error.get('kind') == 'network' else error), entry
+
+
+def _rolled_over(details, now):
+    """API details with every window that has reset since they were read starting empty again."""
+    limits = [dict(row, usedPercent=0.0, resetsAt=None) if row.get('resetsAt') and row['resetsAt'] <= now else row
+              for row in details.get('limits') or []]
+    return dict(details, limits=limits)
 
 
 def claude_account(account, now, named_by_folder=True, live=True, opener=None):
     """Live usage from Anthropic's API when Claude Code's sign-in allows it, else the status line snapshot."""
     api = _sibling('claude_api')
-    details, at, error = claude_api_usage(account, now, opener) if live else (None, None, None)
+    details, at, error, entry = claude_api_usage(account, now, opener) if live else (None, None, None, {})
     base = claude_statusline_account(account, now, named_by_folder)
+    if not details and entry.get('details') and entry.get('at', 0) > (base.get('updatedAt') or 0):
+        # Past API_KEEP the last answer still beats an older status line: a profile whose Claude Code is
+        # closed renews no token, and its stale snapshot would show long-gone windows as empty.
+        details, at = entry['details'], entry['at']
+    if details:
+        details = _rolled_over(details, now)
     base.update(session=api.session(account['home'], now), error=error, extra=None, cloud=None)
     if details:
         base.update(details, available=True, reason=None, source='api', updatedAt=at)
@@ -759,7 +774,9 @@ def opencode_records(accounts, now):
         if account['provider'] != 'opencode':
             continue
         sessions = {}
-        for row in _sibling('opencode').history(account['home'] / 'opencode.db', now - YEAR):
+        module = _sibling('opencode')
+        prices = module.catalog(OPENCODE_CATALOG)
+        for row in module.history(account['home'] / 'opencode.db', now - YEAR, prices):
             record = sessions.setdefault(row['session'], {
                 'account': account['id'], 'provider': 'opencode', 'session': row['session'],
                 'state': {'project': row['project']}, 'buckets': {}})

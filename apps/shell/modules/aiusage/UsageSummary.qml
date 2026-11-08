@@ -152,7 +152,7 @@ ColumnLayout {
 
     Breakdown {
         title: Tr.tr("Top models")
-        items: root.sum.models.slice(0, Tokens.sizes.aiUsage.maxModels).map(m => ({
+        items: Format.ranked(root.sum.models, root.byCost).slice(0, Tokens.sizes.aiUsage.maxModels).map(m => ({
                     name: m.model,
                     share: root.byCost ? m.costShare : m.tokenShare,
                     value: root.byCost ? (m.cost === null ? "—" : Format.money(m.cost)) : Format.tokens(m.tokens),
@@ -162,7 +162,7 @@ ColumnLayout {
 
     Breakdown {
         title: Tr.tr("Top projects")
-        items: root.sum.projects.slice(0, Tokens.sizes.aiUsage.maxProjects).map(p => ({
+        items: Format.ranked(root.sum.projects, root.byCost).slice(0, Tokens.sizes.aiUsage.maxProjects).map(p => ({
                     name: p.name,
                     share: root.byCost ? p.costShare : p.tokenShare,
                     value: root.byCost ? Format.money(p.cost ?? 0) : Format.tokens(p.tokens),

@@ -68,6 +68,16 @@ ColumnLayout {
     }
 
     Banner {
+        // Claude Code renews its token only while it runs in that home: a closed Orca profile stops updating.
+        visible: !!root.account.session && root.account.session.renewable && root.account.session.expired && AiUsage.isStale(root.account)
+        icon: "key"
+        tone: Colours.palette.m3tertiary
+        title: Tr.tr("Waiting for the sign-in to renew")
+        body: Tr.tr("Claude Code renews it only while it runs with this account. Open it once (in Orca, the profile) to update these limits.")
+        command: "claude"
+    }
+
+    Banner {
         visible: !!root.account.session && !root.account.session.renewable && (root.account.session.expired || (!!root.account.session.expiresAt && root.account.session.expiresAt - root.now / 1000 < 86400))
         icon: "key"
         tone: Colours.palette.m3tertiary

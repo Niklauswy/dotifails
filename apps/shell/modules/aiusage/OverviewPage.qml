@@ -182,6 +182,14 @@ ColumnLayout {
                                     font: Tokens.font.label.small
                                     color: Colours.palette.m3onSurfaceVariant
                                 }
+
+                                StyledText {
+                                    // Old numbers say how old they are instead of passing for current ones.
+                                    visible: AiUsage.isStale(row.modelData) && !!row.modelData.updatedAt
+                                    text: Tr.tr("data from %1 ago").arg(Format.age(row.modelData.updatedAt, root.now))
+                                    font: Tokens.font.label.small
+                                    color: Colours.palette.m3tertiary
+                                }
                             }
 
                             StyledText {

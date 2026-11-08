@@ -155,7 +155,7 @@ ColumnLayout {
 
         Breakdown {
             title: Tr.tr("By model")
-            items: (root.range?.models ?? []).slice(0, Tokens.sizes.aiUsage.maxModels).map(m => ({
+            items: Format.ranked(root.range?.models, root.byCost).slice(0, Tokens.sizes.aiUsage.maxModels).map(m => ({
                         name: m.model,
                         share: root.byCost ? m.costShare : m.tokenShare,
                         value: root.byCost ? (m.cost === null ? "—" : Format.money(m.cost)) : Format.tokens(m.tokens),
@@ -167,7 +167,7 @@ ColumnLayout {
 
         Breakdown {
             title: Tr.tr("By project")
-            items: (root.range?.projects ?? []).slice(0, Tokens.sizes.aiUsage.maxProjects).map(p => ({
+            items: Format.ranked(root.range?.projects, root.byCost).slice(0, Tokens.sizes.aiUsage.maxProjects).map(p => ({
                         name: p.name,
                         share: root.byCost ? p.costShare : p.tokenShare,
                         value: root.byCost ? Format.money(p.cost) : Format.tokens(p.tokens),

@@ -81,3 +81,11 @@ function bytes(value) {
     }
     return n + " B";
 }
+
+// Models or projects largest first by the chosen metric; ties fall back to the other one.
+function ranked(items, byCost) {
+    const cost = item => Number(item.cost) || 0;
+    const tokens = item => Number(item.tokens) || 0;
+    return (items ?? []).slice().sort((a, b) => byCost ? (cost(b) - cost(a)) || (tokens(b) - tokens(a))
+                                                      : (tokens(b) - tokens(a)) || (cost(b) - cost(a)));
+}
