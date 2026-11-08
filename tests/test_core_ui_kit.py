@@ -9,6 +9,7 @@ KIT = ('StateLayer', 'PillButton', 'Chip', 'Slider', 'ElidedLabel', 'Panel', 'Na
 CORE_UI = ROOT / 'apps/python/wysun_core/ui'
 # Different widgets that only share a name with a kit class (compared when the kit was extracted).
 DISTINCT = {
+    'apps/python/wysun_core/tui/kit.py:Toast',  # terminal notice of the TUI kit, not a Qt widget
 }
 
 
