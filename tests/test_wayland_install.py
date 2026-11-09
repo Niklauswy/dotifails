@@ -49,6 +49,30 @@ class WaylandInstallTests(unittest.TestCase):
             return installer.main(['apply', '--source', str(self.source), '--target-home',
                                    str(self.home), '--config-only'])
 
+    def test_session_check_skips_portal_outside_hyprland(self):
+        # Installing from another Wayland desktop (GNOME on a new machine) has no Hyprland
+        # portal backend yet; only a check from inside Hyprland can judge the portal.
+        stubs = self.home / 'stubs'; stubs.mkdir()
+        for name, out in (('Hyprland', 'Hyprland 0.55.1'), ('start-hyprland', ''), ('hyprctl', ''),
+                          ('swaylock', ''), ('swayidle', ''), ('dbus-update-activation-environment', ''),
+                          ('hyprpicker', '')):
+            (stubs / name).write_text('#!/bin/sh\necho "' + out + '"\n'); (stubs / name).chmod(0o755)
+        quickshell = self.home / 'runtime/quickshell/bin/quickshell'; quickshell.parent.mkdir(parents=True)
+        quickshell.write_text('#!/bin/sh\necho "quickshell 0.3.0"\n'); quickshell.chmod(0o755)
+        config = self.home / '.config/wysun/hyprland.lua'; config.parent.mkdir(parents=True, exist_ok=True)
+        config.write_text('-- fixture\n')
+        env = {'HOME': str(self.home), 'PATH': str(stubs) + ':/usr/bin:/bin', 'WYSUN_RUNTIME': str(self.home / 'runtime'),
+               'XDG_CONFIG_HOME': str(self.home / '.config'), 'XDG_SESSION_TYPE': 'wayland',
+               'DBUS_SESSION_BUS_ADDRESS': 'unix:path=' + str(self.home / 'no-bus')}
+        check = lambda extra: subprocess.run([sys.executable, str(ROOT / 'bin/wysun-session'), '--check'],
+                                             env={**env, **extra}, capture_output=True, text=True, timeout=30)
+        outside = check({})
+        self.assertEqual(outside.returncode, 0, outside.stderr)
+        self.assertIn('WYSUN_SESSION_PREFLIGHT_OK', outside.stdout)
+        inside = check({'HYPRLAND_INSTANCE_SIGNATURE': 'isolated-test'})
+        self.assertEqual(inside.returncode, 1)
+        self.assertIn('no ofrece captura Wayland', inside.stderr)
+
     def test_portal_check_reads_only_existing_unique_owner_and_never_activates(self):
         module = runpy.run_path(str(ROOT / 'bin/wysun-session'))
         bus = Mock()

@@ -56,7 +56,9 @@ def main():
         print('Wysun: el runtime del shell no responde como Quickshell 0.3.x; reconstrúyelo con installer/runtime_build.py.', file=sys.stderr)
         return 1
     if sys.argv[1:] == ['--check']:
-        if os.environ.get('XDG_SESSION_TYPE') == 'wayland' and not portal_preflight():
+        # The Hyprland portal backend only runs inside a Hyprland session; installing from
+        # another desktop (GNOME, KDE…) cannot check it, and Wysun / Hyprland starts it later.
+        if os.environ.get('HYPRLAND_INSTANCE_SIGNATURE') and not portal_preflight():
             return 1
         print('WYSUN_SESSION_PREFLIGHT_OK (sin iniciar compositor ni comprobar hardware)')
         return 0
