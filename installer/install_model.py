@@ -72,6 +72,12 @@ def package_names(source, components, extras=(), boot_components=None, inspect_i
             suite = RELEASES.get(read_os_release().get('ID'), 'trixie-backports')
             names.extend(name + '/' + suite for name in manifest.get('wayland_backports', []))
         names.extend(load_json(Path(source) / 'manifests/runtime.json', {}).get('build_packages', []))
+        # A -dev package of a backported library needs its exact ABI version, so on a
+        # fresh machine (nothing installed yet) it must come from the same suite too.
+        from wayland import RELEASES
+        suite = RELEASES.get(read_os_release().get('ID'), 'trixie-backports')
+        companions = set(manifest.get('wayland_installed_abi_companions', []))
+        names = [name + '/' + suite if name in companions else name for name in names]
     return list(dict.fromkeys(names))
 
 

@@ -82,6 +82,17 @@ class WaylandInstallTests(unittest.TestCase):
         self.assertNotIn('bspwm', packages)
         self.assertNotIn('picom', packages)
 
+    def test_fresh_machine_takes_abi_dev_packages_from_backports(self):
+        # Debian 13 without libxkbcommon-dev: libxkbcommon0 comes from backports, so
+        # its -dev build package must too, or APT refuses the exact-version Depends.
+        with patch.object(install_model, 'read_os_release', return_value={'ID': 'debian'}), \
+                patch.object(subprocess, 'run', return_value=subprocess.CompletedProcess([], 1, '', '')):
+            for inspect in (True, False):
+                packages = install_model.package_names(ROOT, ('wayland',), inspect_installed=inspect)
+                self.assertIn('libxkbcommon0/trixie-backports', packages)
+                self.assertIn('libxkbcommon-dev/trixie-backports', packages)
+                self.assertNotIn('libxkbcommon-dev', packages)
+
     def test_clean_update_conflicts_private_data_and_recovery(self):
         private = {'.config/other-desktop/wmrc': 'custom window manager', '.config/other-desktop/compositor.conf': 'custom compositor',
                    '.config/other-desktop/keysrc': 'my bindings', '.config/hypr/hyprland.conf': 'other session',
