@@ -92,6 +92,24 @@ class RepositoryPreparationTests(unittest.TestCase):
         self.assertEqual(set(receipt['inputs']), {'packages', 'session', 'boot', 'editor', 'extras'})
         self.assertNotIn('upgrade', [part for c in commands for part in c])
 
+    def test_native_app_is_kept_instead_of_its_flatpak(self):
+        # Brave from apt (/usr/bin/brave-browser): no Flatpak copy with an empty profile, and
+        # no ~/.local/bin wrapper shadowing it; apps without a native copy still come from Flathub.
+        home = self.root / 'home'; system = self.root / 'usr/bin'; system.mkdir(parents=True)
+        (system / 'brave-browser').write_text('#!/bin/sh\n'); (system / 'brave-browser').chmod(0o755)
+        ours = home / '.local/bin'; ours.mkdir(parents=True)
+        (ours / 'discord').write_text('#!/bin/sh\nexec flatpak run com.discordapp.Discord\n'); (ours / 'discord').chmod(0o755)
+        commands, wrappers = [], []
+        d = type('D', (), {'home': home, 'stage': lambda self, name: None,
+                           'generated': lambda self, text, relative, executable=False: wrappers.append(str(relative))})()
+        with patch.dict(os.environ, {'PATH': f'{ours}:{system}'}), \
+             patch.object(backend, 'run', side_effect=lambda command, *a, **k: commands.append(command)), \
+             contextlib.redirect_stdout(io.StringIO()):
+            backend.install_extras(('brave', 'discord', 'obsidian'), d, {})
+        installed = [c[-1] for c in commands if 'install' in c]
+        self.assertEqual(installed, ['com.discordapp.Discord', 'md.obsidian.Obsidian'])
+        self.assertEqual(wrappers, ['.local/bin/discord', '.local/bin/obsidian'])
+
     def test_dependency_failure_stops_before_configuration_changes(self):
         home = self.root / 'home'
         def fail_resolution(command, env=None):

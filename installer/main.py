@@ -469,13 +469,22 @@ def nvim_setup(d,env):
     write(d.state/'installed.json',d.receipt)
 
 
+def native_command(command,home):
+    """The distribution's own copy of an app (apt, .deb), outside the wrappers Wysun writes to ~/.local/bin."""
+    ours=(Path(home)/'.local/bin').resolve()
+    for folder in os.environ.get('PATH','/usr/local/bin:/usr/bin:/bin').split(os.pathsep):
+        if folder and Path(folder).resolve()!=ours and os.access(Path(folder)/command,os.X_OK):return str(Path(folder)/command)
+
+
 def install_extras(names,d,env):
     if not names:return
     d.stage('Aplicaciones opcionales')
     run(['flatpak','remote-add','--user','--if-not-exists','flathub','https://flathub.org/repo/flathub.flatpakrepo'],env)
     for name in names:
-        run(['flatpak','install','--user','--noninteractive','flathub',EXTRAS[name]],env)
         command='brave-browser' if name=='brave' else name
+        if native_command(command,d.home):
+            print(f'{name}: ya está instalado en el sistema ({native_command(command,d.home)}); no se añade la versión Flatpak.');continue
+        run(['flatpak','install','--user','--noninteractive','flathub',EXTRAS[name]],env)
         d.generated(f'#!/bin/sh\nexec flatpak run {EXTRAS[name]} "$@"\n',Path('.local/bin')/command,True)
 
 
