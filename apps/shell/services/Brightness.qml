@@ -20,6 +20,22 @@ Singleton {
     }
     readonly property list<Monitor> monitors: variants.instances
     property bool appleDisplayPresent: false
+    // DDC detection finished: before that every monitor reads the backlight, not its own level.
+    property bool ddcDetected: false
+    // Below this level the hardware minimum is not dark enough: hyprsunset's gamma adds up to
+    // `dimFloor` of extra dimming, from 100 % at `dimRange` down to `dimFloor` % at 0.
+    readonly property real dimRange: 0.2
+    readonly property int dimFloor: 50
+    readonly property real level: {
+        const ready = ddcDetected ? monitors.filter(m => m.ready) : [];
+        return ready.length ? Math.min(...ready.map(m => m.brightness)) : 1;
+    }
+
+    // Every connected screen follows the same level (slider, keys and bar scroll alike).
+    function setAll(value: real): void {
+        for (const m of monitors)
+            m.applyBrightness(value);
+    }
 
     function getMonitorForScreen(screen: ShellScreen): var {
         return monitors.find(m => m.modelData === screen);
@@ -60,8 +76,11 @@ Singleton {
             monitor.setBrightness(monitor.brightness - GlobalConfig.services.brightnessIncrement);
     }
 
+    onLevelChanged: NightLight.gamma = level >= dimRange ? 100 : Math.round(dimFloor + (100 - dimFloor) * level / dimRange)
+
     onMonitorsChanged: {
         ddcMonitors = [];
+        ddcDetected = false;
         ddcProc.running = true;
     }
 
@@ -86,10 +105,14 @@ Singleton {
 
         command: ["ddcutil", "detect", "--brief"]
         stdout: StdioCollector {
-            onStreamFinished: root.ddcMonitors = text.trim().split("\n\n").filter(d => d.startsWith("Display ")).map(d => ({
+            onStreamFinished: {
+                root.ddcMonitors = text.trim().split("\n\n").filter(d => d.startsWith("Display ")).map(d => ({
                         busNum: d.match(/I2C bus:[ ]*\/dev\/i2c-([0-9]+)/)[1],
                         connector: d.match(/DRM connector:\s+(.*)/)[1].replace(/^card\d+-/, "") // strip "card1-"
-                    }))
+                    }));
+                // Set after the map, so monitors re-read their own level (ready = false) first.
+                root.ddcDetected = true;
+            }
         }
     }
 
@@ -171,7 +194,7 @@ Singleton {
         readonly property string busNum: ddcInfo?.busNum ?? ""
         readonly property bool isAppleDisplay: root.appleDisplayPresent && modelData.model.startsWith("StudioDisplay")
         property real brightness
-        property real queuedBrightness: NaN
+        property bool ready
 
         readonly property Process initProc: Process {
             stdout: StdioCollector {
@@ -183,45 +206,63 @@ Singleton {
                         const [, , , cur, max] = text.split(" ");
                         monitor.brightness = parseInt(cur) / parseInt(max);
                     }
+                    monitor.ready = !isNaN(monitor.brightness);
                 }
             }
         }
 
-        readonly property Timer timer: Timer {
-            interval: 500
-            onTriggered: {
-                if (!isNaN(monitor.queuedBrightness)) {
-                    monitor.setBrightness(monitor.queuedBrightness);
-                    monitor.queuedBrightness = NaN;
+        // DDC writes go one at a time (a slow or retried ddcutil must not land after a newer one);
+        // while one runs, only the latest requested level waits for it.
+        property int pendingDdc: -1
+        property int ddcFailures: 0
+        readonly property Process ddcWriter: Process {
+            property int level
+            onExited: code => {
+                if (code !== 0 && monitor.pendingDdc < 0 && ++monitor.ddcFailures <= 2)
+                    monitor.pendingDdc = level;
+                else if (code === 0)
+                    monitor.ddcFailures = 0;
+                if (monitor.pendingDdc >= 0) {
+                    const next = monitor.pendingDdc;
+                    monitor.pendingDdc = -1;
+                    monitor.writeDdc(next);
                 }
             }
+        }
+
+        function writeDdc(level: int): void {
+            if (ddcWriter.running) {
+                pendingDdc = level;
+                return;
+            }
+            ddcWriter.level = level;
+            ddcWriter.command = ["ddcutil", "-b", busNum, "setvcp", "10", String(level)];
+            ddcWriter.running = true;
         }
 
         function setBrightness(value: real): void {
+            root.setAll(value);
+        }
+
+        function applyBrightness(value: real): void {
             value = Math.max(0, Math.min(1, value));
             const rounded = Math.round(value * 100);
             if (Math.round(brightness * 100) === rounded)
                 return;
 
-            if (isDdc && timer.running) {
-                queuedBrightness = value;
-                return;
-            }
-
             brightness = value;
+            ready = true;
 
             if (isAppleDisplay)
                 Quickshell.execDetached(["asdbctl", "set", rounded]);
             else if (isDdc)
-                Quickshell.execDetached(["ddcutil", "-b", busNum, "setvcp", "10", rounded]);
+                writeDdc(rounded);
             else
                 Quickshell.execDetached(["brightnessctl", "s", `${rounded}%`]);
-
-            if (isDdc)
-                timer.restart();
         }
 
         function initBrightness(): void {
+            ready = false;
             if (isAppleDisplay)
                 initProc.command = ["asdbctl", "get"];
             else if (isDdc)

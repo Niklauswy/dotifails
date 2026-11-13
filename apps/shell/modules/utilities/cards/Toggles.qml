@@ -22,7 +22,11 @@ StyledRect {
     readonly property var quickToggles: {
         const seenIds = new Set();
 
-        return Config.utilities.quickToggles.values.filter(item => {
+        // Night light is Wysun's own tile: shown even with a toggle list saved before it existed.
+        const items = Config.utilities.quickToggles.values;
+        const all = items.some(item => item.id === "nightLight") ? items : items.concat([{id: "nightLight", enabled: true}]);
+
+        return all.filter(item => {
             if (!item.enabled || seenIds.has(item.id))
                 return false;
 
@@ -135,6 +139,14 @@ StyledRect {
                         icon: "smart_display"
                         checked: PersistentState.wallpaperPlaying
                         onClicked: PersistentState.wallpaperPlaying = !PersistentState.wallpaperPlaying
+                    }
+                }
+                DelegateChoice {
+                    roleValue: "nightLight"
+                    delegate: ToggleTile {
+                        icon: "nightlight"
+                        checked: NightLight.active
+                        onClicked: NightLight.toggle()
                     }
                 }
                 DelegateChoice {

@@ -15,7 +15,7 @@ Scope {
     // (`wysun-shell surfaces` prints it). Each name maps to its ScreenState flag; '' = its own module.
     readonly property var surfaces: ({ dashboard: 'dashboard', windows: 'dashboard',
         overview: 'overview', cheatsheet: 'cheatsheet', wallpapers: 'wallpapers', launcher: 'launcher', emoji: 'emoji', menu: 'utilities', quicksettings: 'utilities', notifications: 'sidebar', sidebar: 'sidebar', session: 'session', ai: 'aiUsage',
-        colors: '', study: '' })
+        colors: '', study: '', nightlight: '' })
     Colors { id: colors }
     // Own keys only: a name such as "toString" must not resolve through the prototype.
     function fieldOf(kind) { return Object.prototype.hasOwnProperty.call(surfaces, kind) ? surfaces[kind] : undefined; }
@@ -45,6 +45,7 @@ Scope {
             return colors.open(toggle);
         }
         if (kind === "study") return Study.toggle();
+        if (kind === "nightlight") { NightLight.toggle(); return true; }
         const state = current(kind), field = fieldOf(kind);
         if (!state || !field || !available(kind, state)) return false;
         const value = toggle ? !state[field] : true;
